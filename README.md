@@ -76,16 +76,14 @@ Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decod
 
 ## Conformance (optional)
 
-The official runner is not vendored. From a protobuf **v35.1** tree:
+The suite rust_upb runs for wire/JSON/text **behavior** is official `conformance_test_runner` (v35.1). Test cases are generated in C++ inside that binary, not data files. Pin, rust_upb failure lists, and Google rust `shared/` tests live in `vendor/google/` (~304 KiB). The full protobuf tree needed to *build* the runner is gitignored (~115 MiB):
 
 ```bash
-cmake -S third_party/protobuf -B target/conformance-build
-cmake --build target/conformance-build --target conformance_test_runner
-cargo build --release --bin conformance
-./target/conformance-build/conformance_test_runner --maximum_edition 2023 target/release/conformance
+./scripts/fetch-protobuf.sh   # clones protocolbuffers/protobuf @ v35.1
+./scripts/conformance.sh      # builds runner, runs required twice
 ```
 
-`build.rs` expects `third_party/protobuf` for the descriptor set used by the conformance binary (clone tag `v35.1` there).
+`vendor/google/conformance/failure_list_rust_upb.txt` is rust_upb’s recommended proto2 UTF-8 skip list. This crate currently passes `--enforce_recommended` without it.
 
 ## License
 
