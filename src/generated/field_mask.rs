@@ -15,7 +15,7 @@ mod __gen {
 
     #[derive(Clone, Debug, PartialEq)]
     pub struct FieldMask {
-        paths: Repeated<ProtoString>,
+        paths: Repeated<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
@@ -33,37 +33,39 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "google.protobuf.FieldMask";
-        pub fn paths(&self) -> RepeatedView<'_, ProtoString> {
+        pub fn paths(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.paths.as_view()
         }
-        pub fn paths_mut(&mut self) -> RepeatedMut<'_, ProtoString> {
+        pub fn paths_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyStr> {
             self.cached_size.dirty();
             self.paths.as_mut()
         }
-        pub fn set_paths(&mut self, v: Repeated<ProtoString>) {
+        pub fn set_paths(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
             self.cached_size.dirty();
             self.paths = v;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -74,6 +76,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -86,9 +89,11 @@ mod __gen {
                 }
                 match (n, w) {
                     (1, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.paths.push(ProtoString::from_bytes(b));
+                        self.paths
+                            .push(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     _ => self
                         .unknown

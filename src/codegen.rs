@@ -365,8 +365,8 @@ fn scalar_type(field: &FieldDescriptor) -> String {
         FieldType::Uint64 | FieldType::Fixed64 => "u64".into(),
         FieldType::Uint32 | FieldType::Fixed32 => "u32".into(),
         FieldType::Bool => "bool".into(),
-        FieldType::String => "ProtoString".into(),
-        FieldType::Bytes => "ProtoBytes".into(),
+        FieldType::String => "protobuf::rt::LazyStr".into(),
+        FieldType::Bytes => "protobuf::rt::LazyBytes".into(),
         FieldType::Message | FieldType::Group => rust_ident(
             field
                 .type_name
@@ -570,7 +570,10 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(src, "        self.cached_size.dirty();");
             emit_oneof_clear(src, desc, f);
-            let _ = writeln!(src, "        self.{id} = Some(v.into_proxied());");
+            let _ = writeln!(
+                src,
+                "        self.{id} = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));"
+            );
             let _ = writeln!(src, "    }}");
             let _ = writeln!(
                 src,
@@ -583,7 +586,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); self.{id} = v.into_proxied(); }}"
+                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::LazyStr::owned(v.into_proxied()); }}"
             );
         }
         return;
@@ -596,7 +599,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(v.into_proxied()); }}"
+                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(protobuf::rt::LazyBytes::owned(v.into_proxied())); }}"
             );
         } else {
             let _ = writeln!(
@@ -605,7 +608,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = v.into_proxied(); }}"
+                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::LazyBytes::owned(v.into_proxied()); }}"
             );
         }
         return;
@@ -743,25 +746,26 @@ fn map_val_ty(field: &FieldDescriptor) -> FieldType {
 fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(
         src,
-        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ let mut pos = 0; self.merge_inner(data, &mut pos, depth, true, None) }}"
+        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ let w = protobuf::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, true, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ let mut pos = 0; self.merge_inner(data, &mut pos, depth, false, None) }}"
+        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ let w = protobuf::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, false, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_group(&mut self, data: &[u8], pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(data, pos, depth, false, Some(num)) }}"
+        "    fn merge_group(&mut self, wire: &protobuf::rt::Wire, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(wire, pos, depth, false, Some(num)) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_inner(&mut self, data: &[u8], pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
+        "    fn merge_inner(&mut self, wire: &protobuf::rt::Wire, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
     );
     let _ = writeln!(
         src,
         "        if depth > protobuf::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let _ = enforce;"
     );
     let _ = writeln!(src, "        self.cached_size.dirty();");
+    let _ = writeln!(src, "        let data = wire.as_slice();");
     let _ = writeln!(src, "        while *pos < data.len() {{");
     let _ = writeln!(
         src,
@@ -902,11 +906,11 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
         let _ = writeln!(
             src,
-            "                    let p = protobuf::rt::read_len_bytes(data, pos)?;"
+            "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?;"
         );
         let _ = writeln!(
             src,
-            "                    let (kk, vv) = decode_map_entry_{}_{num}(p, depth + 1)?;",
+            "                    let (kk, vv) = decode_map_entry_{}_{num}(&wire.window(s, e), depth + 1)?;",
             id.replace("r#", "")
         );
         let _ = writeln!(src, "                    self.{id}.insert(kk, vv);");
@@ -920,15 +924,15 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             } else {
                 ""
             };
-            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let b = protobuf::rt::read_len_bytes(data, pos)?; {utf} self.{id}.push(ProtoString::from_bytes(b)); }}");
+            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} self.{id}.push(protobuf::rt::LazyStr::from_wire(wire.window(s, e))); }}");
         } else if f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => self.{id}.push(ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?)),");
+            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; self.{id}.push(protobuf::rt::LazyBytes::from_wire(wire.window(s, e))); }}");
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
             let t = scalar_type(f);
             if f.field_type == FieldType::Group || f.delimited {
-                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_SGROUP) => {{ let mut inner = {t}::default(); inner.merge_group(data, pos, {num}, depth + 1)?; self.{id}.push(inner); }}");
+                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_SGROUP) => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; self.{id}.push(inner); }}");
             } else {
-                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let p = protobuf::rt::read_len_bytes(data, pos)?; let mut inner = {t}::default(); inner.merge_bytes(p, depth + 1)?; self.{id}.push(inner); }}");
+                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id}.push(inner); }}");
             }
         } else if f.field_type.is_packable() {
             let expr = read_scalar_expr(f.field_type, "p", "&mut i");
@@ -957,16 +961,16 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 "                ({num}, protobuf::rt::WIRE_SGROUP) => {{"
             );
             emit_oneof_clear(src, desc, f);
-            let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => existing.merge_group(data, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(data, pos, {num}, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }}");
+            let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => existing.merge_group(wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }}");
             let _ = writeln!(src, "                }}");
         } else {
             let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
             emit_oneof_clear(src, desc, f);
             let _ = writeln!(
                 src,
-                "                    let p = protobuf::rt::read_len_bytes(data, pos)?;"
+                "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?;"
             );
-            let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => existing.merge_bytes(p, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_bytes(p, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }}");
+            let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => {{ let mut ip = 0; existing.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id} = Some(Box::new(inner)); }} }}");
             let _ = writeln!(src, "                }}");
         }
         return;
@@ -978,28 +982,31 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             ""
         };
         let assign = if is_option(f) {
-            format!("self.{id} = Some(ProtoString::from_bytes(b))")
+            format!("self.{id} = Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)))")
         } else {
-            format!("self.{id} = ProtoString::from_bytes(b)")
+            format!("self.{id} = protobuf::rt::LazyStr::from_wire(wire.window(s, e))")
         };
         let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
         emit_oneof_clear(src, desc, f);
         let _ = writeln!(
             src,
-            "                    let b = protobuf::rt::read_len_bytes(data, pos)?; {utf} {assign};"
+            "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {assign};"
         );
         let _ = writeln!(src, "                }}");
         return;
     }
     if f.field_type == FieldType::Bytes {
         let assign = if is_option(f) {
-            format!("self.{id} = Some(ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?))")
+            format!("self.{id} = Some(protobuf::rt::LazyBytes::from_wire(wire.window(s, e)))")
         } else {
-            format!("self.{id} = ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?)")
+            format!("self.{id} = protobuf::rt::LazyBytes::from_wire(wire.window(s, e))")
         };
         let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
         emit_oneof_clear(src, desc, f);
-        let _ = writeln!(src, "                    {assign};");
+        let _ = writeln!(
+            src,
+            "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?; {assign};"
+        );
         let _ = writeln!(src, "                }}");
         return;
     }
@@ -1319,9 +1326,9 @@ fn emit_map_decoders(src: &mut String, desc: &MessageDescriptor) {
         let vty = map_val_ty(f);
         let _ = writeln!(
             src,
-            "fn decode_map_entry_{id}_{num}(data: &[u8], depth: u32) -> Result<({k}, {v}), ParseError> {{"
+            "fn decode_map_entry_{id}_{num}(wire: &protobuf::rt::Wire, depth: u32) -> Result<({k}, {v}), ParseError> {{"
         );
-        let _ = writeln!(src, "    let _ = depth; let mut key = {k}::default(); let mut val = {v}::default(); let mut pos = 0;");
+        let _ = writeln!(src, "    let _ = depth; let data = wire.as_slice(); let mut key = {k}::default(); let mut val = {v}::default(); let mut pos = 0;");
         let _ = writeln!(src, "    while pos < data.len() {{ let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?; match (n, w) {{");
         emit_map_scalar_decode(src, 1, "key", kty, f.utf8_validate);
         emit_map_scalar_decode(src, 2, "val", vty, f.utf8_validate);
@@ -1339,16 +1346,16 @@ fn emit_map_scalar_decode(src: &mut String, n: u32, var: &str, ty: FieldType, ut
     match ty {
         FieldType::String => {
             if utf8 {
-                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let b = protobuf::rt::read_len_bytes(data, &mut pos)?; std::str::from_utf8(b).map_err(|_| ParseError::new(\"invalid utf-8\"))?; {var} = ProtoString::from_bytes(b); }},");
+                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?; {var} = protobuf::rt::LazyStr::from_wire(wire.window(s, e)); }},");
             } else {
-                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {var} = ProtoString::from_bytes(protobuf::rt::read_len_bytes(data, &mut pos)?),");
+                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; {var} = protobuf::rt::LazyStr::from_wire(wire.window(s, e)); }},");
             }
         }
         FieldType::Bytes => {
-            let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {var} = ProtoBytes::from(protobuf::rt::read_len_bytes(data, &mut pos)?),");
+            let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; {var} = protobuf::rt::LazyBytes::from_wire(wire.window(s, e)); }},");
         }
         FieldType::Message | FieldType::Group => {
-            let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let p = protobuf::rt::read_len_bytes(data, &mut pos)?; {var}.merge_bytes(p, depth)?; }},");
+            let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; let mut ip = 0; {var}.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?; }},");
         }
         FieldType::Float => {
             let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_I32) => {var} = f32::from_bits(protobuf::rt::read_fixed32(data, &mut pos)?),");

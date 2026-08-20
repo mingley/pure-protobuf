@@ -45,25 +45,27 @@ mod __gen {
             self.values = v;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -74,6 +76,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -86,9 +89,10 @@ mod __gen {
                 }
                 match (n, w) {
                     (1, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let mut inner = PbValue::default();
-                        inner.merge_bytes(p, depth + 1)?;
+                        let mut ip = 0;
+                        inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?;
                         self.values.push(inner);
                     }
                     _ => self
@@ -180,7 +184,7 @@ mod __gen {
     protobuf::impl_typed_message!(ListValue, ListValueView, ListValueMut);
     #[derive(Clone, Debug, PartialEq)]
     pub struct Struct {
-        fields: Map<ProtoString, PbValue>,
+        fields: Map<protobuf::rt::LazyStr, PbValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
@@ -198,37 +202,39 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "google.protobuf.Struct";
-        pub fn fields(&self) -> MapView<'_, ProtoString, PbValue> {
+        pub fn fields(&self) -> MapView<'_, protobuf::rt::LazyStr, PbValue> {
             self.fields.as_view()
         }
-        pub fn fields_mut(&mut self) -> MapMut<'_, ProtoString, PbValue> {
+        pub fn fields_mut(&mut self) -> MapMut<'_, protobuf::rt::LazyStr, PbValue> {
             self.cached_size.dirty();
             self.fields.as_mut()
         }
-        pub fn set_fields(&mut self, v: Map<ProtoString, PbValue>) {
+        pub fn set_fields(&mut self, v: Map<protobuf::rt::LazyStr, PbValue>) {
             self.cached_size.dirty();
             self.fields = v;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -239,6 +245,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -251,8 +258,8 @@ mod __gen {
                 }
                 match (n, w) {
                     (1, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_fields_1(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) = decode_map_entry_fields_1(&wire.window(s, e), depth + 1)?;
                         self.fields.insert(kk, vv);
                     }
                     _ => self
@@ -350,24 +357,27 @@ mod __gen {
     }
     protobuf::impl_typed_message!(Struct, StructView, StructMut);
     fn decode_map_entry_fields_1(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
-    ) -> Result<(ProtoString, PbValue), ParseError> {
+    ) -> Result<(protobuf::rt::LazyStr, PbValue), ParseError> {
         let _ = depth;
-        let mut key = ProtoString::default();
+        let data = wire.as_slice();
+        let mut key = protobuf::rt::LazyStr::default();
         let mut val = PbValue::default();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
                 (1, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 (2, protobuf::rt::WIRE_LEN) => {
-                    let p = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    val.merge_bytes(p, depth)?;
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    let mut ip = 0;
+                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
                 }
                 _ => protobuf::rt::skip_field(data, &mut pos, w)?,
             }
@@ -378,7 +388,7 @@ mod __gen {
     pub struct PbValue {
         null_value: Option<i32>,
         number_value: Option<f64>,
-        string_value: Option<ProtoString>,
+        string_value: Option<protobuf::rt::LazyStr>,
         bool_value: Option<bool>,
         struct_value: Option<Box<Struct>>,
         list_value: Option<Box<ListValue>>,
@@ -444,7 +454,7 @@ mod __gen {
             self.bool_value = None;
             self.struct_value = None;
             self.list_value = None;
-            self.string_value = Some(v.into_proxied());
+            self.string_value = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
         pub fn clear_string_value(&mut self) {
             self.cached_size.dirty();
@@ -507,25 +517,27 @@ mod __gen {
             self.list_value = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -536,6 +548,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -570,9 +583,11 @@ mod __gen {
                         self.bool_value = None;
                         self.struct_value = None;
                         self.list_value = None;
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.string_value = Some(ProtoString::from_bytes(b));
+                        self.string_value =
+                            Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (4, protobuf::rt::WIRE_VARINT) => {
                         self.null_value = None;
@@ -588,12 +603,28 @@ mod __gen {
                         self.string_value = None;
                         self.bool_value = None;
                         self.list_value = None;
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         match &mut self.struct_value {
-                            Some(existing) => existing.merge_bytes(p, depth + 1)?,
+                            Some(existing) => {
+                                let mut ip = 0;
+                                existing.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            }
                             None => {
                                 let mut inner = Struct::default();
-                                inner.merge_bytes(p, depth + 1)?;
+                                let mut ip = 0;
+                                inner.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
                                 self.struct_value = Some(Box::new(inner));
                             }
                         }
@@ -604,12 +635,28 @@ mod __gen {
                         self.string_value = None;
                         self.bool_value = None;
                         self.struct_value = None;
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         match &mut self.list_value {
-                            Some(existing) => existing.merge_bytes(p, depth + 1)?,
+                            Some(existing) => {
+                                let mut ip = 0;
+                                existing.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            }
                             None => {
                                 let mut inner = ListValue::default();
-                                inner.merge_bytes(p, depth + 1)?;
+                                let mut ip = 0;
+                                inner.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
                                 self.list_value = Some(Box::new(inner));
                             }
                         }

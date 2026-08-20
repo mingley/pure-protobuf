@@ -3,12 +3,13 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub use crate::error::{ParseError, SerializeError};
+pub use crate::lazy::{LazyBytes, LazyStr, Wire};
 pub use crate::wire::{
     capture_unknown, check_size, decode_tag, decode_varint, decode_zigzag32, decode_zigzag64,
     encode_len_field, encode_len_header, encode_tag, encode_varint, encode_zigzag32,
-    encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64, read_len_bytes, skip_field,
-    tag_len, varint_len, UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64, WIRE_LEN,
-    WIRE_SGROUP, WIRE_VARINT,
+    encode_zigzag64, key_len_value_len, read_fixed32, read_fixed64, read_len_bytes, read_len_span,
+    skip_field, tag_len, varint_len, UnknownField, UnknownFields, WIRE_EGROUP, WIRE_I32, WIRE_I64,
+    WIRE_LEN, WIRE_SGROUP, WIRE_VARINT,
 };
 
 /// Encoded-size cache (C++ `cached_size_`). Ignored by `PartialEq`.

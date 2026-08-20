@@ -15,8 +15,8 @@ mod __gen {
 
     #[derive(Clone, Debug, PartialEq)]
     pub struct Any {
-        type_url: ProtoString,
-        value: ProtoBytes,
+        type_url: protobuf::rt::LazyStr,
+        value: protobuf::rt::LazyBytes,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
@@ -40,35 +40,37 @@ mod __gen {
         }
         pub fn set_type_url(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.type_url = v.into_proxied();
+            self.type_url = protobuf::rt::LazyStr::owned(v.into_proxied());
         }
         pub fn value(&self) -> &[u8] {
             self.value.as_bytes()
         }
         pub fn set_value(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.value = v.into_proxied();
+            self.value = protobuf::rt::LazyBytes::owned(v.into_proxied());
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -79,6 +81,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -91,12 +94,14 @@ mod __gen {
                 }
                 match (n, w) {
                     (1, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.type_url = ProtoString::from_bytes(b);
+                        self.type_url = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                     }
                     (2, protobuf::rt::WIRE_LEN) => {
-                        self.value = ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?);
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.value = protobuf::rt::LazyBytes::from_wire(wire.window(s, e));
                     }
                     _ => self
                         .unknown

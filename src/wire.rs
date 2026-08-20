@@ -246,13 +246,19 @@ pub fn skip_field(buf: &[u8], pos: &mut usize, wire: u32) -> Result<(), ParseErr
 }
 
 pub fn read_len_bytes<'a>(buf: &'a [u8], pos: &mut usize) -> Result<&'a [u8], ParseError> {
+    let (start, end) = read_len_span(buf, pos)?;
+    Ok(&buf[start..end])
+}
+
+/// Length-delimited payload as `start..end` indices into `buf` (after the length varint).
+pub fn read_len_span(buf: &[u8], pos: &mut usize) -> Result<(usize, usize), ParseError> {
     let len = decode_varint(buf, pos)? as usize;
     if *pos + len > buf.len() {
         return Err(ParseError::new("truncated length-delimited"));
     }
     let start = *pos;
     *pos += len;
-    Ok(&buf[start..*pos])
+    Ok((start, *pos))
 }
 
 pub fn read_fixed32(buf: &[u8], pos: &mut usize) -> Result<u32, ParseError> {

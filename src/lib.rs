@@ -49,6 +49,7 @@ pub mod gencode;
 mod generated;
 mod internal;
 pub(crate) mod json;
+mod lazy;
 mod map;
 mod message;
 mod proxied;

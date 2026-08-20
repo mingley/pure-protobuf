@@ -41,25 +41,27 @@ mod __gen {
             self.d = Some(v);
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -70,6 +72,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -201,25 +204,27 @@ mod __gen {
             self.c = Some(v);
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -230,6 +235,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -364,25 +370,27 @@ mod __gen {
             self.c = Some(v);
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -393,6 +401,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -510,14 +519,14 @@ mod __gen {
         optional_float: Option<f32>,
         optional_double: Option<f64>,
         optional_bool: Option<bool>,
-        optional_string: Option<ProtoString>,
-        optional_bytes: Option<ProtoBytes>,
+        optional_string: Option<protobuf::rt::LazyStr>,
+        optional_bytes: Option<protobuf::rt::LazyBytes>,
         optional_nested_message: Option<Box<NestedMessage>>,
         optional_foreign_message: Option<Box<ForeignMessageEdition2023>>,
         optional_nested_enum: Option<i32>,
         optional_foreign_enum: Option<i32>,
-        optional_string_piece: Option<ProtoString>,
-        optional_cord: Option<ProtoString>,
+        optional_string_piece: Option<protobuf::rt::LazyStr>,
+        optional_cord: Option<protobuf::rt::LazyStr>,
         recursive_message: Option<Box<TestAllTypesEdition2023>>,
         repeated_int32: Repeated<i32>,
         repeated_int64: Repeated<i64>,
@@ -532,14 +541,14 @@ mod __gen {
         repeated_float: Repeated<f32>,
         repeated_double: Repeated<f64>,
         repeated_bool: Repeated<bool>,
-        repeated_string: Repeated<ProtoString>,
-        repeated_bytes: Repeated<ProtoBytes>,
+        repeated_string: Repeated<protobuf::rt::LazyStr>,
+        repeated_bytes: Repeated<protobuf::rt::LazyBytes>,
         repeated_nested_message: Repeated<NestedMessage>,
         repeated_foreign_message: Repeated<ForeignMessageEdition2023>,
         repeated_nested_enum: Repeated<i32>,
         repeated_foreign_enum: Repeated<i32>,
-        repeated_string_piece: Repeated<ProtoString>,
-        repeated_cord: Repeated<ProtoString>,
+        repeated_string_piece: Repeated<protobuf::rt::LazyStr>,
+        repeated_cord: Repeated<protobuf::rt::LazyStr>,
         map_int32_int32: Map<i32, i32>,
         map_int64_int64: Map<i64, i64>,
         map_uint32_uint32: Map<u32, u32>,
@@ -553,12 +562,12 @@ mod __gen {
         map_int32_float: Map<i32, f32>,
         map_int32_double: Map<i32, f64>,
         map_bool_bool: Map<bool, bool>,
-        map_string_string: Map<ProtoString, ProtoString>,
-        map_string_bytes: Map<ProtoString, ProtoBytes>,
-        map_string_nested_message: Map<ProtoString, NestedMessage>,
-        map_string_foreign_message: Map<ProtoString, ForeignMessageEdition2023>,
-        map_string_nested_enum: Map<ProtoString, i32>,
-        map_string_foreign_enum: Map<ProtoString, i32>,
+        map_string_string: Map<protobuf::rt::LazyStr, protobuf::rt::LazyStr>,
+        map_string_bytes: Map<protobuf::rt::LazyStr, protobuf::rt::LazyBytes>,
+        map_string_nested_message: Map<protobuf::rt::LazyStr, NestedMessage>,
+        map_string_foreign_message: Map<protobuf::rt::LazyStr, ForeignMessageEdition2023>,
+        map_string_nested_enum: Map<protobuf::rt::LazyStr, i32>,
+        map_string_foreign_enum: Map<protobuf::rt::LazyStr, i32>,
         packed_int32: Repeated<i32>,
         packed_int64: Repeated<i64>,
         packed_uint32: Repeated<u32>,
@@ -589,8 +598,8 @@ mod __gen {
         unpacked_nested_enum: Repeated<i32>,
         oneof_uint32: Option<u32>,
         oneof_nested_message: Option<Box<NestedMessage>>,
-        oneof_string: Option<ProtoString>,
-        oneof_bytes: Option<ProtoBytes>,
+        oneof_string: Option<protobuf::rt::LazyStr>,
+        oneof_bytes: Option<protobuf::rt::LazyBytes>,
         oneof_bool: Option<bool>,
         oneof_uint64: Option<u64>,
         oneof_float: Option<f32>,
@@ -599,8 +608,8 @@ mod __gen {
         extension_int32: Option<i32>,
         groupliketype: Option<Box<GroupLikeType>>,
         delimited_ext: Option<Box<GroupLikeType>>,
-        extension_string: Option<ProtoString>,
-        extension_bytes: Option<ProtoBytes>,
+        extension_string: Option<protobuf::rt::LazyStr>,
+        extension_bytes: Option<protobuf::rt::LazyBytes>,
         groupliketype_201: Option<Box<TestAllTypesEdition2023GroupLikeType>>,
         delimited_field: Option<Box<TestAllTypesEdition2023GroupLikeType>>,
         map_recursive: Map<i32, TestAllTypesEdition2023>,
@@ -830,7 +839,7 @@ mod __gen {
         }
         pub fn set_optional_string(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string = Some(v.into_proxied());
+            self.optional_string = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
         pub fn clear_optional_string(&mut self) {
             self.cached_size.dirty();
@@ -844,7 +853,7 @@ mod __gen {
         }
         pub fn set_optional_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes = Some(v.into_proxied());
+            self.optional_bytes = Some(protobuf::rt::LazyBytes::owned(v.into_proxied()));
         }
         pub fn has_optional_nested_message(&self) -> bool {
             self.optional_nested_message.is_some()
@@ -909,7 +918,7 @@ mod __gen {
         }
         pub fn set_optional_string_piece(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string_piece = Some(v.into_proxied());
+            self.optional_string_piece = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
         pub fn clear_optional_string_piece(&mut self) {
             self.cached_size.dirty();
@@ -926,7 +935,7 @@ mod __gen {
         }
         pub fn set_optional_cord(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_cord = Some(v.into_proxied());
+            self.optional_cord = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
         pub fn clear_optional_cord(&mut self) {
             self.cached_size.dirty();
@@ -1094,25 +1103,25 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_bool = v;
         }
-        pub fn repeated_string(&self) -> RepeatedView<'_, ProtoString> {
+        pub fn repeated_string(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_string.as_view()
         }
-        pub fn repeated_string_mut(&mut self) -> RepeatedMut<'_, ProtoString> {
+        pub fn repeated_string_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyStr> {
             self.cached_size.dirty();
             self.repeated_string.as_mut()
         }
-        pub fn set_repeated_string(&mut self, v: Repeated<ProtoString>) {
+        pub fn set_repeated_string(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
             self.cached_size.dirty();
             self.repeated_string = v;
         }
-        pub fn repeated_bytes(&self) -> RepeatedView<'_, ProtoBytes> {
+        pub fn repeated_bytes(&self) -> RepeatedView<'_, protobuf::rt::LazyBytes> {
             self.repeated_bytes.as_view()
         }
-        pub fn repeated_bytes_mut(&mut self) -> RepeatedMut<'_, ProtoBytes> {
+        pub fn repeated_bytes_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyBytes> {
             self.cached_size.dirty();
             self.repeated_bytes.as_mut()
         }
-        pub fn set_repeated_bytes(&mut self, v: Repeated<ProtoBytes>) {
+        pub fn set_repeated_bytes(&mut self, v: Repeated<protobuf::rt::LazyBytes>) {
             self.cached_size.dirty();
             self.repeated_bytes = v;
         }
@@ -1162,25 +1171,25 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_foreign_enum = v;
         }
-        pub fn repeated_string_piece(&self) -> RepeatedView<'_, ProtoString> {
+        pub fn repeated_string_piece(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_string_piece.as_view()
         }
-        pub fn repeated_string_piece_mut(&mut self) -> RepeatedMut<'_, ProtoString> {
+        pub fn repeated_string_piece_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyStr> {
             self.cached_size.dirty();
             self.repeated_string_piece.as_mut()
         }
-        pub fn set_repeated_string_piece(&mut self, v: Repeated<ProtoString>) {
+        pub fn set_repeated_string_piece(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
             self.cached_size.dirty();
             self.repeated_string_piece = v;
         }
-        pub fn repeated_cord(&self) -> RepeatedView<'_, ProtoString> {
+        pub fn repeated_cord(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_cord.as_view()
         }
-        pub fn repeated_cord_mut(&mut self) -> RepeatedMut<'_, ProtoString> {
+        pub fn repeated_cord_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyStr> {
             self.cached_size.dirty();
             self.repeated_cord.as_mut()
         }
-        pub fn set_repeated_cord(&mut self, v: Repeated<ProtoString>) {
+        pub fn set_repeated_cord(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
             self.cached_size.dirty();
             self.repeated_cord = v;
         }
@@ -1327,76 +1336,97 @@ mod __gen {
             self.cached_size.dirty();
             self.map_bool_bool = v;
         }
-        pub fn map_string_string(&self) -> MapView<'_, ProtoString, ProtoString> {
+        pub fn map_string_string(
+            &self,
+        ) -> MapView<'_, protobuf::rt::LazyStr, protobuf::rt::LazyStr> {
             self.map_string_string.as_view()
         }
-        pub fn map_string_string_mut(&mut self) -> MapMut<'_, ProtoString, ProtoString> {
+        pub fn map_string_string_mut(
+            &mut self,
+        ) -> MapMut<'_, protobuf::rt::LazyStr, protobuf::rt::LazyStr> {
             self.cached_size.dirty();
             self.map_string_string.as_mut()
         }
-        pub fn set_map_string_string(&mut self, v: Map<ProtoString, ProtoString>) {
+        pub fn set_map_string_string(
+            &mut self,
+            v: Map<protobuf::rt::LazyStr, protobuf::rt::LazyStr>,
+        ) {
             self.cached_size.dirty();
             self.map_string_string = v;
         }
-        pub fn map_string_bytes(&self) -> MapView<'_, ProtoString, ProtoBytes> {
+        pub fn map_string_bytes(
+            &self,
+        ) -> MapView<'_, protobuf::rt::LazyStr, protobuf::rt::LazyBytes> {
             self.map_string_bytes.as_view()
         }
-        pub fn map_string_bytes_mut(&mut self) -> MapMut<'_, ProtoString, ProtoBytes> {
+        pub fn map_string_bytes_mut(
+            &mut self,
+        ) -> MapMut<'_, protobuf::rt::LazyStr, protobuf::rt::LazyBytes> {
             self.cached_size.dirty();
             self.map_string_bytes.as_mut()
         }
-        pub fn set_map_string_bytes(&mut self, v: Map<ProtoString, ProtoBytes>) {
+        pub fn set_map_string_bytes(
+            &mut self,
+            v: Map<protobuf::rt::LazyStr, protobuf::rt::LazyBytes>,
+        ) {
             self.cached_size.dirty();
             self.map_string_bytes = v;
         }
-        pub fn map_string_nested_message(&self) -> MapView<'_, ProtoString, NestedMessage> {
+        pub fn map_string_nested_message(
+            &self,
+        ) -> MapView<'_, protobuf::rt::LazyStr, NestedMessage> {
             self.map_string_nested_message.as_view()
         }
-        pub fn map_string_nested_message_mut(&mut self) -> MapMut<'_, ProtoString, NestedMessage> {
+        pub fn map_string_nested_message_mut(
+            &mut self,
+        ) -> MapMut<'_, protobuf::rt::LazyStr, NestedMessage> {
             self.cached_size.dirty();
             self.map_string_nested_message.as_mut()
         }
-        pub fn set_map_string_nested_message(&mut self, v: Map<ProtoString, NestedMessage>) {
+        pub fn set_map_string_nested_message(
+            &mut self,
+            v: Map<protobuf::rt::LazyStr, NestedMessage>,
+        ) {
             self.cached_size.dirty();
             self.map_string_nested_message = v;
         }
         pub fn map_string_foreign_message(
             &self,
-        ) -> MapView<'_, ProtoString, ForeignMessageEdition2023> {
+        ) -> MapView<'_, protobuf::rt::LazyStr, ForeignMessageEdition2023> {
             self.map_string_foreign_message.as_view()
         }
         pub fn map_string_foreign_message_mut(
             &mut self,
-        ) -> MapMut<'_, ProtoString, ForeignMessageEdition2023> {
+        ) -> MapMut<'_, protobuf::rt::LazyStr, ForeignMessageEdition2023> {
             self.cached_size.dirty();
             self.map_string_foreign_message.as_mut()
         }
         pub fn set_map_string_foreign_message(
             &mut self,
-            v: Map<ProtoString, ForeignMessageEdition2023>,
+            v: Map<protobuf::rt::LazyStr, ForeignMessageEdition2023>,
         ) {
             self.cached_size.dirty();
             self.map_string_foreign_message = v;
         }
-        pub fn map_string_nested_enum(&self) -> MapView<'_, ProtoString, i32> {
+        pub fn map_string_nested_enum(&self) -> MapView<'_, protobuf::rt::LazyStr, i32> {
             self.map_string_nested_enum.as_view()
         }
-        pub fn map_string_nested_enum_mut(&mut self) -> MapMut<'_, ProtoString, i32> {
+        pub fn map_string_nested_enum_mut(&mut self) -> MapMut<'_, protobuf::rt::LazyStr, i32> {
             self.cached_size.dirty();
             self.map_string_nested_enum.as_mut()
         }
-        pub fn set_map_string_nested_enum(&mut self, v: Map<ProtoString, i32>) {
+        pub fn set_map_string_nested_enum(&mut self, v: Map<protobuf::rt::LazyStr, i32>) {
             self.cached_size.dirty();
             self.map_string_nested_enum = v;
         }
-        pub fn map_string_foreign_enum(&self) -> MapView<'_, ProtoString, i32> {
+        pub fn map_string_foreign_enum(&self) -> MapView<'_, protobuf::rt::LazyStr, i32> {
             self.map_string_foreign_enum.as_view()
         }
-        pub fn map_string_foreign_enum_mut(&mut self) -> MapMut<'_, ProtoString, i32> {
+        pub fn map_string_foreign_enum_mut(&mut self) -> MapMut<'_, protobuf::rt::LazyStr, i32> {
             self.cached_size.dirty();
             self.map_string_foreign_enum.as_mut()
         }
-        pub fn set_map_string_foreign_enum(&mut self, v: Map<ProtoString, i32>) {
+        pub fn set_map_string_foreign_enum(&mut self, v: Map<protobuf::rt::LazyStr, i32>) {
             self.cached_size.dirty();
             self.map_string_foreign_enum = v;
         }
@@ -1767,7 +1797,7 @@ mod __gen {
             self.oneof_float = None;
             self.oneof_double = None;
             self.oneof_enum = None;
-            self.oneof_string = Some(v.into_proxied());
+            self.oneof_string = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
         pub fn clear_oneof_string(&mut self) {
             self.cached_size.dirty();
@@ -1781,7 +1811,7 @@ mod __gen {
         }
         pub fn set_oneof_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.oneof_bytes = Some(v.into_proxied());
+            self.oneof_bytes = Some(protobuf::rt::LazyBytes::owned(v.into_proxied()));
         }
         pub fn oneof_bool(&self) -> bool {
             self.oneof_bool.unwrap_or_default()
@@ -1910,7 +1940,7 @@ mod __gen {
         }
         pub fn set_extension_string(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.extension_string = Some(v.into_proxied());
+            self.extension_string = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
         pub fn clear_extension_string(&mut self) {
             self.cached_size.dirty();
@@ -1924,7 +1954,7 @@ mod __gen {
         }
         pub fn set_extension_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.extension_bytes = Some(v.into_proxied());
+            self.extension_bytes = Some(protobuf::rt::LazyBytes::owned(v.into_proxied()));
         }
         pub fn has_groupliketype_201(&self) -> bool {
             self.groupliketype_201.is_some()
@@ -1978,25 +2008,27 @@ mod __gen {
             self.map_recursive = v;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -2007,6 +2039,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -2066,32 +2099,67 @@ mod __gen {
                         self.optional_bool = Some(protobuf::rt::decode_varint(data, pos)? != 0);
                     }
                     (14, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.optional_string = Some(ProtoString::from_bytes(b));
+                        self.optional_string =
+                            Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (15, protobuf::rt::WIRE_LEN) => {
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         self.optional_bytes =
-                            Some(ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?));
+                            Some(protobuf::rt::LazyBytes::from_wire(wire.window(s, e)));
                     }
                     (18, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         match &mut self.optional_nested_message {
-                            Some(existing) => existing.merge_bytes(p, depth + 1)?,
+                            Some(existing) => {
+                                let mut ip = 0;
+                                existing.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            }
                             None => {
                                 let mut inner = NestedMessage::default();
-                                inner.merge_bytes(p, depth + 1)?;
+                                let mut ip = 0;
+                                inner.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
                                 self.optional_nested_message = Some(Box::new(inner));
                             }
                         }
                     }
                     (19, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         match &mut self.optional_foreign_message {
-                            Some(existing) => existing.merge_bytes(p, depth + 1)?,
+                            Some(existing) => {
+                                let mut ip = 0;
+                                existing.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            }
                             None => {
                                 let mut inner = ForeignMessageEdition2023::default();
-                                inner.merge_bytes(p, depth + 1)?;
+                                let mut ip = 0;
+                                inner.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
                                 self.optional_foreign_message = Some(Box::new(inner));
                             }
                         }
@@ -2105,22 +2173,42 @@ mod __gen {
                             Some(protobuf::rt::decode_varint(data, pos)? as i32);
                     }
                     (24, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.optional_string_piece = Some(ProtoString::from_bytes(b));
+                        self.optional_string_piece =
+                            Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (25, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.optional_cord = Some(ProtoString::from_bytes(b));
+                        self.optional_cord =
+                            Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (27, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         match &mut self.recursive_message {
-                            Some(existing) => existing.merge_bytes(p, depth + 1)?,
+                            Some(existing) => {
+                                let mut ip = 0;
+                                existing.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            }
                             None => {
                                 let mut inner = TestAllTypesEdition2023::default();
-                                inner.merge_bytes(p, depth + 1)?;
+                                let mut ip = 0;
+                                inner.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
                                 self.recursive_message = Some(Box::new(inner));
                             }
                         }
@@ -2271,23 +2359,29 @@ mod __gen {
                         .repeated_bool
                         .push(protobuf::rt::decode_varint(data, pos)? != 0),
                     (44, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.repeated_string.push(ProtoString::from_bytes(b));
+                        self.repeated_string
+                            .push(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
-                    (45, protobuf::rt::WIRE_LEN) => self
-                        .repeated_bytes
-                        .push(ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?)),
+                    (45, protobuf::rt::WIRE_LEN) => {
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_bytes
+                            .push(protobuf::rt::LazyBytes::from_wire(wire.window(s, e)));
+                    }
                     (48, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let mut inner = NestedMessage::default();
-                        inner.merge_bytes(p, depth + 1)?;
+                        let mut ip = 0;
+                        inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?;
                         self.repeated_nested_message.push(inner);
                     }
                     (49, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let mut inner = ForeignMessageEdition2023::default();
-                        inner.merge_bytes(p, depth + 1)?;
+                        let mut ip = 0;
+                        inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?;
                         self.repeated_foreign_message.push(inner);
                     }
                     (51, protobuf::rt::WIRE_LEN) => {
@@ -2313,109 +2407,143 @@ mod __gen {
                         .repeated_foreign_enum
                         .push(protobuf::rt::decode_varint(data, pos)? as i32),
                     (54, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.repeated_string_piece.push(ProtoString::from_bytes(b));
+                        self.repeated_string_piece
+                            .push(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (55, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.repeated_cord.push(ProtoString::from_bytes(b));
+                        self.repeated_cord
+                            .push(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (56, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_int32_int32_56(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_int32_int32_56(&wire.window(s, e), depth + 1)?;
                         self.map_int32_int32.insert(kk, vv);
                     }
                     (57, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_int64_int64_57(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_int64_int64_57(&wire.window(s, e), depth + 1)?;
                         self.map_int64_int64.insert(kk, vv);
                     }
                     (58, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_uint32_uint32_58(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_uint32_uint32_58(&wire.window(s, e), depth + 1)?;
                         self.map_uint32_uint32.insert(kk, vv);
                     }
                     (59, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_uint64_uint64_59(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_uint64_uint64_59(&wire.window(s, e), depth + 1)?;
                         self.map_uint64_uint64.insert(kk, vv);
                     }
                     (60, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_sint32_sint32_60(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_sint32_sint32_60(&wire.window(s, e), depth + 1)?;
                         self.map_sint32_sint32.insert(kk, vv);
                     }
                     (61, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_sint64_sint64_61(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_sint64_sint64_61(&wire.window(s, e), depth + 1)?;
                         self.map_sint64_sint64.insert(kk, vv);
                     }
                     (62, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_fixed32_fixed32_62(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_fixed32_fixed32_62(&wire.window(s, e), depth + 1)?;
                         self.map_fixed32_fixed32.insert(kk, vv);
                     }
                     (63, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_fixed64_fixed64_63(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_fixed64_fixed64_63(&wire.window(s, e), depth + 1)?;
                         self.map_fixed64_fixed64.insert(kk, vv);
                     }
                     (64, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_sfixed32_sfixed32_64(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) = decode_map_entry_map_sfixed32_sfixed32_64(
+                            &wire.window(s, e),
+                            depth + 1,
+                        )?;
                         self.map_sfixed32_sfixed32.insert(kk, vv);
                     }
                     (65, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_sfixed64_sfixed64_65(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) = decode_map_entry_map_sfixed64_sfixed64_65(
+                            &wire.window(s, e),
+                            depth + 1,
+                        )?;
                         self.map_sfixed64_sfixed64.insert(kk, vv);
                     }
                     (66, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_int32_float_66(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_int32_float_66(&wire.window(s, e), depth + 1)?;
                         self.map_int32_float.insert(kk, vv);
                     }
                     (67, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_int32_double_67(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_int32_double_67(&wire.window(s, e), depth + 1)?;
                         self.map_int32_double.insert(kk, vv);
                     }
                     (68, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_bool_bool_68(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_bool_bool_68(&wire.window(s, e), depth + 1)?;
                         self.map_bool_bool.insert(kk, vv);
                     }
                     (69, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_string_string_69(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_string_string_69(&wire.window(s, e), depth + 1)?;
                         self.map_string_string.insert(kk, vv);
                     }
                     (70, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_string_bytes_70(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_string_bytes_70(&wire.window(s, e), depth + 1)?;
                         self.map_string_bytes.insert(kk, vv);
                     }
                     (71, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_string_nested_message_71(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) = decode_map_entry_map_string_nested_message_71(
+                            &wire.window(s, e),
+                            depth + 1,
+                        )?;
                         self.map_string_nested_message.insert(kk, vv);
                     }
                     (72, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) =
-                            decode_map_entry_map_string_foreign_message_72(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) = decode_map_entry_map_string_foreign_message_72(
+                            &wire.window(s, e),
+                            depth + 1,
+                        )?;
                         self.map_string_foreign_message.insert(kk, vv);
                     }
                     (73, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_string_nested_enum_73(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) = decode_map_entry_map_string_nested_enum_73(
+                            &wire.window(s, e),
+                            depth + 1,
+                        )?;
                         self.map_string_nested_enum.insert(kk, vv);
                     }
                     (74, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_string_foreign_enum_74(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) = decode_map_entry_map_string_foreign_enum_74(
+                            &wire.window(s, e),
+                            depth + 1,
+                        )?;
                         self.map_string_foreign_enum.insert(kk, vv);
                     }
                     (75, protobuf::rt::WIRE_LEN) => {
@@ -2750,12 +2878,28 @@ mod __gen {
                         self.oneof_float = None;
                         self.oneof_double = None;
                         self.oneof_enum = None;
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         match &mut self.oneof_nested_message {
-                            Some(existing) => existing.merge_bytes(p, depth + 1)?,
+                            Some(existing) => {
+                                let mut ip = 0;
+                                existing.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            }
                             None => {
                                 let mut inner = NestedMessage::default();
-                                inner.merge_bytes(p, depth + 1)?;
+                                let mut ip = 0;
+                                inner.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
                                 self.oneof_nested_message = Some(Box::new(inner));
                             }
                         }
@@ -2769,9 +2913,11 @@ mod __gen {
                         self.oneof_float = None;
                         self.oneof_double = None;
                         self.oneof_enum = None;
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.oneof_string = Some(ProtoString::from_bytes(b));
+                        self.oneof_string =
+                            Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (114, protobuf::rt::WIRE_LEN) => {
                         self.oneof_uint32 = None;
@@ -2782,8 +2928,9 @@ mod __gen {
                         self.oneof_float = None;
                         self.oneof_double = None;
                         self.oneof_enum = None;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         self.oneof_bytes =
-                            Some(ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?));
+                            Some(protobuf::rt::LazyBytes::from_wire(wire.window(s, e)));
                     }
                     (115, protobuf::rt::WIRE_VARINT) => {
                         self.oneof_uint32 = None;
@@ -2846,49 +2993,53 @@ mod __gen {
                         self.extension_int32 = Some(protobuf::rt::decode_varint(data, pos)? as i32);
                     }
                     (121, protobuf::rt::WIRE_SGROUP) => match &mut self.groupliketype {
-                        Some(existing) => existing.merge_group(data, pos, 121, depth + 1)?,
+                        Some(existing) => existing.merge_group(wire, pos, 121, depth + 1)?,
                         None => {
                             let mut inner = GroupLikeType::default();
-                            inner.merge_group(data, pos, 121, depth + 1)?;
+                            inner.merge_group(wire, pos, 121, depth + 1)?;
                             self.groupliketype = Some(Box::new(inner));
                         }
                     },
                     (122, protobuf::rt::WIRE_SGROUP) => match &mut self.delimited_ext {
-                        Some(existing) => existing.merge_group(data, pos, 122, depth + 1)?,
+                        Some(existing) => existing.merge_group(wire, pos, 122, depth + 1)?,
                         None => {
                             let mut inner = GroupLikeType::default();
-                            inner.merge_group(data, pos, 122, depth + 1)?;
+                            inner.merge_group(wire, pos, 122, depth + 1)?;
                             self.delimited_ext = Some(Box::new(inner));
                         }
                     },
                     (133, protobuf::rt::WIRE_LEN) => {
-                        let b = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.extension_string = Some(ProtoString::from_bytes(b));
+                        self.extension_string =
+                            Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
                     }
                     (134, protobuf::rt::WIRE_LEN) => {
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         self.extension_bytes =
-                            Some(ProtoBytes::from(protobuf::rt::read_len_bytes(data, pos)?));
+                            Some(protobuf::rt::LazyBytes::from_wire(wire.window(s, e)));
                     }
                     (201, protobuf::rt::WIRE_SGROUP) => match &mut self.groupliketype_201 {
-                        Some(existing) => existing.merge_group(data, pos, 201, depth + 1)?,
+                        Some(existing) => existing.merge_group(wire, pos, 201, depth + 1)?,
                         None => {
                             let mut inner = TestAllTypesEdition2023GroupLikeType::default();
-                            inner.merge_group(data, pos, 201, depth + 1)?;
+                            inner.merge_group(wire, pos, 201, depth + 1)?;
                             self.groupliketype_201 = Some(Box::new(inner));
                         }
                     },
                     (202, protobuf::rt::WIRE_SGROUP) => match &mut self.delimited_field {
-                        Some(existing) => existing.merge_group(data, pos, 202, depth + 1)?,
+                        Some(existing) => existing.merge_group(wire, pos, 202, depth + 1)?,
                         None => {
                             let mut inner = TestAllTypesEdition2023GroupLikeType::default();
-                            inner.merge_group(data, pos, 202, depth + 1)?;
+                            inner.merge_group(wire, pos, 202, depth + 1)?;
                             self.delimited_field = Some(Box::new(inner));
                         }
                     },
                     (301, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_recursive_301(p, depth + 1)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        let (kk, vv) =
+                            decode_map_entry_map_recursive_301(&wire.window(s, e), depth + 1)?;
                         self.map_recursive.insert(kk, vv);
                     }
                     _ => self
@@ -4247,10 +4398,11 @@ mod __gen {
         TestAllTypesEdition2023Mut
     );
     fn decode_map_entry_map_int32_int32_56(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -4269,10 +4421,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_int64_int64_57(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
         let mut pos = 0;
@@ -4291,10 +4444,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_uint32_uint32_58(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = u32::default();
         let mut val = u32::default();
         let mut pos = 0;
@@ -4313,10 +4467,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_uint64_uint64_59(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = u64::default();
         let mut val = u64::default();
         let mut pos = 0;
@@ -4335,10 +4490,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_sint32_sint32_60(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -4359,10 +4515,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_sint64_sint64_61(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
         let mut pos = 0;
@@ -4383,10 +4540,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_fixed32_fixed32_62(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(u32, u32), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = u32::default();
         let mut val = u32::default();
         let mut pos = 0;
@@ -4401,10 +4559,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_fixed64_fixed64_63(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(u64, u64), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = u64::default();
         let mut val = u64::default();
         let mut pos = 0;
@@ -4419,10 +4578,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_sfixed32_sfixed32_64(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = i32::default();
         let mut pos = 0;
@@ -4441,10 +4601,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_sfixed64_sfixed64_65(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i64, i64), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i64::default();
         let mut val = i64::default();
         let mut pos = 0;
@@ -4463,10 +4624,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_int32_float_66(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i32, f32), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = f32::default();
         let mut pos = 0;
@@ -4485,10 +4647,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_int32_double_67(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i32, f64), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = f64::default();
         let mut pos = 0;
@@ -4507,10 +4670,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_bool_bool_68(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(bool, bool), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = bool::default();
         let mut val = bool::default();
         let mut pos = 0;
@@ -4529,25 +4693,28 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_string_string_69(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
-    ) -> Result<(ProtoString, ProtoString), ParseError> {
+    ) -> Result<(protobuf::rt::LazyStr, protobuf::rt::LazyStr), ParseError> {
         let _ = depth;
-        let mut key = ProtoString::default();
-        let mut val = ProtoString::default();
+        let data = wire.as_slice();
+        let mut key = protobuf::rt::LazyStr::default();
+        let mut val = protobuf::rt::LazyStr::default();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
                 (1, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 (2, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    val = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    val = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 _ => protobuf::rt::skip_field(data, &mut pos, w)?,
             }
@@ -4555,23 +4722,26 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_string_bytes_70(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
-    ) -> Result<(ProtoString, ProtoBytes), ParseError> {
+    ) -> Result<(protobuf::rt::LazyStr, protobuf::rt::LazyBytes), ParseError> {
         let _ = depth;
-        let mut key = ProtoString::default();
-        let mut val = ProtoBytes::default();
+        let data = wire.as_slice();
+        let mut key = protobuf::rt::LazyStr::default();
+        let mut val = protobuf::rt::LazyBytes::default();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
                 (1, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 (2, protobuf::rt::WIRE_LEN) => {
-                    val = ProtoBytes::from(protobuf::rt::read_len_bytes(data, &mut pos)?)
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    val = protobuf::rt::LazyBytes::from_wire(wire.window(s, e));
                 }
                 _ => protobuf::rt::skip_field(data, &mut pos, w)?,
             }
@@ -4579,24 +4749,27 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_string_nested_message_71(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
-    ) -> Result<(ProtoString, NestedMessage), ParseError> {
+    ) -> Result<(protobuf::rt::LazyStr, NestedMessage), ParseError> {
         let _ = depth;
-        let mut key = ProtoString::default();
+        let data = wire.as_slice();
+        let mut key = protobuf::rt::LazyStr::default();
         let mut val = NestedMessage::default();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
                 (1, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 (2, protobuf::rt::WIRE_LEN) => {
-                    let p = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    val.merge_bytes(p, depth)?;
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    let mut ip = 0;
+                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
                 }
                 _ => protobuf::rt::skip_field(data, &mut pos, w)?,
             }
@@ -4604,24 +4777,27 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_string_foreign_message_72(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
-    ) -> Result<(ProtoString, ForeignMessageEdition2023), ParseError> {
+    ) -> Result<(protobuf::rt::LazyStr, ForeignMessageEdition2023), ParseError> {
         let _ = depth;
-        let mut key = ProtoString::default();
+        let data = wire.as_slice();
+        let mut key = protobuf::rt::LazyStr::default();
         let mut val = ForeignMessageEdition2023::default();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
                 (1, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 (2, protobuf::rt::WIRE_LEN) => {
-                    let p = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    val.merge_bytes(p, depth)?;
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    let mut ip = 0;
+                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
                 }
                 _ => protobuf::rt::skip_field(data, &mut pos, w)?,
             }
@@ -4629,20 +4805,22 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_string_nested_enum_73(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
-    ) -> Result<(ProtoString, i32), ParseError> {
+    ) -> Result<(protobuf::rt::LazyStr, i32), ParseError> {
         let _ = depth;
-        let mut key = ProtoString::default();
+        let data = wire.as_slice();
+        let mut key = protobuf::rt::LazyStr::default();
         let mut val = i32::default();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
                 (1, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 (2, protobuf::rt::WIRE_VARINT) => {
                     val = protobuf::rt::decode_varint(data, &mut pos)? as i32
@@ -4653,20 +4831,22 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_string_foreign_enum_74(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
-    ) -> Result<(ProtoString, i32), ParseError> {
+    ) -> Result<(protobuf::rt::LazyStr, i32), ParseError> {
         let _ = depth;
-        let mut key = ProtoString::default();
+        let data = wire.as_slice();
+        let mut key = protobuf::rt::LazyStr::default();
         let mut val = i32::default();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
                 (1, protobuf::rt::WIRE_LEN) => {
-                    let b = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = ProtoString::from_bytes(b);
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    std::str::from_utf8(&data[s..e])
+                        .map_err(|_| ParseError::new("invalid utf-8"))?;
+                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
                 }
                 (2, protobuf::rt::WIRE_VARINT) => {
                     val = protobuf::rt::decode_varint(data, &mut pos)? as i32
@@ -4677,10 +4857,11 @@ mod __gen {
         Ok((key, val))
     }
     fn decode_map_entry_map_recursive_301(
-        data: &[u8],
+        wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i32, TestAllTypesEdition2023), ParseError> {
         let _ = depth;
+        let data = wire.as_slice();
         let mut key = i32::default();
         let mut val = TestAllTypesEdition2023::default();
         let mut pos = 0;
@@ -4691,8 +4872,9 @@ mod __gen {
                     key = protobuf::rt::decode_varint(data, &mut pos)? as i32
                 }
                 (2, protobuf::rt::WIRE_LEN) => {
-                    let p = protobuf::rt::read_len_bytes(data, &mut pos)?;
-                    val.merge_bytes(p, depth)?;
+                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                    let mut ip = 0;
+                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
                 }
                 _ => protobuf::rt::skip_field(data, &mut pos, w)?,
             }
@@ -4737,25 +4919,27 @@ mod __gen {
             self.group_uint32 = Some(v);
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -4766,6 +4950,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -4941,25 +5126,27 @@ mod __gen {
             self.corecursive = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, true, None)
+            self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(data, &mut pos, depth, false, None)
+            self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(data, pos, depth, false, Some(num))
+            self.merge_inner(wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            data: &[u8],
+            wire: &protobuf::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -4970,6 +5157,7 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
+            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = protobuf::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -4985,12 +5173,28 @@ mod __gen {
                         self.a = Some(protobuf::rt::decode_varint(data, pos)? as i32);
                     }
                     (2, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         match &mut self.corecursive {
-                            Some(existing) => existing.merge_bytes(p, depth + 1)?,
+                            Some(existing) => {
+                                let mut ip = 0;
+                                existing.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            }
                             None => {
                                 let mut inner = TestAllTypesEdition2023::default();
-                                inner.merge_bytes(p, depth + 1)?;
+                                let mut ip = 0;
+                                inner.merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
                                 self.corecursive = Some(Box::new(inner));
                             }
                         }

@@ -207,7 +207,7 @@ fn plugin_generates_grpc_stubs() {
         &generated[..generated.len().min(1500)]
     );
     assert!(
-        generated.contains("name: ProtoString"),
+        generated.contains("name: protobuf::rt::LazyStr"),
         "HelloRequest must store name as a field"
     );
     assert!(
