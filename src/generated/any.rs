@@ -13,22 +13,12 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Any {
         type_url: protobuf::rt::LazyStr,
         value: protobuf::rt::LazyBytes,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Any {
-        fn default() -> Self {
-            Self {
-                type_url: Default::default(),
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Any {
         pub fn new() -> Self {

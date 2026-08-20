@@ -149,6 +149,9 @@ fn main() {
     let prost_enc = median_ns(9, iters, || {
         let _ = prost_msg.encode_to_vec();
     });
+    let ours_def = median_ns(9, iters, || {
+        let _ = TestAllTypesProto3::new();
+    });
     let ours_dec = median_ns(9, iters, || {
         let _ = TestAllTypesProto3::parse(&bytes).unwrap();
     });
@@ -172,6 +175,10 @@ fn main() {
     });
 
     println!("{{");
+    println!(
+        "  \"sizeof_tat\": {},",
+        std::mem::size_of::<TestAllTypesProto3>()
+    );
     println!("  \"payload_bytes_ours\": {},", bytes.len());
     println!("  \"payload_bytes_prost\": {},", prost_buf.len());
     println!("  \"payload_bytes_v4\": {},", v4_bytes.len());
@@ -181,6 +188,7 @@ fn main() {
     println!("  \"prost_encode_ns\": {prost_enc:.3},");
     println!("  \"v4_encode_ns\": {v4_enc:.3},");
     println!("  \"buffa_encode_ns\": {buffa_enc:.3},");
+    println!("  \"ours_default_ns\": {ours_def:.3},");
     println!("  \"ours_decode_ns\": {ours_dec:.3},");
     println!("  \"prost_decode_ns\": {prost_dec:.3},");
     println!("  \"v4_decode_ns\": {v4_dec:.3},");

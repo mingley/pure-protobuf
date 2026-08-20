@@ -13,22 +13,12 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Duration {
         seconds: i64,
         nanos: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Duration {
-        fn default() -> Self {
-            Self {
-                seconds: Default::default(),
-                nanos: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Duration {
         pub fn new() -> Self {

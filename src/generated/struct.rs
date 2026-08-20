@@ -13,20 +13,11 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ListValue {
         values: Repeated<PbValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ListValue {
-        fn default() -> Self {
-            Self {
-                values: Repeated::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ListValue {
         pub fn new() -> Self {
@@ -182,20 +173,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(ListValue, ListValueView, ListValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Struct {
         fields: Map<protobuf::rt::LazyStr, PbValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Struct {
-        fn default() -> Self {
-            Self {
-                fields: Map::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Struct {
         pub fn new() -> Self {
@@ -384,7 +366,7 @@ mod __gen {
         }
         Ok((key, val))
     }
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct PbValue {
         null_value: Option<i32>,
         number_value: Option<f64>,
@@ -394,20 +376,6 @@ mod __gen {
         list_value: protobuf::rt::LazyMsg<ListValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for PbValue {
-        fn default() -> Self {
-            Self {
-                null_value: None,
-                number_value: None,
-                string_value: None,
-                bool_value: None,
-                struct_value: Default::default(),
-                list_value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl PbValue {
         pub fn new() -> Self {

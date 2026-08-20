@@ -13,18 +13,10 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct EnumOnlyProto2 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for EnumOnlyProto2 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl EnumOnlyProto2 {
         pub fn new() -> Self {
@@ -155,20 +147,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(EnumOnlyProto2, EnumOnlyProto2View, EnumOnlyProto2Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ForeignMessageProto2 {
         c: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ForeignMessageProto2 {
-        fn default() -> Self {
-            Self {
-                c: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ForeignMessageProto2 {
         pub fn new() -> Self {
@@ -329,22 +312,12 @@ mod __gen {
         ForeignMessageProto2View,
         ForeignMessageProto2Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct GroupField {
         group_int32: Option<i32>,
         group_uint32: Option<u32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for GroupField {
-        fn default() -> Self {
-            Self {
-                group_int32: None,
-                group_uint32: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl GroupField {
         pub fn new() -> Self {
@@ -525,18 +498,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(GroupField, GroupFieldView, GroupFieldMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct NullHypothesisProto2 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for NullHypothesisProto2 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl NullHypothesisProto2 {
         pub fn new() -> Self {
@@ -672,20 +637,11 @@ mod __gen {
         NullHypothesisProto2View,
         NullHypothesisProto2Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct OneStringProto2 {
         data: Option<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for OneStringProto2 {
-        fn default() -> Self {
-            Self {
-                data: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl OneStringProto2 {
         pub fn new() -> Self {
@@ -845,24 +801,13 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(OneStringProto2, OneStringProto2View, OneStringProto2Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ProtoWithKeywords {
         inline: Option<i32>,
         concept: Option<protobuf::rt::LazyStr>,
         requires: Repeated<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ProtoWithKeywords {
-        fn default() -> Self {
-            Self {
-                inline: None,
-                concept: None,
-                requires: Repeated::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ProtoWithKeywords {
         pub fn new() -> Self {
@@ -1074,7 +1019,7 @@ mod __gen {
         ProtoWithKeywordsView,
         ProtoWithKeywordsMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllRequiredTypesProto2 {
         required_int32: Option<i32>,
         required_int64: Option<i64>,
@@ -1117,53 +1062,6 @@ mod __gen {
         default_bytes: Option<protobuf::rt::LazyBytes>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllRequiredTypesProto2 {
-        fn default() -> Self {
-            Self {
-                required_int32: None,
-                required_int64: None,
-                required_uint32: None,
-                required_uint64: None,
-                required_sint32: None,
-                required_sint64: None,
-                required_fixed32: None,
-                required_fixed64: None,
-                required_sfixed32: None,
-                required_sfixed64: None,
-                required_float: None,
-                required_double: None,
-                required_bool: None,
-                required_string: None,
-                required_bytes: None,
-                required_nested_message: Default::default(),
-                required_foreign_message: Default::default(),
-                required_nested_enum: None,
-                required_foreign_enum: None,
-                required_string_piece: None,
-                required_cord: None,
-                recursive_message: Default::default(),
-                optional_recursive_message: Default::default(),
-                data: None,
-                default_int32: None,
-                default_int64: None,
-                default_uint32: None,
-                default_uint64: None,
-                default_sint32: None,
-                default_sint64: None,
-                default_fixed32: None,
-                default_fixed64: None,
-                default_sfixed32: None,
-                default_sfixed64: None,
-                default_float: None,
-                default_double: None,
-                default_bool: None,
-                default_string: None,
-                default_bytes: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllRequiredTypesProto2 {
         pub fn new() -> Self {
@@ -2065,6 +1963,122 @@ mod __gen {
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
             }
+            if enforce {
+                if self.required_int32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_int64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_uint32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_uint64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_sint32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_sint64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_fixed32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_fixed64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_sfixed32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_sfixed64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_float.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_double.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_bool.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_string.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_bytes.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_nested_message.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_foreign_message.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_nested_enum.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_foreign_enum.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_string_piece.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.required_cord.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.recursive_message.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.data.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_int32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_int64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_uint32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_uint64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_sint32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_sint64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_fixed32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_fixed64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_sfixed32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_sfixed64.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_float.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_double.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_bool.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_string.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.default_bytes.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+            }
             Ok(())
         }
         fn compute_size(&self) -> u64 {
@@ -2446,22 +2460,12 @@ mod __gen {
         TestAllRequiredTypesProto2View,
         TestAllRequiredTypesProto2Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Data {
         group_int32: Option<i32>,
         group_uint32: Option<u32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Data {
-        fn default() -> Self {
-            Self {
-                group_int32: None,
-                group_uint32: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Data {
         pub fn new() -> Self {
@@ -2555,6 +2559,14 @@ mod __gen {
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
+            }
+            if enforce {
+                if self.group_int32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.group_uint32.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
             }
             Ok(())
         }
@@ -2653,22 +2665,12 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Data, DataView, DataMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct MessageSetCorrect {
         message_set_extension: protobuf::rt::LazyMsg<MessageSetCorrectExtension1>,
         message_set_extension_4135312: protobuf::rt::LazyMsg<MessageSetCorrectExtension2>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for MessageSetCorrect {
-        fn default() -> Self {
-            Self {
-                message_set_extension: Default::default(),
-                message_set_extension_4135312: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl MessageSetCorrect {
         pub fn new() -> Self {
@@ -3000,20 +3002,11 @@ mod __gen {
         MessageSetCorrectView,
         MessageSetCorrectMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct MessageSetCorrectExtension1 {
         str: Option<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for MessageSetCorrectExtension1 {
-        fn default() -> Self {
-            Self {
-                str: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl MessageSetCorrectExtension1 {
         pub fn new() -> Self {
@@ -3095,6 +3088,11 @@ mod __gen {
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
             }
+            if enforce {
+                if self.str.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+            }
             Ok(())
         }
         fn compute_size(&self) -> u64 {
@@ -3166,20 +3164,11 @@ mod __gen {
         MessageSetCorrectExtension1View,
         MessageSetCorrectExtension1Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct MessageSetCorrectExtension2 {
         i: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for MessageSetCorrectExtension2 {
-        fn default() -> Self {
-            Self {
-                i: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl MessageSetCorrectExtension2 {
         pub fn new() -> Self {
@@ -3256,6 +3245,11 @@ mod __gen {
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
             }
+            if enforce {
+                if self.i.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+            }
             Ok(())
         }
         fn compute_size(&self) -> u64 {
@@ -3329,24 +3323,13 @@ mod __gen {
         MessageSetCorrectExtension2View,
         MessageSetCorrectExtension2Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct NestedMessage {
         a: Option<i32>,
         corecursive: protobuf::rt::LazyMsg<TestAllRequiredTypesProto2>,
         optional_corecursive: protobuf::rt::LazyMsg<TestAllRequiredTypesProto2>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for NestedMessage {
-        fn default() -> Self {
-            Self {
-                a: None,
-                corecursive: Default::default(),
-                optional_corecursive: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl NestedMessage {
         pub fn new() -> Self {
@@ -3520,6 +3503,14 @@ mod __gen {
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
             }
+            if enforce {
+                if self.a.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+                if self.corecursive.is_none() {
+                    return Err(ParseError::new("missing required field"));
+                }
+            }
             Ok(())
         }
         fn compute_size(&self) -> u64 {
@@ -3613,7 +3604,7 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesProto2 {
         optional_int32: Option<i32>,
         optional_int64: Option<i64>,
@@ -3758,155 +3749,6 @@ mod __gen {
         message_set_correct: protobuf::rt::LazyMsg<TestAllTypesProto2MessageSetCorrect>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesProto2 {
-        fn default() -> Self {
-            Self {
-                optional_int32: None,
-                optional_int64: None,
-                optional_uint32: None,
-                optional_uint64: None,
-                optional_sint32: None,
-                optional_sint64: None,
-                optional_fixed32: None,
-                optional_fixed64: None,
-                optional_sfixed32: None,
-                optional_sfixed64: None,
-                optional_float: None,
-                optional_double: None,
-                optional_bool: None,
-                optional_string: None,
-                optional_bytes: None,
-                optional_nested_message: Default::default(),
-                optional_foreign_message: Default::default(),
-                optional_nested_enum: None,
-                optional_foreign_enum: None,
-                optional_string_piece: None,
-                optional_cord: None,
-                recursive_message: Default::default(),
-                repeated_int32: Repeated::new(),
-                repeated_int64: Repeated::new(),
-                repeated_uint32: Repeated::new(),
-                repeated_uint64: Repeated::new(),
-                repeated_sint32: Repeated::new(),
-                repeated_sint64: Repeated::new(),
-                repeated_fixed32: Repeated::new(),
-                repeated_fixed64: Repeated::new(),
-                repeated_sfixed32: Repeated::new(),
-                repeated_sfixed64: Repeated::new(),
-                repeated_float: Repeated::new(),
-                repeated_double: Repeated::new(),
-                repeated_bool: Repeated::new(),
-                repeated_string: Repeated::new(),
-                repeated_bytes: Repeated::new(),
-                repeated_nested_message: Repeated::new(),
-                repeated_foreign_message: Repeated::new(),
-                repeated_nested_enum: Repeated::new(),
-                repeated_foreign_enum: Repeated::new(),
-                repeated_string_piece: Repeated::new(),
-                repeated_cord: Repeated::new(),
-                map_int32_int32: Map::new(),
-                map_int64_int64: Map::new(),
-                map_uint32_uint32: Map::new(),
-                map_uint64_uint64: Map::new(),
-                map_sint32_sint32: Map::new(),
-                map_sint64_sint64: Map::new(),
-                map_fixed32_fixed32: Map::new(),
-                map_fixed64_fixed64: Map::new(),
-                map_sfixed32_sfixed32: Map::new(),
-                map_sfixed64_sfixed64: Map::new(),
-                map_int32_float: Map::new(),
-                map_int32_double: Map::new(),
-                map_bool_bool: Map::new(),
-                map_string_string: Map::new(),
-                map_string_bytes: Map::new(),
-                map_string_nested_message: Map::new(),
-                map_string_foreign_message: Map::new(),
-                map_string_nested_enum: Map::new(),
-                map_string_foreign_enum: Map::new(),
-                packed_int32: protobuf::rt::PackedI32::new(),
-                packed_int64: protobuf::rt::PackedI64::new(),
-                packed_uint32: protobuf::rt::PackedU32::new(),
-                packed_uint64: protobuf::rt::PackedU64::new(),
-                packed_sint32: protobuf::rt::PackedS32::new(),
-                packed_sint64: protobuf::rt::PackedS64::new(),
-                packed_fixed32: protobuf::rt::PackedFx32::new(),
-                packed_fixed64: protobuf::rt::PackedFx64::new(),
-                packed_sfixed32: protobuf::rt::PackedSfx32::new(),
-                packed_sfixed64: protobuf::rt::PackedSfx64::new(),
-                packed_float: protobuf::rt::PackedF32::new(),
-                packed_double: protobuf::rt::PackedF64::new(),
-                packed_bool: protobuf::rt::PackedBool::new(),
-                packed_nested_enum: protobuf::rt::PackedI32::new(),
-                unpacked_int32: Repeated::new(),
-                unpacked_int64: Repeated::new(),
-                unpacked_uint32: Repeated::new(),
-                unpacked_uint64: Repeated::new(),
-                unpacked_sint32: Repeated::new(),
-                unpacked_sint64: Repeated::new(),
-                unpacked_fixed32: Repeated::new(),
-                unpacked_fixed64: Repeated::new(),
-                unpacked_sfixed32: Repeated::new(),
-                unpacked_sfixed64: Repeated::new(),
-                unpacked_float: Repeated::new(),
-                unpacked_double: Repeated::new(),
-                unpacked_bool: Repeated::new(),
-                unpacked_nested_enum: Repeated::new(),
-                map_int32_nested_message: Map::new(),
-                map_int32_bool: Map::new(),
-                oneof_uint32: None,
-                oneof_nested_message: Default::default(),
-                oneof_string: None,
-                oneof_bytes: None,
-                oneof_bool: None,
-                oneof_uint64: None,
-                oneof_float: None,
-                oneof_double: None,
-                oneof_enum: None,
-                extension_int32: None,
-                groupfield: None,
-                extension_string: None,
-                extension_bytes: None,
-                data: None,
-                multiwordgroupfield: None,
-                default_int32: None,
-                default_int64: None,
-                default_uint32: None,
-                default_uint64: None,
-                default_sint32: None,
-                default_sint64: None,
-                default_fixed32: None,
-                default_fixed64: None,
-                default_sfixed32: None,
-                default_sfixed64: None,
-                default_float: None,
-                default_double: None,
-                default_bool: None,
-                default_string: None,
-                default_bytes: None,
-                fieldname1: None,
-                field_name2: None,
-                _field_name3: None,
-                field__name4_: None,
-                field0name5: None,
-                field_0_name6: None,
-                fieldName7: None,
-                FieldName8: None,
-                field_Name9: None,
-                Field_Name10: None,
-                FIELD_NAME11: None,
-                FIELD_name12: None,
-                __field_name13: None,
-                __Field_name14: None,
-                field__name15: None,
-                field__Name16: None,
-                field_name17__: None,
-                Field_name18__: None,
-                message_set_correct: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesProto2 {
         pub fn new() -> Self {
@@ -9042,22 +8884,12 @@ mod __gen {
         }
         Ok((key, val))
     }
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesProto2Data {
         group_int32: Option<i32>,
         group_uint32: Option<u32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesProto2Data {
-        fn default() -> Self {
-            Self {
-                group_int32: None,
-                group_uint32: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesProto2Data {
         pub fn new() -> Self {
@@ -9243,22 +9075,12 @@ mod __gen {
         TestAllTypesProto2DataView,
         TestAllTypesProto2DataMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ExtensionWithOneof {
         a: Option<i32>,
         b: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ExtensionWithOneof {
-        fn default() -> Self {
-            Self {
-                a: None,
-                b: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ExtensionWithOneof {
         pub fn new() -> Self {
@@ -9458,7 +9280,7 @@ mod __gen {
         ExtensionWithOneofView,
         ExtensionWithOneofMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesProto2MessageSetCorrect {
         message_set_extension: protobuf::rt::LazyMsg<TestAllTypesProto2MessageSetCorrectExtension1>,
         message_set_extension_4135312:
@@ -9466,17 +9288,6 @@ mod __gen {
         extension_with_oneof: protobuf::rt::LazyMsg<ExtensionWithOneof>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesProto2MessageSetCorrect {
-        fn default() -> Self {
-            Self {
-                message_set_extension: Default::default(),
-                message_set_extension_4135312: Default::default(),
-                extension_with_oneof: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesProto2MessageSetCorrect {
         pub fn new() -> Self {
@@ -9925,20 +9736,11 @@ mod __gen {
         TestAllTypesProto2MessageSetCorrectView,
         TestAllTypesProto2MessageSetCorrectMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesProto2MessageSetCorrectExtension1 {
         str: Option<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesProto2MessageSetCorrectExtension1 {
-        fn default() -> Self {
-            Self {
-                str: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesProto2MessageSetCorrectExtension1 {
         pub fn new() -> Self {
@@ -10092,22 +9894,12 @@ mod __gen {
         TestAllTypesProto2MessageSetCorrectExtension1View,
         TestAllTypesProto2MessageSetCorrectExtension1Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesProto2MessageSetCorrectExtension2 {
         i: Option<i32>,
         sub_msg: protobuf::rt::LazyMsg<TestAllTypesProto2MessageSetCorrect>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesProto2MessageSetCorrectExtension2 {
-        fn default() -> Self {
-            Self {
-                i: None,
-                sub_msg: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesProto2MessageSetCorrectExtension2 {
         pub fn new() -> Self {
@@ -10318,22 +10110,12 @@ mod __gen {
         TestAllTypesProto2MessageSetCorrectExtension2View,
         TestAllTypesProto2MessageSetCorrectExtension2Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct MultiWordGroupField {
         group_int32: Option<i32>,
         group_uint32: Option<u32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for MultiWordGroupField {
-        fn default() -> Self {
-            Self {
-                group_int32: None,
-                group_uint32: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl MultiWordGroupField {
         pub fn new() -> Self {
@@ -10529,22 +10311,12 @@ mod __gen {
         MultiWordGroupFieldView,
         MultiWordGroupFieldMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesProto2NestedMessage {
         a: Option<i32>,
         corecursive: protobuf::rt::LazyMsg<TestAllTypesProto2>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesProto2NestedMessage {
-        fn default() -> Self {
-            Self {
-                a: None,
-                corecursive: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesProto2NestedMessage {
         pub fn new() -> Self {
@@ -10773,7 +10545,7 @@ mod __gen {
         TestAllTypesProto2NestedMessageView,
         TestAllTypesProto2NestedMessageMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestLargeOneof {
         a1: protobuf::rt::LazyMsg<A1>,
         a2: protobuf::rt::LazyMsg<A2>,
@@ -10782,19 +10554,6 @@ mod __gen {
         a5: protobuf::rt::LazyMsg<A5>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestLargeOneof {
-        fn default() -> Self {
-            Self {
-                a1: Default::default(),
-                a2: Default::default(),
-                a3: Default::default(),
-                a4: Default::default(),
-                a5: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestLargeOneof {
         pub fn new() -> Self {
@@ -11250,18 +11009,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(TestLargeOneof, TestLargeOneofView, TestLargeOneofMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct A1 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for A1 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl A1 {
         pub fn new() -> Self {
@@ -11393,18 +11144,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(A1, A1View, A1Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct A2 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for A2 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl A2 {
         pub fn new() -> Self {
@@ -11536,18 +11279,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(A2, A2View, A2Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct A3 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for A3 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl A3 {
         pub fn new() -> Self {
@@ -11679,18 +11414,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(A3, A3View, A3Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct A4 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for A4 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl A4 {
         pub fn new() -> Self {
@@ -11822,18 +11549,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(A4, A4View, A4Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct A5 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for A5 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl A5 {
         pub fn new() -> Self {
@@ -11965,7 +11684,7 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(A5, A5View, A5Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct UnknownToTestAllTypes {
         optional_int32: Option<i32>,
         optional_string: Option<protobuf::rt::LazyStr>,
@@ -11975,20 +11694,6 @@ mod __gen {
         repeated_int32: Repeated<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for UnknownToTestAllTypes {
-        fn default() -> Self {
-            Self {
-                optional_int32: None,
-                optional_string: None,
-                nested_message: Default::default(),
-                optionalgroup: None,
-                optional_bool: None,
-                repeated_int32: Repeated::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl UnknownToTestAllTypes {
         pub fn new() -> Self {
@@ -12332,20 +12037,11 @@ mod __gen {
         UnknownToTestAllTypesView,
         UnknownToTestAllTypesMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct OptionalGroup {
         a: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for OptionalGroup {
-        fn default() -> Self {
-            Self {
-                a: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl OptionalGroup {
         pub fn new() -> Self {

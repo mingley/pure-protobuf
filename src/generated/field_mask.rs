@@ -13,20 +13,11 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct FieldMask {
         paths: Repeated<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for FieldMask {
-        fn default() -> Self {
-            Self {
-                paths: Repeated::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl FieldMask {
         pub fn new() -> Self {

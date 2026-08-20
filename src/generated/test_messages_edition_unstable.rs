@@ -13,20 +13,11 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ComplexMessage {
         d: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ComplexMessage {
-        fn default() -> Self {
-            Self {
-                d: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ComplexMessage {
         pub fn new() -> Self {
@@ -182,20 +173,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(ComplexMessage, ComplexMessageView, ComplexMessageMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ForeignMessageEditionUnstable {
         c: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ForeignMessageEditionUnstable {
-        fn default() -> Self {
-            Self {
-                c: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ForeignMessageEditionUnstable {
         pub fn new() -> Self {
@@ -365,7 +347,7 @@ mod __gen {
         ForeignMessageEditionUnstableView,
         ForeignMessageEditionUnstableMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesEditionUnstable {
         optional_int32: Option<i32>,
         optional_foreign_message: protobuf::rt::LazyMsg<ForeignMessageEditionUnstable>,
@@ -385,30 +367,6 @@ mod __gen {
         extension_int32: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesEditionUnstable {
-        fn default() -> Self {
-            Self {
-                optional_int32: None,
-                optional_foreign_message: Default::default(),
-                optional_foreign_enum: None,
-                recursive_message: Default::default(),
-                repeated_int32: protobuf::rt::PackedSfx32::new(),
-                repeated_foreign_message: Repeated::new(),
-                repeated_foreign_enum: protobuf::rt::PackedI32::new(),
-                map_int32_int32: Map::new(),
-                map_bool_bool: Map::new(),
-                map_string_string: Map::new(),
-                map_string_foreign_message: Map::new(),
-                map_string_foreign_enum: Map::new(),
-                optional_bytes: None,
-                repeated_bytes: Repeated::new(),
-                map_string_bytes: Map::new(),
-                extension_int32: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesEditionUnstable {
         pub fn new() -> Self {

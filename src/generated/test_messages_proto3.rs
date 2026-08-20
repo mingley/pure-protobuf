@@ -13,22 +13,12 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Any {
         type_url: protobuf::rt::LazyStr,
         value: protobuf::rt::LazyBytes,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Any {
-        fn default() -> Self {
-            Self {
-                type_url: Default::default(),
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Any {
         pub fn new() -> Self {
@@ -195,20 +185,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Any, AnyView, AnyMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct BoolValue {
         value: bool,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for BoolValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl BoolValue {
         pub fn new() -> Self {
@@ -357,20 +338,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(BoolValue, BoolValueView, BoolValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct BytesValue {
         value: protobuf::rt::LazyBytes,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for BytesValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl BytesValue {
         pub fn new() -> Self {
@@ -518,20 +490,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(BytesValue, BytesValueView, BytesValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct DoubleValue {
         value: f64,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for DoubleValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl DoubleValue {
         pub fn new() -> Self {
@@ -679,22 +642,12 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(DoubleValue, DoubleValueView, DoubleValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Duration {
         seconds: i64,
         nanos: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Duration {
-        fn default() -> Self {
-            Self {
-                seconds: Default::default(),
-                nanos: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Duration {
         pub fn new() -> Self {
@@ -861,18 +814,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Duration, DurationView, DurationMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Empty {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Empty {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Empty {
         pub fn new() -> Self {
@@ -1003,20 +948,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Empty, EmptyView, EmptyMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct FieldMask {
         paths: Repeated<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for FieldMask {
-        fn default() -> Self {
-            Self {
-                paths: Repeated::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl FieldMask {
         pub fn new() -> Self {
@@ -1171,20 +1107,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(FieldMask, FieldMaskView, FieldMaskMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct FloatValue {
         value: f32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for FloatValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl FloatValue {
         pub fn new() -> Self {
@@ -1332,20 +1259,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(FloatValue, FloatValueView, FloatValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Int32Value {
         value: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Int32Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Int32Value {
         pub fn new() -> Self {
@@ -1494,20 +1412,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Int32Value, Int32ValueView, Int32ValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Int64Value {
         value: i64,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Int64Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Int64Value {
         pub fn new() -> Self {
@@ -1656,20 +1565,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Int64Value, Int64ValueView, Int64ValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ListValue {
         values: Repeated<PbValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ListValue {
-        fn default() -> Self {
-            Self {
-                values: Repeated::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ListValue {
         pub fn new() -> Self {
@@ -1825,20 +1725,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(ListValue, ListValueView, ListValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct StringValue {
         value: protobuf::rt::LazyStr,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for StringValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl StringValue {
         pub fn new() -> Self {
@@ -1988,20 +1879,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(StringValue, StringValueView, StringValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Struct {
         fields: Map<protobuf::rt::LazyStr, PbValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Struct {
-        fn default() -> Self {
-            Self {
-                fields: Map::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Struct {
         pub fn new() -> Self {
@@ -2190,22 +2072,12 @@ mod __gen {
         }
         Ok((key, val))
     }
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Timestamp {
         seconds: i64,
         nanos: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Timestamp {
-        fn default() -> Self {
-            Self {
-                seconds: Default::default(),
-                nanos: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Timestamp {
         pub fn new() -> Self {
@@ -2372,20 +2244,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct UInt32Value {
         value: u32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for UInt32Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl UInt32Value {
         pub fn new() -> Self {
@@ -2534,20 +2397,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(UInt32Value, UInt32ValueView, UInt32ValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct UInt64Value {
         value: u64,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for UInt64Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl UInt64Value {
         pub fn new() -> Self {
@@ -2696,7 +2550,7 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(UInt64Value, UInt64ValueView, UInt64ValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct PbValue {
         null_value: Option<i32>,
         number_value: Option<f64>,
@@ -2706,20 +2560,6 @@ mod __gen {
         list_value: protobuf::rt::LazyMsg<ListValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for PbValue {
-        fn default() -> Self {
-            Self {
-                null_value: None,
-                number_value: None,
-                string_value: None,
-                bool_value: None,
-                struct_value: Default::default(),
-                list_value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl PbValue {
         pub fn new() -> Self {
@@ -3131,18 +2971,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(PbValue, PbValueView, PbValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct EnumOnlyProto3 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for EnumOnlyProto3 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl EnumOnlyProto3 {
         pub fn new() -> Self {
@@ -3273,20 +3105,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(EnumOnlyProto3, EnumOnlyProto3View, EnumOnlyProto3Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ForeignMessage {
         c: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ForeignMessage {
-        fn default() -> Self {
-            Self {
-                c: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ForeignMessage {
         pub fn new() -> Self {
@@ -3435,18 +3258,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(ForeignMessage, ForeignMessageView, ForeignMessageMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct NullHypothesisProto3 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for NullHypothesisProto3 {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl NullHypothesisProto3 {
         pub fn new() -> Self {
@@ -3581,7 +3396,7 @@ mod __gen {
         NullHypothesisProto3View,
         NullHypothesisProto3Mut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypesProto3 {
         optional_int32: i32,
         optional_int64: i64,
@@ -3738,167 +3553,6 @@ mod __gen {
         Field_name18__: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypesProto3 {
-        fn default() -> Self {
-            Self {
-                optional_int32: Default::default(),
-                optional_int64: Default::default(),
-                optional_uint32: Default::default(),
-                optional_uint64: Default::default(),
-                optional_sint32: Default::default(),
-                optional_sint64: Default::default(),
-                optional_fixed32: Default::default(),
-                optional_fixed64: Default::default(),
-                optional_sfixed32: Default::default(),
-                optional_sfixed64: Default::default(),
-                optional_float: Default::default(),
-                optional_double: Default::default(),
-                optional_bool: Default::default(),
-                optional_string: Default::default(),
-                optional_bytes: Default::default(),
-                optional_nested_message: Default::default(),
-                optional_foreign_message: Default::default(),
-                optional_nested_enum: Default::default(),
-                optional_foreign_enum: Default::default(),
-                optional_aliased_enum: Default::default(),
-                optional_string_piece: Default::default(),
-                optional_cord: Default::default(),
-                recursive_message: Default::default(),
-                repeated_int32: protobuf::rt::PackedI32::new(),
-                repeated_int64: protobuf::rt::PackedI64::new(),
-                repeated_uint32: protobuf::rt::PackedU32::new(),
-                repeated_uint64: protobuf::rt::PackedU64::new(),
-                repeated_sint32: protobuf::rt::PackedS32::new(),
-                repeated_sint64: protobuf::rt::PackedS64::new(),
-                repeated_fixed32: protobuf::rt::PackedFx32::new(),
-                repeated_fixed64: protobuf::rt::PackedFx64::new(),
-                repeated_sfixed32: protobuf::rt::PackedSfx32::new(),
-                repeated_sfixed64: protobuf::rt::PackedSfx64::new(),
-                repeated_float: protobuf::rt::PackedF32::new(),
-                repeated_double: protobuf::rt::PackedF64::new(),
-                repeated_bool: protobuf::rt::PackedBool::new(),
-                repeated_string: Repeated::new(),
-                repeated_bytes: Repeated::new(),
-                repeated_nested_message: Repeated::new(),
-                repeated_foreign_message: Repeated::new(),
-                repeated_nested_enum: protobuf::rt::PackedI32::new(),
-                repeated_foreign_enum: protobuf::rt::PackedI32::new(),
-                repeated_string_piece: Repeated::new(),
-                repeated_cord: Repeated::new(),
-                map_int32_int32: Map::new(),
-                map_int64_int64: Map::new(),
-                map_uint32_uint32: Map::new(),
-                map_uint64_uint64: Map::new(),
-                map_sint32_sint32: Map::new(),
-                map_sint64_sint64: Map::new(),
-                map_fixed32_fixed32: Map::new(),
-                map_fixed64_fixed64: Map::new(),
-                map_sfixed32_sfixed32: Map::new(),
-                map_sfixed64_sfixed64: Map::new(),
-                map_int32_float: Map::new(),
-                map_int32_double: Map::new(),
-                map_bool_bool: Map::new(),
-                map_string_string: Map::new(),
-                map_string_bytes: Map::new(),
-                map_string_nested_message: Map::new(),
-                map_string_foreign_message: Map::new(),
-                map_string_nested_enum: Map::new(),
-                map_string_foreign_enum: Map::new(),
-                packed_int32: protobuf::rt::PackedI32::new(),
-                packed_int64: protobuf::rt::PackedI64::new(),
-                packed_uint32: protobuf::rt::PackedU32::new(),
-                packed_uint64: protobuf::rt::PackedU64::new(),
-                packed_sint32: protobuf::rt::PackedS32::new(),
-                packed_sint64: protobuf::rt::PackedS64::new(),
-                packed_fixed32: protobuf::rt::PackedFx32::new(),
-                packed_fixed64: protobuf::rt::PackedFx64::new(),
-                packed_sfixed32: protobuf::rt::PackedSfx32::new(),
-                packed_sfixed64: protobuf::rt::PackedSfx64::new(),
-                packed_float: protobuf::rt::PackedF32::new(),
-                packed_double: protobuf::rt::PackedF64::new(),
-                packed_bool: protobuf::rt::PackedBool::new(),
-                packed_nested_enum: protobuf::rt::PackedI32::new(),
-                unpacked_int32: Repeated::new(),
-                unpacked_int64: Repeated::new(),
-                unpacked_uint32: Repeated::new(),
-                unpacked_uint64: Repeated::new(),
-                unpacked_sint32: Repeated::new(),
-                unpacked_sint64: Repeated::new(),
-                unpacked_fixed32: Repeated::new(),
-                unpacked_fixed64: Repeated::new(),
-                unpacked_sfixed32: Repeated::new(),
-                unpacked_sfixed64: Repeated::new(),
-                unpacked_float: Repeated::new(),
-                unpacked_double: Repeated::new(),
-                unpacked_bool: Repeated::new(),
-                unpacked_nested_enum: Repeated::new(),
-                oneof_uint32: None,
-                oneof_nested_message: Default::default(),
-                oneof_string: None,
-                oneof_bytes: None,
-                oneof_bool: None,
-                oneof_uint64: None,
-                oneof_float: None,
-                oneof_double: None,
-                oneof_enum: None,
-                oneof_null_value: None,
-                optional_bool_wrapper: Default::default(),
-                optional_int32_wrapper: Default::default(),
-                optional_int64_wrapper: Default::default(),
-                optional_uint32_wrapper: Default::default(),
-                optional_uint64_wrapper: Default::default(),
-                optional_float_wrapper: Default::default(),
-                optional_double_wrapper: Default::default(),
-                optional_string_wrapper: Default::default(),
-                optional_bytes_wrapper: Default::default(),
-                repeated_bool_wrapper: Repeated::new(),
-                repeated_int32_wrapper: Repeated::new(),
-                repeated_int64_wrapper: Repeated::new(),
-                repeated_uint32_wrapper: Repeated::new(),
-                repeated_uint64_wrapper: Repeated::new(),
-                repeated_float_wrapper: Repeated::new(),
-                repeated_double_wrapper: Repeated::new(),
-                repeated_string_wrapper: Repeated::new(),
-                repeated_bytes_wrapper: Repeated::new(),
-                optional_duration: Default::default(),
-                optional_timestamp: Default::default(),
-                optional_field_mask: Default::default(),
-                optional_struct: Default::default(),
-                optional_any: Default::default(),
-                optional_value: Default::default(),
-                optional_null_value: Default::default(),
-                optional_empty: Default::default(),
-                repeated_duration: Repeated::new(),
-                repeated_timestamp: Repeated::new(),
-                repeated_fieldmask: Repeated::new(),
-                repeated_any: Repeated::new(),
-                repeated_value: Repeated::new(),
-                repeated_list_value: Repeated::new(),
-                repeated_empty: Repeated::new(),
-                repeated_struct: Repeated::new(),
-                fieldname1: Default::default(),
-                field_name2: Default::default(),
-                _field_name3: Default::default(),
-                field__name4_: Default::default(),
-                field0name5: Default::default(),
-                field_0_name6: Default::default(),
-                fieldName7: Default::default(),
-                FieldName8: Default::default(),
-                field_Name9: Default::default(),
-                Field_Name10: Default::default(),
-                FIELD_NAME11: Default::default(),
-                FIELD_name12: Default::default(),
-                __field_name13: Default::default(),
-                __Field_name14: Default::default(),
-                field__name15: Default::default(),
-                field__Name16: Default::default(),
-                field_name17__: Default::default(),
-                Field_name18__: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypesProto3 {
         pub fn new() -> Self {
@@ -9619,22 +9273,12 @@ mod __gen {
         }
         Ok((key, val))
     }
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct NestedMessage {
         a: i32,
         corecursive: protobuf::rt::LazyMsg<TestAllTypesProto3>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for NestedMessage {
-        fn default() -> Self {
-            Self {
-                a: Default::default(),
-                corecursive: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl NestedMessage {
         pub fn new() -> Self {

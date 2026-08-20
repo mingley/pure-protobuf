@@ -459,40 +459,13 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     let name = rust_ident(&desc.full_name);
     let view = format!("{name}View");
     let mut_ = format!("{name}Mut");
-    let _ = writeln!(src, "#[derive(Clone, Debug, PartialEq)]");
+    let _ = writeln!(src, "#[derive(Clone, Debug, Default, PartialEq)]");
     let _ = writeln!(src, "pub struct {name} {{");
     for f in desc.fields.values() {
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     let _ = writeln!(src, "    unknown: UnknownFields,");
     let _ = writeln!(src, "    cached_size: protobuf::rt::CachedSize,");
-    let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl Default for {name} {{");
-    let _ = writeln!(src, "    fn default() -> Self {{");
-    let _ = writeln!(src, "        Self {{");
-    for f in desc.fields.values() {
-        let id = field_id(f);
-        if f.is_map {
-            let _ = writeln!(src, "            {id}: Map::new(),");
-        } else if is_packed_scalar(f) {
-            let _ = writeln!(src, "            {id}: {}::new(),", packed_storage_ty(f));
-        } else if f.cardinality == Cardinality::Repeated {
-            let _ = writeln!(src, "            {id}: Repeated::new(),");
-        } else if is_lazy_msg(f) {
-            let _ = writeln!(src, "            {id}: Default::default(),");
-        } else if is_option(f) {
-            let _ = writeln!(src, "            {id}: None,");
-        } else {
-            let _ = writeln!(src, "            {id}: Default::default(),");
-        }
-    }
-    let _ = writeln!(src, "            unknown: UnknownFields::default(),");
-    let _ = writeln!(
-        src,
-        "            cached_size: protobuf::rt::CachedSize::default(),"
-    );
-    let _ = writeln!(src, "        }}");
-    let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
 
     let _ = writeln!(src, "impl {name} {{");
@@ -1059,7 +1032,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             emit_oneof_clear(src, desc, f);
             let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => existing.merge_group(wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }}");
-            let _ = writeln!(src, "                }}");
+            let _ = writeln!(src, "                    }}");
         } else {
             let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
             emit_oneof_clear(src, desc, f);
@@ -1072,7 +1045,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             } else {
                 let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => {{ let mut ip = 0; existing.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id} = Some(Box::new(inner)); }} }}");
             }
-            let _ = writeln!(src, "                }}");
+            let _ = writeln!(src, "                    }}");
         }
         return;
     }
@@ -1093,7 +1066,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             src,
             "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {assign};"
         );
-        let _ = writeln!(src, "                }}");
+        let _ = writeln!(src, "                    }}");
         return;
     }
     if f.field_type == FieldType::Bytes {
@@ -1108,7 +1081,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             src,
             "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?; {assign};"
         );
-        let _ = writeln!(src, "                }}");
+        let _ = writeln!(src, "                    }}");
         return;
     }
     let expr = read_scalar_expr(f.field_type, "data", "pos");
@@ -1121,7 +1094,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     let _ = writeln!(src, "                ({num}, {w}) => {{");
     emit_oneof_clear(src, desc, f);
     let _ = writeln!(src, "                    {assign};");
-    let _ = writeln!(src, "                }}");
+    let _ = writeln!(src, "                    }}");
 }
 
 fn packed_len_expr(v: &str, ty: FieldType) -> String {

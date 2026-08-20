@@ -13,20 +13,11 @@ mod __gen {
         protobuf::gencode::conformance_pool()
     }
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct BoolValue {
         value: bool,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for BoolValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl BoolValue {
         pub fn new() -> Self {
@@ -175,20 +166,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(BoolValue, BoolValueView, BoolValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct BytesValue {
         value: protobuf::rt::LazyBytes,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for BytesValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl BytesValue {
         pub fn new() -> Self {
@@ -336,20 +318,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(BytesValue, BytesValueView, BytesValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct DoubleValue {
         value: f64,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for DoubleValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl DoubleValue {
         pub fn new() -> Self {
@@ -497,20 +470,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(DoubleValue, DoubleValueView, DoubleValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct FloatValue {
         value: f32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for FloatValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl FloatValue {
         pub fn new() -> Self {
@@ -658,20 +622,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(FloatValue, FloatValueView, FloatValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Int32Value {
         value: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Int32Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Int32Value {
         pub fn new() -> Self {
@@ -820,20 +775,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Int32Value, Int32ValueView, Int32ValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Int64Value {
         value: i64,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for Int64Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl Int64Value {
         pub fn new() -> Self {
@@ -982,20 +928,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Int64Value, Int64ValueView, Int64ValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct StringValue {
         value: protobuf::rt::LazyStr,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for StringValue {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl StringValue {
         pub fn new() -> Self {
@@ -1145,20 +1082,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(StringValue, StringValueView, StringValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct UInt32Value {
         value: u32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for UInt32Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl UInt32Value {
         pub fn new() -> Self {
@@ -1307,20 +1235,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(UInt32Value, UInt32ValueView, UInt32ValueMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct UInt64Value {
         value: u64,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for UInt64Value {
-        fn default() -> Self {
-            Self {
-                value: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl UInt64Value {
         pub fn new() -> Self {

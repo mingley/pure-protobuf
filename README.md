@@ -72,7 +72,9 @@ Plugin-generated `TestAllTypesProto3` (optional scalars, nested message, `repeat
 | decode ns (run 1) | 364.658 | 268.818 | 396.375 | 390.379 | 292.341 |
 | decode ns (run 2) | 369.828 | 272.881 | 401.102 | 394.433 | 297.834 |
 
-Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decode. prost still wins decode. buffa’s zero-copy `decode_view` is faster than our owned decode.
+Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decode.
+
+**Decode vs prost / buffa view:** this table’s prost type is a **9-field subset**, not generated `TestAllTypesProto3`. Ours (and v4, and buffa owned) construct the full message: **4064 bytes**, `Default` alone **~97 ns** (`ours_default_ns` in the bench JSON). Decode minus Default is ~290 ns, in line with prost’s whole decode of the small struct. buffa `decode_view` does not build the owned 4 KiB object. Closing that gap is sparse field storage or a real view decoder, not a faster varint loop.
 
 v4 encode is slow on this size because every `serialize` allocates a fresh upb `Arena`, FFI `upb_Encode`, then **copies** the arena buffer into a Rust `Vec`. Decode is FFI `upb_Decode` into that arena. upb C is not the bottleneck; the Rust wrapper’s per-call arena + FFI + extra memcpy is. Large payloads amortize it. See `third_party/protobuf/rust/upb/wire.rs` and `upb_kernel/message.rs`.
 
