@@ -76,4 +76,4 @@ cargo build --release --bin conformance
 
 ## License
 
-BSD-3-Clause
+MIT OR Apache-2.0. See `LICENSE-MIT` and `LICENSE-APACHE`.

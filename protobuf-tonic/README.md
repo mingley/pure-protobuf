@@ -31,3 +31,7 @@ let resp: Response<HelloReply> = grpc
 `ProtobufCodec<Encode, Decode>`: encode type first, decode type second.
 
 See `tests/unary.rs` for a localhost server + client echo.
+
+## License
+
+MIT OR Apache-2.0, same as `pure-protobuf`.
