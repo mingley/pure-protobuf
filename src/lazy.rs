@@ -69,10 +69,27 @@ impl LazyStr {
     }
 
     pub fn from_wire(w: Wire) -> Self {
-        if w.as_slice().is_empty() {
+        Self::from_span(&w, 0, w.as_slice().len())
+    }
+
+    #[inline]
+    pub fn from_span(wire: &Wire, rel_start: usize, rel_end: usize) -> Self {
+        let s = &wire.as_slice()[rel_start..rel_end];
+        if s.is_empty() {
+            Self::Empty
+        } else if s.len() <= 23 {
+            Self::Owned(ProtoString::from_bytes(s))
+        } else {
+            Self::Wire(wire.window(rel_start, rel_end))
+        }
+    }
+
+    #[inline]
+    pub fn from_bytes(s: &[u8]) -> Self {
+        if s.is_empty() {
             Self::Empty
         } else {
-            Self::Wire(w)
+            Self::Owned(ProtoString::from_bytes(s))
         }
     }
 
@@ -168,6 +185,15 @@ impl LazyBytes {
         }
     }
 
+    #[inline]
+    pub fn from_bytes(s: &[u8]) -> Self {
+        if s.is_empty() {
+            Self::Empty
+        } else {
+            Self::Owned(ProtoBytes::from(s))
+        }
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         match self {
             Self::Empty => b"",
@@ -214,13 +240,34 @@ impl From<Vec<u8>> for LazyBytes {
     }
 }
 
+/// Generated messages implement this so [`LazyMsg`] can validate without
+/// constructing `T`, then materialize on first getter.
+pub trait MergeBytes: Default + Sized {
+    fn merge_inner(
+        &mut self,
+        wire: &Wire,
+        pos: &mut usize,
+        depth: u32,
+        enforce: bool,
+        until: Option<u32>,
+    ) -> Result<(), crate::error::ParseError>;
+    fn validate_inner(
+        wire: &Wire,
+        pos: &mut usize,
+        depth: u32,
+    ) -> Result<(), crate::error::ParseError> {
+        let mut tmp = Self::default();
+        tmp.merge_inner(wire, pos, depth, true, None)
+    }
+}
+
 struct LazyInner<T> {
-    msg: T,
+    parsed: std::sync::OnceLock<T>,
     wire: Option<Wire>,
 }
 
-/// Nested LEN message: parsed `T` plus original payload for memcpy serialize.
-/// Empty is a null pointer (8 bytes, zero-valid). Groups/delimited stay `Option<Box<T>>`.
+/// Nested LEN message. Empty is null (8 bytes, zero-valid). Parse stores wire
+/// after eager validation; `T` is built on first getter / mutator.
 pub struct LazyMsg<T> {
     inner: Option<Box<LazyInner<T>>>,
 }
@@ -233,15 +280,31 @@ impl<T> Default for LazyMsg<T> {
 }
 
 impl<T> LazyMsg<T> {
-    pub fn from_parsed(msg: T, w: Wire) -> Self {
+    pub fn from_wire(w: Wire) -> Self {
         Self {
-            inner: Some(Box::new(LazyInner { msg, wire: Some(w) })),
+            inner: Some(Box::new(LazyInner {
+                parsed: std::sync::OnceLock::new(),
+                wire: Some(w),
+            })),
+        }
+    }
+
+    pub fn from_parsed(msg: T, w: Wire) -> Self {
+        let parsed = std::sync::OnceLock::new();
+        let _ = parsed.set(msg);
+        Self {
+            inner: Some(Box::new(LazyInner {
+                parsed,
+                wire: Some(w),
+            })),
         }
     }
 
     pub fn from_owned(msg: T) -> Self {
+        let parsed = std::sync::OnceLock::new();
+        let _ = parsed.set(msg);
         Self {
-            inner: Some(Box::new(LazyInner { msg, wire: None })),
+            inner: Some(Box::new(LazyInner { parsed, wire: None })),
         }
     }
 
@@ -255,9 +318,19 @@ impl<T> LazyMsg<T> {
         self.inner.is_none()
     }
 
-    #[inline]
-    pub fn as_deref(&self) -> Option<&T> {
-        self.inner.as_ref().map(|i| &i.msg)
+    pub fn as_deref(&self) -> Option<&T>
+    where
+        T: MergeBytes,
+    {
+        let inner = self.inner.as_ref()?;
+        Some(inner.parsed.get_or_init(|| {
+            let mut m = T::default();
+            if let Some(w) = &inner.wire {
+                let mut pos = 0;
+                let _ = MergeBytes::merge_inner(&mut m, w, &mut pos, 0, true, None);
+            }
+            m
+        }))
     }
 
     pub fn wire_bytes(&self) -> Option<&[u8]> {
@@ -269,16 +342,25 @@ impl<T> LazyMsg<T> {
 
     pub fn get_or_insert(&mut self) -> &mut T
     where
-        T: Default,
+        T: MergeBytes,
     {
         let inner = self.inner.get_or_insert_with(|| {
             Box::new(LazyInner {
-                msg: T::default(),
+                parsed: std::sync::OnceLock::new(),
                 wire: None,
             })
         });
-        inner.wire = None;
-        &mut inner.msg
+        if inner.parsed.get().is_none() {
+            let mut m = T::default();
+            if let Some(w) = inner.wire.take() {
+                let mut pos = 0;
+                let _ = MergeBytes::merge_inner(&mut m, &w, &mut pos, 0, true, None);
+            }
+            let _ = inner.parsed.set(m);
+        } else {
+            inner.wire = None;
+        }
+        inner.parsed.get_mut().expect("lazy parsed")
     }
 
     pub fn clear(&mut self) {
@@ -290,8 +372,12 @@ impl<T: Clone> Clone for LazyMsg<T> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.as_ref().map(|i| {
+                let parsed = std::sync::OnceLock::new();
+                if let Some(m) = i.parsed.get() {
+                    let _ = parsed.set(m.clone());
+                }
                 Box::new(LazyInner {
-                    msg: i.msg.clone(),
+                    parsed,
                     wire: i.wire.clone(),
                 })
             }),
@@ -299,13 +385,13 @@ impl<T: Clone> Clone for LazyMsg<T> {
     }
 }
 
-impl<T: PartialEq> PartialEq for LazyMsg<T> {
+impl<T: MergeBytes + PartialEq> PartialEq for LazyMsg<T> {
     fn eq(&self, other: &Self) -> bool {
         self.as_deref() == other.as_deref()
     }
 }
 
-impl<T: std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
+impl<T: MergeBytes + std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(&self.as_deref(), f)
     }

@@ -1,7 +1,6 @@
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
 use crate::string::ProtoString;
-use std::collections::BTreeMap;
 use std::fmt;
 
 /// Types allowed as map keys.
@@ -17,10 +16,10 @@ impl MapKey for ProtoString {}
 pub trait MapValue: Clone + 'static {}
 impl<T: Clone + 'static> MapValue for T {}
 
-/// An owned map field. Empty `None` is zero-valid (`BTreeMap` layout is not guaranteed).
-/// `BTreeMap` so encode order is deterministic.
+/// Empty is an 8-byte null. Parse appends to a `Vec`; lookup scans, last key wins.
+#[allow(clippy::box_collection)]
 #[derive(Clone)]
-pub struct Map<K: MapKey, V: MapValue>(Option<BTreeMap<K, V>>);
+pub struct Map<K: MapKey, V: MapValue>(Option<Box<Vec<(K, V)>>>);
 
 impl<K: MapKey, V: MapValue> Default for Map<K, V> {
     #[inline]
@@ -31,12 +30,9 @@ impl<K: MapKey, V: MapValue> Default for Map<K, V> {
 
 impl<K: MapKey, V: MapValue + PartialEq> PartialEq for Map<K, V> {
     fn eq(&self, other: &Self) -> bool {
-        match (&self.0, &other.0) {
-            (None, None) => true,
-            (Some(a), Some(b)) => a == b,
-            (None, Some(b)) => b.is_empty(),
-            (Some(a), None) => a.is_empty(),
-        }
+        self.len() == other.len()
+            && self.iter().all(|(k, v)| other.get(k) == Some(v))
+            && other.iter().all(|(k, _)| self.get(k).is_some())
     }
 }
 impl<K: MapKey, V: MapValue + Eq> Eq for Map<K, V> {}
@@ -48,44 +44,74 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
     }
 
     #[inline]
-    fn ensure(&mut self) -> &mut BTreeMap<K, V> {
-        self.0.get_or_insert_with(BTreeMap::new)
+    fn ensure(&mut self) -> &mut Vec<(K, V)> {
+        self.0.get_or_insert_with(|| Box::new(Vec::new()))
+    }
+
+    /// Append a parsed entry without scanning (protobuf last-wins).
+    #[inline]
+    pub fn push_entry(&mut self, key: K, value: V) {
+        self.ensure().push((key, value));
     }
 
     /// Returns `true` if the key was newly inserted.
     pub fn insert(&mut self, key: impl Into<K>, value: impl Into<V>) -> bool {
-        self.ensure().insert(key.into(), value.into()).is_none()
+        let key = key.into();
+        let value = value.into();
+        let v = self.ensure();
+        if let Some(e) = v.iter_mut().rev().find(|(k, _)| *k == key) {
+            e.1 = value;
+            false
+        } else {
+            v.push((key, value));
+            true
+        }
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
-        self.0.as_ref().and_then(|m| m.get(key))
+        self.0
+            .as_ref()?
+            .iter()
+            .rev()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v)
     }
 
     pub fn remove(&mut self, key: &K) -> Option<V> {
-        let m = self.0.as_mut()?;
-        let v = m.remove(key);
-        if m.is_empty() {
+        let v = self.0.as_mut()?;
+        let i = v.iter().rposition(|(k, _)| k == key)?;
+        let out = v.swap_remove(i).1;
+        if v.is_empty() {
             self.0 = None;
         }
-        v
+        Some(out)
     }
 
     pub fn keys(&self) -> impl Iterator<Item = &K> {
-        self.0.iter().flat_map(|m| m.keys())
+        self.iter().map(|(k, _)| k)
     }
 
     pub fn values(&self) -> impl Iterator<Item = &V> {
-        self.0.iter().flat_map(|m| m.values())
+        self.iter().map(|(_, v)| v)
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.0.as_ref().map_or(0, |m| m.len())
+        let Some(v) = self.0.as_ref() else {
+            return 0;
+        };
+        let mut n = 0;
+        for (i, (k, _)) in v.iter().enumerate() {
+            if v[i + 1..].iter().all(|(k2, _)| k2 != k) {
+                n += 1;
+            }
+        }
+        n
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.0.as_ref().is_none_or(|m| m.is_empty())
+        self.0.as_ref().is_none_or(|v| v.is_empty())
     }
 
     pub fn clear(&mut self) {
@@ -94,41 +120,44 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
 
     pub fn iter(&self) -> MapIter<'_, K, V> {
         MapIter {
-            inner: self.0.as_ref().map(|m| m.iter()),
+            items: self.pairs(),
+            i: 0,
         }
     }
 
-    pub fn inner(&self) -> Option<&BTreeMap<K, V>> {
-        self.0.as_ref()
-    }
-
-    pub fn inner_mut(&mut self) -> &mut BTreeMap<K, V> {
-        self.ensure()
+    #[inline]
+    pub fn pairs(&self) -> &[(K, V)] {
+        self.0.as_deref().map_or(&[], |v| v.as_slice())
     }
 }
 
 impl<K: MapKey + fmt::Debug, V: MapValue + fmt::Debug> fmt::Debug for Map<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.0 {
-            Some(m) => fmt::Debug::fmt(m, f),
-            None => f.write_str("{}"),
-        }
+        f.debug_map().entries(self.iter()).finish()
     }
 }
 
 pub struct MapIter<'msg, K, V> {
-    inner: Option<std::collections::btree_map::Iter<'msg, K, V>>,
+    items: &'msg [(K, V)],
+    i: usize,
 }
 
-impl<'msg, K, V> Iterator for MapIter<'msg, K, V> {
+impl<'msg, K: MapKey, V> Iterator for MapIter<'msg, K, V> {
     type Item = (&'msg K, &'msg V);
     fn next(&mut self) -> Option<Self::Item> {
-        self.inner.as_mut()?.next()
+        while self.i < self.items.len() {
+            let (k, v) = &self.items[self.i];
+            self.i += 1;
+            if self.items[self.i..].iter().all(|(k2, _)| k2 != k) {
+                return Some((k, v));
+            }
+        }
+        None
     }
 }
 
 pub struct MapView<'msg, K: MapKey, V: MapValue> {
-    inner: Option<&'msg BTreeMap<K, V>>,
+    inner: Option<&'msg [(K, V)]>,
 }
 
 impl<K: MapKey, V: MapValue> Clone for MapView<'_, K, V> {
@@ -139,70 +168,98 @@ impl<K: MapKey, V: MapValue> Clone for MapView<'_, K, V> {
 impl<K: MapKey, V: MapValue> Copy for MapView<'_, K, V> {}
 
 impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
-    pub fn from_map(inner: &'msg BTreeMap<K, V>) -> Self {
-        Self { inner: Some(inner) }
+    #[inline]
+    pub fn empty() -> Self {
+        Self { inner: None }
     }
 
     pub fn get(self, key: &K) -> Option<&'msg V> {
-        self.inner.and_then(|m| m.get(key))
+        self.inner?
+            .iter()
+            .rev()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v)
     }
 
     pub fn len(self) -> usize {
-        self.inner.map_or(0, |m| m.len())
+        let Some(v) = self.inner else {
+            return 0;
+        };
+        let mut n = 0;
+        for (i, (k, _)) in v.iter().enumerate() {
+            if v[i + 1..].iter().all(|(k2, _)| k2 != k) {
+                n += 1;
+            }
+        }
+        n
     }
 
     pub fn is_empty(self) -> bool {
-        self.inner.is_none_or(|m| m.is_empty())
+        self.inner.is_none_or(|v| v.is_empty())
     }
 
     pub fn keys(self) -> impl Iterator<Item = &'msg K> {
-        self.inner.into_iter().flat_map(|m| m.keys())
+        self.iter().map(|(k, _)| k)
     }
 
     pub fn values(self) -> impl Iterator<Item = &'msg V> {
-        self.inner.into_iter().flat_map(|m| m.values())
+        self.iter().map(|(_, v)| v)
     }
 
     pub fn iter(self) -> MapIter<'msg, K, V> {
         MapIter {
-            inner: self.inner.map(|m| m.iter()),
+            items: self.inner.unwrap_or(&[]),
+            i: 0,
         }
     }
 }
 
 impl<K: MapKey + fmt::Debug, V: MapValue + fmt::Debug> fmt::Debug for MapView<'_, K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.inner {
-            Some(m) => fmt::Debug::fmt(m, f),
-            None => f.write_str("{}"),
-        }
+        f.debug_map().entries(self.iter()).finish()
     }
 }
 
 pub struct MapMut<'msg, K: MapKey, V: MapValue> {
-    inner: &'msg mut BTreeMap<K, V>,
+    inner: &'msg mut Vec<(K, V)>,
 }
 
 impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
-    pub fn from_map(inner: &'msg mut BTreeMap<K, V>) -> Self {
-        Self { inner }
-    }
-
     /// Returns `true` if the key was newly inserted.
     pub fn insert(&mut self, key: impl Into<K>, value: impl Into<V>) -> bool {
-        self.inner.insert(key.into(), value.into()).is_none()
+        let key = key.into();
+        let value = value.into();
+        if let Some(e) = self.inner.iter_mut().rev().find(|(k, _)| *k == key) {
+            e.1 = value;
+            false
+        } else {
+            self.inner.push((key, value));
+            true
+        }
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
-        self.inner.get(key)
+        self.inner
+            .iter()
+            .rev()
+            .find(|(k, _)| k == key)
+            .map(|(_, v)| v)
     }
 
     pub fn remove(&mut self, key: &K) -> Option<V> {
-        self.inner.remove(key)
+        let i = self.inner.iter().rposition(|(k, _)| k == key)?;
+        Some(self.inner.swap_remove(i).1)
     }
 
     pub fn len(&self) -> usize {
-        self.inner.len()
+        let v = &*self.inner;
+        let mut n = 0;
+        for (i, (k, _)) in v.iter().enumerate() {
+            if v[i + 1..].iter().all(|(k2, _)| k2 != k) {
+                n += 1;
+            }
+        }
+        n
     }
 
     pub fn is_empty(&self) -> bool {
@@ -210,11 +267,11 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     }
 
     pub fn keys(&self) -> impl Iterator<Item = &K> {
-        self.inner.keys()
+        self.inner.iter().map(|(k, _)| k)
     }
 
     pub fn values(&self) -> impl Iterator<Item = &V> {
-        self.inner.values()
+        self.inner.iter().map(|(_, v)| v)
     }
 
     pub fn clear(&mut self) {
@@ -224,7 +281,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
 
 impl<K: MapKey + fmt::Debug, V: MapValue + fmt::Debug> fmt::Debug for MapMut<'_, K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self.inner, f)
+        f.debug_list().entries(self.inner.iter()).finish()
     }
 }
 
@@ -239,7 +296,7 @@ impl<K: MapKey, V: MapValue> AsView for Map<K, V> {
     type Proxied = Self;
     fn as_view(&self) -> MapView<'_, K, V> {
         MapView {
-            inner: self.0.as_ref(),
+            inner: self.0.as_deref().map(|v| v.as_slice()),
         }
     }
 }
@@ -273,7 +330,7 @@ impl<K: MapKey, V: MapValue> AsView for MapMut<'_, K, V> {
     type Proxied = Map<K, V>;
     fn as_view(&self) -> MapView<'_, K, V> {
         MapView {
-            inner: Some(self.inner),
+            inner: Some(self.inner.as_slice()),
         }
     }
 }
@@ -289,7 +346,7 @@ impl<'msg, K: MapKey, V: MapValue> IntoView<'msg> for MapMut<'msg, K, V> {
         'msg: 'shorter,
     {
         MapView {
-            inner: Some(self.inner),
+            inner: Some(self.inner.as_slice()),
         }
     }
 }
@@ -317,7 +374,7 @@ where
 impl<K: MapKey, V: MapValue> IntoProxied<Map<K, V>> for MapView<'_, K, V> {
     fn into_proxied(self) -> Map<K, V> {
         match self.inner {
-            Some(m) if !m.is_empty() => Map(Some(m.clone())),
+            Some(m) if !m.is_empty() => Map(Some(Box::new(m.to_vec()))),
             _ => Map(None),
         }
     }

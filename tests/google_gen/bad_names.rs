@@ -143,19 +143,44 @@ mod __gen {
             matches!(value, 0)
         }
     }
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct AccessorsCollide {
         set_x_2: protobuf::rt::LazyMsg<SetX>,
         x: protobuf::rt::LazyMsg<X>,
-        x_mut_5: Option<bool>,
+        x_mut_5: protobuf::rt::OptBool,
         clear_x_7: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for AccessorsCollide {
+        fn eq(&self, other: &Self) -> bool {
+            if self.set_x_2 != other.set_x_2 {
+                return false;
+            }
+            if self.x != other.x {
+                return false;
+            }
+            if self.x_mut_5 != other.x_mut_5 {
+                return false;
+            }
+            if self.clear_x_7 != other.clear_x_7 {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for AccessorsCollide {}
+    impl Default for AccessorsCollide {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl AccessorsCollide {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.AccessorsCollide";
         pub fn has_set_x_2(&self) -> bool {
             self.set_x_2.is_some()
@@ -216,15 +241,15 @@ mod __gen {
             self.x_mut_5.unwrap_or(false)
         }
         pub fn x_mut_5_opt(&self) -> Option<bool> {
-            self.x_mut_5.map(|v| v)
+            self.x_mut_5.get()
         }
         pub fn set_x_mut_5(&mut self, v: bool) {
             self.cached_size.dirty();
-            self.x_mut_5 = Some(v);
+            self.x_mut_5 = protobuf::rt::OptBool::some(v);
         }
         pub fn clear_x_mut_5(&mut self) {
             self.cached_size.dirty();
-            self.x_mut_5 = None;
+            self.x_mut_5 = protobuf::rt::OptBool::NONE;
         }
         pub fn has_clear_x_7(&self) -> bool {
             self.clear_x_7.is_some()
@@ -243,6 +268,7 @@ mod __gen {
             self.cached_size.dirty();
             self.clear_x_7 = None;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -295,62 +321,73 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (2, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        if self.set_x_2.is_some() {
-                            let mut ip = 0;
-                            self.set_x_2.get_or_insert().merge_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                        } else {
-                            let mut inner = SetX::default();
-                            let mut ip = 0;
-                            inner.merge_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                            self.set_x_2 =
-                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
+                match n {
+                    2 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            if self.set_x_2.is_some() {
+                                let mut ip = 0;
+                                self.set_x_2.get_or_insert().merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            } else {
+                                let mut ip = 0;
+                                SetX::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
+                                self.set_x_2 = protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                            }
                         }
-                    }
-                    (3, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        if self.x.is_some() {
-                            let mut ip = 0;
-                            self.x.get_or_insert().merge_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                        } else {
-                            let mut inner = X::default();
-                            let mut ip = 0;
-                            inner.merge_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                            self.x = protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            if self.x.is_some() {
+                                let mut ip = 0;
+                                self.x.get_or_insert().merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            } else {
+                                let mut ip = 0;
+                                X::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
+                                self.x = protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                            }
                         }
-                    }
-                    (5, protobuf::rt::WIRE_VARINT) => {
-                        self.x_mut_5 = Some(protobuf::rt::decode_varint(data, pos)? != 0);
-                    }
-                    (7, protobuf::rt::WIRE_VARINT) => {
-                        self.clear_x_7 = Some(protobuf::rt::decode_varint(data, pos)? as i32);
-                    }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    5 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.x_mut_5 = protobuf::rt::OptBool::some(
+                                protobuf::rt::decode_varint(data, pos)? != 0,
+                            );
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    7 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.clear_x_7 = Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -362,6 +399,70 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    2 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let mut ip = 0;
+                            SetX::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let mut ip = 0;
+                            X::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    5 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    7 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -380,7 +481,7 @@ mod __gen {
             } else if let Some(m) = self.x.as_deref() {
                 n += protobuf::rt::key_len_value_len(3, m.compute_size());
             }
-            if let Some(v) = self.x_mut_5 {
+            if let Some(v) = self.x_mut_5.get() {
                 n += protobuf::rt::tag_len(5, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
@@ -406,7 +507,7 @@ mod __gen {
                 protobuf::rt::encode_len_header(out, 3, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(v) = self.x_mut_5 {
+            if let Some(v) = self.x_mut_5.get() {
                 protobuf::rt::encode_tag(out, 5, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
@@ -418,16 +519,30 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(AccessorsCollide, AccessorsCollideView, AccessorsCollideMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct SetX {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for SetX {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for SetX {}
+    impl Default for SetX {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl SetX {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.AccessorsCollide.SetX";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -480,7 +595,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -492,6 +607,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -508,16 +659,30 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(SetX, SetXView, SetXMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct X {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for X {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for X {}
+    impl Default for X {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl X {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.AccessorsCollide.X";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -570,7 +735,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -582,6 +747,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -598,16 +799,30 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(X, XView, XMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct MangleViewTest {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for MangleViewTest {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for MangleViewTest {}
+    impl Default for MangleViewTest {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl MangleViewTest {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.MangleViewTest";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -660,7 +875,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -672,6 +887,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -688,16 +939,30 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(MangleViewTest, MangleViewTestView, MangleViewTestMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct MangleViewTestView_ {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for MangleViewTestView_ {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for MangleViewTestView_ {}
+    impl Default for MangleViewTestView_ {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl MangleViewTestView_ {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.MangleViewTestView";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -750,7 +1015,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -762,6 +1027,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -782,16 +1083,30 @@ mod __gen {
         MangleViewTestView_View,
         MangleViewTestView_Mut
     );
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct Pub {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for Pub {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for Pub {}
+    impl Default for Pub {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl Pub {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.Pub";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -844,7 +1159,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -856,6 +1171,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -872,16 +1223,32 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Pub, PubView, PubMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct Ref {
         r#const: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
+    impl PartialEq for Ref {
+        fn eq(&self, other: &Self) -> bool {
+            if self.r#const != other.r#const {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for Ref {}
+    impl Default for Ref {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
+    }
     impl Ref {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.Ref";
         pub fn has_const(&self) -> bool {
             self.r#const.is_some()
@@ -900,6 +1267,7 @@ mod __gen {
             self.cached_size.dirty();
             self.r#const = None;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -952,10 +1320,16 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (3, protobuf::rt::WIRE_VARINT) => {
-                        self.r#const = Some(protobuf::rt::decode_varint(data, pos)? as i32);
-                    }
+                match n {
+                    3 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.r#const = Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -967,6 +1341,48 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    3 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -991,22 +1407,56 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Ref, RefView, RefMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct Self_ {
         r#for: Option<i32>,
         self_: protobuf::rt::LazyMsg<Self_>,
-        r#true: Option<bool>,
-        r#false: Option<protobuf::rt::LazyStr>,
+        r#true: protobuf::rt::OptBool,
+        r#false: Option<Box<protobuf::rt::LazyStr>>,
         r#match: Repeated<i32>,
-        clear: Option<bool>,
-        new_: Option<bool>,
+        clear: protobuf::rt::OptBool,
+        new_: protobuf::rt::OptBool,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for Self_ {
+        fn eq(&self, other: &Self) -> bool {
+            if self.r#for != other.r#for {
+                return false;
+            }
+            if self.self_ != other.self_ {
+                return false;
+            }
+            if self.r#true != other.r#true {
+                return false;
+            }
+            if self.r#false != other.r#false {
+                return false;
+            }
+            if self.r#match != other.r#match {
+                return false;
+            }
+            if self.clear != other.clear {
+                return false;
+            }
+            if self.new_ != other.new_ {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for Self_ {}
+    impl Default for Self_ {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl Self_ {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.Self";
         pub fn has_for(&self) -> bool {
             self.r#for.is_some()
@@ -1058,15 +1508,15 @@ mod __gen {
             self.r#true.unwrap_or(false)
         }
         pub fn r#true_opt(&self) -> Option<bool> {
-            self.r#true.map(|v| v)
+            self.r#true.get()
         }
         pub fn set_true(&mut self, v: bool) {
             self.cached_size.dirty();
-            self.r#true = Some(v);
+            self.r#true = protobuf::rt::OptBool::some(v);
         }
         pub fn clear_true(&mut self) {
             self.cached_size.dirty();
-            self.r#true = None;
+            self.r#true = protobuf::rt::OptBool::NONE;
         }
         pub fn has_false(&self) -> bool {
             self.r#false.is_some()
@@ -1082,7 +1532,7 @@ mod __gen {
         }
         pub fn set_false(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.r#false = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
+            self.r#false = Some(Box::new(protobuf::rt::LazyStr::owned(v.into_proxied())));
         }
         pub fn clear_false(&mut self) {
             self.cached_size.dirty();
@@ -1106,15 +1556,15 @@ mod __gen {
             self.clear.unwrap_or(false)
         }
         pub fn clear_opt(&self) -> Option<bool> {
-            self.clear.map(|v| v)
+            self.clear.get()
         }
         pub fn set_clear(&mut self, v: bool) {
             self.cached_size.dirty();
-            self.clear = Some(v);
+            self.clear = protobuf::rt::OptBool::some(v);
         }
         pub fn clear_clear(&mut self) {
             self.cached_size.dirty();
-            self.clear = None;
+            self.clear = protobuf::rt::OptBool::NONE;
         }
         pub fn has_new(&self) -> bool {
             self.new_.is_some()
@@ -1123,16 +1573,17 @@ mod __gen {
             self.new_.unwrap_or(false)
         }
         pub fn new__opt(&self) -> Option<bool> {
-            self.new_.map(|v| v)
+            self.new_.get()
         }
         pub fn set_new(&mut self, v: bool) {
             self.cached_size.dirty();
-            self.new_ = Some(v);
+            self.new_ = protobuf::rt::OptBool::some(v);
         }
         pub fn clear_new(&mut self) {
             self.cached_size.dirty();
-            self.new_ = None;
+            self.new_ = protobuf::rt::OptBool::NONE;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -1185,60 +1636,101 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (1, protobuf::rt::WIRE_VARINT) => {
-                        self.r#for = Some(protobuf::rt::decode_varint(data, pos)? as i32);
-                    }
-                    (2, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        if self.self_.is_some() {
-                            let mut ip = 0;
-                            self.self_.get_or_insert().merge_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                        } else {
-                            let mut inner = Self_::default();
-                            let mut ip = 0;
-                            inner.merge_inner(
-                                &wire.window(s, e),
-                                &mut ip,
-                                depth + 1,
-                                true,
-                                None,
-                            )?;
-                            self.self_ =
-                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.r#for = Some(protobuf::rt::decode_varint(data, pos)? as i32);
                         }
-                    }
-                    (3, protobuf::rt::WIRE_VARINT) => {
-                        self.r#true = Some(protobuf::rt::decode_varint(data, pos)? != 0);
-                    }
-                    (4, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let b = &data[s..e];
-                        self.r#false = Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
-                    }
-                    (5, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.r#match
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    2 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            if self.self_.is_some() {
+                                let mut ip = 0;
+                                self.self_.get_or_insert().merge_inner(
+                                    &wire.window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                    true,
+                                    None,
+                                )?;
+                            } else {
+                                let mut ip = 0;
+                                Self_::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
+                                self.self_ = protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                            }
                         }
-                    }
-                    (5, protobuf::rt::WIRE_VARINT) => self
-                        .r#match
-                        .push(protobuf::rt::decode_varint(data, pos)? as i32),
-                    (6, protobuf::rt::WIRE_VARINT) => {
-                        self.clear = Some(protobuf::rt::decode_varint(data, pos)? != 0);
-                    }
-                    (7, protobuf::rt::WIRE_VARINT) => {
-                        self.new_ = Some(protobuf::rt::decode_varint(data, pos)? != 0);
-                    }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.r#true = protobuf::rt::OptBool::some(
+                                protobuf::rt::decode_varint(data, pos)? != 0,
+                            );
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    4 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let b = &data[s..e];
+                            self.r#false =
+                                Some(Box::new(protobuf::rt::LazyStr::from_span(wire, s, e)));
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    5 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                            let mut i = 0;
+                            while i < p.len() {
+                                self.r#match
+                                    .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
+                            }
+                        }
+                        protobuf::rt::WIRE_VARINT => self
+                            .r#match
+                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    6 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.clear = protobuf::rt::OptBool::some(
+                                protobuf::rt::decode_varint(data, pos)? != 0,
+                            );
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    7 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.new_ = protobuf::rt::OptBool::some(
+                                protobuf::rt::decode_varint(data, pos)? != 0,
+                            );
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -1250,6 +1742,90 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    2 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let mut ip = 0;
+                            Self_::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    4 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    5 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        }
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    6 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    7 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -1267,7 +1843,7 @@ mod __gen {
             } else if let Some(m) = self.self_.as_deref() {
                 n += protobuf::rt::key_len_value_len(2, m.compute_size());
             }
-            if let Some(v) = self.r#true {
+            if let Some(v) = self.r#true.get() {
                 n += protobuf::rt::tag_len(3, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
@@ -1278,11 +1854,11 @@ mod __gen {
                 n += protobuf::rt::tag_len(5, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len((*t) as u64);
             }
-            if let Some(v) = self.clear {
+            if let Some(v) = self.clear.get() {
                 n += protobuf::rt::tag_len(6, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
-            if let Some(v) = self.new_ {
+            if let Some(v) = self.new_.get() {
                 n += protobuf::rt::tag_len(7, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
@@ -1301,7 +1877,7 @@ mod __gen {
                 protobuf::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(v) = self.r#true {
+            if let Some(v) = self.r#true.get() {
                 protobuf::rt::encode_tag(out, 3, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
@@ -1312,11 +1888,11 @@ mod __gen {
                 protobuf::rt::encode_tag(out, 5, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, *t as u64);
             }
-            if let Some(v) = self.clear {
+            if let Some(v) = self.clear.get() {
                 protobuf::rt::encode_tag(out, 6, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
-            if let Some(v) = self.new_ {
+            if let Some(v) = self.new_.get() {
                 protobuf::rt::encode_tag(out, 7, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
@@ -1324,16 +1900,30 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Self_, Self_View, Self_Mut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct SomeMsg {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for SomeMsg {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for SomeMsg {}
+    impl Default for SomeMsg {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl SomeMsg {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.SomeMsg";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -1386,7 +1976,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -1398,6 +1988,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -1414,16 +2040,30 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(SomeMsg, SomeMsgView, SomeMsgMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct r#enum {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for r#enum {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for r#enum {}
+    impl Default for r#enum {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl r#enum {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "type.type.enum";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -1476,7 +2116,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -1488,6 +2128,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }

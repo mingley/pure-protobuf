@@ -283,16 +283,32 @@ mod __gen {
             matches!(value, 0 | 1)
         }
     }
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct TestMapWithNestedEnum {
         string_map: Map<protobuf::rt::LazyStr, i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
+    impl PartialEq for TestMapWithNestedEnum {
+        fn eq(&self, other: &Self) -> bool {
+            if self.string_map != other.string_map {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for TestMapWithNestedEnum {}
+    impl Default for TestMapWithNestedEnum {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
+    }
     impl TestMapWithNestedEnum {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "enums.TestMapWithNestedEnum";
         pub fn string_map(&self) -> MapView<'_, protobuf::rt::LazyStr, i32> {
             self.string_map.as_view()
@@ -305,6 +321,7 @@ mod __gen {
             self.cached_size.dirty();
             self.string_map = v;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -357,15 +374,21 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (1, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let (kk, vv) = decode_map_entry_TestMapWithNestedEnum_string_map_1(
-                            &wire.window(s, e),
-                            depth + 1,
-                        )?;
-                        self.string_map.insert(kk, vv);
-                    }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let (kk, vv) = decode_map_entry_TestMapWithNestedEnum_string_map_1(
+                                &wire.window(s, e),
+                                depth + 1,
+                            )?;
+                            self.string_map.push_entry(kk, vv);
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -380,13 +403,62 @@ mod __gen {
             }
             Ok(())
         }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let mut ip = 0;
+                            let w = wire.window(s, e);
+                            let d = w.as_slice();
+                            while ip < d.len() {
+                                let (_, ww) = protobuf::rt::decode_tag(d, &mut ip)?;
+                                protobuf::rt::skip_field(d, &mut ip, ww)?;
+                            }
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
+            }
+            Ok(())
+        }
         fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
             if !self.string_map.is_empty() {
-                for (k, v) in self.string_map.iter() {
+                for (k, v) in self.string_map.pairs() {
                     let inner = protobuf::rt::key_len_value_len(1, k.as_bytes().len() as u64)
                         + protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
                         + protobuf::rt::varint_len((*v) as u64);
@@ -398,7 +470,7 @@ mod __gen {
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if !self.string_map.is_empty() {
-                for (k, v) in self.string_map.iter() {
+                for (k, v) in self.string_map.pairs() {
                     let inner = protobuf::rt::key_len_value_len(1, k.as_bytes().len() as u64)
                         + protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
                         + protobuf::rt::varint_len((*v) as u64);
@@ -433,7 +505,7 @@ mod __gen {
                     let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
                     std::str::from_utf8(&data[s..e])
                         .map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = protobuf::rt::LazyStr::from_wire(wire.window(s, e));
+                    key = protobuf::rt::LazyStr::from_span(wire, s, e);
                 }
                 (2, protobuf::rt::WIRE_VARINT) => {
                     val = protobuf::rt::decode_varint(data, &mut pos)? as i32
@@ -443,16 +515,30 @@ mod __gen {
         }
         Ok((key, val))
     }
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct InnerNested {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for InnerNested {
+        fn eq(&self, other: &Self) -> bool {
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for InnerNested {}
+    impl Default for InnerNested {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl InnerNested {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "enums.TestMapWithNestedEnum.InnerNested";
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -505,7 +591,7 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
+                match n {
                     _ => self
                         .unknown
                         .fields
@@ -517,6 +603,42 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }

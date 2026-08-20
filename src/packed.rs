@@ -25,11 +25,7 @@ macro_rules! varint_codec {
         impl PackedCodec for $name {
             type Elem = $elem;
             fn validate(buf: &[u8]) -> Result<(), ParseError> {
-                let mut i = 0;
-                while i < buf.len() {
-                    decode_varint(buf, &mut i)?;
-                }
-                Ok(())
+                crate::wire::validate_varints(buf)
             }
             fn decode(buf: &[u8], out: &mut Vec<$elem>) -> Result<(), ParseError> {
                 let mut i = 0;
@@ -59,11 +55,7 @@ pub enum Bools {}
 impl PackedCodec for Bools {
     type Elem = bool;
     fn validate(buf: &[u8]) -> Result<(), ParseError> {
-        let mut i = 0;
-        while i < buf.len() {
-            decode_varint(buf, &mut i)?;
-        }
-        Ok(())
+        crate::wire::validate_varints(buf)
     }
     fn decode(buf: &[u8], out: &mut Vec<bool>) -> Result<(), ParseError> {
         let mut i = 0;
@@ -161,6 +153,11 @@ impl<C: PackedCodec> Packed<C> {
     #[inline]
     pub fn new() -> Self {
         Self { inner: None }
+    }
+
+    #[inline]
+    pub fn validate_bytes(buf: &[u8]) -> Result<(), ParseError> {
+        C::validate(buf)
     }
 
     pub fn from_repeated(r: Repeated<C::Elem>) -> Self {

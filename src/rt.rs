@@ -3,7 +3,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub use crate::error::{ParseError, SerializeError};
-pub use crate::lazy::{LazyBytes, LazyMsg, LazyStr, Wire};
+pub use crate::lazy::{LazyBytes, LazyMsg, LazyStr, MergeBytes, Wire};
 pub use crate::packed::{
     Bools, FixedI32, FixedI64, FixedU32, FixedU64, Ieee32, Ieee64, Packed, PackedBool, PackedCodec,
     PackedF32, PackedF64, PackedFx32, PackedFx64, PackedI32, PackedI64, PackedS32, PackedS64,
@@ -66,3 +66,56 @@ impl PartialEq for CachedSize {
     }
 }
 impl Eq for CachedSize {}
+
+/// Explicit `optional bool` / oneof bool. 0 = unset so `mem::zeroed` is None
+/// (`Option<bool>` lays out `Some(false)` as all-zero).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct OptBool(u8);
+
+impl OptBool {
+    pub const NONE: Self = Self(0);
+
+    #[inline]
+    pub fn some(v: bool) -> Self {
+        Self(1 + u8::from(v))
+    }
+
+    #[inline]
+    pub fn get(self) -> Option<bool> {
+        match self.0 {
+            0 => None,
+            1 => Some(false),
+            _ => Some(true),
+        }
+    }
+
+    #[inline]
+    pub fn is_none(self) -> bool {
+        self.0 == 0
+    }
+
+    #[inline]
+    pub fn is_some(self) -> bool {
+        self.0 != 0
+    }
+
+    #[inline]
+    pub fn unwrap_or(self, default: bool) -> bool {
+        self.get().unwrap_or(default)
+    }
+
+    #[inline]
+    pub fn map<T>(self, f: impl FnOnce(bool) -> T) -> Option<T> {
+        self.get().map(f)
+    }
+}
+
+/// `T` is a generated message whose every field is zero-valid.
+///
+/// # Safety
+/// No `Option<bool>` / `Option<LazyStr>` fields (those are `OptBool` / `Option<Box<_>>`).
+#[inline(always)]
+pub unsafe fn zeroed_message<T>() -> T {
+    unsafe { std::mem::zeroed() }
+}

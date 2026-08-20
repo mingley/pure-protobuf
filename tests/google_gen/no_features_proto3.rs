@@ -9,16 +9,32 @@ mod __gen {
         RepeatedView, SerializeError, UnknownEnumValue,
     };
 
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct NoFeaturesProto2 {
-        my_field: Option<protobuf::rt::LazyStr>,
+        my_field: Option<Box<protobuf::rt::LazyStr>>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for NoFeaturesProto2 {
+        fn eq(&self, other: &Self) -> bool {
+            if self.my_field != other.my_field {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for NoFeaturesProto2 {}
+    impl Default for NoFeaturesProto2 {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl NoFeaturesProto2 {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "utf8.NoFeaturesProto2";
         pub fn has_my_field(&self) -> bool {
             self.my_field.is_some()
@@ -34,12 +50,13 @@ mod __gen {
         }
         pub fn set_my_field(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_field = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
+            self.my_field = Some(Box::new(protobuf::rt::LazyStr::owned(v.into_proxied())));
         }
         pub fn clear_my_field(&mut self) {
             self.cached_size.dirty();
             self.my_field = None;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -92,12 +109,19 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (1, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let b = &data[s..e];
-                        self.my_field = Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
-                    }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let b = &data[s..e];
+                            self.my_field =
+                                Some(Box::new(protobuf::rt::LazyStr::from_span(wire, s, e)));
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -109,6 +133,48 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -131,16 +197,32 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(NoFeaturesProto2, NoFeaturesProto2View, NoFeaturesProto2Mut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct NoFeaturesProto3 {
-        my_field: Option<protobuf::rt::LazyStr>,
+        my_field: Option<Box<protobuf::rt::LazyStr>>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for NoFeaturesProto3 {
+        fn eq(&self, other: &Self) -> bool {
+            if self.my_field != other.my_field {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for NoFeaturesProto3 {}
+    impl Default for NoFeaturesProto3 {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl NoFeaturesProto3 {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "utf8.NoFeaturesProto3";
         pub fn has_my_field(&self) -> bool {
             self.my_field.is_some()
@@ -156,12 +238,13 @@ mod __gen {
         }
         pub fn set_my_field(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_field = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
+            self.my_field = Some(Box::new(protobuf::rt::LazyStr::owned(v.into_proxied())));
         }
         pub fn clear_my_field(&mut self) {
             self.cached_size.dirty();
             self.my_field = None;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -214,13 +297,20 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (1, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let b = &data[s..e];
-                        std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.my_field = Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
-                    }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let b = &data[s..e];
+                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
+                            self.my_field =
+                                Some(Box::new(protobuf::rt::LazyStr::from_span(wire, s, e)));
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -232,6 +322,50 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            std::str::from_utf8(&data[s..e])
+                                .map_err(|_| ParseError::new("invalid utf-8"))?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }
@@ -254,16 +388,32 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(NoFeaturesProto3, NoFeaturesProto3View, NoFeaturesProto3Mut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct Verify {
-        my_field: Option<protobuf::rt::LazyStr>,
+        my_field: Option<Box<protobuf::rt::LazyStr>>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for Verify {
+        fn eq(&self, other: &Self) -> bool {
+            if self.my_field != other.my_field {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for Verify {}
+    impl Default for Verify {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl Verify {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "utf8.Verify";
         pub fn has_my_field(&self) -> bool {
             self.my_field.is_some()
@@ -279,12 +429,13 @@ mod __gen {
         }
         pub fn set_my_field(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_field = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
+            self.my_field = Some(Box::new(protobuf::rt::LazyStr::owned(v.into_proxied())));
         }
         pub fn clear_my_field(&mut self) {
             self.cached_size.dirty();
             self.my_field = None;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -337,13 +488,20 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (1, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let b = &data[s..e];
-                        std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.my_field = Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
-                    }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let b = &data[s..e];
+                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
+                            self.my_field =
+                                Some(Box::new(protobuf::rt::LazyStr::from_span(wire, s, e)));
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -355,6 +513,50 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            std::str::from_utf8(&data[s..e])
+                                .map_err(|_| ParseError::new("invalid utf-8"))?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }

@@ -688,6 +688,18 @@ macro_rules! impl_typed_message {
                 $View($crate::gen_support::default_instance_of::<$Owned>())
             }
         }
+        impl $crate::rt::MergeBytes for $Owned {
+            fn merge_inner(
+                &mut self,
+                wire: &$crate::rt::Wire,
+                pos: &mut usize,
+                depth: u32,
+                enforce: bool,
+                until: Option<u32>,
+            ) -> Result<(), $crate::ParseError> {
+                $Owned::merge_inner(self, wire, pos, depth, enforce, until)
+            }
+        }
         impl $crate::AsMut for $Owned {
             type MutProxied = Self;
             fn as_mut(&mut self) -> $Mut<'_> {
@@ -777,6 +789,7 @@ macro_rules! impl_typed_message {
             }
         }
         impl $crate::ClearAndParse for $Owned {
+            const EMPTY_PARSE_OK: bool = $Owned::EMPTY_PARSE_OK;
             fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
                 $crate::Clear::clear(self);
                 self.merge_bytes(data, 0)
@@ -788,8 +801,12 @@ macro_rules! impl_typed_message {
                 $crate::Clear::clear(self);
                 self.merge_bytes_dont_enforce(data, 0)
             }
+            #[inline(always)]
             fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
                 if data.is_empty() {
+                    if $Owned::EMPTY_PARSE_OK {
+                        return Ok(());
+                    }
                     return self.check_required();
                 }
                 self.merge_bytes(data, 0)

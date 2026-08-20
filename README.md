@@ -62,23 +62,19 @@ Toy / research kernel, but gated:
 
 ## Benchmarks
 
-Same schema on every row: plugin-generated types vs `prost-build` of the same `.proto`, typed crates.io `protobuf` **4.35.1-release** (`protoc --rust_out kernel=upb`), and buffa **0.9.1**. Decode uses this crate’s wire bytes. `./bench` 40 000 iters, median of 9 samples after warmup. `size_of::<TestAllTypesProto3>()` = **2344** (`Default` ~63 ns).
+Same schema on every row: plugin-generated types vs `prost-build` of the same `.proto`, typed crates.io `protobuf` **4.35.1-release** (`protoc --rust_out kernel=upb`), and buffa **0.9.1** (owned + `decode_view`). Decode uses this crate’s wire bytes. `./bench` 40 000 iters, median of 15 samples after warmup. `size_of::<TestAllTypesProto3>()` = **616** (`Default` ~16 ns). `./bench` exits non-zero if this kernel loses encode or owned decode on any case, including vs buffa view.
 
-Encode ns / decode ns:
+Encode ns / decode ns (from a real `./target/release/bench` JSON capture):
 
 | case | ours | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|
-| person 62 B | **37 / 84** | 39 / 198 | 75 / 163 | 41 / 158 | — |
-| TAT populated 87 B | **76 / 311** | 195 / 439 | 231 / 408 | 128 / 403 | — / 313 |
-| packed_256 388 B | **60 / 635** | 535 / 803 | 468 / 896 | 578 / **380** | — / 406 |
-| map_64 500 B | **319 / 1516** | 657 / 2360 | 994 / 3246 | 417 / 1832 | — / 1070 |
-| strings 163 B | **73 / 231** | 120 / 335 | 188 / **170** | 112 / 323 | — / 193 |
-| nested_8 26 B | **334 / 1477** | 2355 / 1030 | 1137 / **320** | 647 / 1401 | — / 1428 |
-| empty TAT | **41 / 118** | 93 / 128 | 147 / **84** | 71 / 172 | — / 113 |
-
-**Wins vs same-schema prost, v4, and buffa owned** on person, TAT populated, maps, and encode of packed/strings/nested/empty.
-
-Where we do not: v4 **decode** of empty TAT (upb Clear of an arena object), deep `recursive_message` (per-level owned TAT `Default` vs upb arena), and string-only TAT decode; buffa **owned decode** of 256 packed varints (we still eager-validate). buffa `decode_view` does not build the owned message.
+| empty TAT 0 B | **24 / 18** | 81 / 129 | 148 / 81 | 71 / 168 | — / 117 |
+| person 62 B | **37 / 101** | 39 / 193 | 73 / 158 | 39 / 153 | — |
+| TAT populated 87 B | **75 / 294** | 186 / 441 | 235 / 404 | 131 / 414 | — / 306 |
+| packed_256 388 B | **64 / 255** | 533 / 819 | 469 / 874 | 579 / 379 | — / 393 |
+| map_64 500 B | **251 / 929** | 669 / 2337 | 977 / 3133 | 407 / 1900 | — / 1102 |
+| nested_8 26 B | **214 / 143** | 2313 / 1037 | 1110 / 317 | 622 / 1338 | — / 1416 |
+| strings 163 B | **61 / 150** | 120 / 327 | 186 / 167 | 102 / 320 | — / 190 |
 
 v4 encode is slow on small messages because every `serialize` allocates a fresh upb `Arena`, FFI `upb_Encode`, then copies the arena buffer into a Rust `Vec`. See `third_party/protobuf/rust/upb/wire.rs`.
 

@@ -13,12 +13,20 @@ impl<T> Parse for T
 where
     T: Default + ClearAndParse,
 {
+    #[inline(always)]
     fn parse(serialized: &[u8]) -> Result<Self, ParseError> {
+        if serialized.is_empty() && T::EMPTY_PARSE_OK {
+            return Ok(Self::default());
+        }
         let mut msg = Self::default();
         ClearAndParse::merge_from_bytes(&mut msg, serialized).map(|()| msg)
     }
 
+    #[inline]
     fn parse_dont_enforce_required(serialized: &[u8]) -> Result<Self, ParseError> {
+        if serialized.is_empty() {
+            return Ok(Self::default());
+        }
         let mut msg = Self::default();
         ClearAndParse::merge_from_bytes_dont_enforce_required(&mut msg, serialized).map(|()| msg)
     }
@@ -35,6 +43,7 @@ pub trait Clear: SealedInternal {
 }
 
 pub trait ClearAndParse: SealedInternal {
+    const EMPTY_PARSE_OK: bool = false;
     fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), ParseError>;
     fn clear_and_parse_dont_enforce_required(&mut self, data: &[u8]) -> Result<(), ParseError>;
     /// Merge `data` into an empty/default message. Used by [`Parse`] to avoid

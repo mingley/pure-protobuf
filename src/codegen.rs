@@ -540,6 +540,45 @@ fn is_lazy_msg(f: &FieldDescriptor) -> bool {
         && !f.delimited
 }
 
+fn is_wkt_msg(f: &FieldDescriptor) -> bool {
+    let name = f
+        .type_name
+        .as_deref()
+        .or_else(|| f.message.as_ref().map(|m| m.full_name.as_str()))
+        .unwrap_or("")
+        .trim_start_matches('.');
+    name.starts_with("google.protobuf.")
+}
+
+fn is_cold_field(f: &FieldDescriptor) -> bool {
+    // Maps and repeated string/bytes stay on the hot struct so a sparse parse
+    // (map_64, strings) does not memset every packed/WKT slot.
+    if f.is_map {
+        return false;
+    }
+    if f.cardinality == Cardinality::Repeated {
+        return !matches!(f.field_type, FieldType::String | FieldType::Bytes);
+    }
+    is_lazy_msg(f) && is_wkt_msg(f)
+}
+
+fn uses_cold_storage(desc: &MessageDescriptor) -> bool {
+    desc.fields.values().filter(|f| is_cold_field(f)).count() >= 6
+}
+
+fn stored_cold(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
+    uses_cold_storage(desc) && is_cold_field(f)
+}
+
+fn store_mut(desc: &MessageDescriptor, f: &FieldDescriptor) -> String {
+    let id = field_id(f);
+    if stored_cold(desc, f) {
+        format!("self.cold_mut().{id}")
+    } else {
+        format!("self.{id}")
+    }
+}
+
 fn packed_storage_ty(f: &FieldDescriptor) -> &'static str {
     match f.field_type {
         FieldType::Int32 | FieldType::Enum => "protobuf::rt::PackedI32",
@@ -574,7 +613,12 @@ fn field_storage_ty(f: &FieldDescriptor) -> String {
     } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
         format!("Option<Box<{t}>>")
     } else if is_option(f) {
-        format!("Option<{t}>")
+        match f.field_type {
+            FieldType::Bool => "protobuf::rt::OptBool".into(),
+            FieldType::String => "Option<Box<protobuf::rt::LazyStr>>".into(),
+            FieldType::Bytes => "Option<Box<protobuf::rt::LazyBytes>>".into(),
+            _ => format!("Option<{t}>"),
+        }
     } else {
         t
     }
@@ -585,17 +629,87 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     let name = rust_ident(&desc.full_name);
     let view = format!("{name}View");
     let mut_ = format!("{name}Mut");
-    let _ = writeln!(src, "#[derive(Clone, Debug, Default, PartialEq)]");
+    let cold_name = format!("{name}Cold");
+    let use_cold = uses_cold_storage(desc);
+    if use_cold {
+        let _ = writeln!(src, "#[derive(Clone, Debug, PartialEq)]");
+        let _ = writeln!(src, "struct {cold_name} {{");
+        for f in desc.fields.values().filter(|f| is_cold_field(f)) {
+            let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
+        }
+        let _ = writeln!(src, "}}");
+        let _ = writeln!(src, "impl Default for {cold_name} {{");
+        let _ = writeln!(src, "    #[inline(always)]");
+        let _ = writeln!(
+            src,
+            "    fn default() -> Self {{ unsafe {{ protobuf::rt::zeroed_message() }} }}"
+        );
+        let _ = writeln!(src, "}}");
+    }
+    let _ = writeln!(src, "#[derive(Clone, Debug)]");
     let _ = writeln!(src, "pub struct {name} {{");
-    for f in desc.fields.values() {
+    for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
+    }
+    if use_cold {
+        let _ = writeln!(src, "    cold: Option<Box<{cold_name}>>,");
     }
     let _ = writeln!(src, "    unknown: UnknownFields,");
     let _ = writeln!(src, "    cached_size: protobuf::rt::CachedSize,");
     let _ = writeln!(src, "}}");
+    let _ = writeln!(src, "impl PartialEq for {name} {{");
+    let _ = writeln!(src, "    fn eq(&self, other: &Self) -> bool {{");
+    for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
+        let id = field_id(f);
+        let _ = writeln!(
+            src,
+            "        if self.{id} != other.{id} {{ return false; }}"
+        );
+    }
+    if use_cold {
+        let _ = writeln!(
+            src,
+            "        match (self.cold.as_deref(), other.cold.as_deref()) {{"
+        );
+        let _ = writeln!(src, "            (None, None) => {{}}");
+        let _ = writeln!(
+            src,
+            "            (Some(a), Some(b)) => if a != b {{ return false; }}"
+        );
+        let _ = writeln!(
+            src,
+            "            (None, Some(b)) => if *b != {cold_name}::default() {{ return false; }}"
+        );
+        let _ = writeln!(
+            src,
+            "            (Some(a), None) => if *a != {cold_name}::default() {{ return false; }}"
+        );
+        let _ = writeln!(src, "        }}");
+    }
+    let _ = writeln!(src, "        self.unknown == other.unknown");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(src, "}}");
+    let _ = writeln!(src, "impl Eq for {name} {{}}");
+    let _ = writeln!(src, "impl Default for {name} {{");
+    let _ = writeln!(src, "    #[inline(always)]");
+    let _ = writeln!(src, "    fn default() -> Self {{");
+    let _ = writeln!(src, "        unsafe {{ protobuf::rt::zeroed_message() }}");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(src, "}}");
 
     let _ = writeln!(src, "impl {name} {{");
     let _ = writeln!(src, "    pub fn new() -> Self {{ Self::default() }}");
+    if use_cold {
+        let _ = writeln!(
+            src,
+            "    #[inline(always)] fn cold_mut(&mut self) -> &mut {cold_name} {{ self.cold.get_or_insert_with(|| Box::new({cold_name}::default())) }}"
+        );
+    }
+    let empty_ok = !desc
+        .fields
+        .values()
+        .any(|f| f.cardinality == Cardinality::Required);
+    let _ = writeln!(src, "    pub const EMPTY_PARSE_OK: bool = {empty_ok};");
     let _ = writeln!(
         src,
         "    pub const FULL_NAME: &'static str = \"{}\";",
@@ -627,15 +741,17 @@ fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &FieldDescrip
             continue;
         }
         if let Some(sib) = desc.field(*n) {
-            let sid = field_id(sib);
+            let st = store_mut(desc, sib);
             if is_lazy_msg(sib) {
-                let _ = writeln!(src, "        self.{sid} = Default::default();");
+                let _ = writeln!(src, "        {st} = Default::default();");
+            } else if is_option(sib) && sib.field_type == FieldType::Bool {
+                let _ = writeln!(src, "        {st} = protobuf::rt::OptBool::NONE;");
             } else if is_option(sib) {
-                let _ = writeln!(src, "        self.{sid} = None;");
+                let _ = writeln!(src, "        {st} = None;");
             } else if sib.cardinality == Cardinality::Repeated || sib.is_map {
-                let _ = writeln!(src, "        self.{sid}.clear();");
+                let _ = writeln!(src, "        {st}.clear();");
             } else {
-                let _ = writeln!(src, "        self.{sid} = Default::default();");
+                let _ = writeln!(src, "        {st} = Default::default();");
             }
         }
     }
@@ -646,57 +762,89 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     let m = field_raw(f);
     if f.is_map {
         let (k, v) = map_kv(f);
+        let st = store_mut(desc, f);
+        if stored_cold(desc, f) {
+            let _ = writeln!(
+                src,
+                "    pub fn {id}(&self) -> MapView<'_, {k}, {v}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(MapView::empty) }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "    pub fn {id}(&self) -> MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
+            );
+        }
         let _ = writeln!(
             src,
-            "    pub fn {id}(&self) -> MapView<'_, {k}, {v}> {{ self.{id}.as_view() }}"
+            "    pub fn {id}_mut(&mut self) -> MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
         );
         let _ = writeln!(
             src,
-            "    pub fn {id}_mut(&mut self) -> MapMut<'_, {k}, {v}> {{ self.cached_size.dirty(); self.{id}.as_mut() }}"
-        );
-        let _ = writeln!(
-            src,
-            "    pub fn set_{m}(&mut self, v: Map<{k}, {v}>) {{ self.cached_size.dirty(); self.{id} = v; }}"
+            "    pub fn set_{m}(&mut self, v: Map<{k}, {v}>) {{ self.cached_size.dirty(); {st} = v; }}"
         );
         return;
     }
     if f.cardinality == Cardinality::Repeated {
         let t = scalar_type(f);
-        let _ = writeln!(
-            src,
-            "    pub fn {id}(&self) -> RepeatedView<'_, {t}> {{ self.{id}.as_view() }}"
-        );
-        let _ = writeln!(
-            src,
-            "    pub fn {id}_mut(&mut self) -> RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); self.{id}.as_mut() }}"
-        );
-        if is_packed_scalar(f) {
+        let st = store_mut(desc, f);
+        if stored_cold(desc, f) {
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::Packed::from_repeated(v.into_iter().collect()); }}"
+                "    pub fn {id}(&self) -> RepeatedView<'_, {t}> {{ self.cold.as_ref().map(|c| c.{id}.as_view()).unwrap_or_else(|| RepeatedView::from_slice(&[])) }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); self.{id} = v.into_iter().collect(); }}"
+                "    pub fn {id}(&self) -> RepeatedView<'_, {t}> {{ self.{id}.as_view() }}"
+            );
+        }
+        let _ = writeln!(
+            src,
+            "    pub fn {id}_mut(&mut self) -> RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); {st}.as_mut() }}"
+        );
+        if is_packed_scalar(f) {
+            let _ = writeln!(
+                src,
+                "    pub fn set_{m}(&mut self, v: impl IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); {st} = protobuf::rt::Packed::from_repeated(v.into_iter().collect()); }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "    pub fn set_{m}(&mut self, v: impl IntoIterator<Item = {t}>) {{ self.cached_size.dirty(); {st} = v.into_iter().collect(); }}"
             );
         }
         return;
     }
     if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
         let t = scalar_type(f);
-        let _ = writeln!(
-            src,
-            "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
-        );
-        let _ = writeln!(
-            src,
-            "    pub fn {id}(&self) -> &{t} {{ self.{id}.as_deref().unwrap_or(protobuf::gen_support::default_instance_of()) }}"
-        );
-        let _ = writeln!(
-            src,
-            "    pub fn {id}_opt(&self) -> Option<&{t}> {{ self.{id}.as_deref() }}"
-        );
+        let st = store_mut(desc, f);
+        if stored_cold(desc, f) {
+            let _ = writeln!(
+                src,
+                "    pub fn has_{m}(&self) -> bool {{ self.cold.as_ref().is_some_and(|c| c.{id}.is_some()) }}"
+            );
+            let _ = writeln!(
+                src,
+                "    pub fn {id}(&self) -> &{t} {{ self.cold.as_ref().and_then(|c| c.{id}.as_deref()).unwrap_or(protobuf::gen_support::default_instance_of()) }}"
+            );
+            let _ = writeln!(
+                src,
+                "    pub fn {id}_opt(&self) -> Option<&{t}> {{ self.cold.as_ref().and_then(|c| c.{id}.as_deref()) }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
+            );
+            let _ = writeln!(
+                src,
+                "    pub fn {id}(&self) -> &{t} {{ self.{id}.as_deref().unwrap_or(protobuf::gen_support::default_instance_of()) }}"
+            );
+            let _ = writeln!(
+                src,
+                "    pub fn {id}_opt(&self) -> Option<&{t}> {{ self.{id}.as_deref() }}"
+            );
+        }
         let _ = writeln!(
             src,
             "    pub fn {id}_view(&self) -> {t}View<'_> {{ {t}View(self.{id}()) }}"
@@ -705,31 +853,28 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f);
         if is_lazy_msg(f) {
-            let _ = writeln!(
-                src,
-                "        self.{id} = protobuf::rt::LazyMsg::from_owned(v);"
-            );
+            let _ = writeln!(src, "        {st} = protobuf::rt::LazyMsg::from_owned(v);");
         } else {
-            let _ = writeln!(src, "        self.{id} = Some(Box::new(v));");
+            let _ = writeln!(src, "        {st} = Some(Box::new(v));");
         }
         let _ = writeln!(src, "    }}");
         if is_lazy_msg(f) {
             let _ = writeln!(
                 src,
-                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); self.{id}.get_or_insert() }}"
+                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert() }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id}.clear(); }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st}.clear(); }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); self.{id}.get_or_insert_with(|| Box::new({t}::default())).as_mut() }}"
+                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); {st}.get_or_insert_with(|| Box::new({t}::default())).as_mut() }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
             );
         }
         return;
@@ -757,7 +902,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             emit_oneof_clear(src, desc, f);
             let _ = writeln!(
                 src,
-                "        self.{id} = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));"
+                "        self.{id} = Some(Box::new(protobuf::rt::LazyStr::owned(v.into_proxied())));"
             );
             let _ = writeln!(src, "    }}");
             let _ = writeln!(
@@ -793,7 +938,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(protobuf::rt::LazyBytes::owned(v.into_proxied())); }}"
+                "    pub fn set_{m}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(Box::new(protobuf::rt::LazyBytes::owned(v.into_proxied()))); }}"
             );
             let _ = writeln!(
                 src,
@@ -826,7 +971,29 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         t.clone()
     };
     let set_val = if enum_ty.is_some() { "v.into()" } else { "v" };
-    if is_option(f) {
+    if is_option(f) && f.field_type == FieldType::Bool {
+        let _ = writeln!(
+            src,
+            "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
+        );
+        let _ = writeln!(
+            src,
+            "    pub fn {id}(&self) -> bool {{ self.{id}.unwrap_or({def}) }}"
+        );
+        let _ = writeln!(
+            src,
+            "    pub fn {id}_opt(&self) -> Option<bool> {{ self.{id}.get() }}"
+        );
+        let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: bool) {{");
+        let _ = writeln!(src, "        self.cached_size.dirty();");
+        emit_oneof_clear(src, desc, f);
+        let _ = writeln!(src, "        self.{id} = protobuf::rt::OptBool::some(v);");
+        let _ = writeln!(src, "    }}");
+        let _ = writeln!(
+            src,
+            "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::OptBool::NONE; }}"
+        );
+    } else if is_option(f) {
         let _ = writeln!(
             src,
             "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
@@ -943,12 +1110,12 @@ fn wire_const(ty: FieldType) -> &'static str {
     }
 }
 
-fn implicit_present(id: &str, ty: FieldType) -> String {
+fn implicit_present(path: &str, ty: FieldType) -> String {
     match ty {
-        FieldType::Bool => format!("self.{id}"),
-        FieldType::Float | FieldType::Double => format!("self.{id}.to_bits() != 0"),
-        FieldType::String | FieldType::Bytes => format!("!self.{id}.is_empty()"),
-        _ => format!("self.{id} != 0"),
+        FieldType::Bool => path.to_string(),
+        FieldType::Float | FieldType::Double => format!("{path}.to_bits() != 0"),
+        FieldType::String | FieldType::Bytes => format!("!{path}.is_empty()"),
+        _ => format!("{path} != 0"),
     }
 }
 
@@ -978,7 +1145,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         .collect();
     let _ = writeln!(
         src,
-        "    fn check_required(&self) -> Result<(), ParseError> {{"
+        "    #[inline(always)] fn check_required(&self) -> Result<(), ParseError> {{"
     );
     for f in &required {
         let id = field_id(f);
@@ -1019,12 +1186,21 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         "            let (n, w) = protobuf::rt::decode_tag(data, pos)?;"
     );
     let _ = writeln!(src, "            if let Some(g) = until {{ if w == protobuf::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}");
-    let _ = writeln!(src, "            match (n, w) {{");
-    for f in desc.fields.values() {
-        emit_merge_arm(src, desc, f);
-    }
+    let _ = writeln!(src, "            match n {{");
     if desc.message_set_wire_format {
         emit_message_set_merge(src, desc);
+    }
+    for f in desc.fields.values() {
+        if desc.message_set_wire_format && f.number == 1 {
+            continue;
+        }
+        let _ = writeln!(src, "            {} => match w {{", f.number);
+        emit_merge_arm(src, desc, f);
+        let _ = writeln!(
+            src,
+            "                _ => self.unknown.fields.push(protobuf::rt::capture_unknown(data, pos, n, w)?),"
+        );
+        let _ = writeln!(src, "            }}");
     }
     let _ = writeln!(
         src,
@@ -1040,6 +1216,59 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "        Ok(())");
     let _ = writeln!(src, "    }}");
 
+    let _ = writeln!(
+        src,
+        "    fn validate_inner(wire: &protobuf::rt::Wire, pos: &mut usize, depth: u32) -> Result<(), ParseError> {{ Self::validate_until(wire, pos, depth, None) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    fn validate_until(wire: &protobuf::rt::Wire, pos: &mut usize, depth: u32, until: Option<u32>) -> Result<(), ParseError> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        if depth > protobuf::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }}"
+    );
+    let _ = writeln!(src, "        let data = wire.as_slice();");
+    if !required.is_empty() {
+        let _ = writeln!(src, "        let mut seen = 0u64;");
+    }
+    let _ = writeln!(src, "        while *pos < data.len() {{");
+    let _ = writeln!(
+        src,
+        "            let (n, w) = protobuf::rt::decode_tag(data, pos)?;"
+    );
+    let _ = writeln!(src, "            if let Some(g) = until {{ if w == protobuf::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}");
+    let _ = writeln!(src, "            match n {{");
+    for f in desc.fields.values() {
+        let bit = required.iter().position(|r| r.number == f.number);
+        let _ = writeln!(src, "            {} => match w {{", f.number);
+        emit_validate_arm(src, f, bit);
+        let _ = writeln!(
+            src,
+            "                _ => protobuf::rt::skip_field(data, pos, w)?,"
+        );
+        let _ = writeln!(src, "            }}");
+    }
+    let _ = writeln!(
+        src,
+        "                _ => protobuf::rt::skip_field(data, pos, w)?,"
+    );
+    let _ = writeln!(src, "            }}");
+    let _ = writeln!(src, "        }}");
+    let _ = writeln!(
+        src,
+        "        if until.is_some() {{ return Err(ParseError::new(\"truncated group\")); }}"
+    );
+    if !required.is_empty() {
+        let all = (1u64 << required.len()) - 1;
+        let _ = writeln!(
+            src,
+            "        if seen != {all} {{ return Err(ParseError::new(\"missing required field\")); }}"
+        );
+    }
+    let _ = writeln!(src, "        Ok(())");
+    let _ = writeln!(src, "    }}");
+
     let _ = writeln!(src, "    fn compute_size(&self) -> u64 {{");
     let _ = writeln!(
         src,
@@ -1049,8 +1278,15 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     if desc.message_set_wire_format {
         emit_message_set_size(src, desc);
     } else {
-        for f in desc.fields.values() {
-            emit_size(src, f);
+        for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
+            emit_size(src, f, "self");
+        }
+        if uses_cold_storage(desc) {
+            let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
+            for f in desc.fields.values().filter(|f| is_cold_field(f)) {
+                emit_size(src, f, "c");
+            }
+            let _ = writeln!(src, "        }}");
         }
     }
     let _ = writeln!(src, "        self.cached_size.set(n);");
@@ -1061,8 +1297,15 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     if desc.message_set_wire_format {
         emit_message_set_write(src, desc);
     } else {
-        for f in desc.fields.values() {
-            emit_write(src, f);
+        for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
+            emit_write(src, f, "self");
+        }
+        if uses_cold_storage(desc) {
+            let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
+            for f in desc.fields.values().filter(|f| is_cold_field(f)) {
+                emit_write(src, f, "c");
+            }
+            let _ = writeln!(src, "        }}");
         }
     }
     let _ = writeln!(src, "        self.unknown.encode(out);");
@@ -1072,7 +1315,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
 fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(
         src,
-        "                (1, protobuf::rt::WIRE_SGROUP) | (1, protobuf::rt::WIRE_LEN) => {{"
+        "            1 => match w {{ protobuf::rt::WIRE_SGROUP | protobuf::rt::WIRE_LEN => {{"
     );
     let _ = writeln!(
         src,
@@ -1093,6 +1336,11 @@ fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "                        _ => {{ let mut u = protobuf::UnknownFields::default(); u.fields.push(protobuf::rt::UnknownField::Varint {{ number: 2, value: u64::from(type_id) }}); u.fields.push(protobuf::rt::UnknownField::LengthDelimited {{ number: 3, value: payload }}); self.unknown.fields.push(protobuf::rt::UnknownField::Group {{ number: 1, fields: u }}); }}");
     let _ = writeln!(src, "                    }}");
     let _ = writeln!(src, "                }}");
+    let _ = writeln!(
+        src,
+        "                _ => self.unknown.fields.push(protobuf::rt::capture_unknown(data, pos, n, w)?),"
+    );
+    let _ = writeln!(src, "            }}");
 }
 
 fn emit_message_set_size(src: &mut String, desc: &MessageDescriptor) {
@@ -1133,11 +1381,89 @@ fn read_scalar_expr(ty: FieldType, buf: &str, pos: &str) -> String {
     }
 }
 
+fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usize>) {
+    let num = f.number;
+    let mark = if let Some(b) = req_bit {
+        format!(" seen |= 1 << {b};")
+    } else {
+        String::new()
+    };
+    if f.is_map {
+        let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let mut ip = 0; let w = wire.window(s, e); let d = w.as_slice(); while ip < d.len() {{ let (_, ww) = protobuf::rt::decode_tag(d, &mut ip)?; protobuf::rt::skip_field(d, &mut ip, ww)?; }}{mark} }}");
+        return;
+    }
+    if f.cardinality == Cardinality::Repeated {
+        if f.field_type == FieldType::String {
+            let utf = if f.utf8_validate {
+                "std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?;"
+            } else {
+                ""
+            };
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; {utf}{mark} }}");
+        } else if f.field_type == FieldType::Bytes {
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ protobuf::rt::read_len_span(data, pos)?;{mark} }}");
+        } else if f.field_type == FieldType::Message {
+            let t = scalar_type(f);
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}");
+        } else if f.field_type == FieldType::Group || f.delimited {
+            let t = scalar_type(f);
+            let _ = writeln!(src, "                protobuf::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}");
+        } else if f.field_type.is_packable() {
+            let packed_ty = packed_storage_ty(f);
+            let unpacked = read_scalar_expr(f.field_type, "data", "pos");
+            let packed_wire = wire_const(f.field_type);
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; {packed_ty}::validate_bytes(&data[s..e])?;{mark} }}");
+            let _ = writeln!(
+                src,
+                "                {packed_wire} => {{ let _ = {unpacked};{mark} }}"
+            );
+        } else {
+            let unpacked = read_scalar_expr(f.field_type, "data", "pos");
+            let w = wire_const(f.field_type);
+            let _ = writeln!(
+                src,
+                "                {w} => {{ let _ = {unpacked};{mark} }}"
+            );
+        }
+        return;
+    }
+    if f.field_type == FieldType::Message {
+        let t = scalar_type(f);
+        if f.field_type == FieldType::Group || f.delimited {
+            let _ = writeln!(src, "                protobuf::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}");
+        } else {
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;{mark} }}");
+        }
+        return;
+    }
+    if f.field_type == FieldType::Group || f.delimited {
+        let t = scalar_type(f);
+        let _ = writeln!(src, "                protobuf::rt::WIRE_SGROUP => {{ {t}::validate_until(wire, pos, depth + 1, Some({num}))?;{mark} }}");
+        return;
+    }
+    if f.field_type == FieldType::String {
+        let utf = if f.utf8_validate {
+            "std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?;"
+        } else {
+            ""
+        };
+        let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; {utf}{mark} }}");
+        return;
+    }
+    if f.field_type == FieldType::Bytes {
+        let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ protobuf::rt::read_len_span(data, pos)?;{mark} }}");
+        return;
+    }
+    let expr = read_scalar_expr(f.field_type, "data", "pos");
+    let w = wire_const(f.field_type);
+    let _ = writeln!(src, "                {w} => {{ let _ = {expr};{mark} }}");
+}
+
 fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
-    let id = field_id(f);
+    let st = store_mut(desc, f);
     let num = f.number;
     if f.is_map {
-        let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
+        let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{");
         let _ = writeln!(
             src,
             "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?;"
@@ -1146,9 +1472,9 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             src,
             "                    let (kk, vv) = decode_map_entry_{}_{}_{num}(&wire.window(s, e), depth + 1)?;",
             rust_ident(&desc.full_name),
-            id.replace("r#", "")
+            field_id(f).replace("r#", "")
         );
-        let _ = writeln!(src, "                    self.{id}.insert(kk, vv);");
+        let _ = writeln!(src, "                    {st}.push_entry(kk, vv);");
         let _ = writeln!(src, "                }}");
         return;
     }
@@ -1159,60 +1485,54 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             } else {
                 ""
             };
-            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} self.{id}.push(protobuf::rt::LazyStr::from_wire(wire.window(s, e))); }}");
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {st}.push(protobuf::rt::LazyStr::from_span(wire, s, e)); }}");
         } else if f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; self.{id}.push(protobuf::rt::LazyBytes::from_wire(wire.window(s, e))); }}");
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; {st}.push(protobuf::rt::LazyBytes::from_wire(wire.window(s, e))); }}");
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
             let t = scalar_type(f);
             if f.field_type == FieldType::Group || f.delimited {
-                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_SGROUP) => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; self.{id}.push(inner); }}");
+                let _ = writeln!(src, "                protobuf::rt::WIRE_SGROUP => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; {st}.push(inner); }}");
             } else {
-                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id}.push(inner); }}");
+                let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; {st}.push(inner); }}");
             }
         } else if f.field_type.is_packable() {
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");
             let packed_wire = wire_const(f.field_type);
             if f.packed {
-                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; self.{id}.append_wire(wire.window(s, e))?; }}");
+                let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; {st}.append_wire(wire.window(s, e))?; }}");
             } else {
                 let expr = read_scalar_expr(f.field_type, "p", "&mut i");
-                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let p = protobuf::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ self.{id}.push({expr}); }} }}");
+                let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{ let p = protobuf::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ {st}.push({expr}); }} }}");
             }
             let _ = writeln!(
                 src,
-                "                ({num}, {packed_wire}) => self.{id}.push({unpacked}),"
+                "                {packed_wire} => {st}.push({unpacked}),"
             );
         } else {
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");
             let w = wire_const(f.field_type);
-            let _ = writeln!(
-                src,
-                "                ({num}, {w}) => self.{id}.push({unpacked}),"
-            );
+            let _ = writeln!(src, "                {w} => {st}.push({unpacked}),");
         }
         return;
     }
     if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
         let t = scalar_type(f);
         if f.field_type == FieldType::Group || f.delimited {
-            let _ = writeln!(
-                src,
-                "                ({num}, protobuf::rt::WIRE_SGROUP) => {{"
-            );
+            let _ = writeln!(src, "                protobuf::rt::WIRE_SGROUP => {{");
             emit_oneof_clear(src, desc, f);
-            let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => existing.merge_group(wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }}");
+            let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => existing.merge_group(wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; {st} = Some(Box::new(inner)); }} }}");
             let _ = writeln!(src, "                    }}");
         } else {
-            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
+            let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{");
             emit_oneof_clear(src, desc, f);
             let _ = writeln!(
                 src,
                 "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?;"
             );
             if is_lazy_msg(f) {
-                let _ = writeln!(src, "                    if self.{id}.is_some() {{ let mut ip = 0; self.{id}.get_or_insert().merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} else {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id} = protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e)); }}");
+                let _ = writeln!(src, "                    if {st}.is_some() {{ let mut ip = 0; {st}.get_or_insert().merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?; {st} = protobuf::rt::LazyMsg::from_wire(wire.window(s, e)); }}");
             } else {
-                let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => {{ let mut ip = 0; existing.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id} = Some(Box::new(inner)); }} }}");
+                let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; existing.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; {st} = Some(Box::new(inner)); }} }}");
             }
             let _ = writeln!(src, "                    }}");
         }
@@ -1225,11 +1545,11 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             ""
         };
         let assign = if is_option(f) {
-            format!("self.{id} = Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)))")
+            format!("{st} = Some(Box::new(protobuf::rt::LazyStr::from_span(wire, s, e)))")
         } else {
-            format!("self.{id} = protobuf::rt::LazyStr::from_wire(wire.window(s, e))")
+            format!("{st} = protobuf::rt::LazyStr::from_span(wire, s, e)")
         };
-        let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
+        let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
         let _ = writeln!(
             src,
@@ -1240,11 +1560,11 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     if f.field_type == FieldType::Bytes {
         let assign = if is_option(f) {
-            format!("self.{id} = Some(protobuf::rt::LazyBytes::from_wire(wire.window(s, e)))")
+            format!("{st} = Some(Box::new(protobuf::rt::LazyBytes::from_wire(wire.window(s, e))))")
         } else {
-            format!("self.{id} = protobuf::rt::LazyBytes::from_wire(wire.window(s, e))")
+            format!("{st} = protobuf::rt::LazyBytes::from_wire(wire.window(s, e))")
         };
-        let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{");
+        let _ = writeln!(src, "                protobuf::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
         let _ = writeln!(
             src,
@@ -1255,12 +1575,14 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     let expr = read_scalar_expr(f.field_type, "data", "pos");
     let w = wire_const(f.field_type);
-    let assign = if is_option(f) {
-        format!("self.{id} = Some({expr})")
+    let assign = if is_option(f) && f.field_type == FieldType::Bool {
+        format!("{st} = protobuf::rt::OptBool::some({expr})")
+    } else if is_option(f) {
+        format!("{st} = Some({expr})")
     } else {
-        format!("self.{id} = {expr}")
+        format!("{st} = {expr}")
     };
-    let _ = writeln!(src, "                ({num}, {w}) => {{");
+    let _ = writeln!(src, "                {w} => {{");
     emit_oneof_clear(src, desc, f);
     let _ = writeln!(src, "                    {assign};");
     let _ = writeln!(src, "                    }}");
@@ -1300,12 +1622,13 @@ fn write_packed_stmt(out: &str, v: &str, ty: FieldType) -> String {
     }
 }
 
-fn emit_size(src: &mut String, f: &FieldDescriptor) {
+fn emit_size(src: &mut String, f: &FieldDescriptor, p: &str) {
     let id = field_id(f);
+    let fld = format!("{p}.{id}");
     let num = f.number;
     if f.is_map {
-        let _ = writeln!(src, "        if !self.{id}.is_empty() {{");
-        let _ = writeln!(src, "        for (k, v) in self.{id}.iter() {{");
+        let _ = writeln!(src, "        if !{fld}.is_empty() {{");
+        let _ = writeln!(src, "        for (k, v) in {fld}.pairs() {{");
         let key_sz = map_key_size(map_key_ty(f), "k");
         let val_sz = map_val_size(map_val_ty(f), "v");
         let _ = writeln!(src, "            let inner = {key_sz} + {val_sz};");
@@ -1319,51 +1642,56 @@ fn emit_size(src: &mut String, f: &FieldDescriptor) {
     }
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ n += protobuf::rt::key_len_value_len({num}, t.as_bytes().len() as u64); }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ n += protobuf::rt::key_len_value_len({num}, t.as_bytes().len() as u64); }}");
         } else if f.field_type == FieldType::Group || f.delimited {
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ n += protobuf::rt::tag_len({num}, protobuf::rt::WIRE_SGROUP) + t.compute_size() + protobuf::rt::tag_len({num}, protobuf::rt::WIRE_EGROUP); }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ n += protobuf::rt::tag_len({num}, protobuf::rt::WIRE_SGROUP) + t.compute_size() + protobuf::rt::tag_len({num}, protobuf::rt::WIRE_EGROUP); }}");
         } else if f.field_type == FieldType::Message {
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ n += protobuf::rt::key_len_value_len({num}, t.compute_size()); }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ n += protobuf::rt::key_len_value_len({num}, t.compute_size()); }}");
         } else if f.packed && f.field_type.is_packable() {
             let plen = packed_len_expr("*t", f.field_type);
-            let _ = writeln!(src, "        if let Some(p) = self.{id}.packed_bytes() {{ n += protobuf::rt::key_len_value_len({num}, p.len() as u64); }} else if !self.{id}.is_empty() {{ let mut payload = 0u64; for t in self.{id}.iter() {{ payload += {plen}; }} n += protobuf::rt::key_len_value_len({num}, payload); }}");
+            let _ = writeln!(src, "        if let Some(p) = {fld}.packed_bytes() {{ n += protobuf::rt::key_len_value_len({num}, p.len() as u64); }} else if !{fld}.is_empty() {{ let mut payload = 0u64; for t in {fld}.iter() {{ payload += {plen}; }} n += protobuf::rt::key_len_value_len({num}, payload); }}");
         } else {
             let plen = packed_len_expr("*t", f.field_type);
             let w = wire_const(f.field_type);
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ n += protobuf::rt::tag_len({num}, {w}) + {plen}; }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ n += protobuf::rt::tag_len({num}, {w}) + {plen}; }}");
         }
         return;
     }
     if f.field_type == FieldType::Group || f.delimited {
-        let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ n += protobuf::rt::tag_len({num}, protobuf::rt::WIRE_SGROUP) + m.compute_size() + protobuf::rt::tag_len({num}, protobuf::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(src, "        if let Some(m) = &{fld} {{ n += protobuf::rt::tag_len({num}, protobuf::rt::WIRE_SGROUP) + m.compute_size() + protobuf::rt::tag_len({num}, protobuf::rt::WIRE_EGROUP); }}");
         return;
     }
     if f.field_type == FieldType::Message {
         if is_lazy_msg(f) {
-            let _ = writeln!(src, "        if let Some(p) = self.{id}.wire_bytes() {{ n += protobuf::rt::key_len_value_len({num}, p.len() as u64); }} else if let Some(m) = self.{id}.as_deref() {{ n += protobuf::rt::key_len_value_len({num}, m.compute_size()); }}");
+            let _ = writeln!(src, "        if let Some(p) = {fld}.wire_bytes() {{ n += protobuf::rt::key_len_value_len({num}, p.len() as u64); }} else if let Some(m) = {fld}.as_deref() {{ n += protobuf::rt::key_len_value_len({num}, m.compute_size()); }}");
         } else {
-            let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ n += protobuf::rt::key_len_value_len({num}, m.compute_size()); }}");
+            let _ = writeln!(src, "        if let Some(m) = &{fld} {{ n += protobuf::rt::key_len_value_len({num}, m.compute_size()); }}");
         }
         return;
     }
     if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
         if is_option(f) {
-            let _ = writeln!(src, "        if let Some(s) = &self.{id} {{ n += protobuf::rt::key_len_value_len({num}, s.as_bytes().len() as u64); }}");
+            let _ = writeln!(src, "        if let Some(s) = &{fld} {{ n += protobuf::rt::key_len_value_len({num}, s.as_bytes().len() as u64); }}");
         } else {
-            let _ = writeln!(src, "        if !self.{id}.is_empty() {{ n += protobuf::rt::key_len_value_len({num}, self.{id}.as_bytes().len() as u64); }}");
+            let _ = writeln!(src, "        if !{fld}.is_empty() {{ n += protobuf::rt::key_len_value_len({num}, {fld}.as_bytes().len() as u64); }}");
         }
         return;
     }
     let sz = packed_len_expr("v", f.field_type);
     let w = wire_const(f.field_type);
-    if is_option(f) {
+    if is_option(f) && f.field_type == FieldType::Bool {
         let _ = writeln!(
             src,
-            "        if let Some(v) = self.{id} {{ n += protobuf::rt::tag_len({num}, {w}) + {sz}; }}"
+            "        if let Some(v) = {fld}.get() {{ n += protobuf::rt::tag_len({num}, {w}) + {sz}; }}"
+        );
+    } else if is_option(f) {
+        let _ = writeln!(
+            src,
+            "        if let Some(v) = {fld} {{ n += protobuf::rt::tag_len({num}, {w}) + {sz}; }}"
         );
     } else {
-        let pred = implicit_present(&id, f.field_type);
-        let sz2 = packed_len_expr(&format!("self.{id}"), f.field_type);
+        let pred = implicit_present(&fld, f.field_type);
+        let sz2 = packed_len_expr(&fld, f.field_type);
         let _ = writeln!(
             src,
             "        if {pred} {{ n += protobuf::rt::tag_len({num}, {w}) + {sz2}; }}"
@@ -1440,14 +1768,15 @@ fn map_val_size(ty: FieldType, var: &str) -> String {
     }
 }
 
-fn emit_write(src: &mut String, f: &FieldDescriptor) {
+fn emit_write(src: &mut String, f: &FieldDescriptor, p: &str) {
     let id = field_id(f);
+    let fld = format!("{p}.{id}");
     let num = f.number;
     if f.is_map {
         let kty = map_key_ty(f);
         let vty = map_val_ty(f);
-        let _ = writeln!(src, "        if !self.{id}.is_empty() {{");
-        let _ = writeln!(src, "        for (k, v) in self.{id}.iter() {{");
+        let _ = writeln!(src, "        if !{fld}.is_empty() {{");
+        let _ = writeln!(src, "        for (k, v) in {fld}.pairs() {{");
         let _ = writeln!(
             src,
             "            let inner = {} + {};",
@@ -1463,49 +1792,52 @@ fn emit_write(src: &mut String, f: &FieldDescriptor) {
     }
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ protobuf::rt::encode_len_field(out, {num}, t.as_bytes()); }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ protobuf::rt::encode_len_field(out, {num}, t.as_bytes()); }}");
         } else if f.field_type == FieldType::Group || f.delimited {
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_SGROUP); t.write_to(out); protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_EGROUP); }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_SGROUP); t.write_to(out); protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_EGROUP); }}");
         } else if f.field_type == FieldType::Message {
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ protobuf::rt::encode_len_header(out, {num}, t.compute_size()); t.write_to(out); }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ protobuf::rt::encode_len_header(out, {num}, t.compute_size()); t.write_to(out); }}");
         } else if f.packed && f.field_type.is_packable() {
             let plen = packed_len_expr("*t", f.field_type);
             let stmt = write_packed_stmt("out", "*t", f.field_type);
-            let _ = writeln!(src, "        if let Some(p) = self.{id}.packed_bytes() {{ protobuf::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if !self.{id}.is_empty() {{ let mut payload = 0u64; for t in self.{id}.iter() {{ payload += {plen}; }} protobuf::rt::encode_len_header(out, {num}, payload); for t in self.{id}.iter() {{ {stmt}; }} }}");
+            let _ = writeln!(src, "        if let Some(p) = {fld}.packed_bytes() {{ protobuf::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if !{fld}.is_empty() {{ let mut payload = 0u64; for t in {fld}.iter() {{ payload += {plen}; }} protobuf::rt::encode_len_header(out, {num}, payload); for t in {fld}.iter() {{ {stmt}; }} }}");
         } else {
             let w = wire_const(f.field_type);
             let stmt = write_packed_stmt("out", "*t", f.field_type);
-            let _ = writeln!(src, "        for t in self.{id}.iter() {{ protobuf::rt::encode_tag(out, {num}, {w}); {stmt}; }}");
+            let _ = writeln!(src, "        for t in {fld}.iter() {{ protobuf::rt::encode_tag(out, {num}, {w}); {stmt}; }}");
         }
         return;
     }
     if f.field_type == FieldType::Group || f.delimited {
-        let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_SGROUP); m.write_to(out); protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(src, "        if let Some(m) = &{fld} {{ protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_SGROUP); m.write_to(out); protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_EGROUP); }}");
         return;
     }
     if f.field_type == FieldType::Message {
         if is_lazy_msg(f) {
-            let _ = writeln!(src, "        if let Some(p) = self.{id}.wire_bytes() {{ protobuf::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if let Some(m) = self.{id}.as_deref() {{ protobuf::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
+            let _ = writeln!(src, "        if let Some(p) = {fld}.wire_bytes() {{ protobuf::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if let Some(m) = {fld}.as_deref() {{ protobuf::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
         } else {
-            let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ protobuf::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
+            let _ = writeln!(src, "        if let Some(m) = &{fld} {{ protobuf::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
         }
         return;
     }
     if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
         if is_option(f) {
-            let _ = writeln!(src, "        if let Some(s) = &self.{id} {{ protobuf::rt::encode_len_field(out, {num}, s.as_bytes()); }}");
+            let _ = writeln!(src, "        if let Some(s) = &{fld} {{ protobuf::rt::encode_len_field(out, {num}, s.as_bytes()); }}");
         } else {
-            let _ = writeln!(src, "        if !self.{id}.is_empty() {{ protobuf::rt::encode_len_field(out, {num}, self.{id}.as_bytes()); }}");
+            let _ = writeln!(src, "        if !{fld}.is_empty() {{ protobuf::rt::encode_len_field(out, {num}, {fld}.as_bytes()); }}");
         }
         return;
     }
     let w = wire_const(f.field_type);
-    if is_option(f) {
+    if is_option(f) && f.field_type == FieldType::Bool {
         let stmt = write_packed_stmt("out", "v", f.field_type);
-        let _ = writeln!(src, "        if let Some(v) = self.{id} {{ protobuf::rt::encode_tag(out, {num}, {w}); {stmt}; }}");
+        let _ = writeln!(src, "        if let Some(v) = {fld}.get() {{ protobuf::rt::encode_tag(out, {num}, {w}); {stmt}; }}");
+    } else if is_option(f) {
+        let stmt = write_packed_stmt("out", "v", f.field_type);
+        let _ = writeln!(src, "        if let Some(v) = {fld} {{ protobuf::rt::encode_tag(out, {num}, {w}); {stmt}; }}");
     } else {
-        let pred = implicit_present(&id, f.field_type);
-        let stmt = write_packed_stmt("out", &format!("self.{id}"), f.field_type);
+        let pred = implicit_present(&fld, f.field_type);
+        let stmt = write_packed_stmt("out", &fld, f.field_type);
         let _ = writeln!(
             src,
             "        if {pred} {{ protobuf::rt::encode_tag(out, {num}, {w}); {stmt}; }}"
@@ -1602,9 +1934,9 @@ fn emit_map_scalar_decode(src: &mut String, n: u32, var: &str, ty: FieldType, ut
     match ty {
         FieldType::String => {
             if utf8 {
-                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?; {var} = protobuf::rt::LazyStr::from_wire(wire.window(s, e)); }},");
+                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?; {var} = protobuf::rt::LazyStr::from_span(wire, s, e); }},");
             } else {
-                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; {var} = protobuf::rt::LazyStr::from_wire(wire.window(s, e)); }},");
+                let _ = writeln!(src, "        ({n}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?; {var} = protobuf::rt::LazyStr::from_span(wire, s, e); }},");
             }
         }
         FieldType::Bytes => {

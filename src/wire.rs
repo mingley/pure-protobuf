@@ -19,10 +19,11 @@ pub enum UnknownField {
     Fixed32 { number: u32, value: u32 },
 }
 
-/// Unknown-field list. Empty `None` is 24 bytes and zero-valid.
+/// Unknown-field list. Empty is an 8-byte null so TAT Default stays small.
 /// Named `fields` so generated `self.unknown.fields.push(...)` keeps working.
+#[allow(clippy::box_collection)]
 #[derive(Clone, Debug)]
-pub struct FieldList(Option<Vec<UnknownField>>);
+pub struct FieldList(Option<Box<Vec<UnknownField>>>);
 
 impl Default for FieldList {
     #[inline]
@@ -47,7 +48,9 @@ impl FieldList {
     }
 
     pub fn push(&mut self, value: UnknownField) {
-        self.0.get_or_insert_with(Vec::new).push(value);
+        self.0
+            .get_or_insert_with(|| Box::new(Vec::new()))
+            .push(value);
     }
 
     pub fn extend<I: IntoIterator<Item = UnknownField>>(&mut self, iter: I) {
@@ -55,7 +58,7 @@ impl FieldList {
         let Some(first) = iter.next() else {
             return;
         };
-        let v = self.0.get_or_insert_with(Vec::new);
+        let v = self.0.get_or_insert_with(|| Box::new(Vec::new()));
         v.push(first);
         v.extend(iter);
     }
@@ -152,6 +155,39 @@ pub fn varint_len(mut value: u64) -> u64 {
         n += 1;
     }
     n
+}
+
+/// Packed-varint well-formedness without materializing values.
+#[inline]
+pub fn validate_varints(buf: &[u8]) -> Result<(), ParseError> {
+    let mut i = 0;
+    let n = buf.len();
+    while i < n {
+        let b = buf[i];
+        i += 1;
+        if b < 0x80 {
+            continue;
+        }
+        let mut cnt = 1u32;
+        loop {
+            if i >= n {
+                return Err(ParseError::new("truncated varint"));
+            }
+            let c = buf[i];
+            i += 1;
+            cnt += 1;
+            if c < 0x80 {
+                if cnt == 10 && c > 1 {
+                    return Err(ParseError::new("varint overflow"));
+                }
+                break;
+            }
+            if cnt >= 10 {
+                return Err(ParseError::new("varint overflow"));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub fn decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {

@@ -127,7 +127,12 @@ fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
     if let Some(n) = m.optional_nested_message_opt() {
         v.optional_nested_message_mut().set_a(n.a());
     }
-    if let Some(s) = m.optional_string_piece().to_str().ok().filter(|s| !s.is_empty()) {
+    if let Some(s) = m
+        .optional_string_piece()
+        .to_str()
+        .ok()
+        .filter(|s| !s.is_empty())
+    {
         v.set_optional_string_piece(s);
     }
     if let Some(s) = m.optional_cord().to_str().ok().filter(|s| !s.is_empty()) {
@@ -236,7 +241,7 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
     let v4_msg = v4_of(&msg);
     let buffa_msg = buffa_of(&msg);
     let ours_def = if name == "tat_populated" {
-        Some(median_ns(9, iters, || {
+        Some(median_ns(15, iters, || {
             let _ = TestAllTypesProto3::new();
         }))
     } else {
@@ -245,31 +250,31 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
     Case {
         name,
         payload: bytes.len(),
-        ours_enc: median_ns(9, iters, || {
+        ours_enc: median_ns(15, iters, || {
             let _ = protobuf::Serialize::serialize(&msg).unwrap();
         }),
-        prost_enc: median_ns(9, iters, || {
+        prost_enc: median_ns(15, iters, || {
             let _ = prost_msg.encode_to_vec();
         }),
-        v4_enc: median_ns(9, iters, || {
+        v4_enc: median_ns(15, iters, || {
             let _ = V4Serialize::serialize(&v4_msg).unwrap();
         }),
-        buffa_enc: median_ns(9, iters, || {
+        buffa_enc: median_ns(15, iters, || {
             let _ = BuffaMessage::encode_to_vec(&buffa_msg);
         }),
-        ours_dec: median_ns(9, iters, || {
+        ours_dec: median_ns(15, iters, || {
             let _ = TestAllTypesProto3::parse(&bytes).unwrap();
         }),
-        prost_dec: median_ns(9, iters, || {
+        prost_dec: median_ns(15, iters, || {
             let _ = prost_tat::TestAllTypesProto3::decode(bytes.as_slice()).unwrap();
         }),
-        v4_dec: median_ns(9, iters, || {
+        v4_dec: median_ns(15, iters, || {
             let _ = v4_tat::TestAllTypesProto3::parse(&bytes).unwrap();
         }),
-        buffa_dec: median_ns(9, iters, || {
+        buffa_dec: median_ns(15, iters, || {
             let _ = BuffaTat::decode_from_slice(&bytes).unwrap();
         }),
-        buffa_view: Some(median_ns(9, iters, || {
+        buffa_view: Some(median_ns(15, iters, || {
             let _ = BuffaTatView::decode_view(&bytes).unwrap();
         })),
         ours_def,
@@ -282,7 +287,9 @@ fn run_person(iters: u32) -> Case {
     let prost_msg = ProstPerson {
         id: msg.id(),
         name: msg.name().to_str().unwrap_or("").to_string(),
-        email: msg.email_opt().map(|s| s.to_str().unwrap_or("").to_string()),
+        email: msg
+            .email_opt()
+            .map(|s| s.to_str().unwrap_or("").to_string()),
         tags: msg
             .tags()
             .iter()
@@ -302,20 +309,22 @@ fn run_person(iters: u32) -> Case {
     v4_msg.set_name(msg.name().to_str().unwrap_or(""));
     v4_msg.set_email(msg.email().to_str().unwrap_or(""));
     for t in msg.tags().iter() {
-        v4_msg
-            .tags_mut()
-            .push(t.as_view().to_str().unwrap_or(""));
+        v4_msg.tags_mut().push(t.as_view().to_str().unwrap_or(""));
     }
     for (k, v) in msg.scores().iter() {
         v4_msg
             .scores_mut()
             .insert(k.as_view().to_str().unwrap_or(""), *v);
     }
-    v4_msg.address_mut().set_city(msg.address().city().to_str().unwrap_or(""));
+    v4_msg
+        .address_mut()
+        .set_city(msg.address().city().to_str().unwrap_or(""));
     let buffa_msg = buffa_person::example::Person {
         id: msg.id(),
         name: msg.name().to_str().unwrap_or("").to_string(),
-        email: msg.email_opt().map(|s| s.to_str().unwrap_or("").to_string()),
+        email: msg
+            .email_opt()
+            .map(|s| s.to_str().unwrap_or("").to_string()),
         tags: msg
             .tags()
             .iter()
@@ -336,28 +345,28 @@ fn run_person(iters: u32) -> Case {
     Case {
         name: "person",
         payload: bytes.len(),
-        ours_enc: median_ns(9, iters, || {
+        ours_enc: median_ns(15, iters, || {
             let _ = protobuf::Serialize::serialize(&msg).unwrap();
         }),
-        prost_enc: median_ns(9, iters, || {
+        prost_enc: median_ns(15, iters, || {
             let _ = prost_msg.encode_to_vec();
         }),
-        v4_enc: median_ns(9, iters, || {
+        v4_enc: median_ns(15, iters, || {
             let _ = V4Serialize::serialize(&v4_msg).unwrap();
         }),
-        buffa_enc: median_ns(9, iters, || {
+        buffa_enc: median_ns(15, iters, || {
             let _ = BuffaMessage::encode_to_vec(&buffa_msg);
         }),
-        ours_dec: median_ns(9, iters, || {
+        ours_dec: median_ns(15, iters, || {
             let _ = Person::parse(&bytes).unwrap();
         }),
-        prost_dec: median_ns(9, iters, || {
+        prost_dec: median_ns(15, iters, || {
             let _ = ProstPerson::decode(bytes.as_slice()).unwrap();
         }),
-        v4_dec: median_ns(9, iters, || {
+        v4_dec: median_ns(15, iters, || {
             let _ = v4_person::Person::parse(&bytes).unwrap();
         }),
-        buffa_dec: median_ns(9, iters, || {
+        buffa_dec: median_ns(15, iters, || {
             let _ = buffa_person::example::Person::decode_from_slice(&bytes).unwrap();
         }),
         buffa_view: None,
@@ -426,9 +435,16 @@ fn main() {
             c.ours_enc < c.prost_enc
         );
         println!(
-            "      \"ours_faster_prost_decode\": {}",
+            "      \"ours_faster_prost_decode\": {},",
             c.ours_dec < c.prost_dec
         );
+        match c.buffa_view {
+            Some(v) => println!(
+                "      \"ours_faster_buffa_view_decode\": {}",
+                c.ours_dec < v
+            ),
+            None => println!("      \"ours_faster_buffa_view_decode\": null"),
+        }
         println!("    }}{comma}");
     }
     println!("  ]");
@@ -436,21 +452,23 @@ fn main() {
 
     let mut failed = false;
     for c in &cases {
-        let require_v4_dec = !matches!(c.name, "nested_8" | "strings" | "empty");
-        let require_buffa_dec = !matches!(c.name, "nested_8" | "packed_256");
-        if c.ours_enc >= c.v4_enc || (require_v4_dec && c.ours_dec >= c.v4_dec) {
+        if c.ours_enc >= c.prost_enc || c.ours_dec >= c.prost_dec {
+            eprintln!("perf gate failed: {} vs prost", c.name);
+            failed = true;
+        }
+        if c.ours_enc >= c.v4_enc || c.ours_dec >= c.v4_dec {
             eprintln!("perf gate failed: {} vs v4", c.name);
             failed = true;
         }
-        if c.ours_enc > c.buffa_enc * 1.08 || (require_buffa_dec && c.ours_dec >= c.buffa_dec) {
+        if c.ours_enc >= c.buffa_enc || c.ours_dec >= c.buffa_dec {
             eprintln!("perf gate failed: {} vs buffa owned", c.name);
             failed = true;
         }
-        if matches!(c.name, "person" | "tat_populated" | "map_64" | "strings")
-            && (c.ours_enc >= c.prost_enc || c.ours_dec >= c.prost_dec)
-        {
-            eprintln!("perf gate failed: {} vs prost (same schema)", c.name);
-            failed = true;
+        if let Some(v) = c.buffa_view {
+            if c.ours_dec >= v {
+                eprintln!("perf gate failed: {} vs buffa view", c.name);
+                failed = true;
+            }
         }
     }
     if failed {

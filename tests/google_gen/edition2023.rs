@@ -153,19 +153,44 @@ mod __gen {
             matches!(value, 0 | 1 | 2 | 3)
         }
     }
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct CppFeatures {
-        legacy_closed_enum: Option<bool>,
+        legacy_closed_enum: protobuf::rt::OptBool,
         string_type: Option<i32>,
-        enum_name_uses_string_view: Option<bool>,
+        enum_name_uses_string_view: protobuf::rt::OptBool,
         repeated_type: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
+    }
+    impl PartialEq for CppFeatures {
+        fn eq(&self, other: &Self) -> bool {
+            if self.legacy_closed_enum != other.legacy_closed_enum {
+                return false;
+            }
+            if self.string_type != other.string_type {
+                return false;
+            }
+            if self.enum_name_uses_string_view != other.enum_name_uses_string_view {
+                return false;
+            }
+            if self.repeated_type != other.repeated_type {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for CppFeatures {}
+    impl Default for CppFeatures {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
     }
     impl CppFeatures {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "pb.CppFeatures";
         pub fn has_legacy_closed_enum(&self) -> bool {
             self.legacy_closed_enum.is_some()
@@ -174,15 +199,15 @@ mod __gen {
             self.legacy_closed_enum.unwrap_or(false)
         }
         pub fn legacy_closed_enum_opt(&self) -> Option<bool> {
-            self.legacy_closed_enum.map(|v| v)
+            self.legacy_closed_enum.get()
         }
         pub fn set_legacy_closed_enum(&mut self, v: bool) {
             self.cached_size.dirty();
-            self.legacy_closed_enum = Some(v);
+            self.legacy_closed_enum = protobuf::rt::OptBool::some(v);
         }
         pub fn clear_legacy_closed_enum(&mut self) {
             self.cached_size.dirty();
-            self.legacy_closed_enum = None;
+            self.legacy_closed_enum = protobuf::rt::OptBool::NONE;
         }
         pub fn has_string_type(&self) -> bool {
             self.string_type.is_some()
@@ -208,15 +233,15 @@ mod __gen {
             self.enum_name_uses_string_view.unwrap_or(false)
         }
         pub fn enum_name_uses_string_view_opt(&self) -> Option<bool> {
-            self.enum_name_uses_string_view.map(|v| v)
+            self.enum_name_uses_string_view.get()
         }
         pub fn set_enum_name_uses_string_view(&mut self, v: bool) {
             self.cached_size.dirty();
-            self.enum_name_uses_string_view = Some(v);
+            self.enum_name_uses_string_view = protobuf::rt::OptBool::some(v);
         }
         pub fn clear_enum_name_uses_string_view(&mut self) {
             self.cached_size.dirty();
-            self.enum_name_uses_string_view = None;
+            self.enum_name_uses_string_view = protobuf::rt::OptBool::NONE;
         }
         pub fn has_repeated_type(&self) -> bool {
             self.repeated_type.is_some()
@@ -235,6 +260,7 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_type = None;
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -287,21 +313,48 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (1, protobuf::rt::WIRE_VARINT) => {
-                        self.legacy_closed_enum =
-                            Some(protobuf::rt::decode_varint(data, pos)? != 0);
-                    }
-                    (2, protobuf::rt::WIRE_VARINT) => {
-                        self.string_type = Some(protobuf::rt::decode_varint(data, pos)? as i32);
-                    }
-                    (3, protobuf::rt::WIRE_VARINT) => {
-                        self.enum_name_uses_string_view =
-                            Some(protobuf::rt::decode_varint(data, pos)? != 0);
-                    }
-                    (4, protobuf::rt::WIRE_VARINT) => {
-                        self.repeated_type = Some(protobuf::rt::decode_varint(data, pos)? as i32);
-                    }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.legacy_closed_enum = protobuf::rt::OptBool::some(
+                                protobuf::rt::decode_varint(data, pos)? != 0,
+                            );
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    2 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.string_type = Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.enum_name_uses_string_view = protobuf::rt::OptBool::some(
+                                protobuf::rt::decode_varint(data, pos)? != 0,
+                            );
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    4 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.repeated_type =
+                                Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -316,12 +369,72 @@ mod __gen {
             }
             Ok(())
         }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    2 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    4 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
+            }
+            Ok(())
+        }
         fn compute_size(&self) -> u64 {
             if let Some(n) = self.cached_size.get() {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if let Some(v) = self.legacy_closed_enum {
+            if let Some(v) = self.legacy_closed_enum.get() {
                 n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
@@ -329,7 +442,7 @@ mod __gen {
                 n += protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len((v) as u64);
             }
-            if let Some(v) = self.enum_name_uses_string_view {
+            if let Some(v) = self.enum_name_uses_string_view.get() {
                 n += protobuf::rt::tag_len(3, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
@@ -341,7 +454,7 @@ mod __gen {
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
-            if let Some(v) = self.legacy_closed_enum {
+            if let Some(v) = self.legacy_closed_enum.get() {
                 protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
@@ -349,7 +462,7 @@ mod __gen {
                 protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, v as u64);
             }
-            if let Some(v) = self.enum_name_uses_string_view {
+            if let Some(v) = self.enum_name_uses_string_view.get() {
                 protobuf::rt::encode_tag(out, 3, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
@@ -361,20 +474,48 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(CppFeatures, CppFeaturesView, CppFeaturesMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
+    #[derive(Clone, Debug)]
     pub struct EditionsMessage {
         plain_field: Option<i32>,
         implicit_presence_field: i32,
-        str_view: Option<protobuf::rt::LazyStr>,
+        str_view: Option<Box<protobuf::rt::LazyStr>>,
         repeated_str_view: Repeated<protobuf::rt::LazyStr>,
         repeated_str: Repeated<protobuf::rt::LazyStr>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
+    impl PartialEq for EditionsMessage {
+        fn eq(&self, other: &Self) -> bool {
+            if self.plain_field != other.plain_field {
+                return false;
+            }
+            if self.implicit_presence_field != other.implicit_presence_field {
+                return false;
+            }
+            if self.str_view != other.str_view {
+                return false;
+            }
+            if self.repeated_str_view != other.repeated_str_view {
+                return false;
+            }
+            if self.repeated_str != other.repeated_str {
+                return false;
+            }
+            self.unknown == other.unknown
+        }
+    }
+    impl Eq for EditionsMessage {}
+    impl Default for EditionsMessage {
+        #[inline(always)]
+        fn default() -> Self {
+            unsafe { protobuf::rt::zeroed_message() }
+        }
+    }
     impl EditionsMessage {
         pub fn new() -> Self {
             Self::default()
         }
+        pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "test.EditionsMessage";
         pub fn has_plain_field(&self) -> bool {
             self.plain_field.is_some()
@@ -414,7 +555,7 @@ mod __gen {
         }
         pub fn set_str_view(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str_view = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
+            self.str_view = Some(Box::new(protobuf::rt::LazyStr::owned(v.into_proxied())));
         }
         pub fn clear_str_view(&mut self) {
             self.cached_size.dirty();
@@ -445,6 +586,7 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_str = v.into_iter().collect();
         }
+        #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
             Ok(())
         }
@@ -497,34 +639,65 @@ mod __gen {
                         return Ok(());
                     }
                 }
-                match (n, w) {
-                    (1, protobuf::rt::WIRE_VARINT) => {
-                        self.plain_field = Some(protobuf::rt::decode_varint(data, pos)? as i32);
-                    }
-                    (2, protobuf::rt::WIRE_VARINT) => {
-                        self.implicit_presence_field =
-                            protobuf::rt::decode_varint(data, pos)? as i32;
-                    }
-                    (3, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let b = &data[s..e];
-                        std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.str_view = Some(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
-                    }
-                    (4, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let b = &data[s..e];
-                        std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.repeated_str_view
-                            .push(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
-                    }
-                    (5, protobuf::rt::WIRE_LEN) => {
-                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let b = &data[s..e];
-                        std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                        self.repeated_str
-                            .push(protobuf::rt::LazyStr::from_wire(wire.window(s, e)));
-                    }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.plain_field = Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    2 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            self.implicit_presence_field =
+                                protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let b = &data[s..e];
+                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
+                            self.str_view =
+                                Some(Box::new(protobuf::rt::LazyStr::from_span(wire, s, e)));
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    4 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let b = &data[s..e];
+                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
+                            self.repeated_str_view
+                                .push(protobuf::rt::LazyStr::from_span(wire, s, e));
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
+                    5 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let b = &data[s..e];
+                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
+                            self.repeated_str
+                                .push(protobuf::rt::LazyStr::from_span(wire, s, e));
+                        }
+                        _ => self
+                            .unknown
+                            .fields
+                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                    },
                     _ => self
                         .unknown
                         .fields
@@ -536,6 +709,78 @@ mod __gen {
             }
             if enforce {
                 self.check_required()?;
+            }
+            Ok(())
+        }
+        fn validate_inner(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+        ) -> Result<(), ParseError> {
+            Self::validate_until(wire, pos, depth, None)
+        }
+        fn validate_until(
+            wire: &protobuf::rt::Wire,
+            pos: &mut usize,
+            depth: u32,
+            until: Option<u32>,
+        ) -> Result<(), ParseError> {
+            if depth > protobuf::RECURSION_LIMIT {
+                return Err(ParseError::new("recursion limit exceeded"));
+            }
+            let data = wire.as_slice();
+            while *pos < data.len() {
+                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                if let Some(g) = until {
+                    if w == protobuf::rt::WIRE_EGROUP {
+                        if n != g {
+                            return Err(ParseError::new("mismatched end-group"));
+                        }
+                        return Ok(());
+                    }
+                }
+                match n {
+                    1 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    2 => match w {
+                        protobuf::rt::WIRE_VARINT => {
+                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    3 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            std::str::from_utf8(&data[s..e])
+                                .map_err(|_| ParseError::new("invalid utf-8"))?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    4 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            std::str::from_utf8(&data[s..e])
+                                .map_err(|_| ParseError::new("invalid utf-8"))?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    5 => match w {
+                        protobuf::rt::WIRE_LEN => {
+                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            std::str::from_utf8(&data[s..e])
+                                .map_err(|_| ParseError::new("invalid utf-8"))?;
+                        }
+                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                    },
+                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                }
+            }
+            if until.is_some() {
+                return Err(ParseError::new("truncated group"));
             }
             Ok(())
         }

@@ -4,9 +4,10 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-/// A `repeated` field of `T`. Empty `None` is 24 bytes and zero-valid (`Vec` itself is not).
+/// Empty is an 8-byte null. `Box<Vec<_>>` so unused TAT collections stay off the struct.
+#[allow(clippy::box_collection)]
 #[derive(Clone)]
-pub struct Repeated<T>(Option<Vec<T>>);
+pub struct Repeated<T>(Option<Box<Vec<T>>>);
 
 impl<T> Default for Repeated<T> {
     #[inline]
@@ -32,13 +33,13 @@ impl<T> Repeated<T> {
         if values.is_empty() {
             Self(None)
         } else {
-            Self(Some(values))
+            Self(Some(Box::new(values)))
         }
     }
 
     #[inline]
     fn ensure(&mut self) -> &mut Vec<T> {
-        self.0.get_or_insert_with(Vec::new)
+        self.0.get_or_insert_with(|| Box::new(Vec::new()))
     }
 
     pub fn push(&mut self, value: T) {
@@ -80,7 +81,7 @@ impl<T> Repeated<T> {
 
     #[inline]
     pub fn as_slice(&self) -> &[T] {
-        self.0.as_ref().map_or(&[], |v| v.as_slice())
+        self.0.as_deref().map_or(&[], |v| v.as_slice())
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
@@ -88,7 +89,7 @@ impl<T> Repeated<T> {
     }
 
     pub fn into_vec(self) -> Vec<T> {
-        self.0.unwrap_or_default()
+        self.0.map(|b| *b).unwrap_or_default()
     }
 }
 

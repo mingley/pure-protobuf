@@ -69,7 +69,7 @@ macro_rules! impl_message {
         impl $crate::message::Serialize for $Owned {
             #[inline]
             fn serialize(&self) -> Result<Vec<u8>, $crate::error::SerializeError> {
-                let mut out = Vec::with_capacity(192);
+                let mut out = Vec::with_capacity(128);
                 self.write_to(&mut out);
                 $crate::wire::check_size(out.len() as u64)?;
                 Ok(out)
@@ -105,6 +105,7 @@ macro_rules! impl_message {
             }
         }
         impl $crate::message::ClearAndParse for $Owned {
+            const EMPTY_PARSE_OK: bool = true;
             fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::error::ParseError> {
                 $crate::message::Clear::clear(self);
                 self.merge_bytes(data)
