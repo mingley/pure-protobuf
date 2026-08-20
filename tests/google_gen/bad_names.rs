@@ -78,10 +78,10 @@ mod __gen {
     }
     #[repr(transparent)]
     #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    pub struct SomeMsgView(i32);
+    pub struct SomeMsgView_(i32);
     #[allow(non_upper_case_globals)]
-    impl SomeMsgView {
-        pub const Unspecified: SomeMsgView = SomeMsgView(0);
+    impl SomeMsgView_ {
+        pub const Unspecified: SomeMsgView_ = SomeMsgView_(0);
         fn constant_name(self) -> Option<&'static str> {
             #[allow(unreachable_patterns)]
             Some(match self.0 {
@@ -90,12 +90,12 @@ mod __gen {
             })
         }
     }
-    impl From<SomeMsgView> for i32 {
-        fn from(v: SomeMsgView) -> i32 {
+    impl From<SomeMsgView_> for i32 {
+        fn from(v: SomeMsgView_) -> i32 {
             v.0
         }
     }
-    impl TryFrom<i32> for SomeMsgView {
+    impl TryFrom<i32> for SomeMsgView_ {
         type Error = UnknownEnumValue<Self>;
         fn try_from(val: i32) -> Result<Self, Self::Error> {
             if <Self as Enum>::is_known(val) {
@@ -105,31 +105,31 @@ mod __gen {
             }
         }
     }
-    impl Default for SomeMsgView {
+    impl Default for SomeMsgView_ {
         fn default() -> Self {
             Self(0)
         }
     }
-    impl std::fmt::Debug for SomeMsgView {
+    impl std::fmt::Debug for SomeMsgView_ {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             if let Some(n) = self.constant_name() {
-                write!(f, "SomeMsgView::{n}")
+                write!(f, "SomeMsgView_::{n}")
             } else {
-                write!(f, "SomeMsgView::from({})", self.0)
+                write!(f, "SomeMsgView_::from({})", self.0)
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for SomeMsgView {}
-    impl protobuf::Proxied for SomeMsgView {
-        type View<'msg> = SomeMsgView;
+    impl protobuf::__internal::SealedInternal for SomeMsgView_ {}
+    impl protobuf::Proxied for SomeMsgView_ {
+        type View<'msg> = SomeMsgView_;
     }
-    impl protobuf::AsView for SomeMsgView {
+    impl protobuf::AsView for SomeMsgView_ {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for SomeMsgView {
+    impl<'msg> protobuf::IntoView<'msg> for SomeMsgView_ {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -137,18 +137,18 @@ mod __gen {
             self
         }
     }
-    impl Enum for SomeMsgView {
-        const NAME: &'static str = "SomeMsgView";
+    impl Enum for SomeMsgView_ {
+        const NAME: &'static str = "SomeMsgView_";
         fn is_known(value: i32) -> bool {
             matches!(value, 0)
         }
     }
     #[derive(Clone, Debug, Default, PartialEq)]
     pub struct AccessorsCollide {
-        set_x: protobuf::rt::LazyMsg<SetX>,
+        set_x_2: protobuf::rt::LazyMsg<SetX>,
         x: protobuf::rt::LazyMsg<X>,
-        x_mut: Option<bool>,
-        clear_x: Option<i32>,
+        x_mut_5: Option<bool>,
+        clear_x_7: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
@@ -157,31 +157,31 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "type.type.AccessorsCollide";
-        pub fn has_set_x(&self) -> bool {
-            self.set_x.is_some()
+        pub fn has_set_x_2(&self) -> bool {
+            self.set_x_2.is_some()
         }
-        pub fn set_x(&self) -> &SetX {
-            self.set_x
+        pub fn set_x_2(&self) -> &SetX {
+            self.set_x_2
                 .as_deref()
                 .unwrap_or(protobuf::gen_support::default_instance_of())
         }
-        pub fn set_x_opt(&self) -> Option<&SetX> {
-            self.set_x.as_deref()
+        pub fn set_x_2_opt(&self) -> Option<&SetX> {
+            self.set_x_2.as_deref()
         }
-        pub fn set_x_view(&self) -> SetXView<'_> {
-            SetXView(self.set_x())
+        pub fn set_x_2_view(&self) -> SetXView<'_> {
+            SetXView(self.set_x_2())
         }
-        pub fn set_set_x(&mut self, v: SetX) {
+        pub fn set_set_x_2(&mut self, v: SetX) {
             self.cached_size.dirty();
-            self.set_x = protobuf::rt::LazyMsg::from_owned(v);
+            self.set_x_2 = protobuf::rt::LazyMsg::from_owned(v);
         }
-        pub fn set_x_mut(&mut self) -> &mut SetX {
+        pub fn set_x_2_mut(&mut self) -> &mut SetX {
             self.cached_size.dirty();
-            self.set_x.get_or_insert()
+            self.set_x_2.get_or_insert()
         }
-        pub fn clear_set_x(&mut self) {
+        pub fn clear_set_x_2(&mut self) {
             self.cached_size.dirty();
-            self.set_x.clear();
+            self.set_x_2.clear();
         }
         pub fn has_x(&self) -> bool {
             self.x.is_some()
@@ -209,39 +209,39 @@ mod __gen {
             self.cached_size.dirty();
             self.x.clear();
         }
-        pub fn has_x_mut(&self) -> bool {
-            self.x_mut.is_some()
+        pub fn has_x_mut_5(&self) -> bool {
+            self.x_mut_5.is_some()
         }
-        pub fn x_mut(&self) -> bool {
-            self.x_mut.unwrap_or(false)
+        pub fn x_mut_5(&self) -> bool {
+            self.x_mut_5.unwrap_or(false)
         }
-        pub fn x_mut_opt(&self) -> Option<bool> {
-            self.x_mut.map(|v| v)
+        pub fn x_mut_5_opt(&self) -> Option<bool> {
+            self.x_mut_5.map(|v| v)
         }
-        pub fn set_x_mut(&mut self, v: bool) {
+        pub fn set_x_mut_5(&mut self, v: bool) {
             self.cached_size.dirty();
-            self.x_mut = Some(v);
+            self.x_mut_5 = Some(v);
         }
-        pub fn clear_x_mut(&mut self) {
+        pub fn clear_x_mut_5(&mut self) {
             self.cached_size.dirty();
-            self.x_mut = None;
+            self.x_mut_5 = None;
         }
-        pub fn has_clear_x(&self) -> bool {
-            self.clear_x.is_some()
+        pub fn has_clear_x_7(&self) -> bool {
+            self.clear_x_7.is_some()
         }
-        pub fn clear_x(&self) -> i32 {
-            self.clear_x.unwrap_or(0)
+        pub fn clear_x_7(&self) -> i32 {
+            self.clear_x_7.unwrap_or(0)
         }
-        pub fn clear_x_opt(&self) -> Option<i32> {
-            self.clear_x.map(|v| v)
+        pub fn clear_x_7_opt(&self) -> Option<i32> {
+            self.clear_x_7.map(|v| v)
         }
-        pub fn set_clear_x(&mut self, v: i32) {
+        pub fn set_clear_x_7(&mut self, v: i32) {
             self.cached_size.dirty();
-            self.clear_x = Some(v);
+            self.clear_x_7 = Some(v);
         }
-        pub fn clear_clear_x(&mut self) {
+        pub fn clear_clear_x_7(&mut self) {
             self.cached_size.dirty();
-            self.clear_x = None;
+            self.clear_x_7 = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -289,9 +289,9 @@ mod __gen {
                 match (n, w) {
                     (2, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        if self.set_x.is_some() {
+                        if self.set_x_2.is_some() {
                             let mut ip = 0;
-                            self.set_x.get_or_insert().merge_inner(
+                            self.set_x_2.get_or_insert().merge_inner(
                                 &wire.window(s, e),
                                 &mut ip,
                                 depth + 1,
@@ -308,7 +308,7 @@ mod __gen {
                                 true,
                                 None,
                             )?;
-                            self.set_x =
+                            self.set_x_2 =
                                 protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
@@ -337,10 +337,10 @@ mod __gen {
                         }
                     }
                     (5, protobuf::rt::WIRE_VARINT) => {
-                        self.x_mut = Some(protobuf::rt::decode_varint(data, pos)? != 0);
+                        self.x_mut_5 = Some(protobuf::rt::decode_varint(data, pos)? != 0);
                     }
                     (7, protobuf::rt::WIRE_VARINT) => {
-                        self.clear_x = Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        self.clear_x_7 = Some(protobuf::rt::decode_varint(data, pos)? as i32);
                     }
                     _ => self
                         .unknown
@@ -358,9 +358,9 @@ mod __gen {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if let Some(p) = self.set_x.wire_bytes() {
+            if let Some(p) = self.set_x_2.wire_bytes() {
                 n += protobuf::rt::key_len_value_len(2, p.len() as u64);
-            } else if let Some(m) = self.set_x.as_deref() {
+            } else if let Some(m) = self.set_x_2.as_deref() {
                 n += protobuf::rt::key_len_value_len(2, m.compute_size());
             }
             if let Some(p) = self.x.wire_bytes() {
@@ -368,11 +368,11 @@ mod __gen {
             } else if let Some(m) = self.x.as_deref() {
                 n += protobuf::rt::key_len_value_len(3, m.compute_size());
             }
-            if let Some(v) = self.x_mut {
+            if let Some(v) = self.x_mut_5 {
                 n += protobuf::rt::tag_len(5, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
-            if let Some(v) = self.clear_x {
+            if let Some(v) = self.clear_x_7 {
                 n += protobuf::rt::tag_len(7, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len((v) as u64);
             }
@@ -380,10 +380,10 @@ mod __gen {
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
-            if let Some(p) = self.set_x.wire_bytes() {
+            if let Some(p) = self.set_x_2.wire_bytes() {
                 protobuf::rt::encode_len_header(out, 2, p.len() as u64);
                 out.extend_from_slice(p);
-            } else if let Some(m) = self.set_x.as_deref() {
+            } else if let Some(m) = self.set_x_2.as_deref() {
                 protobuf::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }
@@ -394,11 +394,11 @@ mod __gen {
                 protobuf::rt::encode_len_header(out, 3, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(v) = self.x_mut {
+            if let Some(v) = self.x_mut_5 {
                 protobuf::rt::encode_tag(out, 5, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
-            if let Some(v) = self.clear_x {
+            if let Some(v) = self.clear_x_7 {
                 protobuf::rt::encode_tag(out, 7, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, v as u64);
             }
@@ -641,11 +641,11 @@ mod __gen {
     }
     protobuf::impl_typed_message!(MangleViewTest, MangleViewTestView, MangleViewTestMut);
     #[derive(Clone, Debug, Default, PartialEq)]
-    pub struct MangleViewTestView {
+    pub struct MangleViewTestView_ {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
-    impl MangleViewTestView {
+    impl MangleViewTestView_ {
         pub fn new() -> Self {
             Self::default()
         }
@@ -718,9 +718,9 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(
-        MangleViewTestView,
-        MangleViewTestViewView,
-        MangleViewTestViewMut
+        MangleViewTestView_,
+        MangleViewTestView_View,
+        MangleViewTestView_Mut
     );
     #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Pub {
@@ -941,7 +941,7 @@ mod __gen {
             self.cached_size.dirty();
             self.r#for = None;
         }
-        pub fn has_self_(&self) -> bool {
+        pub fn has_self(&self) -> bool {
             self.self_.is_some()
         }
         pub fn self_(&self) -> &Self_ {
@@ -955,7 +955,7 @@ mod __gen {
         pub fn self__view(&self) -> Self_View<'_> {
             Self_View(self.self_())
         }
-        pub fn set_self_(&mut self, v: Self_) {
+        pub fn set_self(&mut self, v: Self_) {
             self.cached_size.dirty();
             self.self_ = protobuf::rt::LazyMsg::from_owned(v);
         }
@@ -963,7 +963,7 @@ mod __gen {
             self.cached_size.dirty();
             self.self_.get_or_insert()
         }
-        pub fn clear_self_(&mut self) {
+        pub fn clear_self(&mut self) {
             self.cached_size.dirty();
             self.self_.clear();
         }
@@ -1032,7 +1032,7 @@ mod __gen {
             self.cached_size.dirty();
             self.clear = None;
         }
-        pub fn has_new_(&self) -> bool {
+        pub fn has_new(&self) -> bool {
             self.new_.is_some()
         }
         pub fn new_(&self) -> bool {
@@ -1041,11 +1041,11 @@ mod __gen {
         pub fn new__opt(&self) -> Option<bool> {
             self.new_.map(|v| v)
         }
-        pub fn set_new_(&mut self, v: bool) {
+        pub fn set_new(&mut self, v: bool) {
             self.cached_size.dirty();
             self.new_ = Some(v);
         }
-        pub fn clear_new_(&mut self) {
+        pub fn clear_new(&mut self) {
             self.cached_size.dirty();
             self.new_ = None;
         }
@@ -1392,4 +1392,5 @@ mod __gen {
         pub use super::PubSelf_ as Self_;
     }
 }
+#[allow(unused_imports)]
 pub use __gen::*;

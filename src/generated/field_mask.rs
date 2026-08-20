@@ -173,4 +173,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(FieldMask, FieldMaskView, FieldMaskMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

@@ -14,6 +14,8 @@ thread_local! {
         const { RefCell::new(std::collections::BTreeMap::new()) };
     static FIELD_IDENTS: RefCell<std::collections::BTreeMap<u32, String>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
+    static FIELD_RAWS: RefCell<std::collections::BTreeMap<u32, String>> =
+        const { RefCell::new(std::collections::BTreeMap::new()) };
 }
 
 pub fn generate_from_code_generator_request(
@@ -86,6 +88,14 @@ pub fn generate_from_code_generator_request(
             }
             emit_names.push(name.clone());
         }
+        let pub_files = pool.public_import_files(&targets);
+        emit_names.retain(|n| {
+            pool.get_message(n).is_none_or(|d| {
+                !pub_files
+                    .iter()
+                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &d.file_name))
+            })
+        });
         let mut emit_enums = Vec::new();
         for name in pool.collect_enum_names() {
             let Some(ed) = pool.get_enum(&name) else {
@@ -99,9 +109,19 @@ pub fn generate_from_code_generator_request(
             }
             emit_enums.push(name);
         }
+        emit_enums.retain(|n| {
+            pool.get_enum(n).is_none_or(|d| {
+                !pub_files
+                    .iter()
+                    .any(|p| file_matches(&std::iter::once(p.clone()).collect(), &d.file_name))
+            })
+        });
         let mut ident_names = emit_names.clone();
         ident_names.extend(emit_enums.iter().cloned());
-        IDENTS.with(|c| *c.borrow_mut() = unique_idents(&ident_names));
+        let msg_set: std::collections::BTreeSet<String> =
+            pool.collect_names().into_iter().collect();
+        IDENTS.with(|c| *c.borrow_mut() = unique_idents(&ident_names, &msg_set));
+        emit_public_uses(&mut src, &pool, &pub_files);
         for name in &emit_enums {
             let ed = pool.get_enum(name).expect("emit enum");
             emit_enum(&mut src, &ed);
@@ -129,7 +149,7 @@ pub fn generate_from_code_generator_request(
                 emit_service(&mut src, svc);
             }
         }
-        src.push_str("}\npub use __gen::*;\n");
+        src.push_str("}\n#[allow(unused_imports)]\npub use __gen::*;\n");
         let stem = std::path::Path::new(target)
             .file_stem()
             .and_then(|s| s.to_str())
@@ -225,11 +245,58 @@ fn ident_last(s: &str) -> String {
     rust_ident_from_last(last)
 }
 
-fn unique_idents(full_names: &[String]) -> std::collections::BTreeMap<String, String> {
+fn must_mangle_view_suffix(full: &str, messages: &std::collections::BTreeSet<String>) -> bool {
+    let key = full.trim_start_matches('.');
+    let last = key.rsplit('.').next().unwrap_or(key);
+    let Some(without) = last.strip_suffix("View") else {
+        return false;
+    };
+    if without.is_empty() {
+        return false;
+    }
+    let sibling = match key.rsplit_once('.') {
+        Some((parent, _)) => format!("{parent}.{without}"),
+        None => without.to_string(),
+    };
+    messages.contains(&sibling)
+}
+
+fn file_stem_ident(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or(path)
+        .replace('-', "_")
+}
+
+fn emit_public_uses(src: &mut String, pool: &DescriptorPool, pub_files: &[String]) {
+    for p in pub_files {
+        let stem = file_stem_ident(p);
+        let _ = writeln!(src, "pub use crate::{stem}::*;");
+    }
+    let _ = pool;
+}
+
+fn field_raw(f: &FieldDescriptor) -> String {
+    FIELD_RAWS.with(|c| {
+        c.borrow()
+            .get(&f.number)
+            .cloned()
+            .unwrap_or_else(|| f.name.clone())
+    })
+}
+
+fn unique_idents(
+    full_names: &[String],
+    messages: &std::collections::BTreeSet<String>,
+) -> std::collections::BTreeMap<String, String> {
     let mut used: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut out = std::collections::BTreeMap::new();
     for full in full_names {
-        let last = ident_last(full);
+        let mut last = ident_last(full);
+        if must_mangle_view_suffix(full, messages) {
+            last.push('_');
+        }
         let id = if used.contains(&last) {
             let parent = full.rsplit_once('.').map(|x| x.0).unwrap_or("X");
             format!("{}{last}", ident_last(parent))
@@ -336,19 +403,47 @@ fn field_ident_base(name: &str) -> String {
     }
 }
 
+fn field_name_with_collision_avoidance(desc: &MessageDescriptor, f: &FieldDescriptor) -> String {
+    let name = f.name.as_str();
+    for prefix in ["clear_", "has_", "set_"] {
+        if let Some(rest) = name.strip_prefix(prefix) {
+            if desc.fields.values().any(|o| o.name == rest) {
+                return format!("{name}_{}", f.number);
+            }
+        }
+    }
+    for suffix in ["_mut", "_opt"] {
+        if let Some(rest) = name.strip_suffix(suffix) {
+            if desc.fields.values().any(|o| o.name == rest) {
+                return format!("{name}_{}", f.number);
+            }
+        }
+    }
+    name.to_string()
+}
+
 fn bind_field_idents(desc: &MessageDescriptor) {
     let mut used = std::collections::BTreeSet::new();
     used.insert("unknown".into());
+    let mut raw_used = std::collections::BTreeSet::new();
     let mut out = std::collections::BTreeMap::new();
+    let mut raws = std::collections::BTreeMap::new();
     for f in desc.fields.values() {
-        let mut id = field_ident_base(&f.name);
+        let mut raw = field_name_with_collision_avoidance(desc, f);
+        if !raw_used.insert(raw.clone()) {
+            raw = format!("{}_{}", raw, f.number);
+            raw_used.insert(raw.clone());
+        }
+        let mut id = field_ident_base(&raw);
         if !used.insert(id.clone()) {
             id = format!("{}_{}", id.trim_start_matches("r#"), f.number);
             used.insert(id.clone());
         }
         out.insert(f.number, id);
+        raws.insert(f.number, raw);
     }
     FIELD_IDENTS.with(|c| *c.borrow_mut() = out);
+    FIELD_RAWS.with(|c| *c.borrow_mut() = raws);
 }
 
 fn field_id(f: &FieldDescriptor) -> String {
@@ -548,7 +643,7 @@ fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &FieldDescrip
 
 fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
     let id = field_id(f);
-    let m = id.strip_prefix("r#").unwrap_or(id.as_str());
+    let m = field_raw(f);
     if f.is_map {
         let (k, v) = map_kv(f);
         let _ = writeln!(

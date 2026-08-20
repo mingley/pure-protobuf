@@ -5776,4 +5776,5 @@ mod __gen {
         pub use super::TestAllTypesEdition2023GroupLikeType as GroupLikeType;
     }
 }
+#[allow(unused_imports)]
 pub use __gen::*;

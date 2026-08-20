@@ -9,6 +9,7 @@ mod __gen {
         RepeatedView, SerializeError, UnknownEnumValue,
     };
 
+    pub use crate::parent::*;
     #[derive(Clone, Debug, Default, PartialEq)]
     pub struct Child {
         unknown: UnknownFields,
@@ -87,83 +88,6 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Child, ChildView, ChildMut);
-    #[derive(Clone, Debug, Default, PartialEq)]
-    pub struct Parent {
-        unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
-    }
-    impl Parent {
-        pub fn new() -> Self {
-            Self::default()
-        }
-        pub const FULL_NAME: &'static str = "parent_package.Parent";
-        fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
-            let w = protobuf::rt::Wire::from_slice(data);
-            let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
-        }
-        fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
-            let w = protobuf::rt::Wire::from_slice(data);
-            let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
-        }
-        fn merge_group(
-            &mut self,
-            wire: &protobuf::rt::Wire,
-            pos: &mut usize,
-            num: u32,
-            depth: u32,
-        ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
-        }
-        fn merge_inner(
-            &mut self,
-            wire: &protobuf::rt::Wire,
-            pos: &mut usize,
-            depth: u32,
-            enforce: bool,
-            until: Option<u32>,
-        ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
-                return Err(ParseError::new("recursion limit exceeded"));
-            }
-            let _ = enforce;
-            self.cached_size.dirty();
-            let data = wire.as_slice();
-            while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
-                if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
-                        if n != g {
-                            return Err(ParseError::new("mismatched end-group"));
-                        }
-                        return Ok(());
-                    }
-                }
-                match (n, w) {
-                    _ => self
-                        .unknown
-                        .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
-                }
-            }
-            if until.is_some() {
-                return Err(ParseError::new("truncated group"));
-            }
-            Ok(())
-        }
-        fn compute_size(&self) -> u64 {
-            if let Some(n) = self.cached_size.get() {
-                return n;
-            }
-            let mut n = self.unknown.encoded_len();
-            self.cached_size.set(n);
-            n
-        }
-        fn write_to(&self, out: &mut Vec<u8>) {
-            self.unknown.encode(out);
-        }
-    }
-    protobuf::impl_typed_message!(Parent, ParentView, ParentMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

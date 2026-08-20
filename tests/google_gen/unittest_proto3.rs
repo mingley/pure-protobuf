@@ -5558,4 +5558,5 @@ mod __gen {
         pub use super::TestOneof2NestedEnum as NestedEnum;
     }
 }
+#[allow(unused_imports)]
 pub use __gen::*;

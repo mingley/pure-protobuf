@@ -255,6 +255,18 @@ impl<'msg, K: MapKey, V: MapValue> IntoMut<'msg> for MapMut<'msg, K, V> {
     }
 }
 
+impl<K, V, KI, VI> crate::repeated::ProtoPut<(KI, VI)> for MapMut<'_, K, V>
+where
+    K: MapKey,
+    V: MapValue,
+    KI: Into<K>,
+    VI: Into<V>,
+{
+    fn proto_put(&mut self, (k, v): (KI, VI)) {
+        self.insert(k, v);
+    }
+}
+
 impl<K: MapKey, V: MapValue> IntoProxied<Map<K, V>> for MapView<'_, K, V> {
     fn into_proxied(self) -> Map<K, V> {
         Map(self.inner.clone())

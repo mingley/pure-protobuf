@@ -567,4 +567,5 @@ mod __gen {
         pub use super::StringType;
     }
 }
+#[allow(unused_imports)]
 pub use __gen::*;

@@ -67,10 +67,10 @@ Plugin-generated `TestAllTypesProto3` (optional scalars, nested message, `repeat
 | | ours | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|
 | payload bytes | 87 | 83 | 87 | 87 | 87 |
-| encode ns (run 1) | 101.217 | 83.732 | 249.930 | 132.118 | — |
-| encode ns (run 2) | 99.079 | 81.734 | 253.499 | 133.300 | — |
-| decode ns (run 1) | 382.690 | 280.055 | 416.294 | 397.214 | 308.690 |
-| decode ns (run 2) | 372.678 | 286.932 | 413.002 | 409.255 | 307.929 |
+| encode ns (run 1) | 96.394 | 84.866 | 236.072 | 132.994 | — |
+| encode ns (run 2) | 98.571 | 78.436 | 253.156 | 129.012 | — |
+| decode ns (run 1) | 384.761 | 276.317 | 416.882 | 393.410 | 312.221 |
+| decode ns (run 2) | 375.594 | 304.871 | 418.478 | 395.415 | 300.831 |
 
 Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decode.
 

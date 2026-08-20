@@ -88,4 +88,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(Parent, ParentView, ParentMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

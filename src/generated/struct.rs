@@ -873,4 +873,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(PbValue, PbValueView, PbValueMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

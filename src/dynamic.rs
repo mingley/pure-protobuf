@@ -280,6 +280,8 @@ pub struct DescriptorPool {
     enums: BTreeMap<String, Arc<EnumDescriptor>>,
     extensions_by_name: BTreeMap<String, (String, u32)>,
     services: BTreeMap<String, Arc<ServiceDescriptor>>,
+    /// file name -> public import file names
+    public_imports: BTreeMap<String, Vec<String>>,
 }
 
 impl DescriptorPool {
@@ -303,6 +305,22 @@ impl DescriptorPool {
 
     pub(crate) fn collect_enum_names(&self) -> Vec<String> {
         self.enums.keys().cloned().collect()
+    }
+
+    pub(crate) fn public_import_files(&self, targets: &[String]) -> Vec<String> {
+        let mut out = Vec::new();
+        for t in targets {
+            for (file, pubs) in &self.public_imports {
+                if file_name_matches(t, file) {
+                    for p in pubs {
+                        if !out.contains(p) {
+                            out.push(p.clone());
+                        }
+                    }
+                }
+            }
+        }
+        out
     }
 
     /// Look up an extension by its full name (`package.field`).
@@ -352,6 +370,14 @@ impl DescriptorPool {
         }
         let mut pool = resolve_pool(raw, raw_enums, extensions);
         for file in &files {
+            let pubs: Vec<String> = file
+                .public_dependency
+                .iter()
+                .filter_map(|&i| file.dependencies.get(i as usize).cloned())
+                .collect();
+            if !pubs.is_empty() {
+                pool.public_imports.insert(file.name.clone(), pubs);
+            }
             for svc in &file.services {
                 let desc = Arc::new(ServiceDescriptor {
                     name: svc.name.clone(),
@@ -1644,6 +1670,8 @@ struct RawFile {
     enums: Vec<RawEnum>,
     extensions: Vec<RawField>,
     services: Vec<RawService>,
+    dependencies: Vec<String>,
+    public_dependency: Vec<i32>,
 }
 
 #[derive(Default, Clone)]
@@ -1697,6 +1725,15 @@ struct RawEnum {
     closed: bool,
 }
 
+fn file_name_matches(wanted: &str, file_name: &str) -> bool {
+    if wanted == file_name {
+        return true;
+    }
+    let w = std::path::Path::new(wanted);
+    let f = std::path::Path::new(file_name);
+    w.file_name() == f.file_name() || wanted.ends_with(file_name) || file_name.ends_with(wanted)
+}
+
 fn parse_file_descriptor_set(bytes: &[u8]) -> Result<Vec<RawFile>, ParseError> {
     let mut files = Vec::new();
     let mut pos = 0;
@@ -1720,6 +1757,10 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
         match (n, w) {
             (1, WIRE_LEN) => file.name = read_string(bytes, &mut pos)?,
             (2, WIRE_LEN) => file.package = read_string(bytes, &mut pos)?,
+            (3, WIRE_LEN) => file.dependencies.push(read_string(bytes, &mut pos)?),
+            (10, WIRE_VARINT) => file
+                .public_dependency
+                .push(decode_varint(bytes, &mut pos)? as i32),
             (4, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 file.messages.push(parse_descriptor(payload, "")?);
@@ -2233,6 +2274,7 @@ fn resolve_pool(
         enums: enum_arcs,
         extensions_by_name: ext_index,
         services: BTreeMap::new(),
+        public_imports: BTreeMap::new(),
     }
 }
 

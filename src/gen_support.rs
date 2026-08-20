@@ -676,6 +676,13 @@ macro_rules! impl_typed_message {
                 $View(self)
             }
         }
+        impl $crate::__internal::SealedInternal for &$Owned {}
+        impl $crate::AsView for &$Owned {
+            type Proxied = $Owned;
+            fn as_view(&self) -> $View<'_> {
+                $View(*self)
+            }
+        }
         impl Default for $View<'_> {
             fn default() -> Self {
                 $View($crate::gen_support::default_instance_of::<$Owned>())

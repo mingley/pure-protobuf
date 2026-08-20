@@ -5,10 +5,10 @@
 //! `no_internal_access_test.rs` (`__internal` is a module, not `()`),
 //! `package_disambiguation_test.rs` (empty), `extensions_test.rs` (empty; proto is Edition 2024).
 //! SKIP edition2023 `str_view` cpp `pb.cpp.string_type=VIEW` (tested as ordinary string).
-//! SKIP proto! `__{}` / `..spread` / qualified-path (set-only proto! is covered).
-//! SKIP cross-crate `import public` type identity (single-crate generated modules).
-//! SKIP `bad_names_test.rs` — View/Mut suffix vs type name and `clear_x` accessor collisions.
+//! SKIP proto! `#[cfg(bzl)]` qualified-path (`::crate::Type`).
 
+#[path = "google_gen/bad_names.rs"]
+mod bad_names;
 #[path = "google_gen/child.rs"]
 mod child;
 #[path = "google_gen/edition2023.rs"]
@@ -19,8 +19,22 @@ mod enums;
 mod feature_verify;
 #[path = "google_gen/fields_with_imported_types.rs"]
 mod fields_with_imported_types;
+#[path = "google_gen/import_public2.rs"]
+mod import_public2;
 #[path = "google_gen/import_public.rs"]
-mod import_public;
+mod import_public_file;
+#[path = "google_gen/import_public_grandparent.rs"]
+mod import_public_grandparent;
+#[path = "google_gen/import_public_non_primary_src1.rs"]
+mod import_public_non_primary_src1;
+#[path = "google_gen/import_public_non_primary_src2.rs"]
+mod import_public_non_primary_src2;
+#[path = "google_gen/import_public_primary_src.rs"]
+mod import_public_primary_src;
+mod import_public {
+    pub use super::import_public2::*;
+    pub use super::import_public_file::*;
+}
 #[path = "google_gen/map_unittest.rs"]
 mod map_unittest;
 #[path = "google_gen/nested.rs"]
@@ -31,8 +45,12 @@ mod no_features_proto2;
 mod no_features_proto3;
 #[path = "google_gen/no_package.rs"]
 mod no_package;
+#[path = "google_gen/no_package_import.rs"]
+mod no_package_import;
 #[path = "google_gen/package.rs"]
 mod package;
+#[path = "google_gen/package_import.rs"]
+mod package_import;
 #[path = "google_gen/parent.rs"]
 mod parent;
 #[path = "google_gen/unittest.rs"]
@@ -619,6 +637,7 @@ fn nested_types_accessible() {
 fn child_parent_serialize() {
     assert!(parent::Parent::new().serialize().unwrap().is_empty());
     assert!(child::Child::new().serialize().unwrap().is_empty());
+    let _same: child::Parent = parent::Parent::new();
 }
 
 #[test]
@@ -661,7 +680,145 @@ fn imported_and_package_types_exist() {
     let _ = fields_with_imported_types::MsgWithFieldsWithImportedTypes::new();
     let _ = package::MsgWithPackage::new();
     let _ = no_package::MsgWithoutPackage::new();
-    let _ = import_public::PrimarySrcPubliclyImportedMsg::new();
+    let _: import_public::PrimarySrcPubliclyImportedMsg;
+    let _: import_public::PrimarySrcPubliclyImportedMsgView;
+    let _: import_public::PrimarySrcPubliclyImportedMsgMut;
+    let _: import_public::PrimarySrcPubliclyImportedEnum;
+    let _: import_public::GrandparentMsg;
+    let _: import_public::GrandparentMsgView;
+    let _: import_public::GrandparentMsgMut;
+    let _: import_public::GrandparentEnum;
+    let _: import_public::NonPrimarySrcPubliclyImportedMsg1;
+    let _: import_public::NonPrimarySrcPubliclyImportedMsg1View;
+    let _: import_public::NonPrimarySrcPubliclyImportedMsg1Mut;
+    let _: import_public::NonPrimarySrcPubliclyImportedEnum1;
+    let _: import_public::NonPrimarySrcPubliclyImportedMsg2;
+    let _: import_public::NonPrimarySrcPubliclyImportedMsg2View;
+    let _: import_public::NonPrimarySrcPubliclyImportedMsg2Mut;
+    let _: import_public::NonPrimarySrcPubliclyImportedEnum2;
+}
+
+#[test]
+fn proto_macro_infer_and_spread() {
+    let msg = proto!(Proto2 {
+        optional_int32: 1,
+        optional_nested_message: __ { bb: 42 },
+        optional_int64: 2
+    });
+    assert_eq!(msg.optional_nested_message().bb(), 42);
+    let empty = proto!(Proto2 {
+        optional_nested_message: NestedMessage {}
+    });
+    assert!(empty.has_optional_nested_message());
+    let inferred = proto!(Proto2 {
+        optional_nested_message: __ {}
+    });
+    assert!(inferred.has_optional_nested_message());
+
+    let msg2 = proto!(Proto2 { ..msg.as_view() });
+    assert_eq!(msg2.optional_nested_message().bb(), 42);
+    let msg3 = proto!(Proto2 {
+        optional_int32: 9,
+        ..msg.as_view()
+    });
+    assert_eq!(msg3.optional_nested_message().bb(), 42);
+    assert_eq!(msg3.optional_int32(), 9);
+
+    let tree = proto!(NestedTestAllTypes {
+        child: NestedTestAllTypes {
+            payload: Proto2 { optional_int32: 41 },
+            child: NestedTestAllTypes {
+                child: NestedTestAllTypes {
+                    payload: Proto2 { optional_int32: 43 }
+                },
+                payload: Proto2 { optional_int32: 42 }
+            }
+        }
+    });
+    let spread = proto!(NestedTestAllTypes {
+        child: NestedTestAllTypes {
+            payload: Proto2 {
+                optional_int32: 100
+            },
+            ..tree.child()
+        }
+    });
+    assert_eq!(spread.child().payload().optional_int32(), 100);
+    assert_eq!(spread.child().child().payload().optional_int32(), 42);
+    assert_eq!(
+        spread.child().child().child().payload().optional_int32(),
+        43
+    );
+
+    let nums = proto!(Proto2 {
+        repeated_int32: [1, 1 + 1, 3]
+    });
+    assert_eq!(
+        nums.repeated_int32().iter().copied().collect::<Vec<_>>(),
+        vec![1, 2, 3]
+    );
+
+    let nested_list = proto!(NestedTestAllTypes {
+        repeated_child: [
+            __ {
+                payload: __ { optional_int32: 1 }
+            },
+            NestedTestAllTypes {
+                payload: Proto2 { optional_int32: 2 }
+            }
+        ]
+    });
+    assert_eq!(nested_list.repeated_child().len(), 2);
+    assert_eq!(
+        nested_list
+            .repeated_child()
+            .get(0)
+            .unwrap()
+            .payload()
+            .optional_int32(),
+        1
+    );
+
+    use map_unittest::TestMap;
+    let mmap = proto!(TestMap {
+        map_string_string: [("foo", "bar"), ("baz", "qux")]
+    });
+    assert_eq!(mmap.map_string_string().len(), 2);
+    assert_eq!(
+        mmap.map_string_string()
+            .get(&"foo".into())
+            .unwrap()
+            .as_view(),
+        "bar"
+    );
+}
+
+#[test]
+fn bad_names_keywords() {
+    use bad_names::Self_;
+    let mut msg = Self_::new();
+    assert_eq!(msg.self_().r#for(), 0);
+    msg.set_new(true);
+    assert!(msg.new_());
+    let _ = bad_names::r#enum::new();
+    let _ = proto!(Self_ {
+        r#true: false,
+        r#match: [0i32]
+    });
+    let mut m = bad_names::AccessorsCollide::new();
+    m.set_x_mut_5(false);
+    assert!(!m.x_mut_5());
+    assert!(m.has_x_mut_5());
+    assert!(!m.has_set_x_2());
+    assert!(!m.has_x());
+    m.x_mut();
+    m.clear_x_7();
+    assert!(m.has_x());
+    assert!(!m.has_clear_x_7());
+    let _ = bad_names::MangleViewTest::new();
+    let _ = bad_names::MangleViewTestView_::new();
+    let _ = bad_names::SomeMsg::new();
+    let _ = bad_names::SomeMsgView_::Unspecified;
 }
 
 #[test]

@@ -323,6 +323,18 @@ impl<T: 'static> IntoProxied<Repeated<T>> for Vec<T> {
     }
 }
 
+/// Used by `proto!` list/map literals so a field mutator can take either a
+/// repeated element or a map key/value pair.
+pub trait ProtoPut<T> {
+    fn proto_put(&mut self, v: T);
+}
+
+impl<T> ProtoPut<T> for RepeatedMut<'_, T> {
+    fn proto_put(&mut self, v: T) {
+        self.push(v);
+    }
+}
+
 /// Types allowed as a simple field, repeated element, or map value.
 pub trait Singular: Proxied + SealedInternal {}
 

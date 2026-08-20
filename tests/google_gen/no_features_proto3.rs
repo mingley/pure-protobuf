@@ -342,4 +342,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(Verify, VerifyView, VerifyMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

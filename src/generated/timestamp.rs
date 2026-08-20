@@ -186,4 +186,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

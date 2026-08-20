@@ -148,4 +148,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(Empty, EmptyView, EmptyMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

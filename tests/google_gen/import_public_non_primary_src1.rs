@@ -9,13 +9,13 @@ mod __gen {
         RepeatedView, SerializeError, UnknownEnumValue,
     };
 
-    pub use crate::package_import::*;
     #[repr(transparent)]
     #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    pub struct EnumWithPackage(i32);
+    pub struct NonPrimarySrcPubliclyImportedEnum1(i32);
     #[allow(non_upper_case_globals)]
-    impl EnumWithPackage {
-        pub const Unspecified: EnumWithPackage = EnumWithPackage(0);
+    impl NonPrimarySrcPubliclyImportedEnum1 {
+        pub const Unspecified: NonPrimarySrcPubliclyImportedEnum1 =
+            NonPrimarySrcPubliclyImportedEnum1(0);
         fn constant_name(self) -> Option<&'static str> {
             #[allow(unreachable_patterns)]
             Some(match self.0 {
@@ -24,12 +24,12 @@ mod __gen {
             })
         }
     }
-    impl From<EnumWithPackage> for i32 {
-        fn from(v: EnumWithPackage) -> i32 {
+    impl From<NonPrimarySrcPubliclyImportedEnum1> for i32 {
+        fn from(v: NonPrimarySrcPubliclyImportedEnum1) -> i32 {
             v.0
         }
     }
-    impl TryFrom<i32> for EnumWithPackage {
+    impl TryFrom<i32> for NonPrimarySrcPubliclyImportedEnum1 {
         type Error = UnknownEnumValue<Self>;
         fn try_from(val: i32) -> Result<Self, Self::Error> {
             if <Self as Enum>::is_known(val) {
@@ -39,31 +39,31 @@ mod __gen {
             }
         }
     }
-    impl Default for EnumWithPackage {
+    impl Default for NonPrimarySrcPubliclyImportedEnum1 {
         fn default() -> Self {
             Self(0)
         }
     }
-    impl std::fmt::Debug for EnumWithPackage {
+    impl std::fmt::Debug for NonPrimarySrcPubliclyImportedEnum1 {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             if let Some(n) = self.constant_name() {
-                write!(f, "EnumWithPackage::{n}")
+                write!(f, "NonPrimarySrcPubliclyImportedEnum1::{n}")
             } else {
-                write!(f, "EnumWithPackage::from({})", self.0)
+                write!(f, "NonPrimarySrcPubliclyImportedEnum1::from({})", self.0)
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for EnumWithPackage {}
-    impl protobuf::Proxied for EnumWithPackage {
-        type View<'msg> = EnumWithPackage;
+    impl protobuf::__internal::SealedInternal for NonPrimarySrcPubliclyImportedEnum1 {}
+    impl protobuf::Proxied for NonPrimarySrcPubliclyImportedEnum1 {
+        type View<'msg> = NonPrimarySrcPubliclyImportedEnum1;
     }
-    impl protobuf::AsView for EnumWithPackage {
+    impl protobuf::AsView for NonPrimarySrcPubliclyImportedEnum1 {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for EnumWithPackage {
+    impl<'msg> protobuf::IntoView<'msg> for NonPrimarySrcPubliclyImportedEnum1 {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -71,22 +71,23 @@ mod __gen {
             self
         }
     }
-    impl Enum for EnumWithPackage {
-        const NAME: &'static str = "EnumWithPackage";
+    impl Enum for NonPrimarySrcPubliclyImportedEnum1 {
+        const NAME: &'static str = "NonPrimarySrcPubliclyImportedEnum1";
         fn is_known(value: i32) -> bool {
             matches!(value, 0)
         }
     }
     #[derive(Clone, Debug, Default, PartialEq)]
-    pub struct MsgWithPackage {
+    pub struct NonPrimarySrcPubliclyImportedMsg1 {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
-    impl MsgWithPackage {
+    impl NonPrimarySrcPubliclyImportedMsg1 {
         pub fn new() -> Self {
             Self::default()
         }
-        pub const FULL_NAME: &'static str = "testing_packages.MsgWithPackage";
+        pub const FULL_NAME: &'static str =
+            "non_primary_src_testing_packages.NonPrimarySrcPubliclyImportedMsg1";
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
@@ -154,7 +155,11 @@ mod __gen {
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(MsgWithPackage, MsgWithPackageView, MsgWithPackageMut);
+    protobuf::impl_typed_message!(
+        NonPrimarySrcPubliclyImportedMsg1,
+        NonPrimarySrcPubliclyImportedMsg1View,
+        NonPrimarySrcPubliclyImportedMsg1Mut
+    );
 }
 #[allow(unused_imports)]
 pub use __gen::*;

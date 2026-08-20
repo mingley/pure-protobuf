@@ -1389,4 +1389,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(UInt64Value, UInt64ValueView, UInt64ValueMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

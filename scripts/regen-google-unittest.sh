@@ -33,8 +33,15 @@ run "$ROOT/vendor/google/rust/test/bad_names.proto"
 # extensions.proto is Edition 2024; kernel max is 2023. SKIP (extensions_test.rs is a stub).
 run "$ROOT/vendor/google/rust/test/fields_with_imported_types.proto"
 run "$ROOT/vendor/google/rust/test/imported_types.proto"
+run "$ROOT/vendor/google/rust/test/import_public_grandparent.proto"
+run "$ROOT/vendor/google/rust/test/import_public_primary_src.proto"
+run "$ROOT/vendor/google/rust/test/import_public_non_primary_src1.proto"
+run "$ROOT/vendor/google/rust/test/import_public_non_primary_src2.proto"
 run "$ROOT/vendor/google/rust/test/import_public.proto"
+run "$ROOT/vendor/google/rust/test/import_public2.proto"
+run "$ROOT/vendor/google/rust/test/package_import.proto"
 run "$ROOT/vendor/google/rust/test/package.proto"
+run "$ROOT/vendor/google/rust/test/no_package_import.proto"
 run "$ROOT/vendor/google/rust/test/no_package.proto"
 
 protoc --plugin=protoc-gen-pure-protobuf="$PLUGIN" --pure-protobuf_out="$OUT" \

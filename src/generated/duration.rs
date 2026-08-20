@@ -186,4 +186,5 @@ mod __gen {
     }
     protobuf::impl_typed_message!(Duration, DurationView, DurationMut);
 }
+#[allow(unused_imports)]
 pub use __gen::*;

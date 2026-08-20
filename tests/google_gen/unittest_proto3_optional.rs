@@ -1272,4 +1272,5 @@ mod __gen {
         pub use super::TestProto3OptionalMessageNestedMessage as NestedMessage;
     }
 }
+#[allow(unused_imports)]
 pub use __gen::*;
