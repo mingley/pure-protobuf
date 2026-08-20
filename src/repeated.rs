@@ -56,6 +56,10 @@ impl<T> Repeated<T> {
     pub fn as_mut_slice(&mut self) -> &mut [T] {
         &mut self.0
     }
+
+    pub fn into_vec(self) -> Vec<T> {
+        self.0
+    }
 }
 
 impl<T> Deref for Repeated<T> {

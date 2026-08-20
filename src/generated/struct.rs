@@ -390,8 +390,8 @@ mod __gen {
         number_value: Option<f64>,
         string_value: Option<protobuf::rt::LazyStr>,
         bool_value: Option<bool>,
-        struct_value: Option<Box<Struct>>,
-        list_value: Option<Box<ListValue>>,
+        struct_value: protobuf::rt::LazyMsg<Struct>,
+        list_value: protobuf::rt::LazyMsg<ListValue>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
@@ -402,8 +402,8 @@ mod __gen {
                 number_value: None,
                 string_value: None,
                 bool_value: None,
-                struct_value: None,
-                list_value: None,
+                struct_value: Default::default(),
+                list_value: Default::default(),
                 unknown: UnknownFields::default(),
                 cached_size: protobuf::rt::CachedSize::default(),
             }
@@ -414,6 +414,9 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "google.protobuf.Value";
+        pub fn has_null_value(&self) -> bool {
+            self.null_value.is_some()
+        }
         pub fn null_value(&self) -> i32 {
             self.null_value.unwrap_or_default()
         }
@@ -422,9 +425,16 @@ mod __gen {
             self.number_value = None;
             self.string_value = None;
             self.bool_value = None;
-            self.struct_value = None;
-            self.list_value = None;
+            self.struct_value = Default::default();
+            self.list_value = Default::default();
             self.null_value = Some(v);
+        }
+        pub fn clear_null_value(&mut self) {
+            self.cached_size.dirty();
+            self.null_value = None;
+        }
+        pub fn has_number_value(&self) -> bool {
+            self.number_value.is_some()
         }
         pub fn number_value(&self) -> f64 {
             self.number_value.unwrap_or_default()
@@ -434,9 +444,13 @@ mod __gen {
             self.null_value = None;
             self.string_value = None;
             self.bool_value = None;
-            self.struct_value = None;
-            self.list_value = None;
+            self.struct_value = Default::default();
+            self.list_value = Default::default();
             self.number_value = Some(v);
+        }
+        pub fn clear_number_value(&mut self) {
+            self.cached_size.dirty();
+            self.number_value = None;
         }
         pub fn has_string_value(&self) -> bool {
             self.string_value.is_some()
@@ -452,13 +466,16 @@ mod __gen {
             self.null_value = None;
             self.number_value = None;
             self.bool_value = None;
-            self.struct_value = None;
-            self.list_value = None;
+            self.struct_value = Default::default();
+            self.list_value = Default::default();
             self.string_value = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
         pub fn clear_string_value(&mut self) {
             self.cached_size.dirty();
             self.string_value = None;
+        }
+        pub fn has_bool_value(&self) -> bool {
+            self.bool_value.is_some()
         }
         pub fn bool_value(&self) -> bool {
             self.bool_value.unwrap_or_default()
@@ -468,9 +485,13 @@ mod __gen {
             self.null_value = None;
             self.number_value = None;
             self.string_value = None;
-            self.struct_value = None;
-            self.list_value = None;
+            self.struct_value = Default::default();
+            self.list_value = Default::default();
             self.bool_value = Some(v);
+        }
+        pub fn clear_bool_value(&mut self) {
+            self.cached_size.dirty();
+            self.bool_value = None;
         }
         pub fn has_struct_value(&self) -> bool {
             self.struct_value.is_some()
@@ -487,12 +508,16 @@ mod __gen {
             self.number_value = None;
             self.string_value = None;
             self.bool_value = None;
-            self.list_value = None;
-            self.struct_value = Some(Box::new(v));
+            self.list_value = Default::default();
+            self.struct_value = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn struct_value_mut(&mut self) -> &mut Struct {
+            self.cached_size.dirty();
+            self.struct_value.get_or_insert()
         }
         pub fn clear_struct_value(&mut self) {
             self.cached_size.dirty();
-            self.struct_value = None;
+            self.struct_value.clear();
         }
         pub fn has_list_value(&self) -> bool {
             self.list_value.is_some()
@@ -509,12 +534,16 @@ mod __gen {
             self.number_value = None;
             self.string_value = None;
             self.bool_value = None;
-            self.struct_value = None;
-            self.list_value = Some(Box::new(v));
+            self.struct_value = Default::default();
+            self.list_value = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn list_value_mut(&mut self) -> &mut ListValue {
+            self.cached_size.dirty();
+            self.list_value.get_or_insert()
         }
         pub fn clear_list_value(&mut self) {
             self.cached_size.dirty();
-            self.list_value = None;
+            self.list_value.clear();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -564,16 +593,16 @@ mod __gen {
                         self.number_value = None;
                         self.string_value = None;
                         self.bool_value = None;
-                        self.struct_value = None;
-                        self.list_value = None;
+                        self.struct_value = Default::default();
+                        self.list_value = Default::default();
                         self.null_value = Some(protobuf::rt::decode_varint(data, pos)? as i32);
                     }
                     (2, protobuf::rt::WIRE_I64) => {
                         self.null_value = None;
                         self.string_value = None;
                         self.bool_value = None;
-                        self.struct_value = None;
-                        self.list_value = None;
+                        self.struct_value = Default::default();
+                        self.list_value = Default::default();
                         self.number_value =
                             Some(f64::from_bits(protobuf::rt::read_fixed64(data, pos)?));
                     }
@@ -581,8 +610,8 @@ mod __gen {
                         self.null_value = None;
                         self.number_value = None;
                         self.bool_value = None;
-                        self.struct_value = None;
-                        self.list_value = None;
+                        self.struct_value = Default::default();
+                        self.list_value = Default::default();
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let b = &data[s..e];
                         std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
@@ -593,8 +622,8 @@ mod __gen {
                         self.null_value = None;
                         self.number_value = None;
                         self.string_value = None;
-                        self.struct_value = None;
-                        self.list_value = None;
+                        self.struct_value = Default::default();
+                        self.list_value = Default::default();
                         self.bool_value = Some(protobuf::rt::decode_varint(data, pos)? != 0);
                     }
                     (5, protobuf::rt::WIRE_LEN) => {
@@ -602,31 +631,29 @@ mod __gen {
                         self.number_value = None;
                         self.string_value = None;
                         self.bool_value = None;
-                        self.list_value = None;
+                        self.list_value = Default::default();
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.struct_value {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = Struct::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.struct_value = Some(Box::new(inner));
-                            }
+                        if self.struct_value.is_some() {
+                            let mut ip = 0;
+                            self.struct_value.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = Struct::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.struct_value =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (6, protobuf::rt::WIRE_LEN) => {
@@ -634,31 +661,29 @@ mod __gen {
                         self.number_value = None;
                         self.string_value = None;
                         self.bool_value = None;
-                        self.struct_value = None;
+                        self.struct_value = Default::default();
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.list_value {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = ListValue::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.list_value = Some(Box::new(inner));
-                            }
+                        if self.list_value.is_some() {
+                            let mut ip = 0;
+                            self.list_value.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = ListValue::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.list_value =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     _ => self
@@ -691,10 +716,14 @@ mod __gen {
                 n += protobuf::rt::tag_len(4, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(v));
             }
-            if let Some(m) = &self.struct_value {
+            if let Some(p) = self.struct_value.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(5, p.len() as u64);
+            } else if let Some(m) = self.struct_value.as_deref() {
                 n += protobuf::rt::key_len_value_len(5, m.compute_size());
             }
-            if let Some(m) = &self.list_value {
+            if let Some(p) = self.list_value.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(6, p.len() as u64);
+            } else if let Some(m) = self.list_value.as_deref() {
                 n += protobuf::rt::key_len_value_len(6, m.compute_size());
             }
             self.cached_size.set(n);
@@ -716,11 +745,17 @@ mod __gen {
                 protobuf::rt::encode_tag(out, 4, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(v));
             }
-            if let Some(m) = &self.struct_value {
+            if let Some(p) = self.struct_value.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 5, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.struct_value.as_deref() {
                 protobuf::rt::encode_len_header(out, 5, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(m) = &self.list_value {
+            if let Some(p) = self.list_value.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 6, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.list_value.as_deref() {
                 protobuf::rt::encode_len_header(out, 6, m.compute_size());
                 m.write_to(out);
             }

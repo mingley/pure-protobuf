@@ -403,14 +403,48 @@ fn is_option(field: &FieldDescriptor) -> bool {
             || field.presence == Presence::Explicit)
 }
 
+fn is_packed_scalar(f: &FieldDescriptor) -> bool {
+    !f.is_map && f.cardinality == Cardinality::Repeated && f.packed && f.field_type.is_packable()
+}
+
+fn is_lazy_msg(f: &FieldDescriptor) -> bool {
+    !f.is_map
+        && f.cardinality != Cardinality::Repeated
+        && f.field_type == FieldType::Message
+        && !f.delimited
+}
+
+fn packed_storage_ty(f: &FieldDescriptor) -> &'static str {
+    match f.field_type {
+        FieldType::Int32 | FieldType::Enum => "protobuf::rt::PackedI32",
+        FieldType::Int64 => "protobuf::rt::PackedI64",
+        FieldType::Uint32 => "protobuf::rt::PackedU32",
+        FieldType::Uint64 => "protobuf::rt::PackedU64",
+        FieldType::Sint32 => "protobuf::rt::PackedS32",
+        FieldType::Sint64 => "protobuf::rt::PackedS64",
+        FieldType::Fixed32 => "protobuf::rt::PackedFx32",
+        FieldType::Sfixed32 => "protobuf::rt::PackedSfx32",
+        FieldType::Fixed64 => "protobuf::rt::PackedFx64",
+        FieldType::Sfixed64 => "protobuf::rt::PackedSfx64",
+        FieldType::Float => "protobuf::rt::PackedF32",
+        FieldType::Double => "protobuf::rt::PackedF64",
+        FieldType::Bool => "protobuf::rt::PackedBool",
+        _ => "protobuf::rt::PackedI32",
+    }
+}
+
 fn field_storage_ty(f: &FieldDescriptor) -> String {
     if f.is_map {
         let (k, v) = map_kv(f);
         return format!("Map<{k}, {v}>");
     }
     let t = scalar_type(f);
-    if f.cardinality == Cardinality::Repeated {
+    if is_packed_scalar(f) {
+        packed_storage_ty(f).into()
+    } else if f.cardinality == Cardinality::Repeated {
         format!("Repeated<{t}>")
+    } else if is_lazy_msg(f) {
+        format!("protobuf::rt::LazyMsg<{t}>")
     } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
         format!("Option<Box<{t}>>")
     } else if is_option(f) {
@@ -440,8 +474,12 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
         let id = field_id(f);
         if f.is_map {
             let _ = writeln!(src, "            {id}: Map::new(),");
+        } else if is_packed_scalar(f) {
+            let _ = writeln!(src, "            {id}: {}::new(),", packed_storage_ty(f));
         } else if f.cardinality == Cardinality::Repeated {
             let _ = writeln!(src, "            {id}: Repeated::new(),");
+        } else if is_lazy_msg(f) {
+            let _ = writeln!(src, "            {id}: Default::default(),");
         } else if is_option(f) {
             let _ = writeln!(src, "            {id}: None,");
         } else {
@@ -491,7 +529,9 @@ fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &FieldDescrip
         }
         if let Some(sib) = desc.field(*n) {
             let sid = field_id(sib);
-            if is_option(sib) {
+            if is_lazy_msg(sib) {
+                let _ = writeln!(src, "        self.{sid} = Default::default();");
+            } else if is_option(sib) {
                 let _ = writeln!(src, "        self.{sid} = None;");
             } else if sib.cardinality == Cardinality::Repeated || sib.is_map {
                 let _ = writeln!(src, "        self.{sid}.clear();");
@@ -504,6 +544,7 @@ fn emit_oneof_clear(src: &mut String, desc: &MessageDescriptor, f: &FieldDescrip
 
 fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
     let id = field_id(f);
+    let m = id.strip_prefix("r#").unwrap_or(id.as_str());
     if f.is_map {
         let (k, v) = map_kv(f);
         let _ = writeln!(
@@ -516,7 +557,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         );
         let _ = writeln!(
             src,
-            "    pub fn set_{id}(&mut self, v: Map<{k}, {v}>) {{ self.cached_size.dirty(); self.{id} = v; }}"
+            "    pub fn set_{m}(&mut self, v: Map<{k}, {v}>) {{ self.cached_size.dirty(); self.{id} = v; }}"
         );
         return;
     }
@@ -530,17 +571,24 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             src,
             "    pub fn {id}_mut(&mut self) -> RepeatedMut<'_, {t}> {{ self.cached_size.dirty(); self.{id}.as_mut() }}"
         );
-        let _ = writeln!(
-            src,
-            "    pub fn set_{id}(&mut self, v: Repeated<{t}>) {{ self.cached_size.dirty(); self.{id} = v; }}"
-        );
+        if is_packed_scalar(f) {
+            let _ = writeln!(
+                src,
+                "    pub fn set_{m}(&mut self, v: Repeated<{t}>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::Packed::from_repeated(v); }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "    pub fn set_{m}(&mut self, v: Repeated<{t}>) {{ self.cached_size.dirty(); self.{id} = v; }}"
+            );
+        }
         return;
     }
     if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
         let t = scalar_type(f);
         let _ = writeln!(
             src,
-            "    pub fn has_{id}(&self) -> bool {{ self.{id}.is_some() }}"
+            "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
         );
         let _ = writeln!(
             src,
@@ -550,22 +598,44 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             src,
             "    pub fn {id}_view(&self) -> Option<{t}View<'_>> {{ self.{id}.as_deref().map({t}View) }}"
         );
-        let _ = writeln!(src, "    pub fn set_{id}(&mut self, v: {t}) {{");
+        let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: {t}) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f);
-        let _ = writeln!(src, "        self.{id} = Some(Box::new(v));");
+        if is_lazy_msg(f) {
+            let _ = writeln!(
+                src,
+                "        self.{id} = protobuf::rt::LazyMsg::from_owned(v);"
+            );
+        } else {
+            let _ = writeln!(src, "        self.{id} = Some(Box::new(v));");
+        }
         let _ = writeln!(src, "    }}");
-        let _ = writeln!(
-            src,
-            "    pub fn clear_{id}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
-        );
+        if is_lazy_msg(f) {
+            let _ = writeln!(
+                src,
+                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); self.{id}.get_or_insert() }}"
+            );
+            let _ = writeln!(
+                src,
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id}.clear(); }}"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "    pub fn {id}_mut(&mut self) -> &mut {t} {{ self.cached_size.dirty(); self.{id}.get_or_insert_with(|| Box::new({t}::default())).as_mut() }}"
+            );
+            let _ = writeln!(
+                src,
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
+            );
+        }
         return;
     }
     if f.field_type == FieldType::String {
         if is_option(f) {
             let _ = writeln!(
                 src,
-                "    pub fn has_{id}(&self) -> bool {{ self.{id}.is_some() }}"
+                "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
             );
             let _ = writeln!(
                 src,
@@ -573,7 +643,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {{"
+                "    pub fn set_{m}(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {{"
             );
             let _ = writeln!(src, "        self.cached_size.dirty();");
             emit_oneof_clear(src, desc, f);
@@ -584,7 +654,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             let _ = writeln!(src, "    }}");
             let _ = writeln!(
                 src,
-                "    pub fn clear_{id}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
             );
         } else {
             let _ = writeln!(
@@ -593,7 +663,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::LazyStr::owned(v.into_proxied()); }}"
+                "    pub fn set_{m}(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::LazyStr::owned(v.into_proxied()); }}"
             );
         }
         return;
@@ -606,7 +676,11 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(protobuf::rt::LazyBytes::owned(v.into_proxied())); }}"
+                "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
+            );
+            let _ = writeln!(
+                src,
+                "    pub fn set_{m}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(protobuf::rt::LazyBytes::owned(v.into_proxied())); }}"
             );
         } else {
             let _ = writeln!(
@@ -615,7 +689,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{id}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::LazyBytes::owned(v.into_proxied()); }}"
+                "    pub fn set_{m}(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = protobuf::rt::LazyBytes::owned(v.into_proxied()); }}"
             );
         }
         return;
@@ -624,18 +698,26 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     if is_option(f) {
         let _ = writeln!(
             src,
+            "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
+        );
+        let _ = writeln!(
+            src,
             "    pub fn {id}(&self) -> {t} {{ self.{id}.unwrap_or_default() }}"
         );
-        let _ = writeln!(src, "    pub fn set_{id}(&mut self, v: {t}) {{");
+        let _ = writeln!(src, "    pub fn set_{m}(&mut self, v: {t}) {{");
         let _ = writeln!(src, "        self.cached_size.dirty();");
         emit_oneof_clear(src, desc, f);
         let _ = writeln!(src, "        self.{id} = Some(v);");
         let _ = writeln!(src, "    }}");
+        let _ = writeln!(
+            src,
+            "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
+        );
     } else {
         let _ = writeln!(src, "    pub fn {id}(&self) -> {t} {{ self.{id} }}");
         let _ = writeln!(
             src,
-            "    pub fn set_{id}(&mut self, v: {t}) {{ self.cached_size.dirty(); self.{id} = v; }}"
+            "    pub fn set_{m}(&mut self, v: {t}) {{ self.cached_size.dirty(); self.{id} = v; }}"
         );
     }
 }
@@ -861,7 +943,11 @@ fn emit_message_set_merge(src: &mut String, desc: &MessageDescriptor) {
         let id = field_id(f);
         let t = scalar_type(f);
         let num = f.number;
-        let _ = writeln!(src, "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.merge_bytes(&payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}");
+        if is_lazy_msg(f) {
+            let _ = writeln!(src, "                        {num} => {{ if self.{id}.is_some() {{ self.{id}.get_or_insert().merge_bytes(&payload, depth + 1)?; }} else {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = protobuf::rt::LazyMsg::from_owned(inner); }} }}");
+        } else {
+            let _ = writeln!(src, "                        {num} => {{ match &mut self.{id} {{ Some(existing) => existing.merge_bytes(&payload, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_bytes(&payload, depth + 1)?; self.{id} = Some(Box::new(inner)); }} }} }}");
+        }
     }
     let _ = writeln!(src, "                        _ => {{ let mut u = protobuf::UnknownFields::default(); u.fields.push(protobuf::rt::UnknownField::Varint {{ number: 2, value: u64::from(type_id) }}); u.fields.push(protobuf::rt::UnknownField::LengthDelimited {{ number: 3, value: payload }}); self.unknown.fields.push(protobuf::rt::UnknownField::Group {{ number: 1, fields: u }}); }}");
     let _ = writeln!(src, "                    }}");
@@ -872,7 +958,7 @@ fn emit_message_set_size(src: &mut String, desc: &MessageDescriptor) {
     for f in desc.fields.values() {
         let id = field_id(f);
         let num = f.number;
-        let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ let inner = m.compute_size(); let item = protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT) + protobuf::rt::varint_len({num} as u64) + protobuf::rt::key_len_value_len(3, inner); n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_SGROUP) + item + protobuf::rt::tag_len(1, protobuf::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(src, "        if let Some(m) = self.{id}.as_deref() {{ let inner = m.compute_size(); let item = protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT) + protobuf::rt::varint_len({num} as u64) + protobuf::rt::key_len_value_len(3, inner); n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_SGROUP) + item + protobuf::rt::tag_len(1, protobuf::rt::WIRE_EGROUP); }}");
     }
 }
 
@@ -880,7 +966,7 @@ fn emit_message_set_write(src: &mut String, desc: &MessageDescriptor) {
     for f in desc.fields.values() {
         let id = field_id(f);
         let num = f.number;
-        let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_SGROUP); protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT); protobuf::rt::encode_varint(out, {num} as u64); protobuf::rt::encode_len_header(out, 3, m.compute_size()); m.write_to(out); protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_EGROUP); }}");
+        let _ = writeln!(src, "        if let Some(m) = self.{id}.as_deref() {{ protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_SGROUP); protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT); protobuf::rt::encode_varint(out, {num} as u64); protobuf::rt::encode_len_header(out, 3, m.compute_size()); m.write_to(out); protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_EGROUP); }}");
     }
 }
 
@@ -942,10 +1028,14 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id}.push(inner); }}");
             }
         } else if f.field_type.is_packable() {
-            let expr = read_scalar_expr(f.field_type, "p", "&mut i");
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");
             let packed_wire = wire_const(f.field_type);
-            let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let p = protobuf::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ self.{id}.push({expr}); }} }}");
+            if f.packed {
+                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let (s, e) = protobuf::rt::read_len_span(data, pos)?; self.{id}.append_wire(wire.window(s, e))?; }}");
+            } else {
+                let expr = read_scalar_expr(f.field_type, "p", "&mut i");
+                let _ = writeln!(src, "                ({num}, protobuf::rt::WIRE_LEN) => {{ let p = protobuf::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ self.{id}.push({expr}); }} }}");
+            }
             let _ = writeln!(
                 src,
                 "                ({num}, {packed_wire}) => self.{id}.push({unpacked}),"
@@ -977,7 +1067,11 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 src,
                 "                    let (s, e) = protobuf::rt::read_len_span(data, pos)?;"
             );
-            let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => {{ let mut ip = 0; existing.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id} = Some(Box::new(inner)); }} }}");
+            if is_lazy_msg(f) {
+                let _ = writeln!(src, "                    if self.{id}.is_some() {{ let mut ip = 0; self.{id}.get_or_insert().merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} else {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id} = protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e)); }}");
+            } else {
+                let _ = writeln!(src, "                    match &mut self.{id} {{ Some(existing) => {{ let mut ip = 0; existing.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; self.{id} = Some(Box::new(inner)); }} }}");
+            }
             let _ = writeln!(src, "                }}");
         }
         return;
@@ -1088,7 +1182,7 @@ fn emit_size(src: &mut String, f: &FieldDescriptor) {
             let _ = writeln!(src, "        for t in self.{id}.iter() {{ n += protobuf::rt::key_len_value_len({num}, t.compute_size()); }}");
         } else if f.packed && f.field_type.is_packable() {
             let plen = packed_len_expr("*t", f.field_type);
-            let _ = writeln!(src, "        if !self.{id}.is_empty() {{ let mut payload = 0u64; for t in self.{id}.iter() {{ payload += {plen}; }} n += protobuf::rt::key_len_value_len({num}, payload); }}");
+            let _ = writeln!(src, "        if let Some(p) = self.{id}.packed_bytes() {{ n += protobuf::rt::key_len_value_len({num}, p.len() as u64); }} else if !self.{id}.is_empty() {{ let mut payload = 0u64; for t in self.{id}.iter() {{ payload += {plen}; }} n += protobuf::rt::key_len_value_len({num}, payload); }}");
         } else {
             let plen = packed_len_expr("*t", f.field_type);
             let w = wire_const(f.field_type);
@@ -1101,7 +1195,11 @@ fn emit_size(src: &mut String, f: &FieldDescriptor) {
         return;
     }
     if f.field_type == FieldType::Message {
-        let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ n += protobuf::rt::key_len_value_len({num}, m.compute_size()); }}");
+        if is_lazy_msg(f) {
+            let _ = writeln!(src, "        if let Some(p) = self.{id}.wire_bytes() {{ n += protobuf::rt::key_len_value_len({num}, p.len() as u64); }} else if let Some(m) = self.{id}.as_deref() {{ n += protobuf::rt::key_len_value_len({num}, m.compute_size()); }}");
+        } else {
+            let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ n += protobuf::rt::key_len_value_len({num}, m.compute_size()); }}");
+        }
         return;
     }
     if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {
@@ -1227,7 +1325,7 @@ fn emit_write(src: &mut String, f: &FieldDescriptor) {
         } else if f.packed && f.field_type.is_packable() {
             let plen = packed_len_expr("*t", f.field_type);
             let stmt = write_packed_stmt("out", "*t", f.field_type);
-            let _ = writeln!(src, "        if !self.{id}.is_empty() {{ let mut payload = 0u64; for t in self.{id}.iter() {{ payload += {plen}; }} protobuf::rt::encode_len_header(out, {num}, payload); for t in self.{id}.iter() {{ {stmt}; }} }}");
+            let _ = writeln!(src, "        if let Some(p) = self.{id}.packed_bytes() {{ protobuf::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if !self.{id}.is_empty() {{ let mut payload = 0u64; for t in self.{id}.iter() {{ payload += {plen}; }} protobuf::rt::encode_len_header(out, {num}, payload); for t in self.{id}.iter() {{ {stmt}; }} }}");
         } else {
             let w = wire_const(f.field_type);
             let stmt = write_packed_stmt("out", "*t", f.field_type);
@@ -1240,7 +1338,11 @@ fn emit_write(src: &mut String, f: &FieldDescriptor) {
         return;
     }
     if f.field_type == FieldType::Message {
-        let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ protobuf::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
+        if is_lazy_msg(f) {
+            let _ = writeln!(src, "        if let Some(p) = self.{id}.wire_bytes() {{ protobuf::rt::encode_len_header(out, {num}, p.len() as u64); out.extend_from_slice(p); }} else if let Some(m) = self.{id}.as_deref() {{ protobuf::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
+        } else {
+            let _ = writeln!(src, "        if let Some(m) = &self.{id} {{ protobuf::rt::encode_len_header(out, {num}, m.compute_size()); m.write_to(out); }}");
+        }
         return;
     }
     if f.field_type == FieldType::String || f.field_type == FieldType::Bytes {

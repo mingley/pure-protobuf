@@ -52,6 +52,7 @@ pub(crate) mod json;
 mod lazy;
 mod map;
 mod message;
+mod packed;
 mod proxied;
 mod repeated;
 pub mod rt;

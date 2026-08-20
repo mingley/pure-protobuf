@@ -65,6 +65,43 @@ fn generated_wkt_duration_any_empty_mask() {
 }
 
 #[test]
+fn packed_truncated_is_err() {
+    // packed int32 field 31: tag 0xFA 0x01, length 2, one-byte overlong/truncated varint 0x80
+    let buf = vec![0xFA, 0x01, 0x02, 0x80, 0x80];
+    assert!(protobuf::gencode::TestAllTypesProto3::parse(&buf).is_err());
+}
+
+#[test]
+fn packed_parse_roundtrip_without_touching_getters() {
+    let mut m = protobuf::gencode::TestAllTypesProto3::new();
+    for i in 0..8 {
+        m.repeated_int32_mut().push(i);
+        m.packed_int32_mut().push(i * 3);
+    }
+    let bytes = Serialize::serialize(&m).unwrap();
+    let parsed = protobuf::gencode::TestAllTypesProto3::parse(&bytes).unwrap();
+    let again = Serialize::serialize(&parsed).unwrap();
+    assert_eq!(bytes, again);
+    assert_eq!(
+        parsed.repeated_int32().iter().copied().collect::<Vec<_>>(),
+        (0..8).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn nested_merge_second_empty_does_not_wipe() {
+    let mut nested = protobuf::gencode::NestedMessage::new();
+    nested.set_a(9);
+    let mut m = protobuf::gencode::TestAllTypesProto3::new();
+    m.set_optional_nested_message(nested);
+    let mut bytes = Serialize::serialize(&m).unwrap();
+    // field 18 empty LEN
+    bytes.extend_from_slice(&[0x92, 0x01, 0x00]);
+    let parsed = protobuf::gencode::TestAllTypesProto3::parse(&bytes).unwrap();
+    assert_eq!(parsed.optional_nested_message().unwrap().a(), 9);
+}
+
+#[test]
 fn view_reads_string_and_nested_without_owned_child() {
     let mut nested = protobuf::gencode::TestAllTypesProto3::new();
     // NestedMessage lives in the proto3 module; use optional_string + recursive via generated TAT.

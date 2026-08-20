@@ -1,12 +1,15 @@
 //! Google `rust/test/shared` serialization + proto3 accessor tests, compiled
 //! against this crate's plugin (not googletest / upb gencode).
 
+#[path = "google_gen/unittest.rs"]
+mod unittest;
 #[path = "google_gen/unittest_proto3.rs"]
 mod unittest_proto3;
 #[path = "google_gen/unittest_proto3_optional.rs"]
 mod unittest_proto3_optional;
 
 use protobuf::prelude::*;
+use unittest::TestRequired;
 use unittest_proto3::TestAllTypes;
 use unittest_proto3_optional::TestProto3Optional;
 
@@ -73,6 +76,22 @@ fn proto3_optional_roundtrip() {
     let again = TestProto3Optional::parse(&msg.serialize().unwrap()).unwrap();
     assert_eq!(again.optional_int64(), 7);
     assert_eq!(again.optional_bytes(), b"opt");
+}
+
+#[test]
+fn test_required_field_enforced() {
+    assert!(TestRequired::parse(&[]).is_err());
+    let mut msg = TestRequired::new();
+    assert!(msg.clear_and_parse(&[]).is_err());
+}
+
+#[test]
+fn test_required_field_not_enforced() {
+    let mut msg = TestRequired::parse_dont_enforce_required(&[]).unwrap();
+    assert!(!msg.has_a());
+    msg.set_a(1);
+    msg.clear_and_parse_dont_enforce_required(&[]).unwrap();
+    assert!(!msg.has_a());
 }
 
 #[test]

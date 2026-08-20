@@ -136,7 +136,14 @@ fn plugin_generates_test_all_types_proto3() {
         "must not emit Google upb gencode"
     );
     assert!(generated.contains("set_optional_int32"), "{generated}");
-    assert!(generated.contains("repeated_int32: Repeated<i32>"));
+    assert!(
+        generated.contains("repeated_int32: protobuf::rt::PackedI32"),
+        "packed repeated_int32 storage"
+    );
+    assert!(
+        generated.contains("optional_nested_message: protobuf::rt::LazyMsg<NestedMessage>"),
+        "nested LEN stored as LazyMsg"
+    );
     assert!(
         generated.contains("map_int32_int32: Map<i32, i32>"),
         "map field storage"

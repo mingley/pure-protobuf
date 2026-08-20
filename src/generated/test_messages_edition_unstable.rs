@@ -34,12 +34,19 @@ mod __gen {
         }
         pub const FULL_NAME: &'static str =
             "protobuf_test_messages.edition_unstable.ComplexMessage";
+        pub fn has_d(&self) -> bool {
+            self.d.is_some()
+        }
         pub fn d(&self) -> i32 {
             self.d.unwrap_or_default()
         }
         pub fn set_d(&mut self, v: i32) {
             self.cached_size.dirty();
             self.d = Some(v);
+        }
+        pub fn clear_d(&mut self) {
+            self.cached_size.dirty();
+            self.d = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -196,12 +203,19 @@ mod __gen {
         }
         pub const FULL_NAME: &'static str =
             "protobuf_test_messages.edition_unstable.ForeignMessageEditionUnstable";
+        pub fn has_c(&self) -> bool {
+            self.c.is_some()
+        }
         pub fn c(&self) -> i32 {
             self.c.unwrap_or_default()
         }
         pub fn set_c(&mut self, v: i32) {
             self.cached_size.dirty();
             self.c = Some(v);
+        }
+        pub fn clear_c(&mut self) {
+            self.cached_size.dirty();
+            self.c = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -354,12 +368,12 @@ mod __gen {
     #[derive(Clone, Debug, PartialEq)]
     pub struct TestAllTypesEditionUnstable {
         optional_int32: Option<i32>,
-        optional_foreign_message: Option<Box<ForeignMessageEditionUnstable>>,
+        optional_foreign_message: protobuf::rt::LazyMsg<ForeignMessageEditionUnstable>,
         optional_foreign_enum: Option<i32>,
-        recursive_message: Option<Box<TestAllTypesEditionUnstable>>,
-        repeated_int32: Repeated<i32>,
+        recursive_message: protobuf::rt::LazyMsg<TestAllTypesEditionUnstable>,
+        repeated_int32: protobuf::rt::PackedSfx32,
         repeated_foreign_message: Repeated<ForeignMessageEditionUnstable>,
-        repeated_foreign_enum: Repeated<i32>,
+        repeated_foreign_enum: protobuf::rt::PackedI32,
         map_int32_int32: Map<i32, i32>,
         map_bool_bool: Map<bool, bool>,
         map_string_string: Map<protobuf::rt::LazyStr, protobuf::rt::LazyStr>,
@@ -376,12 +390,12 @@ mod __gen {
         fn default() -> Self {
             Self {
                 optional_int32: None,
-                optional_foreign_message: None,
+                optional_foreign_message: Default::default(),
                 optional_foreign_enum: None,
-                recursive_message: None,
-                repeated_int32: Repeated::new(),
+                recursive_message: Default::default(),
+                repeated_int32: protobuf::rt::PackedSfx32::new(),
                 repeated_foreign_message: Repeated::new(),
-                repeated_foreign_enum: Repeated::new(),
+                repeated_foreign_enum: protobuf::rt::PackedI32::new(),
                 map_int32_int32: Map::new(),
                 map_bool_bool: Map::new(),
                 map_string_string: Map::new(),
@@ -402,12 +416,19 @@ mod __gen {
         }
         pub const FULL_NAME: &'static str =
             "protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable";
+        pub fn has_optional_int32(&self) -> bool {
+            self.optional_int32.is_some()
+        }
         pub fn optional_int32(&self) -> i32 {
             self.optional_int32.unwrap_or_default()
         }
         pub fn set_optional_int32(&mut self, v: i32) {
             self.cached_size.dirty();
             self.optional_int32 = Some(v);
+        }
+        pub fn clear_optional_int32(&mut self) {
+            self.cached_size.dirty();
+            self.optional_int32 = None;
         }
         pub fn has_optional_foreign_message(&self) -> bool {
             self.optional_foreign_message.is_some()
@@ -424,11 +445,18 @@ mod __gen {
         }
         pub fn set_optional_foreign_message(&mut self, v: ForeignMessageEditionUnstable) {
             self.cached_size.dirty();
-            self.optional_foreign_message = Some(Box::new(v));
+            self.optional_foreign_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_foreign_message_mut(&mut self) -> &mut ForeignMessageEditionUnstable {
+            self.cached_size.dirty();
+            self.optional_foreign_message.get_or_insert()
         }
         pub fn clear_optional_foreign_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_foreign_message = None;
+            self.optional_foreign_message.clear();
+        }
+        pub fn has_optional_foreign_enum(&self) -> bool {
+            self.optional_foreign_enum.is_some()
         }
         pub fn optional_foreign_enum(&self) -> i32 {
             self.optional_foreign_enum.unwrap_or_default()
@@ -436,6 +464,10 @@ mod __gen {
         pub fn set_optional_foreign_enum(&mut self, v: i32) {
             self.cached_size.dirty();
             self.optional_foreign_enum = Some(v);
+        }
+        pub fn clear_optional_foreign_enum(&mut self) {
+            self.cached_size.dirty();
+            self.optional_foreign_enum = None;
         }
         pub fn has_recursive_message(&self) -> bool {
             self.recursive_message.is_some()
@@ -450,11 +482,15 @@ mod __gen {
         }
         pub fn set_recursive_message(&mut self, v: TestAllTypesEditionUnstable) {
             self.cached_size.dirty();
-            self.recursive_message = Some(Box::new(v));
+            self.recursive_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn recursive_message_mut(&mut self) -> &mut TestAllTypesEditionUnstable {
+            self.cached_size.dirty();
+            self.recursive_message.get_or_insert()
         }
         pub fn clear_recursive_message(&mut self) {
             self.cached_size.dirty();
-            self.recursive_message = None;
+            self.recursive_message.clear();
         }
         pub fn repeated_int32(&self) -> RepeatedView<'_, i32> {
             self.repeated_int32.as_view()
@@ -465,7 +501,7 @@ mod __gen {
         }
         pub fn set_repeated_int32(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.repeated_int32 = v;
+            self.repeated_int32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_foreign_message(&self) -> RepeatedView<'_, ForeignMessageEditionUnstable> {
             self.repeated_foreign_message.as_view()
@@ -489,7 +525,7 @@ mod __gen {
         }
         pub fn set_repeated_foreign_enum(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.repeated_foreign_enum = v;
+            self.repeated_foreign_enum = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn map_int32_int32(&self) -> MapView<'_, i32, i32> {
             self.map_int32_int32.as_view()
@@ -566,6 +602,9 @@ mod __gen {
                 .map(|b| b.as_bytes())
                 .unwrap_or(&[])
         }
+        pub fn has_optional_bytes(&self) -> bool {
+            self.optional_bytes.is_some()
+        }
         pub fn set_optional_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
             self.optional_bytes = Some(protobuf::rt::LazyBytes::owned(v.into_proxied()));
@@ -599,12 +638,19 @@ mod __gen {
             self.cached_size.dirty();
             self.map_string_bytes = v;
         }
+        pub fn has_extension_int32(&self) -> bool {
+            self.extension_int32.is_some()
+        }
         pub fn extension_int32(&self) -> i32 {
             self.extension_int32.unwrap_or_default()
         }
         pub fn set_extension_int32(&mut self, v: i32) {
             self.cached_size.dirty();
             self.extension_int32 = Some(v);
+        }
+        pub fn clear_extension_int32(&mut self) {
+            self.cached_size.dirty();
+            self.extension_int32 = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -655,29 +701,27 @@ mod __gen {
                     }
                     (2, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_foreign_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = ForeignMessageEditionUnstable::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_foreign_message = Some(Box::new(inner));
-                            }
+                        if self.optional_foreign_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_foreign_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = ForeignMessageEditionUnstable::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_foreign_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (3, protobuf::rt::WIRE_VARINT) => {
@@ -686,38 +730,32 @@ mod __gen {
                     }
                     (4, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.recursive_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = TestAllTypesEditionUnstable::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.recursive_message = Some(Box::new(inner));
-                            }
+                        if self.recursive_message.is_some() {
+                            let mut ip = 0;
+                            self.recursive_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = TestAllTypesEditionUnstable::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.recursive_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (5, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_int32
-                                .push(protobuf::rt::read_fixed32(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_int32.append_wire(wire.window(s, e))?;
                     }
                     (5, protobuf::rt::WIRE_I32) => self
                         .repeated_int32
@@ -730,12 +768,8 @@ mod __gen {
                         self.repeated_foreign_message.push(inner);
                     }
                     (7, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_foreign_enum
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_foreign_enum.append_wire(wire.window(s, e))?;
                     }
                     (7, protobuf::rt::WIRE_VARINT) => self
                         .repeated_foreign_enum
@@ -812,17 +846,23 @@ mod __gen {
             if let Some(v) = self.optional_int32 {
                 n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_I32) + 4;
             }
-            if let Some(m) = &self.optional_foreign_message {
+            if let Some(p) = self.optional_foreign_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(2, p.len() as u64);
+            } else if let Some(m) = self.optional_foreign_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(2, m.compute_size());
             }
             if let Some(v) = self.optional_foreign_enum {
                 n += protobuf::rt::tag_len(3, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len((v) as u64);
             }
-            if let Some(m) = &self.recursive_message {
+            if let Some(p) = self.recursive_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(4, p.len() as u64);
+            } else if let Some(m) = self.recursive_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(4, m.compute_size());
             }
-            if !self.repeated_int32.is_empty() {
+            if let Some(p) = self.repeated_int32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(5, p.len() as u64);
+            } else if !self.repeated_int32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_int32.iter() {
                     payload += 4;
@@ -832,7 +872,9 @@ mod __gen {
             for t in self.repeated_foreign_message.iter() {
                 n += protobuf::rt::key_len_value_len(6, t.compute_size());
             }
-            if !self.repeated_foreign_enum.is_empty() {
+            if let Some(p) = self.repeated_foreign_enum.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(7, p.len() as u64);
+            } else if !self.repeated_foreign_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_foreign_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -891,7 +933,10 @@ mod __gen {
                 protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_I32);
                 (out).extend_from_slice(&((v) as u32).to_le_bytes());
             }
-            if let Some(m) = &self.optional_foreign_message {
+            if let Some(p) = self.optional_foreign_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 2, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_foreign_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }
@@ -899,11 +944,17 @@ mod __gen {
                 protobuf::rt::encode_tag(out, 3, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, v as u64);
             }
-            if let Some(m) = &self.recursive_message {
+            if let Some(p) = self.recursive_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 4, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.recursive_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 4, m.compute_size());
                 m.write_to(out);
             }
-            if !self.repeated_int32.is_empty() {
+            if let Some(p) = self.repeated_int32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 5, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_int32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_int32.iter() {
                     payload += 4;
@@ -917,7 +968,10 @@ mod __gen {
                 protobuf::rt::encode_len_header(out, 6, t.compute_size());
                 t.write_to(out);
             }
-            if !self.repeated_foreign_enum.is_empty() {
+            if let Some(p) = self.repeated_foreign_enum.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 7, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_foreign_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_foreign_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);

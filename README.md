@@ -62,17 +62,19 @@ Toy / research kernel, but gated:
 
 ## Benchmarks
 
-Plugin-generated `TestAllTypesProto3` (optional scalars, nested message, `repeated_int32`, `map_int32_int32`, `packed_int32`) vs prost 0.13, typed crates.io `protobuf` **4.35.1-release** (`protoc --rust_out kernel=upb`), and buffa **0.9.1** generated TAT. Same machine, two consecutive `./target/release/bench` runs. Decode uses this crate’s wire bytes. 40 000 iters, median of 9 samples.
+Plugin-generated `TestAllTypesProto3` (optional scalars, nested message, `repeated_int32`, `map_int32_int32`, `packed_int32`) vs prost 0.13, typed crates.io `protobuf` **4.35.1-release** (`protoc --rust_out kernel=upb`), and buffa **0.9.1** generated TAT. Same machine, two consecutive `./target/release/bench` runs after warmup. Decode uses this crate’s wire bytes. 40 000 iters, median of 9 samples.
 
 | | ours | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|
 | payload bytes | 87 | 83 | 87 | 87 | 87 |
-| encode ns (run 1) | 89.796 | 81.441 | 240.378 | 133.917 | — |
-| encode ns (run 2) | 90.931 | 94.895 | 245.297 | 135.204 | — |
-| decode ns (run 1) | 380.381 | 280.790 | 420.131 | 404.357 | 309.423 |
-| decode ns (run 2) | 379.753 | 281.739 | 419.951 | 412.169 | 311.275 |
+| encode ns (run 1) | 91.746 | 76.377 | 230.229 | 125.009 | — |
+| encode ns (run 2) | 91.801 | 78.034 | 227.301 | 123.922 | — |
+| decode ns (run 1) | 364.658 | 268.818 | 396.375 | 390.379 | 292.341 |
+| decode ns (run 2) | 369.828 | 272.881 | 401.102 | 394.433 | 297.834 |
 
-Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decode. prost still wins decode. buffa’s zero-copy `decode_view` is faster than our owned decode (we materialize fields).
+Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decode. prost still wins decode. buffa’s zero-copy `decode_view` is faster than our owned decode.
+
+v4 encode is slow on this size because every `serialize` allocates a fresh upb `Arena`, FFI `upb_Encode`, then **copies** the arena buffer into a Rust `Vec`. Decode is FFI `upb_Decode` into that arena. upb C is not the bottleneck; the Rust wrapper’s per-call arena + FFI + extra memcpy is. Large payloads amortize it. See `third_party/protobuf/rust/upb/wire.rs` and `upb_kernel/message.rs`.
 
 ## Conformance (optional)
 

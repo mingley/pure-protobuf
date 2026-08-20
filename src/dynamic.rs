@@ -2231,6 +2231,7 @@ fn raw_field_to_desc(f: &RawField, parent: RawFeatures) -> FieldDescriptor {
     let cardinality = match f.label {
         3 => Cardinality::Repeated,
         2 => Cardinality::Required,
+        _ if feat.presence == 3 => Cardinality::Required,
         _ => Cardinality::Optional,
     };
     let presence = if cardinality == Cardinality::Repeated

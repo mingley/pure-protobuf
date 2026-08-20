@@ -199,3 +199,85 @@ impl From<Vec<u8>> for LazyBytes {
         Self::owned(ProtoBytes::from(s.as_slice()))
     }
 }
+
+/// Nested LEN message: parsed `T` plus original payload for memcpy serialize.
+/// Groups/delimited stay `Option<Box<T>>`.
+pub struct LazyMsg<T> {
+    inner: Option<Box<T>>,
+    wire: Option<Wire>,
+}
+
+impl<T> Default for LazyMsg<T> {
+    fn default() -> Self {
+        Self {
+            inner: None,
+            wire: None,
+        }
+    }
+}
+
+impl<T> LazyMsg<T> {
+    pub fn from_parsed(msg: T, w: Wire) -> Self {
+        Self {
+            inner: Some(Box::new(msg)),
+            wire: Some(w),
+        }
+    }
+
+    pub fn from_owned(msg: T) -> Self {
+        Self {
+            inner: Some(Box::new(msg)),
+            wire: None,
+        }
+    }
+
+    pub fn is_some(&self) -> bool {
+        self.inner.is_some()
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.inner.is_none()
+    }
+
+    pub fn as_deref(&self) -> Option<&T> {
+        self.inner.as_deref()
+    }
+
+    pub fn wire_bytes(&self) -> Option<&[u8]> {
+        self.wire.as_ref().map(|w| w.as_slice())
+    }
+
+    pub fn get_or_insert(&mut self) -> &mut T
+    where
+        T: Default,
+    {
+        self.wire = None;
+        self.inner.get_or_insert_with(|| Box::new(T::default()))
+    }
+
+    pub fn clear(&mut self) {
+        self.inner = None;
+        self.wire = None;
+    }
+}
+
+impl<T: Clone> Clone for LazyMsg<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            wire: self.wire.clone(),
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for LazyMsg<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+impl<T: std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.inner, f)
+    }
+}

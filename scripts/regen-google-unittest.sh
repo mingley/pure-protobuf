@@ -17,5 +17,8 @@ protoc --plugin=protoc-gen-pure-protobuf="$PLUGIN" --pure-protobuf_out="$OUT" \
   -I "$ROOT/vendor/google" \
   "$ROOT/vendor/google/rust/test/unittest_proto3_optional.proto"
 mv /tmp/pure-protobuf-u3.rs "$OUT/unittest_proto3.rs"
+protoc --plugin=protoc-gen-pure-protobuf="$PLUGIN" --pure-protobuf_out="$OUT" \
+  -I "$ROOT/vendor/google" \
+  "$ROOT/vendor/google/rust/test/unittest.proto"
 cargo fmt -- "$OUT"/*.rs "$ROOT/tests/google_shared.rs"
 echo "wrote $OUT"

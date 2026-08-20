@@ -27,8 +27,8 @@ mod __gen {
         optional_string: Option<protobuf::rt::LazyStr>,
         optional_bytes: Option<protobuf::rt::LazyBytes>,
         optional_cord: Option<protobuf::rt::LazyStr>,
-        optional_nested_message: Option<Box<NestedMessage>>,
-        lazy_nested_message: Option<Box<NestedMessage>>,
+        optional_nested_message: protobuf::rt::LazyMsg<NestedMessage>,
+        lazy_nested_message: protobuf::rt::LazyMsg<NestedMessage>,
         optional_nested_enum: Option<i32>,
         singular_int32: i32,
         singular_int64: i64,
@@ -54,8 +54,8 @@ mod __gen {
                 optional_string: None,
                 optional_bytes: None,
                 optional_cord: None,
-                optional_nested_message: None,
-                lazy_nested_message: None,
+                optional_nested_message: Default::default(),
+                lazy_nested_message: Default::default(),
                 optional_nested_enum: None,
                 singular_int32: Default::default(),
                 singular_int64: Default::default(),
@@ -69,12 +69,22 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "rust_unittest_proto3_optional.TestProto3Optional";
+        pub fn has_optional_int32(&self) -> bool {
+            self.optional_int32.is_some()
+        }
         pub fn optional_int32(&self) -> i32 {
             self.optional_int32.unwrap_or_default()
         }
         pub fn set_optional_int32(&mut self, v: i32) {
             self.cached_size.dirty();
             self.optional_int32 = Some(v);
+        }
+        pub fn clear_optional_int32(&mut self) {
+            self.cached_size.dirty();
+            self.optional_int32 = None;
+        }
+        pub fn has_optional_int64(&self) -> bool {
+            self.optional_int64.is_some()
         }
         pub fn optional_int64(&self) -> i64 {
             self.optional_int64.unwrap_or_default()
@@ -83,12 +93,26 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_int64 = Some(v);
         }
+        pub fn clear_optional_int64(&mut self) {
+            self.cached_size.dirty();
+            self.optional_int64 = None;
+        }
+        pub fn has_optional_uint32(&self) -> bool {
+            self.optional_uint32.is_some()
+        }
         pub fn optional_uint32(&self) -> u32 {
             self.optional_uint32.unwrap_or_default()
         }
         pub fn set_optional_uint32(&mut self, v: u32) {
             self.cached_size.dirty();
             self.optional_uint32 = Some(v);
+        }
+        pub fn clear_optional_uint32(&mut self) {
+            self.cached_size.dirty();
+            self.optional_uint32 = None;
+        }
+        pub fn has_optional_uint64(&self) -> bool {
+            self.optional_uint64.is_some()
         }
         pub fn optional_uint64(&self) -> u64 {
             self.optional_uint64.unwrap_or_default()
@@ -97,12 +121,26 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_uint64 = Some(v);
         }
+        pub fn clear_optional_uint64(&mut self) {
+            self.cached_size.dirty();
+            self.optional_uint64 = None;
+        }
+        pub fn has_optional_sint32(&self) -> bool {
+            self.optional_sint32.is_some()
+        }
         pub fn optional_sint32(&self) -> i32 {
             self.optional_sint32.unwrap_or_default()
         }
         pub fn set_optional_sint32(&mut self, v: i32) {
             self.cached_size.dirty();
             self.optional_sint32 = Some(v);
+        }
+        pub fn clear_optional_sint32(&mut self) {
+            self.cached_size.dirty();
+            self.optional_sint32 = None;
+        }
+        pub fn has_optional_sint64(&self) -> bool {
+            self.optional_sint64.is_some()
         }
         pub fn optional_sint64(&self) -> i64 {
             self.optional_sint64.unwrap_or_default()
@@ -111,12 +149,26 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_sint64 = Some(v);
         }
+        pub fn clear_optional_sint64(&mut self) {
+            self.cached_size.dirty();
+            self.optional_sint64 = None;
+        }
+        pub fn has_optional_fixed32(&self) -> bool {
+            self.optional_fixed32.is_some()
+        }
         pub fn optional_fixed32(&self) -> u32 {
             self.optional_fixed32.unwrap_or_default()
         }
         pub fn set_optional_fixed32(&mut self, v: u32) {
             self.cached_size.dirty();
             self.optional_fixed32 = Some(v);
+        }
+        pub fn clear_optional_fixed32(&mut self) {
+            self.cached_size.dirty();
+            self.optional_fixed32 = None;
+        }
+        pub fn has_optional_fixed64(&self) -> bool {
+            self.optional_fixed64.is_some()
         }
         pub fn optional_fixed64(&self) -> u64 {
             self.optional_fixed64.unwrap_or_default()
@@ -125,12 +177,26 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_fixed64 = Some(v);
         }
+        pub fn clear_optional_fixed64(&mut self) {
+            self.cached_size.dirty();
+            self.optional_fixed64 = None;
+        }
+        pub fn has_optional_sfixed32(&self) -> bool {
+            self.optional_sfixed32.is_some()
+        }
         pub fn optional_sfixed32(&self) -> i32 {
             self.optional_sfixed32.unwrap_or_default()
         }
         pub fn set_optional_sfixed32(&mut self, v: i32) {
             self.cached_size.dirty();
             self.optional_sfixed32 = Some(v);
+        }
+        pub fn clear_optional_sfixed32(&mut self) {
+            self.cached_size.dirty();
+            self.optional_sfixed32 = None;
+        }
+        pub fn has_optional_sfixed64(&self) -> bool {
+            self.optional_sfixed64.is_some()
         }
         pub fn optional_sfixed64(&self) -> i64 {
             self.optional_sfixed64.unwrap_or_default()
@@ -139,12 +205,26 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_sfixed64 = Some(v);
         }
+        pub fn clear_optional_sfixed64(&mut self) {
+            self.cached_size.dirty();
+            self.optional_sfixed64 = None;
+        }
+        pub fn has_optional_float(&self) -> bool {
+            self.optional_float.is_some()
+        }
         pub fn optional_float(&self) -> f32 {
             self.optional_float.unwrap_or_default()
         }
         pub fn set_optional_float(&mut self, v: f32) {
             self.cached_size.dirty();
             self.optional_float = Some(v);
+        }
+        pub fn clear_optional_float(&mut self) {
+            self.cached_size.dirty();
+            self.optional_float = None;
+        }
+        pub fn has_optional_double(&self) -> bool {
+            self.optional_double.is_some()
         }
         pub fn optional_double(&self) -> f64 {
             self.optional_double.unwrap_or_default()
@@ -153,12 +233,23 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_double = Some(v);
         }
+        pub fn clear_optional_double(&mut self) {
+            self.cached_size.dirty();
+            self.optional_double = None;
+        }
+        pub fn has_optional_bool(&self) -> bool {
+            self.optional_bool.is_some()
+        }
         pub fn optional_bool(&self) -> bool {
             self.optional_bool.unwrap_or_default()
         }
         pub fn set_optional_bool(&mut self, v: bool) {
             self.cached_size.dirty();
             self.optional_bool = Some(v);
+        }
+        pub fn clear_optional_bool(&mut self) {
+            self.cached_size.dirty();
+            self.optional_bool = None;
         }
         pub fn has_optional_string(&self) -> bool {
             self.optional_string.is_some()
@@ -182,6 +273,9 @@ mod __gen {
                 .as_ref()
                 .map(|b| b.as_bytes())
                 .unwrap_or(&[])
+        }
+        pub fn has_optional_bytes(&self) -> bool {
+            self.optional_bytes.is_some()
         }
         pub fn set_optional_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
@@ -217,11 +311,15 @@ mod __gen {
         }
         pub fn set_optional_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
-            self.optional_nested_message = Some(Box::new(v));
+            self.optional_nested_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_nested_message_mut(&mut self) -> &mut NestedMessage {
+            self.cached_size.dirty();
+            self.optional_nested_message.get_or_insert()
         }
         pub fn clear_optional_nested_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_nested_message = None;
+            self.optional_nested_message.clear();
         }
         pub fn has_lazy_nested_message(&self) -> bool {
             self.lazy_nested_message.is_some()
@@ -234,11 +332,18 @@ mod __gen {
         }
         pub fn set_lazy_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
-            self.lazy_nested_message = Some(Box::new(v));
+            self.lazy_nested_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn lazy_nested_message_mut(&mut self) -> &mut NestedMessage {
+            self.cached_size.dirty();
+            self.lazy_nested_message.get_or_insert()
         }
         pub fn clear_lazy_nested_message(&mut self) {
             self.cached_size.dirty();
-            self.lazy_nested_message = None;
+            self.lazy_nested_message.clear();
+        }
+        pub fn has_optional_nested_enum(&self) -> bool {
+            self.optional_nested_enum.is_some()
         }
         pub fn optional_nested_enum(&self) -> i32 {
             self.optional_nested_enum.unwrap_or_default()
@@ -246,6 +351,10 @@ mod __gen {
         pub fn set_optional_nested_enum(&mut self, v: i32) {
             self.cached_size.dirty();
             self.optional_nested_enum = Some(v);
+        }
+        pub fn clear_optional_nested_enum(&mut self) {
+            self.cached_size.dirty();
+            self.optional_nested_enum = None;
         }
         pub fn singular_int32(&self) -> i32 {
             self.singular_int32
@@ -373,56 +482,52 @@ mod __gen {
                     }
                     (18, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_nested_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = NestedMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_nested_message = Some(Box::new(inner));
-                            }
+                        if self.optional_nested_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_nested_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = NestedMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_nested_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (19, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.lazy_nested_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = NestedMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.lazy_nested_message = Some(Box::new(inner));
-                            }
+                        if self.lazy_nested_message.is_some() {
+                            let mut ip = 0;
+                            self.lazy_nested_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = NestedMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.lazy_nested_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (21, protobuf::rt::WIRE_VARINT) => {
@@ -506,10 +611,14 @@ mod __gen {
             if let Some(s) = &self.optional_cord {
                 n += protobuf::rt::key_len_value_len(16, s.as_bytes().len() as u64);
             }
-            if let Some(m) = &self.optional_nested_message {
+            if let Some(p) = self.optional_nested_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(18, p.len() as u64);
+            } else if let Some(m) = self.optional_nested_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(18, m.compute_size());
             }
-            if let Some(m) = &self.lazy_nested_message {
+            if let Some(p) = self.lazy_nested_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(19, p.len() as u64);
+            } else if let Some(m) = self.lazy_nested_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(19, m.compute_size());
             }
             if let Some(v) = self.optional_nested_enum {
@@ -589,11 +698,17 @@ mod __gen {
             if let Some(s) = &self.optional_cord {
                 protobuf::rt::encode_len_field(out, 16, s.as_bytes());
             }
-            if let Some(m) = &self.optional_nested_message {
+            if let Some(p) = self.optional_nested_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 18, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_nested_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 18, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(m) = &self.lazy_nested_message {
+            if let Some(p) = self.lazy_nested_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 19, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.lazy_nested_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 19, m.compute_size());
                 m.write_to(out);
             }
@@ -638,12 +753,19 @@ mod __gen {
         }
         pub const FULL_NAME: &'static str =
             "rust_unittest_proto3_optional.TestProto3Optional.NestedMessage";
+        pub fn has_bb(&self) -> bool {
+            self.bb.is_some()
+        }
         pub fn bb(&self) -> i32 {
             self.bb.unwrap_or_default()
         }
         pub fn set_bb(&mut self, v: i32) {
             self.cached_size.dirty();
             self.bb = Some(v);
+        }
+        pub fn clear_bb(&mut self) {
+            self.cached_size.dirty();
+            self.bb = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -726,16 +848,16 @@ mod __gen {
     protobuf::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut);
     #[derive(Clone, Debug, PartialEq)]
     pub struct TestProto3OptionalMessage {
-        nested_message: Option<Box<TestProto3OptionalMessageNestedMessage>>,
-        optional_nested_message: Option<Box<TestProto3OptionalMessageNestedMessage>>,
+        nested_message: protobuf::rt::LazyMsg<TestProto3OptionalMessageNestedMessage>,
+        optional_nested_message: protobuf::rt::LazyMsg<TestProto3OptionalMessageNestedMessage>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
     impl Default for TestProto3OptionalMessage {
         fn default() -> Self {
             Self {
-                nested_message: None,
-                optional_nested_message: None,
+                nested_message: Default::default(),
+                optional_nested_message: Default::default(),
                 unknown: UnknownFields::default(),
                 cached_size: protobuf::rt::CachedSize::default(),
             }
@@ -762,11 +884,15 @@ mod __gen {
         }
         pub fn set_nested_message(&mut self, v: TestProto3OptionalMessageNestedMessage) {
             self.cached_size.dirty();
-            self.nested_message = Some(Box::new(v));
+            self.nested_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn nested_message_mut(&mut self) -> &mut TestProto3OptionalMessageNestedMessage {
+            self.cached_size.dirty();
+            self.nested_message.get_or_insert()
         }
         pub fn clear_nested_message(&mut self) {
             self.cached_size.dirty();
-            self.nested_message = None;
+            self.nested_message.clear();
         }
         pub fn has_optional_nested_message(&self) -> bool {
             self.optional_nested_message.is_some()
@@ -783,11 +909,17 @@ mod __gen {
         }
         pub fn set_optional_nested_message(&mut self, v: TestProto3OptionalMessageNestedMessage) {
             self.cached_size.dirty();
-            self.optional_nested_message = Some(Box::new(v));
+            self.optional_nested_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_nested_message_mut(
+            &mut self,
+        ) -> &mut TestProto3OptionalMessageNestedMessage {
+            self.cached_size.dirty();
+            self.optional_nested_message.get_or_insert()
         }
         pub fn clear_optional_nested_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_nested_message = None;
+            self.optional_nested_message.clear();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -835,56 +967,52 @@ mod __gen {
                 match (n, w) {
                     (1, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.nested_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = TestProto3OptionalMessageNestedMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.nested_message = Some(Box::new(inner));
-                            }
+                        if self.nested_message.is_some() {
+                            let mut ip = 0;
+                            self.nested_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = TestProto3OptionalMessageNestedMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.nested_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (2, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_nested_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = TestProto3OptionalMessageNestedMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_nested_message = Some(Box::new(inner));
-                            }
+                        if self.optional_nested_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_nested_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = TestProto3OptionalMessageNestedMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_nested_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     _ => self
@@ -903,21 +1031,31 @@ mod __gen {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if let Some(m) = &self.nested_message {
+            if let Some(p) = self.nested_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(1, p.len() as u64);
+            } else if let Some(m) = self.nested_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(1, m.compute_size());
             }
-            if let Some(m) = &self.optional_nested_message {
+            if let Some(p) = self.optional_nested_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(2, p.len() as u64);
+            } else if let Some(m) = self.optional_nested_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(2, m.compute_size());
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
-            if let Some(m) = &self.nested_message {
+            if let Some(p) = self.nested_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 1, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.nested_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 1, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(m) = &self.optional_nested_message {
+            if let Some(p) = self.optional_nested_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 2, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_nested_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }

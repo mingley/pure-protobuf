@@ -117,16 +117,16 @@ mod __gen {
     protobuf::impl_typed_message!(ForeignMessage, ForeignMessageView, ForeignMessageMut);
     #[derive(Clone, Debug, PartialEq)]
     pub struct NestedTestAllTypes {
-        child: Option<Box<NestedTestAllTypes>>,
-        payload: Option<Box<TestAllTypes>>,
+        child: protobuf::rt::LazyMsg<NestedTestAllTypes>,
+        payload: protobuf::rt::LazyMsg<TestAllTypes>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
     impl Default for NestedTestAllTypes {
         fn default() -> Self {
             Self {
-                child: None,
-                payload: None,
+                child: Default::default(),
+                payload: Default::default(),
                 unknown: UnknownFields::default(),
                 cached_size: protobuf::rt::CachedSize::default(),
             }
@@ -148,11 +148,15 @@ mod __gen {
         }
         pub fn set_child(&mut self, v: NestedTestAllTypes) {
             self.cached_size.dirty();
-            self.child = Some(Box::new(v));
+            self.child = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn child_mut(&mut self) -> &mut NestedTestAllTypes {
+            self.cached_size.dirty();
+            self.child.get_or_insert()
         }
         pub fn clear_child(&mut self) {
             self.cached_size.dirty();
-            self.child = None;
+            self.child.clear();
         }
         pub fn has_payload(&self) -> bool {
             self.payload.is_some()
@@ -165,11 +169,15 @@ mod __gen {
         }
         pub fn set_payload(&mut self, v: TestAllTypes) {
             self.cached_size.dirty();
-            self.payload = Some(Box::new(v));
+            self.payload = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn payload_mut(&mut self) -> &mut TestAllTypes {
+            self.cached_size.dirty();
+            self.payload.get_or_insert()
         }
         pub fn clear_payload(&mut self) {
             self.cached_size.dirty();
-            self.payload = None;
+            self.payload.clear();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -217,56 +225,52 @@ mod __gen {
                 match (n, w) {
                     (1, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.child {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = NestedTestAllTypes::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.child = Some(Box::new(inner));
-                            }
+                        if self.child.is_some() {
+                            let mut ip = 0;
+                            self.child.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = NestedTestAllTypes::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.child =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (2, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.payload {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = TestAllTypes::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.payload = Some(Box::new(inner));
-                            }
+                        if self.payload.is_some() {
+                            let mut ip = 0;
+                            self.payload.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = TestAllTypes::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.payload =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     _ => self
@@ -285,21 +289,31 @@ mod __gen {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if let Some(m) = &self.child {
+            if let Some(p) = self.child.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(1, p.len() as u64);
+            } else if let Some(m) = self.child.as_deref() {
                 n += protobuf::rt::key_len_value_len(1, m.compute_size());
             }
-            if let Some(m) = &self.payload {
+            if let Some(p) = self.payload.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(2, p.len() as u64);
+            } else if let Some(m) = self.payload.as_deref() {
                 n += protobuf::rt::key_len_value_len(2, m.compute_size());
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
-            if let Some(m) = &self.child {
+            if let Some(p) = self.child.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 1, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.child.as_deref() {
                 protobuf::rt::encode_len_header(out, 1, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(m) = &self.payload {
+            if let Some(p) = self.payload.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 2, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.payload.as_deref() {
                 protobuf::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }
@@ -328,42 +342,42 @@ mod __gen {
         optional_bool: bool,
         optional_string: protobuf::rt::LazyStr,
         optional_bytes: protobuf::rt::LazyBytes,
-        optional_nested_message: Option<Box<NestedMessage>>,
-        optional_foreign_message: Option<Box<ForeignMessage>>,
-        optional_import_message: Option<Box<ImportMessage>>,
+        optional_nested_message: protobuf::rt::LazyMsg<NestedMessage>,
+        optional_foreign_message: protobuf::rt::LazyMsg<ForeignMessage>,
+        optional_import_message: protobuf::rt::LazyMsg<ImportMessage>,
         optional_nested_enum: i32,
         optional_foreign_enum: i32,
         optional_string_piece: protobuf::rt::LazyStr,
         optional_cord: protobuf::rt::LazyStr,
-        optional_lazy_message: Option<Box<NestedMessage>>,
-        repeated_int32: Repeated<i32>,
-        repeated_int64: Repeated<i64>,
-        repeated_uint32: Repeated<u32>,
-        repeated_uint64: Repeated<u64>,
-        repeated_sint32: Repeated<i32>,
-        repeated_sint64: Repeated<i64>,
-        repeated_fixed32: Repeated<u32>,
-        repeated_fixed64: Repeated<u64>,
-        repeated_sfixed32: Repeated<i32>,
-        repeated_sfixed64: Repeated<i64>,
-        repeated_float: Repeated<f32>,
-        repeated_double: Repeated<f64>,
-        repeated_bool: Repeated<bool>,
+        optional_lazy_message: protobuf::rt::LazyMsg<NestedMessage>,
+        repeated_int32: protobuf::rt::PackedI32,
+        repeated_int64: protobuf::rt::PackedI64,
+        repeated_uint32: protobuf::rt::PackedU32,
+        repeated_uint64: protobuf::rt::PackedU64,
+        repeated_sint32: protobuf::rt::PackedS32,
+        repeated_sint64: protobuf::rt::PackedS64,
+        repeated_fixed32: protobuf::rt::PackedFx32,
+        repeated_fixed64: protobuf::rt::PackedFx64,
+        repeated_sfixed32: protobuf::rt::PackedSfx32,
+        repeated_sfixed64: protobuf::rt::PackedSfx64,
+        repeated_float: protobuf::rt::PackedF32,
+        repeated_double: protobuf::rt::PackedF64,
+        repeated_bool: protobuf::rt::PackedBool,
         repeated_string: Repeated<protobuf::rt::LazyStr>,
         repeated_bytes: Repeated<protobuf::rt::LazyBytes>,
         repeated_nested_message: Repeated<NestedMessage>,
         repeated_foreign_message: Repeated<ForeignMessage>,
         repeated_import_message: Repeated<ImportMessage>,
-        repeated_nested_enum: Repeated<i32>,
-        repeated_foreign_enum: Repeated<i32>,
+        repeated_nested_enum: protobuf::rt::PackedI32,
+        repeated_foreign_enum: protobuf::rt::PackedI32,
         repeated_string_piece: Repeated<protobuf::rt::LazyStr>,
         repeated_cord: Repeated<protobuf::rt::LazyStr>,
         repeated_lazy_message: Repeated<NestedMessage>,
         oneof_uint32: Option<u32>,
-        oneof_nested_message: Option<Box<NestedMessage>>,
+        oneof_nested_message: protobuf::rt::LazyMsg<NestedMessage>,
         oneof_string: Option<protobuf::rt::LazyStr>,
         oneof_bytes: Option<protobuf::rt::LazyBytes>,
-        optional_lazy_import_message: Option<Box<ImportMessage>>,
+        optional_lazy_import_message: protobuf::rt::LazyMsg<ImportMessage>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
@@ -385,42 +399,42 @@ mod __gen {
                 optional_bool: Default::default(),
                 optional_string: Default::default(),
                 optional_bytes: Default::default(),
-                optional_nested_message: None,
-                optional_foreign_message: None,
-                optional_import_message: None,
+                optional_nested_message: Default::default(),
+                optional_foreign_message: Default::default(),
+                optional_import_message: Default::default(),
                 optional_nested_enum: Default::default(),
                 optional_foreign_enum: Default::default(),
                 optional_string_piece: Default::default(),
                 optional_cord: Default::default(),
-                optional_lazy_message: None,
-                repeated_int32: Repeated::new(),
-                repeated_int64: Repeated::new(),
-                repeated_uint32: Repeated::new(),
-                repeated_uint64: Repeated::new(),
-                repeated_sint32: Repeated::new(),
-                repeated_sint64: Repeated::new(),
-                repeated_fixed32: Repeated::new(),
-                repeated_fixed64: Repeated::new(),
-                repeated_sfixed32: Repeated::new(),
-                repeated_sfixed64: Repeated::new(),
-                repeated_float: Repeated::new(),
-                repeated_double: Repeated::new(),
-                repeated_bool: Repeated::new(),
+                optional_lazy_message: Default::default(),
+                repeated_int32: protobuf::rt::PackedI32::new(),
+                repeated_int64: protobuf::rt::PackedI64::new(),
+                repeated_uint32: protobuf::rt::PackedU32::new(),
+                repeated_uint64: protobuf::rt::PackedU64::new(),
+                repeated_sint32: protobuf::rt::PackedS32::new(),
+                repeated_sint64: protobuf::rt::PackedS64::new(),
+                repeated_fixed32: protobuf::rt::PackedFx32::new(),
+                repeated_fixed64: protobuf::rt::PackedFx64::new(),
+                repeated_sfixed32: protobuf::rt::PackedSfx32::new(),
+                repeated_sfixed64: protobuf::rt::PackedSfx64::new(),
+                repeated_float: protobuf::rt::PackedF32::new(),
+                repeated_double: protobuf::rt::PackedF64::new(),
+                repeated_bool: protobuf::rt::PackedBool::new(),
                 repeated_string: Repeated::new(),
                 repeated_bytes: Repeated::new(),
                 repeated_nested_message: Repeated::new(),
                 repeated_foreign_message: Repeated::new(),
                 repeated_import_message: Repeated::new(),
-                repeated_nested_enum: Repeated::new(),
-                repeated_foreign_enum: Repeated::new(),
+                repeated_nested_enum: protobuf::rt::PackedI32::new(),
+                repeated_foreign_enum: protobuf::rt::PackedI32::new(),
                 repeated_string_piece: Repeated::new(),
                 repeated_cord: Repeated::new(),
                 repeated_lazy_message: Repeated::new(),
                 oneof_uint32: None,
-                oneof_nested_message: None,
+                oneof_nested_message: Default::default(),
                 oneof_string: None,
                 oneof_bytes: None,
-                optional_lazy_import_message: None,
+                optional_lazy_import_message: Default::default(),
                 unknown: UnknownFields::default(),
                 cached_size: protobuf::rt::CachedSize::default(),
             }
@@ -549,11 +563,15 @@ mod __gen {
         }
         pub fn set_optional_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
-            self.optional_nested_message = Some(Box::new(v));
+            self.optional_nested_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_nested_message_mut(&mut self) -> &mut NestedMessage {
+            self.cached_size.dirty();
+            self.optional_nested_message.get_or_insert()
         }
         pub fn clear_optional_nested_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_nested_message = None;
+            self.optional_nested_message.clear();
         }
         pub fn has_optional_foreign_message(&self) -> bool {
             self.optional_foreign_message.is_some()
@@ -568,11 +586,15 @@ mod __gen {
         }
         pub fn set_optional_foreign_message(&mut self, v: ForeignMessage) {
             self.cached_size.dirty();
-            self.optional_foreign_message = Some(Box::new(v));
+            self.optional_foreign_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_foreign_message_mut(&mut self) -> &mut ForeignMessage {
+            self.cached_size.dirty();
+            self.optional_foreign_message.get_or_insert()
         }
         pub fn clear_optional_foreign_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_foreign_message = None;
+            self.optional_foreign_message.clear();
         }
         pub fn has_optional_import_message(&self) -> bool {
             self.optional_import_message.is_some()
@@ -587,11 +609,15 @@ mod __gen {
         }
         pub fn set_optional_import_message(&mut self, v: ImportMessage) {
             self.cached_size.dirty();
-            self.optional_import_message = Some(Box::new(v));
+            self.optional_import_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_import_message_mut(&mut self) -> &mut ImportMessage {
+            self.cached_size.dirty();
+            self.optional_import_message.get_or_insert()
         }
         pub fn clear_optional_import_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_import_message = None;
+            self.optional_import_message.clear();
         }
         pub fn optional_nested_enum(&self) -> i32 {
             self.optional_nested_enum
@@ -632,11 +658,15 @@ mod __gen {
         }
         pub fn set_optional_lazy_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
-            self.optional_lazy_message = Some(Box::new(v));
+            self.optional_lazy_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_lazy_message_mut(&mut self) -> &mut NestedMessage {
+            self.cached_size.dirty();
+            self.optional_lazy_message.get_or_insert()
         }
         pub fn clear_optional_lazy_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_lazy_message = None;
+            self.optional_lazy_message.clear();
         }
         pub fn repeated_int32(&self) -> RepeatedView<'_, i32> {
             self.repeated_int32.as_view()
@@ -647,7 +677,7 @@ mod __gen {
         }
         pub fn set_repeated_int32(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.repeated_int32 = v;
+            self.repeated_int32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_int64(&self) -> RepeatedView<'_, i64> {
             self.repeated_int64.as_view()
@@ -658,7 +688,7 @@ mod __gen {
         }
         pub fn set_repeated_int64(&mut self, v: Repeated<i64>) {
             self.cached_size.dirty();
-            self.repeated_int64 = v;
+            self.repeated_int64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_uint32(&self) -> RepeatedView<'_, u32> {
             self.repeated_uint32.as_view()
@@ -669,7 +699,7 @@ mod __gen {
         }
         pub fn set_repeated_uint32(&mut self, v: Repeated<u32>) {
             self.cached_size.dirty();
-            self.repeated_uint32 = v;
+            self.repeated_uint32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_uint64(&self) -> RepeatedView<'_, u64> {
             self.repeated_uint64.as_view()
@@ -680,7 +710,7 @@ mod __gen {
         }
         pub fn set_repeated_uint64(&mut self, v: Repeated<u64>) {
             self.cached_size.dirty();
-            self.repeated_uint64 = v;
+            self.repeated_uint64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_sint32(&self) -> RepeatedView<'_, i32> {
             self.repeated_sint32.as_view()
@@ -691,7 +721,7 @@ mod __gen {
         }
         pub fn set_repeated_sint32(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.repeated_sint32 = v;
+            self.repeated_sint32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_sint64(&self) -> RepeatedView<'_, i64> {
             self.repeated_sint64.as_view()
@@ -702,7 +732,7 @@ mod __gen {
         }
         pub fn set_repeated_sint64(&mut self, v: Repeated<i64>) {
             self.cached_size.dirty();
-            self.repeated_sint64 = v;
+            self.repeated_sint64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_fixed32(&self) -> RepeatedView<'_, u32> {
             self.repeated_fixed32.as_view()
@@ -713,7 +743,7 @@ mod __gen {
         }
         pub fn set_repeated_fixed32(&mut self, v: Repeated<u32>) {
             self.cached_size.dirty();
-            self.repeated_fixed32 = v;
+            self.repeated_fixed32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_fixed64(&self) -> RepeatedView<'_, u64> {
             self.repeated_fixed64.as_view()
@@ -724,7 +754,7 @@ mod __gen {
         }
         pub fn set_repeated_fixed64(&mut self, v: Repeated<u64>) {
             self.cached_size.dirty();
-            self.repeated_fixed64 = v;
+            self.repeated_fixed64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.repeated_sfixed32.as_view()
@@ -735,7 +765,7 @@ mod __gen {
         }
         pub fn set_repeated_sfixed32(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.repeated_sfixed32 = v;
+            self.repeated_sfixed32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_sfixed64(&self) -> RepeatedView<'_, i64> {
             self.repeated_sfixed64.as_view()
@@ -746,7 +776,7 @@ mod __gen {
         }
         pub fn set_repeated_sfixed64(&mut self, v: Repeated<i64>) {
             self.cached_size.dirty();
-            self.repeated_sfixed64 = v;
+            self.repeated_sfixed64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_float(&self) -> RepeatedView<'_, f32> {
             self.repeated_float.as_view()
@@ -757,7 +787,7 @@ mod __gen {
         }
         pub fn set_repeated_float(&mut self, v: Repeated<f32>) {
             self.cached_size.dirty();
-            self.repeated_float = v;
+            self.repeated_float = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_double(&self) -> RepeatedView<'_, f64> {
             self.repeated_double.as_view()
@@ -768,7 +798,7 @@ mod __gen {
         }
         pub fn set_repeated_double(&mut self, v: Repeated<f64>) {
             self.cached_size.dirty();
-            self.repeated_double = v;
+            self.repeated_double = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_bool(&self) -> RepeatedView<'_, bool> {
             self.repeated_bool.as_view()
@@ -779,7 +809,7 @@ mod __gen {
         }
         pub fn set_repeated_bool(&mut self, v: Repeated<bool>) {
             self.cached_size.dirty();
-            self.repeated_bool = v;
+            self.repeated_bool = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_string(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_string.as_view()
@@ -845,7 +875,7 @@ mod __gen {
         }
         pub fn set_repeated_nested_enum(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.repeated_nested_enum = v;
+            self.repeated_nested_enum = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_foreign_enum(&self) -> RepeatedView<'_, i32> {
             self.repeated_foreign_enum.as_view()
@@ -856,7 +886,7 @@ mod __gen {
         }
         pub fn set_repeated_foreign_enum(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.repeated_foreign_enum = v;
+            self.repeated_foreign_enum = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn repeated_string_piece(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_string_piece.as_view()
@@ -891,15 +921,22 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_lazy_message = v;
         }
+        pub fn has_oneof_uint32(&self) -> bool {
+            self.oneof_uint32.is_some()
+        }
         pub fn oneof_uint32(&self) -> u32 {
             self.oneof_uint32.unwrap_or_default()
         }
         pub fn set_oneof_uint32(&mut self, v: u32) {
             self.cached_size.dirty();
-            self.oneof_nested_message = None;
+            self.oneof_nested_message = Default::default();
             self.oneof_string = None;
             self.oneof_bytes = None;
             self.oneof_uint32 = Some(v);
+        }
+        pub fn clear_oneof_uint32(&mut self) {
+            self.cached_size.dirty();
+            self.oneof_uint32 = None;
         }
         pub fn has_oneof_nested_message(&self) -> bool {
             self.oneof_nested_message.is_some()
@@ -915,11 +952,15 @@ mod __gen {
             self.oneof_uint32 = None;
             self.oneof_string = None;
             self.oneof_bytes = None;
-            self.oneof_nested_message = Some(Box::new(v));
+            self.oneof_nested_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn oneof_nested_message_mut(&mut self) -> &mut NestedMessage {
+            self.cached_size.dirty();
+            self.oneof_nested_message.get_or_insert()
         }
         pub fn clear_oneof_nested_message(&mut self) {
             self.cached_size.dirty();
-            self.oneof_nested_message = None;
+            self.oneof_nested_message.clear();
         }
         pub fn has_oneof_string(&self) -> bool {
             self.oneof_string.is_some()
@@ -933,7 +974,7 @@ mod __gen {
         pub fn set_oneof_string(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
-            self.oneof_nested_message = None;
+            self.oneof_nested_message = Default::default();
             self.oneof_bytes = None;
             self.oneof_string = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
         }
@@ -946,6 +987,9 @@ mod __gen {
                 .as_ref()
                 .map(|b| b.as_bytes())
                 .unwrap_or(&[])
+        }
+        pub fn has_oneof_bytes(&self) -> bool {
+            self.oneof_bytes.is_some()
         }
         pub fn set_oneof_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
@@ -964,11 +1008,15 @@ mod __gen {
         }
         pub fn set_optional_lazy_import_message(&mut self, v: ImportMessage) {
             self.cached_size.dirty();
-            self.optional_lazy_import_message = Some(Box::new(v));
+            self.optional_lazy_import_message = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn optional_lazy_import_message_mut(&mut self) -> &mut ImportMessage {
+            self.cached_size.dirty();
+            self.optional_lazy_import_message.get_or_insert()
         }
         pub fn clear_optional_lazy_import_message(&mut self) {
             self.cached_size.dirty();
-            self.optional_lazy_import_message = None;
+            self.optional_lazy_import_message.clear();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -1069,83 +1117,77 @@ mod __gen {
                     }
                     (18, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_nested_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = NestedMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_nested_message = Some(Box::new(inner));
-                            }
+                        if self.optional_nested_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_nested_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = NestedMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_nested_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (19, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_foreign_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = ForeignMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_foreign_message = Some(Box::new(inner));
-                            }
+                        if self.optional_foreign_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_foreign_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = ForeignMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_foreign_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (20, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_import_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = ImportMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_import_message = Some(Box::new(inner));
-                            }
+                        if self.optional_import_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_import_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = ImportMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_import_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (21, protobuf::rt::WIRE_VARINT) => {
@@ -1169,172 +1211,116 @@ mod __gen {
                     }
                     (27, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_lazy_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = NestedMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_lazy_message = Some(Box::new(inner));
-                            }
+                        if self.optional_lazy_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_lazy_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = NestedMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_lazy_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (31, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_int32
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_int32.append_wire(wire.window(s, e))?;
                     }
                     (31, protobuf::rt::WIRE_VARINT) => self
                         .repeated_int32
                         .push(protobuf::rt::decode_varint(data, pos)? as i32),
                     (32, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_int64
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i64);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_int64.append_wire(wire.window(s, e))?;
                     }
                     (32, protobuf::rt::WIRE_VARINT) => self
                         .repeated_int64
                         .push(protobuf::rt::decode_varint(data, pos)? as i64),
                     (33, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_uint32
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as u32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_uint32.append_wire(wire.window(s, e))?;
                     }
                     (33, protobuf::rt::WIRE_VARINT) => self
                         .repeated_uint32
                         .push(protobuf::rt::decode_varint(data, pos)? as u32),
                     (34, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_uint64
-                                .push(protobuf::rt::decode_varint(p, &mut i)?);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_uint64.append_wire(wire.window(s, e))?;
                     }
                     (34, protobuf::rt::WIRE_VARINT) => self
                         .repeated_uint64
                         .push(protobuf::rt::decode_varint(data, pos)?),
                     (35, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_sint32.push(protobuf::rt::decode_zigzag32(
-                                protobuf::rt::decode_varint(p, &mut i)?,
-                            ));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_sint32.append_wire(wire.window(s, e))?;
                     }
                     (35, protobuf::rt::WIRE_VARINT) => self.repeated_sint32.push(
                         protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(data, pos)?),
                     ),
                     (36, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_sint64.push(protobuf::rt::decode_zigzag64(
-                                protobuf::rt::decode_varint(p, &mut i)?,
-                            ));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_sint64.append_wire(wire.window(s, e))?;
                     }
                     (36, protobuf::rt::WIRE_VARINT) => self.repeated_sint64.push(
                         protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(data, pos)?),
                     ),
                     (37, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_fixed32
-                                .push(protobuf::rt::read_fixed32(p, &mut i)?);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_fixed32.append_wire(wire.window(s, e))?;
                     }
                     (37, protobuf::rt::WIRE_I32) => self
                         .repeated_fixed32
                         .push(protobuf::rt::read_fixed32(data, pos)?),
                     (38, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_fixed64
-                                .push(protobuf::rt::read_fixed64(p, &mut i)?);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_fixed64.append_wire(wire.window(s, e))?;
                     }
                     (38, protobuf::rt::WIRE_I64) => self
                         .repeated_fixed64
                         .push(protobuf::rt::read_fixed64(data, pos)?),
                     (39, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_sfixed32
-                                .push(protobuf::rt::read_fixed32(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_sfixed32.append_wire(wire.window(s, e))?;
                     }
                     (39, protobuf::rt::WIRE_I32) => self
                         .repeated_sfixed32
                         .push(protobuf::rt::read_fixed32(data, pos)? as i32),
                     (40, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_sfixed64
-                                .push(protobuf::rt::read_fixed64(p, &mut i)? as i64);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_sfixed64.append_wire(wire.window(s, e))?;
                     }
                     (40, protobuf::rt::WIRE_I64) => self
                         .repeated_sfixed64
                         .push(protobuf::rt::read_fixed64(data, pos)? as i64),
                     (41, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_float
-                                .push(f32::from_bits(protobuf::rt::read_fixed32(p, &mut i)?));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_float.append_wire(wire.window(s, e))?;
                     }
                     (41, protobuf::rt::WIRE_I32) => self
                         .repeated_float
                         .push(f32::from_bits(protobuf::rt::read_fixed32(data, pos)?)),
                     (42, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_double
-                                .push(f64::from_bits(protobuf::rt::read_fixed64(p, &mut i)?));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_double.append_wire(wire.window(s, e))?;
                     }
                     (42, protobuf::rt::WIRE_I64) => self
                         .repeated_double
                         .push(f64::from_bits(protobuf::rt::read_fixed64(data, pos)?)),
                     (43, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_bool
-                                .push(protobuf::rt::decode_varint(p, &mut i)? != 0);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_bool.append_wire(wire.window(s, e))?;
                     }
                     (43, protobuf::rt::WIRE_VARINT) => self
                         .repeated_bool
@@ -1373,23 +1359,15 @@ mod __gen {
                         self.repeated_import_message.push(inner);
                     }
                     (51, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_nested_enum
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_nested_enum.append_wire(wire.window(s, e))?;
                     }
                     (51, protobuf::rt::WIRE_VARINT) => self
                         .repeated_nested_enum
                         .push(protobuf::rt::decode_varint(data, pos)? as i32),
                     (52, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.repeated_foreign_enum
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.repeated_foreign_enum.append_wire(wire.window(s, e))?;
                     }
                     (52, protobuf::rt::WIRE_VARINT) => self
                         .repeated_foreign_enum
@@ -1416,7 +1394,7 @@ mod __gen {
                         self.repeated_lazy_message.push(inner);
                     }
                     (111, protobuf::rt::WIRE_VARINT) => {
-                        self.oneof_nested_message = None;
+                        self.oneof_nested_message = Default::default();
                         self.oneof_string = None;
                         self.oneof_bytes = None;
                         self.oneof_uint32 = Some(protobuf::rt::decode_varint(data, pos)? as u32);
@@ -1426,34 +1404,32 @@ mod __gen {
                         self.oneof_string = None;
                         self.oneof_bytes = None;
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.oneof_nested_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = NestedMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.oneof_nested_message = Some(Box::new(inner));
-                            }
+                        if self.oneof_nested_message.is_some() {
+                            let mut ip = 0;
+                            self.oneof_nested_message.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = NestedMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.oneof_nested_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     (113, protobuf::rt::WIRE_LEN) => {
                         self.oneof_uint32 = None;
-                        self.oneof_nested_message = None;
+                        self.oneof_nested_message = Default::default();
                         self.oneof_bytes = None;
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let b = &data[s..e];
@@ -1463,7 +1439,7 @@ mod __gen {
                     }
                     (114, protobuf::rt::WIRE_LEN) => {
                         self.oneof_uint32 = None;
-                        self.oneof_nested_message = None;
+                        self.oneof_nested_message = Default::default();
                         self.oneof_string = None;
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         self.oneof_bytes =
@@ -1471,29 +1447,23 @@ mod __gen {
                     }
                     (115, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.optional_lazy_import_message {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = ImportMessage::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.optional_lazy_import_message = Some(Box::new(inner));
-                            }
+                        if self.optional_lazy_import_message.is_some() {
+                            let mut ip = 0;
+                            self.optional_lazy_import_message
+                                .get_or_insert()
+                                .merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?;
+                        } else {
+                            let mut inner = ImportMessage::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.optional_lazy_import_message =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     _ => self
@@ -1570,13 +1540,19 @@ mod __gen {
                     self.optional_bytes.as_bytes().len() as u64,
                 );
             }
-            if let Some(m) = &self.optional_nested_message {
+            if let Some(p) = self.optional_nested_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(18, p.len() as u64);
+            } else if let Some(m) = self.optional_nested_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(18, m.compute_size());
             }
-            if let Some(m) = &self.optional_foreign_message {
+            if let Some(p) = self.optional_foreign_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(19, p.len() as u64);
+            } else if let Some(m) = self.optional_foreign_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(19, m.compute_size());
             }
-            if let Some(m) = &self.optional_import_message {
+            if let Some(p) = self.optional_import_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(20, p.len() as u64);
+            } else if let Some(m) = self.optional_import_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(20, m.compute_size());
             }
             if self.optional_nested_enum != 0 {
@@ -1597,94 +1573,122 @@ mod __gen {
                 n +=
                     protobuf::rt::key_len_value_len(25, self.optional_cord.as_bytes().len() as u64);
             }
-            if let Some(m) = &self.optional_lazy_message {
+            if let Some(p) = self.optional_lazy_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(27, p.len() as u64);
+            } else if let Some(m) = self.optional_lazy_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(27, m.compute_size());
             }
-            if !self.repeated_int32.is_empty() {
+            if let Some(p) = self.repeated_int32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(31, p.len() as u64);
+            } else if !self.repeated_int32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_int32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(31, payload);
             }
-            if !self.repeated_int64.is_empty() {
+            if let Some(p) = self.repeated_int64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(32, p.len() as u64);
+            } else if !self.repeated_int64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_int64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(32, payload);
             }
-            if !self.repeated_uint32.is_empty() {
+            if let Some(p) = self.repeated_uint32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(33, p.len() as u64);
+            } else if !self.repeated_uint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_uint32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(33, payload);
             }
-            if !self.repeated_uint64.is_empty() {
+            if let Some(p) = self.repeated_uint64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(34, p.len() as u64);
+            } else if !self.repeated_uint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_uint64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(34, payload);
             }
-            if !self.repeated_sint32.is_empty() {
+            if let Some(p) = self.repeated_sint32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(35, p.len() as u64);
+            } else if !self.repeated_sint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sint32.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
                 }
                 n += protobuf::rt::key_len_value_len(35, payload);
             }
-            if !self.repeated_sint64.is_empty() {
+            if let Some(p) = self.repeated_sint64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(36, p.len() as u64);
+            } else if !self.repeated_sint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sint64.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
                 }
                 n += protobuf::rt::key_len_value_len(36, payload);
             }
-            if !self.repeated_fixed32.is_empty() {
+            if let Some(p) = self.repeated_fixed32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(37, p.len() as u64);
+            } else if !self.repeated_fixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_fixed32.iter() {
                     payload += 4;
                 }
                 n += protobuf::rt::key_len_value_len(37, payload);
             }
-            if !self.repeated_fixed64.is_empty() {
+            if let Some(p) = self.repeated_fixed64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(38, p.len() as u64);
+            } else if !self.repeated_fixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_fixed64.iter() {
                     payload += 8;
                 }
                 n += protobuf::rt::key_len_value_len(38, payload);
             }
-            if !self.repeated_sfixed32.is_empty() {
+            if let Some(p) = self.repeated_sfixed32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(39, p.len() as u64);
+            } else if !self.repeated_sfixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sfixed32.iter() {
                     payload += 4;
                 }
                 n += protobuf::rt::key_len_value_len(39, payload);
             }
-            if !self.repeated_sfixed64.is_empty() {
+            if let Some(p) = self.repeated_sfixed64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(40, p.len() as u64);
+            } else if !self.repeated_sfixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sfixed64.iter() {
                     payload += 8;
                 }
                 n += protobuf::rt::key_len_value_len(40, payload);
             }
-            if !self.repeated_float.is_empty() {
+            if let Some(p) = self.repeated_float.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(41, p.len() as u64);
+            } else if !self.repeated_float.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_float.iter() {
                     payload += 4;
                 }
                 n += protobuf::rt::key_len_value_len(41, payload);
             }
-            if !self.repeated_double.is_empty() {
+            if let Some(p) = self.repeated_double.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(42, p.len() as u64);
+            } else if !self.repeated_double.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_double.iter() {
                     payload += 8;
                 }
                 n += protobuf::rt::key_len_value_len(42, payload);
             }
-            if !self.repeated_bool.is_empty() {
+            if let Some(p) = self.repeated_bool.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(43, p.len() as u64);
+            } else if !self.repeated_bool.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_bool.iter() {
                     payload += protobuf::rt::varint_len(u64::from(*t));
@@ -1706,14 +1710,18 @@ mod __gen {
             for t in self.repeated_import_message.iter() {
                 n += protobuf::rt::key_len_value_len(50, t.compute_size());
             }
-            if !self.repeated_nested_enum.is_empty() {
+            if let Some(p) = self.repeated_nested_enum.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(51, p.len() as u64);
+            } else if !self.repeated_nested_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_nested_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(51, payload);
             }
-            if !self.repeated_foreign_enum.is_empty() {
+            if let Some(p) = self.repeated_foreign_enum.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(52, p.len() as u64);
+            } else if !self.repeated_foreign_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_foreign_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -1733,7 +1741,9 @@ mod __gen {
                 n += protobuf::rt::tag_len(111, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len((v) as u64);
             }
-            if let Some(m) = &self.oneof_nested_message {
+            if let Some(p) = self.oneof_nested_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(112, p.len() as u64);
+            } else if let Some(m) = self.oneof_nested_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(112, m.compute_size());
             }
             if let Some(s) = &self.oneof_string {
@@ -1742,7 +1752,9 @@ mod __gen {
             if let Some(s) = &self.oneof_bytes {
                 n += protobuf::rt::key_len_value_len(114, s.as_bytes().len() as u64);
             }
-            if let Some(m) = &self.optional_lazy_import_message {
+            if let Some(p) = self.optional_lazy_import_message.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(115, p.len() as u64);
+            } else if let Some(m) = self.optional_lazy_import_message.as_deref() {
                 n += protobuf::rt::key_len_value_len(115, m.compute_size());
             }
             self.cached_size.set(n);
@@ -1813,15 +1825,24 @@ mod __gen {
             if !self.optional_bytes.is_empty() {
                 protobuf::rt::encode_len_field(out, 15, self.optional_bytes.as_bytes());
             }
-            if let Some(m) = &self.optional_nested_message {
+            if let Some(p) = self.optional_nested_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 18, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_nested_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 18, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(m) = &self.optional_foreign_message {
+            if let Some(p) = self.optional_foreign_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 19, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_foreign_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 19, m.compute_size());
                 m.write_to(out);
             }
-            if let Some(m) = &self.optional_import_message {
+            if let Some(p) = self.optional_import_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 20, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_import_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 20, m.compute_size());
                 m.write_to(out);
             }
@@ -1839,11 +1860,17 @@ mod __gen {
             if !self.optional_cord.is_empty() {
                 protobuf::rt::encode_len_field(out, 25, self.optional_cord.as_bytes());
             }
-            if let Some(m) = &self.optional_lazy_message {
+            if let Some(p) = self.optional_lazy_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 27, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_lazy_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 27, m.compute_size());
                 m.write_to(out);
             }
-            if !self.repeated_int32.is_empty() {
+            if let Some(p) = self.repeated_int32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 31, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_int32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_int32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -1853,7 +1880,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.repeated_int64.is_empty() {
+            if let Some(p) = self.repeated_int64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 32, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_int64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_int64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -1863,7 +1893,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.repeated_uint32.is_empty() {
+            if let Some(p) = self.repeated_uint32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 33, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_uint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_uint32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -1873,7 +1906,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.repeated_uint64.is_empty() {
+            if let Some(p) = self.repeated_uint64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 34, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_uint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_uint64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -1883,7 +1919,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.repeated_sint32.is_empty() {
+            if let Some(p) = self.repeated_sint32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 35, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_sint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sint32.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
@@ -1893,7 +1932,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag32(*t));
                 }
             }
-            if !self.repeated_sint64.is_empty() {
+            if let Some(p) = self.repeated_sint64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 36, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_sint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sint64.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
@@ -1903,7 +1945,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag64(*t));
                 }
             }
-            if !self.repeated_fixed32.is_empty() {
+            if let Some(p) = self.repeated_fixed32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 37, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_fixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_fixed32.iter() {
                     payload += 4;
@@ -1913,7 +1958,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_le_bytes());
                 }
             }
-            if !self.repeated_fixed64.is_empty() {
+            if let Some(p) = self.repeated_fixed64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 38, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_fixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_fixed64.iter() {
                     payload += 8;
@@ -1923,7 +1971,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_le_bytes());
                 }
             }
-            if !self.repeated_sfixed32.is_empty() {
+            if let Some(p) = self.repeated_sfixed32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 39, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_sfixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sfixed32.iter() {
                     payload += 4;
@@ -1933,7 +1984,10 @@ mod __gen {
                     (out).extend_from_slice(&((*t) as u32).to_le_bytes());
                 }
             }
-            if !self.repeated_sfixed64.is_empty() {
+            if let Some(p) = self.repeated_sfixed64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 40, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_sfixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_sfixed64.iter() {
                     payload += 8;
@@ -1943,7 +1997,10 @@ mod __gen {
                     (out).extend_from_slice(&((*t) as u64).to_le_bytes());
                 }
             }
-            if !self.repeated_float.is_empty() {
+            if let Some(p) = self.repeated_float.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 41, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_float.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_float.iter() {
                     payload += 4;
@@ -1953,7 +2010,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                 }
             }
-            if !self.repeated_double.is_empty() {
+            if let Some(p) = self.repeated_double.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 42, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_double.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_double.iter() {
                     payload += 8;
@@ -1963,7 +2023,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                 }
             }
-            if !self.repeated_bool.is_empty() {
+            if let Some(p) = self.repeated_bool.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 43, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_bool.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_bool.iter() {
                     payload += protobuf::rt::varint_len(u64::from(*t));
@@ -1991,7 +2054,10 @@ mod __gen {
                 protobuf::rt::encode_len_header(out, 50, t.compute_size());
                 t.write_to(out);
             }
-            if !self.repeated_nested_enum.is_empty() {
+            if let Some(p) = self.repeated_nested_enum.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 51, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_nested_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_nested_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -2001,7 +2067,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.repeated_foreign_enum.is_empty() {
+            if let Some(p) = self.repeated_foreign_enum.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 52, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.repeated_foreign_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.repeated_foreign_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -2025,7 +2094,10 @@ mod __gen {
                 protobuf::rt::encode_tag(out, 111, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, v as u64);
             }
-            if let Some(m) = &self.oneof_nested_message {
+            if let Some(p) = self.oneof_nested_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 112, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.oneof_nested_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 112, m.compute_size());
                 m.write_to(out);
             }
@@ -2035,7 +2107,10 @@ mod __gen {
             if let Some(s) = &self.oneof_bytes {
                 protobuf::rt::encode_len_field(out, 114, s.as_bytes());
             }
-            if let Some(m) = &self.optional_lazy_import_message {
+            if let Some(p) = self.optional_lazy_import_message.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 115, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.optional_lazy_import_message.as_deref() {
                 protobuf::rt::encode_len_header(out, 115, m.compute_size());
                 m.write_to(out);
             }
@@ -2306,7 +2381,7 @@ mod __gen {
         b67: bool,
         b68: bool,
         b69: bool,
-        child: Option<Box<TestAllTypes>>,
+        child: protobuf::rt::LazyMsg<TestAllTypes>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
@@ -2382,7 +2457,7 @@ mod __gen {
                 b67: Default::default(),
                 b68: Default::default(),
                 b69: Default::default(),
-                child: None,
+                child: Default::default(),
                 unknown: UnknownFields::default(),
                 cached_size: protobuf::rt::CachedSize::default(),
             }
@@ -2887,11 +2962,15 @@ mod __gen {
         }
         pub fn set_child(&mut self, v: TestAllTypes) {
             self.cached_size.dirty();
-            self.child = Some(Box::new(v));
+            self.child = protobuf::rt::LazyMsg::from_owned(v);
+        }
+        pub fn child_mut(&mut self) -> &mut TestAllTypes {
+            self.cached_size.dirty();
+            self.child.get_or_insert()
         }
         pub fn clear_child(&mut self) {
             self.cached_size.dirty();
-            self.child = None;
+            self.child.clear();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -3146,29 +3225,27 @@ mod __gen {
                     }
                     (100, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        match &mut self.child {
-                            Some(existing) => {
-                                let mut ip = 0;
-                                existing.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                            }
-                            None => {
-                                let mut inner = TestAllTypes::default();
-                                let mut ip = 0;
-                                inner.merge_inner(
-                                    &wire.window(s, e),
-                                    &mut ip,
-                                    depth + 1,
-                                    true,
-                                    None,
-                                )?;
-                                self.child = Some(Box::new(inner));
-                            }
+                        if self.child.is_some() {
+                            let mut ip = 0;
+                            self.child.get_or_insert().merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                        } else {
+                            let mut inner = TestAllTypes::default();
+                            let mut ip = 0;
+                            inner.merge_inner(
+                                &wire.window(s, e),
+                                &mut ip,
+                                depth + 1,
+                                true,
+                                None,
+                            )?;
+                            self.child =
+                                protobuf::rt::LazyMsg::from_parsed(inner, wire.window(s, e));
                         }
                     }
                     _ => self
@@ -3463,7 +3540,9 @@ mod __gen {
                 n += protobuf::rt::tag_len(69, protobuf::rt::WIRE_VARINT)
                     + protobuf::rt::varint_len(u64::from(self.b69));
             }
-            if let Some(m) = &self.child {
+            if let Some(p) = self.child.wire_bytes() {
+                n += protobuf::rt::key_len_value_len(100, p.len() as u64);
+            } else if let Some(m) = self.child.as_deref() {
                 n += protobuf::rt::key_len_value_len(100, m.compute_size());
             }
             self.cached_size.set(n);
@@ -3746,7 +3825,10 @@ mod __gen {
                 protobuf::rt::encode_tag(out, 69, protobuf::rt::WIRE_VARINT);
                 protobuf::rt::encode_varint(out, u64::from(self.b69));
             }
-            if let Some(m) = &self.child {
+            if let Some(p) = self.child.wire_bytes() {
+                protobuf::rt::encode_len_header(out, 100, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if let Some(m) = self.child.as_deref() {
                 protobuf::rt::encode_len_header(out, 100, m.compute_size());
                 m.write_to(out);
             }
@@ -3884,12 +3966,19 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "rust_proto3_unittest.TestOneof2";
+        pub fn has_foo_enum(&self) -> bool {
+            self.foo_enum.is_some()
+        }
         pub fn foo_enum(&self) -> i32 {
             self.foo_enum.unwrap_or_default()
         }
         pub fn set_foo_enum(&mut self, v: i32) {
             self.cached_size.dirty();
             self.foo_enum = Some(v);
+        }
+        pub fn clear_foo_enum(&mut self) {
+            self.cached_size.dirty();
+            self.foo_enum = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -3972,40 +4061,40 @@ mod __gen {
     protobuf::impl_typed_message!(TestOneof2, TestOneof2View, TestOneof2Mut);
     #[derive(Clone, Debug, PartialEq)]
     pub struct TestPackedTypes {
-        packed_int32: Repeated<i32>,
-        packed_int64: Repeated<i64>,
-        packed_uint32: Repeated<u32>,
-        packed_uint64: Repeated<u64>,
-        packed_sint32: Repeated<i32>,
-        packed_sint64: Repeated<i64>,
-        packed_fixed32: Repeated<u32>,
-        packed_fixed64: Repeated<u64>,
-        packed_sfixed32: Repeated<i32>,
-        packed_sfixed64: Repeated<i64>,
-        packed_float: Repeated<f32>,
-        packed_double: Repeated<f64>,
-        packed_bool: Repeated<bool>,
-        packed_enum: Repeated<i32>,
+        packed_int32: protobuf::rt::PackedI32,
+        packed_int64: protobuf::rt::PackedI64,
+        packed_uint32: protobuf::rt::PackedU32,
+        packed_uint64: protobuf::rt::PackedU64,
+        packed_sint32: protobuf::rt::PackedS32,
+        packed_sint64: protobuf::rt::PackedS64,
+        packed_fixed32: protobuf::rt::PackedFx32,
+        packed_fixed64: protobuf::rt::PackedFx64,
+        packed_sfixed32: protobuf::rt::PackedSfx32,
+        packed_sfixed64: protobuf::rt::PackedSfx64,
+        packed_float: protobuf::rt::PackedF32,
+        packed_double: protobuf::rt::PackedF64,
+        packed_bool: protobuf::rt::PackedBool,
+        packed_enum: protobuf::rt::PackedI32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
     impl Default for TestPackedTypes {
         fn default() -> Self {
             Self {
-                packed_int32: Repeated::new(),
-                packed_int64: Repeated::new(),
-                packed_uint32: Repeated::new(),
-                packed_uint64: Repeated::new(),
-                packed_sint32: Repeated::new(),
-                packed_sint64: Repeated::new(),
-                packed_fixed32: Repeated::new(),
-                packed_fixed64: Repeated::new(),
-                packed_sfixed32: Repeated::new(),
-                packed_sfixed64: Repeated::new(),
-                packed_float: Repeated::new(),
-                packed_double: Repeated::new(),
-                packed_bool: Repeated::new(),
-                packed_enum: Repeated::new(),
+                packed_int32: protobuf::rt::PackedI32::new(),
+                packed_int64: protobuf::rt::PackedI64::new(),
+                packed_uint32: protobuf::rt::PackedU32::new(),
+                packed_uint64: protobuf::rt::PackedU64::new(),
+                packed_sint32: protobuf::rt::PackedS32::new(),
+                packed_sint64: protobuf::rt::PackedS64::new(),
+                packed_fixed32: protobuf::rt::PackedFx32::new(),
+                packed_fixed64: protobuf::rt::PackedFx64::new(),
+                packed_sfixed32: protobuf::rt::PackedSfx32::new(),
+                packed_sfixed64: protobuf::rt::PackedSfx64::new(),
+                packed_float: protobuf::rt::PackedF32::new(),
+                packed_double: protobuf::rt::PackedF64::new(),
+                packed_bool: protobuf::rt::PackedBool::new(),
+                packed_enum: protobuf::rt::PackedI32::new(),
                 unknown: UnknownFields::default(),
                 cached_size: protobuf::rt::CachedSize::default(),
             }
@@ -4025,7 +4114,7 @@ mod __gen {
         }
         pub fn set_packed_int32(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.packed_int32 = v;
+            self.packed_int32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_int64(&self) -> RepeatedView<'_, i64> {
             self.packed_int64.as_view()
@@ -4036,7 +4125,7 @@ mod __gen {
         }
         pub fn set_packed_int64(&mut self, v: Repeated<i64>) {
             self.cached_size.dirty();
-            self.packed_int64 = v;
+            self.packed_int64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_uint32(&self) -> RepeatedView<'_, u32> {
             self.packed_uint32.as_view()
@@ -4047,7 +4136,7 @@ mod __gen {
         }
         pub fn set_packed_uint32(&mut self, v: Repeated<u32>) {
             self.cached_size.dirty();
-            self.packed_uint32 = v;
+            self.packed_uint32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_uint64(&self) -> RepeatedView<'_, u64> {
             self.packed_uint64.as_view()
@@ -4058,7 +4147,7 @@ mod __gen {
         }
         pub fn set_packed_uint64(&mut self, v: Repeated<u64>) {
             self.cached_size.dirty();
-            self.packed_uint64 = v;
+            self.packed_uint64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_sint32(&self) -> RepeatedView<'_, i32> {
             self.packed_sint32.as_view()
@@ -4069,7 +4158,7 @@ mod __gen {
         }
         pub fn set_packed_sint32(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.packed_sint32 = v;
+            self.packed_sint32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_sint64(&self) -> RepeatedView<'_, i64> {
             self.packed_sint64.as_view()
@@ -4080,7 +4169,7 @@ mod __gen {
         }
         pub fn set_packed_sint64(&mut self, v: Repeated<i64>) {
             self.cached_size.dirty();
-            self.packed_sint64 = v;
+            self.packed_sint64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_fixed32(&self) -> RepeatedView<'_, u32> {
             self.packed_fixed32.as_view()
@@ -4091,7 +4180,7 @@ mod __gen {
         }
         pub fn set_packed_fixed32(&mut self, v: Repeated<u32>) {
             self.cached_size.dirty();
-            self.packed_fixed32 = v;
+            self.packed_fixed32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_fixed64(&self) -> RepeatedView<'_, u64> {
             self.packed_fixed64.as_view()
@@ -4102,7 +4191,7 @@ mod __gen {
         }
         pub fn set_packed_fixed64(&mut self, v: Repeated<u64>) {
             self.cached_size.dirty();
-            self.packed_fixed64 = v;
+            self.packed_fixed64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.packed_sfixed32.as_view()
@@ -4113,7 +4202,7 @@ mod __gen {
         }
         pub fn set_packed_sfixed32(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.packed_sfixed32 = v;
+            self.packed_sfixed32 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_sfixed64(&self) -> RepeatedView<'_, i64> {
             self.packed_sfixed64.as_view()
@@ -4124,7 +4213,7 @@ mod __gen {
         }
         pub fn set_packed_sfixed64(&mut self, v: Repeated<i64>) {
             self.cached_size.dirty();
-            self.packed_sfixed64 = v;
+            self.packed_sfixed64 = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_float(&self) -> RepeatedView<'_, f32> {
             self.packed_float.as_view()
@@ -4135,7 +4224,7 @@ mod __gen {
         }
         pub fn set_packed_float(&mut self, v: Repeated<f32>) {
             self.cached_size.dirty();
-            self.packed_float = v;
+            self.packed_float = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_double(&self) -> RepeatedView<'_, f64> {
             self.packed_double.as_view()
@@ -4146,7 +4235,7 @@ mod __gen {
         }
         pub fn set_packed_double(&mut self, v: Repeated<f64>) {
             self.cached_size.dirty();
-            self.packed_double = v;
+            self.packed_double = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_bool(&self) -> RepeatedView<'_, bool> {
             self.packed_bool.as_view()
@@ -4157,7 +4246,7 @@ mod __gen {
         }
         pub fn set_packed_bool(&mut self, v: Repeated<bool>) {
             self.cached_size.dirty();
-            self.packed_bool = v;
+            self.packed_bool = protobuf::rt::Packed::from_repeated(v);
         }
         pub fn packed_enum(&self) -> RepeatedView<'_, i32> {
             self.packed_enum.as_view()
@@ -4168,7 +4257,7 @@ mod __gen {
         }
         pub fn set_packed_enum(&mut self, v: Repeated<i32>) {
             self.cached_size.dirty();
-            self.packed_enum = v;
+            self.packed_enum = protobuf::rt::Packed::from_repeated(v);
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -4215,157 +4304,99 @@ mod __gen {
                 }
                 match (n, w) {
                     (90, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_int32
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_int32.append_wire(wire.window(s, e))?;
                     }
                     (90, protobuf::rt::WIRE_VARINT) => self
                         .packed_int32
                         .push(protobuf::rt::decode_varint(data, pos)? as i32),
                     (91, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_int64
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i64);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_int64.append_wire(wire.window(s, e))?;
                     }
                     (91, protobuf::rt::WIRE_VARINT) => self
                         .packed_int64
                         .push(protobuf::rt::decode_varint(data, pos)? as i64),
                     (92, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_uint32
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as u32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_uint32.append_wire(wire.window(s, e))?;
                     }
                     (92, protobuf::rt::WIRE_VARINT) => self
                         .packed_uint32
                         .push(protobuf::rt::decode_varint(data, pos)? as u32),
                     (93, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_uint64
-                                .push(protobuf::rt::decode_varint(p, &mut i)?);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_uint64.append_wire(wire.window(s, e))?;
                     }
                     (93, protobuf::rt::WIRE_VARINT) => self
                         .packed_uint64
                         .push(protobuf::rt::decode_varint(data, pos)?),
                     (94, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_sint32.push(protobuf::rt::decode_zigzag32(
-                                protobuf::rt::decode_varint(p, &mut i)?,
-                            ));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_sint32.append_wire(wire.window(s, e))?;
                     }
                     (94, protobuf::rt::WIRE_VARINT) => self.packed_sint32.push(
                         protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(data, pos)?),
                     ),
                     (95, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_sint64.push(protobuf::rt::decode_zigzag64(
-                                protobuf::rt::decode_varint(p, &mut i)?,
-                            ));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_sint64.append_wire(wire.window(s, e))?;
                     }
                     (95, protobuf::rt::WIRE_VARINT) => self.packed_sint64.push(
                         protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(data, pos)?),
                     ),
                     (96, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_fixed32
-                                .push(protobuf::rt::read_fixed32(p, &mut i)?);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_fixed32.append_wire(wire.window(s, e))?;
                     }
                     (96, protobuf::rt::WIRE_I32) => self
                         .packed_fixed32
                         .push(protobuf::rt::read_fixed32(data, pos)?),
                     (97, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_fixed64
-                                .push(protobuf::rt::read_fixed64(p, &mut i)?);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_fixed64.append_wire(wire.window(s, e))?;
                     }
                     (97, protobuf::rt::WIRE_I64) => self
                         .packed_fixed64
                         .push(protobuf::rt::read_fixed64(data, pos)?),
                     (98, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_sfixed32
-                                .push(protobuf::rt::read_fixed32(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_sfixed32.append_wire(wire.window(s, e))?;
                     }
                     (98, protobuf::rt::WIRE_I32) => self
                         .packed_sfixed32
                         .push(protobuf::rt::read_fixed32(data, pos)? as i32),
                     (99, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_sfixed64
-                                .push(protobuf::rt::read_fixed64(p, &mut i)? as i64);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_sfixed64.append_wire(wire.window(s, e))?;
                     }
                     (99, protobuf::rt::WIRE_I64) => self
                         .packed_sfixed64
                         .push(protobuf::rt::read_fixed64(data, pos)? as i64),
                     (100, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_float
-                                .push(f32::from_bits(protobuf::rt::read_fixed32(p, &mut i)?));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_float.append_wire(wire.window(s, e))?;
                     }
                     (100, protobuf::rt::WIRE_I32) => self
                         .packed_float
                         .push(f32::from_bits(protobuf::rt::read_fixed32(data, pos)?)),
                     (101, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_double
-                                .push(f64::from_bits(protobuf::rt::read_fixed64(p, &mut i)?));
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_double.append_wire(wire.window(s, e))?;
                     }
                     (101, protobuf::rt::WIRE_I64) => self
                         .packed_double
                         .push(f64::from_bits(protobuf::rt::read_fixed64(data, pos)?)),
                     (102, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_bool
-                                .push(protobuf::rt::decode_varint(p, &mut i)? != 0);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_bool.append_wire(wire.window(s, e))?;
                     }
                     (102, protobuf::rt::WIRE_VARINT) => self
                         .packed_bool
                         .push(protobuf::rt::decode_varint(data, pos)? != 0),
                     (103, protobuf::rt::WIRE_LEN) => {
-                        let p = protobuf::rt::read_len_bytes(data, pos)?;
-                        let mut i = 0;
-                        while i < p.len() {
-                            self.packed_enum
-                                .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
-                        }
+                        let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        self.packed_enum.append_wire(wire.window(s, e))?;
                     }
                     (103, protobuf::rt::WIRE_VARINT) => self
                         .packed_enum
@@ -4386,98 +4417,126 @@ mod __gen {
                 return n;
             }
             let mut n = self.unknown.encoded_len();
-            if !self.packed_int32.is_empty() {
+            if let Some(p) = self.packed_int32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(90, p.len() as u64);
+            } else if !self.packed_int32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_int32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(90, payload);
             }
-            if !self.packed_int64.is_empty() {
+            if let Some(p) = self.packed_int64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(91, p.len() as u64);
+            } else if !self.packed_int64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_int64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(91, payload);
             }
-            if !self.packed_uint32.is_empty() {
+            if let Some(p) = self.packed_uint32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(92, p.len() as u64);
+            } else if !self.packed_uint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_uint32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(92, payload);
             }
-            if !self.packed_uint64.is_empty() {
+            if let Some(p) = self.packed_uint64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(93, p.len() as u64);
+            } else if !self.packed_uint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_uint64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
                 }
                 n += protobuf::rt::key_len_value_len(93, payload);
             }
-            if !self.packed_sint32.is_empty() {
+            if let Some(p) = self.packed_sint32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(94, p.len() as u64);
+            } else if !self.packed_sint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sint32.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
                 }
                 n += protobuf::rt::key_len_value_len(94, payload);
             }
-            if !self.packed_sint64.is_empty() {
+            if let Some(p) = self.packed_sint64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(95, p.len() as u64);
+            } else if !self.packed_sint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sint64.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
                 }
                 n += protobuf::rt::key_len_value_len(95, payload);
             }
-            if !self.packed_fixed32.is_empty() {
+            if let Some(p) = self.packed_fixed32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(96, p.len() as u64);
+            } else if !self.packed_fixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_fixed32.iter() {
                     payload += 4;
                 }
                 n += protobuf::rt::key_len_value_len(96, payload);
             }
-            if !self.packed_fixed64.is_empty() {
+            if let Some(p) = self.packed_fixed64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(97, p.len() as u64);
+            } else if !self.packed_fixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_fixed64.iter() {
                     payload += 8;
                 }
                 n += protobuf::rt::key_len_value_len(97, payload);
             }
-            if !self.packed_sfixed32.is_empty() {
+            if let Some(p) = self.packed_sfixed32.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(98, p.len() as u64);
+            } else if !self.packed_sfixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sfixed32.iter() {
                     payload += 4;
                 }
                 n += protobuf::rt::key_len_value_len(98, payload);
             }
-            if !self.packed_sfixed64.is_empty() {
+            if let Some(p) = self.packed_sfixed64.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(99, p.len() as u64);
+            } else if !self.packed_sfixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sfixed64.iter() {
                     payload += 8;
                 }
                 n += protobuf::rt::key_len_value_len(99, payload);
             }
-            if !self.packed_float.is_empty() {
+            if let Some(p) = self.packed_float.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(100, p.len() as u64);
+            } else if !self.packed_float.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_float.iter() {
                     payload += 4;
                 }
                 n += protobuf::rt::key_len_value_len(100, payload);
             }
-            if !self.packed_double.is_empty() {
+            if let Some(p) = self.packed_double.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(101, p.len() as u64);
+            } else if !self.packed_double.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_double.iter() {
                     payload += 8;
                 }
                 n += protobuf::rt::key_len_value_len(101, payload);
             }
-            if !self.packed_bool.is_empty() {
+            if let Some(p) = self.packed_bool.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(102, p.len() as u64);
+            } else if !self.packed_bool.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_bool.iter() {
                     payload += protobuf::rt::varint_len(u64::from(*t));
                 }
                 n += protobuf::rt::key_len_value_len(102, payload);
             }
-            if !self.packed_enum.is_empty() {
+            if let Some(p) = self.packed_enum.packed_bytes() {
+                n += protobuf::rt::key_len_value_len(103, p.len() as u64);
+            } else if !self.packed_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -4488,7 +4547,10 @@ mod __gen {
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
-            if !self.packed_int32.is_empty() {
+            if let Some(p) = self.packed_int32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 90, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_int32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_int32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -4498,7 +4560,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.packed_int64.is_empty() {
+            if let Some(p) = self.packed_int64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 91, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_int64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_int64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -4508,7 +4573,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.packed_uint32.is_empty() {
+            if let Some(p) = self.packed_uint32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 92, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_uint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_uint32.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -4518,7 +4586,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.packed_uint64.is_empty() {
+            if let Some(p) = self.packed_uint64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 93, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_uint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_uint64.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -4528,7 +4599,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, *t as u64);
                 }
             }
-            if !self.packed_sint32.is_empty() {
+            if let Some(p) = self.packed_sint32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 94, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_sint32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sint32.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
@@ -4538,7 +4612,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag32(*t));
                 }
             }
-            if !self.packed_sint64.is_empty() {
+            if let Some(p) = self.packed_sint64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 95, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_sint64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sint64.iter() {
                     payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
@@ -4548,7 +4625,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag64(*t));
                 }
             }
-            if !self.packed_fixed32.is_empty() {
+            if let Some(p) = self.packed_fixed32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 96, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_fixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_fixed32.iter() {
                     payload += 4;
@@ -4558,7 +4638,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_le_bytes());
                 }
             }
-            if !self.packed_fixed64.is_empty() {
+            if let Some(p) = self.packed_fixed64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 97, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_fixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_fixed64.iter() {
                     payload += 8;
@@ -4568,7 +4651,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_le_bytes());
                 }
             }
-            if !self.packed_sfixed32.is_empty() {
+            if let Some(p) = self.packed_sfixed32.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 98, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_sfixed32.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sfixed32.iter() {
                     payload += 4;
@@ -4578,7 +4664,10 @@ mod __gen {
                     (out).extend_from_slice(&((*t) as u32).to_le_bytes());
                 }
             }
-            if !self.packed_sfixed64.is_empty() {
+            if let Some(p) = self.packed_sfixed64.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 99, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_sfixed64.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_sfixed64.iter() {
                     payload += 8;
@@ -4588,7 +4677,10 @@ mod __gen {
                     (out).extend_from_slice(&((*t) as u64).to_le_bytes());
                 }
             }
-            if !self.packed_float.is_empty() {
+            if let Some(p) = self.packed_float.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 100, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_float.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_float.iter() {
                     payload += 4;
@@ -4598,7 +4690,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                 }
             }
-            if !self.packed_double.is_empty() {
+            if let Some(p) = self.packed_double.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 101, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_double.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_double.iter() {
                     payload += 8;
@@ -4608,7 +4703,10 @@ mod __gen {
                     (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                 }
             }
-            if !self.packed_bool.is_empty() {
+            if let Some(p) = self.packed_bool.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 102, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_bool.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_bool.iter() {
                     payload += protobuf::rt::varint_len(u64::from(*t));
@@ -4618,7 +4716,10 @@ mod __gen {
                     protobuf::rt::encode_varint(out, u64::from(*t));
                 }
             }
-            if !self.packed_enum.is_empty() {
+            if let Some(p) = self.packed_enum.packed_bytes() {
+                protobuf::rt::encode_len_header(out, 103, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_enum.is_empty() {
                 let mut payload = 0u64;
                 for t in self.packed_enum.iter() {
                     payload += protobuf::rt::varint_len((*t) as u64);
@@ -5186,12 +5287,19 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "rust_unittest_import.ImportMessage";
+        pub fn has_d(&self) -> bool {
+            self.d.is_some()
+        }
         pub fn d(&self) -> i32 {
             self.d.unwrap_or_default()
         }
         pub fn set_d(&mut self, v: i32) {
             self.cached_size.dirty();
             self.d = Some(v);
+        }
+        pub fn clear_d(&mut self) {
+            self.cached_size.dirty();
+            self.d = None;
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
