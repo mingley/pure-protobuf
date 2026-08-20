@@ -5,8 +5,8 @@ mod __gen {
     use protobuf::prelude::*;
     use protobuf::UnknownFields;
     use protobuf::{
-        Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError,
+        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
+        RepeatedView, SerializeError, UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<protobuf::DescriptorPool> {
@@ -31,9 +31,9 @@ mod __gen {
             self.cached_size.dirty();
             self.paths.as_mut()
         }
-        pub fn set_paths(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
+        pub fn set_paths(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyStr>) {
             self.cached_size.dirty();
-            self.paths = v;
+            self.paths = v.into_iter().collect();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);

@@ -5,11 +5,81 @@ mod __gen {
     use protobuf::prelude::*;
     use protobuf::UnknownFields;
     use protobuf::{
-        Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError,
+        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
+        RepeatedView, SerializeError, UnknownEnumValue,
     };
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct NestedEnum(i32);
+    #[allow(non_upper_case_globals)]
+    impl NestedEnum {
+        pub const Unspecified: NestedEnum = NestedEnum(0);
+        pub const Foo: NestedEnum = NestedEnum(1);
+        pub const Bar: NestedEnum = NestedEnum(2);
+        pub const Baz: NestedEnum = NestedEnum(3);
+        pub const Neg: NestedEnum = NestedEnum(-1);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                0 => "Unspecified",
+                1 => "Foo",
+                2 => "Bar",
+                3 => "Baz",
+                -1 => "Neg",
+                _ => return None,
+            })
+        }
+    }
+    impl From<NestedEnum> for i32 {
+        fn from(v: NestedEnum) -> i32 {
+            v.0
+        }
+    }
+    impl From<i32> for NestedEnum {
+        fn from(val: i32) -> Self {
+            Self(val)
+        }
+    }
+    impl Default for NestedEnum {
+        fn default() -> Self {
+            Self(0)
+        }
+    }
+    impl std::fmt::Debug for NestedEnum {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "NestedEnum::{n}")
+            } else {
+                write!(f, "NestedEnum::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for NestedEnum {}
+    impl protobuf::Proxied for NestedEnum {
+        type View<'msg> = NestedEnum;
+    }
+    impl protobuf::AsView for NestedEnum {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for NestedEnum {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for NestedEnum {
+        const NAME: &'static str = "NestedEnum";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 0 | 1 | 2 | 3 | -1)
+        }
+    }
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestProto3Optional {
         optional_int32: Option<i32>,
         optional_int64: Option<i64>,
@@ -35,35 +105,6 @@ mod __gen {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
-    impl Default for TestProto3Optional {
-        fn default() -> Self {
-            Self {
-                optional_int32: None,
-                optional_int64: None,
-                optional_uint32: None,
-                optional_uint64: None,
-                optional_sint32: None,
-                optional_sint64: None,
-                optional_fixed32: None,
-                optional_fixed64: None,
-                optional_sfixed32: None,
-                optional_sfixed64: None,
-                optional_float: None,
-                optional_double: None,
-                optional_bool: None,
-                optional_string: None,
-                optional_bytes: None,
-                optional_cord: None,
-                optional_nested_message: Default::default(),
-                lazy_nested_message: Default::default(),
-                optional_nested_enum: None,
-                singular_int32: Default::default(),
-                singular_int64: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
-    }
     impl TestProto3Optional {
         pub fn new() -> Self {
             Self::default()
@@ -73,7 +114,10 @@ mod __gen {
             self.optional_int32.is_some()
         }
         pub fn optional_int32(&self) -> i32 {
-            self.optional_int32.unwrap_or_default()
+            self.optional_int32.unwrap_or(0)
+        }
+        pub fn optional_int32_opt(&self) -> Option<i32> {
+            self.optional_int32.map(|v| v)
         }
         pub fn set_optional_int32(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -87,7 +131,10 @@ mod __gen {
             self.optional_int64.is_some()
         }
         pub fn optional_int64(&self) -> i64 {
-            self.optional_int64.unwrap_or_default()
+            self.optional_int64.unwrap_or(0)
+        }
+        pub fn optional_int64_opt(&self) -> Option<i64> {
+            self.optional_int64.map(|v| v)
         }
         pub fn set_optional_int64(&mut self, v: i64) {
             self.cached_size.dirty();
@@ -101,7 +148,10 @@ mod __gen {
             self.optional_uint32.is_some()
         }
         pub fn optional_uint32(&self) -> u32 {
-            self.optional_uint32.unwrap_or_default()
+            self.optional_uint32.unwrap_or(0)
+        }
+        pub fn optional_uint32_opt(&self) -> Option<u32> {
+            self.optional_uint32.map(|v| v)
         }
         pub fn set_optional_uint32(&mut self, v: u32) {
             self.cached_size.dirty();
@@ -115,7 +165,10 @@ mod __gen {
             self.optional_uint64.is_some()
         }
         pub fn optional_uint64(&self) -> u64 {
-            self.optional_uint64.unwrap_or_default()
+            self.optional_uint64.unwrap_or(0)
+        }
+        pub fn optional_uint64_opt(&self) -> Option<u64> {
+            self.optional_uint64.map(|v| v)
         }
         pub fn set_optional_uint64(&mut self, v: u64) {
             self.cached_size.dirty();
@@ -129,7 +182,10 @@ mod __gen {
             self.optional_sint32.is_some()
         }
         pub fn optional_sint32(&self) -> i32 {
-            self.optional_sint32.unwrap_or_default()
+            self.optional_sint32.unwrap_or(0)
+        }
+        pub fn optional_sint32_opt(&self) -> Option<i32> {
+            self.optional_sint32.map(|v| v)
         }
         pub fn set_optional_sint32(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -143,7 +199,10 @@ mod __gen {
             self.optional_sint64.is_some()
         }
         pub fn optional_sint64(&self) -> i64 {
-            self.optional_sint64.unwrap_or_default()
+            self.optional_sint64.unwrap_or(0)
+        }
+        pub fn optional_sint64_opt(&self) -> Option<i64> {
+            self.optional_sint64.map(|v| v)
         }
         pub fn set_optional_sint64(&mut self, v: i64) {
             self.cached_size.dirty();
@@ -157,7 +216,10 @@ mod __gen {
             self.optional_fixed32.is_some()
         }
         pub fn optional_fixed32(&self) -> u32 {
-            self.optional_fixed32.unwrap_or_default()
+            self.optional_fixed32.unwrap_or(0)
+        }
+        pub fn optional_fixed32_opt(&self) -> Option<u32> {
+            self.optional_fixed32.map(|v| v)
         }
         pub fn set_optional_fixed32(&mut self, v: u32) {
             self.cached_size.dirty();
@@ -171,7 +233,10 @@ mod __gen {
             self.optional_fixed64.is_some()
         }
         pub fn optional_fixed64(&self) -> u64 {
-            self.optional_fixed64.unwrap_or_default()
+            self.optional_fixed64.unwrap_or(0)
+        }
+        pub fn optional_fixed64_opt(&self) -> Option<u64> {
+            self.optional_fixed64.map(|v| v)
         }
         pub fn set_optional_fixed64(&mut self, v: u64) {
             self.cached_size.dirty();
@@ -185,7 +250,10 @@ mod __gen {
             self.optional_sfixed32.is_some()
         }
         pub fn optional_sfixed32(&self) -> i32 {
-            self.optional_sfixed32.unwrap_or_default()
+            self.optional_sfixed32.unwrap_or(0)
+        }
+        pub fn optional_sfixed32_opt(&self) -> Option<i32> {
+            self.optional_sfixed32.map(|v| v)
         }
         pub fn set_optional_sfixed32(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -199,7 +267,10 @@ mod __gen {
             self.optional_sfixed64.is_some()
         }
         pub fn optional_sfixed64(&self) -> i64 {
-            self.optional_sfixed64.unwrap_or_default()
+            self.optional_sfixed64.unwrap_or(0)
+        }
+        pub fn optional_sfixed64_opt(&self) -> Option<i64> {
+            self.optional_sfixed64.map(|v| v)
         }
         pub fn set_optional_sfixed64(&mut self, v: i64) {
             self.cached_size.dirty();
@@ -213,7 +284,10 @@ mod __gen {
             self.optional_float.is_some()
         }
         pub fn optional_float(&self) -> f32 {
-            self.optional_float.unwrap_or_default()
+            self.optional_float.unwrap_or(0.0)
+        }
+        pub fn optional_float_opt(&self) -> Option<f32> {
+            self.optional_float.map(|v| v)
         }
         pub fn set_optional_float(&mut self, v: f32) {
             self.cached_size.dirty();
@@ -227,7 +301,10 @@ mod __gen {
             self.optional_double.is_some()
         }
         pub fn optional_double(&self) -> f64 {
-            self.optional_double.unwrap_or_default()
+            self.optional_double.unwrap_or(0.0)
+        }
+        pub fn optional_double_opt(&self) -> Option<f64> {
+            self.optional_double.map(|v| v)
         }
         pub fn set_optional_double(&mut self, v: f64) {
             self.cached_size.dirty();
@@ -241,7 +318,10 @@ mod __gen {
             self.optional_bool.is_some()
         }
         pub fn optional_bool(&self) -> bool {
-            self.optional_bool.unwrap_or_default()
+            self.optional_bool.unwrap_or(false)
+        }
+        pub fn optional_bool_opt(&self) -> Option<bool> {
+            self.optional_bool.map(|v| v)
         }
         pub fn set_optional_bool(&mut self, v: bool) {
             self.cached_size.dirty();
@@ -260,6 +340,9 @@ mod __gen {
                 .map(|s| s.as_view())
                 .unwrap_or_else(|| protobuf::ProtoStr::from_bytes(b""))
         }
+        pub fn optional_string_opt(&self) -> Option<&protobuf::ProtoStr> {
+            self.optional_string.as_ref().map(|s| s.as_view())
+        }
         pub fn set_optional_string(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
             self.optional_string = Some(protobuf::rt::LazyStr::owned(v.into_proxied()));
@@ -272,7 +355,10 @@ mod __gen {
             self.optional_bytes
                 .as_ref()
                 .map(|b| b.as_bytes())
-                .unwrap_or(&[])
+                .unwrap_or(b"")
+        }
+        pub fn optional_bytes_opt(&self) -> Option<&[u8]> {
+            self.optional_bytes.as_ref().map(|b| b.as_bytes())
         }
         pub fn has_optional_bytes(&self) -> bool {
             self.optional_bytes.is_some()
@@ -280,6 +366,10 @@ mod __gen {
         pub fn set_optional_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
             self.optional_bytes = Some(protobuf::rt::LazyBytes::owned(v.into_proxied()));
+        }
+        pub fn clear_optional_bytes(&mut self) {
+            self.cached_size.dirty();
+            self.optional_bytes = None;
         }
         pub fn has_optional_cord(&self) -> bool {
             self.optional_cord.is_some()
@@ -289,6 +379,9 @@ mod __gen {
                 .as_ref()
                 .map(|s| s.as_view())
                 .unwrap_or_else(|| protobuf::ProtoStr::from_bytes(b""))
+        }
+        pub fn optional_cord_opt(&self) -> Option<&protobuf::ProtoStr> {
+            self.optional_cord.as_ref().map(|s| s.as_view())
         }
         pub fn set_optional_cord(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
@@ -301,13 +394,16 @@ mod __gen {
         pub fn has_optional_nested_message(&self) -> bool {
             self.optional_nested_message.is_some()
         }
-        pub fn optional_nested_message(&self) -> Option<&NestedMessage> {
-            self.optional_nested_message.as_deref()
-        }
-        pub fn optional_nested_message_view(&self) -> Option<NestedMessageView<'_>> {
+        pub fn optional_nested_message(&self) -> &NestedMessage {
             self.optional_nested_message
                 .as_deref()
-                .map(NestedMessageView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_nested_message_opt(&self) -> Option<&NestedMessage> {
+            self.optional_nested_message.as_deref()
+        }
+        pub fn optional_nested_message_view(&self) -> NestedMessageView<'_> {
+            NestedMessageView(self.optional_nested_message())
         }
         pub fn set_optional_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
@@ -324,11 +420,16 @@ mod __gen {
         pub fn has_lazy_nested_message(&self) -> bool {
             self.lazy_nested_message.is_some()
         }
-        pub fn lazy_nested_message(&self) -> Option<&NestedMessage> {
+        pub fn lazy_nested_message(&self) -> &NestedMessage {
+            self.lazy_nested_message
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn lazy_nested_message_opt(&self) -> Option<&NestedMessage> {
             self.lazy_nested_message.as_deref()
         }
-        pub fn lazy_nested_message_view(&self) -> Option<NestedMessageView<'_>> {
-            self.lazy_nested_message.as_deref().map(NestedMessageView)
+        pub fn lazy_nested_message_view(&self) -> NestedMessageView<'_> {
+            NestedMessageView(self.lazy_nested_message())
         }
         pub fn set_lazy_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
@@ -345,12 +446,15 @@ mod __gen {
         pub fn has_optional_nested_enum(&self) -> bool {
             self.optional_nested_enum.is_some()
         }
-        pub fn optional_nested_enum(&self) -> i32 {
-            self.optional_nested_enum.unwrap_or_default()
+        pub fn optional_nested_enum(&self) -> NestedEnum {
+            NestedEnum(self.optional_nested_enum.unwrap_or(0))
         }
-        pub fn set_optional_nested_enum(&mut self, v: i32) {
+        pub fn optional_nested_enum_opt(&self) -> Option<NestedEnum> {
+            self.optional_nested_enum.map(|v| NestedEnum(v))
+        }
+        pub fn set_optional_nested_enum(&mut self, v: impl Into<i32>) {
             self.cached_size.dirty();
-            self.optional_nested_enum = Some(v);
+            self.optional_nested_enum = Some(v.into());
         }
         pub fn clear_optional_nested_enum(&mut self) {
             self.cached_size.dirty();
@@ -732,20 +836,11 @@ mod __gen {
         TestProto3OptionalView,
         TestProto3OptionalMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct NestedMessage {
         bb: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for NestedMessage {
-        fn default() -> Self {
-            Self {
-                bb: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl NestedMessage {
         pub fn new() -> Self {
@@ -757,7 +852,10 @@ mod __gen {
             self.bb.is_some()
         }
         pub fn bb(&self) -> i32 {
-            self.bb.unwrap_or_default()
+            self.bb.unwrap_or(0)
+        }
+        pub fn bb_opt(&self) -> Option<i32> {
+            self.bb.map(|v| v)
         }
         pub fn set_bb(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -846,22 +944,12 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestProto3OptionalMessage {
         nested_message: protobuf::rt::LazyMsg<TestProto3OptionalMessageNestedMessage>,
         optional_nested_message: protobuf::rt::LazyMsg<TestProto3OptionalMessageNestedMessage>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestProto3OptionalMessage {
-        fn default() -> Self {
-            Self {
-                nested_message: Default::default(),
-                optional_nested_message: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestProto3OptionalMessage {
         pub fn new() -> Self {
@@ -872,15 +960,16 @@ mod __gen {
         pub fn has_nested_message(&self) -> bool {
             self.nested_message.is_some()
         }
-        pub fn nested_message(&self) -> Option<&TestProto3OptionalMessageNestedMessage> {
-            self.nested_message.as_deref()
-        }
-        pub fn nested_message_view(
-            &self,
-        ) -> Option<TestProto3OptionalMessageNestedMessageView<'_>> {
+        pub fn nested_message(&self) -> &TestProto3OptionalMessageNestedMessage {
             self.nested_message
                 .as_deref()
-                .map(TestProto3OptionalMessageNestedMessageView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn nested_message_opt(&self) -> Option<&TestProto3OptionalMessageNestedMessage> {
+            self.nested_message.as_deref()
+        }
+        pub fn nested_message_view(&self) -> TestProto3OptionalMessageNestedMessageView<'_> {
+            TestProto3OptionalMessageNestedMessageView(self.nested_message())
         }
         pub fn set_nested_message(&mut self, v: TestProto3OptionalMessageNestedMessage) {
             self.cached_size.dirty();
@@ -897,15 +986,20 @@ mod __gen {
         pub fn has_optional_nested_message(&self) -> bool {
             self.optional_nested_message.is_some()
         }
-        pub fn optional_nested_message(&self) -> Option<&TestProto3OptionalMessageNestedMessage> {
+        pub fn optional_nested_message(&self) -> &TestProto3OptionalMessageNestedMessage {
+            self.optional_nested_message
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_nested_message_opt(
+            &self,
+        ) -> Option<&TestProto3OptionalMessageNestedMessage> {
             self.optional_nested_message.as_deref()
         }
         pub fn optional_nested_message_view(
             &self,
-        ) -> Option<TestProto3OptionalMessageNestedMessageView<'_>> {
-            self.optional_nested_message
-                .as_deref()
-                .map(TestProto3OptionalMessageNestedMessageView)
+        ) -> TestProto3OptionalMessageNestedMessageView<'_> {
+            TestProto3OptionalMessageNestedMessageView(self.optional_nested_message())
         }
         pub fn set_optional_nested_message(&mut self, v: TestProto3OptionalMessageNestedMessage) {
             self.cached_size.dirty();
@@ -1067,20 +1161,11 @@ mod __gen {
         TestProto3OptionalMessageView,
         TestProto3OptionalMessageMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestProto3OptionalMessageNestedMessage {
         s: protobuf::rt::LazyStr,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestProto3OptionalMessageNestedMessage {
-        fn default() -> Self {
-            Self {
-                s: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestProto3OptionalMessageNestedMessage {
         pub fn new() -> Self {
@@ -1179,5 +1264,12 @@ mod __gen {
         TestProto3OptionalMessageNestedMessageView,
         TestProto3OptionalMessageNestedMessageMut
     );
+    pub mod test_proto3_optional {
+        pub use super::NestedEnum;
+        pub use super::NestedMessage;
+    }
+    pub mod test_proto3_optional_message {
+        pub use super::TestProto3OptionalMessageNestedMessage as NestedMessage;
+    }
 }
 pub use __gen::*;

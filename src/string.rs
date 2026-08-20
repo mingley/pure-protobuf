@@ -25,6 +25,16 @@ impl ProtoStr {
         unsafe { &*(bytes as *const [u8] as *const ProtoStr) }
     }
 
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> &Self {
+        Self::from_bytes(s.as_bytes())
+    }
+
+    /// View over bytes that may not be UTF-8 (C++ interop / proto2).
+    pub fn from_utf8_unchecked(bytes: &[u8]) -> &Self {
+        Self::from_bytes(bytes)
+    }
+
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
@@ -234,6 +244,36 @@ impl IntoProxied<ProtoString> for &ProtoStr {
         ProtoString::from(self)
     }
 }
+impl IntoProxied<ProtoString> for std::borrow::Cow<'_, str> {
+    fn into_proxied(self) -> ProtoString {
+        ProtoString::from(self.as_ref())
+    }
+}
+impl IntoProxied<ProtoString> for Box<str> {
+    fn into_proxied(self) -> ProtoString {
+        ProtoString::from(self.as_ref())
+    }
+}
+impl IntoProxied<ProtoString> for std::rc::Rc<str> {
+    fn into_proxied(self) -> ProtoString {
+        ProtoString::from(self.as_ref())
+    }
+}
+impl IntoProxied<ProtoString> for std::sync::Arc<str> {
+    fn into_proxied(self) -> ProtoString {
+        ProtoString::from(self.as_ref())
+    }
+}
+impl IntoProxied<ProtoString> for std::ffi::OsString {
+    fn into_proxied(self) -> ProtoString {
+        ProtoString::from(self.to_string_lossy().as_ref())
+    }
+}
+impl IntoProxied<ProtoString> for &std::ffi::OsStr {
+    fn into_proxied(self) -> ProtoString {
+        ProtoString::from(self.to_string_lossy().as_ref())
+    }
+}
 
 /// Owned protobuf `bytes`.
 #[derive(Clone, Default, PartialEq, Eq, Hash)]
@@ -306,6 +346,26 @@ impl IntoProxied<ProtoBytes> for Vec<u8> {
 impl<const N: usize> IntoProxied<ProtoBytes> for &[u8; N] {
     fn into_proxied(self) -> ProtoBytes {
         ProtoBytes::from(self.as_slice())
+    }
+}
+impl IntoProxied<ProtoBytes> for std::borrow::Cow<'_, [u8]> {
+    fn into_proxied(self) -> ProtoBytes {
+        ProtoBytes::from(self.as_ref())
+    }
+}
+impl IntoProxied<ProtoBytes> for Box<[u8]> {
+    fn into_proxied(self) -> ProtoBytes {
+        ProtoBytes::from(self.as_ref())
+    }
+}
+impl IntoProxied<ProtoBytes> for std::rc::Rc<[u8]> {
+    fn into_proxied(self) -> ProtoBytes {
+        ProtoBytes::from(self.as_ref())
+    }
+}
+impl IntoProxied<ProtoBytes> for std::sync::Arc<[u8]> {
+    fn into_proxied(self) -> ProtoBytes {
+        ProtoBytes::from(self.as_ref())
     }
 }
 

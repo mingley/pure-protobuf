@@ -4,6 +4,30 @@ use crate::dynamic::{DynamicMessage, MapKeyValue, Value};
 use crate::map::{Map, MapKey, MapValue};
 use crate::repeated::Repeated;
 use crate::string::{ProtoBytes, ProtoString};
+use std::any::TypeId;
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
+struct SyncPtr(*const ());
+unsafe impl Send for SyncPtr {}
+unsafe impl Sync for SyncPtr {}
+
+/// Process-lifetime default instance (Google `View::default()`).
+pub fn default_instance_of<T: Default + Send + Sync + 'static>() -> &'static T {
+    static MAP: OnceLock<Mutex<HashMap<TypeId, SyncPtr>>> = OnceLock::new();
+    let map = MAP.get_or_init(|| Mutex::new(HashMap::new()));
+    let id = TypeId::of::<T>();
+    let mut guard = map.lock().unwrap_or_else(|e| e.into_inner());
+    let ptr = guard
+        .entry(id)
+        .or_insert_with(|| {
+            let leaked: &'static T = Box::leak(Box::new(T::default()));
+            SyncPtr(leaked as *const T as *const ())
+        })
+        .0;
+    // SAFETY: pointer was created from &'static T of this TypeId.
+    unsafe { &*(ptr as *const T) }
+}
 
 pub trait IntoMapKey {
     fn into_map_key(self) -> MapKeyValue;
@@ -650,6 +674,11 @@ macro_rules! impl_typed_message {
             type Proxied = Self;
             fn as_view(&self) -> $View<'_> {
                 $View(self)
+            }
+        }
+        impl Default for $View<'_> {
+            fn default() -> Self {
+                $View($crate::gen_support::default_instance_of::<$Owned>())
             }
         }
         impl $crate::AsMut for $Owned {

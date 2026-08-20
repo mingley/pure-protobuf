@@ -5,14 +5,80 @@ mod __gen {
     use protobuf::prelude::*;
     use protobuf::UnknownFields;
     use protobuf::{
-        Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError,
+        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
+        RepeatedView, SerializeError, UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<protobuf::DescriptorPool> {
         protobuf::gencode::conformance_pool()
     }
 
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct ForeignEnumEditionUnstable(i32);
+    #[allow(non_upper_case_globals)]
+    impl ForeignEnumEditionUnstable {
+        pub const ForeignFoo: ForeignEnumEditionUnstable = ForeignEnumEditionUnstable(0);
+        pub const ForeignBar: ForeignEnumEditionUnstable = ForeignEnumEditionUnstable(1);
+        pub const ForeignBaz: ForeignEnumEditionUnstable = ForeignEnumEditionUnstable(2);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                0 => "ForeignFoo",
+                1 => "ForeignBar",
+                2 => "ForeignBaz",
+                _ => return None,
+            })
+        }
+    }
+    impl From<ForeignEnumEditionUnstable> for i32 {
+        fn from(v: ForeignEnumEditionUnstable) -> i32 {
+            v.0
+        }
+    }
+    impl From<i32> for ForeignEnumEditionUnstable {
+        fn from(val: i32) -> Self {
+            Self(val)
+        }
+    }
+    impl Default for ForeignEnumEditionUnstable {
+        fn default() -> Self {
+            Self(0)
+        }
+    }
+    impl std::fmt::Debug for ForeignEnumEditionUnstable {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "ForeignEnumEditionUnstable::{n}")
+            } else {
+                write!(f, "ForeignEnumEditionUnstable::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for ForeignEnumEditionUnstable {}
+    impl protobuf::Proxied for ForeignEnumEditionUnstable {
+        type View<'msg> = ForeignEnumEditionUnstable;
+    }
+    impl protobuf::AsView for ForeignEnumEditionUnstable {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for ForeignEnumEditionUnstable {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for ForeignEnumEditionUnstable {
+        const NAME: &'static str = "ForeignEnumEditionUnstable";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 0 | 1 | 2)
+        }
+    }
     #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ComplexMessage {
         d: Option<i32>,
@@ -29,7 +95,10 @@ mod __gen {
             self.d.is_some()
         }
         pub fn d(&self) -> i32 {
-            self.d.unwrap_or_default()
+            self.d.unwrap_or(0)
+        }
+        pub fn d_opt(&self) -> Option<i32> {
+            self.d.map(|v| v)
         }
         pub fn set_d(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -189,7 +258,10 @@ mod __gen {
             self.c.is_some()
         }
         pub fn c(&self) -> i32 {
-            self.c.unwrap_or_default()
+            self.c.unwrap_or(0)
+        }
+        pub fn c_opt(&self) -> Option<i32> {
+            self.c.map(|v| v)
         }
         pub fn set_c(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -378,7 +450,10 @@ mod __gen {
             self.optional_int32.is_some()
         }
         pub fn optional_int32(&self) -> i32 {
-            self.optional_int32.unwrap_or_default()
+            self.optional_int32.unwrap_or(0)
+        }
+        pub fn optional_int32_opt(&self) -> Option<i32> {
+            self.optional_int32.map(|v| v)
         }
         pub fn set_optional_int32(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -391,15 +466,16 @@ mod __gen {
         pub fn has_optional_foreign_message(&self) -> bool {
             self.optional_foreign_message.is_some()
         }
-        pub fn optional_foreign_message(&self) -> Option<&ForeignMessageEditionUnstable> {
-            self.optional_foreign_message.as_deref()
-        }
-        pub fn optional_foreign_message_view(
-            &self,
-        ) -> Option<ForeignMessageEditionUnstableView<'_>> {
+        pub fn optional_foreign_message(&self) -> &ForeignMessageEditionUnstable {
             self.optional_foreign_message
                 .as_deref()
-                .map(ForeignMessageEditionUnstableView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_foreign_message_opt(&self) -> Option<&ForeignMessageEditionUnstable> {
+            self.optional_foreign_message.as_deref()
+        }
+        pub fn optional_foreign_message_view(&self) -> ForeignMessageEditionUnstableView<'_> {
+            ForeignMessageEditionUnstableView(self.optional_foreign_message())
         }
         pub fn set_optional_foreign_message(&mut self, v: ForeignMessageEditionUnstable) {
             self.cached_size.dirty();
@@ -416,12 +492,16 @@ mod __gen {
         pub fn has_optional_foreign_enum(&self) -> bool {
             self.optional_foreign_enum.is_some()
         }
-        pub fn optional_foreign_enum(&self) -> i32 {
-            self.optional_foreign_enum.unwrap_or_default()
+        pub fn optional_foreign_enum(&self) -> ForeignEnumEditionUnstable {
+            ForeignEnumEditionUnstable(self.optional_foreign_enum.unwrap_or(0))
         }
-        pub fn set_optional_foreign_enum(&mut self, v: i32) {
+        pub fn optional_foreign_enum_opt(&self) -> Option<ForeignEnumEditionUnstable> {
+            self.optional_foreign_enum
+                .map(|v| ForeignEnumEditionUnstable(v))
+        }
+        pub fn set_optional_foreign_enum(&mut self, v: impl Into<i32>) {
             self.cached_size.dirty();
-            self.optional_foreign_enum = Some(v);
+            self.optional_foreign_enum = Some(v.into());
         }
         pub fn clear_optional_foreign_enum(&mut self) {
             self.cached_size.dirty();
@@ -430,13 +510,16 @@ mod __gen {
         pub fn has_recursive_message(&self) -> bool {
             self.recursive_message.is_some()
         }
-        pub fn recursive_message(&self) -> Option<&TestAllTypesEditionUnstable> {
-            self.recursive_message.as_deref()
-        }
-        pub fn recursive_message_view(&self) -> Option<TestAllTypesEditionUnstableView<'_>> {
+        pub fn recursive_message(&self) -> &TestAllTypesEditionUnstable {
             self.recursive_message
                 .as_deref()
-                .map(TestAllTypesEditionUnstableView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn recursive_message_opt(&self) -> Option<&TestAllTypesEditionUnstable> {
+            self.recursive_message.as_deref()
+        }
+        pub fn recursive_message_view(&self) -> TestAllTypesEditionUnstableView<'_> {
+            TestAllTypesEditionUnstableView(self.recursive_message())
         }
         pub fn set_recursive_message(&mut self, v: TestAllTypesEditionUnstable) {
             self.cached_size.dirty();
@@ -457,9 +540,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_int32.as_mut()
         }
-        pub fn set_repeated_int32(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_int32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_int32 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_int32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_foreign_message(&self) -> RepeatedView<'_, ForeignMessageEditionUnstable> {
             self.repeated_foreign_message.as_view()
@@ -470,9 +553,12 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_foreign_message.as_mut()
         }
-        pub fn set_repeated_foreign_message(&mut self, v: Repeated<ForeignMessageEditionUnstable>) {
+        pub fn set_repeated_foreign_message(
+            &mut self,
+            v: impl IntoIterator<Item = ForeignMessageEditionUnstable>,
+        ) {
             self.cached_size.dirty();
-            self.repeated_foreign_message = v;
+            self.repeated_foreign_message = v.into_iter().collect();
         }
         pub fn repeated_foreign_enum(&self) -> RepeatedView<'_, i32> {
             self.repeated_foreign_enum.as_view()
@@ -481,9 +567,10 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_foreign_enum.as_mut()
         }
-        pub fn set_repeated_foreign_enum(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_foreign_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_foreign_enum = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_foreign_enum =
+                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn map_int32_int32(&self) -> MapView<'_, i32, i32> {
             self.map_int32_int32.as_view()
@@ -558,7 +645,10 @@ mod __gen {
             self.optional_bytes
                 .as_ref()
                 .map(|b| b.as_bytes())
-                .unwrap_or(&[])
+                .unwrap_or(b"")
+        }
+        pub fn optional_bytes_opt(&self) -> Option<&[u8]> {
+            self.optional_bytes.as_ref().map(|b| b.as_bytes())
         }
         pub fn has_optional_bytes(&self) -> bool {
             self.optional_bytes.is_some()
@@ -567,6 +657,10 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_bytes = Some(protobuf::rt::LazyBytes::owned(v.into_proxied()));
         }
+        pub fn clear_optional_bytes(&mut self) {
+            self.cached_size.dirty();
+            self.optional_bytes = None;
+        }
         pub fn repeated_bytes(&self) -> RepeatedView<'_, protobuf::rt::LazyBytes> {
             self.repeated_bytes.as_view()
         }
@@ -574,9 +668,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_bytes.as_mut()
         }
-        pub fn set_repeated_bytes(&mut self, v: Repeated<protobuf::rt::LazyBytes>) {
+        pub fn set_repeated_bytes(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyBytes>) {
             self.cached_size.dirty();
-            self.repeated_bytes = v;
+            self.repeated_bytes = v.into_iter().collect();
         }
         pub fn map_string_bytes(
             &self,
@@ -600,7 +694,10 @@ mod __gen {
             self.extension_int32.is_some()
         }
         pub fn extension_int32(&self) -> i32 {
-            self.extension_int32.unwrap_or_default()
+            self.extension_int32.unwrap_or(0)
+        }
+        pub fn extension_int32_opt(&self) -> Option<i32> {
+            self.extension_int32.map(|v| v)
         }
         pub fn set_extension_int32(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -735,35 +832,38 @@ mod __gen {
                     (8, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
-                            decode_map_entry_map_int32_int32_8(&wire.window(s, e), depth + 1)?;
+                            decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
+                                &wire.window(s, e),
+                                depth + 1,
+                            )?;
                         self.map_int32_int32.insert(kk, vv);
                     }
                     (9, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
-                            decode_map_entry_map_bool_bool_9(&wire.window(s, e), depth + 1)?;
+                            decode_map_entry_TestAllTypesEditionUnstable_map_bool_bool_9(
+                                &wire.window(s, e),
+                                depth + 1,
+                            )?;
                         self.map_bool_bool.insert(kk, vv);
                     }
                     (10, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
-                            decode_map_entry_map_string_string_10(&wire.window(s, e), depth + 1)?;
+                            decode_map_entry_TestAllTypesEditionUnstable_map_string_string_10(
+                                &wire.window(s, e),
+                                depth + 1,
+                            )?;
                         self.map_string_string.insert(kk, vv);
                     }
                     (11, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_string_foreign_message_11(
-                            &wire.window(s, e),
-                            depth + 1,
-                        )?;
+                        let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(&wire.window(s, e), depth + 1)?;
                         self.map_string_foreign_message.insert(kk, vv);
                     }
                     (12, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let (kk, vv) = decode_map_entry_map_string_foreign_enum_12(
-                            &wire.window(s, e),
-                            depth + 1,
-                        )?;
+                        let (kk, vv) = decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(&wire.window(s, e), depth + 1)?;
                         self.map_string_foreign_enum.insert(kk, vv);
                     }
                     (13, protobuf::rt::WIRE_LEN) => {
@@ -779,7 +879,10 @@ mod __gen {
                     (15, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
                         let (kk, vv) =
-                            decode_map_entry_map_string_bytes_15(&wire.window(s, e), depth + 1)?;
+                            decode_map_entry_TestAllTypesEditionUnstable_map_string_bytes_15(
+                                &wire.window(s, e),
+                                depth + 1,
+                            )?;
                         self.map_string_bytes.insert(kk, vv);
                     }
                     (120, protobuf::rt::WIRE_I32) => {
@@ -1072,7 +1175,7 @@ mod __gen {
         TestAllTypesEditionUnstableView,
         TestAllTypesEditionUnstableMut
     );
-    fn decode_map_entry_map_int32_int32_8(
+    fn decode_map_entry_TestAllTypesEditionUnstable_map_int32_int32_8(
         wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(i32, i32), ParseError> {
@@ -1095,7 +1198,7 @@ mod __gen {
         }
         Ok((key, val))
     }
-    fn decode_map_entry_map_bool_bool_9(
+    fn decode_map_entry_TestAllTypesEditionUnstable_map_bool_bool_9(
         wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(bool, bool), ParseError> {
@@ -1118,7 +1221,7 @@ mod __gen {
         }
         Ok((key, val))
     }
-    fn decode_map_entry_map_string_string_10(
+    fn decode_map_entry_TestAllTypesEditionUnstable_map_string_string_10(
         wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(protobuf::rt::LazyStr, protobuf::rt::LazyStr), ParseError> {
@@ -1147,7 +1250,7 @@ mod __gen {
         }
         Ok((key, val))
     }
-    fn decode_map_entry_map_string_foreign_message_11(
+    fn decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_message_11(
         wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(protobuf::rt::LazyStr, ForeignMessageEditionUnstable), ParseError> {
@@ -1175,7 +1278,7 @@ mod __gen {
         }
         Ok((key, val))
     }
-    fn decode_map_entry_map_string_foreign_enum_12(
+    fn decode_map_entry_TestAllTypesEditionUnstable_map_string_foreign_enum_12(
         wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(protobuf::rt::LazyStr, i32), ParseError> {
@@ -1201,7 +1304,7 @@ mod __gen {
         }
         Ok((key, val))
     }
-    fn decode_map_entry_map_string_bytes_15(
+    fn decode_map_entry_TestAllTypesEditionUnstable_map_string_bytes_15(
         wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(protobuf::rt::LazyStr, protobuf::rt::LazyBytes), ParseError> {

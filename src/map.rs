@@ -26,12 +26,25 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
         Self(BTreeMap::new())
     }
 
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        self.0.insert(key, value)
+    /// Returns `true` if the key was newly inserted.
+    pub fn insert(&mut self, key: impl Into<K>, value: impl Into<V>) -> bool {
+        self.0.insert(key.into(), value.into()).is_none()
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
         self.0.get(key)
+    }
+
+    pub fn remove(&mut self, key: &K) -> Option<V> {
+        self.0.remove(key)
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.0.keys()
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.0.values()
     }
 
     pub fn len(&self) -> usize {
@@ -106,6 +119,14 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
         self.inner.is_empty()
     }
 
+    pub fn keys(self) -> impl Iterator<Item = &'msg K> {
+        self.inner.keys()
+    }
+
+    pub fn values(self) -> impl Iterator<Item = &'msg V> {
+        self.inner.values()
+    }
+
     pub fn iter(self) -> MapIter<'msg, K, V> {
         MapIter {
             inner: self.inner.iter(),
@@ -128,12 +149,17 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         Self { inner }
     }
 
-    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
-        self.inner.insert(key, value)
+    /// Returns `true` if the key was newly inserted.
+    pub fn insert(&mut self, key: impl Into<K>, value: impl Into<V>) -> bool {
+        self.inner.insert(key.into(), value.into()).is_none()
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
         self.inner.get(key)
+    }
+
+    pub fn remove(&mut self, key: &K) -> Option<V> {
+        self.inner.remove(key)
     }
 
     pub fn len(&self) -> usize {
@@ -142,6 +168,14 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
 
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    pub fn keys(&self) -> impl Iterator<Item = &K> {
+        self.inner.keys()
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.inner.values()
     }
 
     pub fn clear(&mut self) {

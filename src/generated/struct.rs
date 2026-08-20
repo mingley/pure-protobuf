@@ -5,14 +5,76 @@ mod __gen {
     use protobuf::prelude::*;
     use protobuf::UnknownFields;
     use protobuf::{
-        Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError,
+        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
+        RepeatedView, SerializeError, UnknownEnumValue,
     };
 
     fn generated_pool() -> std::sync::Arc<protobuf::DescriptorPool> {
         protobuf::gencode::conformance_pool()
     }
 
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct NullValue(i32);
+    #[allow(non_upper_case_globals)]
+    impl NullValue {
+        pub const NullValue: NullValue = NullValue(0);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                0 => "NullValue",
+                _ => return None,
+            })
+        }
+    }
+    impl From<NullValue> for i32 {
+        fn from(v: NullValue) -> i32 {
+            v.0
+        }
+    }
+    impl From<i32> for NullValue {
+        fn from(val: i32) -> Self {
+            Self(val)
+        }
+    }
+    impl Default for NullValue {
+        fn default() -> Self {
+            Self(0)
+        }
+    }
+    impl std::fmt::Debug for NullValue {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "NullValue::{n}")
+            } else {
+                write!(f, "NullValue::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for NullValue {}
+    impl protobuf::Proxied for NullValue {
+        type View<'msg> = NullValue;
+    }
+    impl protobuf::AsView for NullValue {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for NullValue {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for NullValue {
+        const NAME: &'static str = "NullValue";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 0)
+        }
+    }
     #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ListValue {
         values: Repeated<PbValue>,
@@ -31,9 +93,9 @@ mod __gen {
             self.cached_size.dirty();
             self.values.as_mut()
         }
-        pub fn set_values(&mut self, v: Repeated<PbValue>) {
+        pub fn set_values(&mut self, v: impl IntoIterator<Item = PbValue>) {
             self.cached_size.dirty();
-            self.values = v;
+            self.values = v.into_iter().collect();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -241,7 +303,8 @@ mod __gen {
                 match (n, w) {
                     (1, protobuf::rt::WIRE_LEN) => {
                         let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                        let (kk, vv) = decode_map_entry_fields_1(&wire.window(s, e), depth + 1)?;
+                        let (kk, vv) =
+                            decode_map_entry_Struct_fields_1(&wire.window(s, e), depth + 1)?;
                         self.fields.insert(kk, vv);
                     }
                     _ => self
@@ -338,7 +401,7 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(Struct, StructView, StructMut);
-    fn decode_map_entry_fields_1(
+    fn decode_map_entry_Struct_fields_1(
         wire: &protobuf::rt::Wire,
         depth: u32,
     ) -> Result<(protobuf::rt::LazyStr, PbValue), ParseError> {
@@ -385,17 +448,20 @@ mod __gen {
         pub fn has_null_value(&self) -> bool {
             self.null_value.is_some()
         }
-        pub fn null_value(&self) -> i32 {
-            self.null_value.unwrap_or_default()
+        pub fn null_value(&self) -> NullValue {
+            NullValue(self.null_value.unwrap_or(0))
         }
-        pub fn set_null_value(&mut self, v: i32) {
+        pub fn null_value_opt(&self) -> Option<NullValue> {
+            self.null_value.map(|v| NullValue(v))
+        }
+        pub fn set_null_value(&mut self, v: impl Into<i32>) {
             self.cached_size.dirty();
             self.number_value = None;
             self.string_value = None;
             self.bool_value = None;
             self.struct_value = Default::default();
             self.list_value = Default::default();
-            self.null_value = Some(v);
+            self.null_value = Some(v.into());
         }
         pub fn clear_null_value(&mut self) {
             self.cached_size.dirty();
@@ -405,7 +471,10 @@ mod __gen {
             self.number_value.is_some()
         }
         pub fn number_value(&self) -> f64 {
-            self.number_value.unwrap_or_default()
+            self.number_value.unwrap_or(0.0)
+        }
+        pub fn number_value_opt(&self) -> Option<f64> {
+            self.number_value.map(|v| v)
         }
         pub fn set_number_value(&mut self, v: f64) {
             self.cached_size.dirty();
@@ -429,6 +498,9 @@ mod __gen {
                 .map(|s| s.as_view())
                 .unwrap_or_else(|| protobuf::ProtoStr::from_bytes(b""))
         }
+        pub fn string_value_opt(&self) -> Option<&protobuf::ProtoStr> {
+            self.string_value.as_ref().map(|s| s.as_view())
+        }
         pub fn set_string_value(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
             self.null_value = None;
@@ -446,7 +518,10 @@ mod __gen {
             self.bool_value.is_some()
         }
         pub fn bool_value(&self) -> bool {
-            self.bool_value.unwrap_or_default()
+            self.bool_value.unwrap_or(false)
+        }
+        pub fn bool_value_opt(&self) -> Option<bool> {
+            self.bool_value.map(|v| v)
         }
         pub fn set_bool_value(&mut self, v: bool) {
             self.cached_size.dirty();
@@ -464,11 +539,16 @@ mod __gen {
         pub fn has_struct_value(&self) -> bool {
             self.struct_value.is_some()
         }
-        pub fn struct_value(&self) -> Option<&Struct> {
+        pub fn struct_value(&self) -> &Struct {
+            self.struct_value
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn struct_value_opt(&self) -> Option<&Struct> {
             self.struct_value.as_deref()
         }
-        pub fn struct_value_view(&self) -> Option<StructView<'_>> {
-            self.struct_value.as_deref().map(StructView)
+        pub fn struct_value_view(&self) -> StructView<'_> {
+            StructView(self.struct_value())
         }
         pub fn set_struct_value(&mut self, v: Struct) {
             self.cached_size.dirty();
@@ -490,11 +570,16 @@ mod __gen {
         pub fn has_list_value(&self) -> bool {
             self.list_value.is_some()
         }
-        pub fn list_value(&self) -> Option<&ListValue> {
+        pub fn list_value(&self) -> &ListValue {
+            self.list_value
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn list_value_opt(&self) -> Option<&ListValue> {
             self.list_value.as_deref()
         }
-        pub fn list_value_view(&self) -> Option<ListValueView<'_>> {
-            self.list_value.as_deref().map(ListValueView)
+        pub fn list_value_view(&self) -> ListValueView<'_> {
+            ListValueView(self.list_value())
         }
         pub fn set_list_value(&mut self, v: ListValue) {
             self.cached_size.dirty();

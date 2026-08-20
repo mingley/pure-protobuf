@@ -123,15 +123,13 @@ pub trait MessageMut<'msg>:
 }
 
 /// Implemented by generated enum types.
-pub trait Enum:
-    TryFrom<i32, Error = UnknownEnumValue<Self>> + Into<i32> + Copy + SealedInternal + 'static
-{
+pub trait Enum: Into<i32> + Copy + SealedInternal + 'static {
     const NAME: &'static str;
     fn is_known(value: i32) -> bool;
 }
 
 /// An integer value wasn't known for an enum while converting.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct UnknownEnumValue<T>(i32, std::marker::PhantomData<T>);
 
 impl<T> UnknownEnumValue<T> {
@@ -143,6 +141,20 @@ impl<T> UnknownEnumValue<T> {
         self.0
     }
 }
+
+impl<T> std::fmt::Debug for UnknownEnumValue<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("UnknownEnumValue").field(&self.0).finish()
+    }
+}
+
+impl<T: Enum> std::fmt::Display for UnknownEnumValue<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} is not a known value for {}", self.0, T::NAME)
+    }
+}
+
+impl<T: Enum> std::error::Error for UnknownEnumValue<T> {}
 
 /// Message equality which may have false-negatives in the face of unknown fields.
 pub fn message_eq<T: Serialize>(a: &T, b: &T) -> bool {

@@ -98,7 +98,7 @@ fn nested_merge_second_empty_does_not_wipe() {
     // field 18 empty LEN
     bytes.extend_from_slice(&[0x92, 0x01, 0x00]);
     let parsed = protobuf::gencode::TestAllTypesProto3::parse(&bytes).unwrap();
-    assert_eq!(parsed.optional_nested_message().unwrap().a(), 9);
+    assert_eq!(parsed.optional_nested_message().a(), 9);
 }
 
 #[test]
@@ -135,11 +135,11 @@ fn message_set_item_roundtrip() {
     })
     .unwrap();
     assert!(parsed.has_message_set_correct());
-    let ms = parsed.message_set_correct().unwrap();
+    let ms = parsed.message_set_correct();
     let out = Serialize::serialize(&parsed).unwrap();
     let again = TestAllTypesProto2::parse(&out).unwrap();
     assert_eq!(
-        Serialize::serialize(again.message_set_correct().unwrap()).unwrap(),
+        Serialize::serialize(again.message_set_correct()).unwrap(),
         Serialize::serialize(ms).unwrap()
     );
 }

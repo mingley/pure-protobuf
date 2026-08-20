@@ -223,8 +223,11 @@ impl MessageDescriptor {
 pub struct EnumDescriptor {
     pub name: String,
     pub full_name: String,
+    pub file_name: String,
     pub values: BTreeMap<i32, String>,
     pub names: BTreeMap<String, i32>,
+    /// Proto-order (number, original name). First entry is the default.
+    pub listed: Vec<(i32, String)>,
     pub closed: bool,
 }
 
@@ -296,6 +299,10 @@ impl DescriptorPool {
 
     pub fn get_enum(&self, full_name: &str) -> Option<Arc<EnumDescriptor>> {
         self.enums.get(full_name.trim_start_matches('.')).cloned()
+    }
+
+    pub(crate) fn collect_enum_names(&self) -> Vec<String> {
+        self.enums.keys().cloned().collect()
     }
 
     /// Look up an extension by its full name (`package.field`).
@@ -1685,6 +1692,7 @@ struct RawMessage {
 struct RawEnum {
     name: String,
     full_name: String,
+    file_name: String,
     values: Vec<(i32, String)>,
     closed: bool,
 }
@@ -1745,6 +1753,7 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
     prefix_names(&mut file.messages, &file.package);
     for e in &mut file.enums {
         e.closed = closed;
+        e.file_name = file.name.clone();
         e.full_name = if file.package.is_empty() {
             e.name.clone()
         } else {
@@ -1817,6 +1826,9 @@ fn stamp_file(msgs: &mut [RawMessage], file_name: &str) {
     for m in msgs {
         m.file_name = file_name.to_string();
         stamp_file(&mut m.nested, file_name);
+        for e in &mut m.enums {
+            e.file_name = file_name.to_string();
+        }
         for ext in &mut m.extensions {
             ext.full_ext_name = format!("{}.{}", m.full_name, ext.name);
         }
@@ -2127,12 +2139,14 @@ fn resolve_pool(
         let mut ed = EnumDescriptor {
             name: raw_e.name.clone(),
             full_name: name.clone(),
+            file_name: raw_e.file_name.clone(),
             values: BTreeMap::new(),
             names: BTreeMap::new(),
+            listed: raw_e.values.clone(),
             closed: raw_e.closed,
         };
         for (num, n) in &raw_e.values {
-            ed.values.insert(*num, n.clone());
+            ed.values.entry(*num).or_insert_with(|| n.clone());
             ed.names.insert(n.clone(), *num);
         }
         enum_arcs.insert(name.clone(), Arc::new(ed));

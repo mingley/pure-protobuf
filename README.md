@@ -67,14 +67,14 @@ Plugin-generated `TestAllTypesProto3` (optional scalars, nested message, `repeat
 | | ours | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|
 | payload bytes | 87 | 83 | 87 | 87 | 87 |
-| encode ns (run 1) | 91.746 | 76.377 | 230.229 | 125.009 | — |
-| encode ns (run 2) | 91.801 | 78.034 | 227.301 | 123.922 | — |
-| decode ns (run 1) | 364.658 | 268.818 | 396.375 | 390.379 | 292.341 |
-| decode ns (run 2) | 369.828 | 272.881 | 401.102 | 394.433 | 297.834 |
+| encode ns (run 1) | 101.217 | 83.732 | 249.930 | 132.118 | — |
+| encode ns (run 2) | 99.079 | 81.734 | 253.499 | 133.300 | — |
+| decode ns (run 1) | 382.690 | 280.055 | 416.294 | 397.214 | 308.690 |
+| decode ns (run 2) | 372.678 | 286.932 | 413.002 | 409.255 | 307.929 |
 
 Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decode.
 
-**Decode vs prost / buffa view:** this table’s prost type is a **9-field subset**, not generated `TestAllTypesProto3`. Ours (and v4, and buffa owned) construct the full message: **4064 bytes**, `Default` alone **~97 ns** (`ours_default_ns` in the bench JSON). Decode minus Default is ~290 ns, in line with prost’s whole decode of the small struct. buffa `decode_view` does not build the owned 4 KiB object. Closing that gap is sparse field storage or a real view decoder, not a faster varint loop.
+**Decode vs prost / buffa view:** this table’s prost type is a **9-field subset**, not generated `TestAllTypesProto3`. Ours (and v4, and buffa owned) construct the full message: **4064 bytes**, `Default` alone **~94–96 ns** (`ours_default_ns` in the bench JSON). Decode minus Default is ~280 ns, in line with prost’s whole decode of the small struct. buffa `decode_view` does not build the owned 4 KiB object. Closing that gap is sparse field storage or a real view decoder, not a faster varint loop.
 
 v4 encode is slow on this size because every `serialize` allocates a fresh upb `Arena`, FFI `upb_Encode`, then **copies** the arena buffer into a Rust `Vec`. Decode is FFI `upb_Decode` into that arena. upb C is not the bottleneck; the Rust wrapper’s per-call arena + FFI + extra memcpy is. Large payloads amortize it. See `third_party/protobuf/rust/upb/wire.rs` and `upb_kernel/message.rs`.
 

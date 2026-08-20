@@ -48,7 +48,7 @@ fn repeated_and_map() {
     let mut msg = Person::new();
     msg.tags_mut().push("a".into());
     msg.tags_mut().push("b".into());
-    msg.scores_mut().insert("x".into(), 7);
+    msg.scores_mut().insert("x", 7);
 
     let bytes = msg.serialize().unwrap();
     let parsed = Person::parse(&bytes).unwrap();

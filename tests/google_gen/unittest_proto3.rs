@@ -5,24 +5,365 @@ mod __gen {
     use protobuf::prelude::*;
     use protobuf::UnknownFields;
     use protobuf::{
-        Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
-        RepeatedView, SerializeError,
+        Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
+        RepeatedView, SerializeError, UnknownEnumValue,
     };
 
-    #[derive(Clone, Debug, PartialEq)]
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct ForeignEnum(i32);
+    #[allow(non_upper_case_globals)]
+    impl ForeignEnum {
+        pub const ForeignZero: ForeignEnum = ForeignEnum(0);
+        pub const ForeignFoo: ForeignEnum = ForeignEnum(4);
+        pub const ForeignBar: ForeignEnum = ForeignEnum(5);
+        pub const ForeignBaz: ForeignEnum = ForeignEnum(6);
+        pub const ForeignLarge: ForeignEnum = ForeignEnum(123456);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                0 => "ForeignZero",
+                4 => "ForeignFoo",
+                5 => "ForeignBar",
+                6 => "ForeignBaz",
+                123456 => "ForeignLarge",
+                _ => return None,
+            })
+        }
+    }
+    impl From<ForeignEnum> for i32 {
+        fn from(v: ForeignEnum) -> i32 {
+            v.0
+        }
+    }
+    impl From<i32> for ForeignEnum {
+        fn from(val: i32) -> Self {
+            Self(val)
+        }
+    }
+    impl Default for ForeignEnum {
+        fn default() -> Self {
+            Self(0)
+        }
+    }
+    impl std::fmt::Debug for ForeignEnum {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "ForeignEnum::{n}")
+            } else {
+                write!(f, "ForeignEnum::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for ForeignEnum {}
+    impl protobuf::Proxied for ForeignEnum {
+        type View<'msg> = ForeignEnum;
+    }
+    impl protobuf::AsView for ForeignEnum {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for ForeignEnum {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for ForeignEnum {
+        const NAME: &'static str = "ForeignEnum";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 0 | 4 | 5 | 6 | 123456)
+        }
+    }
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct NestedEnum(i32);
+    #[allow(non_upper_case_globals)]
+    impl NestedEnum {
+        pub const Zero: NestedEnum = NestedEnum(0);
+        pub const Foo: NestedEnum = NestedEnum(1);
+        pub const Bar: NestedEnum = NestedEnum(2);
+        pub const Baz: NestedEnum = NestedEnum(3);
+        pub const Neg: NestedEnum = NestedEnum(-1);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                0 => "Zero",
+                1 => "Foo",
+                2 => "Bar",
+                3 => "Baz",
+                -1 => "Neg",
+                _ => return None,
+            })
+        }
+    }
+    impl From<NestedEnum> for i32 {
+        fn from(v: NestedEnum) -> i32 {
+            v.0
+        }
+    }
+    impl From<i32> for NestedEnum {
+        fn from(val: i32) -> Self {
+            Self(val)
+        }
+    }
+    impl Default for NestedEnum {
+        fn default() -> Self {
+            Self(0)
+        }
+    }
+    impl std::fmt::Debug for NestedEnum {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "NestedEnum::{n}")
+            } else {
+                write!(f, "NestedEnum::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for NestedEnum {}
+    impl protobuf::Proxied for NestedEnum {
+        type View<'msg> = NestedEnum;
+    }
+    impl protobuf::AsView for NestedEnum {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for NestedEnum {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for NestedEnum {
+        const NAME: &'static str = "NestedEnum";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 0 | 1 | 2 | 3 | -1)
+        }
+    }
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct TestOneof2NestedEnum(i32);
+    #[allow(non_upper_case_globals)]
+    impl TestOneof2NestedEnum {
+        pub const Unknown: TestOneof2NestedEnum = TestOneof2NestedEnum(0);
+        pub const Foo: TestOneof2NestedEnum = TestOneof2NestedEnum(1);
+        pub const Bar: TestOneof2NestedEnum = TestOneof2NestedEnum(2);
+        pub const Baz: TestOneof2NestedEnum = TestOneof2NestedEnum(3);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                0 => "Unknown",
+                1 => "Foo",
+                2 => "Bar",
+                3 => "Baz",
+                _ => return None,
+            })
+        }
+    }
+    impl From<TestOneof2NestedEnum> for i32 {
+        fn from(v: TestOneof2NestedEnum) -> i32 {
+            v.0
+        }
+    }
+    impl From<i32> for TestOneof2NestedEnum {
+        fn from(val: i32) -> Self {
+            Self(val)
+        }
+    }
+    impl Default for TestOneof2NestedEnum {
+        fn default() -> Self {
+            Self(0)
+        }
+    }
+    impl std::fmt::Debug for TestOneof2NestedEnum {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "TestOneof2NestedEnum::{n}")
+            } else {
+                write!(f, "TestOneof2NestedEnum::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for TestOneof2NestedEnum {}
+    impl protobuf::Proxied for TestOneof2NestedEnum {
+        type View<'msg> = TestOneof2NestedEnum;
+    }
+    impl protobuf::AsView for TestOneof2NestedEnum {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for TestOneof2NestedEnum {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for TestOneof2NestedEnum {
+        const NAME: &'static str = "TestOneof2NestedEnum";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 0 | 1 | 2 | 3)
+        }
+    }
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct ImportEnum(i32);
+    #[allow(non_upper_case_globals)]
+    impl ImportEnum {
+        pub const ImportFoo: ImportEnum = ImportEnum(7);
+        pub const ImportBar: ImportEnum = ImportEnum(8);
+        pub const ImportBaz: ImportEnum = ImportEnum(9);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                7 => "ImportFoo",
+                8 => "ImportBar",
+                9 => "ImportBaz",
+                _ => return None,
+            })
+        }
+    }
+    impl From<ImportEnum> for i32 {
+        fn from(v: ImportEnum) -> i32 {
+            v.0
+        }
+    }
+    impl TryFrom<i32> for ImportEnum {
+        type Error = UnknownEnumValue<Self>;
+        fn try_from(val: i32) -> Result<Self, Self::Error> {
+            if <Self as Enum>::is_known(val) {
+                Ok(Self(val))
+            } else {
+                Err(UnknownEnumValue::new(val))
+            }
+        }
+    }
+    impl Default for ImportEnum {
+        fn default() -> Self {
+            Self(7)
+        }
+    }
+    impl std::fmt::Debug for ImportEnum {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "ImportEnum::{n}")
+            } else {
+                write!(f, "ImportEnum::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for ImportEnum {}
+    impl protobuf::Proxied for ImportEnum {
+        type View<'msg> = ImportEnum;
+    }
+    impl protobuf::AsView for ImportEnum {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for ImportEnum {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for ImportEnum {
+        const NAME: &'static str = "ImportEnum";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 7 | 8 | 9)
+        }
+    }
+    #[repr(transparent)]
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct ImportEnumForMap(i32);
+    #[allow(non_upper_case_globals)]
+    impl ImportEnumForMap {
+        pub const Unknown: ImportEnumForMap = ImportEnumForMap(0);
+        pub const Foo: ImportEnumForMap = ImportEnumForMap(1);
+        pub const Bar: ImportEnumForMap = ImportEnumForMap(2);
+        fn constant_name(self) -> Option<&'static str> {
+            #[allow(unreachable_patterns)]
+            Some(match self.0 {
+                0 => "Unknown",
+                1 => "Foo",
+                2 => "Bar",
+                _ => return None,
+            })
+        }
+    }
+    impl From<ImportEnumForMap> for i32 {
+        fn from(v: ImportEnumForMap) -> i32 {
+            v.0
+        }
+    }
+    impl TryFrom<i32> for ImportEnumForMap {
+        type Error = UnknownEnumValue<Self>;
+        fn try_from(val: i32) -> Result<Self, Self::Error> {
+            if <Self as Enum>::is_known(val) {
+                Ok(Self(val))
+            } else {
+                Err(UnknownEnumValue::new(val))
+            }
+        }
+    }
+    impl Default for ImportEnumForMap {
+        fn default() -> Self {
+            Self(0)
+        }
+    }
+    impl std::fmt::Debug for ImportEnumForMap {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            if let Some(n) = self.constant_name() {
+                write!(f, "ImportEnumForMap::{n}")
+            } else {
+                write!(f, "ImportEnumForMap::from({})", self.0)
+            }
+        }
+    }
+    impl protobuf::__internal::SealedInternal for ImportEnumForMap {}
+    impl protobuf::Proxied for ImportEnumForMap {
+        type View<'msg> = ImportEnumForMap;
+    }
+    impl protobuf::AsView for ImportEnumForMap {
+        type Proxied = Self;
+        fn as_view(&self) -> Self {
+            *self
+        }
+    }
+    impl<'msg> protobuf::IntoView<'msg> for ImportEnumForMap {
+        fn into_view<'shorter>(self) -> Self
+        where
+            'msg: 'shorter,
+        {
+            self
+        }
+    }
+    impl Enum for ImportEnumForMap {
+        const NAME: &'static str = "ImportEnumForMap";
+        fn is_known(value: i32) -> bool {
+            matches!(value, 0 | 1 | 2)
+        }
+    }
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ForeignMessage {
         c: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ForeignMessage {
-        fn default() -> Self {
-            Self {
-                c: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ForeignMessage {
         pub fn new() -> Self {
@@ -115,22 +456,12 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(ForeignMessage, ForeignMessageView, ForeignMessageMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct NestedTestAllTypes {
         child: protobuf::rt::LazyMsg<NestedTestAllTypes>,
         payload: protobuf::rt::LazyMsg<TestAllTypes>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for NestedTestAllTypes {
-        fn default() -> Self {
-            Self {
-                child: Default::default(),
-                payload: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl NestedTestAllTypes {
         pub fn new() -> Self {
@@ -140,11 +471,16 @@ mod __gen {
         pub fn has_child(&self) -> bool {
             self.child.is_some()
         }
-        pub fn child(&self) -> Option<&NestedTestAllTypes> {
+        pub fn child(&self) -> &NestedTestAllTypes {
+            self.child
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn child_opt(&self) -> Option<&NestedTestAllTypes> {
             self.child.as_deref()
         }
-        pub fn child_view(&self) -> Option<NestedTestAllTypesView<'_>> {
-            self.child.as_deref().map(NestedTestAllTypesView)
+        pub fn child_view(&self) -> NestedTestAllTypesView<'_> {
+            NestedTestAllTypesView(self.child())
         }
         pub fn set_child(&mut self, v: NestedTestAllTypes) {
             self.cached_size.dirty();
@@ -161,11 +497,16 @@ mod __gen {
         pub fn has_payload(&self) -> bool {
             self.payload.is_some()
         }
-        pub fn payload(&self) -> Option<&TestAllTypes> {
+        pub fn payload(&self) -> &TestAllTypes {
+            self.payload
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn payload_opt(&self) -> Option<&TestAllTypes> {
             self.payload.as_deref()
         }
-        pub fn payload_view(&self) -> Option<TestAllTypesView<'_>> {
-            self.payload.as_deref().map(TestAllTypesView)
+        pub fn payload_view(&self) -> TestAllTypesView<'_> {
+            TestAllTypesView(self.payload())
         }
         pub fn set_payload(&mut self, v: TestAllTypes) {
             self.cached_size.dirty();
@@ -325,7 +666,7 @@ mod __gen {
         NestedTestAllTypesView,
         NestedTestAllTypesMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestAllTypes {
         optional_int32: i32,
         optional_int64: i64,
@@ -380,65 +721,6 @@ mod __gen {
         optional_lazy_import_message: protobuf::rt::LazyMsg<ImportMessage>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestAllTypes {
-        fn default() -> Self {
-            Self {
-                optional_int32: Default::default(),
-                optional_int64: Default::default(),
-                optional_uint32: Default::default(),
-                optional_uint64: Default::default(),
-                optional_sint32: Default::default(),
-                optional_sint64: Default::default(),
-                optional_fixed32: Default::default(),
-                optional_fixed64: Default::default(),
-                optional_sfixed32: Default::default(),
-                optional_sfixed64: Default::default(),
-                optional_float: Default::default(),
-                optional_double: Default::default(),
-                optional_bool: Default::default(),
-                optional_string: Default::default(),
-                optional_bytes: Default::default(),
-                optional_nested_message: Default::default(),
-                optional_foreign_message: Default::default(),
-                optional_import_message: Default::default(),
-                optional_nested_enum: Default::default(),
-                optional_foreign_enum: Default::default(),
-                optional_string_piece: Default::default(),
-                optional_cord: Default::default(),
-                optional_lazy_message: Default::default(),
-                repeated_int32: protobuf::rt::PackedI32::new(),
-                repeated_int64: protobuf::rt::PackedI64::new(),
-                repeated_uint32: protobuf::rt::PackedU32::new(),
-                repeated_uint64: protobuf::rt::PackedU64::new(),
-                repeated_sint32: protobuf::rt::PackedS32::new(),
-                repeated_sint64: protobuf::rt::PackedS64::new(),
-                repeated_fixed32: protobuf::rt::PackedFx32::new(),
-                repeated_fixed64: protobuf::rt::PackedFx64::new(),
-                repeated_sfixed32: protobuf::rt::PackedSfx32::new(),
-                repeated_sfixed64: protobuf::rt::PackedSfx64::new(),
-                repeated_float: protobuf::rt::PackedF32::new(),
-                repeated_double: protobuf::rt::PackedF64::new(),
-                repeated_bool: protobuf::rt::PackedBool::new(),
-                repeated_string: Repeated::new(),
-                repeated_bytes: Repeated::new(),
-                repeated_nested_message: Repeated::new(),
-                repeated_foreign_message: Repeated::new(),
-                repeated_import_message: Repeated::new(),
-                repeated_nested_enum: protobuf::rt::PackedI32::new(),
-                repeated_foreign_enum: protobuf::rt::PackedI32::new(),
-                repeated_string_piece: Repeated::new(),
-                repeated_cord: Repeated::new(),
-                repeated_lazy_message: Repeated::new(),
-                oneof_uint32: None,
-                oneof_nested_message: Default::default(),
-                oneof_string: None,
-                oneof_bytes: None,
-                optional_lazy_import_message: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestAllTypes {
         pub fn new() -> Self {
@@ -553,13 +835,16 @@ mod __gen {
         pub fn has_optional_nested_message(&self) -> bool {
             self.optional_nested_message.is_some()
         }
-        pub fn optional_nested_message(&self) -> Option<&NestedMessage> {
-            self.optional_nested_message.as_deref()
-        }
-        pub fn optional_nested_message_view(&self) -> Option<NestedMessageView<'_>> {
+        pub fn optional_nested_message(&self) -> &NestedMessage {
             self.optional_nested_message
                 .as_deref()
-                .map(NestedMessageView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_nested_message_opt(&self) -> Option<&NestedMessage> {
+            self.optional_nested_message.as_deref()
+        }
+        pub fn optional_nested_message_view(&self) -> NestedMessageView<'_> {
+            NestedMessageView(self.optional_nested_message())
         }
         pub fn set_optional_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
@@ -576,13 +861,16 @@ mod __gen {
         pub fn has_optional_foreign_message(&self) -> bool {
             self.optional_foreign_message.is_some()
         }
-        pub fn optional_foreign_message(&self) -> Option<&ForeignMessage> {
-            self.optional_foreign_message.as_deref()
-        }
-        pub fn optional_foreign_message_view(&self) -> Option<ForeignMessageView<'_>> {
+        pub fn optional_foreign_message(&self) -> &ForeignMessage {
             self.optional_foreign_message
                 .as_deref()
-                .map(ForeignMessageView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_foreign_message_opt(&self) -> Option<&ForeignMessage> {
+            self.optional_foreign_message.as_deref()
+        }
+        pub fn optional_foreign_message_view(&self) -> ForeignMessageView<'_> {
+            ForeignMessageView(self.optional_foreign_message())
         }
         pub fn set_optional_foreign_message(&mut self, v: ForeignMessage) {
             self.cached_size.dirty();
@@ -599,13 +887,16 @@ mod __gen {
         pub fn has_optional_import_message(&self) -> bool {
             self.optional_import_message.is_some()
         }
-        pub fn optional_import_message(&self) -> Option<&ImportMessage> {
-            self.optional_import_message.as_deref()
-        }
-        pub fn optional_import_message_view(&self) -> Option<ImportMessageView<'_>> {
+        pub fn optional_import_message(&self) -> &ImportMessage {
             self.optional_import_message
                 .as_deref()
-                .map(ImportMessageView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_import_message_opt(&self) -> Option<&ImportMessage> {
+            self.optional_import_message.as_deref()
+        }
+        pub fn optional_import_message_view(&self) -> ImportMessageView<'_> {
+            ImportMessageView(self.optional_import_message())
         }
         pub fn set_optional_import_message(&mut self, v: ImportMessage) {
             self.cached_size.dirty();
@@ -619,19 +910,19 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_import_message.clear();
         }
-        pub fn optional_nested_enum(&self) -> i32 {
-            self.optional_nested_enum
+        pub fn optional_nested_enum(&self) -> NestedEnum {
+            NestedEnum(self.optional_nested_enum)
         }
-        pub fn set_optional_nested_enum(&mut self, v: i32) {
+        pub fn set_optional_nested_enum(&mut self, v: impl Into<i32>) {
             self.cached_size.dirty();
-            self.optional_nested_enum = v;
+            self.optional_nested_enum = v.into();
         }
-        pub fn optional_foreign_enum(&self) -> i32 {
-            self.optional_foreign_enum
+        pub fn optional_foreign_enum(&self) -> ForeignEnum {
+            ForeignEnum(self.optional_foreign_enum)
         }
-        pub fn set_optional_foreign_enum(&mut self, v: i32) {
+        pub fn set_optional_foreign_enum(&mut self, v: impl Into<i32>) {
             self.cached_size.dirty();
-            self.optional_foreign_enum = v;
+            self.optional_foreign_enum = v.into();
         }
         pub fn optional_string_piece(&self) -> &protobuf::ProtoStr {
             self.optional_string_piece.as_view()
@@ -650,11 +941,16 @@ mod __gen {
         pub fn has_optional_lazy_message(&self) -> bool {
             self.optional_lazy_message.is_some()
         }
-        pub fn optional_lazy_message(&self) -> Option<&NestedMessage> {
+        pub fn optional_lazy_message(&self) -> &NestedMessage {
+            self.optional_lazy_message
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_lazy_message_opt(&self) -> Option<&NestedMessage> {
             self.optional_lazy_message.as_deref()
         }
-        pub fn optional_lazy_message_view(&self) -> Option<NestedMessageView<'_>> {
-            self.optional_lazy_message.as_deref().map(NestedMessageView)
+        pub fn optional_lazy_message_view(&self) -> NestedMessageView<'_> {
+            NestedMessageView(self.optional_lazy_message())
         }
         pub fn set_optional_lazy_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
@@ -675,9 +971,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_int32.as_mut()
         }
-        pub fn set_repeated_int32(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_int32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_int32 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_int32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_int64(&self) -> RepeatedView<'_, i64> {
             self.repeated_int64.as_view()
@@ -686,9 +982,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_int64.as_mut()
         }
-        pub fn set_repeated_int64(&mut self, v: Repeated<i64>) {
+        pub fn set_repeated_int64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.repeated_int64 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_int64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_uint32(&self) -> RepeatedView<'_, u32> {
             self.repeated_uint32.as_view()
@@ -697,9 +993,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_uint32.as_mut()
         }
-        pub fn set_repeated_uint32(&mut self, v: Repeated<u32>) {
+        pub fn set_repeated_uint32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
-            self.repeated_uint32 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_uint32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_uint64(&self) -> RepeatedView<'_, u64> {
             self.repeated_uint64.as_view()
@@ -708,9 +1004,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_uint64.as_mut()
         }
-        pub fn set_repeated_uint64(&mut self, v: Repeated<u64>) {
+        pub fn set_repeated_uint64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
-            self.repeated_uint64 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_uint64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sint32(&self) -> RepeatedView<'_, i32> {
             self.repeated_sint32.as_view()
@@ -719,9 +1015,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sint32.as_mut()
         }
-        pub fn set_repeated_sint32(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_sint32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_sint32 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_sint32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sint64(&self) -> RepeatedView<'_, i64> {
             self.repeated_sint64.as_view()
@@ -730,9 +1026,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sint64.as_mut()
         }
-        pub fn set_repeated_sint64(&mut self, v: Repeated<i64>) {
+        pub fn set_repeated_sint64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.repeated_sint64 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_sint64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_fixed32(&self) -> RepeatedView<'_, u32> {
             self.repeated_fixed32.as_view()
@@ -741,9 +1037,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_fixed32.as_mut()
         }
-        pub fn set_repeated_fixed32(&mut self, v: Repeated<u32>) {
+        pub fn set_repeated_fixed32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
-            self.repeated_fixed32 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_fixed32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_fixed64(&self) -> RepeatedView<'_, u64> {
             self.repeated_fixed64.as_view()
@@ -752,9 +1048,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_fixed64.as_mut()
         }
-        pub fn set_repeated_fixed64(&mut self, v: Repeated<u64>) {
+        pub fn set_repeated_fixed64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
-            self.repeated_fixed64 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_fixed64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.repeated_sfixed32.as_view()
@@ -763,9 +1059,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sfixed32.as_mut()
         }
-        pub fn set_repeated_sfixed32(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_sfixed32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_sfixed32 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_sfixed32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sfixed64(&self) -> RepeatedView<'_, i64> {
             self.repeated_sfixed64.as_view()
@@ -774,9 +1070,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sfixed64.as_mut()
         }
-        pub fn set_repeated_sfixed64(&mut self, v: Repeated<i64>) {
+        pub fn set_repeated_sfixed64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.repeated_sfixed64 = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_sfixed64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_float(&self) -> RepeatedView<'_, f32> {
             self.repeated_float.as_view()
@@ -785,9 +1081,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_float.as_mut()
         }
-        pub fn set_repeated_float(&mut self, v: Repeated<f32>) {
+        pub fn set_repeated_float(&mut self, v: impl IntoIterator<Item = f32>) {
             self.cached_size.dirty();
-            self.repeated_float = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_float = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_double(&self) -> RepeatedView<'_, f64> {
             self.repeated_double.as_view()
@@ -796,9 +1092,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_double.as_mut()
         }
-        pub fn set_repeated_double(&mut self, v: Repeated<f64>) {
+        pub fn set_repeated_double(&mut self, v: impl IntoIterator<Item = f64>) {
             self.cached_size.dirty();
-            self.repeated_double = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_double = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_bool(&self) -> RepeatedView<'_, bool> {
             self.repeated_bool.as_view()
@@ -807,9 +1103,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_bool.as_mut()
         }
-        pub fn set_repeated_bool(&mut self, v: Repeated<bool>) {
+        pub fn set_repeated_bool(&mut self, v: impl IntoIterator<Item = bool>) {
             self.cached_size.dirty();
-            self.repeated_bool = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_bool = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_string(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_string.as_view()
@@ -818,9 +1114,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_string.as_mut()
         }
-        pub fn set_repeated_string(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
+        pub fn set_repeated_string(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyStr>) {
             self.cached_size.dirty();
-            self.repeated_string = v;
+            self.repeated_string = v.into_iter().collect();
         }
         pub fn repeated_bytes(&self) -> RepeatedView<'_, protobuf::rt::LazyBytes> {
             self.repeated_bytes.as_view()
@@ -829,9 +1125,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_bytes.as_mut()
         }
-        pub fn set_repeated_bytes(&mut self, v: Repeated<protobuf::rt::LazyBytes>) {
+        pub fn set_repeated_bytes(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyBytes>) {
             self.cached_size.dirty();
-            self.repeated_bytes = v;
+            self.repeated_bytes = v.into_iter().collect();
         }
         pub fn repeated_nested_message(&self) -> RepeatedView<'_, NestedMessage> {
             self.repeated_nested_message.as_view()
@@ -840,9 +1136,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_nested_message.as_mut()
         }
-        pub fn set_repeated_nested_message(&mut self, v: Repeated<NestedMessage>) {
+        pub fn set_repeated_nested_message(&mut self, v: impl IntoIterator<Item = NestedMessage>) {
             self.cached_size.dirty();
-            self.repeated_nested_message = v;
+            self.repeated_nested_message = v.into_iter().collect();
         }
         pub fn repeated_foreign_message(&self) -> RepeatedView<'_, ForeignMessage> {
             self.repeated_foreign_message.as_view()
@@ -851,9 +1147,12 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_foreign_message.as_mut()
         }
-        pub fn set_repeated_foreign_message(&mut self, v: Repeated<ForeignMessage>) {
+        pub fn set_repeated_foreign_message(
+            &mut self,
+            v: impl IntoIterator<Item = ForeignMessage>,
+        ) {
             self.cached_size.dirty();
-            self.repeated_foreign_message = v;
+            self.repeated_foreign_message = v.into_iter().collect();
         }
         pub fn repeated_import_message(&self) -> RepeatedView<'_, ImportMessage> {
             self.repeated_import_message.as_view()
@@ -862,9 +1161,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_import_message.as_mut()
         }
-        pub fn set_repeated_import_message(&mut self, v: Repeated<ImportMessage>) {
+        pub fn set_repeated_import_message(&mut self, v: impl IntoIterator<Item = ImportMessage>) {
             self.cached_size.dirty();
-            self.repeated_import_message = v;
+            self.repeated_import_message = v.into_iter().collect();
         }
         pub fn repeated_nested_enum(&self) -> RepeatedView<'_, i32> {
             self.repeated_nested_enum.as_view()
@@ -873,9 +1172,10 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_nested_enum.as_mut()
         }
-        pub fn set_repeated_nested_enum(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_nested_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_nested_enum = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_nested_enum =
+                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_foreign_enum(&self) -> RepeatedView<'_, i32> {
             self.repeated_foreign_enum.as_view()
@@ -884,9 +1184,10 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_foreign_enum.as_mut()
         }
-        pub fn set_repeated_foreign_enum(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_foreign_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_foreign_enum = protobuf::rt::Packed::from_repeated(v);
+            self.repeated_foreign_enum =
+                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_string_piece(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_string_piece.as_view()
@@ -895,9 +1196,12 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_string_piece.as_mut()
         }
-        pub fn set_repeated_string_piece(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
+        pub fn set_repeated_string_piece(
+            &mut self,
+            v: impl IntoIterator<Item = protobuf::rt::LazyStr>,
+        ) {
             self.cached_size.dirty();
-            self.repeated_string_piece = v;
+            self.repeated_string_piece = v.into_iter().collect();
         }
         pub fn repeated_cord(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
             self.repeated_cord.as_view()
@@ -906,9 +1210,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_cord.as_mut()
         }
-        pub fn set_repeated_cord(&mut self, v: Repeated<protobuf::rt::LazyStr>) {
+        pub fn set_repeated_cord(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyStr>) {
             self.cached_size.dirty();
-            self.repeated_cord = v;
+            self.repeated_cord = v.into_iter().collect();
         }
         pub fn repeated_lazy_message(&self) -> RepeatedView<'_, NestedMessage> {
             self.repeated_lazy_message.as_view()
@@ -917,15 +1221,18 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_lazy_message.as_mut()
         }
-        pub fn set_repeated_lazy_message(&mut self, v: Repeated<NestedMessage>) {
+        pub fn set_repeated_lazy_message(&mut self, v: impl IntoIterator<Item = NestedMessage>) {
             self.cached_size.dirty();
-            self.repeated_lazy_message = v;
+            self.repeated_lazy_message = v.into_iter().collect();
         }
         pub fn has_oneof_uint32(&self) -> bool {
             self.oneof_uint32.is_some()
         }
         pub fn oneof_uint32(&self) -> u32 {
-            self.oneof_uint32.unwrap_or_default()
+            self.oneof_uint32.unwrap_or(0)
+        }
+        pub fn oneof_uint32_opt(&self) -> Option<u32> {
+            self.oneof_uint32.map(|v| v)
         }
         pub fn set_oneof_uint32(&mut self, v: u32) {
             self.cached_size.dirty();
@@ -941,11 +1248,16 @@ mod __gen {
         pub fn has_oneof_nested_message(&self) -> bool {
             self.oneof_nested_message.is_some()
         }
-        pub fn oneof_nested_message(&self) -> Option<&NestedMessage> {
+        pub fn oneof_nested_message(&self) -> &NestedMessage {
+            self.oneof_nested_message
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn oneof_nested_message_opt(&self) -> Option<&NestedMessage> {
             self.oneof_nested_message.as_deref()
         }
-        pub fn oneof_nested_message_view(&self) -> Option<NestedMessageView<'_>> {
-            self.oneof_nested_message.as_deref().map(NestedMessageView)
+        pub fn oneof_nested_message_view(&self) -> NestedMessageView<'_> {
+            NestedMessageView(self.oneof_nested_message())
         }
         pub fn set_oneof_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
@@ -971,6 +1283,9 @@ mod __gen {
                 .map(|s| s.as_view())
                 .unwrap_or_else(|| protobuf::ProtoStr::from_bytes(b""))
         }
+        pub fn oneof_string_opt(&self) -> Option<&protobuf::ProtoStr> {
+            self.oneof_string.as_ref().map(|s| s.as_view())
+        }
         pub fn set_oneof_string(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
@@ -986,7 +1301,10 @@ mod __gen {
             self.oneof_bytes
                 .as_ref()
                 .map(|b| b.as_bytes())
-                .unwrap_or(&[])
+                .unwrap_or(b"")
+        }
+        pub fn oneof_bytes_opt(&self) -> Option<&[u8]> {
+            self.oneof_bytes.as_ref().map(|b| b.as_bytes())
         }
         pub fn has_oneof_bytes(&self) -> bool {
             self.oneof_bytes.is_some()
@@ -995,16 +1313,23 @@ mod __gen {
             self.cached_size.dirty();
             self.oneof_bytes = Some(protobuf::rt::LazyBytes::owned(v.into_proxied()));
         }
+        pub fn clear_oneof_bytes(&mut self) {
+            self.cached_size.dirty();
+            self.oneof_bytes = None;
+        }
         pub fn has_optional_lazy_import_message(&self) -> bool {
             self.optional_lazy_import_message.is_some()
         }
-        pub fn optional_lazy_import_message(&self) -> Option<&ImportMessage> {
-            self.optional_lazy_import_message.as_deref()
-        }
-        pub fn optional_lazy_import_message_view(&self) -> Option<ImportMessageView<'_>> {
+        pub fn optional_lazy_import_message(&self) -> &ImportMessage {
             self.optional_lazy_import_message
                 .as_deref()
-                .map(ImportMessageView)
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn optional_lazy_import_message_opt(&self) -> Option<&ImportMessage> {
+            self.optional_lazy_import_message.as_deref()
+        }
+        pub fn optional_lazy_import_message_view(&self) -> ImportMessageView<'_> {
+            ImportMessageView(self.optional_lazy_import_message())
         }
         pub fn set_optional_lazy_import_message(&mut self, v: ImportMessage) {
             self.cached_size.dirty();
@@ -2118,20 +2443,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(TestAllTypes, TestAllTypesView, TestAllTypesMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct NestedMessage {
         bb: i32,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for NestedMessage {
-        fn default() -> Self {
-            Self {
-                bb: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl NestedMessage {
         pub fn new() -> Self {
@@ -2224,18 +2540,10 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestEmptyMessage {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestEmptyMessage {
-        fn default() -> Self {
-            Self {
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestEmptyMessage {
         pub fn new() -> Self {
@@ -2310,7 +2618,7 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(TestEmptyMessage, TestEmptyMessageView, TestEmptyMessageMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestHasbits {
         b1: bool,
         b2: bool,
@@ -2384,84 +2692,6 @@ mod __gen {
         child: protobuf::rt::LazyMsg<TestAllTypes>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestHasbits {
-        fn default() -> Self {
-            Self {
-                b1: Default::default(),
-                b2: Default::default(),
-                b3: Default::default(),
-                b4: Default::default(),
-                b5: Default::default(),
-                b6: Default::default(),
-                b7: Default::default(),
-                b8: Default::default(),
-                b9: Default::default(),
-                b10: Default::default(),
-                b11: Default::default(),
-                b12: Default::default(),
-                b13: Default::default(),
-                b14: Default::default(),
-                b15: Default::default(),
-                b16: Default::default(),
-                b17: Default::default(),
-                b18: Default::default(),
-                b19: Default::default(),
-                b20: Default::default(),
-                b21: Default::default(),
-                b22: Default::default(),
-                b23: Default::default(),
-                b24: Default::default(),
-                b25: Default::default(),
-                b26: Default::default(),
-                b27: Default::default(),
-                b28: Default::default(),
-                b29: Default::default(),
-                b30: Default::default(),
-                b31: Default::default(),
-                b32: Default::default(),
-                b33: Default::default(),
-                b34: Default::default(),
-                b35: Default::default(),
-                b36: Default::default(),
-                b37: Default::default(),
-                b38: Default::default(),
-                b39: Default::default(),
-                b40: Default::default(),
-                b41: Default::default(),
-                b42: Default::default(),
-                b43: Default::default(),
-                b44: Default::default(),
-                b45: Default::default(),
-                b46: Default::default(),
-                b47: Default::default(),
-                b48: Default::default(),
-                b49: Default::default(),
-                b50: Default::default(),
-                b51: Default::default(),
-                b52: Default::default(),
-                b53: Default::default(),
-                b54: Default::default(),
-                b55: Default::default(),
-                b56: Default::default(),
-                b57: Default::default(),
-                b58: Default::default(),
-                b59: Default::default(),
-                b60: Default::default(),
-                b61: Default::default(),
-                b62: Default::default(),
-                b63: Default::default(),
-                b64: Default::default(),
-                b65: Default::default(),
-                b66: Default::default(),
-                b67: Default::default(),
-                b68: Default::default(),
-                b69: Default::default(),
-                child: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestHasbits {
         pub fn new() -> Self {
@@ -2954,11 +3184,16 @@ mod __gen {
         pub fn has_child(&self) -> bool {
             self.child.is_some()
         }
-        pub fn child(&self) -> Option<&TestAllTypes> {
+        pub fn child(&self) -> &TestAllTypes {
+            self.child
+                .as_deref()
+                .unwrap_or(protobuf::gen_support::default_instance_of())
+        }
+        pub fn child_opt(&self) -> Option<&TestAllTypes> {
             self.child.as_deref()
         }
-        pub fn child_view(&self) -> Option<TestAllTypesView<'_>> {
-            self.child.as_deref().map(TestAllTypesView)
+        pub fn child_view(&self) -> TestAllTypesView<'_> {
+            TestAllTypesView(self.child())
         }
         pub fn set_child(&mut self, v: TestAllTypes) {
             self.cached_size.dirty();
@@ -3836,20 +4071,11 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(TestHasbits, TestHasbitsView, TestHasbitsMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestMessageWithDummy {
         dummy: bool,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestMessageWithDummy {
-        fn default() -> Self {
-            Self {
-                dummy: Default::default(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestMessageWithDummy {
         pub fn new() -> Self {
@@ -3946,20 +4172,11 @@ mod __gen {
         TestMessageWithDummyView,
         TestMessageWithDummyMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestOneof2 {
         foo_enum: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for TestOneof2 {
-        fn default() -> Self {
-            Self {
-                foo_enum: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl TestOneof2 {
         pub fn new() -> Self {
@@ -3969,12 +4186,15 @@ mod __gen {
         pub fn has_foo_enum(&self) -> bool {
             self.foo_enum.is_some()
         }
-        pub fn foo_enum(&self) -> i32 {
-            self.foo_enum.unwrap_or_default()
+        pub fn foo_enum(&self) -> TestOneof2NestedEnum {
+            TestOneof2NestedEnum(self.foo_enum.unwrap_or(0))
         }
-        pub fn set_foo_enum(&mut self, v: i32) {
+        pub fn foo_enum_opt(&self) -> Option<TestOneof2NestedEnum> {
+            self.foo_enum.map(|v| TestOneof2NestedEnum(v))
+        }
+        pub fn set_foo_enum(&mut self, v: impl Into<i32>) {
             self.cached_size.dirty();
-            self.foo_enum = Some(v);
+            self.foo_enum = Some(v.into());
         }
         pub fn clear_foo_enum(&mut self) {
             self.cached_size.dirty();
@@ -4059,7 +4279,7 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(TestOneof2, TestOneof2View, TestOneof2Mut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestPackedTypes {
         packed_int32: protobuf::rt::PackedI32,
         packed_int64: protobuf::rt::PackedI64,
@@ -4078,28 +4298,6 @@ mod __gen {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
-    impl Default for TestPackedTypes {
-        fn default() -> Self {
-            Self {
-                packed_int32: protobuf::rt::PackedI32::new(),
-                packed_int64: protobuf::rt::PackedI64::new(),
-                packed_uint32: protobuf::rt::PackedU32::new(),
-                packed_uint64: protobuf::rt::PackedU64::new(),
-                packed_sint32: protobuf::rt::PackedS32::new(),
-                packed_sint64: protobuf::rt::PackedS64::new(),
-                packed_fixed32: protobuf::rt::PackedFx32::new(),
-                packed_fixed64: protobuf::rt::PackedFx64::new(),
-                packed_sfixed32: protobuf::rt::PackedSfx32::new(),
-                packed_sfixed64: protobuf::rt::PackedSfx64::new(),
-                packed_float: protobuf::rt::PackedF32::new(),
-                packed_double: protobuf::rt::PackedF64::new(),
-                packed_bool: protobuf::rt::PackedBool::new(),
-                packed_enum: protobuf::rt::PackedI32::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
-    }
     impl TestPackedTypes {
         pub fn new() -> Self {
             Self::default()
@@ -4112,9 +4310,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_int32.as_mut()
         }
-        pub fn set_packed_int32(&mut self, v: Repeated<i32>) {
+        pub fn set_packed_int32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.packed_int32 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_int32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_int64(&self) -> RepeatedView<'_, i64> {
             self.packed_int64.as_view()
@@ -4123,9 +4321,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_int64.as_mut()
         }
-        pub fn set_packed_int64(&mut self, v: Repeated<i64>) {
+        pub fn set_packed_int64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.packed_int64 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_int64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_uint32(&self) -> RepeatedView<'_, u32> {
             self.packed_uint32.as_view()
@@ -4134,9 +4332,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_uint32.as_mut()
         }
-        pub fn set_packed_uint32(&mut self, v: Repeated<u32>) {
+        pub fn set_packed_uint32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
-            self.packed_uint32 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_uint32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_uint64(&self) -> RepeatedView<'_, u64> {
             self.packed_uint64.as_view()
@@ -4145,9 +4343,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_uint64.as_mut()
         }
-        pub fn set_packed_uint64(&mut self, v: Repeated<u64>) {
+        pub fn set_packed_uint64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
-            self.packed_uint64 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_uint64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sint32(&self) -> RepeatedView<'_, i32> {
             self.packed_sint32.as_view()
@@ -4156,9 +4354,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_sint32.as_mut()
         }
-        pub fn set_packed_sint32(&mut self, v: Repeated<i32>) {
+        pub fn set_packed_sint32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.packed_sint32 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_sint32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sint64(&self) -> RepeatedView<'_, i64> {
             self.packed_sint64.as_view()
@@ -4167,9 +4365,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_sint64.as_mut()
         }
-        pub fn set_packed_sint64(&mut self, v: Repeated<i64>) {
+        pub fn set_packed_sint64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.packed_sint64 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_sint64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_fixed32(&self) -> RepeatedView<'_, u32> {
             self.packed_fixed32.as_view()
@@ -4178,9 +4376,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_fixed32.as_mut()
         }
-        pub fn set_packed_fixed32(&mut self, v: Repeated<u32>) {
+        pub fn set_packed_fixed32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
-            self.packed_fixed32 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_fixed32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_fixed64(&self) -> RepeatedView<'_, u64> {
             self.packed_fixed64.as_view()
@@ -4189,9 +4387,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_fixed64.as_mut()
         }
-        pub fn set_packed_fixed64(&mut self, v: Repeated<u64>) {
+        pub fn set_packed_fixed64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
-            self.packed_fixed64 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_fixed64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.packed_sfixed32.as_view()
@@ -4200,9 +4398,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_sfixed32.as_mut()
         }
-        pub fn set_packed_sfixed32(&mut self, v: Repeated<i32>) {
+        pub fn set_packed_sfixed32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.packed_sfixed32 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_sfixed32 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sfixed64(&self) -> RepeatedView<'_, i64> {
             self.packed_sfixed64.as_view()
@@ -4211,9 +4409,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_sfixed64.as_mut()
         }
-        pub fn set_packed_sfixed64(&mut self, v: Repeated<i64>) {
+        pub fn set_packed_sfixed64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.packed_sfixed64 = protobuf::rt::Packed::from_repeated(v);
+            self.packed_sfixed64 = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_float(&self) -> RepeatedView<'_, f32> {
             self.packed_float.as_view()
@@ -4222,9 +4420,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_float.as_mut()
         }
-        pub fn set_packed_float(&mut self, v: Repeated<f32>) {
+        pub fn set_packed_float(&mut self, v: impl IntoIterator<Item = f32>) {
             self.cached_size.dirty();
-            self.packed_float = protobuf::rt::Packed::from_repeated(v);
+            self.packed_float = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_double(&self) -> RepeatedView<'_, f64> {
             self.packed_double.as_view()
@@ -4233,9 +4431,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_double.as_mut()
         }
-        pub fn set_packed_double(&mut self, v: Repeated<f64>) {
+        pub fn set_packed_double(&mut self, v: impl IntoIterator<Item = f64>) {
             self.cached_size.dirty();
-            self.packed_double = protobuf::rt::Packed::from_repeated(v);
+            self.packed_double = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_bool(&self) -> RepeatedView<'_, bool> {
             self.packed_bool.as_view()
@@ -4244,9 +4442,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_bool.as_mut()
         }
-        pub fn set_packed_bool(&mut self, v: Repeated<bool>) {
+        pub fn set_packed_bool(&mut self, v: impl IntoIterator<Item = bool>) {
             self.cached_size.dirty();
-            self.packed_bool = protobuf::rt::Packed::from_repeated(v);
+            self.packed_bool = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_enum(&self) -> RepeatedView<'_, i32> {
             self.packed_enum.as_view()
@@ -4255,9 +4453,9 @@ mod __gen {
             self.cached_size.dirty();
             self.packed_enum.as_mut()
         }
-        pub fn set_packed_enum(&mut self, v: Repeated<i32>) {
+        pub fn set_packed_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.packed_enum = protobuf::rt::Packed::from_repeated(v);
+            self.packed_enum = protobuf::rt::Packed::from_repeated(v.into_iter().collect());
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -4733,7 +4931,7 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(TestPackedTypes, TestPackedTypesView, TestPackedTypesMut);
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct TestUnpackedTypes {
         repeated_int32: Repeated<i32>,
         repeated_int64: Repeated<i64>,
@@ -4752,28 +4950,6 @@ mod __gen {
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
     }
-    impl Default for TestUnpackedTypes {
-        fn default() -> Self {
-            Self {
-                repeated_int32: Repeated::new(),
-                repeated_int64: Repeated::new(),
-                repeated_uint32: Repeated::new(),
-                repeated_uint64: Repeated::new(),
-                repeated_sint32: Repeated::new(),
-                repeated_sint64: Repeated::new(),
-                repeated_fixed32: Repeated::new(),
-                repeated_fixed64: Repeated::new(),
-                repeated_sfixed32: Repeated::new(),
-                repeated_sfixed64: Repeated::new(),
-                repeated_float: Repeated::new(),
-                repeated_double: Repeated::new(),
-                repeated_bool: Repeated::new(),
-                repeated_nested_enum: Repeated::new(),
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
-    }
     impl TestUnpackedTypes {
         pub fn new() -> Self {
             Self::default()
@@ -4786,9 +4962,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_int32.as_mut()
         }
-        pub fn set_repeated_int32(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_int32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_int32 = v;
+            self.repeated_int32 = v.into_iter().collect();
         }
         pub fn repeated_int64(&self) -> RepeatedView<'_, i64> {
             self.repeated_int64.as_view()
@@ -4797,9 +4973,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_int64.as_mut()
         }
-        pub fn set_repeated_int64(&mut self, v: Repeated<i64>) {
+        pub fn set_repeated_int64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.repeated_int64 = v;
+            self.repeated_int64 = v.into_iter().collect();
         }
         pub fn repeated_uint32(&self) -> RepeatedView<'_, u32> {
             self.repeated_uint32.as_view()
@@ -4808,9 +4984,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_uint32.as_mut()
         }
-        pub fn set_repeated_uint32(&mut self, v: Repeated<u32>) {
+        pub fn set_repeated_uint32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
-            self.repeated_uint32 = v;
+            self.repeated_uint32 = v.into_iter().collect();
         }
         pub fn repeated_uint64(&self) -> RepeatedView<'_, u64> {
             self.repeated_uint64.as_view()
@@ -4819,9 +4995,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_uint64.as_mut()
         }
-        pub fn set_repeated_uint64(&mut self, v: Repeated<u64>) {
+        pub fn set_repeated_uint64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
-            self.repeated_uint64 = v;
+            self.repeated_uint64 = v.into_iter().collect();
         }
         pub fn repeated_sint32(&self) -> RepeatedView<'_, i32> {
             self.repeated_sint32.as_view()
@@ -4830,9 +5006,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sint32.as_mut()
         }
-        pub fn set_repeated_sint32(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_sint32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_sint32 = v;
+            self.repeated_sint32 = v.into_iter().collect();
         }
         pub fn repeated_sint64(&self) -> RepeatedView<'_, i64> {
             self.repeated_sint64.as_view()
@@ -4841,9 +5017,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sint64.as_mut()
         }
-        pub fn set_repeated_sint64(&mut self, v: Repeated<i64>) {
+        pub fn set_repeated_sint64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.repeated_sint64 = v;
+            self.repeated_sint64 = v.into_iter().collect();
         }
         pub fn repeated_fixed32(&self) -> RepeatedView<'_, u32> {
             self.repeated_fixed32.as_view()
@@ -4852,9 +5028,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_fixed32.as_mut()
         }
-        pub fn set_repeated_fixed32(&mut self, v: Repeated<u32>) {
+        pub fn set_repeated_fixed32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
-            self.repeated_fixed32 = v;
+            self.repeated_fixed32 = v.into_iter().collect();
         }
         pub fn repeated_fixed64(&self) -> RepeatedView<'_, u64> {
             self.repeated_fixed64.as_view()
@@ -4863,9 +5039,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_fixed64.as_mut()
         }
-        pub fn set_repeated_fixed64(&mut self, v: Repeated<u64>) {
+        pub fn set_repeated_fixed64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
-            self.repeated_fixed64 = v;
+            self.repeated_fixed64 = v.into_iter().collect();
         }
         pub fn repeated_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.repeated_sfixed32.as_view()
@@ -4874,9 +5050,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sfixed32.as_mut()
         }
-        pub fn set_repeated_sfixed32(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_sfixed32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_sfixed32 = v;
+            self.repeated_sfixed32 = v.into_iter().collect();
         }
         pub fn repeated_sfixed64(&self) -> RepeatedView<'_, i64> {
             self.repeated_sfixed64.as_view()
@@ -4885,9 +5061,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_sfixed64.as_mut()
         }
-        pub fn set_repeated_sfixed64(&mut self, v: Repeated<i64>) {
+        pub fn set_repeated_sfixed64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.repeated_sfixed64 = v;
+            self.repeated_sfixed64 = v.into_iter().collect();
         }
         pub fn repeated_float(&self) -> RepeatedView<'_, f32> {
             self.repeated_float.as_view()
@@ -4896,9 +5072,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_float.as_mut()
         }
-        pub fn set_repeated_float(&mut self, v: Repeated<f32>) {
+        pub fn set_repeated_float(&mut self, v: impl IntoIterator<Item = f32>) {
             self.cached_size.dirty();
-            self.repeated_float = v;
+            self.repeated_float = v.into_iter().collect();
         }
         pub fn repeated_double(&self) -> RepeatedView<'_, f64> {
             self.repeated_double.as_view()
@@ -4907,9 +5083,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_double.as_mut()
         }
-        pub fn set_repeated_double(&mut self, v: Repeated<f64>) {
+        pub fn set_repeated_double(&mut self, v: impl IntoIterator<Item = f64>) {
             self.cached_size.dirty();
-            self.repeated_double = v;
+            self.repeated_double = v.into_iter().collect();
         }
         pub fn repeated_bool(&self) -> RepeatedView<'_, bool> {
             self.repeated_bool.as_view()
@@ -4918,9 +5094,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_bool.as_mut()
         }
-        pub fn set_repeated_bool(&mut self, v: Repeated<bool>) {
+        pub fn set_repeated_bool(&mut self, v: impl IntoIterator<Item = bool>) {
             self.cached_size.dirty();
-            self.repeated_bool = v;
+            self.repeated_bool = v.into_iter().collect();
         }
         pub fn repeated_nested_enum(&self) -> RepeatedView<'_, i32> {
             self.repeated_nested_enum.as_view()
@@ -4929,9 +5105,9 @@ mod __gen {
             self.cached_size.dirty();
             self.repeated_nested_enum.as_mut()
         }
-        pub fn set_repeated_nested_enum(&mut self, v: Repeated<i32>) {
+        pub fn set_repeated_nested_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.repeated_nested_enum = v;
+            self.repeated_nested_enum = v.into_iter().collect();
         }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             let w = protobuf::rt::Wire::from_slice(data);
@@ -5267,20 +5443,11 @@ mod __gen {
         TestUnpackedTypesView,
         TestUnpackedTypesMut
     );
-    #[derive(Clone, Debug, PartialEq)]
+    #[derive(Clone, Debug, Default, PartialEq)]
     pub struct ImportMessage {
         d: Option<i32>,
         unknown: UnknownFields,
         cached_size: protobuf::rt::CachedSize,
-    }
-    impl Default for ImportMessage {
-        fn default() -> Self {
-            Self {
-                d: None,
-                unknown: UnknownFields::default(),
-                cached_size: protobuf::rt::CachedSize::default(),
-            }
-        }
     }
     impl ImportMessage {
         pub fn new() -> Self {
@@ -5291,7 +5458,10 @@ mod __gen {
             self.d.is_some()
         }
         pub fn d(&self) -> i32 {
-            self.d.unwrap_or_default()
+            self.d.unwrap_or(0)
+        }
+        pub fn d_opt(&self) -> Option<i32> {
+            self.d.map(|v| v)
         }
         pub fn set_d(&mut self, v: i32) {
             self.cached_size.dirty();
@@ -5380,5 +5550,12 @@ mod __gen {
         }
     }
     protobuf::impl_typed_message!(ImportMessage, ImportMessageView, ImportMessageMut);
+    pub mod test_all_types {
+        pub use super::NestedEnum;
+        pub use super::NestedMessage;
+    }
+    pub mod test_oneof2 {
+        pub use super::TestOneof2NestedEnum as NestedEnum;
+    }
 }
 pub use __gen::*;

@@ -161,8 +161,42 @@ impl<'msg, T> RepeatedMut<'msg, T> {
         self.inner.get(index)
     }
 
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.inner.get_mut(index)
+    }
+
+    pub fn push_default(&mut self) -> &mut T
+    where
+        T: Default,
+    {
+        self.inner.push(T::default());
+        self.inner.last_mut().expect("just pushed")
+    }
+
+    pub fn set(&mut self, index: usize, value: T) {
+        self.inner[index] = value;
+    }
+
+    pub fn extend(&mut self, iter: impl IntoIterator<Item = T>) {
+        self.inner.extend(iter);
+    }
+
+    pub fn copy_from(&mut self, src: RepeatedView<'_, T>)
+    where
+        T: Clone,
+    {
+        self.inner.clear();
+        self.inner.extend(src.inner.iter().cloned());
+    }
+
     pub fn clear(&mut self) {
         self.inner.clear();
+    }
+
+    pub fn iter(&self) -> RepeatedIter<'_, T> {
+        RepeatedIter {
+            inner: self.inner.iter(),
+        }
     }
 
     pub fn as_view(&self) -> RepeatedView<'_, T> {
@@ -189,6 +223,22 @@ impl<'msg, T> Iterator for RepeatedIter<'msg, T> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<T> ExactSizeIterator for RepeatedIter<'_, T> {
+    fn len(&self) -> usize {
+        self.inner.len()
+    }
+}
+
+impl<T> std::iter::FusedIterator for RepeatedIter<'_, T> {}
+
+impl<'a, T: Copy> IntoIterator for RepeatedView<'a, T> {
+    type Item = T;
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, T>>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.iter().copied()
     }
 }
 

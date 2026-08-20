@@ -67,7 +67,7 @@ fn prost_of(m: &TestAllTypesProto3) -> ProstTat {
         optional_string: m.optional_string().to_str().unwrap_or("").to_string(),
         optional_bytes: m.optional_bytes().to_vec(),
         optional_nested_message: m
-            .optional_nested_message()
+            .optional_nested_message_opt()
             .map(|n| ProstNested { a: n.a() }),
         repeated_int32: m.repeated_int32().iter().copied().collect(),
         map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (*k, *v)).collect(),
@@ -77,7 +77,7 @@ fn prost_of(m: &TestAllTypesProto3) -> ProstTat {
 
 fn buffa_of(m: &TestAllTypesProto3) -> BuffaTat {
     let nested = BuffaNested {
-        a: m.optional_nested_message().map(|n| n.a()).unwrap_or(0),
+        a: m.optional_nested_message_opt().map(|n| n.a()).unwrap_or(0),
         ..Default::default()
     };
     BuffaTat {
@@ -102,7 +102,7 @@ fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
     v.set_optional_string(m.optional_string().to_str().unwrap_or(""));
     v.set_optional_bytes(m.optional_bytes());
     v.optional_nested_message_mut()
-        .set_a(m.optional_nested_message().map(|n| n.a()).unwrap_or(0));
+        .set_a(m.optional_nested_message_opt().map(|n| n.a()).unwrap_or(0));
     for i in m.repeated_int32().iter() {
         v.repeated_int32_mut().push(*i);
     }
