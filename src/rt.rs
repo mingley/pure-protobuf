@@ -47,8 +47,10 @@ impl CachedSize {
 }
 
 impl Default for CachedSize {
+    /// 0 is a valid cached size for an empty message.
+    #[inline]
     fn default() -> Self {
-        Self(AtomicU64::new(Self::DIRTY))
+        Self(AtomicU64::new(0))
     }
 }
 

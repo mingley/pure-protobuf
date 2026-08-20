@@ -789,12 +789,18 @@ macro_rules! impl_typed_message {
                 self.merge_bytes_dont_enforce(data, 0)
             }
             fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                if data.is_empty() {
+                    return self.check_required();
+                }
                 self.merge_bytes(data, 0)
             }
             fn merge_from_bytes_dont_enforce_required(
                 &mut self,
                 data: &[u8],
             ) -> Result<(), $crate::ParseError> {
+                if data.is_empty() {
+                    return Ok(());
+                }
                 self.merge_bytes_dont_enforce(data, 0)
             }
         }

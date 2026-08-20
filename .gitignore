@@ -3,5 +3,7 @@
 /v4_person/target
 /v4_tat/target
 /buffa_tat/target
+/buffa_person/target
+/prost_tat/target
 /third_party/protobuf
 .DS_Store

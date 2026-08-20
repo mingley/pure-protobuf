@@ -1,0 +1,15 @@
+[package]
+name = "prost_tat"
+version = "0.0.1"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[dependencies]
+prost = "0.13"
+prost-types = "0.13"
+
+[build-dependencies]
+prost-build = "0.13"

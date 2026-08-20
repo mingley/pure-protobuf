@@ -19,9 +19,72 @@ pub enum UnknownField {
     Fixed32 { number: u32, value: u32 },
 }
 
+/// Unknown-field list. Empty `None` is 24 bytes and zero-valid.
+/// Named `fields` so generated `self.unknown.fields.push(...)` keeps working.
+#[derive(Clone, Debug)]
+pub struct FieldList(Option<Vec<UnknownField>>);
+
+impl Default for FieldList {
+    #[inline]
+    fn default() -> Self {
+        Self(None)
+    }
+}
+
+impl PartialEq for FieldList {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+impl Eq for FieldList {}
+
+impl FieldList {
+    const EMPTY: &'static [UnknownField] = &[];
+
+    #[inline]
+    pub fn as_slice(&self) -> &[UnknownField] {
+        self.0.as_ref().map_or(Self::EMPTY, |v| v.as_slice())
+    }
+
+    pub fn push(&mut self, value: UnknownField) {
+        self.0.get_or_insert_with(Vec::new).push(value);
+    }
+
+    pub fn extend<I: IntoIterator<Item = UnknownField>>(&mut self, iter: I) {
+        let mut iter = iter.into_iter();
+        let Some(first) = iter.next() else {
+            return;
+        };
+        let v = self.0.get_or_insert_with(Vec::new);
+        v.push(first);
+        v.extend(iter);
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<'_, UnknownField> {
+        self.as_slice().iter()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0.as_ref().is_none_or(|v| v.is_empty())
+    }
+
+    pub fn clear(&mut self) {
+        self.0 = None;
+    }
+}
+
+impl<'a> IntoIterator for &'a FieldList {
+    type Item = &'a UnknownField;
+    type IntoIter = std::slice::Iter<'a, UnknownField>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct UnknownFields {
-    pub fields: Vec<UnknownField>,
+    pub fields: FieldList,
 }
 
 impl UnknownFields {
@@ -34,7 +97,7 @@ impl UnknownFields {
     }
 
     pub fn encode(&self, out: &mut Vec<u8>) {
-        for f in &self.fields {
+        for f in self.fields.iter() {
             f.encode(out);
         }
     }

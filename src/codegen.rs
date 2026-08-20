@@ -971,13 +971,33 @@ fn map_val_ty(field: &FieldDescriptor) -> FieldType {
 }
 
 fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
+    let required: Vec<_> = desc
+        .fields
+        .values()
+        .filter(|f| f.cardinality == Cardinality::Required)
+        .collect();
     let _ = writeln!(
         src,
-        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ let w = protobuf::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, true, None) }}"
+        "    fn check_required(&self) -> Result<(), ParseError> {{"
+    );
+    for f in &required {
+        let id = field_id(f);
+        if is_option(f) {
+            let _ = writeln!(
+                src,
+                "        if self.{id}.is_none() {{ return Err(ParseError::new(\"missing required field\")); }}"
+            );
+        }
+    }
+    let _ = writeln!(src, "        Ok(())");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let w = protobuf::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, true, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ let w = protobuf::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, false, None) }}"
+        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return Ok(()); }} let w = protobuf::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, false, None) }}"
     );
     let _ = writeln!(
         src,
@@ -1016,24 +1036,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         src,
         "        if until.is_some() {{ return Err(ParseError::new(\"truncated group\")); }}"
     );
-    let required: Vec<_> = desc
-        .fields
-        .values()
-        .filter(|f| f.cardinality == Cardinality::Required)
-        .collect();
-    if !required.is_empty() {
-        let _ = writeln!(src, "        if enforce {{");
-        for f in required {
-            let id = field_id(f);
-            if is_option(f) {
-                let _ = writeln!(
-                    src,
-                    "            if self.{id}.is_none() {{ return Err(ParseError::new(\"missing required field\")); }}"
-                );
-            }
-        }
-        let _ = writeln!(src, "        }}");
-    }
+    let _ = writeln!(src, "        if enforce {{ self.check_required()?; }}");
     let _ = writeln!(src, "        Ok(())");
     let _ = writeln!(src, "    }}");
 
@@ -1301,6 +1304,7 @@ fn emit_size(src: &mut String, f: &FieldDescriptor) {
     let id = field_id(f);
     let num = f.number;
     if f.is_map {
+        let _ = writeln!(src, "        if !self.{id}.is_empty() {{");
         let _ = writeln!(src, "        for (k, v) in self.{id}.iter() {{");
         let key_sz = map_key_size(map_key_ty(f), "k");
         let val_sz = map_val_size(map_val_ty(f), "v");
@@ -1309,6 +1313,7 @@ fn emit_size(src: &mut String, f: &FieldDescriptor) {
             src,
             "            n += protobuf::rt::key_len_value_len({num}, inner);"
         );
+        let _ = writeln!(src, "        }}");
         let _ = writeln!(src, "        }}");
         return;
     }
@@ -1441,6 +1446,7 @@ fn emit_write(src: &mut String, f: &FieldDescriptor) {
     if f.is_map {
         let kty = map_key_ty(f);
         let vty = map_val_ty(f);
+        let _ = writeln!(src, "        if !self.{id}.is_empty() {{");
         let _ = writeln!(src, "        for (k, v) in self.{id}.iter() {{");
         let _ = writeln!(
             src,
@@ -1451,6 +1457,7 @@ fn emit_write(src: &mut String, f: &FieldDescriptor) {
         let _ = writeln!(src, "            protobuf::rt::encode_tag(out, {num}, protobuf::rt::WIRE_LEN); protobuf::rt::encode_varint(out, inner);");
         emit_map_key_write(src, kty);
         emit_map_val_write(src, vty);
+        let _ = writeln!(src, "        }}");
         let _ = writeln!(src, "        }}");
         return;
     }

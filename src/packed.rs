@@ -3,8 +3,10 @@
 use crate::error::ParseError;
 use crate::lazy::Wire;
 use crate::repeated::{Repeated, RepeatedMut, RepeatedView};
-use crate::wire::{decode_varint, decode_zigzag32, decode_zigzag64};
-use std::marker::PhantomData;
+use crate::wire::{
+    decode_varint, decode_zigzag32, decode_zigzag64, encode_varint, encode_zigzag32,
+    encode_zigzag64,
+};
 use std::sync::OnceLock;
 
 pub trait PackedCodec: Sized {
@@ -13,10 +15,11 @@ pub trait PackedCodec: Sized {
     const MEMCPY_SAFE: bool = false;
     fn validate(buf: &[u8]) -> Result<(), ParseError>;
     fn decode(buf: &[u8], out: &mut Vec<Self::Elem>) -> Result<(), ParseError>;
+    fn encode(elems: &[Self::Elem], out: &mut Vec<u8>);
 }
 
 macro_rules! varint_codec {
-    ($name:ident, $elem:ty, $from:expr) => {
+    ($name:ident, $elem:ty, $from:expr, $to:expr) => {
         #[derive(Clone, Copy, Debug)]
         pub enum $name {}
         impl PackedCodec for $name {
@@ -35,16 +38,21 @@ macro_rules! varint_codec {
                 }
                 Ok(())
             }
+            fn encode(elems: &[$elem], out: &mut Vec<u8>) {
+                for e in elems {
+                    encode_varint(out, $to(*e));
+                }
+            }
         }
     };
 }
 
-varint_codec!(VarintI32, i32, |v| v as i32);
-varint_codec!(VarintU32, u32, |v| v as u32);
-varint_codec!(VarintI64, i64, |v| v as i64);
-varint_codec!(VarintU64, u64, |v| v);
-varint_codec!(ZigZag32, i32, decode_zigzag32);
-varint_codec!(ZigZag64, i64, decode_zigzag64);
+varint_codec!(VarintI32, i32, |v| v as i32, |e: i32| e as u64);
+varint_codec!(VarintU32, u32, |v| v as u32, |e: u32| e as u64);
+varint_codec!(VarintI64, i64, |v| v as i64, |e: i64| e as u64);
+varint_codec!(VarintU64, u64, |v| v, |e: u64| e);
+varint_codec!(ZigZag32, i32, decode_zigzag32, encode_zigzag32);
+varint_codec!(ZigZag64, i64, decode_zigzag64, encode_zigzag64);
 
 #[derive(Clone, Copy, Debug)]
 pub enum Bools {}
@@ -63,6 +71,11 @@ impl PackedCodec for Bools {
             out.push(decode_varint(buf, &mut i)? != 0);
         }
         Ok(())
+    }
+    fn encode(elems: &[bool], out: &mut Vec<u8>) {
+        for e in elems {
+            encode_varint(out, u64::from(*e));
+        }
     }
 }
 
@@ -88,6 +101,7 @@ macro_rules! fixed_codec {
                 }
                 Ok(())
             }
+            fn encode(_elems: &[$elem], _out: &mut Vec<u8>) {}
         }
     };
 }
@@ -125,49 +139,77 @@ pub type PackedF32 = Packed<Ieee32>;
 pub type PackedF64 = Packed<Ieee64>;
 pub type PackedBool = Packed<Bools>;
 
-pub struct Packed<C: PackedCodec> {
+struct PackedInner<C: PackedCodec> {
     wire: Option<Wire>,
     decoded: OnceLock<Vec<C::Elem>>,
-    _c: PhantomData<C>,
+    encoded: OnceLock<Vec<u8>>,
+}
+
+/// Packed repeated scalars. Empty is a null pointer (8 bytes, zero-valid).
+pub struct Packed<C: PackedCodec> {
+    inner: Option<Box<PackedInner<C>>>,
 }
 
 impl<C: PackedCodec> Default for Packed<C> {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<C: PackedCodec> Packed<C> {
+    #[inline]
     pub fn new() -> Self {
-        Self {
-            wire: None,
-            decoded: OnceLock::new(),
-            _c: PhantomData,
-        }
+        Self { inner: None }
     }
 
     pub fn from_repeated(r: Repeated<C::Elem>) -> Self {
+        let v = r.into_vec();
+        if v.is_empty() {
+            return Self::new();
+        }
         let d = OnceLock::new();
-        let _ = d.set(r.into_vec());
+        let _ = d.set(v);
         Self {
-            wire: None,
-            decoded: d,
-            _c: PhantomData,
+            inner: Some(Box::new(PackedInner {
+                wire: None,
+                decoded: d,
+                encoded: OnceLock::new(),
+            })),
         }
     }
 
     pub fn packed_bytes(&self) -> Option<&[u8]> {
-        if !C::MEMCPY_SAFE {
+        if self.is_empty() {
             return None;
         }
-        self.wire.as_ref().map(|w| w.as_slice())
+        let i = self.inner.as_ref()?;
+        if C::MEMCPY_SAFE {
+            return i.wire.as_ref().map(|w| w.as_slice());
+        }
+        let elems = i.decoded.get_or_init(|| {
+            let mut out = Vec::new();
+            if let Some(w) = &i.wire {
+                let _ = C::decode(w.as_slice(), &mut out);
+            }
+            out
+        });
+        Some(i.encoded.get_or_init(|| {
+            let mut out = Vec::new();
+            C::encode(elems, &mut out);
+            out
+        }))
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
-        if let Some(v) = self.decoded.get() {
+        let Some(i) = self.inner.as_ref() else {
+            return true;
+        };
+        if let Some(v) = i.decoded.get() {
             v.is_empty()
         } else {
-            self.wire.as_ref().is_none_or(|w| w.as_slice().is_empty())
+            i.wire.as_ref().is_none_or(|w| w.as_slice().is_empty())
         }
     }
 
@@ -176,14 +218,29 @@ impl<C: PackedCodec> Packed<C> {
         if w.as_slice().is_empty() {
             return Ok(());
         }
-        if self.decoded.get().is_none() && self.wire.is_none() {
-            self.wire = Some(w);
-            return Ok(());
+        match self.inner.as_mut() {
+            None => {
+                self.inner = Some(Box::new(PackedInner {
+                    wire: Some(w),
+                    decoded: OnceLock::new(),
+                    encoded: OnceLock::new(),
+                }));
+            }
+            Some(i) if i.decoded.get().is_none() && i.wire.is_none() => {
+                i.wire = Some(w);
+            }
+            Some(_) => {
+                let mut items = self.take_vec();
+                C::decode(w.as_slice(), &mut items)?;
+                let d = OnceLock::new();
+                let _ = d.set(items);
+                self.inner = Some(Box::new(PackedInner {
+                    wire: None,
+                    decoded: d,
+                    encoded: OnceLock::new(),
+                }));
+            }
         }
-        let mut items = self.take_vec();
-        C::decode(w.as_slice(), &mut items)?;
-        self.decoded = OnceLock::new();
-        let _ = self.decoded.set(items);
         Ok(())
     }
 
@@ -192,9 +249,7 @@ impl<C: PackedCodec> Packed<C> {
     }
 
     pub fn clear(&mut self) {
-        self.wire = None;
-        self.decoded = OnceLock::new();
-        let _ = self.decoded.set(Vec::new());
+        self.inner = None;
     }
 
     pub fn as_view(&self) -> RepeatedView<'_, C::Elem> {
@@ -210,22 +265,26 @@ impl<C: PackedCodec> Packed<C> {
     }
 
     fn as_slice(&self) -> &[C::Elem] {
-        self.decoded.get_or_init(|| self.decode_now())
-    }
-
-    fn decode_now(&self) -> Vec<C::Elem> {
-        let mut out = Vec::new();
-        if let Some(w) = &self.wire {
-            let _ = C::decode(w.as_slice(), &mut out);
-        }
-        out
+        let Some(i) = self.inner.as_ref() else {
+            return &[];
+        };
+        i.decoded.get_or_init(|| {
+            let mut out = Vec::new();
+            if let Some(w) = &i.wire {
+                let _ = C::decode(w.as_slice(), &mut out);
+            }
+            out
+        })
     }
 
     fn take_vec(&mut self) -> Vec<C::Elem> {
-        if let Some(v) = self.decoded.take() {
-            self.wire = None;
+        let Some(i) = self.inner.as_mut() else {
+            return Vec::new();
+        };
+        if let Some(v) = i.decoded.take() {
+            i.wire = None;
             v
-        } else if let Some(w) = self.wire.take() {
+        } else if let Some(w) = i.wire.take() {
             let mut v = Vec::new();
             let _ = C::decode(w.as_slice(), &mut v);
             v
@@ -235,25 +294,45 @@ impl<C: PackedCodec> Packed<C> {
     }
 
     fn force_vec(&mut self) -> &mut Vec<C::Elem> {
-        if self.decoded.get().is_none() {
-            let v = self.take_vec();
-            let _ = self.decoded.set(v);
+        if self.inner.is_none() {
+            let d = OnceLock::new();
+            let _ = d.set(Vec::new());
+            self.inner = Some(Box::new(PackedInner {
+                wire: None,
+                decoded: d,
+                encoded: OnceLock::new(),
+            }));
         }
-        self.wire = None;
-        self.decoded.get_mut().expect("packed decoded")
+        let i = self.inner.as_mut().expect("packed inner");
+        i.encoded = OnceLock::new();
+        if i.decoded.get().is_none() {
+            let mut v = Vec::new();
+            if let Some(w) = i.wire.take() {
+                let _ = C::decode(w.as_slice(), &mut v);
+            }
+            let _ = i.decoded.set(v);
+        } else {
+            i.wire = None;
+        }
+        i.decoded.get_mut().expect("packed decoded")
     }
 }
 
 impl<C: PackedCodec> Clone for Packed<C> {
     fn clone(&self) -> Self {
+        let Some(i) = self.inner.as_ref() else {
+            return Self::new();
+        };
         let d = OnceLock::new();
-        if let Some(v) = self.decoded.get() {
+        if let Some(v) = i.decoded.get() {
             let _ = d.set(v.clone());
         }
         Self {
-            wire: self.wire.clone(),
-            decoded: d,
-            _c: PhantomData,
+            inner: Some(Box::new(PackedInner {
+                wire: i.wire.clone(),
+                decoded: d,
+                encoded: OnceLock::new(),
+            })),
         }
     }
 }
@@ -301,7 +380,7 @@ mod tests {
         encode_varint(&mut buf, 2);
         let mut p = PackedI32::new();
         p.append_wire(Wire::from_slice(&buf)).unwrap();
-        assert!(p.packed_bytes().is_none());
+        assert_eq!(p.packed_bytes(), Some(buf.as_slice()));
         assert_eq!(p.as_view().len(), 2);
         p.push(3);
         assert_eq!(p.as_view().len(), 3);
@@ -311,5 +390,13 @@ mod tests {
         assert!(fx.packed_bytes().is_some());
         fx.push(2);
         assert!(fx.packed_bytes().is_none());
+    }
+
+    #[test]
+    fn empty_eq_and_zeroed() {
+        let z: PackedI32 = unsafe { std::mem::zeroed() };
+        assert!(z.is_empty());
+        assert_eq!(z, PackedI32::new());
+        drop(z);
     }
 }

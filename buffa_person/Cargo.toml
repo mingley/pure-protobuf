@@ -1,0 +1,15 @@
+[package]
+name = "buffa_person"
+version = "0.0.1"
+edition = "2021"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[dependencies]
+buffa = { version = "0.9.1", default-features = true }
+buffa-types = { version = "0.9.1", default-features = true }
+
+[build-dependencies]
+buffa-build = "0.9.1"

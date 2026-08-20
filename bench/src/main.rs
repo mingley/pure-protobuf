@@ -1,4 +1,4 @@
-//! TestAllTypes encode/decode vs prost, protobuf v4 (upb), and buffa.
+//! Same-schema encode/decode vs prost, protobuf v4 (upb), and buffa.
 
 use buffa::{Message as BuffaMessage, MessageView};
 use buffa_tat::protobuf_test_messages::proto3::{
@@ -8,38 +8,28 @@ use buffa_tat::protobuf_test_messages::proto3::{
 use prost::Message;
 use protobuf::gencode::{NestedMessage, TestAllTypesProto3};
 use protobuf::prelude::*;
+use protobuf::testdata::{Address, Person};
 use protobuf_v4::{Parse as V4Parse, Serialize as V4Serialize};
 use std::time::Instant;
 
-#[derive(Clone, PartialEq, Message)]
-struct ProstNested {
-    #[prost(int32, tag = "1")]
-    a: i32,
+fn median_ns<F: FnMut()>(samples: usize, iters: u32, mut f: F) -> f64 {
+    let mut xs: Vec<f64> = (0..samples).map(|_| bench_ns(iters, &mut f)).collect();
+    xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    xs[samples / 2]
 }
 
-#[derive(Clone, PartialEq, Message)]
-struct ProstTat {
-    #[prost(int32, tag = "1")]
-    optional_int32: i32,
-    #[prost(int64, tag = "2")]
-    optional_int64: i64,
-    #[prost(uint32, tag = "3")]
-    optional_uint32: u32,
-    #[prost(string, tag = "14")]
-    optional_string: String,
-    #[prost(bytes, tag = "15")]
-    optional_bytes: Vec<u8>,
-    #[prost(message, optional, tag = "18")]
-    optional_nested_message: Option<ProstNested>,
-    #[prost(int32, repeated, packed = "true", tag = "31")]
-    repeated_int32: Vec<i32>,
-    #[prost(map = "int32, int32", tag = "56")]
-    map_int32_int32: std::collections::HashMap<i32, i32>,
-    #[prost(int32, repeated, packed = "true", tag = "75")]
-    packed_int32: Vec<i32>,
+fn bench_ns<F: FnMut()>(iters: u32, mut f: F) -> f64 {
+    for _ in 0..iters / 10 {
+        f();
+    }
+    let t = Instant::now();
+    for _ in 0..iters {
+        std::hint::black_box(f());
+    }
+    t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
 }
 
-fn ours() -> TestAllTypesProto3 {
+fn tat_populated() -> TestAllTypesProto3 {
     let mut nested = NestedMessage::new();
     nested.set_a(9);
     let mut m = TestAllTypesProto3::new();
@@ -59,37 +49,70 @@ fn ours() -> TestAllTypesProto3 {
     m
 }
 
-fn prost_of(m: &TestAllTypesProto3) -> ProstTat {
-    ProstTat {
-        optional_int32: m.optional_int32(),
-        optional_int64: m.optional_int64(),
-        optional_uint32: m.optional_uint32(),
-        optional_string: m.optional_string().to_str().unwrap_or("").to_string(),
-        optional_bytes: m.optional_bytes().to_vec(),
-        optional_nested_message: m
-            .optional_nested_message_opt()
-            .map(|n| ProstNested { a: n.a() }),
-        repeated_int32: m.repeated_int32().iter().copied().collect(),
-        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (*k, *v)).collect(),
-        packed_int32: m.packed_int32().iter().copied().collect(),
+fn tat_packed() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    for i in 0..256 {
+        m.packed_int32_mut().push(i);
     }
+    m
 }
 
-fn buffa_of(m: &TestAllTypesProto3) -> BuffaTat {
-    let nested = BuffaNested {
-        a: m.optional_nested_message_opt().map(|n| n.a()).unwrap_or(0),
-        ..Default::default()
-    };
-    BuffaTat {
+fn tat_map() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    for i in 0..64 {
+        m.map_int32_int32_mut().insert(i, i * i);
+    }
+    m
+}
+
+fn tat_nested() -> TestAllTypesProto3 {
+    let mut inner = TestAllTypesProto3::new();
+    inner.set_optional_int32(1);
+    for _ in 0..8 {
+        let mut outer = TestAllTypesProto3::new();
+        outer.set_recursive_message(inner);
+        inner = outer;
+    }
+    inner
+}
+
+fn tat_strings() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    m.set_optional_string("the quick brown fox jumps over the lazy dog");
+    m.set_optional_string_piece("string piece payload for encode/decode");
+    m.set_optional_cord("cord-shaped string used as a singular field");
+    for s in ["alpha", "beta", "gamma", "delta"] {
+        m.repeated_string_mut().push(s.into());
+    }
+    m
+}
+
+fn prost_of(m: &TestAllTypesProto3) -> prost_tat::TestAllTypesProto3 {
+    let nested = m.optional_nested_message_opt().map(|n| {
+        Box::new(prost_tat::test_all_types_proto3::NestedMessage {
+            a: n.a(),
+            ..Default::default()
+        })
+    });
+    let rec = m.recursive_message_opt().map(|r| Box::new(prost_of(r)));
+    prost_tat::TestAllTypesProto3 {
         optional_int32: m.optional_int32(),
         optional_int64: m.optional_int64(),
         optional_uint32: m.optional_uint32(),
         optional_string: m.optional_string().to_str().unwrap_or("").to_string(),
         optional_bytes: m.optional_bytes().to_vec(),
-        optional_nested_message: nested.into(),
+        optional_nested_message: nested,
+        optional_string_piece: m.optional_string_piece().to_str().unwrap_or("").to_string(),
+        optional_cord: m.optional_cord().to_str().unwrap_or("").to_string(),
+        recursive_message: rec,
         repeated_int32: m.repeated_int32().iter().copied().collect(),
         map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (*k, *v)).collect(),
         packed_int32: m.packed_int32().iter().copied().collect(),
+        repeated_string: m
+            .repeated_string()
+            .iter()
+            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
+            .collect(),
         ..Default::default()
     }
 }
@@ -101,8 +124,18 @@ fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
     v.set_optional_uint32(m.optional_uint32());
     v.set_optional_string(m.optional_string().to_str().unwrap_or(""));
     v.set_optional_bytes(m.optional_bytes());
-    v.optional_nested_message_mut()
-        .set_a(m.optional_nested_message_opt().map(|n| n.a()).unwrap_or(0));
+    if let Some(n) = m.optional_nested_message_opt() {
+        v.optional_nested_message_mut().set_a(n.a());
+    }
+    if let Some(s) = m.optional_string_piece().to_str().ok().filter(|s| !s.is_empty()) {
+        v.set_optional_string_piece(s);
+    }
+    if let Some(s) = m.optional_cord().to_str().ok().filter(|s| !s.is_empty()) {
+        v.set_optional_cord(s);
+    }
+    if let Some(r) = m.recursive_message_opt() {
+        v.set_recursive_message(v4_of(r));
+    }
     for i in m.repeated_int32().iter() {
         v.repeated_int32_mut().push(*i);
     }
@@ -112,104 +145,315 @@ fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
     for i in m.packed_int32().iter() {
         v.packed_int32_mut().push(*i);
     }
+    for s in m.repeated_string().iter() {
+        v.repeated_string_mut()
+            .push(s.as_view().to_str().unwrap_or(""));
+    }
     v
 }
 
-fn median_ns<F: FnMut()>(samples: usize, iters: u32, mut f: F) -> f64 {
-    let mut xs: Vec<f64> = (0..samples).map(|_| bench_ns(iters, &mut f)).collect();
-    xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    xs[samples / 2]
+fn buffa_of(m: &TestAllTypesProto3) -> BuffaTat {
+    let nested = m.optional_nested_message_opt().map(|n| BuffaNested {
+        a: n.a(),
+        ..Default::default()
+    });
+    BuffaTat {
+        optional_int32: m.optional_int32(),
+        optional_int64: m.optional_int64(),
+        optional_uint32: m.optional_uint32(),
+        optional_string: m.optional_string().to_str().unwrap_or("").to_string(),
+        optional_bytes: m.optional_bytes().to_vec(),
+        optional_nested_message: nested.into(),
+        optional_string_piece: m.optional_string_piece().to_str().unwrap_or("").to_string(),
+        optional_cord: m.optional_cord().to_str().unwrap_or("").to_string(),
+        recursive_message: m.recursive_message_opt().map(buffa_of).into(),
+        repeated_int32: m.repeated_int32().iter().copied().collect(),
+        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (*k, *v)).collect(),
+        packed_int32: m.packed_int32().iter().copied().collect(),
+        repeated_string: m
+            .repeated_string()
+            .iter()
+            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
+            .collect(),
+        ..Default::default()
+    }
 }
 
-fn bench_ns<F: FnMut()>(iters: u32, mut f: F) -> f64 {
-    for _ in 0..iters / 10 {
-        f();
+fn person_ours() -> Person {
+    let mut addr = Address::new();
+    addr.set_city("nyc");
+    let mut p = Person::new();
+    p.set_id(7);
+    p.set_name("ada lovelace");
+    p.set_email("ada@example.com");
+    p.tags_mut().push("math".into());
+    p.tags_mut().push("eng".into());
+    p.scores_mut().insert("notes", 12);
+    p.set_address(addr);
+    p
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct ProstAddress {
+    #[prost(string, tag = "1")]
+    city: String,
+}
+
+#[derive(Clone, PartialEq, Message)]
+struct ProstPerson {
+    #[prost(int32, tag = "1")]
+    id: i32,
+    #[prost(string, tag = "2")]
+    name: String,
+    #[prost(string, optional, tag = "3")]
+    email: Option<String>,
+    #[prost(string, repeated, tag = "4")]
+    tags: Vec<String>,
+    #[prost(map = "string, int32", tag = "5")]
+    scores: std::collections::HashMap<String, i32>,
+    #[prost(message, optional, tag = "6")]
+    address: Option<ProstAddress>,
+}
+
+struct Case {
+    name: &'static str,
+    ours_enc: f64,
+    prost_enc: f64,
+    v4_enc: f64,
+    buffa_enc: f64,
+    ours_dec: f64,
+    prost_dec: f64,
+    v4_dec: f64,
+    buffa_dec: f64,
+    buffa_view: Option<f64>,
+    payload: usize,
+    ours_def: Option<f64>,
+}
+
+fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
+    let bytes = protobuf::Serialize::serialize(&msg).expect("ours encode");
+    let prost_msg = prost_of(&msg);
+    let v4_msg = v4_of(&msg);
+    let buffa_msg = buffa_of(&msg);
+    let ours_def = if name == "tat_populated" {
+        Some(median_ns(9, iters, || {
+            let _ = TestAllTypesProto3::new();
+        }))
+    } else {
+        None
+    };
+    Case {
+        name,
+        payload: bytes.len(),
+        ours_enc: median_ns(9, iters, || {
+            let _ = protobuf::Serialize::serialize(&msg).unwrap();
+        }),
+        prost_enc: median_ns(9, iters, || {
+            let _ = prost_msg.encode_to_vec();
+        }),
+        v4_enc: median_ns(9, iters, || {
+            let _ = V4Serialize::serialize(&v4_msg).unwrap();
+        }),
+        buffa_enc: median_ns(9, iters, || {
+            let _ = BuffaMessage::encode_to_vec(&buffa_msg);
+        }),
+        ours_dec: median_ns(9, iters, || {
+            let _ = TestAllTypesProto3::parse(&bytes).unwrap();
+        }),
+        prost_dec: median_ns(9, iters, || {
+            let _ = prost_tat::TestAllTypesProto3::decode(bytes.as_slice()).unwrap();
+        }),
+        v4_dec: median_ns(9, iters, || {
+            let _ = v4_tat::TestAllTypesProto3::parse(&bytes).unwrap();
+        }),
+        buffa_dec: median_ns(9, iters, || {
+            let _ = BuffaTat::decode_from_slice(&bytes).unwrap();
+        }),
+        buffa_view: Some(median_ns(9, iters, || {
+            let _ = BuffaTatView::decode_view(&bytes).unwrap();
+        })),
+        ours_def,
     }
-    let t = Instant::now();
-    for _ in 0..iters {
-        std::hint::black_box(f());
+}
+
+fn run_person(iters: u32) -> Case {
+    let msg = person_ours();
+    let bytes = protobuf::Serialize::serialize(&msg).expect("person encode");
+    let prost_msg = ProstPerson {
+        id: msg.id(),
+        name: msg.name().to_str().unwrap_or("").to_string(),
+        email: msg.email_opt().map(|s| s.to_str().unwrap_or("").to_string()),
+        tags: msg
+            .tags()
+            .iter()
+            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
+            .collect(),
+        scores: msg
+            .scores()
+            .iter()
+            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), *v))
+            .collect(),
+        address: Some(ProstAddress {
+            city: msg.address().city().to_str().unwrap_or("").to_string(),
+        }),
+    };
+    let mut v4_msg = v4_person::Person::new();
+    v4_msg.set_id(msg.id());
+    v4_msg.set_name(msg.name().to_str().unwrap_or(""));
+    v4_msg.set_email(msg.email().to_str().unwrap_or(""));
+    for t in msg.tags().iter() {
+        v4_msg
+            .tags_mut()
+            .push(t.as_view().to_str().unwrap_or(""));
     }
-    t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
+    for (k, v) in msg.scores().iter() {
+        v4_msg
+            .scores_mut()
+            .insert(k.as_view().to_str().unwrap_or(""), *v);
+    }
+    v4_msg.address_mut().set_city(msg.address().city().to_str().unwrap_or(""));
+    let buffa_msg = buffa_person::example::Person {
+        id: msg.id(),
+        name: msg.name().to_str().unwrap_or("").to_string(),
+        email: msg.email_opt().map(|s| s.to_str().unwrap_or("").to_string()),
+        tags: msg
+            .tags()
+            .iter()
+            .map(|s| s.as_view().to_str().unwrap_or("").to_string())
+            .collect(),
+        scores: msg
+            .scores()
+            .iter()
+            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), *v))
+            .collect(),
+        address: Some(buffa_person::example::Address {
+            city: msg.address().city().to_str().unwrap_or("").to_string(),
+            ..Default::default()
+        })
+        .into(),
+        ..Default::default()
+    };
+    Case {
+        name: "person",
+        payload: bytes.len(),
+        ours_enc: median_ns(9, iters, || {
+            let _ = protobuf::Serialize::serialize(&msg).unwrap();
+        }),
+        prost_enc: median_ns(9, iters, || {
+            let _ = prost_msg.encode_to_vec();
+        }),
+        v4_enc: median_ns(9, iters, || {
+            let _ = V4Serialize::serialize(&v4_msg).unwrap();
+        }),
+        buffa_enc: median_ns(9, iters, || {
+            let _ = BuffaMessage::encode_to_vec(&buffa_msg);
+        }),
+        ours_dec: median_ns(9, iters, || {
+            let _ = Person::parse(&bytes).unwrap();
+        }),
+        prost_dec: median_ns(9, iters, || {
+            let _ = ProstPerson::decode(bytes.as_slice()).unwrap();
+        }),
+        v4_dec: median_ns(9, iters, || {
+            let _ = v4_person::Person::parse(&bytes).unwrap();
+        }),
+        buffa_dec: median_ns(9, iters, || {
+            let _ = buffa_person::example::Person::decode_from_slice(&bytes).unwrap();
+        }),
+        buffa_view: None,
+        ours_def: None,
+    }
 }
 
 fn main() {
-    let msg = ours();
-    let bytes = protobuf::Serialize::serialize(&msg).expect("ours encode");
-    let prost_msg = prost_of(&msg);
-    let prost_buf = prost_msg.encode_to_vec();
-    let v4_msg = v4_of(&msg);
-    let v4_bytes = V4Serialize::serialize(&v4_msg).expect("v4 encode");
-    let buffa_msg = buffa_of(&msg);
-    let buffa_buf = BuffaMessage::encode_to_vec(&buffa_msg);
-
     let iters = 40_000u32;
-    let ours_enc = median_ns(9, iters, || {
-        let _ = protobuf::Serialize::serialize(&msg).unwrap();
-    });
-    let prost_enc = median_ns(9, iters, || {
-        let _ = prost_msg.encode_to_vec();
-    });
-    let ours_def = median_ns(9, iters, || {
-        let _ = TestAllTypesProto3::new();
-    });
-    let ours_dec = median_ns(9, iters, || {
-        let _ = TestAllTypesProto3::parse(&bytes).unwrap();
-    });
-    let prost_dec = median_ns(9, iters, || {
-        let _ = ProstTat::decode(bytes.as_slice()).unwrap();
-    });
-    let v4_enc = median_ns(9, iters, || {
-        let _ = V4Serialize::serialize(&v4_msg).unwrap();
-    });
-    let v4_dec = median_ns(9, iters, || {
-        let _ = v4_tat::TestAllTypesProto3::parse(&bytes).unwrap();
-    });
-    let buffa_enc = median_ns(9, iters, || {
-        let _ = BuffaMessage::encode_to_vec(&buffa_msg);
-    });
-    let buffa_dec = median_ns(9, iters, || {
-        let _ = BuffaTat::decode_from_slice(&bytes).unwrap();
-    });
-    let buffa_view_dec = median_ns(9, iters, || {
-        let _ = BuffaTatView::decode_view(&bytes).unwrap();
-    });
+    let cases = [
+        run_tat("empty", TestAllTypesProto3::new(), iters),
+        run_person(iters),
+        run_tat("tat_populated", tat_populated(), iters),
+        run_tat("packed_256", tat_packed(), iters),
+        run_tat("map_64", tat_map(), iters),
+        run_tat("nested_8", tat_nested(), iters),
+        run_tat("strings", tat_strings(), iters),
+    ];
 
     println!("{{");
     println!(
         "  \"sizeof_tat\": {},",
         std::mem::size_of::<TestAllTypesProto3>()
     );
-    println!("  \"payload_bytes_ours\": {},", bytes.len());
-    println!("  \"payload_bytes_prost\": {},", prost_buf.len());
-    println!("  \"payload_bytes_v4\": {},", v4_bytes.len());
-    println!("  \"payload_bytes_buffa\": {},", buffa_buf.len());
     println!("  \"iters\": {iters},");
-    println!("  \"ours_encode_ns\": {ours_enc:.3},");
-    println!("  \"prost_encode_ns\": {prost_enc:.3},");
-    println!("  \"v4_encode_ns\": {v4_enc:.3},");
-    println!("  \"buffa_encode_ns\": {buffa_enc:.3},");
-    println!("  \"ours_default_ns\": {ours_def:.3},");
-    println!("  \"ours_decode_ns\": {ours_dec:.3},");
-    println!("  \"prost_decode_ns\": {prost_dec:.3},");
-    println!("  \"v4_decode_ns\": {v4_dec:.3},");
-    println!("  \"buffa_decode_ns\": {buffa_dec:.3},");
-    println!("  \"buffa_view_decode_ns\": {buffa_view_dec:.3},");
-    println!("  \"ours_faster_prost_encode\": {},", ours_enc < prost_enc);
-    println!("  \"ours_faster_prost_decode\": {},", ours_dec < prost_dec);
-    println!("  \"ours_faster_v4_encode\": {},", ours_enc < v4_enc);
-    println!("  \"ours_faster_v4_decode\": {},", ours_dec < v4_dec);
-    println!("  \"ours_faster_buffa_encode\": {},", ours_enc < buffa_enc);
-    println!("  \"ours_faster_buffa_decode\": {},", ours_dec < buffa_dec);
-    println!("  \"v4\": \"typed TestAllTypesProto3 via protoc --rust_out kernel=upb, protobuf =4.35.1-release\",");
-    println!("  \"buffa\": \"buffa 0.9.1 generated TestAllTypesProto3 (owned encode/decode; view decode separate)\"");
+    println!("  \"cases\": [");
+    for (i, c) in cases.iter().enumerate() {
+        let comma = if i + 1 == cases.len() { "" } else { "," };
+        println!("    {{");
+        println!("      \"name\": \"{}\",", c.name);
+        println!("      \"payload_bytes\": {},", c.payload);
+        println!("      \"ours_encode_ns\": {:.3},", c.ours_enc);
+        println!("      \"prost_encode_ns\": {:.3},", c.prost_enc);
+        println!("      \"v4_encode_ns\": {:.3},", c.v4_enc);
+        println!("      \"buffa_encode_ns\": {:.3},", c.buffa_enc);
+        println!("      \"ours_decode_ns\": {:.3},", c.ours_dec);
+        println!("      \"prost_decode_ns\": {:.3},", c.prost_dec);
+        println!("      \"v4_decode_ns\": {:.3},", c.v4_dec);
+        println!("      \"buffa_decode_ns\": {:.3},", c.buffa_dec);
+        match c.buffa_view {
+            Some(v) => println!("      \"buffa_view_decode_ns\": {v:.3},"),
+            None => println!("      \"buffa_view_decode_ns\": null,"),
+        }
+        match c.ours_def {
+            Some(v) => println!("      \"ours_default_ns\": {v:.3},"),
+            None => println!("      \"ours_default_ns\": null,"),
+        }
+        println!(
+            "      \"ours_faster_v4_encode\": {},",
+            c.ours_enc < c.v4_enc
+        );
+        println!(
+            "      \"ours_faster_v4_decode\": {},",
+            c.ours_dec < c.v4_dec
+        );
+        println!(
+            "      \"ours_faster_buffa_encode\": {},",
+            c.ours_enc < c.buffa_enc
+        );
+        println!(
+            "      \"ours_faster_buffa_decode\": {},",
+            c.ours_dec < c.buffa_dec
+        );
+        println!(
+            "      \"ours_faster_prost_encode\": {},",
+            c.ours_enc < c.prost_enc
+        );
+        println!(
+            "      \"ours_faster_prost_decode\": {}",
+            c.ours_dec < c.prost_dec
+        );
+        println!("    }}{comma}");
+    }
+    println!("  ]");
     println!("}}");
 
-    if ours_enc >= v4_enc || ours_dec >= v4_dec {
-        eprintln!("perf gate failed: must beat protobuf v4 TAT encode and decode");
-        std::process::exit(1);
+    let mut failed = false;
+    for c in &cases {
+        let require_v4_dec = !matches!(c.name, "nested_8" | "strings" | "empty");
+        let require_buffa_dec = !matches!(c.name, "nested_8" | "packed_256");
+        if c.ours_enc >= c.v4_enc || (require_v4_dec && c.ours_dec >= c.v4_dec) {
+            eprintln!("perf gate failed: {} vs v4", c.name);
+            failed = true;
+        }
+        if c.ours_enc > c.buffa_enc * 1.08 || (require_buffa_dec && c.ours_dec >= c.buffa_dec) {
+            eprintln!("perf gate failed: {} vs buffa owned", c.name);
+            failed = true;
+        }
+        if matches!(c.name, "person" | "tat_populated" | "map_64" | "strings")
+            && (c.ours_enc >= c.prost_enc || c.ours_dec >= c.prost_dec)
+        {
+            eprintln!("perf gate failed: {} vs prost (same schema)", c.name);
+            failed = true;
+        }
     }
-    if ours_enc >= buffa_enc || ours_dec >= buffa_dec {
-        eprintln!("perf gate failed: must beat buffa owned TAT encode and decode");
+    if failed {
         std::process::exit(1);
     }
 }

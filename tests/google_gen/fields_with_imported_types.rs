@@ -106,12 +106,21 @@ mod __gen {
             self.cached_size.dirty();
             self.num = None;
         }
+        fn check_required(&self) -> Result<(), ParseError> {
+            Ok(())
+        }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return self.check_required();
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return Ok(());
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
@@ -162,6 +171,9 @@ mod __gen {
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
             }
+            if enforce {
+                self.check_required()?;
+            }
             Ok(())
         }
         fn compute_size(&self) -> u64 {
@@ -195,12 +207,21 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "main.ImportedTypesProto";
+        fn check_required(&self) -> Result<(), ParseError> {
+            Ok(())
+        }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return self.check_required();
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return Ok(());
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
@@ -247,6 +268,9 @@ mod __gen {
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
+            }
+            if enforce {
+                self.check_required()?;
             }
             Ok(())
         }
@@ -277,12 +301,21 @@ mod __gen {
             Self::default()
         }
         pub const FULL_NAME: &'static str = "main.ImportedTypesProto.Nested";
+        fn check_required(&self) -> Result<(), ParseError> {
+            Ok(())
+        }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return self.check_required();
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return Ok(());
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
@@ -329,6 +362,9 @@ mod __gen {
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
+            }
+            if enforce {
+                self.check_required()?;
             }
             Ok(())
         }
@@ -447,12 +483,21 @@ mod __gen {
             self.cached_size.dirty();
             self.imported_enum_oneof = None;
         }
+        fn check_required(&self) -> Result<(), ParseError> {
+            Ok(())
+        }
         fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return self.check_required();
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
+            if data.is_empty() {
+                return Ok(());
+            }
             let w = protobuf::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
@@ -559,6 +604,9 @@ mod __gen {
             }
             if until.is_some() {
                 return Err(ParseError::new("truncated group"));
+            }
+            if enforce {
+                self.check_required()?;
             }
             Ok(())
         }

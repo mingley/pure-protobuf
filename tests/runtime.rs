@@ -1,11 +1,21 @@
 //! MessageSet, generated WKT accessors, and view reads.
 
 use protobuf::gencode::TestAllTypesProto2;
+use protobuf::gencode::TestAllTypesProto3;
 use protobuf::gencode::{
     Any, BoolValue, Duration, Empty, FieldMask, ListValue, PbValue, Struct, Timestamp,
 };
 use protobuf::prelude::*;
 use protobuf::{Parse, Serialize};
+
+#[test]
+fn tat_default_is_empty_and_zeroed() {
+    let a = TestAllTypesProto3::new();
+    let b = TestAllTypesProto3::default();
+    assert_eq!(a, b);
+    assert!(Serialize::serialize(&a).unwrap().is_empty());
+    assert!(std::mem::size_of::<TestAllTypesProto3>() < 4096);
+}
 
 #[test]
 fn generated_wkt_timestamp_roundtrip() {

@@ -11,9 +11,12 @@ license = "MIT OR Apache-2.0"
 protobuf = { package = "pure-protobuf", path = ".." }
 prost = { version = "0.13", features = ["derive"] }
 v4_tat = { path = "../v4_tat" }
+v4_person = { path = "../v4_person" }
 protobuf_v4 = { package = "protobuf", version = "=4.35.1-release" }
 buffa = "0.9.1"
 buffa_tat = { path = "../buffa_tat" }
+buffa_person = { path = "../buffa_person" }
+prost_tat = { path = "../prost_tat" }
 
 [[bin]]
 name = "bench"

@@ -4,92 +4,122 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-/// A `repeated` field of `T`.
-#[derive(Clone, Default, PartialEq, Eq)]
-pub struct Repeated<T>(Vec<T>);
+/// A `repeated` field of `T`. Empty `None` is 24 bytes and zero-valid (`Vec` itself is not).
+#[derive(Clone)]
+pub struct Repeated<T>(Option<Vec<T>>);
+
+impl<T> Default for Repeated<T> {
+    #[inline]
+    fn default() -> Self {
+        Self(None)
+    }
+}
+
+impl<T: PartialEq> PartialEq for Repeated<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+impl<T: Eq> Eq for Repeated<T> {}
 
 impl<T> Repeated<T> {
+    #[inline]
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self(None)
     }
 
     pub fn from_vec(values: Vec<T>) -> Self {
-        Self(values)
+        if values.is_empty() {
+            Self(None)
+        } else {
+            Self(Some(values))
+        }
+    }
+
+    #[inline]
+    fn ensure(&mut self) -> &mut Vec<T> {
+        self.0.get_or_insert_with(Vec::new)
     }
 
     pub fn push(&mut self, value: T) {
-        self.0.push(value);
+        self.ensure().push(value);
     }
 
     pub fn reserve(&mut self, additional: usize) {
-        self.0.reserve(additional);
+        if additional == 0 {
+            return;
+        }
+        self.ensure().reserve(additional);
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.0.as_ref().map_or(0, |v| v.len())
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.0.as_ref().is_none_or(|v| v.is_empty())
     }
 
     pub fn get(&self, index: usize) -> Option<&T> {
-        self.0.get(index)
+        self.0.as_ref().and_then(|v| v.get(index))
     }
 
     pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
-        self.0.get_mut(index)
+        self.0.as_mut().and_then(|v| v.get_mut(index))
     }
 
     pub fn clear(&mut self) {
-        self.0.clear();
+        self.0 = None;
     }
 
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
-        self.0.iter()
+        self.as_slice().iter()
     }
 
+    #[inline]
     pub fn as_slice(&self) -> &[T] {
-        &self.0
+        self.0.as_ref().map_or(&[], |v| v.as_slice())
     }
 
     pub fn as_mut_slice(&mut self) -> &mut [T] {
-        &mut self.0
+        self.ensure().as_mut_slice()
     }
 
     pub fn into_vec(self) -> Vec<T> {
-        self.0
+        self.0.unwrap_or_default()
     }
 }
 
 impl<T> Deref for Repeated<T> {
     type Target = [T];
     fn deref(&self) -> &[T] {
-        &self.0
+        self.as_slice()
     }
 }
 
 impl<T> DerefMut for Repeated<T> {
     fn deref_mut(&mut self) -> &mut [T] {
-        &mut self.0
+        self.as_mut_slice()
     }
 }
 
 impl<T: fmt::Debug> fmt::Debug for Repeated<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
+        fmt::Debug::fmt(self.as_slice(), f)
     }
 }
 
 impl<T> From<Vec<T>> for Repeated<T> {
     fn from(v: Vec<T>) -> Self {
-        Self(v)
+        Self::from_vec(v)
     }
 }
 
 impl<T> FromIterator<T> for Repeated<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        Self(iter.into_iter().collect())
+        Self::from_vec(iter.into_iter().collect())
     }
 }
 
@@ -252,13 +282,17 @@ impl<T: 'static> MutProxied for Repeated<T> {
 impl<T: 'static> AsView for Repeated<T> {
     type Proxied = Self;
     fn as_view(&self) -> RepeatedView<'_, T> {
-        RepeatedView { inner: &self.0 }
+        RepeatedView {
+            inner: self.as_slice(),
+        }
     }
 }
 impl<T: 'static> AsMut for Repeated<T> {
     type MutProxied = Self;
     fn as_mut(&mut self) -> RepeatedMut<'_, T> {
-        RepeatedMut { inner: &mut self.0 }
+        RepeatedMut {
+            inner: self.ensure(),
+        }
     }
 }
 
@@ -313,13 +347,13 @@ where
     T: Clone,
 {
     fn into_proxied(self) -> Repeated<T> {
-        Repeated(self.inner.to_vec())
+        Repeated::from_vec(self.inner.to_vec())
     }
 }
 
 impl<T: 'static> IntoProxied<Repeated<T>> for Vec<T> {
     fn into_proxied(self) -> Repeated<T> {
-        Repeated(self)
+        Repeated::from_vec(self)
     }
 }
 
@@ -348,6 +382,30 @@ impl Singular for bool {}
 impl Singular for crate::string::ProtoString {}
 impl Singular for crate::string::ProtoBytes {}
 
-// silence unused PhantomData if we add later
 #[allow(dead_code)]
 struct _Hold<T>(PhantomData<T>);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_eq_and_zeroed() {
+        let z: Repeated<i32> = unsafe { std::mem::zeroed() };
+        assert!(z.is_empty());
+        assert_eq!(z, Repeated::new());
+        assert_eq!(z, Repeated::from_vec(Vec::new()));
+        drop(z);
+    }
+
+    #[test]
+    fn push_then_clear() {
+        let mut r = Repeated::new();
+        r.push(1);
+        r.push(2);
+        assert_eq!(r.as_slice(), &[1, 2]);
+        r.clear();
+        assert!(r.is_empty());
+        assert_eq!(r, Repeated::new());
+    }
+}

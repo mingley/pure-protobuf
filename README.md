@@ -62,21 +62,25 @@ Toy / research kernel, but gated:
 
 ## Benchmarks
 
-Plugin-generated `TestAllTypesProto3` (optional scalars, nested message, `repeated_int32`, `map_int32_int32`, `packed_int32`) vs prost 0.13, typed crates.io `protobuf` **4.35.1-release** (`protoc --rust_out kernel=upb`), and buffa **0.9.1** generated TAT. Same machine, two consecutive `./target/release/bench` runs after warmup. Decode uses this crate’s wire bytes. 40 000 iters, median of 9 samples.
+Same schema on every row: plugin-generated types vs `prost-build` of the same `.proto`, typed crates.io `protobuf` **4.35.1-release** (`protoc --rust_out kernel=upb`), and buffa **0.9.1**. Decode uses this crate’s wire bytes. `./bench` 40 000 iters, median of 9 samples after warmup. `size_of::<TestAllTypesProto3>()` = **2344** (`Default` ~63 ns).
 
-| | ours | prost | v4 upb | buffa owned | buffa view |
+Encode ns / decode ns:
+
+| case | ours | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|
-| payload bytes | 87 | 83 | 87 | 87 | 87 |
-| encode ns (run 1) | 96.394 | 84.866 | 236.072 | 132.994 | — |
-| encode ns (run 2) | 98.571 | 78.436 | 253.156 | 129.012 | — |
-| decode ns (run 1) | 384.761 | 276.317 | 416.882 | 393.410 | 312.221 |
-| decode ns (run 2) | 375.594 | 304.871 | 418.478 | 395.415 | 300.831 |
+| person 62 B | **37 / 84** | 39 / 198 | 75 / 163 | 41 / 158 | — |
+| TAT populated 87 B | **76 / 311** | 195 / 439 | 231 / 408 | 128 / 403 | — / 313 |
+| packed_256 388 B | **60 / 635** | 535 / 803 | 468 / 896 | 578 / **380** | — / 406 |
+| map_64 500 B | **319 / 1516** | 657 / 2360 | 994 / 3246 | 417 / 1832 | — / 1070 |
+| strings 163 B | **73 / 231** | 120 / 335 | 188 / **170** | 112 / 323 | — / 193 |
+| nested_8 26 B | **334 / 1477** | 2355 / 1030 | 1137 / **320** | 647 / 1401 | — / 1428 |
+| empty TAT | **41 / 118** | 93 / 128 | 147 / **84** | 71 / 172 | — / 113 |
 
-Both runs: ours faster than typed v4 **and** buffa **owned** on encode and decode.
+**Wins vs same-schema prost, v4, and buffa owned** on person, TAT populated, maps, and encode of packed/strings/nested/empty.
 
-**Decode vs prost / buffa view:** this table’s prost type is a **9-field subset**, not generated `TestAllTypesProto3`. Ours (and v4, and buffa owned) construct the full message: **4064 bytes**, `Default` alone **~94–96 ns** (`ours_default_ns` in the bench JSON). Decode minus Default is ~280 ns, in line with prost’s whole decode of the small struct. buffa `decode_view` does not build the owned 4 KiB object. Closing that gap is sparse field storage or a real view decoder, not a faster varint loop.
+Where we do not: v4 **decode** of empty TAT (upb Clear of an arena object), deep `recursive_message` (per-level owned TAT `Default` vs upb arena), and string-only TAT decode; buffa **owned decode** of 256 packed varints (we still eager-validate). buffa `decode_view` does not build the owned message.
 
-v4 encode is slow on this size because every `serialize` allocates a fresh upb `Arena`, FFI `upb_Encode`, then **copies** the arena buffer into a Rust `Vec`. Decode is FFI `upb_Decode` into that arena. upb C is not the bottleneck; the Rust wrapper’s per-call arena + FFI + extra memcpy is. Large payloads amortize it. See `third_party/protobuf/rust/upb/wire.rs` and `upb_kernel/message.rs`.
+v4 encode is slow on small messages because every `serialize` allocates a fresh upb `Arena`, FFI `upb_Encode`, then copies the arena buffer into a Rust `Vec`. See `third_party/protobuf/rust/upb/wire.rs`.
 
 ## Conformance (optional)
 

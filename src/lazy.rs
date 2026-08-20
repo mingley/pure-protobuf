@@ -13,7 +13,21 @@ pub struct Wire {
 }
 
 impl Wire {
+    pub fn empty() -> Self {
+        static EMPTY: std::sync::OnceLock<Arc<[u8]>> = std::sync::OnceLock::new();
+        Self {
+            buf: EMPTY
+                .get_or_init(|| Arc::<[u8]>::from(&[] as &[u8]))
+                .clone(),
+            start: 0,
+            end: 0,
+        }
+    }
+
     pub fn from_slice(data: &[u8]) -> Self {
+        if data.is_empty() {
+            return Self::empty();
+        }
         let buf: Arc<[u8]> = Arc::from(data);
         let end = buf.len() as u32;
         Self { buf, start: 0, end }
@@ -200,84 +214,99 @@ impl From<Vec<u8>> for LazyBytes {
     }
 }
 
-/// Nested LEN message: parsed `T` plus original payload for memcpy serialize.
-/// Groups/delimited stay `Option<Box<T>>`.
-pub struct LazyMsg<T> {
-    inner: Option<Box<T>>,
+struct LazyInner<T> {
+    msg: T,
     wire: Option<Wire>,
 }
 
+/// Nested LEN message: parsed `T` plus original payload for memcpy serialize.
+/// Empty is a null pointer (8 bytes, zero-valid). Groups/delimited stay `Option<Box<T>>`.
+pub struct LazyMsg<T> {
+    inner: Option<Box<LazyInner<T>>>,
+}
+
 impl<T> Default for LazyMsg<T> {
+    #[inline]
     fn default() -> Self {
-        Self {
-            inner: None,
-            wire: None,
-        }
+        Self { inner: None }
     }
 }
 
 impl<T> LazyMsg<T> {
     pub fn from_parsed(msg: T, w: Wire) -> Self {
         Self {
-            inner: Some(Box::new(msg)),
-            wire: Some(w),
+            inner: Some(Box::new(LazyInner { msg, wire: Some(w) })),
         }
     }
 
     pub fn from_owned(msg: T) -> Self {
         Self {
-            inner: Some(Box::new(msg)),
-            wire: None,
+            inner: Some(Box::new(LazyInner { msg, wire: None })),
         }
     }
 
+    #[inline]
     pub fn is_some(&self) -> bool {
         self.inner.is_some()
     }
 
+    #[inline]
     pub fn is_none(&self) -> bool {
         self.inner.is_none()
     }
 
+    #[inline]
     pub fn as_deref(&self) -> Option<&T> {
-        self.inner.as_deref()
+        self.inner.as_ref().map(|i| &i.msg)
     }
 
     pub fn wire_bytes(&self) -> Option<&[u8]> {
-        self.wire.as_ref().map(|w| w.as_slice())
+        self.inner
+            .as_ref()
+            .and_then(|i| i.wire.as_ref())
+            .map(|w| w.as_slice())
     }
 
     pub fn get_or_insert(&mut self) -> &mut T
     where
         T: Default,
     {
-        self.wire = None;
-        self.inner.get_or_insert_with(|| Box::new(T::default()))
+        let inner = self.inner.get_or_insert_with(|| {
+            Box::new(LazyInner {
+                msg: T::default(),
+                wire: None,
+            })
+        });
+        inner.wire = None;
+        &mut inner.msg
     }
 
     pub fn clear(&mut self) {
         self.inner = None;
-        self.wire = None;
     }
 }
 
 impl<T: Clone> Clone for LazyMsg<T> {
     fn clone(&self) -> Self {
         Self {
-            inner: self.inner.clone(),
-            wire: self.wire.clone(),
+            inner: self.inner.as_ref().map(|i| {
+                Box::new(LazyInner {
+                    msg: i.msg.clone(),
+                    wire: i.wire.clone(),
+                })
+            }),
         }
     }
 }
 
 impl<T: PartialEq> PartialEq for LazyMsg<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.inner == other.inner
+        self.as_deref() == other.as_deref()
     }
 }
 
 impl<T: std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.inner, f)
+        std::fmt::Debug::fmt(&self.as_deref(), f)
     }
 }
