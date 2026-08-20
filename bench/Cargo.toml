@@ -10,8 +10,10 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 protobuf = { package = "pure-protobuf", path = ".." }
 prost = { version = "0.13", features = ["derive"] }
-v4_person = { path = "../v4_person" }
+v4_tat = { path = "../v4_tat" }
 protobuf_v4 = { package = "protobuf", version = "=4.35.1-release" }
+buffa = "0.9.1"
+buffa_tat = { path = "../buffa_tat" }
 
 [[bin]]
 name = "bench"

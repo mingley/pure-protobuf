@@ -1,0 +1,10 @@
+[package]
+name = "v4_tat"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+protobuf = "=4.35.1-release"

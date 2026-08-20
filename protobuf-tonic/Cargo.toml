@@ -2,17 +2,22 @@
 name = "protobuf-tonic"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.88"
 publish = false
 license = "MIT OR Apache-2.0"
-description = "tonic Codec over pure-protobuf (not tonic-prost; kernel stays tonic-free)"
+description = "tonic 0.14+ Codec over pure-protobuf (not tonic-prost; kernel stays tonic-free)"
+
+[build-dependencies]
+protobuf = { package = "pure-protobuf", path = ".." }
 
 [dependencies]
 bytes = "1"
 http = "1"
 protobuf = { package = "pure-protobuf", path = ".." }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }
-tonic = { version = "0.12", default-features = false, features = ["transport", "codegen"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+futures-util = "0.3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }

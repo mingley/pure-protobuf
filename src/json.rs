@@ -6,7 +6,9 @@ use crate::dynamic::{
 };
 use crate::error::{ParseError, SerializeError};
 use crate::string::{ProtoBytes, ProtoString};
+use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map as JsonMap, Number, Value as Json};
+use std::fmt;
 use std::sync::Arc;
 
 pub fn encode(msg: &DynamicMessage) -> Result<String, SerializeError> {
@@ -19,8 +21,85 @@ pub fn decode(
     ignore_unknown: bool,
     pool: Option<Arc<DescriptorPool>>,
 ) -> Result<DynamicMessage, ParseError> {
-    let v: Json = serde_json::from_str(json).map_err(|e| ParseError::owned(e.to_string()))?;
+    let v = parse_json_no_dup(json)?;
     decode_message(desc, &v, ignore_unknown, pool)
+}
+
+fn parse_json_no_dup(s: &str) -> Result<Json, ParseError> {
+    let mut de = serde_json::Deserializer::from_str(s);
+    let v = JsonNoDup::deserialize(&mut de).map_err(|e| ParseError::owned(e.to_string()))?;
+    de.end().map_err(|e| ParseError::owned(e.to_string()))?;
+    Ok(v.0)
+}
+
+struct JsonNoDup(Json);
+
+impl<'de> Deserialize<'de> for JsonNoDup {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer
+            .deserialize_any(JsonNoDupVisitor)
+            .map(JsonNoDup)
+    }
+}
+
+struct JsonNoDupVisitor;
+
+impl<'de> Visitor<'de> for JsonNoDupVisitor {
+    type Value = Json;
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("json value")
+    }
+    fn visit_bool<E>(self, v: bool) -> Result<Json, E> {
+        Ok(Json::Bool(v))
+    }
+    fn visit_i64<E>(self, v: i64) -> Result<Json, E> {
+        Ok(Json::Number(v.into()))
+    }
+    fn visit_u64<E>(self, v: u64) -> Result<Json, E> {
+        Ok(Json::Number(v.into()))
+    }
+    fn visit_f64<E>(self, v: f64) -> Result<Json, E> {
+        Ok(Number::from_f64(v).map(Json::Number).unwrap_or(Json::Null))
+    }
+    fn visit_str<E: de::Error>(self, v: &str) -> Result<Json, E> {
+        Ok(Json::String(v.to_string()))
+    }
+    fn visit_string<E>(self, v: String) -> Result<Json, E> {
+        Ok(Json::String(v))
+    }
+    fn visit_none<E>(self) -> Result<Json, E> {
+        Ok(Json::Null)
+    }
+    fn visit_unit<E>(self) -> Result<Json, E> {
+        Ok(Json::Null)
+    }
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Json, A::Error> {
+        let mut arr = Vec::new();
+        while let Some(JsonNoDup(v)) = seq.next_element()? {
+            arr.push(v);
+        }
+        Ok(Json::Array(arr))
+    }
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Json, A::Error> {
+        let Some(first) = map.next_key::<String>()? else {
+            return Ok(Json::Object(JsonMap::new()));
+        };
+        if first == "$serde_json::private::Number" {
+            let n: String = map.next_value()?;
+            let num = n.parse::<Number>().map_err(de::Error::custom)?;
+            return Ok(Json::Number(num));
+        }
+        let mut obj = JsonMap::new();
+        let first_v: JsonNoDup = map.next_value()?;
+        obj.insert(first, first_v.0);
+        while let Some((k, JsonNoDup(v))) = map.next_entry()? {
+            if obj.contains_key(&k) {
+                return Err(de::Error::custom(format!("duplicate json key {k}")));
+            }
+            obj.insert(k, v);
+        }
+        Ok(Json::Object(obj))
+    }
 }
 
 fn encode_value(msg: &DynamicMessage) -> Result<Json, SerializeError> {
@@ -52,7 +131,12 @@ fn encode_value(msg: &DynamicMessage) -> Result<Json, SerializeError> {
             continue;
         };
         if let Some(json) = encode_field(field, fv)? {
-            map.insert(field.json_name.clone(), json);
+            let key = field
+                .extension_name
+                .as_ref()
+                .map(|n| format!("[{n}]"))
+                .unwrap_or_else(|| field.json_name.clone());
+            map.insert(key, json);
         }
     }
     Ok(Json::Object(map))
@@ -105,7 +189,15 @@ fn encode_leaf(field: &FieldDescriptor, v: &Value) -> Result<Json, SerializeErro
         ),
         Value::Bytes(b) => Json::String(b64_encode(b.as_bytes())),
         Value::Enum(n) => {
-            if let Some(en) = &field.enum_ty {
+            if field
+                .enum_ty
+                .as_ref()
+                .map(|e| e.full_name.as_str())
+                .or(field.type_name.as_deref())
+                .is_some_and(|n| n.trim_start_matches('.') == "google.protobuf.NullValue")
+            {
+                Json::Null
+            } else if let Some(en) = &field.enum_ty {
                 if let Some(name) = en.values.get(n) {
                     Json::String(name.clone())
                 } else {
@@ -182,6 +274,7 @@ fn decode_message(
     if let Some(p) = pool.clone() {
         msg.set_pool(p);
     }
+    let mut seen = std::collections::BTreeSet::new();
     for (key, val) in obj {
         let Some(field) = desc.field_by_name(key) else {
             if ignore_unknown {
@@ -189,6 +282,9 @@ fn decode_message(
             }
             return Err(ParseError::owned(format!("unknown json field {key}")));
         };
+        if !seen.insert(field.number) {
+            return Err(ParseError::owned(format!("duplicate json field {key}")));
+        }
         decode_into(&mut msg, field, val, ignore_unknown, pool.clone())?;
     }
     Ok(msg)
@@ -202,6 +298,17 @@ fn decode_into(
     pool: Option<Arc<DescriptorPool>>,
 ) -> Result<(), ParseError> {
     if val.is_null() {
+        if field.field_type == FieldType::Enum
+            && field
+                .enum_ty
+                .as_ref()
+                .map(|e| e.full_name.as_str())
+                .or(field.type_name.as_deref())
+                .is_some_and(|n| n.trim_start_matches('.') == "google.protobuf.NullValue")
+        {
+            msg.set(field.number, Value::Enum(0));
+            return Ok(());
+        }
         if field.field_type == FieldType::Message
             && field
                 .message
@@ -261,8 +368,11 @@ fn decode_into(
             .ok_or_else(|| ParseError::new("map missing value"))?;
         for (k, v) in obj {
             let key = parse_map_key(kf.field_type, k)?;
-            let value = decode_leaf(vf, v, ignore_unknown, pool.clone())?;
-            msg.insert_map(field.number, key, value);
+            match decode_leaf(vf, v, ignore_unknown, pool.clone()) {
+                Ok(value) => msg.insert_map(field.number, key, value),
+                Err(e) if e.to_string() == "skip-unknown-enum" => continue,
+                Err(e) => return Err(e),
+            }
         }
         return Ok(());
     }
@@ -271,14 +381,19 @@ fn decode_into(
             .as_array()
             .ok_or_else(|| ParseError::new("json repeated must be an array"))?;
         for item in arr {
-            msg.push(
-                field.number,
-                decode_leaf(field, item, ignore_unknown, pool.clone())?,
-            );
+            match decode_leaf(field, item, ignore_unknown, pool.clone()) {
+                Ok(v) => msg.push(field.number, v),
+                Err(e) if e.to_string() == "skip-unknown-enum" => continue,
+                Err(e) => return Err(e),
+            }
         }
         return Ok(());
     }
-    msg.set(field.number, decode_leaf(field, val, ignore_unknown, pool)?);
+    match decode_leaf(field, val, ignore_unknown, pool) {
+        Ok(v) => msg.set(field.number, v),
+        Err(e) if e.to_string() == "skip-unknown-enum" => {}
+        Err(e) => return Err(e),
+    }
     Ok(())
 }
 
@@ -314,7 +429,7 @@ fn decode_leaf(
             )?
             .as_slice(),
         )),
-        FieldType::Enum => Value::Enum(parse_enum(field, val)?),
+        FieldType::Enum => Value::Enum(parse_enum(field, val, ignore_unknown, pool.as_ref())?),
         FieldType::Message | FieldType::Group => {
             let desc = field
                 .message
@@ -331,12 +446,30 @@ fn decode_leaf(
     })
 }
 
-fn parse_enum(field: &FieldDescriptor, val: &Json) -> Result<i32, ParseError> {
+fn parse_enum(
+    field: &FieldDescriptor,
+    val: &Json,
+    ignore_unknown: bool,
+    pool: Option<&Arc<DescriptorPool>>,
+) -> Result<i32, ParseError> {
     if let Some(s) = val.as_str() {
-        if let Some(en) = &field.enum_ty {
+        let en = field.enum_ty.clone().or_else(|| {
+            field
+                .type_name
+                .as_deref()
+                .and_then(|tn| pool.and_then(|p| p.get_enum(tn.trim_start_matches('.'))))
+        });
+        if let Some(en) = en {
             if let Some(n) = en.names.get(s) {
                 return Ok(*n);
             }
+            if ignore_unknown {
+                return Err(ParseError::new("skip-unknown-enum"));
+            }
+            return Err(ParseError::owned(format!("unknown enum {s}")));
+        }
+        if ignore_unknown {
+            return Err(ParseError::new("skip-unknown-enum"));
         }
         return Err(ParseError::owned(format!("unknown enum {s}")));
     }
@@ -586,7 +719,10 @@ fn format_timestamp(seconds: i64, nanos: i32) -> String {
     if nanos == 0 {
         format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}Z")
     } else {
-        format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}.{:09}Z", nanos)
+        format!(
+            "{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}.{}Z",
+            frac_digits(nanos.unsigned_abs())
+        )
     }
 }
 
@@ -695,12 +831,26 @@ fn encode_duration(msg: &DynamicMessage) -> Result<Json, SerializeError> {
     if nanos == 0 {
         Ok(Json::String(format!("{seconds}s")))
     } else if seconds == 0 && nanos < 0 {
-        Ok(Json::String(format!("-0.{:09}s", nanos.unsigned_abs())))
+        Ok(Json::String(format!(
+            "-0.{}s",
+            frac_digits(nanos.unsigned_abs())
+        )))
     } else {
         Ok(Json::String(format!(
-            "{seconds}.{:09}s",
-            nanos.unsigned_abs()
+            "{seconds}.{}s",
+            frac_digits(nanos.unsigned_abs())
         )))
+    }
+}
+
+fn frac_digits(nanos: u32) -> String {
+    let s = format!("{nanos:09}");
+    if s.ends_with("000000") {
+        s[..3].to_string()
+    } else if s.ends_with("000") {
+        s[..6].to_string()
+    } else {
+        s
     }
 }
 
@@ -796,6 +946,9 @@ fn encode_proto_value(msg: &DynamicMessage) -> Result<Json, SerializeError> {
         _ => {}
     }
     if let Some(Value::Double(n)) = msg.get_singular(2) {
+        if !n.is_finite() {
+            return Err(SerializeError::new("Value NaN/Inf"));
+        }
         return Ok(json_f64(*n));
     }
     if let Some(Value::String(s)) = msg.get_singular(3) {
@@ -899,7 +1052,7 @@ fn encode_field_mask(msg: &DynamicMessage) -> Result<Json, SerializeError> {
     if let Some(items) = msg.get_repeated(1) {
         for v in items {
             if let Value::String(s) = v {
-                paths.push(snake_to_camel(s.to_str().unwrap_or("")));
+                paths.push(snake_to_camel_strict(s.to_str().unwrap_or(""))?);
             }
         }
     }
@@ -913,6 +1066,9 @@ fn decode_field_mask(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMe
     let mut msg = DynamicMessage::new(desc);
     if !s.is_empty() {
         for p in s.split(',') {
+            if p.contains('_') {
+                return Err(ParseError::new("field mask json path must be camelCase"));
+            }
             msg.push(
                 1,
                 Value::String(ProtoString::from(camel_to_snake(p).as_str())),
@@ -920,6 +1076,27 @@ fn decode_field_mask(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMe
         }
     }
     Ok(msg)
+}
+
+fn snake_to_camel_strict(s: &str) -> Result<String, SerializeError> {
+    if s.chars().any(|c| c.is_ascii_uppercase())
+        || s.contains("__")
+        || s.starts_with('_')
+        || s.ends_with('_')
+    {
+        return Err(SerializeError::new(
+            "field mask path is not round-trippable",
+        ));
+    }
+    let b = s.as_bytes();
+    for i in 0..b.len() {
+        if b[i] == b'_' && i + 1 < b.len() && !b[i + 1].is_ascii_lowercase() {
+            return Err(SerializeError::new(
+                "field mask path is not round-trippable",
+            ));
+        }
+    }
+    Ok(snake_to_camel(s))
 }
 
 fn snake_to_camel(s: &str) -> String {
@@ -1089,12 +1266,15 @@ fn b64_decode(s: &str) -> Result<Vec<u8>, ParseError> {
             b'A'..=b'Z' => Ok(c - b'A'),
             b'a'..=b'z' => Ok(c - b'a' + 26),
             b'0'..=b'9' => Ok(c - b'0' + 52),
-            b'+' => Ok(62),
-            b'/' => Ok(63),
+            b'+' | b'-' => Ok(62),
+            b'/' | b'_' => Ok(63),
             _ => Err(ParseError::new("bad base64")),
         }
     }
-    let bytes: Vec<u8> = s.bytes().filter(|c| !c.is_ascii_whitespace()).collect();
+    let mut bytes: Vec<u8> = s.bytes().filter(|c| !c.is_ascii_whitespace()).collect();
+    while !bytes.is_empty() && bytes.len() % 4 != 0 {
+        bytes.push(b'=');
+    }
     if bytes.len() % 4 != 0 {
         return Err(ParseError::new("bad base64 length"));
     }

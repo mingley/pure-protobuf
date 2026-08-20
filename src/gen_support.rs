@@ -630,3 +630,197 @@ macro_rules! impl_generated_message {
         }
     };
 }
+
+/// Trait impls for field-wise generated messages (`merge_bytes` / `write_to` / `compute_size`).
+#[macro_export]
+macro_rules! impl_typed_message {
+    ($Owned:ident, $View:ident, $Mut:ident) => {
+        #[derive(Clone, Copy, Debug)]
+        pub struct $View<'msg>(pub &'msg $Owned);
+        pub struct $Mut<'msg>(pub &'msg mut $Owned);
+        impl $crate::__internal::SealedInternal for $Owned {}
+        impl $crate::MessageType for $Owned {}
+        impl $crate::Proxied for $Owned {
+            type View<'msg> = $View<'msg>;
+        }
+        impl $crate::MutProxied for $Owned {
+            type Mut<'msg> = $Mut<'msg>;
+        }
+        impl $crate::AsView for $Owned {
+            type Proxied = Self;
+            fn as_view(&self) -> $View<'_> {
+                $View(self)
+            }
+        }
+        impl $crate::AsMut for $Owned {
+            type MutProxied = Self;
+            fn as_mut(&mut self) -> $Mut<'_> {
+                $Mut(self)
+            }
+        }
+        impl $crate::__internal::SealedInternal for $View<'_> {}
+        impl $crate::AsView for $View<'_> {
+            type Proxied = $Owned;
+            fn as_view(&self) -> $View<'_> {
+                *self
+            }
+        }
+        impl<'msg> $crate::IntoView<'msg> for $View<'msg> {
+            fn into_view<'s>(self) -> $View<'s>
+            where
+                'msg: 's,
+            {
+                $View(self.0)
+            }
+        }
+        impl $crate::__internal::SealedInternal for $Mut<'_> {}
+        impl $crate::AsView for $Mut<'_> {
+            type Proxied = $Owned;
+            fn as_view(&self) -> $View<'_> {
+                $View(self.0)
+            }
+        }
+        impl $crate::AsMut for $Mut<'_> {
+            type MutProxied = $Owned;
+            fn as_mut(&mut self) -> $Mut<'_> {
+                $Mut(self.0)
+            }
+        }
+        impl<'msg> $crate::IntoView<'msg> for $Mut<'msg> {
+            fn into_view<'s>(self) -> $View<'s>
+            where
+                'msg: 's,
+            {
+                $View(self.0)
+            }
+        }
+        impl<'msg> $crate::IntoMut<'msg> for $Mut<'msg> {
+            fn into_mut<'s>(self) -> $Mut<'s>
+            where
+                'msg: 's,
+            {
+                $Mut(self.0)
+            }
+        }
+        impl $crate::Serialize for $Owned {
+            #[inline]
+            fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+                let mut out = Vec::with_capacity(self.compute_size() as usize);
+                self.write_to(&mut out);
+                $crate::rt::check_size(out.len() as u64)?;
+                Ok(out)
+            }
+            fn serialized_len(&self) -> usize {
+                self.compute_size() as usize
+            }
+        }
+        impl $crate::Serialize for $View<'_> {
+            fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+                self.0.serialize()
+            }
+            fn serialized_len(&self) -> usize {
+                self.0.serialized_len()
+            }
+        }
+        impl $crate::Serialize for $Mut<'_> {
+            fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
+                self.0.serialize()
+            }
+            fn serialized_len(&self) -> usize {
+                self.0.serialized_len()
+            }
+        }
+        impl $crate::Clear for $Owned {
+            fn clear(&mut self) {
+                *self = Self::default();
+            }
+        }
+        impl $crate::Clear for $Mut<'_> {
+            fn clear(&mut self) {
+                *self.0 = $Owned::default();
+            }
+        }
+        impl $crate::ClearAndParse for $Owned {
+            fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                $crate::Clear::clear(self);
+                self.merge_bytes(data, 0)
+            }
+            fn clear_and_parse_dont_enforce_required(
+                &mut self,
+                data: &[u8],
+            ) -> Result<(), $crate::ParseError> {
+                $crate::Clear::clear(self);
+                self.merge_bytes_dont_enforce(data, 0)
+            }
+            fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                self.merge_bytes(data, 0)
+            }
+            fn merge_from_bytes_dont_enforce_required(
+                &mut self,
+                data: &[u8],
+            ) -> Result<(), $crate::ParseError> {
+                self.merge_bytes_dont_enforce(data, 0)
+            }
+        }
+        impl $crate::ClearAndParse for $Mut<'_> {
+            fn clear_and_parse(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                self.0.clear_and_parse(data)
+            }
+            fn clear_and_parse_dont_enforce_required(
+                &mut self,
+                data: &[u8],
+            ) -> Result<(), $crate::ParseError> {
+                self.0.clear_and_parse_dont_enforce_required(data)
+            }
+            fn merge_from_bytes(&mut self, data: &[u8]) -> Result<(), $crate::ParseError> {
+                self.0.merge_from_bytes(data)
+            }
+        }
+        impl $crate::CopyFrom for $Owned {
+            fn copy_from(&mut self, src: impl $crate::AsView<Proxied = Self>) {
+                *self = src.as_view().0.clone();
+            }
+        }
+        impl $crate::CopyFrom for $Mut<'_> {
+            fn copy_from(&mut self, src: impl $crate::AsView<Proxied = $Owned>) {
+                *self.0 = src.as_view().0.clone();
+            }
+        }
+        impl $crate::TakeFrom for $Owned {
+            fn take_from(&mut self, mut src: impl $crate::AsMut<MutProxied = Self>) {
+                *self = std::mem::take(src.as_mut().0);
+            }
+        }
+        impl $crate::TakeFrom for $Mut<'_> {
+            fn take_from(&mut self, mut src: impl $crate::AsMut<MutProxied = $Owned>) {
+                *self.0 = std::mem::take(src.as_mut().0);
+            }
+        }
+        impl $crate::MergeFrom for $Owned {
+            fn merge_from(&mut self, src: impl $crate::AsView<Proxied = Self>) {
+                let b = $crate::Serialize::serialize(src.as_view().0).unwrap_or_default();
+                let _ = self.merge_bytes(&b, 0);
+            }
+        }
+        impl $crate::MergeFrom for $Mut<'_> {
+            fn merge_from(&mut self, src: impl $crate::AsView<Proxied = $Owned>) {
+                $crate::MergeFrom::merge_from(self.0, src);
+            }
+        }
+        impl $crate::Message for $Owned {
+            type MessageView<'msg> = $View<'msg>;
+            type MessageMut<'msg> = $Mut<'msg>;
+        }
+        impl<'msg> $crate::MessageView<'msg> for $View<'msg> {
+            type Message = $Owned;
+        }
+        impl<'msg> $crate::MessageMut<'msg> for $Mut<'msg> {
+            type Message = $Owned;
+        }
+        impl std::fmt::Debug for $Mut<'_> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                std::fmt::Debug::fmt(self.0, f)
+            }
+        }
+    };
+}

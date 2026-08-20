@@ -163,6 +163,7 @@ pub struct MessageDescriptor {
     pub extension_ranges: Vec<(u32, u32)>,
     pub reserved_names: BTreeSet<String>,
     pub file_name: String,
+    pub message_set_wire_format: bool,
 }
 
 impl MessageDescriptor {
@@ -185,6 +186,7 @@ impl MessageDescriptor {
                 extension_ranges: Vec::new(),
                 reserved_names: BTreeSet::new(),
                 file_name: String::new(),
+                message_set_wire_format: false,
             },
         }
     }
@@ -253,10 +255,28 @@ impl MessageDescriptorBuilder {
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct MethodDescriptor {
+    pub name: String,
+    pub input_type: String,
+    pub output_type: String,
+    pub client_streaming: bool,
+    pub server_streaming: bool,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ServiceDescriptor {
+    pub name: String,
+    pub full_name: String,
+    pub file_name: String,
+    pub methods: Vec<MethodDescriptor>,
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct DescriptorPool {
     messages: BTreeMap<String, Arc<MessageDescriptor>>,
     enums: BTreeMap<String, Arc<EnumDescriptor>>,
     extensions_by_name: BTreeMap<String, (String, u32)>,
+    services: BTreeMap<String, Arc<ServiceDescriptor>>,
 }
 
 impl DescriptorPool {
@@ -297,6 +317,16 @@ impl DescriptorPool {
         arc
     }
 
+    pub fn get_service(&self, full_name: &str) -> Option<Arc<ServiceDescriptor>> {
+        self.services
+            .get(full_name.trim_start_matches('.'))
+            .cloned()
+    }
+
+    pub fn collect_services(&self) -> Vec<Arc<ServiceDescriptor>> {
+        self.services.values().cloned().collect()
+    }
+
     pub fn register_enum(&mut self, desc: EnumDescriptor) -> Arc<EnumDescriptor> {
         let key = desc.full_name.clone();
         let arc = Arc::new(desc);
@@ -313,7 +343,19 @@ impl DescriptorPool {
         for file in &files {
             collect_raw(file, &mut raw, &mut raw_enums, &mut extensions);
         }
-        Ok(resolve_pool(raw, raw_enums, extensions))
+        let mut pool = resolve_pool(raw, raw_enums, extensions);
+        for file in &files {
+            for svc in &file.services {
+                let desc = Arc::new(ServiceDescriptor {
+                    name: svc.name.clone(),
+                    full_name: svc.full_name.clone(),
+                    file_name: file.name.clone(),
+                    methods: svc.methods.clone(),
+                });
+                pool.services.insert(desc.full_name.clone(), desc);
+            }
+        }
+        Ok(pool)
     }
 }
 
@@ -613,6 +655,10 @@ impl DynamicMessage {
         let mut pos = 0;
         while pos < data.len() {
             let (number, wire) = decode_tag(data, &mut pos)?;
+            if self.desc.message_set_wire_format && number == 1 {
+                self.merge_message_set_item(data, &mut pos, wire, depth)?;
+                continue;
+            }
             match self.desc.field(number).cloned() {
                 None => {
                     self.unknown
@@ -758,6 +804,11 @@ impl DynamicMessage {
     }
 
     fn write_to(&self, out: &mut Vec<u8>) {
+        if self.desc.message_set_wire_format {
+            self.write_message_set(out);
+            self.unknown.encode(out);
+            return;
+        }
         for (number, val) in &self.fields {
             if let Some(field) = self.desc.field(*number) {
                 write_field_value(field, val, out);
@@ -766,6 +817,95 @@ impl DynamicMessage {
             }
         }
         self.unknown.encode(out);
+    }
+
+    fn merge_message_set_item(
+        &mut self,
+        data: &[u8],
+        pos: &mut usize,
+        wire: u32,
+        depth: u32,
+    ) -> Result<(), ParseError> {
+        let mut type_id = 0u32;
+        let mut payload = Vec::new();
+        if wire == WIRE_LEN {
+            let inner = read_len_bytes(data, pos)?;
+            let mut p = 0;
+            while p < inner.len() {
+                let (n, w) = decode_tag(inner, &mut p)?;
+                match (n, w) {
+                    (2, WIRE_VARINT) => type_id = decode_varint(inner, &mut p)? as u32,
+                    (3, WIRE_LEN) => payload = read_len_bytes(inner, &mut p)?.to_vec(),
+                    _ => wire::skip_field(inner, &mut p, w)?,
+                }
+            }
+        } else if wire == WIRE_SGROUP {
+            loop {
+                if *pos >= data.len() {
+                    return Err(ParseError::new("truncated message set"));
+                }
+                let (n, w) = decode_tag(data, pos)?;
+                if w == WIRE_EGROUP && n == 1 {
+                    break;
+                }
+                match (n, w) {
+                    (2, WIRE_VARINT) => type_id = decode_varint(data, pos)? as u32,
+                    (3, WIRE_LEN) => payload = read_len_bytes(data, pos)?.to_vec(),
+                    _ => self
+                        .unknown
+                        .fields
+                        .push(wire::capture_unknown(data, pos, n, w)?),
+                }
+            }
+        } else {
+            self.unknown
+                .fields
+                .push(wire::capture_unknown(data, pos, 1, wire)?);
+            return Ok(());
+        }
+        if type_id == 0 {
+            return Ok(());
+        }
+        if let Some(field) = self.desc.field(type_id).cloned() {
+            let mut inner = DynamicMessage::new(field_message_desc(&field, self.pool.as_ref())?);
+            if let Some(p) = self.pool.clone() {
+                inner.set_pool(p);
+            }
+            inner.merge_bytes(&payload, false, depth + 1)?;
+            self.set(type_id, Value::Message(inner));
+        } else {
+            self.unknown.fields.push(UnknownField::Group {
+                number: 1,
+                fields: {
+                    let mut u = UnknownFields::default();
+                    u.fields.push(UnknownField::Varint {
+                        number: 2,
+                        value: u64::from(type_id),
+                    });
+                    u.fields.push(UnknownField::LengthDelimited {
+                        number: 3,
+                        value: payload,
+                    });
+                    u
+                },
+            });
+        }
+        Ok(())
+    }
+
+    fn write_message_set(&self, out: &mut Vec<u8>) {
+        for (number, val) in &self.fields {
+            let FieldValue::Singular(Value::Message(m)) = val else {
+                continue;
+            };
+            let mut inner = Vec::new();
+            m.write_to(&mut inner);
+            encode_tag(out, 1, WIRE_SGROUP);
+            encode_tag(out, 2, WIRE_VARINT);
+            encode_varint(out, u64::from(*number));
+            encode_len_field(out, 3, &inner);
+            encode_tag(out, 1, WIRE_EGROUP);
+        }
     }
 }
 
@@ -1496,6 +1636,14 @@ struct RawFile {
     messages: Vec<RawMessage>,
     enums: Vec<RawEnum>,
     extensions: Vec<RawField>,
+    services: Vec<RawService>,
+}
+
+#[derive(Default, Clone)]
+struct RawService {
+    name: String,
+    full_name: String,
+    methods: Vec<MethodDescriptor>,
 }
 
 #[derive(Default, Clone)]
@@ -1530,6 +1678,7 @@ struct RawMessage {
     extension_ranges: Vec<(u32, u32)>,
     reserved_names: Vec<String>,
     file_name: String,
+    message_set_wire_format: bool,
 }
 
 #[derive(Default, Clone)]
@@ -1570,6 +1719,10 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
             (5, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 file.enums.push(parse_enum(payload, false)?);
+            }
+            (6, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                file.services.push(parse_service(payload)?);
             }
             (7, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
@@ -1612,7 +1765,52 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
         };
     }
     stamp_file(&mut file.messages, &file.name);
+    for svc in &mut file.services {
+        svc.full_name = if file.package.is_empty() {
+            svc.name.clone()
+        } else {
+            format!("{}.{}", file.package, svc.name)
+        };
+        for m in &mut svc.methods {
+            m.input_type = m.input_type.trim_start_matches('.').to_string();
+            m.output_type = m.output_type.trim_start_matches('.').to_string();
+        }
+    }
     Ok(file)
+}
+
+fn parse_service(bytes: &[u8]) -> Result<RawService, ParseError> {
+    let mut svc = RawService::default();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        match (n, w) {
+            (1, WIRE_LEN) => svc.name = read_string(bytes, &mut pos)?,
+            (2, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                svc.methods.push(parse_method(payload)?);
+            }
+            _ => wire::skip_field(bytes, &mut pos, w)?,
+        }
+    }
+    Ok(svc)
+}
+
+fn parse_method(bytes: &[u8]) -> Result<MethodDescriptor, ParseError> {
+    let mut m = MethodDescriptor::default();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        match (n, w) {
+            (1, WIRE_LEN) => m.name = read_string(bytes, &mut pos)?,
+            (2, WIRE_LEN) => m.input_type = read_string(bytes, &mut pos)?,
+            (3, WIRE_LEN) => m.output_type = read_string(bytes, &mut pos)?,
+            (5, WIRE_VARINT) => m.client_streaming = decode_varint(bytes, &mut pos)? != 0,
+            (6, WIRE_VARINT) => m.server_streaming = decode_varint(bytes, &mut pos)? != 0,
+            _ => wire::skip_field(bytes, &mut pos, w)?,
+        }
+    }
+    Ok(m)
 }
 
 fn stamp_file(msgs: &mut [RawMessage], file_name: &str) {
@@ -1670,8 +1868,9 @@ fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseErro
             }
             (7, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (map_entry, features) = parse_message_options(payload)?;
+                let (map_entry, message_set, features) = parse_message_options(payload)?;
                 msg.is_map_entry = map_entry;
+                msg.message_set_wire_format = message_set;
                 msg.features = features;
             }
             (10, WIRE_LEN) => msg.reserved_names.push(read_string(bytes, &mut pos)?),
@@ -1709,13 +1908,15 @@ fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
     Ok(f)
 }
 
-fn parse_message_options(bytes: &[u8]) -> Result<(bool, RawFeatures), ParseError> {
+fn parse_message_options(bytes: &[u8]) -> Result<(bool, bool, RawFeatures), ParseError> {
     let mut map_entry = false;
+    let mut message_set = false;
     let mut features = RawFeatures::default();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
         match (n, w) {
+            (1, WIRE_VARINT) => message_set = decode_varint(bytes, &mut pos)? != 0,
             (7, WIRE_VARINT) => map_entry = decode_varint(bytes, &mut pos)? != 0,
             (12, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
@@ -1724,7 +1925,7 @@ fn parse_message_options(bytes: &[u8]) -> Result<(bool, RawFeatures), ParseError
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
-    Ok((map_entry, features))
+    Ok((map_entry, message_set, features))
 }
 
 fn parse_field_options(bytes: &[u8]) -> Result<(Option<bool>, RawFeatures), ParseError> {
@@ -1917,6 +2118,7 @@ fn resolve_pool(
         built.oneofs = oneofs;
         built.extension_ranges = raw_msg.extension_ranges.clone();
         built.reserved_names = raw_msg.reserved_names.iter().cloned().collect();
+        built.message_set_wire_format = raw_msg.message_set_wire_format;
         built.file_name = raw_msg.file_name.clone();
         skeletons.insert(name.clone(), built);
     }
@@ -2016,6 +2218,7 @@ fn resolve_pool(
         messages: resolved,
         enums: enum_arcs,
         extensions_by_name: ext_index,
+        services: BTreeMap::new(),
     }
 }
 

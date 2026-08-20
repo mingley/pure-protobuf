@@ -1,36 +1,41 @@
 # protobuf-tonic
 
-tonic `Codec` over **pure-protobuf** (`Parse` / `Serialize`).
+tonic `Codec` plus plugin-generated client/server stubs over **pure-protobuf**
+(`Parse` / `Serialize`).
 
-This is not `tonic-prost`. tonic’s workspace default is prost. These message
-types do not implement `prost::Message` and will not compile as
-`tonic-prost` request/response types.
+This is not `tonic-prost`. These message types do not implement `prost::Message`.
 
-The crate depends on **tonic 0.12** (conservative pin for a unary proof). The
-kernel itself does not depend on tonic. Bumping to 0.13/0.14 is an adapter
-change, not a kernel change.
+The crate depends on **tonic 0.14+** (MSRV 1.88). The kernel itself does not
+depend on tonic. 0.12/0.13 are not supported.
 
-## Client
+`protoc-gen-pure-protobuf` (and `protobuf::codegen::generate_from_file_descriptor_set`)
+emit `FooClient` / `FooServer` / a `Foo` trait for each `.proto` service. Stubs
+use `ProtobufCodec`, not prost. `build.rs` in this crate generates `hello.rs`
+from `proto/hello.proto`.
 
 ```rust
-use protobuf_tonic::ProtobufCodec;
-use tonic::client::Grpc;
-use tonic::{Request, Response};
+impl Greeter for Echo {
+    async fn say_hello(&self, request: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+        /* ... */
+    }
+    type StreamHelloStream = ReceiverStream<Result<HelloReply, Status>>;
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Self::StreamHelloStream>, Status> {
+        /* ... */
+    }
+}
 
-let mut grpc = Grpc::new(channel);
-grpc.ready().await?;
-let resp: Response<HelloReply> = grpc
-    .unary(
-        Request::new(req),
-        "/helloworld.Greeter/SayHello".parse()?,
-        ProtobufCodec::<HelloRequest, HelloReply>::default(),
-    )
-    .await?;
+Server::builder().add_service(GreeterServer::new(Echo));
+let mut client = GreeterClient::new(channel);
+let resp = client.say_hello(Request::new(req)).await?;
+let stream = client.stream_hello(Request::new(inbound)).await?;
 ```
 
 `ProtobufCodec<Encode, Decode>`: encode type first, decode type second.
 
-See `tests/unary.rs` for a localhost server + client echo.
+See `tests/unary.rs` and `tests/streaming.rs`.
 
 ## License
 

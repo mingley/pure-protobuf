@@ -125,23 +125,20 @@ pub fn decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {
 }
 
 #[inline(always)]
-pub fn encode_varint(out: &mut Vec<u8>, value: u64) {
+pub fn encode_varint(out: &mut Vec<u8>, mut value: u64) {
     if value < 0x80 {
         out.push(value as u8);
         return;
     }
-    let mut value = value;
-    loop {
-        let mut byte = (value & 0x7f) as u8;
+    let mut buf = [0u8; 10];
+    let mut i = 0;
+    while value >= 0x80 {
+        buf[i] = (value as u8) | 0x80;
         value >>= 7;
-        if value != 0 {
-            byte |= 0x80;
-        }
-        out.push(byte);
-        if value == 0 {
-            break;
-        }
+        i += 1;
     }
+    buf[i] = value as u8;
+    out.extend_from_slice(&buf[..=i]);
 }
 
 #[inline(always)]
@@ -183,9 +180,14 @@ pub fn decode_tag(buf: &[u8], pos: &mut usize) -> Result<(u32, u32), ParseError>
 }
 
 #[inline(always)]
-pub fn encode_len_field(out: &mut Vec<u8>, number: u32, payload: &[u8]) {
+pub fn encode_len_header(out: &mut Vec<u8>, number: u32, len: u64) {
     encode_tag(out, number, WIRE_LEN);
-    encode_varint(out, payload.len() as u64);
+    encode_varint(out, len);
+}
+
+#[inline(always)]
+pub fn encode_len_field(out: &mut Vec<u8>, number: u32, payload: &[u8]) {
+    encode_len_header(out, number, payload.len() as u64);
     out.extend_from_slice(payload);
 }
 

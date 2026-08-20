@@ -102,6 +102,21 @@ fn write_msg(
     Ok(())
 }
 
+fn parse_unknown_message(data: &[u8]) -> Option<crate::wire::UnknownFields> {
+    if data.is_empty() {
+        return None;
+    }
+    let mut pos = 0;
+    let mut fields = crate::wire::UnknownFields::default();
+    while pos < data.len() {
+        let (n, w) = crate::wire::decode_tag(data, &mut pos).ok()?;
+        fields
+            .fields
+            .push(crate::wire::capture_unknown(data, &mut pos, n, w).ok()?);
+    }
+    Some(fields)
+}
+
 fn write_unknown(uf: &UnknownField, out: &mut String, indent: usize) {
     pad(out, indent);
     match uf {
@@ -115,9 +130,18 @@ fn write_unknown(uf: &UnknownField, out: &mut String, indent: usize) {
             out.push_str(&format!("{number}: 0x{value:016x}\n"));
         }
         UnknownField::LengthDelimited { number, value } => {
-            out.push_str(&format!("{number}: "));
-            write_bytes_lit(value, out);
-            out.push('\n');
+            if let Some(inner) = parse_unknown_message(value) {
+                out.push_str(&format!("{number} {{\n"));
+                for uf in &inner.fields {
+                    write_unknown(uf, out, indent + 2);
+                }
+                pad(out, indent);
+                out.push_str("}\n");
+            } else {
+                out.push_str(&format!("{number}: "));
+                write_bytes_lit(value, out);
+                out.push('\n');
+            }
         }
         UnknownField::Group { number, fields } => {
             out.push_str(&format!("{number} {{\n"));

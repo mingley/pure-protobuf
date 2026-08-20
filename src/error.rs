@@ -8,7 +8,7 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub(crate) fn new(message: &'static str) -> Self {
+    pub fn new(message: &'static str) -> Self {
         Self {
             message: Cow::Borrowed(message),
         }
@@ -36,7 +36,7 @@ pub struct SerializeError {
 }
 
 impl SerializeError {
-    pub(crate) fn new(message: &'static str) -> Self {
+    pub fn new(message: &'static str) -> Self {
         Self { message }
     }
 }

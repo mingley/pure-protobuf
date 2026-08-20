@@ -1,5 +1,7 @@
 /target
 /bench/target
 /v4_person/target
+/v4_tat/target
+/buffa_tat/target
 /third_party/protobuf
 .DS_Store

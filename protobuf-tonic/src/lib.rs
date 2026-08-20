@@ -3,6 +3,8 @@
 //! Not `tonic-prost`. These types cannot implement `prost::Message`.
 //! The kernel crate does not depend on tonic.
 
+extern crate self as protobuf_tonic;
+
 use bytes::{Buf, BufMut};
 use protobuf::{ClearAndParse, Parse, Serialize};
 use std::marker::PhantomData;

@@ -9,13 +9,15 @@
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
+extern crate self as protobuf;
+
 #[doc(hidden)]
 pub use paste as __paste;
 
 pub use crate::dynamic::{
     Cardinality, DescriptorPool, DynamicMessage, DynamicMessageMut, DynamicMessageView,
-    EnumDescriptor, FieldDescriptor, FieldType, MapKeyValue, MessageDescriptor, Presence, Value,
-    RECURSION_LIMIT,
+    EnumDescriptor, FieldDescriptor, FieldType, MapKeyValue, MessageDescriptor, MethodDescriptor,
+    Presence, ServiceDescriptor, Value, RECURSION_LIMIT,
 };
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
@@ -44,6 +46,7 @@ mod dynamic;
 mod error;
 pub mod gen_support;
 pub mod gencode;
+mod generated;
 mod internal;
 pub(crate) mod json;
 mod map;

@@ -1,8 +1,4 @@
-//! Generated-shaped TestAllTypes wrappers used by the conformance program.
-//!
-//! Same wrapper + DynamicMessage codec the plugin emits. Accessors for
-//! TestAllTypes are produced when the plugin is invoked on the official
-//! test_messages protos (see `tests/plugin.rs`).
+//! Field-wise generated TestAllTypes + WKT used by the conformance program.
 
 use crate::dynamic::DescriptorPool;
 use std::sync::{Arc, OnceLock};
@@ -16,59 +12,23 @@ pub fn conformance_pool() -> Arc<DescriptorPool> {
     .clone()
 }
 
-crate::impl_generated_message!(
-    TestAllTypesProto3,
-    TestAllTypesProto3View,
-    TestAllTypesProto3Mut,
-    "protobuf_test_messages.proto3.TestAllTypesProto3",
-    crate::gencode::conformance_pool()
-);
-crate::impl_generated_message!(
-    TestAllTypesProto2,
-    TestAllTypesProto2View,
-    TestAllTypesProto2Mut,
-    "protobuf_test_messages.proto2.TestAllTypesProto2",
-    crate::gencode::conformance_pool()
-);
-crate::impl_generated_message!(
-    TestAllRequiredTypesProto2,
-    TestAllRequiredTypesProto2View,
-    TestAllRequiredTypesProto2Mut,
-    "protobuf_test_messages.proto2.TestAllRequiredTypesProto2",
-    crate::gencode::conformance_pool()
-);
-crate::impl_generated_message!(
-    TestAllTypesEdition2023,
-    TestAllTypesEdition2023View,
-    TestAllTypesEdition2023Mut,
-    "protobuf_test_messages.editions.TestAllTypesEdition2023",
-    crate::gencode::conformance_pool()
-);
-crate::impl_generated_message!(
-    TestAllTypesEditionUnstable,
-    TestAllTypesEditionUnstableView,
-    TestAllTypesEditionUnstableMut,
-    "protobuf_test_messages.edition_unstable.TestAllTypesEditionUnstable",
-    crate::gencode::conformance_pool()
-);
-crate::impl_generated_message!(
-    EditionsTestAllTypesProto2,
-    EditionsTestAllTypesProto2View,
-    EditionsTestAllTypesProto2Mut,
-    "protobuf_test_messages.editions.proto2.TestAllTypesProto2",
-    crate::gencode::conformance_pool()
-);
-crate::impl_generated_message!(
-    EditionsTestAllRequiredTypesProto2,
-    EditionsTestAllRequiredTypesProto2View,
-    EditionsTestAllRequiredTypesProto2Mut,
-    "protobuf_test_messages.editions.proto2.TestAllRequiredTypesProto2",
-    crate::gencode::conformance_pool()
-);
-crate::impl_generated_message!(
-    EditionsTestAllTypesProto3,
-    EditionsTestAllTypesProto3View,
-    EditionsTestAllTypesProto3Mut,
-    "protobuf_test_messages.editions.proto3.TestAllTypesProto3",
-    crate::gencode::conformance_pool()
-);
+pub use crate::generated::test_messages_edition2023::TestAllTypesEdition2023;
+pub use crate::generated::test_messages_edition_unstable::TestAllTypesEditionUnstable;
+pub use crate::generated::test_messages_proto2::{TestAllRequiredTypesProto2, TestAllTypesProto2};
+pub use crate::generated::test_messages_proto2_editions::{
+    TestAllRequiredTypesProto2 as EditionsTestAllRequiredTypesProto2,
+    TestAllTypesProto2 as EditionsTestAllTypesProto2,
+};
+pub use crate::generated::test_messages_proto3::{NestedMessage, TestAllTypesProto3};
+pub use crate::generated::test_messages_proto3_editions::TestAllTypesProto3 as EditionsTestAllTypesProto3;
+
+pub use crate::generated::any::Any;
+pub use crate::generated::duration::Duration;
+pub use crate::generated::empty::Empty;
+pub use crate::generated::field_mask::FieldMask;
+pub use crate::generated::pb_struct::{ListValue, PbValue, Struct};
+pub use crate::generated::timestamp::Timestamp;
+pub use crate::generated::wrappers::{
+    BoolValue, BytesValue, DoubleValue, FloatValue, Int32Value, Int64Value, StringValue,
+    UInt32Value, UInt64Value,
+};

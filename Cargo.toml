@@ -1,6 +1,6 @@
 [workspace]
 members = [".", "protobuf-tonic"]
-exclude = ["bench", "v4_person", "target"]
+exclude = ["bench", "v4_person", "v4_tat", "buffa_tat", "target"]
 resolver = "2"
 
 [package]
@@ -30,6 +30,7 @@ path = "src/bin/conformance.rs"
 
 [dependencies]
 paste = "1.0"
+serde = "1.0"
 serde_json = { version = "1.0", features = ["arbitrary_precision"] }
 
 [dev-dependencies]
