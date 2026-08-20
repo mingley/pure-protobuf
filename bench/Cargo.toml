@@ -1,0 +1,21 @@
+[package]
+name = "pure-protobuf-bench"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+protobuf = { package = "pure-protobuf", path = ".." }
+prost = { version = "0.13", features = ["derive"] }
+v4_person = { path = "../v4_person" }
+protobuf_v4 = { package = "protobuf", version = "=4.35.1-release" }
+
+[[bin]]
+name = "bench"
+path = "src/main.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

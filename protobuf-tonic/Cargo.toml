@@ -1,0 +1,17 @@
+[package]
+name = "protobuf-tonic"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "tonic Codec over pure-protobuf (not tonic-prost; kernel stays tonic-free)"
+
+[dependencies]
+bytes = "1"
+http = "1"
+protobuf = { package = "pure-protobuf", path = ".." }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "0.12", default-features = false, features = ["transport", "codegen"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }

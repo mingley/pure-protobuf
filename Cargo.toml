@@ -1,0 +1,36 @@
+[workspace]
+members = [".", "protobuf-tonic"]
+exclude = ["bench", "v4_person", "target"]
+resolver = "2"
+
+[package]
+name = "pure-protobuf"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "BSD-3-Clause"
+description = "Pure-Rust Protocol Buffers kernel with the Google protobuf v4 application API (not crates.io protobuf 4.x upb/C, not prost)"
+repository = "https://github.com/mingley/pure-protobuf"
+readme = "README.md"
+keywords = ["protobuf", "serialization", "proto"]
+categories = ["encoding"]
+publish = false
+
+[lib]
+name = "protobuf"
+path = "src/lib.rs"
+
+[[bin]]
+name = "protoc-gen-pure-protobuf"
+path = "src/bin/protoc-gen-pure-protobuf.rs"
+
+[[bin]]
+name = "conformance"
+path = "src/bin/conformance.rs"
+
+[dependencies]
+paste = "1.0"
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
+
+[dev-dependencies]
+# none: tests drive the public crate API only
