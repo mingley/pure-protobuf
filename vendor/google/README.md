@@ -17,9 +17,10 @@ License: BSD-3 (see `LICENSE`). Source: `github.com/protocolbuffers/protobuf`.
 
 2. **`rust/test/shared/*.rs`** — v4 application API tests (accessors, merge,
    serialize, proto!, UTF-8). These run against **both** the cpp and upb
-   kernels in Google’s tree. They need Google rust gencode module names and
-   `googletest`. Checked in here as the behavioral-parity corpus to port;
-   they are not compiled by `cargo test` yet.
+   kernels in Google’s tree. A proto3 subset is compiled by `cargo test`
+   (`tests/google_shared.rs` + `tests/google_gen/`, regen with
+   `./scripts/regen-google-unittest.sh`). The original googletest sources stay
+   here as the remaining port corpus.
 
 3. **`upb/test/*.cc`** and **`rust/test/upb/`** — C/minitable/arena internals.
    Not applicable to a pure-Rust kernel. Not vendored.
