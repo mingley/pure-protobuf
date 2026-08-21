@@ -4,15 +4,13 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 cargo build --bin protoc-gen-pbrs
-PLUGIN="$ROOT/target/debug/protoc-gen-pbrs"
+export PBRS_PLUGIN="$ROOT/target/debug/protoc-gen-pbrs"
 OUT="$ROOT/src/generated"
 SRC="$ROOT/third_party/protobuf/src"
 TREE="$ROOT/third_party/protobuf"
 export PURE_PROTOBUF_SHARED_POOL=1
 run() {
-  local proto="$1"
-  protoc --plugin=protoc-gen-pbrs="$PLUGIN" --pbrs_out="$OUT" \
-    -I "$SRC" -I "$TREE" "$proto"
+  "$ROOT/scripts/gen.sh" -I "$SRC" -I "$TREE" -o "$OUT" "$1"
 }
 run "$SRC/google/protobuf/any.proto"
 run "$SRC/google/protobuf/duration.proto"

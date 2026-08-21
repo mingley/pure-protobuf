@@ -29,10 +29,18 @@ Google’s generated Rust (`protoc --rust_out kernel=upb`) calls `::protobuf::__
 
 ## Generate
 
+`protoc` must be on `PATH`. From this repo:
+
+```bash
+./scripts/gen.sh -I proto -o gen proto/your.proto
+```
+
+Same thing by hand (`PBRS_PLUGIN` or `PATH` can point at `protoc-gen-pbrs`):
+
 ```bash
 protoc \
   --plugin=protoc-gen-pbrs=target/debug/protoc-gen-pbrs \
-  --pbrs_out=. \
+  --pbrs_out=gen \
   -I proto proto/your.proto
 ```
 

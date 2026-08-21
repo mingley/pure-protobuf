@@ -188,6 +188,30 @@ fn plugin_generates_test_all_types_proto3() {
 }
 
 #[test]
+fn gen_script_emits_person() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-gen-sh");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto/person.proto");
+    let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/gen.sh");
+    let status = Command::new(&script)
+        .env("PBRS_PLUGIN", plugin_bin())
+        .arg("-I")
+        .arg(proto.parent().unwrap())
+        .arg("-o")
+        .arg(&tmp)
+        .arg(&proto)
+        .status()
+        .expect("run gen.sh");
+    assert!(status.success(), "gen.sh failed");
+    let generated = std::fs::read_to_string(tmp.join("person.rs")).expect("person.rs");
+    assert!(generated.contains("pub struct Person"), "{generated}");
+    assert!(generated.contains("use pbrs::prelude::*"), "{generated}");
+}
+
+#[test]
 fn plugin_generates_grpc_stubs() {
     let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target")

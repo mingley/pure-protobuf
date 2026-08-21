@@ -4,15 +4,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 cargo build --bin protoc-gen-pbrs
-PLUGIN="$ROOT/target/debug/protoc-gen-pbrs"
+export PBRS_PLUGIN="$ROOT/target/debug/protoc-gen-pbrs"
 OUT="$ROOT/tests/google_gen"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 export PURE_PROTOBUF_NO_REFLECT=1 PURE_PROTOBUF_NO_WKT=1 PURE_PROTOBUF_EMIT_DEPS=1
 I=(-I "$ROOT/vendor/google" -I "$ROOT/third_party/protobuf/src")
 run() {
-  protoc --plugin=protoc-gen-pbrs="$PLUGIN" --pbrs_out="$OUT" \
-    "${I[@]}" "$@"
+  "$ROOT/scripts/gen.sh" "${I[@]}" -o "$OUT" "$@"
 }
 
 # unittest_proto3 first; optional would otherwise clobber it if generated together.
@@ -44,8 +43,7 @@ run "$ROOT/vendor/google/rust/test/package.proto"
 run "$ROOT/vendor/google/rust/test/no_package_import.proto"
 run "$ROOT/vendor/google/rust/test/no_package.proto"
 
-protoc --plugin=protoc-gen-pbrs="$PLUGIN" --pbrs_out="$OUT" \
-  -I "$ROOT/vendor/google/rust-tests/shared" \
+"$ROOT/scripts/gen.sh" -I "$ROOT/vendor/google/rust-tests/shared" -o "$OUT" \
   "$ROOT/vendor/google/rust-tests/shared/utf8/no_features_proto2.proto" \
   "$ROOT/vendor/google/rust-tests/shared/utf8/no_features_proto3.proto" \
   "$ROOT/vendor/google/rust-tests/shared/utf8/feature_verify.proto"
