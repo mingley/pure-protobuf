@@ -21,8 +21,10 @@ prost, v4, or buffa owned. Buffa view is gated except `tat_populated`
 (~3% band) and `packed_fixed_256` (view does not build an owned `Vec`; we
 still win that row on this host, it is not a process gate).
 
-JSON, text, KiB+ payloads, proto2 required, maps larger than 64, and WKT
-are not gated. Those are conformance, not this timer.
+JSON, text, proto2 required, maps larger than 64, and WKT are not gated.
+1 MiB and 5 MiB rows are reported below and are not gated. Iters drop
+with payload (120x9 at 1 MiB, 40x7 at 5 MiB) so the timer stays
+memcpy-bound rather than a 40k-iter wall clock.
 
 Numbers below are one Apple Silicon host. Two consecutive
 `./target/release/bench` runs; the second capture is below.
@@ -71,7 +73,29 @@ go through Cold. Encode still wins.
 `tat_populated` versus buffa view is a tie at this size. Person view has
 more headroom.
 
-## Why v4 encode is large on these sizes
+## Large payloads (reported, not gated)
+
+Same TAT schema. Cells are **microseconds** (encode / decode), not
+nanoseconds. One Apple Silicon host; second of two runs.
+
+| case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
+|---|---:|---:|---:|---:|---:|---:|
+| bytes 1 MiB | 1,000,004 | 12.5 / 12.2 | 13.1 / 25.2 | 12.6 / 12.6 | 12.0 / 12.4 | n/a / **0.12** |
+| bytes 5 MiB | 5,000,005 | 67.4 / 65.3 | 67.5 / 131.5 | 65.8 / 67.8 | 67.0 / 68.2 | n/a / **0.11** |
+| packed fixed32 1 MiB | 1,000,005 | **12.3 / 13.2** | 161 / 468 | 12.4 / 13.3 | 129 / 13.2 | n/a / 12.8 |
+| packed fixed32 5 MiB | 5,000,006 | 67.7 / 63.3 | 799 / 2732 | **60.1 / 62.2** | 630 / 61.3 | n/a / 61.2 |
+
+At 1-5 MiB the v4 Arena/FFI tax is gone. Owned encode/decode of a bytes
+blob is a memcpy of the payload. pbrs, v4, and buffa owned sit in the
+same band. prost decode is about 2x. buffa `decode_view` on bytes does
+not copy (~0.12 µs).
+
+packed-fixed is memcpy for pbrs and v4, and a recode for prost / buffa
+owned encode. At 5 MiB v4 encode is a bit faster (60 vs 68 µs). Decode
+is a few percent either way. packed-fixed view still copies; it is not
+the bytes-view shortcut.
+
+## Why v4 encode is large on small sizes
 
 Every v4 `serialize` allocates an Arena, calls FFI `upb_Encode`, and
 copies to `Vec`. Codec work on <1 KiB is tens of ns. Setup is hundreds.

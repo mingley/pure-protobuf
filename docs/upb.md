@@ -24,8 +24,10 @@ an encode arena, calls into C, then copies the result into a Rust `Vec`.
 upb C is not the bottleneck there. See
 `third_party/protobuf/rust/upb/wire.rs` after `./scripts/fetch-protobuf.sh`.
 
-That overhead shrinks on large payloads. We have not claimed a win at
-tens of KiB.
+That overhead shrinks on large payloads. At 1-5 MiB, owned encode/decode
+of a bytes blob is memcpy-bound: pbrs, v4, and buffa owned sit in the
+same band. packed-fixed 5 MiB encode is a bit faster on v4. See
+`docs/benchmarks.md`.
 
 ## Tests we share with rust_upb
 

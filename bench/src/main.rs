@@ -18,6 +18,17 @@ fn median_ns<F: FnMut()>(samples: usize, iters: u32, mut f: F) -> f64 {
     xs[samples / 2]
 }
 
+/// 40k iters of 5 MiB is a multi-minute memcpy loop. Scale the timer down.
+fn timer_budget(payload: usize) -> (u32, usize) {
+    if payload >= 3_000_000 {
+        (40, 7)
+    } else if payload >= 500_000 {
+        (120, 9)
+    } else {
+        (40_000, 15)
+    }
+}
+
 fn bench_ns<F: FnMut()>(iters: u32, mut f: F) -> f64 {
     for _ in 0..iters / 10 {
         f();
@@ -149,6 +160,18 @@ fn tat_bytes() -> TestAllTypesProto3 {
     for i in 0..8u8 {
         m.repeated_bytes_mut().push(vec![i; 32].into());
     }
+    m
+}
+
+fn tat_bytes_n(n: usize) -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    m.set_optional_bytes(vec![0x5a; n]);
+    m
+}
+
+fn tat_packed_fixed_n(n: usize) -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    m.set_packed_fixed32(0..n as u32);
     m
 }
 
@@ -409,15 +432,26 @@ struct Case {
     buffa_view: Option<f64>,
     payload: usize,
     ours_def: Option<f64>,
+    iters: u32,
+    samples: usize,
 }
 
 fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
     let bytes = pbrs::Serialize::serialize(&msg).expect("ours encode");
+    let (iters, samples) = if bytes.len() >= 500_000 {
+        timer_budget(bytes.len())
+    } else {
+        (iters, 15)
+    };
+    eprintln!(
+        "bench {name}: payload={} iters={iters} samples={samples}",
+        bytes.len()
+    );
     let prost_msg = prost_of(&msg);
     let v4_msg = v4_of(&msg);
     let buffa_msg = buffa_of(&msg);
     let ours_def = if name == "tat_populated" {
-        Some(median_ns(15, iters, || {
+        Some(median_ns(samples, iters, || {
             let _ = TestAllTypesProto3::new();
         }))
     } else {
@@ -426,34 +460,36 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
     Case {
         name,
         payload: bytes.len(),
-        ours_enc: median_ns(15, iters, || {
+        ours_enc: median_ns(samples, iters, || {
             let _ = pbrs::Serialize::serialize(&msg).unwrap();
         }),
-        prost_enc: median_ns(15, iters, || {
+        prost_enc: median_ns(samples, iters, || {
             let _ = prost_msg.encode_to_vec();
         }),
-        v4_enc: median_ns(15, iters, || {
+        v4_enc: median_ns(samples, iters, || {
             let _ = V4Serialize::serialize(&v4_msg).unwrap();
         }),
-        buffa_enc: median_ns(15, iters, || {
+        buffa_enc: median_ns(samples, iters, || {
             let _ = BuffaMessage::encode_to_vec(&buffa_msg);
         }),
-        ours_dec: median_ns(15, iters, || {
+        ours_dec: median_ns(samples, iters, || {
             let _ = TestAllTypesProto3::parse(&bytes).unwrap();
         }),
-        prost_dec: median_ns(15, iters, || {
+        prost_dec: median_ns(samples, iters, || {
             let _ = prost_tat::TestAllTypesProto3::decode(bytes.as_slice()).unwrap();
         }),
-        v4_dec: median_ns(15, iters, || {
+        v4_dec: median_ns(samples, iters, || {
             let _ = v4_tat::TestAllTypesProto3::parse(&bytes).unwrap();
         }),
-        buffa_dec: median_ns(15, iters, || {
+        buffa_dec: median_ns(samples, iters, || {
             let _ = BuffaTat::decode_from_slice(&bytes).unwrap();
         }),
-        buffa_view: Some(median_ns(15, iters, || {
+        buffa_view: Some(median_ns(samples, iters, || {
             let _ = BuffaTatView::decode_view(&bytes).unwrap();
         })),
         ours_def,
+        iters,
+        samples,
     }
 }
 
@@ -549,6 +585,8 @@ fn run_person(iters: u32) -> Case {
             let _ = buffa_person::example::PersonView::decode_view(&bytes).unwrap();
         })),
         ours_def: None,
+        iters,
+        samples: 15,
     }
 }
 
@@ -594,6 +632,10 @@ fn main() {
         run_tat("unpacked_fixed_256", tat_unpacked_fixed(), iters),
         run_tat("oneof", tat_oneof(), iters),
         run_tat("repeated_nested_8", tat_repeated_nested(), iters),
+        run_tat("bytes_1mb", tat_bytes_n(1_000_000), iters),
+        run_tat("bytes_5mb", tat_bytes_n(5_000_000), iters),
+        run_tat("packed_fixed_1mb", tat_packed_fixed_n(250_000), iters),
+        run_tat("packed_fixed_5mb", tat_packed_fixed_n(1_250_000), iters),
     ];
 
     println!("{{");
@@ -608,6 +650,8 @@ fn main() {
         println!("    {{");
         println!("      \"name\": \"{}\",", c.name);
         println!("      \"payload_bytes\": {},", c.payload);
+        println!("      \"iters\": {},", c.iters);
+        println!("      \"samples\": {},", c.samples);
         println!("      \"ours_encode_ns\": {:.3},", c.ours_enc);
         println!("      \"prost_encode_ns\": {:.3},", c.prost_enc);
         println!("      \"v4_encode_ns\": {:.3},", c.v4_enc);
