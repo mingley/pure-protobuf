@@ -1,7 +1,7 @@
-//! Pure-Rust Protocol Buffers kernel with the Google protobuf v4 **application** API.
+//! Pure-Rust protobuf kernel. Application API matches Google protobuf v4.
 //!
-//! This is not the crates.io `protobuf` 4.x crate (that runtime is upb/C).
-//! This is not prost. Google `protoc --rust_out` gencode will not link here.
+//! Not crates.io `protobuf` 4.x (upb/C). Not prost.
+//! Google `protoc --rust_out` will not link. See the crate README and `docs/`.
 //!
 //! ```ignore
 //! pbrs = { git = "https://github.com/mingley/pure-protobuf" }

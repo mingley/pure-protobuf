@@ -1,0 +1,64 @@
+# Design
+
+Constraints: same *application* traits as Google protobuf v4, official
+conformance (binary + JSON + text), no C.
+
+## Storage
+
+Empty collections are null pointers, not empty `Vec`s. A TAT with no packed
+or map fields does not allocate those slots.
+
+Messages with six or more cold fields (packed/unpacked scalars, repeated
+messages, WKT) box them in `Option<Box<MsgCold>>`. Maps and repeated
+string/bytes stay on the hot struct (map and strings benches).
+
+`Default` is `mem::zeroed` of that layout. `Option<bool>` zeroed is
+`Some(false)`, so explicit bools use `OptBool` (0 = unset). Optional
+string/bytes are `Option<Box<LazyStr>>` / `LazyBytes`.
+
+TAT `size_of` is 616 bytes. `TestAllTypesProto3::new` is ~16 ns.
+
+## Parse
+
+One pass. Truncated packed, bad varints, UTF-8 (per edition), and depth are
+rejected here, not on getter.
+
+Lazy after that:
+
+- strings <= 23 bytes: SSO copy
+- longer strings / bytes: `Wire` window (`Arc<[u8]>` + range)
+- packed: validated payload kept; `Vec` on first get. Varints recode
+  canonical on encode (overlong memcpy fails recommended
+  `ValidDataRepeated`). Fixed-width packed is memcpy-safe.
+- nested messages: `LazyMsg` holds the subslice; nested struct on first
+  getter (`OnceLock`)
+
+`FooView` is `&Owned` after this parse. It is not a wire overlay.
+
+## Encode
+
+`CachedSize` (`AtomicU64`, ignored by `PartialEq`). Every setter, `_mut`,
+and merge calls `dirty()`. First `serialized_len` / `serialize` fills it.
+
+Map encode walks the raw pair slice (`pairs()`). Last key wins on parse
+(`push_entry`, no scan). Lookup on `get` scans.
+
+testdata `Person` inlines up to 4 tags/scores (`MaybeUninit`) so the person
+bench does not heap-allocate those repeats.
+
+## API shape
+
+Generated accessors follow Google rust:
+
+- nested getter returns `&T` (default instance if unset)
+- presence is `has_` / `*_opt`
+- open enums: `From<i32>` newtype; closed: `TryFrom`
+- `proto!` with `__{}` inference and `..spread`
+
+`__internal` is a module (`SealedInternal`, `Private`). Google rust_upb
+tests treat `__internal` as `()`. Application code should not use it.
+
+## What we did not copy from upb
+
+No arena. No minitable. No FFI. No `MessagePtr`. Generated types are
+ordinary Rust structs. Drop is Rust drop.

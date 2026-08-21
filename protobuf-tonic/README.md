@@ -1,12 +1,10 @@
 # protobuf-tonic
 
-tonic `Codec` plus plugin-generated client/server stubs over **pbrs**
+tonic 0.14 `Codec` plus plugin-generated client/server stubs over pbrs
 (`Parse` / `Serialize`).
 
-This is not `tonic-prost`. These message types do not implement `prost::Message`.
-
-The crate depends on **tonic 0.14+** (MSRV 1.88). The kernel itself does not
-depend on tonic. 0.12/0.13 are not supported.
+Not `tonic-prost`. These types do not implement `prost::Message`. Kernel
+does not depend on tonic. 0.12/0.13 are unsupported. MSRV 1.88.
 
 `protoc-gen-pbrs` (and `pbrs::codegen::generate_from_file_descriptor_set`)
 emit `FooClient` / `FooServer` / a `Foo` trait for each `.proto` service. Stubs
