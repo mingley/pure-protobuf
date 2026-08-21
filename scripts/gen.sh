@@ -48,11 +48,11 @@ fi
 
 plugin() {
   if [[ -n "${PBRS_PLUGIN:-}" ]]; then
+    if [[ ! -x "$PBRS_PLUGIN" ]]; then
+      echo "pbrs gen: PBRS_PLUGIN is not executable: $PBRS_PLUGIN" >&2
+      exit 1
+    fi
     echo "$PBRS_PLUGIN"
-    return
-  fi
-  if command -v protoc-gen-pbrs >/dev/null 2>&1; then
-    command -v protoc-gen-pbrs
     return
   fi
   for cand in "$ROOT/target/debug/protoc-gen-pbrs" "$ROOT/target/release/protoc-gen-pbrs"; do
@@ -61,6 +61,10 @@ plugin() {
       return
     fi
   done
+  if command -v protoc-gen-pbrs >/dev/null 2>&1; then
+    command -v protoc-gen-pbrs
+    return
+  fi
   if [[ -f "$ROOT/Cargo.toml" ]]; then
     (cd "$ROOT" && cargo build --bin protoc-gen-pbrs >/dev/null)
     echo "$ROOT/target/debug/protoc-gen-pbrs"
@@ -77,4 +81,16 @@ command -v protoc >/dev/null 2>&1 || {
 }
 mkdir -p "$OUT"
 protoc --plugin=protoc-gen-pbrs="$PLUGIN" --pbrs_out="$OUT" "${INCLUDES[@]}" "${PROTOS[@]}"
-echo "wrote $OUT"
+
+files=()
+for p in "${PROTOS[@]}"; do
+  b="$(basename "$p")"
+  rs="$OUT/${b%.proto}.rs"
+  if [[ -f "$rs" ]]; then
+    files+=("$rs")
+  fi
+done
+if [[ ${#files[@]} -gt 0 ]] && command -v rustfmt >/dev/null 2>&1; then
+  rustfmt --edition 2021 "${files[@]}"
+fi
+printf 'wrote %s\n' "${files[@]}"
