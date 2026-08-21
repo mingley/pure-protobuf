@@ -12,10 +12,10 @@
 - Plugin round-trip works, including `./scripts/gen.sh`.
 - tonic 0.14 unary and bidi smoke tests pass in `protobuf-tonic`.
 - `./bench` fails the process if a gated case loses encode or owned decode
-  to prost, v4, or buffa owned. The nine cases are empty, person,
-  tat_populated, packed_256, map_64, nested_8, strings, unpacked_256, and
-  packed_fixed_256. View is gated except `tat_populated` (~3% band) and
-  `packed_fixed_256`.
+  to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
+  packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
+  packed_fixed64_256, packed_float_256, repeated_nested_8. View is gated
+  except `tat_populated` (~3% band) and packed-fixed rows.
 
 ## Remaining
 
@@ -27,7 +27,8 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- memcpy-packed fields other than `packed_fixed32` are Cold.
+- File / enum / method custom options are skipped on FileDescriptorSet
+  parse. Message and field custom options are kept.
 - There is no in-tree fuzzing.
 
 ## Skipped rust/test/shared files

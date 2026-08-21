@@ -11,14 +11,15 @@ does not allocate those slots.
 
 Messages with six or more cold fields (packed/unpacked scalars, repeated
 messages, WKT) box them in `Option<Box<MsgCold>>`. Maps and repeated
-string/bytes stay on the hot struct (map_64 / strings). `packed_fixed32`
-stays hot so packed-fixed parse is a payload copy, not a Cold malloc.
+string/bytes stay on the hot struct (map_64 / strings). `packed_fixed32`,
+`packed_fixed64`, `packed_float`, and `repeated_nested_message` stay hot
+so those benches do not pay a Cold malloc.
 
 `Default` is `mem::zeroed` of that layout. `Option<bool>` zeroed is
 `Some(false)`, so explicit bools use `OptBool` (0 = unset). Optional
 string/bytes are `Option<Box<LazyStr>>` / `LazyBytes`.
 
-TAT `size_of` is 624 bytes. `TestAllTypesProto3::new` is ~20 ns.
+TAT `size_of` is 648 bytes. `TestAllTypesProto3::new` is ~19 ns.
 
 ## Parse
 

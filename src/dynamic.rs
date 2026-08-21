@@ -118,6 +118,9 @@ pub struct FieldDescriptor {
     pub extendee: Option<String>,
     pub delimited: bool,
     pub extension_name: Option<String>,
+    /// Unrecognized `FieldOptions` tags (custom options). Payload is the option
+    /// body: length-delimited bytes, or the varint/fixed encoding.
+    pub options: Vec<DescriptorOption>,
 }
 
 impl FieldDescriptor {
@@ -147,7 +150,16 @@ impl FieldDescriptor {
             extendee: None,
             delimited: field_type == FieldType::Group,
             extension_name: None,
+            options: Vec::new(),
         }
+    }
+
+    /// Custom `FieldOptions` tag payload, if present.
+    pub fn custom_option(&self, number: u32) -> Option<&[u8]> {
+        self.options
+            .iter()
+            .find(|o| o.number == number)
+            .map(|o| o.value.as_slice())
     }
 }
 
@@ -164,6 +176,8 @@ pub struct MessageDescriptor {
     pub reserved_names: BTreeSet<String>,
     pub file_name: String,
     pub message_set_wire_format: bool,
+    /// Unrecognized `MessageOptions` tags (custom options).
+    pub options: Vec<DescriptorOption>,
 }
 
 impl MessageDescriptor {
@@ -187,6 +201,7 @@ impl MessageDescriptor {
                 reserved_names: BTreeSet::new(),
                 file_name: String::new(),
                 message_set_wire_format: false,
+                options: Vec::new(),
             },
         }
     }
@@ -217,6 +232,22 @@ impl MessageDescriptor {
     pub fn is_reserved_name(&self, name: &str) -> bool {
         self.reserved_names.contains(name)
     }
+
+    /// Custom `MessageOptions` tag payload, if present.
+    pub fn custom_option(&self, number: u32) -> Option<&[u8]> {
+        self.options
+            .iter()
+            .find(|o| o.number == number)
+            .map(|o| o.value.as_slice())
+    }
+}
+
+/// One custom option on a message or field descriptor (`MessageOptions` /
+/// `FieldOptions` extension tag).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DescriptorOption {
+    pub number: u32,
+    pub value: Vec<u8>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -1696,6 +1727,7 @@ struct RawField {
     extendee: String,
     features: RawFeatures,
     full_ext_name: String,
+    options: Vec<DescriptorOption>,
 }
 
 #[derive(Default, Clone)]
@@ -1714,6 +1746,7 @@ struct RawMessage {
     reserved_names: Vec<String>,
     file_name: String,
     message_set_wire_format: bool,
+    options: Vec<DescriptorOption>,
 }
 
 #[derive(Default, Clone)]
@@ -1921,10 +1954,11 @@ fn parse_descriptor(bytes: &[u8], _parent: &str) -> Result<RawMessage, ParseErro
             }
             (7, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (map_entry, message_set, features) = parse_message_options(payload)?;
+                let (map_entry, message_set, features, options) = parse_message_options(payload)?;
                 msg.is_map_entry = map_entry;
                 msg.message_set_wire_format = message_set;
                 msg.features = features;
+                msg.options = options;
             }
             (10, WIRE_LEN) => msg.reserved_names.push(read_string(bytes, &mut pos)?),
             _ => wire::skip_field(bytes, &mut pos, w)?,
@@ -1950,9 +1984,10 @@ fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
             (10, WIRE_LEN) => f.json_name = read_string(bytes, &mut pos)?,
             (8, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                let (packed, features) = parse_field_options(payload)?;
+                let (packed, features, options) = parse_field_options(payload)?;
                 f.packed = packed;
                 f.features = features;
+                f.options = options;
             }
             (17, WIRE_VARINT) => f.proto3_optional = decode_varint(bytes, &mut pos)? != 0,
             _ => wire::skip_field(bytes, &mut pos, w)?,
@@ -1961,10 +1996,13 @@ fn parse_field(bytes: &[u8]) -> Result<RawField, ParseError> {
     Ok(f)
 }
 
-fn parse_message_options(bytes: &[u8]) -> Result<(bool, bool, RawFeatures), ParseError> {
+fn parse_message_options(
+    bytes: &[u8],
+) -> Result<(bool, bool, RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut map_entry = false;
     let mut message_set = false;
     let mut features = RawFeatures::default();
+    let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
@@ -1975,15 +2013,21 @@ fn parse_message_options(bytes: &[u8]) -> Result<(bool, bool, RawFeatures), Pars
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 features = parse_features(payload)?;
             }
-            _ => wire::skip_field(bytes, &mut pos, w)?,
+            _ => options.push(DescriptorOption {
+                number: n,
+                value: capture_option_value(bytes, &mut pos, w)?,
+            }),
         }
     }
-    Ok((map_entry, message_set, features))
+    Ok((map_entry, message_set, features, options))
 }
 
-fn parse_field_options(bytes: &[u8]) -> Result<(Option<bool>, RawFeatures), ParseError> {
+fn parse_field_options(
+    bytes: &[u8],
+) -> Result<(Option<bool>, RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut packed = None;
     let mut features = RawFeatures::default();
+    let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
@@ -1993,10 +2037,37 @@ fn parse_field_options(bytes: &[u8]) -> Result<(Option<bool>, RawFeatures), Pars
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 features = parse_features(payload)?;
             }
-            _ => wire::skip_field(bytes, &mut pos, w)?,
+            _ => options.push(DescriptorOption {
+                number: n,
+                value: capture_option_value(bytes, &mut pos, w)?,
+            }),
         }
     }
-    Ok((packed, features))
+    Ok((packed, features, options))
+}
+
+fn capture_option_value(bytes: &[u8], pos: &mut usize, w: u32) -> Result<Vec<u8>, ParseError> {
+    match w {
+        WIRE_VARINT => {
+            let v = decode_varint(bytes, pos)?;
+            let mut out = Vec::new();
+            encode_varint(&mut out, v);
+            Ok(out)
+        }
+        WIRE_LEN => Ok(read_len_bytes(bytes, pos)?.to_vec()),
+        WIRE_I32 => {
+            let v = read_fixed32(bytes, pos)?;
+            Ok(v.to_le_bytes().to_vec())
+        }
+        WIRE_I64 => {
+            let v = read_fixed64(bytes, pos)?;
+            Ok(v.to_le_bytes().to_vec())
+        }
+        _ => {
+            wire::skip_field(bytes, pos, w)?;
+            Ok(Vec::new())
+        }
+    }
 }
 
 fn parse_file_options(bytes: &[u8]) -> Result<RawFeatures, ParseError> {
@@ -2173,6 +2244,7 @@ fn resolve_pool(
         built.reserved_names = raw_msg.reserved_names.iter().cloned().collect();
         built.message_set_wire_format = raw_msg.message_set_wire_format;
         built.file_name = raw_msg.file_name.clone();
+        built.options = raw_msg.options.clone();
         skeletons.insert(name.clone(), built);
     }
     let mut enum_arcs: BTreeMap<String, Arc<EnumDescriptor>> = BTreeMap::new();
@@ -2342,5 +2414,6 @@ fn raw_field_to_desc(f: &RawField, parent: RawFeatures) -> FieldDescriptor {
         } else {
             Some(f.full_ext_name.clone())
         },
+        options: f.options.clone(),
     }
 }

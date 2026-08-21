@@ -602,6 +602,9 @@ fn gated(name: &str) -> bool {
             | "strings"
             | "unpacked_256"
             | "packed_fixed_256"
+            | "packed_fixed64_256"
+            | "packed_float_256"
+            | "repeated_nested_8"
     )
 }
 

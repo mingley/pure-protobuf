@@ -183,6 +183,40 @@ fn file_descriptor_set_bootstrap() {
     assert_eq!(parsed.get_singular(1), Some(&Value::Int32(42)));
 }
 
+#[test]
+fn file_descriptor_set_keeps_custom_options() {
+    // DescriptorProto.options is field 7 (MessageOptions).
+    // FieldDescriptorProto.options is field 8 (FieldOptions).
+    // Tags 51206 / 9999 are not standard option fields; they must survive
+    // from_file_descriptor_set instead of being skip_field'd.
+    let mut fds = Vec::new();
+    let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 2, "example");
+    protobuf_test_encode_string(&mut file, 12, "proto3");
+    let mut msg = Vec::new();
+    protobuf_test_encode_string(&mut msg, 1, "Mini");
+    let mut field = Vec::new();
+    protobuf_test_encode_string(&mut field, 1, "id");
+    protobuf_test_encode_varint(&mut field, 3, 1);
+    protobuf_test_encode_varint(&mut field, 4, 1);
+    protobuf_test_encode_varint(&mut field, 5, 5);
+    let mut field_opts = Vec::new();
+    protobuf_test_encode_len(&mut field_opts, 9999, b"xyz");
+    protobuf_test_encode_len(&mut field, 8, &field_opts);
+    protobuf_test_encode_len(&mut msg, 2, &field);
+    let mut msg_opts = Vec::new();
+    protobuf_test_encode_len(&mut msg_opts, 51206, b"abc");
+    protobuf_test_encode_len(&mut msg, 7, &msg_opts);
+    protobuf_test_encode_len(&mut file, 4, &msg);
+    protobuf_test_encode_len(&mut fds, 1, &file);
+
+    let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("fds");
+    let desc = pool.get_message("example.Mini").expect("example.Mini");
+    assert_eq!(desc.custom_option(51206), Some(b"abc".as_slice()));
+    let id = desc.field(1).expect("id");
+    assert_eq!(id.custom_option(9999), Some(b"xyz".as_slice()));
+}
+
 fn protobuf_test_encode_varint(out: &mut Vec<u8>, number: u32, value: u64) {
     encode_tag_for_test(out, number, 0);
     encode_varint_for_test(out, value);

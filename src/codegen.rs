@@ -563,17 +563,29 @@ fn is_memcpy_packed(f: &FieldDescriptor) -> bool {
         )
 }
 
-/// Only this packed-fixed field sits on the hot struct. Putting every
-/// memcpy-packed slot on TAT grew `size_of` to 824 and lost strings vs v4.
-fn is_hot_packed_fixed32(f: &FieldDescriptor) -> bool {
-    is_memcpy_packed(f) && f.field_type == FieldType::Fixed32 && f.name.starts_with("packed_")
+/// packed_fixed32/64 and packed_float stay on the hot struct. Putting every
+/// memcpy-packed TAT slot on hot grew `size_of` to 824 and lost strings vs v4.
+fn is_hot_packed_memcpy(f: &FieldDescriptor) -> bool {
+    is_memcpy_packed(f)
+        && f.name.starts_with("packed_")
+        && matches!(
+            f.field_type,
+            FieldType::Fixed32 | FieldType::Fixed64 | FieldType::Float
+        )
+}
+
+fn is_hot_repeated_nested(f: &FieldDescriptor) -> bool {
+    !f.is_map
+        && f.cardinality == Cardinality::Repeated
+        && f.field_type == FieldType::Message
+        && !f.delimited
+        && f.name == "repeated_nested_message"
 }
 
 fn is_cold_field(f: &FieldDescriptor) -> bool {
     // Maps and repeated string/bytes stay hot (map_64 / strings).
-    // packed_fixed32 is hot. Unpacked scalars, packed varints, other
-    // memcpy packed, repeated messages, and WKT stay in Cold.
-    if f.is_map || is_hot_packed_fixed32(f) {
+    // packed_fixed32/64, packed_float, and repeated_nested_message stay hot.
+    if f.is_map || is_hot_packed_memcpy(f) || is_hot_repeated_nested(f) {
         return false;
     }
     if f.cardinality == Cardinality::Repeated {
@@ -1529,7 +1541,10 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             if f.field_type == FieldType::Group || f.delimited {
                 let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st}.push(inner); }}");
             } else {
-                let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st}.push(inner); }}");
+                let _ = writeln!(
+                    src,
+                    "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 4).max(1)); }} let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st}.push(inner); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st}.push(inner); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
+                );
             }
         } else if f.field_type.is_packable() {
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");

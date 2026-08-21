@@ -58,6 +58,7 @@ are not applicable and not vendored.
 | Fuzzing | conformance + cargo tests only | Not in-tree. |
 | 2 GiB cap | `MAX_MESSAGE_BYTES = 2^31 - 1` | Same order as C++. |
 | Nested `field.message` on a raw FileDescriptorSet skeleton | look up by `type_name` in the pool | Pointers on the skeleton are empty. |
+| File / enum / method custom options | skipped on FileDescriptorSet parse | Message and field custom options survive (`DescriptorOption` / `custom_option(n)`). |
 
 ### Views
 
@@ -78,10 +79,11 @@ still required at codegen time.
 
 ### Layout specialization
 
-`packed_fixed32` is on the hot struct. Other memcpy-packed `packed_*`
-fields stay in `Cold`, so packed-fixed64 / packed float decode still pays
-a Cold malloc and loses to v4 on those benches. That split is shaped
-around TestAllTypes, not a general overlay kernel.
+`packed_fixed32`, `packed_fixed64`, `packed_float`, and
+`repeated_nested_message` are on the TAT hot struct. Remaining packed
+and unpacked scalars stay in `Cold`. Growing every memcpy-packed slot
+onto hot (TAT 824) lost `strings` vs v4. 648 still wins that row. The
+split is shaped around TestAllTypes, not a general overlay kernel.
 
 ## Already matching rust_upb
 
@@ -93,4 +95,5 @@ around TestAllTypes, not a general overlay kernel.
 - Delimited messages are groups.
 - Proto3 explicit presence holds on oneofs / optional.
 - Application-level encode/decode of the same-schema `./bench` suite vs
-  the crates.io rust+upb wrapper includes packed-fixed and unpacked 256.
+  the crates.io rust+upb wrapper includes packed-fixed32/64/float and
+  unpacked 256.

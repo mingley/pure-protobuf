@@ -13,15 +13,17 @@ Decode uses pbrs wire bytes. `./bench` (from `bench/`) runs 40000
 iterations and reports the median of 15 after warmup.
 
 Builds are release, thin LTO, one codegen unit.
-`size_of::<TestAllTypesProto3>()` is 624. Default is ~20 ns.
+`size_of::<TestAllTypesProto3>()` is 648. Default is ~19 ns.
 
 Each cell is encode ns / decode ns. Payload is encoded size in bytes.
 Buffa view has no encode, so that side is `n/a`.
 
 `./bench` exits non-zero if a gated case loses encode or owned decode to
-prost, v4, or buffa owned. Buffa view is gated except `tat_populated`
-(~3% band) and `packed_fixed_256` (view does not build an owned `Vec`; we
-still win that row on this host, it is not a process gate).
+prost, v4, or buffa owned. Twelve cases are gated: the original nine plus
+`packed_fixed64_256`, `packed_float_256`, and `repeated_nested_8`. Buffa
+view is gated except `tat_populated` (~3% band) and the packed-fixed
+rows (view does not build an owned `Vec`; we still win those rows on
+this host, they are not a process gate).
 
 JSON, text, proto2 required, maps larger than 64, and WKT are not gated.
 1 MiB and 5 MiB rows are reported below and are not gated. Iters drop
@@ -35,15 +37,18 @@ Numbers below are one Apple Silicon host. Two consecutive
 
 | case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|---:|
-| empty TAT | 0 | **24 / 20** | 80 / 123 | 144 / 79 | 66 / 166 | n/a / 111 |
-| person | 62 | **38 / 70** | 38 / 191 | 76 / 156 | 39 / 149 | n/a / 78 |
-| TAT populated | 87 | **87 / 311** | 148 / 440 | 247 / 399 | 129 / 397 | n/a / 302 |
-| packed varint 256 | 388 | **76 / 266** | 533 / 808 | 465 / 872 | 568 / 383 | n/a / 389 |
-| map 64 | 500 | **251 / 996** | 674 / 2329 | 970 / 3162 | 408 / 1794 | n/a / 1078 |
-| nested depth 8 | 26 | **225 / 144** | 2373 / 1070 | 1151 / 302 | 624 / 1323 | n/a / 1393 |
-| strings | 163 | **58 / 160** | 118 / 334 | 192 / 169 | 107 / 316 | n/a / 193 |
-| unpacked varint 256 | 896 | **410 / 1150** | 528 / 1656 | 763 / 2484 | 794 / 1644 | n/a / 2432 |
-| packed fixed32 256 | 1028 | **48 / 85** | 214 / 728 | 223 / 127 | 182 / 202 | n/a / 151 |
+| empty TAT | 0 | **27 / 18** | 81 / 128 | 148 / 82 | 72 / 164 | n/a / 110 |
+| person | 62 | **38 / 71** | 40 / 201 | 74 / 164 | 42 / 156 | n/a / 82 |
+| TAT populated | 87 | **98 / 315** | 181 / 447 | 250 / 419 | 132 / 408 | n/a / 305 |
+| packed varint 256 | 388 | **89 / 266** | 547 / 840 | 474 / 900 | 582 / 379 | n/a / 384 |
+| map 64 | 500 | **259 / 1060** | 664 / 2376 | 1001 / 3203 | 420 / 1756 | n/a / 1080 |
+| nested depth 8 | 26 | **251 / 147** | 2343 / 1113 | 1153 / 323 | 664 / 1370 | n/a / 1450 |
+| strings | 163 | **70 / 165** | 123 / 333 | 198 / 172 | 111 / 321 | n/a / 197 |
+| unpacked varint 256 | 896 | **436 / 1112** | 540 / 1638 | 786 / 2680 | 830 / 1676 | n/a / 2473 |
+| packed fixed32 256 | 1028 | **61 / 83** | 221 / 770 | 231 / 138 | 187 / 205 | n/a / 148 |
+| packed fixed64 256 | 2052 | **70 / 94** | 219 / 754 | 257 / 144 | 184 / 207 | n/a / 159 |
+| packed float 256 | 1028 | **62 / 84** | 198 / 739 | 234 / 136 | 196 / 201 | n/a / 152 |
+| repeated nested 8 | 38 | **65 / 154** | 123 / 224 | 215 / 295 | 122 / 304 | n/a / 252 |
 
 person uses handwritten `pbrs::testdata::Person` (inline small repeats).
 Everything else is generated TestAllTypesProto3.
@@ -54,26 +59,17 @@ Reported, not gated.
 
 | case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|---:|
-| bytes | 315 | **70 / 174** | 132 / 500 | 221 / 193 | 116 / 382 | n/a / 222 |
-| scalars (bool/enum/float/packed bool) | 77 | **68 / 167** | 158 / 312 | 178 / 216 | 98 / 240 | n/a / 220 |
-| packed fixed64 256 | 2052 | 85 / 171 | 202 / 741 | 258 / **143** | 181 / 202 | n/a / **152** |
-| packed float 256 | 1028 | 78 / 162 | 184 / 723 | 217 / **137** | 190 / 201 | n/a / **145** |
-| unpacked fixed32 256 | 1536 | **215 / 781** | 291 / 1453 | 622 / 1645 | 585 / 1543 | n/a / 2054 |
-| oneof string | 23 | **36 / 86** | 95 / 142 | 152 / 88 | 82 / 176 | n/a / 117 |
-| repeated nested 8 | 38 | 91 / 259 | 120 / **223** | 205 / 268 | 124 / 304 | n/a / 247 |
+| bytes | 315 | **81 / 180** | 136 / 522 | 240 / 204 | 122 / 391 | n/a / 225 |
+| scalars (bool/enum/float/packed bool) | 77 | **74 / 168** | 161 / 320 | 182 / 224 | 101 / 226 | n/a / 222 |
+| unpacked fixed32 256 | 1536 | **237 / 772** | 293 / 1479 | 651 / 1731 | 533 / 1557 | n/a / 2110 |
+| oneof string | 23 | **48 / 89** | 97 / 148 | 155 / 102 | 86 / 178 | n/a / 124 |
 
 ## Losses
 
-`packed_fixed64_256` and `packed_float_256` lose owned decode to v4.
-Those slots live in TAT `Cold`. Only `packed_fixed32` is on the hot
-struct. Encode still wins. View losses on those rows are allowed (view
-does not materialize a `Vec`).
-
-`repeated_nested_8` loses owned decode to prost. Eight small submessages
-go through Cold. Encode still wins.
-
-`tat_populated` versus buffa view is a tie at this size. Person view has
-more headroom.
+`tat_populated` versus buffa view sits in a ~3% band on this host (315
+vs 305 ns). Person view has more headroom. Packed-fixed view rows win
+on this host but are not process-gated: view does not materialize a
+`Vec`.
 
 ## Large payloads (reported, not gated)
 
@@ -82,10 +78,10 @@ nanoseconds. One Apple Silicon host; second of two runs.
 
 | case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|---:|
-| bytes 1 MiB | 1,000,004 | 12.5 / 12.2 | 13.1 / 25.2 | 12.6 / 12.6 | 12.0 / 12.4 | n/a / **0.12** |
-| bytes 5 MiB | 5,000,005 | 67.4 / 65.3 | 67.5 / 131.5 | 65.8 / 67.8 | 67.0 / 68.2 | n/a / **0.11** |
-| packed fixed32 1 MiB | 1,000,005 | **12.3 / 13.2** | 161 / 468 | 12.4 / 13.3 | 129 / 13.2 | n/a / 12.8 |
-| packed fixed32 5 MiB | 5,000,006 | 67.7 / 63.3 | 799 / 2732 | **60.1 / 62.2** | 630 / 61.3 | n/a / 61.2 |
+| bytes 1 MiB | 1,000,004 | 12.3 / 12.2 | 13.1 / 25.5 | 12.4 / 12.7 | 12.7 / 13.0 | n/a / **0.12** |
+| bytes 5 MiB | 5,000,005 | 63.7 / 66.3 | 69.5 / 128.0 | 65.3 / 67.5 | 69.0 / 66.6 | n/a / **0.12** |
+| packed fixed32 1 MiB | 1,000,005 | 12.4 / 12.8 | 161 / 472 | **12.0 / 12.9** | 128 / 13.3 | n/a / 12.7 |
+| packed fixed32 5 MiB | 5,000,006 | 69.5 / 71.7 | 804 / 2692 | **65.1 / 67.3** | 640 / 66.1 | n/a / 70.9 |
 
 At 1-5 MiB the v4 Arena/FFI tax is gone. Owned encode/decode of a bytes
 blob is a memcpy of the payload. pbrs, v4, and buffa owned sit in the
@@ -93,7 +89,7 @@ same band. prost decode is about 2x. buffa `decode_view` on bytes does
 not copy (~0.12 µs).
 
 packed-fixed is memcpy for pbrs and v4, and a recode for prost / buffa
-owned encode. At 5 MiB v4 encode is a bit faster (60 vs 68 µs). Decode
+owned encode. At 5 MiB v4 encode is a bit faster (65 vs 70 µs). Decode
 is a few percent either way. packed-fixed view still copies; it is not
 the bytes-view shortcut.
 

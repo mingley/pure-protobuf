@@ -860,7 +860,6 @@ mod __gen {
         repeated_float: pbrs::rt::PackedF32,
         repeated_double: pbrs::rt::PackedF64,
         repeated_bool: pbrs::rt::PackedBool,
-        repeated_nested_message: Repeated<NestedMessage>,
         repeated_foreign_message: Repeated<ForeignMessage>,
         repeated_import_message: Repeated<ImportMessage>,
         repeated_nested_enum: pbrs::rt::PackedI32,
@@ -900,6 +899,7 @@ mod __gen {
         optional_lazy_message: pbrs::rt::LazyMsg<NestedMessage>,
         repeated_string: Repeated<pbrs::rt::LazyStr>,
         repeated_bytes: Repeated<pbrs::rt::LazyBytes>,
+        repeated_nested_message: Repeated<NestedMessage>,
         repeated_string_piece: Repeated<pbrs::rt::LazyStr>,
         repeated_cord: Repeated<pbrs::rt::LazyStr>,
         oneof_uint32: Option<u32>,
@@ -986,6 +986,9 @@ mod __gen {
                 return false;
             }
             if self.repeated_bytes != other.repeated_bytes {
+                return false;
+            }
+            if self.repeated_nested_message != other.repeated_nested_message {
                 return false;
             }
             if self.repeated_string_piece != other.repeated_string_piece {
@@ -1503,18 +1506,15 @@ mod __gen {
             self.repeated_bytes = v.into_iter().collect();
         }
         pub fn repeated_nested_message(&self) -> RepeatedView<'_, NestedMessage> {
-            self.cold
-                .as_ref()
-                .map(|c| c.repeated_nested_message.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+            self.repeated_nested_message.as_view()
         }
         pub fn repeated_nested_message_mut(&mut self) -> RepeatedMut<'_, NestedMessage> {
             self.cached_size.dirty();
-            self.cold_mut().repeated_nested_message.as_mut()
+            self.repeated_nested_message.as_mut()
         }
         pub fn set_repeated_nested_message(&mut self, v: impl IntoIterator<Item = NestedMessage>) {
             self.cached_size.dirty();
-            self.cold_mut().repeated_nested_message = v.into_iter().collect();
+            self.repeated_nested_message = v.into_iter().collect();
         }
         pub fn repeated_foreign_message(&self) -> RepeatedView<'_, ForeignMessage> {
             self.cold
@@ -2606,6 +2606,11 @@ mod __gen {
                     48 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let rest = data.len().saturating_sub(e);
+                            if rest > 2 {
+                                self.repeated_nested_message
+                                    .reserve(1 + rest / (e - s + 4).max(1));
+                            }
                             let mut inner = NestedMessage::default();
                             let mut ip = 0;
                             let mut sw = None;
@@ -2617,7 +2622,32 @@ mod __gen {
                                 true,
                                 None,
                             )?;
-                            self.cold_mut().repeated_nested_message.push(inner);
+                            self.repeated_nested_message.push(inner);
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 48 && w2 == pbrs::rt::WIRE_LEN => {
+                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                        let mut inner = NestedMessage::default();
+                                        let mut ip = 0;
+                                        let mut sw = None;
+                                        inner.merge_inner(
+                                            &data[s..e],
+                                            &mut sw,
+                                            &mut ip,
+                                            depth + 1,
+                                            true,
+                                            None,
+                                        )?;
+                                        self.repeated_nested_message.push(inner);
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -2627,6 +2657,12 @@ mod __gen {
                     49 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let rest = data.len().saturating_sub(e);
+                            if rest > 2 {
+                                self.cold_mut()
+                                    .repeated_foreign_message
+                                    .reserve(1 + rest / (e - s + 4).max(1));
+                            }
                             let mut inner = ForeignMessage::default();
                             let mut ip = 0;
                             let mut sw = None;
@@ -2639,6 +2675,31 @@ mod __gen {
                                 None,
                             )?;
                             self.cold_mut().repeated_foreign_message.push(inner);
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 49 && w2 == pbrs::rt::WIRE_LEN => {
+                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                        let mut inner = ForeignMessage::default();
+                                        let mut ip = 0;
+                                        let mut sw = None;
+                                        inner.merge_inner(
+                                            &data[s..e],
+                                            &mut sw,
+                                            &mut ip,
+                                            depth + 1,
+                                            true,
+                                            None,
+                                        )?;
+                                        self.cold_mut().repeated_foreign_message.push(inner);
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -2648,6 +2709,12 @@ mod __gen {
                     50 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let rest = data.len().saturating_sub(e);
+                            if rest > 2 {
+                                self.cold_mut()
+                                    .repeated_import_message
+                                    .reserve(1 + rest / (e - s + 4).max(1));
+                            }
                             let mut inner = ImportMessage::default();
                             let mut ip = 0;
                             let mut sw = None;
@@ -2660,6 +2727,31 @@ mod __gen {
                                 None,
                             )?;
                             self.cold_mut().repeated_import_message.push(inner);
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 50 && w2 == pbrs::rt::WIRE_LEN => {
+                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                        let mut inner = ImportMessage::default();
+                                        let mut ip = 0;
+                                        let mut sw = None;
+                                        inner.merge_inner(
+                                            &data[s..e],
+                                            &mut sw,
+                                            &mut ip,
+                                            depth + 1,
+                                            true,
+                                            None,
+                                        )?;
+                                        self.cold_mut().repeated_import_message.push(inner);
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -2772,6 +2864,12 @@ mod __gen {
                     57 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let rest = data.len().saturating_sub(e);
+                            if rest > 2 {
+                                self.cold_mut()
+                                    .repeated_lazy_message
+                                    .reserve(1 + rest / (e - s + 4).max(1));
+                            }
                             let mut inner = NestedMessage::default();
                             let mut ip = 0;
                             let mut sw = None;
@@ -2784,6 +2882,31 @@ mod __gen {
                                 None,
                             )?;
                             self.cold_mut().repeated_lazy_message.push(inner);
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 57 && w2 == pbrs::rt::WIRE_LEN => {
+                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                        let mut inner = NestedMessage::default();
+                                        let mut ip = 0;
+                                        let mut sw = None;
+                                        inner.merge_inner(
+                                            &data[s..e],
+                                            &mut sw,
+                                            &mut ip,
+                                            depth + 1,
+                                            true,
+                                            None,
+                                        )?;
+                                        self.cold_mut().repeated_lazy_message.push(inner);
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -3453,6 +3576,9 @@ mod __gen {
             for t in self.repeated_bytes.iter() {
                 n += pbrs::rt::key_len_value_len(45, t.as_bytes().len() as u64);
             }
+            for t in self.repeated_nested_message.iter() {
+                n += pbrs::rt::key_len_value_len(48, t.compute_size());
+            }
             for t in self.repeated_string_piece.iter() {
                 n += pbrs::rt::key_len_value_len(54, t.as_bytes().len() as u64);
             }
@@ -3597,9 +3723,6 @@ mod __gen {
                     }
                     n += pbrs::rt::key_len_value_len(43, payload);
                 }
-                for t in c.repeated_nested_message.iter() {
-                    n += pbrs::rt::key_len_value_len(48, t.compute_size());
-                }
                 for t in c.repeated_foreign_message.iter() {
                     n += pbrs::rt::key_len_value_len(49, t.compute_size());
                 }
@@ -3737,6 +3860,10 @@ mod __gen {
             }
             for t in self.repeated_bytes.iter() {
                 pbrs::rt::encode_len_field(out, 45, t.as_bytes());
+            }
+            for t in self.repeated_nested_message.iter() {
+                pbrs::rt::encode_len_header(out, 48, t.compute_size());
+                t.write_to(out);
             }
             for t in self.repeated_string_piece.iter() {
                 pbrs::rt::encode_len_field(out, 54, t.as_bytes());
@@ -3937,10 +4064,6 @@ mod __gen {
                     for t in c.repeated_bool.iter() {
                         pbrs::rt::encode_varint(out, u64::from(*t));
                     }
-                }
-                for t in c.repeated_nested_message.iter() {
-                    pbrs::rt::encode_len_header(out, 48, t.compute_size());
-                    t.write_to(out);
                 }
                 for t in c.repeated_foreign_message.iter() {
                     pbrs::rt::encode_len_header(out, 49, t.compute_size());
@@ -7240,10 +7363,8 @@ mod __gen {
         packed_uint64: pbrs::rt::PackedU64,
         packed_sint32: pbrs::rt::PackedS32,
         packed_sint64: pbrs::rt::PackedS64,
-        packed_fixed64: pbrs::rt::PackedFx64,
         packed_sfixed32: pbrs::rt::PackedSfx32,
         packed_sfixed64: pbrs::rt::PackedSfx64,
-        packed_float: pbrs::rt::PackedF32,
         packed_double: pbrs::rt::PackedF64,
         packed_bool: pbrs::rt::PackedBool,
         packed_enum: pbrs::rt::PackedI32,
@@ -7257,6 +7378,8 @@ mod __gen {
     #[derive(Clone, Debug)]
     pub struct TestPackedTypes {
         packed_fixed32: pbrs::rt::PackedFx32,
+        packed_fixed64: pbrs::rt::PackedFx64,
+        packed_float: pbrs::rt::PackedF32,
         cold: Option<Box<TestPackedTypesCold>>,
         unknown: UnknownFields,
         cached_size: pbrs::rt::CachedSize,
@@ -7264,6 +7387,12 @@ mod __gen {
     impl PartialEq for TestPackedTypes {
         fn eq(&self, other: &Self) -> bool {
             if self.packed_fixed32 != other.packed_fixed32 {
+                return false;
+            }
+            if self.packed_fixed64 != other.packed_fixed64 {
+                return false;
+            }
+            if self.packed_float != other.packed_float {
                 return false;
             }
             match (self.cold.as_deref(), other.cold.as_deref()) {
@@ -7405,19 +7534,15 @@ mod __gen {
             self.packed_fixed32 = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_fixed64(&self) -> RepeatedView<'_, u64> {
-            self.cold
-                .as_ref()
-                .map(|c| c.packed_fixed64.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+            self.packed_fixed64.as_view()
         }
         pub fn packed_fixed64_mut(&mut self) -> RepeatedMut<'_, u64> {
             self.cached_size.dirty();
-            self.cold_mut().packed_fixed64.as_mut()
+            self.packed_fixed64.as_mut()
         }
         pub fn set_packed_fixed64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_fixed64 =
-                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
+            self.packed_fixed64 = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.cold
@@ -7450,18 +7575,15 @@ mod __gen {
                 pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_float(&self) -> RepeatedView<'_, f32> {
-            self.cold
-                .as_ref()
-                .map(|c| c.packed_float.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+            self.packed_float.as_view()
         }
         pub fn packed_float_mut(&mut self) -> RepeatedMut<'_, f32> {
             self.cached_size.dirty();
-            self.cold_mut().packed_float.as_mut()
+            self.packed_float.as_mut()
         }
         pub fn set_packed_float(&mut self, v: impl IntoIterator<Item = f32>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_float = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
+            self.packed_float = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_double(&self) -> RepeatedView<'_, f64> {
             self.cold
@@ -7813,25 +7935,21 @@ mod __gen {
                     97 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.cold_mut()
-                                .packed_fixed64
+                            self.packed_fixed64
                                 .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
                         pbrs::rt::WIRE_I64 => {
-                            self.cold_mut()
-                                .packed_fixed64
-                                .push(pbrs::rt::read_fixed64(data, pos)?);
+                            self.packed_fixed64.push(pbrs::rt::read_fixed64(data, pos)?);
                             let rest = data.len().saturating_sub(*pos);
                             if rest > 2 {
-                                self.cold_mut().packed_fixed64.reserve(rest / 3);
+                                self.packed_fixed64.reserve(rest / 3);
                             }
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
-                                    Ok((n2, w2)) if n2 == 97 && w2 == pbrs::rt::WIRE_I64 => self
-                                        .cold_mut()
-                                        .packed_fixed64
-                                        .push(pbrs::rt::read_fixed64(data, pos)?),
+                                    Ok((n2, w2)) if n2 == 97 && w2 == pbrs::rt::WIRE_I64 => {
+                                        self.packed_fixed64.push(pbrs::rt::read_fixed64(data, pos)?)
+                                    }
                                     Ok(_) => {
                                         *pos = save;
                                         break;
@@ -7918,23 +8036,20 @@ mod __gen {
                     100 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.cold_mut()
-                                .packed_float
+                            self.packed_float
                                 .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
                         pbrs::rt::WIRE_I32 => {
-                            self.cold_mut()
-                                .packed_float
+                            self.packed_float
                                 .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?));
                             let rest = data.len().saturating_sub(*pos);
                             if rest > 2 {
-                                self.cold_mut().packed_float.reserve(rest / 3);
+                                self.packed_float.reserve(rest / 3);
                             }
                             while *pos < data.len() {
                                 let save = *pos;
                                 match pbrs::rt::decode_tag(data, pos) {
                                     Ok((n2, w2)) if n2 == 100 && w2 == pbrs::rt::WIRE_I32 => self
-                                        .cold_mut()
                                         .packed_float
                                         .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
                                     Ok(_) => {
@@ -8261,6 +8376,24 @@ mod __gen {
                 }
                 n += pbrs::rt::key_len_value_len(96, payload);
             }
+            if let Some(p) = self.packed_fixed64.packed_bytes() {
+                n += pbrs::rt::key_len_value_len(97, p.len() as u64);
+            } else if !self.packed_fixed64.is_empty() {
+                let mut payload = 0u64;
+                for t in self.packed_fixed64.iter() {
+                    payload += 8;
+                }
+                n += pbrs::rt::key_len_value_len(97, payload);
+            }
+            if let Some(p) = self.packed_float.packed_bytes() {
+                n += pbrs::rt::key_len_value_len(100, p.len() as u64);
+            } else if !self.packed_float.is_empty() {
+                let mut payload = 0u64;
+                for t in self.packed_float.iter() {
+                    payload += 4;
+                }
+                n += pbrs::rt::key_len_value_len(100, payload);
+            }
             if let Some(c) = self.cold.as_deref() {
                 if let Some(p) = c.packed_int32.packed_bytes() {
                     n += pbrs::rt::key_len_value_len(90, p.len() as u64);
@@ -8316,15 +8449,6 @@ mod __gen {
                     }
                     n += pbrs::rt::key_len_value_len(95, payload);
                 }
-                if let Some(p) = c.packed_fixed64.packed_bytes() {
-                    n += pbrs::rt::key_len_value_len(97, p.len() as u64);
-                } else if !c.packed_fixed64.is_empty() {
-                    let mut payload = 0u64;
-                    for t in c.packed_fixed64.iter() {
-                        payload += 8;
-                    }
-                    n += pbrs::rt::key_len_value_len(97, payload);
-                }
                 if let Some(p) = c.packed_sfixed32.packed_bytes() {
                     n += pbrs::rt::key_len_value_len(98, p.len() as u64);
                 } else if !c.packed_sfixed32.is_empty() {
@@ -8342,15 +8466,6 @@ mod __gen {
                         payload += 8;
                     }
                     n += pbrs::rt::key_len_value_len(99, payload);
-                }
-                if let Some(p) = c.packed_float.packed_bytes() {
-                    n += pbrs::rt::key_len_value_len(100, p.len() as u64);
-                } else if !c.packed_float.is_empty() {
-                    let mut payload = 0u64;
-                    for t in c.packed_float.iter() {
-                        payload += 4;
-                    }
-                    n += pbrs::rt::key_len_value_len(100, payload);
                 }
                 if let Some(p) = c.packed_double.packed_bytes() {
                     n += pbrs::rt::key_len_value_len(101, p.len() as u64);
@@ -8395,6 +8510,32 @@ mod __gen {
                 pbrs::rt::encode_len_header(out, 96, payload);
                 for t in self.packed_fixed32.iter() {
                     (out).extend_from_slice(&(*t).to_le_bytes());
+                }
+            }
+            if let Some(p) = self.packed_fixed64.packed_bytes() {
+                pbrs::rt::encode_len_header(out, 97, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_fixed64.is_empty() {
+                let mut payload = 0u64;
+                for t in self.packed_fixed64.iter() {
+                    payload += 8;
+                }
+                pbrs::rt::encode_len_header(out, 97, payload);
+                for t in self.packed_fixed64.iter() {
+                    (out).extend_from_slice(&(*t).to_le_bytes());
+                }
+            }
+            if let Some(p) = self.packed_float.packed_bytes() {
+                pbrs::rt::encode_len_header(out, 100, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_float.is_empty() {
+                let mut payload = 0u64;
+                for t in self.packed_float.iter() {
+                    payload += 4;
+                }
+                pbrs::rt::encode_len_header(out, 100, payload);
+                for t in self.packed_float.iter() {
+                    (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                 }
             }
             if let Some(c) = self.cold.as_deref() {
@@ -8476,19 +8617,6 @@ mod __gen {
                         pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(*t));
                     }
                 }
-                if let Some(p) = c.packed_fixed64.packed_bytes() {
-                    pbrs::rt::encode_len_header(out, 97, p.len() as u64);
-                    out.extend_from_slice(p);
-                } else if !c.packed_fixed64.is_empty() {
-                    let mut payload = 0u64;
-                    for t in c.packed_fixed64.iter() {
-                        payload += 8;
-                    }
-                    pbrs::rt::encode_len_header(out, 97, payload);
-                    for t in c.packed_fixed64.iter() {
-                        (out).extend_from_slice(&(*t).to_le_bytes());
-                    }
-                }
                 if let Some(p) = c.packed_sfixed32.packed_bytes() {
                     pbrs::rt::encode_len_header(out, 98, p.len() as u64);
                     out.extend_from_slice(p);
@@ -8513,19 +8641,6 @@ mod __gen {
                     pbrs::rt::encode_len_header(out, 99, payload);
                     for t in c.packed_sfixed64.iter() {
                         (out).extend_from_slice(&((*t) as u64).to_le_bytes());
-                    }
-                }
-                if let Some(p) = c.packed_float.packed_bytes() {
-                    pbrs::rt::encode_len_header(out, 100, p.len() as u64);
-                    out.extend_from_slice(p);
-                } else if !c.packed_float.is_empty() {
-                    let mut payload = 0u64;
-                    for t in c.packed_float.iter() {
-                        payload += 4;
-                    }
-                    pbrs::rt::encode_len_header(out, 100, payload);
-                    for t in c.packed_float.iter() {
-                        (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_double.packed_bytes() {

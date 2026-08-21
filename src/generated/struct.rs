@@ -171,6 +171,10 @@ mod __gen {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            let rest = data.len().saturating_sub(e);
+                            if rest > 2 {
+                                self.values.reserve(1 + rest / (e - s + 4).max(1));
+                            }
                             let mut inner = PbValue::default();
                             let mut ip = 0;
                             let mut sw = None;
@@ -183,6 +187,31 @@ mod __gen {
                                 None,
                             )?;
                             self.values.push(inner);
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 1 && w2 == pbrs::rt::WIRE_LEN => {
+                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                        let mut inner = PbValue::default();
+                                        let mut ip = 0;
+                                        let mut sw = None;
+                                        inner.merge_inner(
+                                            &data[s..e],
+                                            &mut sw,
+                                            &mut ip,
+                                            depth + 1,
+                                            true,
+                                            None,
+                                        )?;
+                                        self.values.push(inner);
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
