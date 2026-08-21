@@ -14717,106 +14717,106 @@ mod __gen {
                     }
                 }
                 match n {
-                    1 => match w {
-                        pbrs::rt::WIRE_SGROUP | pbrs::rt::WIRE_LEN => {
-                            let mut type_id = 0u32;
-                            let mut payload: Vec<u8> = Vec::new();
-                            if w == pbrs::rt::WIRE_LEN {
-                                let inner = pbrs::rt::read_len_bytes(data, pos)?;
-                                let mut p = 0;
-                                while p < inner.len() {
-                                    let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?;
-                                    match (n, ww) {
-                                        (2, pbrs::rt::WIRE_VARINT) => {
-                                            type_id = pbrs::rt::decode_varint(inner, &mut p)? as u32
+                    1 => {
+                        match w {
+                            pbrs::rt::WIRE_SGROUP | pbrs::rt::WIRE_LEN => {
+                                let mut type_id = 0u32;
+                                let mut payload: Vec<u8> = Vec::new();
+                                if w == pbrs::rt::WIRE_LEN {
+                                    let inner = pbrs::rt::read_len_bytes(data, pos)?;
+                                    let mut p = 0;
+                                    while p < inner.len() {
+                                        let (n, ww) = pbrs::rt::decode_tag(inner, &mut p)?;
+                                        match (n, ww) {
+                                            (2, pbrs::rt::WIRE_VARINT) => {
+                                                type_id =
+                                                    pbrs::rt::decode_varint(inner, &mut p)? as u32
+                                            }
+                                            (3, pbrs::rt::WIRE_LEN) => {
+                                                payload = pbrs::rt::read_len_bytes(inner, &mut p)?
+                                                    .to_vec()
+                                            }
+                                            _ => pbrs::rt::skip_field(inner, &mut p, ww)?,
                                         }
-                                        (3, pbrs::rt::WIRE_LEN) => {
-                                            payload =
-                                                pbrs::rt::read_len_bytes(inner, &mut p)?.to_vec()
+                                    }
+                                } else {
+                                    loop {
+                                        let (n, ww) = pbrs::rt::decode_tag(data, pos)?;
+                                        if ww == pbrs::rt::WIRE_EGROUP && n == 1 {
+                                            break;
                                         }
-                                        _ => pbrs::rt::skip_field(inner, &mut p, ww)?,
+                                        match (n, ww) {
+                                            (2, pbrs::rt::WIRE_VARINT) => {
+                                                type_id = pbrs::rt::decode_varint(data, pos)? as u32
+                                            }
+                                            (3, pbrs::rt::WIRE_LEN) => {
+                                                payload =
+                                                    pbrs::rt::read_len_bytes(data, pos)?.to_vec()
+                                            }
+                                            _ => pbrs::rt::skip_field(data, pos, ww)?,
+                                        }
                                     }
                                 }
-                            } else {
-                                loop {
-                                    let (n, ww) = pbrs::rt::decode_tag(data, pos)?;
-                                    if ww == pbrs::rt::WIRE_EGROUP && n == 1 {
-                                        break;
+                                match type_id {
+                                    1547769 => {
+                                        if self.message_set_extension.is_some() {
+                                            self.message_set_extension
+                                                .get_or_insert()
+                                                .merge_bytes(&payload, depth + 1)?;
+                                        } else {
+                                            let mut inner = TestAllTypesProto2MessageSetCorrectExtension1::default();
+                                            inner.merge_bytes(&payload, depth + 1)?;
+                                            self.message_set_extension =
+                                                pbrs::rt::LazyMsg::from_owned(inner);
+                                        }
                                     }
-                                    match (n, ww) {
-                                        (2, pbrs::rt::WIRE_VARINT) => {
-                                            type_id = pbrs::rt::decode_varint(data, pos)? as u32
+                                    4135312 => {
+                                        if self.message_set_extension_4135312.is_some() {
+                                            self.message_set_extension_4135312
+                                                .get_or_insert()
+                                                .merge_bytes(&payload, depth + 1)?;
+                                        } else {
+                                            let mut inner = TestAllTypesProto2MessageSetCorrectExtension2::default();
+                                            inner.merge_bytes(&payload, depth + 1)?;
+                                            self.message_set_extension_4135312 =
+                                                pbrs::rt::LazyMsg::from_owned(inner);
                                         }
-                                        (3, pbrs::rt::WIRE_LEN) => {
-                                            payload = pbrs::rt::read_len_bytes(data, pos)?.to_vec()
+                                    }
+                                    123456789 => {
+                                        if self.extension_with_oneof.is_some() {
+                                            self.extension_with_oneof
+                                                .get_or_insert()
+                                                .merge_bytes(&payload, depth + 1)?;
+                                        } else {
+                                            let mut inner = ExtensionWithOneof::default();
+                                            inner.merge_bytes(&payload, depth + 1)?;
+                                            self.extension_with_oneof =
+                                                pbrs::rt::LazyMsg::from_owned(inner);
                                         }
-                                        _ => pbrs::rt::skip_field(data, pos, ww)?,
+                                    }
+                                    _ => {
+                                        let mut u = pbrs::UnknownFields::default();
+                                        u.fields.push(pbrs::rt::UnknownField::Varint {
+                                            number: 2,
+                                            value: u64::from(type_id),
+                                        });
+                                        u.fields.push(pbrs::rt::UnknownField::LengthDelimited {
+                                            number: 3,
+                                            value: payload,
+                                        });
+                                        self.unknown.fields.push(pbrs::rt::UnknownField::Group {
+                                            number: 1,
+                                            fields: u,
+                                        });
                                     }
                                 }
                             }
-                            match type_id {
-                                1547769 => {
-                                    if self.message_set_extension.is_some() {
-                                        self.message_set_extension
-                                            .get_or_insert()
-                                            .merge_bytes(&payload, depth + 1)?;
-                                    } else {
-                                        let mut inner =
-                                            TestAllTypesProto2MessageSetCorrectExtension1::default(
-                                            );
-                                        inner.merge_bytes(&payload, depth + 1)?;
-                                        self.message_set_extension =
-                                            pbrs::rt::LazyMsg::from_owned(inner);
-                                    }
-                                }
-                                4135312 => {
-                                    if self.message_set_extension_4135312.is_some() {
-                                        self.message_set_extension_4135312
-                                            .get_or_insert()
-                                            .merge_bytes(&payload, depth + 1)?;
-                                    } else {
-                                        let mut inner =
-                                            TestAllTypesProto2MessageSetCorrectExtension2::default(
-                                            );
-                                        inner.merge_bytes(&payload, depth + 1)?;
-                                        self.message_set_extension_4135312 =
-                                            pbrs::rt::LazyMsg::from_owned(inner);
-                                    }
-                                }
-                                123456789 => {
-                                    if self.extension_with_oneof.is_some() {
-                                        self.extension_with_oneof
-                                            .get_or_insert()
-                                            .merge_bytes(&payload, depth + 1)?;
-                                    } else {
-                                        let mut inner = ExtensionWithOneof::default();
-                                        inner.merge_bytes(&payload, depth + 1)?;
-                                        self.extension_with_oneof =
-                                            pbrs::rt::LazyMsg::from_owned(inner);
-                                    }
-                                }
-                                _ => {
-                                    let mut u = pbrs::UnknownFields::default();
-                                    u.fields.push(pbrs::rt::UnknownField::Varint {
-                                        number: 2,
-                                        value: u64::from(type_id),
-                                    });
-                                    u.fields.push(pbrs::rt::UnknownField::LengthDelimited {
-                                        number: 3,
-                                        value: payload,
-                                    });
-                                    self.unknown.fields.push(pbrs::rt::UnknownField::Group {
-                                        number: 1,
-                                        fields: u,
-                                    });
-                                }
-                            }
+                            _ => self
+                                .unknown
+                                .fields
+                                .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                         }
-                        _ => self
-                            .unknown
-                            .fields
-                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
-                    },
+                    }
                     1547769 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;

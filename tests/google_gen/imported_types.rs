@@ -247,8 +247,7 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if let Some(v) = self.num {
-                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
-                    + pbrs::rt::varint_len((v) as u64);
+                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len((v) as u64);
             }
             self.cached_size.set(n);
             n
