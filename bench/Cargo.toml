@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 [workspace]
 
 [dependencies]
-protobuf = { package = "pbrs", path = ".." }
+pbrs = { path = ".." }
 prost = { version = "0.13", features = ["derive"] }
 v4_tat = { path = "../v4_tat" }
 v4_person = { path = "../v4_person" }

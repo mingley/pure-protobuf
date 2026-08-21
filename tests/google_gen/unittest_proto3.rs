@@ -2,9 +2,9 @@
 #[allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
 mod __gen {
     #![allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
-    use protobuf::prelude::*;
-    use protobuf::UnknownFields;
-    use protobuf::{
+    use pbrs::prelude::*;
+    use pbrs::UnknownFields;
+    use pbrs::{
         Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
         RepeatedView, SerializeError, UnknownEnumValue,
     };
@@ -55,17 +55,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for ForeignEnum {}
-    impl protobuf::Proxied for ForeignEnum {
+    impl pbrs::__internal::SealedInternal for ForeignEnum {}
+    impl pbrs::Proxied for ForeignEnum {
         type View<'msg> = ForeignEnum;
     }
-    impl protobuf::AsView for ForeignEnum {
+    impl pbrs::AsView for ForeignEnum {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for ForeignEnum {
+    impl<'msg> pbrs::IntoView<'msg> for ForeignEnum {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -125,17 +125,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for NestedEnum {}
-    impl protobuf::Proxied for NestedEnum {
+    impl pbrs::__internal::SealedInternal for NestedEnum {}
+    impl pbrs::Proxied for NestedEnum {
         type View<'msg> = NestedEnum;
     }
-    impl protobuf::AsView for NestedEnum {
+    impl pbrs::AsView for NestedEnum {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for NestedEnum {
+    impl<'msg> pbrs::IntoView<'msg> for NestedEnum {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -193,17 +193,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for TestOneof2NestedEnum {}
-    impl protobuf::Proxied for TestOneof2NestedEnum {
+    impl pbrs::__internal::SealedInternal for TestOneof2NestedEnum {}
+    impl pbrs::Proxied for TestOneof2NestedEnum {
         type View<'msg> = TestOneof2NestedEnum;
     }
-    impl protobuf::AsView for TestOneof2NestedEnum {
+    impl pbrs::AsView for TestOneof2NestedEnum {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for TestOneof2NestedEnum {
+    impl<'msg> pbrs::IntoView<'msg> for TestOneof2NestedEnum {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -264,17 +264,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for ImportEnum {}
-    impl protobuf::Proxied for ImportEnum {
+    impl pbrs::__internal::SealedInternal for ImportEnum {}
+    impl pbrs::Proxied for ImportEnum {
         type View<'msg> = ImportEnum;
     }
-    impl protobuf::AsView for ImportEnum {
+    impl pbrs::AsView for ImportEnum {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for ImportEnum {
+    impl<'msg> pbrs::IntoView<'msg> for ImportEnum {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -335,17 +335,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for ImportEnumForMap {}
-    impl protobuf::Proxied for ImportEnumForMap {
+    impl pbrs::__internal::SealedInternal for ImportEnumForMap {}
+    impl pbrs::Proxied for ImportEnumForMap {
         type View<'msg> = ImportEnumForMap;
     }
-    impl protobuf::AsView for ImportEnumForMap {
+    impl pbrs::AsView for ImportEnumForMap {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for ImportEnumForMap {
+    impl<'msg> pbrs::IntoView<'msg> for ImportEnumForMap {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -363,7 +363,7 @@ mod __gen {
     pub struct ForeignMessage {
         c: i32,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for ForeignMessage {
         fn eq(&self, other: &Self) -> bool {
@@ -377,7 +377,7 @@ mod __gen {
     impl Default for ForeignMessage {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl ForeignMessage {
@@ -401,7 +401,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -409,13 +409,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -424,22 +424,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -448,18 +448,18 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.c = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.c = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -471,26 +471,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -499,12 +499,12 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -518,27 +518,27 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if self.c != 0 {
-                n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.c) as u64);
+                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.c) as u64);
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if self.c != 0 {
-                protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.c as u64);
+                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.c as u64);
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(ForeignMessage, ForeignMessageView, ForeignMessageMut);
+    pbrs::impl_typed_message!(ForeignMessage, ForeignMessageView, ForeignMessageMut);
     #[derive(Clone, Debug)]
     pub struct NestedTestAllTypes {
-        child: protobuf::rt::LazyMsg<NestedTestAllTypes>,
-        payload: protobuf::rt::LazyMsg<TestAllTypes>,
+        child: pbrs::rt::LazyMsg<NestedTestAllTypes>,
+        payload: pbrs::rt::LazyMsg<TestAllTypes>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for NestedTestAllTypes {
         fn eq(&self, other: &Self) -> bool {
@@ -555,7 +555,7 @@ mod __gen {
     impl Default for NestedTestAllTypes {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl NestedTestAllTypes {
@@ -570,7 +570,7 @@ mod __gen {
         pub fn child(&self) -> &NestedTestAllTypes {
             self.child
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn child_opt(&self) -> Option<&NestedTestAllTypes> {
             self.child.as_deref()
@@ -580,7 +580,7 @@ mod __gen {
         }
         pub fn set_child(&mut self, v: NestedTestAllTypes) {
             self.cached_size.dirty();
-            self.child = protobuf::rt::LazyMsg::from_owned(v);
+            self.child = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn child_mut(&mut self) -> &mut NestedTestAllTypes {
             self.cached_size.dirty();
@@ -596,7 +596,7 @@ mod __gen {
         pub fn payload(&self) -> &TestAllTypes {
             self.payload
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn payload_opt(&self) -> Option<&TestAllTypes> {
             self.payload.as_deref()
@@ -606,7 +606,7 @@ mod __gen {
         }
         pub fn set_payload(&mut self, v: TestAllTypes) {
             self.cached_size.dirty();
-            self.payload = protobuf::rt::LazyMsg::from_owned(v);
+            self.payload = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn payload_mut(&mut self) -> &mut TestAllTypes {
             self.cached_size.dirty();
@@ -624,7 +624,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -632,13 +632,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -647,22 +647,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -671,8 +671,8 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.child.is_some() {
                                 let mut ip = 0;
                                 self.child.get_or_insert().merge_inner(
@@ -689,17 +689,17 @@ mod __gen {
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.child = protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.child = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.payload.is_some() {
                                 let mut ip = 0;
                                 self.payload.get_or_insert().merge_inner(
@@ -716,18 +716,18 @@ mod __gen {
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.payload = protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.payload = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -739,26 +739,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -767,8 +767,8 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             NestedTestAllTypes::validate_inner(
                                 &wire.window(s, e),
@@ -776,17 +776,17 @@ mod __gen {
                                 depth + 1,
                             )?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             TestAllTypes::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -800,67 +800,67 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if let Some(p) = self.child.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(1, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(1, p.len() as u64);
             } else if let Some(m) = self.child.as_deref() {
-                n += protobuf::rt::key_len_value_len(1, m.compute_size());
+                n += pbrs::rt::key_len_value_len(1, m.compute_size());
             }
             if let Some(p) = self.payload.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(2, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(2, p.len() as u64);
             } else if let Some(m) = self.payload.as_deref() {
-                n += protobuf::rt::key_len_value_len(2, m.compute_size());
+                n += pbrs::rt::key_len_value_len(2, m.compute_size());
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if let Some(p) = self.child.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 1, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 1, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.child.as_deref() {
-                protobuf::rt::encode_len_header(out, 1, m.compute_size());
+                pbrs::rt::encode_len_header(out, 1, m.compute_size());
                 m.write_to(out);
             }
             if let Some(p) = self.payload.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 2, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 2, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.payload.as_deref() {
-                protobuf::rt::encode_len_header(out, 2, m.compute_size());
+                pbrs::rt::encode_len_header(out, 2, m.compute_size());
                 m.write_to(out);
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(
+    pbrs::impl_typed_message!(
         NestedTestAllTypes,
         NestedTestAllTypesView,
         NestedTestAllTypesMut
     );
     #[derive(Clone, Debug, PartialEq)]
     struct TestAllTypesCold {
-        repeated_int32: protobuf::rt::PackedI32,
-        repeated_int64: protobuf::rt::PackedI64,
-        repeated_uint32: protobuf::rt::PackedU32,
-        repeated_uint64: protobuf::rt::PackedU64,
-        repeated_sint32: protobuf::rt::PackedS32,
-        repeated_sint64: protobuf::rt::PackedS64,
-        repeated_fixed32: protobuf::rt::PackedFx32,
-        repeated_fixed64: protobuf::rt::PackedFx64,
-        repeated_sfixed32: protobuf::rt::PackedSfx32,
-        repeated_sfixed64: protobuf::rt::PackedSfx64,
-        repeated_float: protobuf::rt::PackedF32,
-        repeated_double: protobuf::rt::PackedF64,
-        repeated_bool: protobuf::rt::PackedBool,
+        repeated_int32: pbrs::rt::PackedI32,
+        repeated_int64: pbrs::rt::PackedI64,
+        repeated_uint32: pbrs::rt::PackedU32,
+        repeated_uint64: pbrs::rt::PackedU64,
+        repeated_sint32: pbrs::rt::PackedS32,
+        repeated_sint64: pbrs::rt::PackedS64,
+        repeated_fixed32: pbrs::rt::PackedFx32,
+        repeated_fixed64: pbrs::rt::PackedFx64,
+        repeated_sfixed32: pbrs::rt::PackedSfx32,
+        repeated_sfixed64: pbrs::rt::PackedSfx64,
+        repeated_float: pbrs::rt::PackedF32,
+        repeated_double: pbrs::rt::PackedF64,
+        repeated_bool: pbrs::rt::PackedBool,
         repeated_nested_message: Repeated<NestedMessage>,
         repeated_foreign_message: Repeated<ForeignMessage>,
         repeated_import_message: Repeated<ImportMessage>,
-        repeated_nested_enum: protobuf::rt::PackedI32,
-        repeated_foreign_enum: protobuf::rt::PackedI32,
+        repeated_nested_enum: pbrs::rt::PackedI32,
+        repeated_foreign_enum: pbrs::rt::PackedI32,
         repeated_lazy_message: Repeated<NestedMessage>,
     }
     impl Default for TestAllTypesCold {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     #[derive(Clone, Debug)]
@@ -878,28 +878,28 @@ mod __gen {
         optional_float: f32,
         optional_double: f64,
         optional_bool: bool,
-        optional_string: protobuf::rt::LazyStr,
-        optional_bytes: protobuf::rt::LazyBytes,
-        optional_nested_message: protobuf::rt::LazyMsg<NestedMessage>,
-        optional_foreign_message: protobuf::rt::LazyMsg<ForeignMessage>,
-        optional_import_message: protobuf::rt::LazyMsg<ImportMessage>,
+        optional_string: pbrs::rt::LazyStr,
+        optional_bytes: pbrs::rt::LazyBytes,
+        optional_nested_message: pbrs::rt::LazyMsg<NestedMessage>,
+        optional_foreign_message: pbrs::rt::LazyMsg<ForeignMessage>,
+        optional_import_message: pbrs::rt::LazyMsg<ImportMessage>,
         optional_nested_enum: i32,
         optional_foreign_enum: i32,
-        optional_string_piece: protobuf::rt::LazyStr,
-        optional_cord: protobuf::rt::LazyStr,
-        optional_lazy_message: protobuf::rt::LazyMsg<NestedMessage>,
-        repeated_string: Repeated<protobuf::rt::LazyStr>,
-        repeated_bytes: Repeated<protobuf::rt::LazyBytes>,
-        repeated_string_piece: Repeated<protobuf::rt::LazyStr>,
-        repeated_cord: Repeated<protobuf::rt::LazyStr>,
+        optional_string_piece: pbrs::rt::LazyStr,
+        optional_cord: pbrs::rt::LazyStr,
+        optional_lazy_message: pbrs::rt::LazyMsg<NestedMessage>,
+        repeated_string: Repeated<pbrs::rt::LazyStr>,
+        repeated_bytes: Repeated<pbrs::rt::LazyBytes>,
+        repeated_string_piece: Repeated<pbrs::rt::LazyStr>,
+        repeated_cord: Repeated<pbrs::rt::LazyStr>,
         oneof_uint32: Option<u32>,
-        oneof_nested_message: protobuf::rt::LazyMsg<NestedMessage>,
-        oneof_string: Option<Box<protobuf::rt::LazyStr>>,
-        oneof_bytes: Option<Box<protobuf::rt::LazyBytes>>,
-        optional_lazy_import_message: protobuf::rt::LazyMsg<ImportMessage>,
+        oneof_nested_message: pbrs::rt::LazyMsg<NestedMessage>,
+        oneof_string: Option<Box<pbrs::rt::LazyStr>>,
+        oneof_bytes: Option<Box<pbrs::rt::LazyBytes>>,
+        optional_lazy_import_message: pbrs::rt::LazyMsg<ImportMessage>,
         cold: Option<Box<TestAllTypesCold>>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestAllTypes {
         fn eq(&self, other: &Self) -> bool {
@@ -1024,7 +1024,7 @@ mod __gen {
     impl Default for TestAllTypes {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestAllTypes {
@@ -1129,19 +1129,19 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_bool = v;
         }
-        pub fn optional_string(&self) -> &protobuf::ProtoStr {
+        pub fn optional_string(&self) -> &pbrs::ProtoStr {
             self.optional_string.as_view()
         }
-        pub fn set_optional_string(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
+        pub fn set_optional_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string = protobuf::rt::LazyStr::owned(v.into_proxied());
+            self.optional_string = pbrs::rt::LazyStr::owned(v.into_proxied());
         }
         pub fn optional_bytes(&self) -> &[u8] {
             self.optional_bytes.as_bytes()
         }
-        pub fn set_optional_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
+        pub fn set_optional_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes = protobuf::rt::LazyBytes::owned(v.into_proxied());
+            self.optional_bytes = pbrs::rt::LazyBytes::owned(v.into_proxied());
         }
         pub fn has_optional_nested_message(&self) -> bool {
             self.optional_nested_message.is_some()
@@ -1149,7 +1149,7 @@ mod __gen {
         pub fn optional_nested_message(&self) -> &NestedMessage {
             self.optional_nested_message
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn optional_nested_message_opt(&self) -> Option<&NestedMessage> {
             self.optional_nested_message.as_deref()
@@ -1159,7 +1159,7 @@ mod __gen {
         }
         pub fn set_optional_nested_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
-            self.optional_nested_message = protobuf::rt::LazyMsg::from_owned(v);
+            self.optional_nested_message = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn optional_nested_message_mut(&mut self) -> &mut NestedMessage {
             self.cached_size.dirty();
@@ -1175,7 +1175,7 @@ mod __gen {
         pub fn optional_foreign_message(&self) -> &ForeignMessage {
             self.optional_foreign_message
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn optional_foreign_message_opt(&self) -> Option<&ForeignMessage> {
             self.optional_foreign_message.as_deref()
@@ -1185,7 +1185,7 @@ mod __gen {
         }
         pub fn set_optional_foreign_message(&mut self, v: ForeignMessage) {
             self.cached_size.dirty();
-            self.optional_foreign_message = protobuf::rt::LazyMsg::from_owned(v);
+            self.optional_foreign_message = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn optional_foreign_message_mut(&mut self) -> &mut ForeignMessage {
             self.cached_size.dirty();
@@ -1201,7 +1201,7 @@ mod __gen {
         pub fn optional_import_message(&self) -> &ImportMessage {
             self.optional_import_message
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn optional_import_message_opt(&self) -> Option<&ImportMessage> {
             self.optional_import_message.as_deref()
@@ -1211,7 +1211,7 @@ mod __gen {
         }
         pub fn set_optional_import_message(&mut self, v: ImportMessage) {
             self.cached_size.dirty();
-            self.optional_import_message = protobuf::rt::LazyMsg::from_owned(v);
+            self.optional_import_message = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn optional_import_message_mut(&mut self) -> &mut ImportMessage {
             self.cached_size.dirty();
@@ -1235,19 +1235,19 @@ mod __gen {
             self.cached_size.dirty();
             self.optional_foreign_enum = v.into();
         }
-        pub fn optional_string_piece(&self) -> &protobuf::ProtoStr {
+        pub fn optional_string_piece(&self) -> &pbrs::ProtoStr {
             self.optional_string_piece.as_view()
         }
-        pub fn set_optional_string_piece(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
+        pub fn set_optional_string_piece(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string_piece = protobuf::rt::LazyStr::owned(v.into_proxied());
+            self.optional_string_piece = pbrs::rt::LazyStr::owned(v.into_proxied());
         }
-        pub fn optional_cord(&self) -> &protobuf::ProtoStr {
+        pub fn optional_cord(&self) -> &pbrs::ProtoStr {
             self.optional_cord.as_view()
         }
-        pub fn set_optional_cord(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
+        pub fn set_optional_cord(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_cord = protobuf::rt::LazyStr::owned(v.into_proxied());
+            self.optional_cord = pbrs::rt::LazyStr::owned(v.into_proxied());
         }
         pub fn has_optional_lazy_message(&self) -> bool {
             self.optional_lazy_message.is_some()
@@ -1255,7 +1255,7 @@ mod __gen {
         pub fn optional_lazy_message(&self) -> &NestedMessage {
             self.optional_lazy_message
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn optional_lazy_message_opt(&self) -> Option<&NestedMessage> {
             self.optional_lazy_message.as_deref()
@@ -1265,7 +1265,7 @@ mod __gen {
         }
         pub fn set_optional_lazy_message(&mut self, v: NestedMessage) {
             self.cached_size.dirty();
-            self.optional_lazy_message = protobuf::rt::LazyMsg::from_owned(v);
+            self.optional_lazy_message = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn optional_lazy_message_mut(&mut self) -> &mut NestedMessage {
             self.cached_size.dirty();
@@ -1288,7 +1288,7 @@ mod __gen {
         pub fn set_repeated_int32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_int32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_int64(&self) -> RepeatedView<'_, i64> {
             self.cold
@@ -1303,7 +1303,7 @@ mod __gen {
         pub fn set_repeated_int64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_int64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_uint32(&self) -> RepeatedView<'_, u32> {
             self.cold
@@ -1318,7 +1318,7 @@ mod __gen {
         pub fn set_repeated_uint32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_uint32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_uint64(&self) -> RepeatedView<'_, u64> {
             self.cold
@@ -1333,7 +1333,7 @@ mod __gen {
         pub fn set_repeated_uint64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_uint64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sint32(&self) -> RepeatedView<'_, i32> {
             self.cold
@@ -1348,7 +1348,7 @@ mod __gen {
         pub fn set_repeated_sint32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_sint32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sint64(&self) -> RepeatedView<'_, i64> {
             self.cold
@@ -1363,7 +1363,7 @@ mod __gen {
         pub fn set_repeated_sint64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_sint64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_fixed32(&self) -> RepeatedView<'_, u32> {
             self.cold
@@ -1378,7 +1378,7 @@ mod __gen {
         pub fn set_repeated_fixed32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_fixed32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_fixed64(&self) -> RepeatedView<'_, u64> {
             self.cold
@@ -1393,7 +1393,7 @@ mod __gen {
         pub fn set_repeated_fixed64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_fixed64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.cold
@@ -1408,7 +1408,7 @@ mod __gen {
         pub fn set_repeated_sfixed32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_sfixed32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_sfixed64(&self) -> RepeatedView<'_, i64> {
             self.cold
@@ -1423,7 +1423,7 @@ mod __gen {
         pub fn set_repeated_sfixed64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_sfixed64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_float(&self) -> RepeatedView<'_, f32> {
             self.cold
@@ -1438,7 +1438,7 @@ mod __gen {
         pub fn set_repeated_float(&mut self, v: impl IntoIterator<Item = f32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_float =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_double(&self) -> RepeatedView<'_, f64> {
             self.cold
@@ -1453,7 +1453,7 @@ mod __gen {
         pub fn set_repeated_double(&mut self, v: impl IntoIterator<Item = f64>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_double =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_bool(&self) -> RepeatedView<'_, bool> {
             self.cold
@@ -1468,27 +1468,27 @@ mod __gen {
         pub fn set_repeated_bool(&mut self, v: impl IntoIterator<Item = bool>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_bool =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
-        pub fn repeated_string(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
+        pub fn repeated_string(&self) -> RepeatedView<'_, pbrs::rt::LazyStr> {
             self.repeated_string.as_view()
         }
-        pub fn repeated_string_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyStr> {
+        pub fn repeated_string_mut(&mut self) -> RepeatedMut<'_, pbrs::rt::LazyStr> {
             self.cached_size.dirty();
             self.repeated_string.as_mut()
         }
-        pub fn set_repeated_string(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyStr>) {
+        pub fn set_repeated_string(&mut self, v: impl IntoIterator<Item = pbrs::rt::LazyStr>) {
             self.cached_size.dirty();
             self.repeated_string = v.into_iter().collect();
         }
-        pub fn repeated_bytes(&self) -> RepeatedView<'_, protobuf::rt::LazyBytes> {
+        pub fn repeated_bytes(&self) -> RepeatedView<'_, pbrs::rt::LazyBytes> {
             self.repeated_bytes.as_view()
         }
-        pub fn repeated_bytes_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyBytes> {
+        pub fn repeated_bytes_mut(&mut self) -> RepeatedMut<'_, pbrs::rt::LazyBytes> {
             self.cached_size.dirty();
             self.repeated_bytes.as_mut()
         }
-        pub fn set_repeated_bytes(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyBytes>) {
+        pub fn set_repeated_bytes(&mut self, v: impl IntoIterator<Item = pbrs::rt::LazyBytes>) {
             self.cached_size.dirty();
             self.repeated_bytes = v.into_iter().collect();
         }
@@ -1550,7 +1550,7 @@ mod __gen {
         pub fn set_repeated_nested_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_nested_enum =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn repeated_foreign_enum(&self) -> RepeatedView<'_, i32> {
             self.cold
@@ -1565,30 +1565,30 @@ mod __gen {
         pub fn set_repeated_foreign_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().repeated_foreign_enum =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
-        pub fn repeated_string_piece(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
+        pub fn repeated_string_piece(&self) -> RepeatedView<'_, pbrs::rt::LazyStr> {
             self.repeated_string_piece.as_view()
         }
-        pub fn repeated_string_piece_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyStr> {
+        pub fn repeated_string_piece_mut(&mut self) -> RepeatedMut<'_, pbrs::rt::LazyStr> {
             self.cached_size.dirty();
             self.repeated_string_piece.as_mut()
         }
         pub fn set_repeated_string_piece(
             &mut self,
-            v: impl IntoIterator<Item = protobuf::rt::LazyStr>,
+            v: impl IntoIterator<Item = pbrs::rt::LazyStr>,
         ) {
             self.cached_size.dirty();
             self.repeated_string_piece = v.into_iter().collect();
         }
-        pub fn repeated_cord(&self) -> RepeatedView<'_, protobuf::rt::LazyStr> {
+        pub fn repeated_cord(&self) -> RepeatedView<'_, pbrs::rt::LazyStr> {
             self.repeated_cord.as_view()
         }
-        pub fn repeated_cord_mut(&mut self) -> RepeatedMut<'_, protobuf::rt::LazyStr> {
+        pub fn repeated_cord_mut(&mut self) -> RepeatedMut<'_, pbrs::rt::LazyStr> {
             self.cached_size.dirty();
             self.repeated_cord.as_mut()
         }
-        pub fn set_repeated_cord(&mut self, v: impl IntoIterator<Item = protobuf::rt::LazyStr>) {
+        pub fn set_repeated_cord(&mut self, v: impl IntoIterator<Item = pbrs::rt::LazyStr>) {
             self.cached_size.dirty();
             self.repeated_cord = v.into_iter().collect();
         }
@@ -1632,7 +1632,7 @@ mod __gen {
         pub fn oneof_nested_message(&self) -> &NestedMessage {
             self.oneof_nested_message
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn oneof_nested_message_opt(&self) -> Option<&NestedMessage> {
             self.oneof_nested_message.as_deref()
@@ -1645,7 +1645,7 @@ mod __gen {
             self.oneof_uint32 = None;
             self.oneof_string = None;
             self.oneof_bytes = None;
-            self.oneof_nested_message = protobuf::rt::LazyMsg::from_owned(v);
+            self.oneof_nested_message = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn oneof_nested_message_mut(&mut self) -> &mut NestedMessage {
             self.cached_size.dirty();
@@ -1658,21 +1658,21 @@ mod __gen {
         pub fn has_oneof_string(&self) -> bool {
             self.oneof_string.is_some()
         }
-        pub fn oneof_string(&self) -> &protobuf::ProtoStr {
+        pub fn oneof_string(&self) -> &pbrs::ProtoStr {
             self.oneof_string
                 .as_ref()
                 .map(|s| s.as_view())
-                .unwrap_or_else(|| protobuf::ProtoStr::from_bytes(b""))
+                .unwrap_or_else(|| pbrs::ProtoStr::from_bytes(b""))
         }
-        pub fn oneof_string_opt(&self) -> Option<&protobuf::ProtoStr> {
+        pub fn oneof_string_opt(&self) -> Option<&pbrs::ProtoStr> {
             self.oneof_string.as_ref().map(|s| s.as_view())
         }
-        pub fn set_oneof_string(&mut self, v: impl protobuf::IntoProxied<ProtoString>) {
+        pub fn set_oneof_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
             self.oneof_uint32 = None;
             self.oneof_nested_message = Default::default();
             self.oneof_bytes = None;
-            self.oneof_string = Some(Box::new(protobuf::rt::LazyStr::owned(v.into_proxied())));
+            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
         }
         pub fn clear_oneof_string(&mut self) {
             self.cached_size.dirty();
@@ -1690,9 +1690,9 @@ mod __gen {
         pub fn has_oneof_bytes(&self) -> bool {
             self.oneof_bytes.is_some()
         }
-        pub fn set_oneof_bytes(&mut self, v: impl protobuf::IntoProxied<ProtoBytes>) {
+        pub fn set_oneof_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.oneof_bytes = Some(Box::new(protobuf::rt::LazyBytes::owned(v.into_proxied())));
+            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
         }
         pub fn clear_oneof_bytes(&mut self) {
             self.cached_size.dirty();
@@ -1704,7 +1704,7 @@ mod __gen {
         pub fn optional_lazy_import_message(&self) -> &ImportMessage {
             self.optional_lazy_import_message
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn optional_lazy_import_message_opt(&self) -> Option<&ImportMessage> {
             self.optional_lazy_import_message.as_deref()
@@ -1714,7 +1714,7 @@ mod __gen {
         }
         pub fn set_optional_lazy_import_message(&mut self, v: ImportMessage) {
             self.cached_size.dirty();
-            self.optional_lazy_import_message = protobuf::rt::LazyMsg::from_owned(v);
+            self.optional_lazy_import_message = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn optional_lazy_import_message_mut(&mut self) -> &mut ImportMessage {
             self.cached_size.dirty();
@@ -1732,7 +1732,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -1740,13 +1740,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -1755,22 +1755,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -1779,154 +1779,151 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_int32 = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_int32 = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_int64 = protobuf::rt::decode_varint(data, pos)? as i64;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_int64 = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     3 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_uint32 = protobuf::rt::decode_varint(data, pos)? as u32;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_uint32 = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     4 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_uint64 = protobuf::rt::decode_varint(data, pos)?;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_uint64 = pbrs::rt::decode_varint(data, pos)?;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     5 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_sint32 = protobuf::rt::decode_zigzag32(
-                                protobuf::rt::decode_varint(data, pos)?,
-                            );
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_sint32 =
+                                pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     6 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_sint64 = protobuf::rt::decode_zigzag64(
-                                protobuf::rt::decode_varint(data, pos)?,
-                            );
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_sint64 =
+                                pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     7 => match w {
-                        protobuf::rt::WIRE_I32 => {
-                            self.optional_fixed32 = protobuf::rt::read_fixed32(data, pos)?;
+                        pbrs::rt::WIRE_I32 => {
+                            self.optional_fixed32 = pbrs::rt::read_fixed32(data, pos)?;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     8 => match w {
-                        protobuf::rt::WIRE_I64 => {
-                            self.optional_fixed64 = protobuf::rt::read_fixed64(data, pos)?;
+                        pbrs::rt::WIRE_I64 => {
+                            self.optional_fixed64 = pbrs::rt::read_fixed64(data, pos)?;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     9 => match w {
-                        protobuf::rt::WIRE_I32 => {
-                            self.optional_sfixed32 = protobuf::rt::read_fixed32(data, pos)? as i32;
+                        pbrs::rt::WIRE_I32 => {
+                            self.optional_sfixed32 = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     10 => match w {
-                        protobuf::rt::WIRE_I64 => {
-                            self.optional_sfixed64 = protobuf::rt::read_fixed64(data, pos)? as i64;
+                        pbrs::rt::WIRE_I64 => {
+                            self.optional_sfixed64 = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     11 => match w {
-                        protobuf::rt::WIRE_I32 => {
+                        pbrs::rt::WIRE_I32 => {
                             self.optional_float =
-                                f32::from_bits(protobuf::rt::read_fixed32(data, pos)?);
+                                f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     12 => match w {
-                        protobuf::rt::WIRE_I64 => {
+                        pbrs::rt::WIRE_I64 => {
                             self.optional_double =
-                                f64::from_bits(protobuf::rt::read_fixed64(data, pos)?);
+                                f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     13 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_bool = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_bool = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     14 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.optional_string = protobuf::rt::LazyStr::from_span(wire, s, e);
+                            self.optional_string = pbrs::rt::LazyStr::from_span(wire, s, e);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     15 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            self.optional_bytes =
-                                protobuf::rt::LazyBytes::from_wire(wire.window(s, e));
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            self.optional_bytes = pbrs::rt::LazyBytes::from_wire(wire.window(s, e));
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     18 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_nested_message.is_some() {
                                 let mut ip = 0;
                                 self.optional_nested_message.get_or_insert().merge_inner(
@@ -1944,17 +1941,17 @@ mod __gen {
                                     depth + 1,
                                 )?;
                                 self.optional_nested_message =
-                                    protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     19 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_foreign_message.is_some() {
                                 let mut ip = 0;
                                 self.optional_foreign_message.get_or_insert().merge_inner(
@@ -1972,17 +1969,17 @@ mod __gen {
                                     depth + 1,
                                 )?;
                                 self.optional_foreign_message =
-                                    protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     20 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_import_message.is_some() {
                                 let mut ip = 0;
                                 self.optional_import_message.get_or_insert().merge_inner(
@@ -2000,62 +1997,59 @@ mod __gen {
                                     depth + 1,
                                 )?;
                                 self.optional_import_message =
-                                    protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     21 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_nested_enum =
-                                protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_nested_enum = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     22 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.optional_foreign_enum =
-                                protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.optional_foreign_enum = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     24 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.optional_string_piece =
-                                protobuf::rt::LazyStr::from_span(wire, s, e);
+                            self.optional_string_piece = pbrs::rt::LazyStr::from_span(wire, s, e);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     25 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.optional_cord = protobuf::rt::LazyStr::from_span(wire, s, e);
+                            self.optional_cord = pbrs::rt::LazyStr::from_span(wire, s, e);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     27 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_lazy_message.is_some() {
                                 let mut ip = 0;
                                 self.optional_lazy_message.get_or_insert().merge_inner(
@@ -2073,255 +2067,255 @@ mod __gen {
                                     depth + 1,
                                 )?;
                                 self.optional_lazy_message =
-                                    protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     31 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_int32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_int32
-                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     32 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_int64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_int64
-                            .push(protobuf::rt::decode_varint(data, pos)? as i64),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i64),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     33 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_uint32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_uint32
-                            .push(protobuf::rt::decode_varint(data, pos)? as u32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as u32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     34 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_uint64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_uint64
-                            .push(protobuf::rt::decode_varint(data, pos)?),
+                            .push(pbrs::rt::decode_varint(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     35 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_sint32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
+                        pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .repeated_sint32
-                                .push(protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
+                                .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
                                     data, pos,
                                 )?))
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     36 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_sint64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
+                        pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .repeated_sint64
-                                .push(protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
+                                .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
                                     data, pos,
                                 )?))
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     37 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_fixed32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .repeated_fixed32
-                            .push(protobuf::rt::read_fixed32(data, pos)?),
+                            .push(pbrs::rt::read_fixed32(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     38 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_fixed64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .repeated_fixed64
-                            .push(protobuf::rt::read_fixed64(data, pos)?),
+                            .push(pbrs::rt::read_fixed64(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     39 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_sfixed32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .repeated_sfixed32
-                            .push(protobuf::rt::read_fixed32(data, pos)? as i32),
+                            .push(pbrs::rt::read_fixed32(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     40 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_sfixed64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .repeated_sfixed64
-                            .push(protobuf::rt::read_fixed64(data, pos)? as i64),
+                            .push(pbrs::rt::read_fixed64(data, pos)? as i64),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     41 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_float
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .repeated_float
-                            .push(f32::from_bits(protobuf::rt::read_fixed32(data, pos)?)),
+                            .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     42 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_double
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .repeated_double
-                            .push(f64::from_bits(protobuf::rt::read_fixed64(data, pos)?)),
+                            .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     43 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_bool
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_bool
-                            .push(protobuf::rt::decode_varint(data, pos)? != 0),
+                            .push(pbrs::rt::decode_varint(data, pos)? != 0),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     44 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
                             self.repeated_string
-                                .push(protobuf::rt::LazyStr::from_span(wire, s, e));
+                                .push(pbrs::rt::LazyStr::from_span(wire, s, e));
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     45 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.repeated_bytes
-                                .push(protobuf::rt::LazyBytes::from_wire(wire.window(s, e)));
+                                .push(pbrs::rt::LazyBytes::from_wire(wire.window(s, e)));
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     48 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = NestedMessage::default();
                             let mut ip = 0;
                             inner.merge_inner(
@@ -2336,11 +2330,11 @@ mod __gen {
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     49 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = ForeignMessage::default();
                             let mut ip = 0;
                             inner.merge_inner(
@@ -2355,11 +2349,11 @@ mod __gen {
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     50 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = ImportMessage::default();
                             let mut ip = 0;
                             inner.merge_inner(
@@ -2374,69 +2368,69 @@ mod __gen {
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     51 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_nested_enum
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_nested_enum
-                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     52 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .repeated_foreign_enum
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_foreign_enum
-                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     54 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
                             self.repeated_string_piece
-                                .push(protobuf::rt::LazyStr::from_span(wire, s, e));
+                                .push(pbrs::rt::LazyStr::from_span(wire, s, e));
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     55 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
                             self.repeated_cord
-                                .push(protobuf::rt::LazyStr::from_span(wire, s, e));
+                                .push(pbrs::rt::LazyStr::from_span(wire, s, e));
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     57 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = NestedMessage::default();
                             let mut ip = 0;
                             inner.merge_inner(
@@ -2451,27 +2445,26 @@ mod __gen {
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     111 => match w {
-                        protobuf::rt::WIRE_VARINT => {
+                        pbrs::rt::WIRE_VARINT => {
                             self.oneof_nested_message = Default::default();
                             self.oneof_string = None;
                             self.oneof_bytes = None;
-                            self.oneof_uint32 =
-                                Some(protobuf::rt::decode_varint(data, pos)? as u32);
+                            self.oneof_uint32 = Some(pbrs::rt::decode_varint(data, pos)? as u32);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     112 => match w {
-                        protobuf::rt::WIRE_LEN => {
+                        pbrs::rt::WIRE_LEN => {
                             self.oneof_uint32 = None;
                             self.oneof_string = None;
                             self.oneof_bytes = None;
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.oneof_nested_message.is_some() {
                                 let mut ip = 0;
                                 self.oneof_nested_message.get_or_insert().merge_inner(
@@ -2489,48 +2482,47 @@ mod __gen {
                                     depth + 1,
                                 )?;
                                 self.oneof_nested_message =
-                                    protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     113 => match w {
-                        protobuf::rt::WIRE_LEN => {
+                        pbrs::rt::WIRE_LEN => {
                             self.oneof_uint32 = None;
                             self.oneof_nested_message = Default::default();
                             self.oneof_bytes = None;
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
                             self.oneof_string =
-                                Some(Box::new(protobuf::rt::LazyStr::from_span(wire, s, e)));
+                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     114 => match w {
-                        protobuf::rt::WIRE_LEN => {
+                        pbrs::rt::WIRE_LEN => {
                             self.oneof_uint32 = None;
                             self.oneof_nested_message = Default::default();
                             self.oneof_string = None;
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            self.oneof_bytes = Some(Box::new(protobuf::rt::LazyBytes::from_wire(
-                                wire.window(s, e),
-                            )));
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            self.oneof_bytes =
+                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))));
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     115 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_lazy_import_message.is_some() {
                                 let mut ip = 0;
                                 self.optional_lazy_import_message
@@ -2550,18 +2542,18 @@ mod __gen {
                                     depth + 1,
                                 )?;
                                 self.optional_lazy_import_message =
-                                    protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -2573,26 +2565,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -2601,414 +2593,406 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i64;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     3 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as u32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     4 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)?;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     5 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     6 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     7 => match w {
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)?;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     8 => match w {
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)?;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     9 => match w {
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)? as i32;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     10 => match w {
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)? as i64;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     11 => match w {
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = f32::from_bits(protobuf::rt::read_fixed32(data, pos)?);
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     12 => match w {
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = f64::from_bits(protobuf::rt::read_fixed64(data, pos)?);
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     13 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     14 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             std::str::from_utf8(&data[s..e])
                                 .map_err(|_| ParseError::new("invalid utf-8"))?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     15 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     18 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     19 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             ForeignMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     20 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             ImportMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     21 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     22 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     24 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             std::str::from_utf8(&data[s..e])
                                 .map_err(|_| ParseError::new("invalid utf-8"))?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     25 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             std::str::from_utf8(&data[s..e])
                                 .map_err(|_| ParseError::new("invalid utf-8"))?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     27 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     31 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     32 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i64;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     33 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedU32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedU32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as u32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     34 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedU64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedU64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)?;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     35 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedS32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedS32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     36 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedS64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedS64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     37 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedFx32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedFx32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)?;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     38 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedFx64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedFx64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)?;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     39 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedSfx32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedSfx32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)? as i32;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     40 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedSfx64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedSfx64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)? as i64;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     41 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedF32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedF32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = f32::from_bits(protobuf::rt::read_fixed32(data, pos)?);
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     42 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedF64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedF64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = f64::from_bits(protobuf::rt::read_fixed64(data, pos)?);
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     43 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedBool::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedBool::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     44 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             std::str::from_utf8(&data[s..e])
                                 .map_err(|_| ParseError::new("invalid utf-8"))?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     45 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     48 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     49 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             ForeignMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     50 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             ImportMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     51 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     52 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     54 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             std::str::from_utf8(&data[s..e])
                                 .map_err(|_| ParseError::new("invalid utf-8"))?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     55 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             std::str::from_utf8(&data[s..e])
                                 .map_err(|_| ParseError::new("invalid utf-8"))?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     57 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     111 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as u32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     112 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             NestedMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     113 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             std::str::from_utf8(&data[s..e])
                                 .map_err(|_| ParseError::new("invalid utf-8"))?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     114 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            pbrs::rt::read_len_span(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     115 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             ImportMessage::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -3022,280 +3006,273 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if self.optional_int32 != 0 {
-                n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.optional_int32) as u64);
+                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.optional_int32) as u64);
             }
             if self.optional_int64 != 0 {
-                n += protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.optional_int64) as u64);
+                n += pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.optional_int64) as u64);
             }
             if self.optional_uint32 != 0 {
-                n += protobuf::rt::tag_len(3, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.optional_uint32) as u64);
+                n += pbrs::rt::tag_len(3, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.optional_uint32) as u64);
             }
             if self.optional_uint64 != 0 {
-                n += protobuf::rt::tag_len(4, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.optional_uint64) as u64);
+                n += pbrs::rt::tag_len(4, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.optional_uint64) as u64);
             }
             if self.optional_sint32 != 0 {
-                n += protobuf::rt::tag_len(5, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(self.optional_sint32));
+                n += pbrs::rt::tag_len(5, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(pbrs::rt::encode_zigzag32(self.optional_sint32));
             }
             if self.optional_sint64 != 0 {
-                n += protobuf::rt::tag_len(6, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(self.optional_sint64));
+                n += pbrs::rt::tag_len(6, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(pbrs::rt::encode_zigzag64(self.optional_sint64));
             }
             if self.optional_fixed32 != 0 {
-                n += protobuf::rt::tag_len(7, protobuf::rt::WIRE_I32) + 4;
+                n += pbrs::rt::tag_len(7, pbrs::rt::WIRE_I32) + 4;
             }
             if self.optional_fixed64 != 0 {
-                n += protobuf::rt::tag_len(8, protobuf::rt::WIRE_I64) + 8;
+                n += pbrs::rt::tag_len(8, pbrs::rt::WIRE_I64) + 8;
             }
             if self.optional_sfixed32 != 0 {
-                n += protobuf::rt::tag_len(9, protobuf::rt::WIRE_I32) + 4;
+                n += pbrs::rt::tag_len(9, pbrs::rt::WIRE_I32) + 4;
             }
             if self.optional_sfixed64 != 0 {
-                n += protobuf::rt::tag_len(10, protobuf::rt::WIRE_I64) + 8;
+                n += pbrs::rt::tag_len(10, pbrs::rt::WIRE_I64) + 8;
             }
             if self.optional_float.to_bits() != 0 {
-                n += protobuf::rt::tag_len(11, protobuf::rt::WIRE_I32) + 4;
+                n += pbrs::rt::tag_len(11, pbrs::rt::WIRE_I32) + 4;
             }
             if self.optional_double.to_bits() != 0 {
-                n += protobuf::rt::tag_len(12, protobuf::rt::WIRE_I64) + 8;
+                n += pbrs::rt::tag_len(12, pbrs::rt::WIRE_I64) + 8;
             }
             if self.optional_bool {
-                n += protobuf::rt::tag_len(13, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.optional_bool));
+                n += pbrs::rt::tag_len(13, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.optional_bool));
             }
             if !self.optional_string.is_empty() {
-                n += protobuf::rt::key_len_value_len(
-                    14,
-                    self.optional_string.as_bytes().len() as u64,
-                );
+                n += pbrs::rt::key_len_value_len(14, self.optional_string.as_bytes().len() as u64);
             }
             if !self.optional_bytes.is_empty() {
-                n += protobuf::rt::key_len_value_len(
-                    15,
-                    self.optional_bytes.as_bytes().len() as u64,
-                );
+                n += pbrs::rt::key_len_value_len(15, self.optional_bytes.as_bytes().len() as u64);
             }
             if let Some(p) = self.optional_nested_message.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(18, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(18, p.len() as u64);
             } else if let Some(m) = self.optional_nested_message.as_deref() {
-                n += protobuf::rt::key_len_value_len(18, m.compute_size());
+                n += pbrs::rt::key_len_value_len(18, m.compute_size());
             }
             if let Some(p) = self.optional_foreign_message.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(19, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(19, p.len() as u64);
             } else if let Some(m) = self.optional_foreign_message.as_deref() {
-                n += protobuf::rt::key_len_value_len(19, m.compute_size());
+                n += pbrs::rt::key_len_value_len(19, m.compute_size());
             }
             if let Some(p) = self.optional_import_message.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(20, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(20, p.len() as u64);
             } else if let Some(m) = self.optional_import_message.as_deref() {
-                n += protobuf::rt::key_len_value_len(20, m.compute_size());
+                n += pbrs::rt::key_len_value_len(20, m.compute_size());
             }
             if self.optional_nested_enum != 0 {
-                n += protobuf::rt::tag_len(21, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.optional_nested_enum) as u64);
+                n += pbrs::rt::tag_len(21, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.optional_nested_enum) as u64);
             }
             if self.optional_foreign_enum != 0 {
-                n += protobuf::rt::tag_len(22, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.optional_foreign_enum) as u64);
+                n += pbrs::rt::tag_len(22, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.optional_foreign_enum) as u64);
             }
             if !self.optional_string_piece.is_empty() {
-                n += protobuf::rt::key_len_value_len(
+                n += pbrs::rt::key_len_value_len(
                     24,
                     self.optional_string_piece.as_bytes().len() as u64,
                 );
             }
             if !self.optional_cord.is_empty() {
-                n +=
-                    protobuf::rt::key_len_value_len(25, self.optional_cord.as_bytes().len() as u64);
+                n += pbrs::rt::key_len_value_len(25, self.optional_cord.as_bytes().len() as u64);
             }
             if let Some(p) = self.optional_lazy_message.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(27, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(27, p.len() as u64);
             } else if let Some(m) = self.optional_lazy_message.as_deref() {
-                n += protobuf::rt::key_len_value_len(27, m.compute_size());
+                n += pbrs::rt::key_len_value_len(27, m.compute_size());
             }
             for t in self.repeated_string.iter() {
-                n += protobuf::rt::key_len_value_len(44, t.as_bytes().len() as u64);
+                n += pbrs::rt::key_len_value_len(44, t.as_bytes().len() as u64);
             }
             for t in self.repeated_bytes.iter() {
-                n += protobuf::rt::key_len_value_len(45, t.as_bytes().len() as u64);
+                n += pbrs::rt::key_len_value_len(45, t.as_bytes().len() as u64);
             }
             for t in self.repeated_string_piece.iter() {
-                n += protobuf::rt::key_len_value_len(54, t.as_bytes().len() as u64);
+                n += pbrs::rt::key_len_value_len(54, t.as_bytes().len() as u64);
             }
             for t in self.repeated_cord.iter() {
-                n += protobuf::rt::key_len_value_len(55, t.as_bytes().len() as u64);
+                n += pbrs::rt::key_len_value_len(55, t.as_bytes().len() as u64);
             }
             if let Some(v) = self.oneof_uint32 {
-                n += protobuf::rt::tag_len(111, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((v) as u64);
+                n += pbrs::rt::tag_len(111, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((v) as u64);
             }
             if let Some(p) = self.oneof_nested_message.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(112, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(112, p.len() as u64);
             } else if let Some(m) = self.oneof_nested_message.as_deref() {
-                n += protobuf::rt::key_len_value_len(112, m.compute_size());
+                n += pbrs::rt::key_len_value_len(112, m.compute_size());
             }
             if let Some(s) = &self.oneof_string {
-                n += protobuf::rt::key_len_value_len(113, s.as_bytes().len() as u64);
+                n += pbrs::rt::key_len_value_len(113, s.as_bytes().len() as u64);
             }
             if let Some(s) = &self.oneof_bytes {
-                n += protobuf::rt::key_len_value_len(114, s.as_bytes().len() as u64);
+                n += pbrs::rt::key_len_value_len(114, s.as_bytes().len() as u64);
             }
             if let Some(p) = self.optional_lazy_import_message.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(115, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(115, p.len() as u64);
             } else if let Some(m) = self.optional_lazy_import_message.as_deref() {
-                n += protobuf::rt::key_len_value_len(115, m.compute_size());
+                n += pbrs::rt::key_len_value_len(115, m.compute_size());
             }
             if let Some(c) = self.cold.as_deref() {
                 if let Some(p) = c.repeated_int32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(31, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(31, p.len() as u64);
                 } else if !c.repeated_int32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_int32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(31, payload);
+                    n += pbrs::rt::key_len_value_len(31, payload);
                 }
                 if let Some(p) = c.repeated_int64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(32, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(32, p.len() as u64);
                 } else if !c.repeated_int64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_int64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(32, payload);
+                    n += pbrs::rt::key_len_value_len(32, payload);
                 }
                 if let Some(p) = c.repeated_uint32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(33, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(33, p.len() as u64);
                 } else if !c.repeated_uint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_uint32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(33, payload);
+                    n += pbrs::rt::key_len_value_len(33, payload);
                 }
                 if let Some(p) = c.repeated_uint64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(34, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(34, p.len() as u64);
                 } else if !c.repeated_uint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_uint64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(34, payload);
+                    n += pbrs::rt::key_len_value_len(34, payload);
                 }
                 if let Some(p) = c.repeated_sint32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(35, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(35, p.len() as u64);
                 } else if !c.repeated_sint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sint32.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag32(*t));
                     }
-                    n += protobuf::rt::key_len_value_len(35, payload);
+                    n += pbrs::rt::key_len_value_len(35, payload);
                 }
                 if let Some(p) = c.repeated_sint64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(36, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(36, p.len() as u64);
                 } else if !c.repeated_sint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sint64.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag64(*t));
                     }
-                    n += protobuf::rt::key_len_value_len(36, payload);
+                    n += pbrs::rt::key_len_value_len(36, payload);
                 }
                 if let Some(p) = c.repeated_fixed32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(37, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(37, p.len() as u64);
                 } else if !c.repeated_fixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_fixed32.iter() {
                         payload += 4;
                     }
-                    n += protobuf::rt::key_len_value_len(37, payload);
+                    n += pbrs::rt::key_len_value_len(37, payload);
                 }
                 if let Some(p) = c.repeated_fixed64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(38, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(38, p.len() as u64);
                 } else if !c.repeated_fixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_fixed64.iter() {
                         payload += 8;
                     }
-                    n += protobuf::rt::key_len_value_len(38, payload);
+                    n += pbrs::rt::key_len_value_len(38, payload);
                 }
                 if let Some(p) = c.repeated_sfixed32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(39, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(39, p.len() as u64);
                 } else if !c.repeated_sfixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sfixed32.iter() {
                         payload += 4;
                     }
-                    n += protobuf::rt::key_len_value_len(39, payload);
+                    n += pbrs::rt::key_len_value_len(39, payload);
                 }
                 if let Some(p) = c.repeated_sfixed64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(40, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(40, p.len() as u64);
                 } else if !c.repeated_sfixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sfixed64.iter() {
                         payload += 8;
                     }
-                    n += protobuf::rt::key_len_value_len(40, payload);
+                    n += pbrs::rt::key_len_value_len(40, payload);
                 }
                 if let Some(p) = c.repeated_float.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(41, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(41, p.len() as u64);
                 } else if !c.repeated_float.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_float.iter() {
                         payload += 4;
                     }
-                    n += protobuf::rt::key_len_value_len(41, payload);
+                    n += pbrs::rt::key_len_value_len(41, payload);
                 }
                 if let Some(p) = c.repeated_double.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(42, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(42, p.len() as u64);
                 } else if !c.repeated_double.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_double.iter() {
                         payload += 8;
                     }
-                    n += protobuf::rt::key_len_value_len(42, payload);
+                    n += pbrs::rt::key_len_value_len(42, payload);
                 }
                 if let Some(p) = c.repeated_bool.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(43, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(43, p.len() as u64);
                 } else if !c.repeated_bool.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_bool.iter() {
-                        payload += protobuf::rt::varint_len(u64::from(*t));
+                        payload += pbrs::rt::varint_len(u64::from(*t));
                     }
-                    n += protobuf::rt::key_len_value_len(43, payload);
+                    n += pbrs::rt::key_len_value_len(43, payload);
                 }
                 for t in c.repeated_nested_message.iter() {
-                    n += protobuf::rt::key_len_value_len(48, t.compute_size());
+                    n += pbrs::rt::key_len_value_len(48, t.compute_size());
                 }
                 for t in c.repeated_foreign_message.iter() {
-                    n += protobuf::rt::key_len_value_len(49, t.compute_size());
+                    n += pbrs::rt::key_len_value_len(49, t.compute_size());
                 }
                 for t in c.repeated_import_message.iter() {
-                    n += protobuf::rt::key_len_value_len(50, t.compute_size());
+                    n += pbrs::rt::key_len_value_len(50, t.compute_size());
                 }
                 if let Some(p) = c.repeated_nested_enum.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(51, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(51, p.len() as u64);
                 } else if !c.repeated_nested_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_nested_enum.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(51, payload);
+                    n += pbrs::rt::key_len_value_len(51, payload);
                 }
                 if let Some(p) = c.repeated_foreign_enum.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(52, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(52, p.len() as u64);
                 } else if !c.repeated_foreign_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_foreign_enum.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(52, payload);
+                    n += pbrs::rt::key_len_value_len(52, payload);
                 }
                 for t in c.repeated_lazy_message.iter() {
-                    n += protobuf::rt::key_len_value_len(57, t.compute_size());
+                    n += pbrs::rt::key_len_value_len(57, t.compute_size());
                 }
             }
             self.cached_size.set(n);
@@ -3303,369 +3280,363 @@ mod __gen {
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if self.optional_int32 != 0 {
-                protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.optional_int32 as u64);
+                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.optional_int32 as u64);
             }
             if self.optional_int64 != 0 {
-                protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.optional_int64 as u64);
+                pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.optional_int64 as u64);
             }
             if self.optional_uint32 != 0 {
-                protobuf::rt::encode_tag(out, 3, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.optional_uint32 as u64);
+                pbrs::rt::encode_tag(out, 3, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.optional_uint32 as u64);
             }
             if self.optional_uint64 != 0 {
-                protobuf::rt::encode_tag(out, 4, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.optional_uint64 as u64);
+                pbrs::rt::encode_tag(out, 4, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.optional_uint64 as u64);
             }
             if self.optional_sint32 != 0 {
-                protobuf::rt::encode_tag(out, 5, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(
-                    out,
-                    protobuf::rt::encode_zigzag32(self.optional_sint32),
-                );
+                pbrs::rt::encode_tag(out, 5, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag32(self.optional_sint32));
             }
             if self.optional_sint64 != 0 {
-                protobuf::rt::encode_tag(out, 6, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(
-                    out,
-                    protobuf::rt::encode_zigzag64(self.optional_sint64),
-                );
+                pbrs::rt::encode_tag(out, 6, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(self.optional_sint64));
             }
             if self.optional_fixed32 != 0 {
-                protobuf::rt::encode_tag(out, 7, protobuf::rt::WIRE_I32);
+                pbrs::rt::encode_tag(out, 7, pbrs::rt::WIRE_I32);
                 (out).extend_from_slice(&(self.optional_fixed32).to_le_bytes());
             }
             if self.optional_fixed64 != 0 {
-                protobuf::rt::encode_tag(out, 8, protobuf::rt::WIRE_I64);
+                pbrs::rt::encode_tag(out, 8, pbrs::rt::WIRE_I64);
                 (out).extend_from_slice(&(self.optional_fixed64).to_le_bytes());
             }
             if self.optional_sfixed32 != 0 {
-                protobuf::rt::encode_tag(out, 9, protobuf::rt::WIRE_I32);
+                pbrs::rt::encode_tag(out, 9, pbrs::rt::WIRE_I32);
                 (out).extend_from_slice(&((self.optional_sfixed32) as u32).to_le_bytes());
             }
             if self.optional_sfixed64 != 0 {
-                protobuf::rt::encode_tag(out, 10, protobuf::rt::WIRE_I64);
+                pbrs::rt::encode_tag(out, 10, pbrs::rt::WIRE_I64);
                 (out).extend_from_slice(&((self.optional_sfixed64) as u64).to_le_bytes());
             }
             if self.optional_float.to_bits() != 0 {
-                protobuf::rt::encode_tag(out, 11, protobuf::rt::WIRE_I32);
+                pbrs::rt::encode_tag(out, 11, pbrs::rt::WIRE_I32);
                 (out).extend_from_slice(&(self.optional_float).to_bits().to_le_bytes());
             }
             if self.optional_double.to_bits() != 0 {
-                protobuf::rt::encode_tag(out, 12, protobuf::rt::WIRE_I64);
+                pbrs::rt::encode_tag(out, 12, pbrs::rt::WIRE_I64);
                 (out).extend_from_slice(&(self.optional_double).to_bits().to_le_bytes());
             }
             if self.optional_bool {
-                protobuf::rt::encode_tag(out, 13, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.optional_bool));
+                pbrs::rt::encode_tag(out, 13, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.optional_bool));
             }
             if !self.optional_string.is_empty() {
-                protobuf::rt::encode_len_field(out, 14, self.optional_string.as_bytes());
+                pbrs::rt::encode_len_field(out, 14, self.optional_string.as_bytes());
             }
             if !self.optional_bytes.is_empty() {
-                protobuf::rt::encode_len_field(out, 15, self.optional_bytes.as_bytes());
+                pbrs::rt::encode_len_field(out, 15, self.optional_bytes.as_bytes());
             }
             if let Some(p) = self.optional_nested_message.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 18, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 18, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.optional_nested_message.as_deref() {
-                protobuf::rt::encode_len_header(out, 18, m.compute_size());
+                pbrs::rt::encode_len_header(out, 18, m.compute_size());
                 m.write_to(out);
             }
             if let Some(p) = self.optional_foreign_message.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 19, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 19, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.optional_foreign_message.as_deref() {
-                protobuf::rt::encode_len_header(out, 19, m.compute_size());
+                pbrs::rt::encode_len_header(out, 19, m.compute_size());
                 m.write_to(out);
             }
             if let Some(p) = self.optional_import_message.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 20, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 20, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.optional_import_message.as_deref() {
-                protobuf::rt::encode_len_header(out, 20, m.compute_size());
+                pbrs::rt::encode_len_header(out, 20, m.compute_size());
                 m.write_to(out);
             }
             if self.optional_nested_enum != 0 {
-                protobuf::rt::encode_tag(out, 21, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.optional_nested_enum as u64);
+                pbrs::rt::encode_tag(out, 21, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.optional_nested_enum as u64);
             }
             if self.optional_foreign_enum != 0 {
-                protobuf::rt::encode_tag(out, 22, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.optional_foreign_enum as u64);
+                pbrs::rt::encode_tag(out, 22, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.optional_foreign_enum as u64);
             }
             if !self.optional_string_piece.is_empty() {
-                protobuf::rt::encode_len_field(out, 24, self.optional_string_piece.as_bytes());
+                pbrs::rt::encode_len_field(out, 24, self.optional_string_piece.as_bytes());
             }
             if !self.optional_cord.is_empty() {
-                protobuf::rt::encode_len_field(out, 25, self.optional_cord.as_bytes());
+                pbrs::rt::encode_len_field(out, 25, self.optional_cord.as_bytes());
             }
             if let Some(p) = self.optional_lazy_message.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 27, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 27, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.optional_lazy_message.as_deref() {
-                protobuf::rt::encode_len_header(out, 27, m.compute_size());
+                pbrs::rt::encode_len_header(out, 27, m.compute_size());
                 m.write_to(out);
             }
             for t in self.repeated_string.iter() {
-                protobuf::rt::encode_len_field(out, 44, t.as_bytes());
+                pbrs::rt::encode_len_field(out, 44, t.as_bytes());
             }
             for t in self.repeated_bytes.iter() {
-                protobuf::rt::encode_len_field(out, 45, t.as_bytes());
+                pbrs::rt::encode_len_field(out, 45, t.as_bytes());
             }
             for t in self.repeated_string_piece.iter() {
-                protobuf::rt::encode_len_field(out, 54, t.as_bytes());
+                pbrs::rt::encode_len_field(out, 54, t.as_bytes());
             }
             for t in self.repeated_cord.iter() {
-                protobuf::rt::encode_len_field(out, 55, t.as_bytes());
+                pbrs::rt::encode_len_field(out, 55, t.as_bytes());
             }
             if let Some(v) = self.oneof_uint32 {
-                protobuf::rt::encode_tag(out, 111, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, v as u64);
+                pbrs::rt::encode_tag(out, 111, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, v as u64);
             }
             if let Some(p) = self.oneof_nested_message.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 112, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 112, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.oneof_nested_message.as_deref() {
-                protobuf::rt::encode_len_header(out, 112, m.compute_size());
+                pbrs::rt::encode_len_header(out, 112, m.compute_size());
                 m.write_to(out);
             }
             if let Some(s) = &self.oneof_string {
-                protobuf::rt::encode_len_field(out, 113, s.as_bytes());
+                pbrs::rt::encode_len_field(out, 113, s.as_bytes());
             }
             if let Some(s) = &self.oneof_bytes {
-                protobuf::rt::encode_len_field(out, 114, s.as_bytes());
+                pbrs::rt::encode_len_field(out, 114, s.as_bytes());
             }
             if let Some(p) = self.optional_lazy_import_message.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 115, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 115, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.optional_lazy_import_message.as_deref() {
-                protobuf::rt::encode_len_header(out, 115, m.compute_size());
+                pbrs::rt::encode_len_header(out, 115, m.compute_size());
                 m.write_to(out);
             }
             if let Some(c) = self.cold.as_deref() {
                 if let Some(p) = c.repeated_int32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 31, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 31, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_int32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_int32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 31, payload);
+                    pbrs::rt::encode_len_header(out, 31, payload);
                     for t in c.repeated_int32.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.repeated_int64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 32, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 32, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_int64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_int64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 32, payload);
+                    pbrs::rt::encode_len_header(out, 32, payload);
                     for t in c.repeated_int64.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.repeated_uint32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 33, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 33, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_uint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_uint32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 33, payload);
+                    pbrs::rt::encode_len_header(out, 33, payload);
                     for t in c.repeated_uint32.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.repeated_uint64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 34, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 34, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_uint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_uint64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 34, payload);
+                    pbrs::rt::encode_len_header(out, 34, payload);
                     for t in c.repeated_uint64.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.repeated_sint32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 35, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 35, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_sint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sint32.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag32(*t));
                     }
-                    protobuf::rt::encode_len_header(out, 35, payload);
+                    pbrs::rt::encode_len_header(out, 35, payload);
                     for t in c.repeated_sint32.iter() {
-                        protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag32(*t));
+                        pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag32(*t));
                     }
                 }
                 if let Some(p) = c.repeated_sint64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 36, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 36, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_sint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sint64.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag64(*t));
                     }
-                    protobuf::rt::encode_len_header(out, 36, payload);
+                    pbrs::rt::encode_len_header(out, 36, payload);
                     for t in c.repeated_sint64.iter() {
-                        protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag64(*t));
+                        pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(*t));
                     }
                 }
                 if let Some(p) = c.repeated_fixed32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 37, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 37, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_fixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_fixed32.iter() {
                         payload += 4;
                     }
-                    protobuf::rt::encode_len_header(out, 37, payload);
+                    pbrs::rt::encode_len_header(out, 37, payload);
                     for t in c.repeated_fixed32.iter() {
                         (out).extend_from_slice(&(*t).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.repeated_fixed64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 38, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 38, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_fixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_fixed64.iter() {
                         payload += 8;
                     }
-                    protobuf::rt::encode_len_header(out, 38, payload);
+                    pbrs::rt::encode_len_header(out, 38, payload);
                     for t in c.repeated_fixed64.iter() {
                         (out).extend_from_slice(&(*t).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.repeated_sfixed32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 39, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 39, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_sfixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sfixed32.iter() {
                         payload += 4;
                     }
-                    protobuf::rt::encode_len_header(out, 39, payload);
+                    pbrs::rt::encode_len_header(out, 39, payload);
                     for t in c.repeated_sfixed32.iter() {
                         (out).extend_from_slice(&((*t) as u32).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.repeated_sfixed64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 40, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 40, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_sfixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_sfixed64.iter() {
                         payload += 8;
                     }
-                    protobuf::rt::encode_len_header(out, 40, payload);
+                    pbrs::rt::encode_len_header(out, 40, payload);
                     for t in c.repeated_sfixed64.iter() {
                         (out).extend_from_slice(&((*t) as u64).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.repeated_float.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 41, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 41, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_float.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_float.iter() {
                         payload += 4;
                     }
-                    protobuf::rt::encode_len_header(out, 41, payload);
+                    pbrs::rt::encode_len_header(out, 41, payload);
                     for t in c.repeated_float.iter() {
                         (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                     }
                 }
                 if let Some(p) = c.repeated_double.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 42, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 42, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_double.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_double.iter() {
                         payload += 8;
                     }
-                    protobuf::rt::encode_len_header(out, 42, payload);
+                    pbrs::rt::encode_len_header(out, 42, payload);
                     for t in c.repeated_double.iter() {
                         (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                     }
                 }
                 if let Some(p) = c.repeated_bool.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 43, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 43, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_bool.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_bool.iter() {
-                        payload += protobuf::rt::varint_len(u64::from(*t));
+                        payload += pbrs::rt::varint_len(u64::from(*t));
                     }
-                    protobuf::rt::encode_len_header(out, 43, payload);
+                    pbrs::rt::encode_len_header(out, 43, payload);
                     for t in c.repeated_bool.iter() {
-                        protobuf::rt::encode_varint(out, u64::from(*t));
+                        pbrs::rt::encode_varint(out, u64::from(*t));
                     }
                 }
                 for t in c.repeated_nested_message.iter() {
-                    protobuf::rt::encode_len_header(out, 48, t.compute_size());
+                    pbrs::rt::encode_len_header(out, 48, t.compute_size());
                     t.write_to(out);
                 }
                 for t in c.repeated_foreign_message.iter() {
-                    protobuf::rt::encode_len_header(out, 49, t.compute_size());
+                    pbrs::rt::encode_len_header(out, 49, t.compute_size());
                     t.write_to(out);
                 }
                 for t in c.repeated_import_message.iter() {
-                    protobuf::rt::encode_len_header(out, 50, t.compute_size());
+                    pbrs::rt::encode_len_header(out, 50, t.compute_size());
                     t.write_to(out);
                 }
                 if let Some(p) = c.repeated_nested_enum.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 51, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 51, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_nested_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_nested_enum.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 51, payload);
+                    pbrs::rt::encode_len_header(out, 51, payload);
                     for t in c.repeated_nested_enum.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.repeated_foreign_enum.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 52, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 52, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.repeated_foreign_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.repeated_foreign_enum.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 52, payload);
+                    pbrs::rt::encode_len_header(out, 52, payload);
                     for t in c.repeated_foreign_enum.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 for t in c.repeated_lazy_message.iter() {
-                    protobuf::rt::encode_len_header(out, 57, t.compute_size());
+                    pbrs::rt::encode_len_header(out, 57, t.compute_size());
                     t.write_to(out);
                 }
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(TestAllTypes, TestAllTypesView, TestAllTypesMut);
+    pbrs::impl_typed_message!(TestAllTypes, TestAllTypesView, TestAllTypesMut);
     #[derive(Clone, Debug)]
     pub struct NestedMessage {
         bb: i32,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for NestedMessage {
         fn eq(&self, other: &Self) -> bool {
@@ -3679,7 +3650,7 @@ mod __gen {
     impl Default for NestedMessage {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl NestedMessage {
@@ -3703,7 +3674,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -3711,13 +3682,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -3726,22 +3697,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -3750,18 +3721,18 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.bb = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.bb = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -3773,26 +3744,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -3801,12 +3772,12 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -3820,25 +3791,25 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if self.bb != 0 {
-                n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.bb) as u64);
+                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.bb) as u64);
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if self.bb != 0 {
-                protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.bb as u64);
+                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.bb as u64);
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut);
+    pbrs::impl_typed_message!(NestedMessage, NestedMessageView, NestedMessageMut);
     #[derive(Clone, Debug)]
     pub struct TestEmptyMessage {
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestEmptyMessage {
         fn eq(&self, other: &Self) -> bool {
@@ -3849,7 +3820,7 @@ mod __gen {
     impl Default for TestEmptyMessage {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestEmptyMessage {
@@ -3866,7 +3837,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -3874,13 +3845,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -3889,22 +3860,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -3915,7 +3886,7 @@ mod __gen {
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -3927,26 +3898,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -3954,7 +3925,7 @@ mod __gen {
                     }
                 }
                 match n {
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -3974,7 +3945,7 @@ mod __gen {
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(TestEmptyMessage, TestEmptyMessageView, TestEmptyMessageMut);
+    pbrs::impl_typed_message!(TestEmptyMessage, TestEmptyMessageView, TestEmptyMessageMut);
     #[derive(Clone, Debug)]
     pub struct TestHasbits {
         b1: bool,
@@ -4046,9 +4017,9 @@ mod __gen {
         b67: bool,
         b68: bool,
         b69: bool,
-        child: protobuf::rt::LazyMsg<TestAllTypes>,
+        child: pbrs::rt::LazyMsg<TestAllTypes>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestHasbits {
         fn eq(&self, other: &Self) -> bool {
@@ -4269,7 +4240,7 @@ mod __gen {
     impl Default for TestHasbits {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestHasbits {
@@ -4767,7 +4738,7 @@ mod __gen {
         pub fn child(&self) -> &TestAllTypes {
             self.child
                 .as_deref()
-                .unwrap_or(protobuf::gen_support::default_instance_of())
+                .unwrap_or(pbrs::gen_support::default_instance_of())
         }
         pub fn child_opt(&self) -> Option<&TestAllTypes> {
             self.child.as_deref()
@@ -4777,7 +4748,7 @@ mod __gen {
         }
         pub fn set_child(&mut self, v: TestAllTypes) {
             self.cached_size.dirty();
-            self.child = protobuf::rt::LazyMsg::from_owned(v);
+            self.child = pbrs::rt::LazyMsg::from_owned(v);
         }
         pub fn child_mut(&mut self) -> &mut TestAllTypes {
             self.cached_size.dirty();
@@ -4795,7 +4766,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -4803,13 +4774,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -4818,22 +4789,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -4842,629 +4813,629 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b1 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b1 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b2 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b2 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     3 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b3 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b3 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     4 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b4 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b4 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     5 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b5 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b5 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     6 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b6 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b6 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     7 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b7 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b7 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     8 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b8 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b8 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     9 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b9 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b9 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     10 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b10 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b10 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     11 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b11 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b11 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     12 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b12 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b12 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     13 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b13 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b13 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     14 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b14 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b14 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     15 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b15 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b15 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     16 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b16 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b16 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     17 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b17 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b17 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     18 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b18 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b18 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     19 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b19 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b19 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     20 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b20 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b20 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     21 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b21 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b21 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     22 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b22 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b22 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     23 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b23 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b23 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     24 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b24 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b24 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     25 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b25 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b25 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     26 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b26 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b26 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     27 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b27 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b27 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     28 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b28 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b28 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     29 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b29 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b29 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     30 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b30 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b30 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     31 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b31 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b31 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     32 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b32 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b32 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     33 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b33 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b33 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     34 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b34 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b34 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     35 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b35 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b35 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     36 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b36 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b36 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     37 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b37 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b37 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     38 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b38 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b38 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     39 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b39 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b39 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     40 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b40 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b40 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     41 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b41 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b41 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     42 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b42 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b42 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     43 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b43 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b43 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     44 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b44 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b44 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     45 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b45 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b45 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     46 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b46 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b46 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     47 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b47 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b47 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     48 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b48 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b48 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     49 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b49 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b49 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     50 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b50 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b50 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     51 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b51 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b51 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     52 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b52 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b52 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     53 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b53 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b53 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     54 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b54 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b54 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     55 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b55 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b55 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     56 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b56 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b56 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     57 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b57 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b57 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     58 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b58 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b58 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     59 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b59 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b59 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     60 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b60 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b60 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     61 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b61 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b61 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     62 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b62 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b62 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     63 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b63 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b63 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     64 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b64 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b64 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     65 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b65 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b65 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     66 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b66 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b66 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     67 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b67 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b67 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     68 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b68 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b68 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     69 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.b69 = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.b69 = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     100 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.child.is_some() {
                                 let mut ip = 0;
                                 self.child.get_or_insert().merge_inner(
@@ -5481,18 +5452,18 @@ mod __gen {
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.child = protobuf::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.child = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
                             }
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -5504,26 +5475,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -5532,428 +5503,428 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     3 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     4 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     5 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     6 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     7 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     8 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     9 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     10 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     11 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     12 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     13 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     14 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     15 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     16 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     17 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     18 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     19 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     20 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     21 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     22 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     23 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     24 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     25 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     26 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     27 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     28 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     29 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     30 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     31 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     32 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     33 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     34 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     35 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     36 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     37 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     38 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     39 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     40 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     41 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     42 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     43 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     44 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     45 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     46 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     47 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     48 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     49 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     50 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     51 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     52 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     53 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     54 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     55 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     56 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     57 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     58 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     59 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     60 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     61 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     62 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     63 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     64 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     65 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     66 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     67 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     68 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     69 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     100 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             TestAllTypes::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -5967,582 +5938,582 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if self.b1 {
-                n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b1));
+                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b1));
             }
             if self.b2 {
-                n += protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b2));
+                n += pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b2));
             }
             if self.b3 {
-                n += protobuf::rt::tag_len(3, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b3));
+                n += pbrs::rt::tag_len(3, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b3));
             }
             if self.b4 {
-                n += protobuf::rt::tag_len(4, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b4));
+                n += pbrs::rt::tag_len(4, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b4));
             }
             if self.b5 {
-                n += protobuf::rt::tag_len(5, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b5));
+                n += pbrs::rt::tag_len(5, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b5));
             }
             if self.b6 {
-                n += protobuf::rt::tag_len(6, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b6));
+                n += pbrs::rt::tag_len(6, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b6));
             }
             if self.b7 {
-                n += protobuf::rt::tag_len(7, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b7));
+                n += pbrs::rt::tag_len(7, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b7));
             }
             if self.b8 {
-                n += protobuf::rt::tag_len(8, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b8));
+                n += pbrs::rt::tag_len(8, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b8));
             }
             if self.b9 {
-                n += protobuf::rt::tag_len(9, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b9));
+                n += pbrs::rt::tag_len(9, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b9));
             }
             if self.b10 {
-                n += protobuf::rt::tag_len(10, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b10));
+                n += pbrs::rt::tag_len(10, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b10));
             }
             if self.b11 {
-                n += protobuf::rt::tag_len(11, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b11));
+                n += pbrs::rt::tag_len(11, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b11));
             }
             if self.b12 {
-                n += protobuf::rt::tag_len(12, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b12));
+                n += pbrs::rt::tag_len(12, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b12));
             }
             if self.b13 {
-                n += protobuf::rt::tag_len(13, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b13));
+                n += pbrs::rt::tag_len(13, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b13));
             }
             if self.b14 {
-                n += protobuf::rt::tag_len(14, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b14));
+                n += pbrs::rt::tag_len(14, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b14));
             }
             if self.b15 {
-                n += protobuf::rt::tag_len(15, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b15));
+                n += pbrs::rt::tag_len(15, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b15));
             }
             if self.b16 {
-                n += protobuf::rt::tag_len(16, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b16));
+                n += pbrs::rt::tag_len(16, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b16));
             }
             if self.b17 {
-                n += protobuf::rt::tag_len(17, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b17));
+                n += pbrs::rt::tag_len(17, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b17));
             }
             if self.b18 {
-                n += protobuf::rt::tag_len(18, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b18));
+                n += pbrs::rt::tag_len(18, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b18));
             }
             if self.b19 {
-                n += protobuf::rt::tag_len(19, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b19));
+                n += pbrs::rt::tag_len(19, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b19));
             }
             if self.b20 {
-                n += protobuf::rt::tag_len(20, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b20));
+                n += pbrs::rt::tag_len(20, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b20));
             }
             if self.b21 {
-                n += protobuf::rt::tag_len(21, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b21));
+                n += pbrs::rt::tag_len(21, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b21));
             }
             if self.b22 {
-                n += protobuf::rt::tag_len(22, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b22));
+                n += pbrs::rt::tag_len(22, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b22));
             }
             if self.b23 {
-                n += protobuf::rt::tag_len(23, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b23));
+                n += pbrs::rt::tag_len(23, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b23));
             }
             if self.b24 {
-                n += protobuf::rt::tag_len(24, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b24));
+                n += pbrs::rt::tag_len(24, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b24));
             }
             if self.b25 {
-                n += protobuf::rt::tag_len(25, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b25));
+                n += pbrs::rt::tag_len(25, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b25));
             }
             if self.b26 {
-                n += protobuf::rt::tag_len(26, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b26));
+                n += pbrs::rt::tag_len(26, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b26));
             }
             if self.b27 {
-                n += protobuf::rt::tag_len(27, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b27));
+                n += pbrs::rt::tag_len(27, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b27));
             }
             if self.b28 {
-                n += protobuf::rt::tag_len(28, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b28));
+                n += pbrs::rt::tag_len(28, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b28));
             }
             if self.b29 {
-                n += protobuf::rt::tag_len(29, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b29));
+                n += pbrs::rt::tag_len(29, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b29));
             }
             if self.b30 {
-                n += protobuf::rt::tag_len(30, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b30));
+                n += pbrs::rt::tag_len(30, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b30));
             }
             if self.b31 {
-                n += protobuf::rt::tag_len(31, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b31));
+                n += pbrs::rt::tag_len(31, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b31));
             }
             if self.b32 {
-                n += protobuf::rt::tag_len(32, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b32));
+                n += pbrs::rt::tag_len(32, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b32));
             }
             if self.b33 {
-                n += protobuf::rt::tag_len(33, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b33));
+                n += pbrs::rt::tag_len(33, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b33));
             }
             if self.b34 {
-                n += protobuf::rt::tag_len(34, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b34));
+                n += pbrs::rt::tag_len(34, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b34));
             }
             if self.b35 {
-                n += protobuf::rt::tag_len(35, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b35));
+                n += pbrs::rt::tag_len(35, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b35));
             }
             if self.b36 {
-                n += protobuf::rt::tag_len(36, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b36));
+                n += pbrs::rt::tag_len(36, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b36));
             }
             if self.b37 {
-                n += protobuf::rt::tag_len(37, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b37));
+                n += pbrs::rt::tag_len(37, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b37));
             }
             if self.b38 {
-                n += protobuf::rt::tag_len(38, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b38));
+                n += pbrs::rt::tag_len(38, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b38));
             }
             if self.b39 {
-                n += protobuf::rt::tag_len(39, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b39));
+                n += pbrs::rt::tag_len(39, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b39));
             }
             if self.b40 {
-                n += protobuf::rt::tag_len(40, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b40));
+                n += pbrs::rt::tag_len(40, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b40));
             }
             if self.b41 {
-                n += protobuf::rt::tag_len(41, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b41));
+                n += pbrs::rt::tag_len(41, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b41));
             }
             if self.b42 {
-                n += protobuf::rt::tag_len(42, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b42));
+                n += pbrs::rt::tag_len(42, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b42));
             }
             if self.b43 {
-                n += protobuf::rt::tag_len(43, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b43));
+                n += pbrs::rt::tag_len(43, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b43));
             }
             if self.b44 {
-                n += protobuf::rt::tag_len(44, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b44));
+                n += pbrs::rt::tag_len(44, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b44));
             }
             if self.b45 {
-                n += protobuf::rt::tag_len(45, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b45));
+                n += pbrs::rt::tag_len(45, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b45));
             }
             if self.b46 {
-                n += protobuf::rt::tag_len(46, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b46));
+                n += pbrs::rt::tag_len(46, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b46));
             }
             if self.b47 {
-                n += protobuf::rt::tag_len(47, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b47));
+                n += pbrs::rt::tag_len(47, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b47));
             }
             if self.b48 {
-                n += protobuf::rt::tag_len(48, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b48));
+                n += pbrs::rt::tag_len(48, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b48));
             }
             if self.b49 {
-                n += protobuf::rt::tag_len(49, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b49));
+                n += pbrs::rt::tag_len(49, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b49));
             }
             if self.b50 {
-                n += protobuf::rt::tag_len(50, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b50));
+                n += pbrs::rt::tag_len(50, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b50));
             }
             if self.b51 {
-                n += protobuf::rt::tag_len(51, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b51));
+                n += pbrs::rt::tag_len(51, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b51));
             }
             if self.b52 {
-                n += protobuf::rt::tag_len(52, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b52));
+                n += pbrs::rt::tag_len(52, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b52));
             }
             if self.b53 {
-                n += protobuf::rt::tag_len(53, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b53));
+                n += pbrs::rt::tag_len(53, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b53));
             }
             if self.b54 {
-                n += protobuf::rt::tag_len(54, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b54));
+                n += pbrs::rt::tag_len(54, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b54));
             }
             if self.b55 {
-                n += protobuf::rt::tag_len(55, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b55));
+                n += pbrs::rt::tag_len(55, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b55));
             }
             if self.b56 {
-                n += protobuf::rt::tag_len(56, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b56));
+                n += pbrs::rt::tag_len(56, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b56));
             }
             if self.b57 {
-                n += protobuf::rt::tag_len(57, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b57));
+                n += pbrs::rt::tag_len(57, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b57));
             }
             if self.b58 {
-                n += protobuf::rt::tag_len(58, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b58));
+                n += pbrs::rt::tag_len(58, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b58));
             }
             if self.b59 {
-                n += protobuf::rt::tag_len(59, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b59));
+                n += pbrs::rt::tag_len(59, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b59));
             }
             if self.b60 {
-                n += protobuf::rt::tag_len(60, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b60));
+                n += pbrs::rt::tag_len(60, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b60));
             }
             if self.b61 {
-                n += protobuf::rt::tag_len(61, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b61));
+                n += pbrs::rt::tag_len(61, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b61));
             }
             if self.b62 {
-                n += protobuf::rt::tag_len(62, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b62));
+                n += pbrs::rt::tag_len(62, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b62));
             }
             if self.b63 {
-                n += protobuf::rt::tag_len(63, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b63));
+                n += pbrs::rt::tag_len(63, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b63));
             }
             if self.b64 {
-                n += protobuf::rt::tag_len(64, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b64));
+                n += pbrs::rt::tag_len(64, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b64));
             }
             if self.b65 {
-                n += protobuf::rt::tag_len(65, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b65));
+                n += pbrs::rt::tag_len(65, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b65));
             }
             if self.b66 {
-                n += protobuf::rt::tag_len(66, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b66));
+                n += pbrs::rt::tag_len(66, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b66));
             }
             if self.b67 {
-                n += protobuf::rt::tag_len(67, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b67));
+                n += pbrs::rt::tag_len(67, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b67));
             }
             if self.b68 {
-                n += protobuf::rt::tag_len(68, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b68));
+                n += pbrs::rt::tag_len(68, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b68));
             }
             if self.b69 {
-                n += protobuf::rt::tag_len(69, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.b69));
+                n += pbrs::rt::tag_len(69, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.b69));
             }
             if let Some(p) = self.child.wire_bytes() {
-                n += protobuf::rt::key_len_value_len(100, p.len() as u64);
+                n += pbrs::rt::key_len_value_len(100, p.len() as u64);
             } else if let Some(m) = self.child.as_deref() {
-                n += protobuf::rt::key_len_value_len(100, m.compute_size());
+                n += pbrs::rt::key_len_value_len(100, m.compute_size());
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if self.b1 {
-                protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b1));
+                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b1));
             }
             if self.b2 {
-                protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b2));
+                pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b2));
             }
             if self.b3 {
-                protobuf::rt::encode_tag(out, 3, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b3));
+                pbrs::rt::encode_tag(out, 3, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b3));
             }
             if self.b4 {
-                protobuf::rt::encode_tag(out, 4, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b4));
+                pbrs::rt::encode_tag(out, 4, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b4));
             }
             if self.b5 {
-                protobuf::rt::encode_tag(out, 5, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b5));
+                pbrs::rt::encode_tag(out, 5, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b5));
             }
             if self.b6 {
-                protobuf::rt::encode_tag(out, 6, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b6));
+                pbrs::rt::encode_tag(out, 6, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b6));
             }
             if self.b7 {
-                protobuf::rt::encode_tag(out, 7, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b7));
+                pbrs::rt::encode_tag(out, 7, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b7));
             }
             if self.b8 {
-                protobuf::rt::encode_tag(out, 8, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b8));
+                pbrs::rt::encode_tag(out, 8, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b8));
             }
             if self.b9 {
-                protobuf::rt::encode_tag(out, 9, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b9));
+                pbrs::rt::encode_tag(out, 9, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b9));
             }
             if self.b10 {
-                protobuf::rt::encode_tag(out, 10, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b10));
+                pbrs::rt::encode_tag(out, 10, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b10));
             }
             if self.b11 {
-                protobuf::rt::encode_tag(out, 11, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b11));
+                pbrs::rt::encode_tag(out, 11, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b11));
             }
             if self.b12 {
-                protobuf::rt::encode_tag(out, 12, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b12));
+                pbrs::rt::encode_tag(out, 12, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b12));
             }
             if self.b13 {
-                protobuf::rt::encode_tag(out, 13, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b13));
+                pbrs::rt::encode_tag(out, 13, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b13));
             }
             if self.b14 {
-                protobuf::rt::encode_tag(out, 14, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b14));
+                pbrs::rt::encode_tag(out, 14, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b14));
             }
             if self.b15 {
-                protobuf::rt::encode_tag(out, 15, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b15));
+                pbrs::rt::encode_tag(out, 15, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b15));
             }
             if self.b16 {
-                protobuf::rt::encode_tag(out, 16, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b16));
+                pbrs::rt::encode_tag(out, 16, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b16));
             }
             if self.b17 {
-                protobuf::rt::encode_tag(out, 17, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b17));
+                pbrs::rt::encode_tag(out, 17, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b17));
             }
             if self.b18 {
-                protobuf::rt::encode_tag(out, 18, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b18));
+                pbrs::rt::encode_tag(out, 18, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b18));
             }
             if self.b19 {
-                protobuf::rt::encode_tag(out, 19, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b19));
+                pbrs::rt::encode_tag(out, 19, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b19));
             }
             if self.b20 {
-                protobuf::rt::encode_tag(out, 20, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b20));
+                pbrs::rt::encode_tag(out, 20, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b20));
             }
             if self.b21 {
-                protobuf::rt::encode_tag(out, 21, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b21));
+                pbrs::rt::encode_tag(out, 21, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b21));
             }
             if self.b22 {
-                protobuf::rt::encode_tag(out, 22, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b22));
+                pbrs::rt::encode_tag(out, 22, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b22));
             }
             if self.b23 {
-                protobuf::rt::encode_tag(out, 23, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b23));
+                pbrs::rt::encode_tag(out, 23, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b23));
             }
             if self.b24 {
-                protobuf::rt::encode_tag(out, 24, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b24));
+                pbrs::rt::encode_tag(out, 24, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b24));
             }
             if self.b25 {
-                protobuf::rt::encode_tag(out, 25, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b25));
+                pbrs::rt::encode_tag(out, 25, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b25));
             }
             if self.b26 {
-                protobuf::rt::encode_tag(out, 26, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b26));
+                pbrs::rt::encode_tag(out, 26, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b26));
             }
             if self.b27 {
-                protobuf::rt::encode_tag(out, 27, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b27));
+                pbrs::rt::encode_tag(out, 27, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b27));
             }
             if self.b28 {
-                protobuf::rt::encode_tag(out, 28, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b28));
+                pbrs::rt::encode_tag(out, 28, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b28));
             }
             if self.b29 {
-                protobuf::rt::encode_tag(out, 29, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b29));
+                pbrs::rt::encode_tag(out, 29, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b29));
             }
             if self.b30 {
-                protobuf::rt::encode_tag(out, 30, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b30));
+                pbrs::rt::encode_tag(out, 30, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b30));
             }
             if self.b31 {
-                protobuf::rt::encode_tag(out, 31, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b31));
+                pbrs::rt::encode_tag(out, 31, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b31));
             }
             if self.b32 {
-                protobuf::rt::encode_tag(out, 32, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b32));
+                pbrs::rt::encode_tag(out, 32, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b32));
             }
             if self.b33 {
-                protobuf::rt::encode_tag(out, 33, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b33));
+                pbrs::rt::encode_tag(out, 33, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b33));
             }
             if self.b34 {
-                protobuf::rt::encode_tag(out, 34, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b34));
+                pbrs::rt::encode_tag(out, 34, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b34));
             }
             if self.b35 {
-                protobuf::rt::encode_tag(out, 35, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b35));
+                pbrs::rt::encode_tag(out, 35, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b35));
             }
             if self.b36 {
-                protobuf::rt::encode_tag(out, 36, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b36));
+                pbrs::rt::encode_tag(out, 36, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b36));
             }
             if self.b37 {
-                protobuf::rt::encode_tag(out, 37, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b37));
+                pbrs::rt::encode_tag(out, 37, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b37));
             }
             if self.b38 {
-                protobuf::rt::encode_tag(out, 38, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b38));
+                pbrs::rt::encode_tag(out, 38, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b38));
             }
             if self.b39 {
-                protobuf::rt::encode_tag(out, 39, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b39));
+                pbrs::rt::encode_tag(out, 39, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b39));
             }
             if self.b40 {
-                protobuf::rt::encode_tag(out, 40, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b40));
+                pbrs::rt::encode_tag(out, 40, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b40));
             }
             if self.b41 {
-                protobuf::rt::encode_tag(out, 41, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b41));
+                pbrs::rt::encode_tag(out, 41, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b41));
             }
             if self.b42 {
-                protobuf::rt::encode_tag(out, 42, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b42));
+                pbrs::rt::encode_tag(out, 42, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b42));
             }
             if self.b43 {
-                protobuf::rt::encode_tag(out, 43, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b43));
+                pbrs::rt::encode_tag(out, 43, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b43));
             }
             if self.b44 {
-                protobuf::rt::encode_tag(out, 44, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b44));
+                pbrs::rt::encode_tag(out, 44, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b44));
             }
             if self.b45 {
-                protobuf::rt::encode_tag(out, 45, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b45));
+                pbrs::rt::encode_tag(out, 45, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b45));
             }
             if self.b46 {
-                protobuf::rt::encode_tag(out, 46, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b46));
+                pbrs::rt::encode_tag(out, 46, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b46));
             }
             if self.b47 {
-                protobuf::rt::encode_tag(out, 47, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b47));
+                pbrs::rt::encode_tag(out, 47, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b47));
             }
             if self.b48 {
-                protobuf::rt::encode_tag(out, 48, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b48));
+                pbrs::rt::encode_tag(out, 48, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b48));
             }
             if self.b49 {
-                protobuf::rt::encode_tag(out, 49, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b49));
+                pbrs::rt::encode_tag(out, 49, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b49));
             }
             if self.b50 {
-                protobuf::rt::encode_tag(out, 50, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b50));
+                pbrs::rt::encode_tag(out, 50, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b50));
             }
             if self.b51 {
-                protobuf::rt::encode_tag(out, 51, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b51));
+                pbrs::rt::encode_tag(out, 51, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b51));
             }
             if self.b52 {
-                protobuf::rt::encode_tag(out, 52, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b52));
+                pbrs::rt::encode_tag(out, 52, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b52));
             }
             if self.b53 {
-                protobuf::rt::encode_tag(out, 53, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b53));
+                pbrs::rt::encode_tag(out, 53, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b53));
             }
             if self.b54 {
-                protobuf::rt::encode_tag(out, 54, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b54));
+                pbrs::rt::encode_tag(out, 54, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b54));
             }
             if self.b55 {
-                protobuf::rt::encode_tag(out, 55, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b55));
+                pbrs::rt::encode_tag(out, 55, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b55));
             }
             if self.b56 {
-                protobuf::rt::encode_tag(out, 56, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b56));
+                pbrs::rt::encode_tag(out, 56, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b56));
             }
             if self.b57 {
-                protobuf::rt::encode_tag(out, 57, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b57));
+                pbrs::rt::encode_tag(out, 57, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b57));
             }
             if self.b58 {
-                protobuf::rt::encode_tag(out, 58, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b58));
+                pbrs::rt::encode_tag(out, 58, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b58));
             }
             if self.b59 {
-                protobuf::rt::encode_tag(out, 59, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b59));
+                pbrs::rt::encode_tag(out, 59, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b59));
             }
             if self.b60 {
-                protobuf::rt::encode_tag(out, 60, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b60));
+                pbrs::rt::encode_tag(out, 60, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b60));
             }
             if self.b61 {
-                protobuf::rt::encode_tag(out, 61, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b61));
+                pbrs::rt::encode_tag(out, 61, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b61));
             }
             if self.b62 {
-                protobuf::rt::encode_tag(out, 62, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b62));
+                pbrs::rt::encode_tag(out, 62, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b62));
             }
             if self.b63 {
-                protobuf::rt::encode_tag(out, 63, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b63));
+                pbrs::rt::encode_tag(out, 63, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b63));
             }
             if self.b64 {
-                protobuf::rt::encode_tag(out, 64, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b64));
+                pbrs::rt::encode_tag(out, 64, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b64));
             }
             if self.b65 {
-                protobuf::rt::encode_tag(out, 65, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b65));
+                pbrs::rt::encode_tag(out, 65, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b65));
             }
             if self.b66 {
-                protobuf::rt::encode_tag(out, 66, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b66));
+                pbrs::rt::encode_tag(out, 66, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b66));
             }
             if self.b67 {
-                protobuf::rt::encode_tag(out, 67, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b67));
+                pbrs::rt::encode_tag(out, 67, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b67));
             }
             if self.b68 {
-                protobuf::rt::encode_tag(out, 68, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b68));
+                pbrs::rt::encode_tag(out, 68, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b68));
             }
             if self.b69 {
-                protobuf::rt::encode_tag(out, 69, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.b69));
+                pbrs::rt::encode_tag(out, 69, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.b69));
             }
             if let Some(p) = self.child.wire_bytes() {
-                protobuf::rt::encode_len_header(out, 100, p.len() as u64);
+                pbrs::rt::encode_len_header(out, 100, p.len() as u64);
                 out.extend_from_slice(p);
             } else if let Some(m) = self.child.as_deref() {
-                protobuf::rt::encode_len_header(out, 100, m.compute_size());
+                pbrs::rt::encode_len_header(out, 100, m.compute_size());
                 m.write_to(out);
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(TestHasbits, TestHasbitsView, TestHasbitsMut);
+    pbrs::impl_typed_message!(TestHasbits, TestHasbitsView, TestHasbitsMut);
     #[derive(Clone, Debug)]
     pub struct TestMessageWithDummy {
         dummy: bool,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestMessageWithDummy {
         fn eq(&self, other: &Self) -> bool {
@@ -6556,7 +6527,7 @@ mod __gen {
     impl Default for TestMessageWithDummy {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestMessageWithDummy {
@@ -6580,7 +6551,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -6588,13 +6559,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -6603,22 +6574,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -6627,18 +6598,18 @@ mod __gen {
                 }
                 match n {
                     536870911 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.dummy = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.dummy = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -6650,26 +6621,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -6678,12 +6649,12 @@ mod __gen {
                 }
                 match n {
                     536870911 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -6697,21 +6668,21 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if self.dummy {
-                n += protobuf::rt::tag_len(536870911, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len(u64::from(self.dummy));
+                n += pbrs::rt::tag_len(536870911, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len(u64::from(self.dummy));
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if self.dummy {
-                protobuf::rt::encode_tag(out, 536870911, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, u64::from(self.dummy));
+                pbrs::rt::encode_tag(out, 536870911, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, u64::from(self.dummy));
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(
+    pbrs::impl_typed_message!(
         TestMessageWithDummy,
         TestMessageWithDummyView,
         TestMessageWithDummyMut
@@ -6720,7 +6691,7 @@ mod __gen {
     pub struct TestOneof2 {
         foo_enum: Option<i32>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestOneof2 {
         fn eq(&self, other: &Self) -> bool {
@@ -6734,7 +6705,7 @@ mod __gen {
     impl Default for TestOneof2 {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestOneof2 {
@@ -6768,7 +6739,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -6776,13 +6747,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -6791,22 +6762,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -6815,18 +6786,18 @@ mod __gen {
                 }
                 match n {
                     6 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.foo_enum = Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        pbrs::rt::WIRE_VARINT => {
+                            self.foo_enum = Some(pbrs::rt::decode_varint(data, pos)? as i32);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -6838,26 +6809,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -6866,12 +6837,12 @@ mod __gen {
                 }
                 match n {
                     6 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -6885,49 +6856,48 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if let Some(v) = self.foo_enum {
-                n += protobuf::rt::tag_len(6, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((v) as u64);
+                n += pbrs::rt::tag_len(6, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len((v) as u64);
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if let Some(v) = self.foo_enum {
-                protobuf::rt::encode_tag(out, 6, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, v as u64);
+                pbrs::rt::encode_tag(out, 6, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, v as u64);
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(TestOneof2, TestOneof2View, TestOneof2Mut);
+    pbrs::impl_typed_message!(TestOneof2, TestOneof2View, TestOneof2Mut);
     #[derive(Clone, Debug, PartialEq)]
     struct TestPackedTypesCold {
-        packed_int32: protobuf::rt::PackedI32,
-        packed_int64: protobuf::rt::PackedI64,
-        packed_uint32: protobuf::rt::PackedU32,
-        packed_uint64: protobuf::rt::PackedU64,
-        packed_sint32: protobuf::rt::PackedS32,
-        packed_sint64: protobuf::rt::PackedS64,
-        packed_fixed32: protobuf::rt::PackedFx32,
-        packed_fixed64: protobuf::rt::PackedFx64,
-        packed_sfixed32: protobuf::rt::PackedSfx32,
-        packed_sfixed64: protobuf::rt::PackedSfx64,
-        packed_float: protobuf::rt::PackedF32,
-        packed_double: protobuf::rt::PackedF64,
-        packed_bool: protobuf::rt::PackedBool,
-        packed_enum: protobuf::rt::PackedI32,
+        packed_int32: pbrs::rt::PackedI32,
+        packed_int64: pbrs::rt::PackedI64,
+        packed_uint32: pbrs::rt::PackedU32,
+        packed_uint64: pbrs::rt::PackedU64,
+        packed_sint32: pbrs::rt::PackedS32,
+        packed_sint64: pbrs::rt::PackedS64,
+        packed_fixed32: pbrs::rt::PackedFx32,
+        packed_fixed64: pbrs::rt::PackedFx64,
+        packed_sfixed32: pbrs::rt::PackedSfx32,
+        packed_sfixed64: pbrs::rt::PackedSfx64,
+        packed_float: pbrs::rt::PackedF32,
+        packed_double: pbrs::rt::PackedF64,
+        packed_bool: pbrs::rt::PackedBool,
+        packed_enum: pbrs::rt::PackedI32,
     }
     impl Default for TestPackedTypesCold {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     #[derive(Clone, Debug)]
     pub struct TestPackedTypes {
         cold: Option<Box<TestPackedTypesCold>>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestPackedTypes {
         fn eq(&self, other: &Self) -> bool {
@@ -6956,7 +6926,7 @@ mod __gen {
     impl Default for TestPackedTypes {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestPackedTypes {
@@ -6982,8 +6952,7 @@ mod __gen {
         }
         pub fn set_packed_int32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_int32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+            self.cold_mut().packed_int32 = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_int64(&self) -> RepeatedView<'_, i64> {
             self.cold
@@ -6997,8 +6966,7 @@ mod __gen {
         }
         pub fn set_packed_int64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_int64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+            self.cold_mut().packed_int64 = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_uint32(&self) -> RepeatedView<'_, u32> {
             self.cold
@@ -7013,7 +6981,7 @@ mod __gen {
         pub fn set_packed_uint32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
             self.cold_mut().packed_uint32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_uint64(&self) -> RepeatedView<'_, u64> {
             self.cold
@@ -7028,7 +6996,7 @@ mod __gen {
         pub fn set_packed_uint64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
             self.cold_mut().packed_uint64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sint32(&self) -> RepeatedView<'_, i32> {
             self.cold
@@ -7043,7 +7011,7 @@ mod __gen {
         pub fn set_packed_sint32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().packed_sint32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sint64(&self) -> RepeatedView<'_, i64> {
             self.cold
@@ -7058,7 +7026,7 @@ mod __gen {
         pub fn set_packed_sint64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
             self.cold_mut().packed_sint64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_fixed32(&self) -> RepeatedView<'_, u32> {
             self.cold
@@ -7073,7 +7041,7 @@ mod __gen {
         pub fn set_packed_fixed32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
             self.cold_mut().packed_fixed32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_fixed64(&self) -> RepeatedView<'_, u64> {
             self.cold
@@ -7088,7 +7056,7 @@ mod __gen {
         pub fn set_packed_fixed64(&mut self, v: impl IntoIterator<Item = u64>) {
             self.cached_size.dirty();
             self.cold_mut().packed_fixed64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sfixed32(&self) -> RepeatedView<'_, i32> {
             self.cold
@@ -7103,7 +7071,7 @@ mod __gen {
         pub fn set_packed_sfixed32(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
             self.cold_mut().packed_sfixed32 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_sfixed64(&self) -> RepeatedView<'_, i64> {
             self.cold
@@ -7118,7 +7086,7 @@ mod __gen {
         pub fn set_packed_sfixed64(&mut self, v: impl IntoIterator<Item = i64>) {
             self.cached_size.dirty();
             self.cold_mut().packed_sfixed64 =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_float(&self) -> RepeatedView<'_, f32> {
             self.cold
@@ -7132,8 +7100,7 @@ mod __gen {
         }
         pub fn set_packed_float(&mut self, v: impl IntoIterator<Item = f32>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_float =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+            self.cold_mut().packed_float = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_double(&self) -> RepeatedView<'_, f64> {
             self.cold
@@ -7148,7 +7115,7 @@ mod __gen {
         pub fn set_packed_double(&mut self, v: impl IntoIterator<Item = f64>) {
             self.cached_size.dirty();
             self.cold_mut().packed_double =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_bool(&self) -> RepeatedView<'_, bool> {
             self.cold
@@ -7162,8 +7129,7 @@ mod __gen {
         }
         pub fn set_packed_bool(&mut self, v: impl IntoIterator<Item = bool>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_bool =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+            self.cold_mut().packed_bool = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_enum(&self) -> RepeatedView<'_, i32> {
             self.cold
@@ -7177,8 +7143,7 @@ mod __gen {
         }
         pub fn set_packed_enum(&mut self, v: impl IntoIterator<Item = i32>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_enum =
-                protobuf::rt::Packed::from_repeated(v.into_iter().collect());
+            self.cold_mut().packed_enum = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
@@ -7188,7 +7153,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -7196,13 +7161,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -7211,22 +7176,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -7235,235 +7200,235 @@ mod __gen {
                 }
                 match n {
                     90 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_int32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .packed_int32
-                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     91 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_int64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .packed_int64
-                            .push(protobuf::rt::decode_varint(data, pos)? as i64),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i64),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     92 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_uint32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .packed_uint32
-                            .push(protobuf::rt::decode_varint(data, pos)? as u32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as u32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     93 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_uint64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .packed_uint64
-                            .push(protobuf::rt::decode_varint(data, pos)?),
+                            .push(pbrs::rt::decode_varint(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     94 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sint32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
+                        pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .packed_sint32
-                                .push(protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
+                                .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
                                     data, pos,
                                 )?))
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     95 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sint64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
+                        pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .packed_sint64
-                                .push(protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
+                                .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
                                     data, pos,
                                 )?))
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     96 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_fixed32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .packed_fixed32
-                            .push(protobuf::rt::read_fixed32(data, pos)?),
+                            .push(pbrs::rt::read_fixed32(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     97 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_fixed64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .packed_fixed64
-                            .push(protobuf::rt::read_fixed64(data, pos)?),
+                            .push(pbrs::rt::read_fixed64(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     98 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sfixed32
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .packed_sfixed32
-                            .push(protobuf::rt::read_fixed32(data, pos)? as i32),
+                            .push(pbrs::rt::read_fixed32(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     99 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sfixed64
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .packed_sfixed64
-                            .push(protobuf::rt::read_fixed64(data, pos)? as i64),
+                            .push(pbrs::rt::read_fixed64(data, pos)? as i64),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     100 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_float
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .packed_float
-                            .push(f32::from_bits(protobuf::rt::read_fixed32(data, pos)?)),
+                            .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     101 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_double
                                 .append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .packed_double
-                            .push(f64::from_bits(protobuf::rt::read_fixed64(data, pos)?)),
+                            .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     102 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut().packed_bool.append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .packed_bool
-                            .push(protobuf::rt::decode_varint(data, pos)? != 0),
+                            .push(pbrs::rt::decode_varint(data, pos)? != 0),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     103 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut().packed_enum.append_wire(wire.window(s, e))?;
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .packed_enum
-                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -7475,26 +7440,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -7503,150 +7468,146 @@ mod __gen {
                 }
                 match n {
                     90 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     91 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i64;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     92 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedU32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedU32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as u32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     93 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedU64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedU64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)?;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     94 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedS32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedS32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     95 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedS64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedS64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     96 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedFx32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedFx32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)?;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     97 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedFx64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedFx64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)?;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     98 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedSfx32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedSfx32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)? as i32;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     99 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedSfx64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedSfx64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)? as i64;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     100 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedF32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedF32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = f32::from_bits(protobuf::rt::read_fixed32(data, pos)?);
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     101 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedF64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedF64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = f64::from_bits(protobuf::rt::read_fixed64(data, pos)?);
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     102 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedBool::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedBool::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     103 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -7661,130 +7622,130 @@ mod __gen {
             let mut n = self.unknown.encoded_len();
             if let Some(c) = self.cold.as_deref() {
                 if let Some(p) = c.packed_int32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(90, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(90, p.len() as u64);
                 } else if !c.packed_int32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_int32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(90, payload);
+                    n += pbrs::rt::key_len_value_len(90, payload);
                 }
                 if let Some(p) = c.packed_int64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(91, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(91, p.len() as u64);
                 } else if !c.packed_int64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_int64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(91, payload);
+                    n += pbrs::rt::key_len_value_len(91, payload);
                 }
                 if let Some(p) = c.packed_uint32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(92, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(92, p.len() as u64);
                 } else if !c.packed_uint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_uint32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(92, payload);
+                    n += pbrs::rt::key_len_value_len(92, payload);
                 }
                 if let Some(p) = c.packed_uint64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(93, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(93, p.len() as u64);
                 } else if !c.packed_uint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_uint64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(93, payload);
+                    n += pbrs::rt::key_len_value_len(93, payload);
                 }
                 if let Some(p) = c.packed_sint32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(94, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(94, p.len() as u64);
                 } else if !c.packed_sint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sint32.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag32(*t));
                     }
-                    n += protobuf::rt::key_len_value_len(94, payload);
+                    n += pbrs::rt::key_len_value_len(94, payload);
                 }
                 if let Some(p) = c.packed_sint64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(95, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(95, p.len() as u64);
                 } else if !c.packed_sint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sint64.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag64(*t));
                     }
-                    n += protobuf::rt::key_len_value_len(95, payload);
+                    n += pbrs::rt::key_len_value_len(95, payload);
                 }
                 if let Some(p) = c.packed_fixed32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(96, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(96, p.len() as u64);
                 } else if !c.packed_fixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_fixed32.iter() {
                         payload += 4;
                     }
-                    n += protobuf::rt::key_len_value_len(96, payload);
+                    n += pbrs::rt::key_len_value_len(96, payload);
                 }
                 if let Some(p) = c.packed_fixed64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(97, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(97, p.len() as u64);
                 } else if !c.packed_fixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_fixed64.iter() {
                         payload += 8;
                     }
-                    n += protobuf::rt::key_len_value_len(97, payload);
+                    n += pbrs::rt::key_len_value_len(97, payload);
                 }
                 if let Some(p) = c.packed_sfixed32.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(98, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(98, p.len() as u64);
                 } else if !c.packed_sfixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sfixed32.iter() {
                         payload += 4;
                     }
-                    n += protobuf::rt::key_len_value_len(98, payload);
+                    n += pbrs::rt::key_len_value_len(98, payload);
                 }
                 if let Some(p) = c.packed_sfixed64.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(99, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(99, p.len() as u64);
                 } else if !c.packed_sfixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sfixed64.iter() {
                         payload += 8;
                     }
-                    n += protobuf::rt::key_len_value_len(99, payload);
+                    n += pbrs::rt::key_len_value_len(99, payload);
                 }
                 if let Some(p) = c.packed_float.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(100, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(100, p.len() as u64);
                 } else if !c.packed_float.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_float.iter() {
                         payload += 4;
                     }
-                    n += protobuf::rt::key_len_value_len(100, payload);
+                    n += pbrs::rt::key_len_value_len(100, payload);
                 }
                 if let Some(p) = c.packed_double.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(101, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(101, p.len() as u64);
                 } else if !c.packed_double.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_double.iter() {
                         payload += 8;
                     }
-                    n += protobuf::rt::key_len_value_len(101, payload);
+                    n += pbrs::rt::key_len_value_len(101, payload);
                 }
                 if let Some(p) = c.packed_bool.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(102, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(102, p.len() as u64);
                 } else if !c.packed_bool.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_bool.iter() {
-                        payload += protobuf::rt::varint_len(u64::from(*t));
+                        payload += pbrs::rt::varint_len(u64::from(*t));
                     }
-                    n += protobuf::rt::key_len_value_len(102, payload);
+                    n += pbrs::rt::key_len_value_len(102, payload);
                 }
                 if let Some(p) = c.packed_enum.packed_bytes() {
-                    n += protobuf::rt::key_len_value_len(103, p.len() as u64);
+                    n += pbrs::rt::key_len_value_len(103, p.len() as u64);
                 } else if !c.packed_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_enum.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    n += protobuf::rt::key_len_value_len(103, payload);
+                    n += pbrs::rt::key_len_value_len(103, payload);
                 }
             }
             self.cached_size.set(n);
@@ -7793,192 +7754,192 @@ mod __gen {
         fn write_to(&self, out: &mut Vec<u8>) {
             if let Some(c) = self.cold.as_deref() {
                 if let Some(p) = c.packed_int32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 90, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 90, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_int32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_int32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 90, payload);
+                    pbrs::rt::encode_len_header(out, 90, payload);
                     for t in c.packed_int32.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.packed_int64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 91, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 91, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_int64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_int64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 91, payload);
+                    pbrs::rt::encode_len_header(out, 91, payload);
                     for t in c.packed_int64.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.packed_uint32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 92, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 92, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_uint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_uint32.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 92, payload);
+                    pbrs::rt::encode_len_header(out, 92, payload);
                     for t in c.packed_uint32.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.packed_uint64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 93, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 93, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_uint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_uint64.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 93, payload);
+                    pbrs::rt::encode_len_header(out, 93, payload);
                     for t in c.packed_uint64.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
                 if let Some(p) = c.packed_sint32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 94, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 94, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_sint32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sint32.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag32(*t));
                     }
-                    protobuf::rt::encode_len_header(out, 94, payload);
+                    pbrs::rt::encode_len_header(out, 94, payload);
                     for t in c.packed_sint32.iter() {
-                        protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag32(*t));
+                        pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag32(*t));
                     }
                 }
                 if let Some(p) = c.packed_sint64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 95, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 95, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_sint64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sint64.iter() {
-                        payload += protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
+                        payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag64(*t));
                     }
-                    protobuf::rt::encode_len_header(out, 95, payload);
+                    pbrs::rt::encode_len_header(out, 95, payload);
                     for t in c.packed_sint64.iter() {
-                        protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag64(*t));
+                        pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(*t));
                     }
                 }
                 if let Some(p) = c.packed_fixed32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 96, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 96, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_fixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_fixed32.iter() {
                         payload += 4;
                     }
-                    protobuf::rt::encode_len_header(out, 96, payload);
+                    pbrs::rt::encode_len_header(out, 96, payload);
                     for t in c.packed_fixed32.iter() {
                         (out).extend_from_slice(&(*t).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_fixed64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 97, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 97, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_fixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_fixed64.iter() {
                         payload += 8;
                     }
-                    protobuf::rt::encode_len_header(out, 97, payload);
+                    pbrs::rt::encode_len_header(out, 97, payload);
                     for t in c.packed_fixed64.iter() {
                         (out).extend_from_slice(&(*t).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_sfixed32.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 98, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 98, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_sfixed32.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sfixed32.iter() {
                         payload += 4;
                     }
-                    protobuf::rt::encode_len_header(out, 98, payload);
+                    pbrs::rt::encode_len_header(out, 98, payload);
                     for t in c.packed_sfixed32.iter() {
                         (out).extend_from_slice(&((*t) as u32).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_sfixed64.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 99, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 99, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_sfixed64.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_sfixed64.iter() {
                         payload += 8;
                     }
-                    protobuf::rt::encode_len_header(out, 99, payload);
+                    pbrs::rt::encode_len_header(out, 99, payload);
                     for t in c.packed_sfixed64.iter() {
                         (out).extend_from_slice(&((*t) as u64).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_float.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 100, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 100, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_float.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_float.iter() {
                         payload += 4;
                     }
-                    protobuf::rt::encode_len_header(out, 100, payload);
+                    pbrs::rt::encode_len_header(out, 100, payload);
                     for t in c.packed_float.iter() {
                         (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_double.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 101, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 101, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_double.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_double.iter() {
                         payload += 8;
                     }
-                    protobuf::rt::encode_len_header(out, 101, payload);
+                    pbrs::rt::encode_len_header(out, 101, payload);
                     for t in c.packed_double.iter() {
                         (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_bool.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 102, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 102, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_bool.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_bool.iter() {
-                        payload += protobuf::rt::varint_len(u64::from(*t));
+                        payload += pbrs::rt::varint_len(u64::from(*t));
                     }
-                    protobuf::rt::encode_len_header(out, 102, payload);
+                    pbrs::rt::encode_len_header(out, 102, payload);
                     for t in c.packed_bool.iter() {
-                        protobuf::rt::encode_varint(out, u64::from(*t));
+                        pbrs::rt::encode_varint(out, u64::from(*t));
                     }
                 }
                 if let Some(p) = c.packed_enum.packed_bytes() {
-                    protobuf::rt::encode_len_header(out, 103, p.len() as u64);
+                    pbrs::rt::encode_len_header(out, 103, p.len() as u64);
                     out.extend_from_slice(p);
                 } else if !c.packed_enum.is_empty() {
                     let mut payload = 0u64;
                     for t in c.packed_enum.iter() {
-                        payload += protobuf::rt::varint_len((*t) as u64);
+                        payload += pbrs::rt::varint_len((*t) as u64);
                     }
-                    protobuf::rt::encode_len_header(out, 103, payload);
+                    pbrs::rt::encode_len_header(out, 103, payload);
                     for t in c.packed_enum.iter() {
-                        protobuf::rt::encode_varint(out, *t as u64);
+                        pbrs::rt::encode_varint(out, *t as u64);
                     }
                 }
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(TestPackedTypes, TestPackedTypesView, TestPackedTypesMut);
+    pbrs::impl_typed_message!(TestPackedTypes, TestPackedTypesView, TestPackedTypesMut);
     #[derive(Clone, Debug, PartialEq)]
     struct TestUnpackedTypesCold {
         repeated_int32: Repeated<i32>,
@@ -7999,14 +7960,14 @@ mod __gen {
     impl Default for TestUnpackedTypesCold {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     #[derive(Clone, Debug)]
     pub struct TestUnpackedTypes {
         cold: Option<Box<TestUnpackedTypesCold>>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestUnpackedTypes {
         fn eq(&self, other: &Self) -> bool {
@@ -8035,7 +7996,7 @@ mod __gen {
     impl Default for TestUnpackedTypes {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestUnpackedTypes {
@@ -8253,7 +8214,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -8261,13 +8222,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -8276,22 +8237,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -8300,285 +8261,285 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_int32
-                                    .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
+                                    .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_int32
-                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_int64
-                                    .push(protobuf::rt::decode_varint(p, &mut i)? as i64);
+                                    .push(pbrs::rt::decode_varint(p, &mut i)? as i64);
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_int64
-                            .push(protobuf::rt::decode_varint(data, pos)? as i64),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i64),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     3 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_uint32
-                                    .push(protobuf::rt::decode_varint(p, &mut i)? as u32);
+                                    .push(pbrs::rt::decode_varint(p, &mut i)? as u32);
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_uint32
-                            .push(protobuf::rt::decode_varint(data, pos)? as u32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as u32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     4 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_uint64
-                                    .push(protobuf::rt::decode_varint(p, &mut i)?);
+                                    .push(pbrs::rt::decode_varint(p, &mut i)?);
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_uint64
-                            .push(protobuf::rt::decode_varint(data, pos)?),
+                            .push(pbrs::rt::decode_varint(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     5 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
-                                self.cold_mut().repeated_sint32.push(
-                                    protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
+                                self.cold_mut()
+                                    .repeated_sint32
+                                    .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
                                         p, &mut i,
-                                    )?),
-                                );
+                                    )?));
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => {
+                        pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .repeated_sint32
-                                .push(protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
+                                .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
                                     data, pos,
                                 )?))
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     6 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
-                                self.cold_mut().repeated_sint64.push(
-                                    protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
+                                self.cold_mut()
+                                    .repeated_sint64
+                                    .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
                                         p, &mut i,
-                                    )?),
-                                );
+                                    )?));
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => {
+                        pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .repeated_sint64
-                                .push(protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
+                                .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
                                     data, pos,
                                 )?))
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     7 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_fixed32
-                                    .push(protobuf::rt::read_fixed32(p, &mut i)?);
+                                    .push(pbrs::rt::read_fixed32(p, &mut i)?);
                             }
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .repeated_fixed32
-                            .push(protobuf::rt::read_fixed32(data, pos)?),
+                            .push(pbrs::rt::read_fixed32(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     8 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_fixed64
-                                    .push(protobuf::rt::read_fixed64(p, &mut i)?);
+                                    .push(pbrs::rt::read_fixed64(p, &mut i)?);
                             }
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .repeated_fixed64
-                            .push(protobuf::rt::read_fixed64(data, pos)?),
+                            .push(pbrs::rt::read_fixed64(data, pos)?),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     9 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_sfixed32
-                                    .push(protobuf::rt::read_fixed32(p, &mut i)? as i32);
+                                    .push(pbrs::rt::read_fixed32(p, &mut i)? as i32);
                             }
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .repeated_sfixed32
-                            .push(protobuf::rt::read_fixed32(data, pos)? as i32),
+                            .push(pbrs::rt::read_fixed32(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     10 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_sfixed64
-                                    .push(protobuf::rt::read_fixed64(p, &mut i)? as i64);
+                                    .push(pbrs::rt::read_fixed64(p, &mut i)? as i64);
                             }
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .repeated_sfixed64
-                            .push(protobuf::rt::read_fixed64(data, pos)? as i64),
+                            .push(pbrs::rt::read_fixed64(data, pos)? as i64),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     11 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_float
-                                    .push(f32::from_bits(protobuf::rt::read_fixed32(p, &mut i)?));
+                                    .push(f32::from_bits(pbrs::rt::read_fixed32(p, &mut i)?));
                             }
                         }
-                        protobuf::rt::WIRE_I32 => self
+                        pbrs::rt::WIRE_I32 => self
                             .cold_mut()
                             .repeated_float
-                            .push(f32::from_bits(protobuf::rt::read_fixed32(data, pos)?)),
+                            .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     12 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_double
-                                    .push(f64::from_bits(protobuf::rt::read_fixed64(p, &mut i)?));
+                                    .push(f64::from_bits(pbrs::rt::read_fixed64(p, &mut i)?));
                             }
                         }
-                        protobuf::rt::WIRE_I64 => self
+                        pbrs::rt::WIRE_I64 => self
                             .cold_mut()
                             .repeated_double
-                            .push(f64::from_bits(protobuf::rt::read_fixed64(data, pos)?)),
+                            .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     13 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_bool
-                                    .push(protobuf::rt::decode_varint(p, &mut i)? != 0);
+                                    .push(pbrs::rt::decode_varint(p, &mut i)? != 0);
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_bool
-                            .push(protobuf::rt::decode_varint(data, pos)? != 0),
+                            .push(pbrs::rt::decode_varint(data, pos)? != 0),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     14 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let p = protobuf::rt::read_len_bytes(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let p = pbrs::rt::read_len_bytes(data, pos)?;
                             let mut i = 0;
                             while i < p.len() {
                                 self.cold_mut()
                                     .repeated_nested_enum
-                                    .push(protobuf::rt::decode_varint(p, &mut i)? as i32);
+                                    .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        protobuf::rt::WIRE_VARINT => self
+                        pbrs::rt::WIRE_VARINT => self
                             .cold_mut()
                             .repeated_nested_enum
-                            .push(protobuf::rt::decode_varint(data, pos)? as i32),
+                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -8590,26 +8551,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -8618,150 +8579,146 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i64;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     3 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedU32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedU32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as u32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as u32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     4 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedU64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedU64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)?;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     5 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedS32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedS32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag32(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     6 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedS64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedS64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_zigzag64(protobuf::rt::decode_varint(
-                                data, pos,
-                            )?);
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     7 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedFx32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedFx32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)?;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     8 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedFx64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedFx64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)?;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)?;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     9 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedSfx32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedSfx32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = protobuf::rt::read_fixed32(data, pos)? as i32;
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = pbrs::rt::read_fixed32(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     10 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedSfx64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedSfx64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = protobuf::rt::read_fixed64(data, pos)? as i64;
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = pbrs::rt::read_fixed64(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     11 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedF32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedF32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I32 => {
-                            let _ = f32::from_bits(protobuf::rt::read_fixed32(data, pos)?);
+                        pbrs::rt::WIRE_I32 => {
+                            let _ = f32::from_bits(pbrs::rt::read_fixed32(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     12 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedF64::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedF64::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_I64 => {
-                            let _ = f64::from_bits(protobuf::rt::read_fixed64(data, pos)?);
+                        pbrs::rt::WIRE_I64 => {
+                            let _ = f64::from_bits(pbrs::rt::read_fixed64(data, pos)?);
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     13 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedBool::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedBool::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? != 0;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? != 0;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     14 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
-                            protobuf::rt::PackedI32::validate_bytes(&data[s..e])?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                            pbrs::rt::PackedI32::validate_bytes(&data[s..e])?;
                         }
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -8776,54 +8733,54 @@ mod __gen {
             let mut n = self.unknown.encoded_len();
             if let Some(c) = self.cold.as_deref() {
                 for t in c.repeated_int32.iter() {
-                    n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len((*t) as u64);
+                    n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len((*t) as u64);
                 }
                 for t in c.repeated_int64.iter() {
-                    n += protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len((*t) as u64);
+                    n += pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len((*t) as u64);
                 }
                 for t in c.repeated_uint32.iter() {
-                    n += protobuf::rt::tag_len(3, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len((*t) as u64);
+                    n += pbrs::rt::tag_len(3, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len((*t) as u64);
                 }
                 for t in c.repeated_uint64.iter() {
-                    n += protobuf::rt::tag_len(4, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len((*t) as u64);
+                    n += pbrs::rt::tag_len(4, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len((*t) as u64);
                 }
                 for t in c.repeated_sint32.iter() {
-                    n += protobuf::rt::tag_len(5, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len(protobuf::rt::encode_zigzag32(*t));
+                    n += pbrs::rt::tag_len(5, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len(pbrs::rt::encode_zigzag32(*t));
                 }
                 for t in c.repeated_sint64.iter() {
-                    n += protobuf::rt::tag_len(6, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len(protobuf::rt::encode_zigzag64(*t));
+                    n += pbrs::rt::tag_len(6, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len(pbrs::rt::encode_zigzag64(*t));
                 }
                 for t in c.repeated_fixed32.iter() {
-                    n += protobuf::rt::tag_len(7, protobuf::rt::WIRE_I32) + 4;
+                    n += pbrs::rt::tag_len(7, pbrs::rt::WIRE_I32) + 4;
                 }
                 for t in c.repeated_fixed64.iter() {
-                    n += protobuf::rt::tag_len(8, protobuf::rt::WIRE_I64) + 8;
+                    n += pbrs::rt::tag_len(8, pbrs::rt::WIRE_I64) + 8;
                 }
                 for t in c.repeated_sfixed32.iter() {
-                    n += protobuf::rt::tag_len(9, protobuf::rt::WIRE_I32) + 4;
+                    n += pbrs::rt::tag_len(9, pbrs::rt::WIRE_I32) + 4;
                 }
                 for t in c.repeated_sfixed64.iter() {
-                    n += protobuf::rt::tag_len(10, protobuf::rt::WIRE_I64) + 8;
+                    n += pbrs::rt::tag_len(10, pbrs::rt::WIRE_I64) + 8;
                 }
                 for t in c.repeated_float.iter() {
-                    n += protobuf::rt::tag_len(11, protobuf::rt::WIRE_I32) + 4;
+                    n += pbrs::rt::tag_len(11, pbrs::rt::WIRE_I32) + 4;
                 }
                 for t in c.repeated_double.iter() {
-                    n += protobuf::rt::tag_len(12, protobuf::rt::WIRE_I64) + 8;
+                    n += pbrs::rt::tag_len(12, pbrs::rt::WIRE_I64) + 8;
                 }
                 for t in c.repeated_bool.iter() {
-                    n += protobuf::rt::tag_len(13, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len(u64::from(*t));
+                    n += pbrs::rt::tag_len(13, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len(u64::from(*t));
                 }
                 for t in c.repeated_nested_enum.iter() {
-                    n += protobuf::rt::tag_len(14, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len((*t) as u64);
+                    n += pbrs::rt::tag_len(14, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len((*t) as u64);
                 }
             }
             self.cached_size.set(n);
@@ -8832,66 +8789,66 @@ mod __gen {
         fn write_to(&self, out: &mut Vec<u8>) {
             if let Some(c) = self.cold.as_deref() {
                 for t in c.repeated_int32.iter() {
-                    protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, *t as u64);
+                    pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, *t as u64);
                 }
                 for t in c.repeated_int64.iter() {
-                    protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, *t as u64);
+                    pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, *t as u64);
                 }
                 for t in c.repeated_uint32.iter() {
-                    protobuf::rt::encode_tag(out, 3, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, *t as u64);
+                    pbrs::rt::encode_tag(out, 3, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, *t as u64);
                 }
                 for t in c.repeated_uint64.iter() {
-                    protobuf::rt::encode_tag(out, 4, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, *t as u64);
+                    pbrs::rt::encode_tag(out, 4, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, *t as u64);
                 }
                 for t in c.repeated_sint32.iter() {
-                    protobuf::rt::encode_tag(out, 5, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag32(*t));
+                    pbrs::rt::encode_tag(out, 5, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag32(*t));
                 }
                 for t in c.repeated_sint64.iter() {
-                    protobuf::rt::encode_tag(out, 6, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, protobuf::rt::encode_zigzag64(*t));
+                    pbrs::rt::encode_tag(out, 6, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(*t));
                 }
                 for t in c.repeated_fixed32.iter() {
-                    protobuf::rt::encode_tag(out, 7, protobuf::rt::WIRE_I32);
+                    pbrs::rt::encode_tag(out, 7, pbrs::rt::WIRE_I32);
                     (out).extend_from_slice(&(*t).to_le_bytes());
                 }
                 for t in c.repeated_fixed64.iter() {
-                    protobuf::rt::encode_tag(out, 8, protobuf::rt::WIRE_I64);
+                    pbrs::rt::encode_tag(out, 8, pbrs::rt::WIRE_I64);
                     (out).extend_from_slice(&(*t).to_le_bytes());
                 }
                 for t in c.repeated_sfixed32.iter() {
-                    protobuf::rt::encode_tag(out, 9, protobuf::rt::WIRE_I32);
+                    pbrs::rt::encode_tag(out, 9, pbrs::rt::WIRE_I32);
                     (out).extend_from_slice(&((*t) as u32).to_le_bytes());
                 }
                 for t in c.repeated_sfixed64.iter() {
-                    protobuf::rt::encode_tag(out, 10, protobuf::rt::WIRE_I64);
+                    pbrs::rt::encode_tag(out, 10, pbrs::rt::WIRE_I64);
                     (out).extend_from_slice(&((*t) as u64).to_le_bytes());
                 }
                 for t in c.repeated_float.iter() {
-                    protobuf::rt::encode_tag(out, 11, protobuf::rt::WIRE_I32);
+                    pbrs::rt::encode_tag(out, 11, pbrs::rt::WIRE_I32);
                     (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                 }
                 for t in c.repeated_double.iter() {
-                    protobuf::rt::encode_tag(out, 12, protobuf::rt::WIRE_I64);
+                    pbrs::rt::encode_tag(out, 12, pbrs::rt::WIRE_I64);
                     (out).extend_from_slice(&(*t).to_bits().to_le_bytes());
                 }
                 for t in c.repeated_bool.iter() {
-                    protobuf::rt::encode_tag(out, 13, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, u64::from(*t));
+                    pbrs::rt::encode_tag(out, 13, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, u64::from(*t));
                 }
                 for t in c.repeated_nested_enum.iter() {
-                    protobuf::rt::encode_tag(out, 14, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, *t as u64);
+                    pbrs::rt::encode_tag(out, 14, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, *t as u64);
                 }
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(
+    pbrs::impl_typed_message!(
         TestUnpackedTypes,
         TestUnpackedTypesView,
         TestUnpackedTypesMut
@@ -8900,7 +8857,7 @@ mod __gen {
     pub struct ImportMessage {
         d: Option<i32>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for ImportMessage {
         fn eq(&self, other: &Self) -> bool {
@@ -8914,7 +8871,7 @@ mod __gen {
     impl Default for ImportMessage {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl ImportMessage {
@@ -8948,7 +8905,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -8956,13 +8913,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -8971,22 +8928,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -8995,18 +8952,18 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.d = Some(protobuf::rt::decode_varint(data, pos)? as i32);
+                        pbrs::rt::WIRE_VARINT => {
+                            self.d = Some(pbrs::rt::decode_varint(data, pos)? as i32);
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -9018,26 +8975,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -9046,12 +9003,12 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -9065,21 +9022,20 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if let Some(v) = self.d {
-                n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((v) as u64);
+                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT) + pbrs::rt::varint_len((v) as u64);
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if let Some(v) = self.d {
-                protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, v as u64);
+                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, v as u64);
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(ImportMessage, ImportMessageView, ImportMessageMut);
+    pbrs::impl_typed_message!(ImportMessage, ImportMessageView, ImportMessageMut);
     pub mod test_all_types {
         pub use super::NestedEnum;
         pub use super::NestedMessage;

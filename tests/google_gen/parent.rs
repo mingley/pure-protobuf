@@ -2,9 +2,9 @@
 #[allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
 mod __gen {
     #![allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
-    use protobuf::prelude::*;
-    use protobuf::UnknownFields;
-    use protobuf::{
+    use pbrs::prelude::*;
+    use pbrs::UnknownFields;
+    use pbrs::{
         Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
         RepeatedView, SerializeError, UnknownEnumValue,
     };
@@ -12,7 +12,7 @@ mod __gen {
     #[derive(Clone, Debug)]
     pub struct Parent {
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for Parent {
         fn eq(&self, other: &Self) -> bool {
@@ -23,7 +23,7 @@ mod __gen {
     impl Default for Parent {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl Parent {
@@ -40,7 +40,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -48,13 +48,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -63,22 +63,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -89,7 +89,7 @@ mod __gen {
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -101,26 +101,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -128,7 +128,7 @@ mod __gen {
                     }
                 }
                 match n {
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -148,7 +148,7 @@ mod __gen {
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(Parent, ParentView, ParentMut);
+    pbrs::impl_typed_message!(Parent, ParentView, ParentMut);
 }
 #[allow(unused_imports)]
 pub use __gen::*;

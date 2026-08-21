@@ -4,12 +4,12 @@
 //! This is not prost. Google `protoc --rust_out` gencode will not link here.
 //!
 //! ```ignore
-//! protobuf = { package = "pbrs", git = "https://github.com/mingley/pure-protobuf" }
+//! pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 //! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]
 
-extern crate self as protobuf;
+extern crate self as pbrs;
 
 #[doc(hidden)]
 pub use paste as __paste;

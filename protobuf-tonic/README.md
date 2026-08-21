@@ -8,7 +8,7 @@ This is not `tonic-prost`. These message types do not implement `prost::Message`
 The crate depends on **tonic 0.14+** (MSRV 1.88). The kernel itself does not
 depend on tonic. 0.12/0.13 are not supported.
 
-`protoc-gen-pbrs` (and `protobuf::codegen::generate_from_file_descriptor_set`)
+`protoc-gen-pbrs` (and `pbrs::codegen::generate_from_file_descriptor_set`)
 emit `FooClient` / `FooServer` / a `Foo` trait for each `.proto` service. Stubs
 use `ProtobufCodec`, not prost. `build.rs` in this crate generates `hello.rs`
 from `proto/hello.proto`.

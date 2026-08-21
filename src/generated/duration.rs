@@ -2,15 +2,15 @@
 #[allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
 mod __gen {
     #![allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
-    use protobuf::prelude::*;
-    use protobuf::UnknownFields;
-    use protobuf::{
+    use pbrs::prelude::*;
+    use pbrs::UnknownFields;
+    use pbrs::{
         Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
         RepeatedView, SerializeError, UnknownEnumValue,
     };
 
-    fn generated_pool() -> std::sync::Arc<protobuf::DescriptorPool> {
-        protobuf::gencode::conformance_pool()
+    fn generated_pool() -> std::sync::Arc<pbrs::DescriptorPool> {
+        pbrs::gencode::conformance_pool()
     }
 
     #[derive(Clone, Debug)]
@@ -18,7 +18,7 @@ mod __gen {
         seconds: i64,
         nanos: i32,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for Duration {
         fn eq(&self, other: &Self) -> bool {
@@ -35,7 +35,7 @@ mod __gen {
     impl Default for Duration {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl Duration {
@@ -66,7 +66,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -74,13 +74,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -89,22 +89,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -113,27 +113,27 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.seconds = protobuf::rt::decode_varint(data, pos)? as i64;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.seconds = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            self.nanos = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            self.nanos = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -145,26 +145,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -173,18 +173,18 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i64;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i64;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
                     2 => match w {
-                        protobuf::rt::WIRE_VARINT => {
-                            let _ = protobuf::rt::decode_varint(data, pos)? as i32;
+                        pbrs::rt::WIRE_VARINT => {
+                            let _ = pbrs::rt::decode_varint(data, pos)? as i32;
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -198,35 +198,34 @@ mod __gen {
             }
             let mut n = self.unknown.encoded_len();
             if self.seconds != 0 {
-                n += protobuf::rt::tag_len(1, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.seconds) as u64);
+                n += pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.seconds) as u64);
             }
             if self.nanos != 0 {
-                n += protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
-                    + protobuf::rt::varint_len((self.nanos) as u64);
+                n += pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
+                    + pbrs::rt::varint_len((self.nanos) as u64);
             }
             self.cached_size.set(n);
             n
         }
         fn write_to(&self, out: &mut Vec<u8>) {
             if self.seconds != 0 {
-                protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.seconds as u64);
+                pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.seconds as u64);
             }
             if self.nanos != 0 {
-                protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT);
-                protobuf::rt::encode_varint(out, self.nanos as u64);
+                pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT);
+                pbrs::rt::encode_varint(out, self.nanos as u64);
             }
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b =
-                protobuf::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
+            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
             let pool = generated_pool();
             let desc = pool
                 .get_message("google.protobuf.Duration")
                 .ok_or_else(|| SerializeError::new("missing desc"))?;
-            protobuf::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
+            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
                 .map_err(|_| SerializeError::new("json"))?
                 .to_json()
         }
@@ -238,30 +237,27 @@ mod __gen {
             let desc = pool
                 .get_message("google.protobuf.Duration")
                 .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = protobuf::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b =
-                protobuf::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as protobuf::Parse>::parse(&b)
+            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
+            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
+            <Self as pbrs::Parse>::parse(&b)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b =
-                protobuf::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
+            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
             let pool = generated_pool();
             let desc = pool
                 .get_message("google.protobuf.Duration")
                 .ok_or_else(|| SerializeError::new("missing desc"))?;
-            protobuf::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
+            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
                 .map_err(|_| SerializeError::new("text"))?
                 .to_text()
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b =
-                protobuf::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
+            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
             let pool = generated_pool();
             let desc = pool
                 .get_message("google.protobuf.Duration")
                 .ok_or_else(|| SerializeError::new("missing desc"))?;
-            protobuf::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
+            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
                 .map_err(|_| SerializeError::new("text"))?
                 .to_text_with_unknown()
         }
@@ -270,13 +266,12 @@ mod __gen {
             let desc = pool
                 .get_message("google.protobuf.Duration")
                 .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = protobuf::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b =
-                protobuf::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as protobuf::Parse>::parse(&b)
+            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
+            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
+            <Self as pbrs::Parse>::parse(&b)
         }
     }
-    protobuf::impl_typed_message!(Duration, DurationView, DurationMut);
+    pbrs::impl_typed_message!(Duration, DurationView, DurationMut);
 }
 #[allow(unused_imports)]
 pub use __gen::*;

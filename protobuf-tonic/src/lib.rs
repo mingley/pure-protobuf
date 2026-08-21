@@ -6,7 +6,7 @@
 extern crate self as protobuf_tonic;
 
 use bytes::{Buf, BufMut};
-use protobuf::{ClearAndParse, Parse, Serialize};
+use pbrs::{ClearAndParse, Parse, Serialize};
 use std::marker::PhantomData;
 use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 use tonic::Status;

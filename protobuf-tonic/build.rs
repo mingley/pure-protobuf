@@ -18,9 +18,8 @@ fn main() {
         .expect("protoc");
     assert!(status.success(), "protoc failed: {status}");
     let bytes = std::fs::read(&fds).expect("fds");
-    let files =
-        protobuf::codegen::generate_from_file_descriptor_set(&bytes, &["hello.proto".into()])
-            .expect("codegen");
+    let files = pbrs::codegen::generate_from_file_descriptor_set(&bytes, &["hello.proto".into()])
+        .expect("codegen");
     for (name, src) in files {
         std::fs::write(out.join(name), src).expect("write generated");
     }

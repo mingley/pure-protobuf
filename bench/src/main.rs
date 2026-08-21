@@ -6,9 +6,9 @@ use buffa_tat::protobuf_test_messages::proto3::{
     TestAllTypesProto3View as BuffaTatView,
 };
 use prost::Message;
-use protobuf::gencode::{NestedMessage, TestAllTypesProto3};
-use protobuf::prelude::*;
-use protobuf::testdata::{Address, Person};
+use pbrs::gencode::{NestedMessage, TestAllTypesProto3};
+use pbrs::prelude::*;
+use pbrs::testdata::{Address, Person};
 use protobuf_v4::{Parse as V4Parse, Serialize as V4Serialize};
 use std::time::Instant;
 
@@ -236,7 +236,7 @@ struct Case {
 }
 
 fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
-    let bytes = protobuf::Serialize::serialize(&msg).expect("ours encode");
+    let bytes = pbrs::Serialize::serialize(&msg).expect("ours encode");
     let prost_msg = prost_of(&msg);
     let v4_msg = v4_of(&msg);
     let buffa_msg = buffa_of(&msg);
@@ -251,7 +251,7 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
         name,
         payload: bytes.len(),
         ours_enc: median_ns(15, iters, || {
-            let _ = protobuf::Serialize::serialize(&msg).unwrap();
+            let _ = pbrs::Serialize::serialize(&msg).unwrap();
         }),
         prost_enc: median_ns(15, iters, || {
             let _ = prost_msg.encode_to_vec();
@@ -283,7 +283,7 @@ fn run_tat(name: &'static str, msg: TestAllTypesProto3, iters: u32) -> Case {
 
 fn run_person(iters: u32) -> Case {
     let msg = person_ours();
-    let bytes = protobuf::Serialize::serialize(&msg).expect("person encode");
+    let bytes = pbrs::Serialize::serialize(&msg).expect("person encode");
     let prost_msg = ProstPerson {
         id: msg.id(),
         name: msg.name().to_str().unwrap_or("").to_string(),
@@ -346,7 +346,7 @@ fn run_person(iters: u32) -> Case {
         name: "person",
         payload: bytes.len(),
         ours_enc: median_ns(15, iters, || {
-            let _ = protobuf::Serialize::serialize(&msg).unwrap();
+            let _ = pbrs::Serialize::serialize(&msg).unwrap();
         }),
         prost_enc: median_ns(15, iters, || {
             let _ = prost_msg.encode_to_vec();

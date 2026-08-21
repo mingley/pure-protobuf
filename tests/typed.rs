@@ -1,6 +1,6 @@
-use protobuf::prelude::*;
-use protobuf::testdata::{Address, Person};
-use protobuf::{Parse, Serialize};
+use pbrs::prelude::*;
+use pbrs::testdata::{Address, Person};
+use pbrs::{Parse, Serialize};
 
 #[test]
 fn proto_macro_roundtrip_bytes() {

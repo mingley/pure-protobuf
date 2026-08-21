@@ -1,4 +1,4 @@
-use protobuf::{
+use pbrs::{
     Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, MessageDescriptor,
     Presence, RECURSION_LIMIT,
 };
@@ -23,7 +23,7 @@ fn nest_bytes(depth: u32) -> Vec<u8> {
     let mut inner = Vec::new();
     for _ in 0..depth {
         let mut wrapped = Vec::new();
-        protobuf::rt::encode_len_field(&mut wrapped, 1, &inner);
+        pbrs::rt::encode_len_field(&mut wrapped, 1, &inner);
         inner = wrapped;
     }
     inner
@@ -50,7 +50,7 @@ fn parse_trait_too_deep_is_err() {
     let (pool, desc) = nest_desc();
     let mut msg = DynamicMessage::new(desc);
     msg.set_pool(pool);
-    use protobuf::ClearAndParse;
+    use pbrs::ClearAndParse;
     let too_deep = nest_bytes(RECURSION_LIMIT + 1);
     assert!(ClearAndParse::merge_from_bytes(&mut msg, &too_deep).is_err());
     let shallow = nest_bytes(1);

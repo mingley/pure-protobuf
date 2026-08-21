@@ -53,7 +53,7 @@ fn protoc_plugin_generates_and_roundtrips() {
     std::fs::write(
         consumer.join("Cargo.toml"),
         format!(
-            "[package]\nname = \"plugin-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nprotobuf = {{ package = \"pbrs\", path = \"{}\" }}\n",
+            "[package]\nname = \"plugin-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
             root.display()
         ),
     )
@@ -61,7 +61,7 @@ fn protoc_plugin_generates_and_roundtrips() {
     std::fs::write(
         consumer.join("src/main.rs"),
         format!(
-            "{generated}\nuse protobuf::prelude::*;\nfn main() {{\n  let mut p = Person::new();\n  p.set_id(1);\n  p.set_name(\"ada\");\n  let b = protobuf::Serialize::serialize(&p).unwrap();\n  let q = <Person as protobuf::Parse>::parse(&b).unwrap();\n  assert_eq!(q.id(), 1);\n  assert_eq!(q.name(), \"ada\");\n  let p2 = proto!(Person {{ id: 2, name: \"bob\" }});\n  assert_eq!(p2.id(), 2);\n  // nested merge: second empty Address must not wipe city\n  let mut split = vec![0x32, 0x05, 0x0a, 0x03, b'n', b'y', b'c'];\n  split.extend_from_slice(&[0x32, 0x00]);\n  let merged = <Person as protobuf::Parse>::parse(&split).unwrap();\n  assert_eq!(merged.address().city(), \"nyc\");\n  // map field 16: serialized_len must match serialize().len()\n  let mut m = Person::new();\n  m.extras_mut().insert(\"k\", 7);\n  let mb = protobuf::Serialize::serialize(&m).unwrap();\n  assert_eq!(protobuf::Serialize::serialized_len(&m), mb.len());\n  println!(\"ok {{}}\", q.id());\n}}\n"
+            "{generated}\nuse pbrs::prelude::*;\nfn main() {{\n  let mut p = Person::new();\n  p.set_id(1);\n  p.set_name(\"ada\");\n  let b = pbrs::Serialize::serialize(&p).unwrap();\n  let q = <Person as pbrs::Parse>::parse(&b).unwrap();\n  assert_eq!(q.id(), 1);\n  assert_eq!(q.name(), \"ada\");\n  let p2 = proto!(Person {{ id: 2, name: \"bob\" }});\n  assert_eq!(p2.id(), 2);\n  // nested merge: second empty Address must not wipe city\n  let mut split = vec![0x32, 0x05, 0x0a, 0x03, b'n', b'y', b'c'];\n  split.extend_from_slice(&[0x32, 0x00]);\n  let merged = <Person as pbrs::Parse>::parse(&split).unwrap();\n  assert_eq!(merged.address().city(), \"nyc\");\n  // map field 16: serialized_len must match serialize().len()\n  let mut m = Person::new();\n  m.extras_mut().insert(\"k\", 7);\n  let mb = pbrs::Serialize::serialize(&m).unwrap();\n  assert_eq!(pbrs::Serialize::serialized_len(&m), mb.len());\n  println!(\"ok {{}}\", q.id());\n}}\n"
         ),
     )
     .unwrap();
@@ -137,11 +137,11 @@ fn plugin_generates_test_all_types_proto3() {
     );
     assert!(generated.contains("set_optional_int32"), "{generated}");
     assert!(
-        generated.contains("repeated_int32: protobuf::rt::PackedI32"),
+        generated.contains("repeated_int32: pbrs::rt::PackedI32"),
         "packed repeated_int32 storage"
     );
     assert!(
-        generated.contains("optional_nested_message: protobuf::rt::LazyMsg<NestedMessage>"),
+        generated.contains("optional_nested_message: pbrs::rt::LazyMsg<NestedMessage>"),
         "nested LEN stored as LazyMsg"
     );
     assert!(
@@ -155,7 +155,7 @@ fn plugin_generates_test_all_types_proto3() {
     std::fs::write(
         consumer.join("Cargo.toml"),
         format!(
-            "[package]\nname = \"tat-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nprotobuf = {{ package = \"pbrs\", path = \"{}\" }}\n",
+            "[package]\nname = \"tat-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
             root.display()
         ),
     )
@@ -163,7 +163,7 @@ fn plugin_generates_test_all_types_proto3() {
     std::fs::write(
         consumer.join("src/main.rs"),
         format!(
-            "{generated}\nfn main() {{\n  let mut nested = NestedMessage::new();\n  nested.set_a(9);\n  let mut m = TestAllTypesProto3::new();\n  m.set_optional_int32(7);\n  m.set_optional_string(\"ada\");\n  m.set_optional_nested_message(nested);\n  m.repeated_int32_mut().push(1);\n  m.repeated_int32_mut().push(2);\n  m.map_int32_int32_mut().insert(3, 4);\n  let b = protobuf::Serialize::serialize(&m).unwrap();\n  let q = <TestAllTypesProto3 as protobuf::Parse>::parse(&b).unwrap();\n  assert_eq!(q.optional_int32(), 7);\n  assert_eq!(q.optional_string(), \"ada\");\n  assert_eq!(q.optional_nested_message().a(), 9);\n  assert_eq!(q.repeated_int32().len(), 2);\n  assert_eq!(*q.repeated_int32().get(0).unwrap(), 1);\n  assert_eq!(*q.repeated_int32().get(1).unwrap(), 2);\n  assert_eq!(*q.map_int32_int32().get(&3).unwrap(), 4);\n  println!(\"ok {{}}\", q.optional_int32());\n}}\n"
+            "{generated}\nfn main() {{\n  let mut nested = NestedMessage::new();\n  nested.set_a(9);\n  let mut m = TestAllTypesProto3::new();\n  m.set_optional_int32(7);\n  m.set_optional_string(\"ada\");\n  m.set_optional_nested_message(nested);\n  m.repeated_int32_mut().push(1);\n  m.repeated_int32_mut().push(2);\n  m.map_int32_int32_mut().insert(3, 4);\n  let b = pbrs::Serialize::serialize(&m).unwrap();\n  let q = <TestAllTypesProto3 as pbrs::Parse>::parse(&b).unwrap();\n  assert_eq!(q.optional_int32(), 7);\n  assert_eq!(q.optional_string(), \"ada\");\n  assert_eq!(q.optional_nested_message().a(), 9);\n  assert_eq!(q.repeated_int32().len(), 2);\n  assert_eq!(*q.repeated_int32().get(0).unwrap(), 1);\n  assert_eq!(*q.repeated_int32().get(1).unwrap(), 2);\n  assert_eq!(*q.map_int32_int32().get(&3).unwrap(), 4);\n  println!(\"ok {{}}\", q.optional_int32());\n}}\n"
         ),
     )
     .unwrap();
@@ -214,7 +214,7 @@ fn plugin_generates_grpc_stubs() {
         &generated[..generated.len().min(1500)]
     );
     assert!(
-        generated.contains("name: protobuf::rt::LazyStr"),
+        generated.contains("name: pbrs::rt::LazyStr"),
         "HelloRequest must store name as a field"
     );
     assert!(

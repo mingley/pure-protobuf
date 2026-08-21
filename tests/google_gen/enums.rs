@@ -2,9 +2,9 @@
 #[allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
 mod __gen {
     #![allow(unused, non_snake_case, non_camel_case_types, clippy::all)]
-    use protobuf::prelude::*;
-    use protobuf::UnknownFields;
-    use protobuf::{
+    use pbrs::prelude::*;
+    use pbrs::UnknownFields;
+    use pbrs::{
         Enum, Map, MapMut, MapView, ParseError, ProtoBytes, ProtoString, Repeated, RepeatedMut,
         RepeatedView, SerializeError, UnknownEnumValue,
     };
@@ -50,17 +50,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for TestEnumValueNameSameAsEnum {}
-    impl protobuf::Proxied for TestEnumValueNameSameAsEnum {
+    impl pbrs::__internal::SealedInternal for TestEnumValueNameSameAsEnum {}
+    impl pbrs::Proxied for TestEnumValueNameSameAsEnum {
         type View<'msg> = TestEnumValueNameSameAsEnum;
     }
-    impl protobuf::AsView for TestEnumValueNameSameAsEnum {
+    impl pbrs::AsView for TestEnumValueNameSameAsEnum {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for TestEnumValueNameSameAsEnum {
+    impl<'msg> pbrs::IntoView<'msg> for TestEnumValueNameSameAsEnum {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -127,17 +127,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for TestEnumWithDuplicateStrippedPrefixNames {}
-    impl protobuf::Proxied for TestEnumWithDuplicateStrippedPrefixNames {
+    impl pbrs::__internal::SealedInternal for TestEnumWithDuplicateStrippedPrefixNames {}
+    impl pbrs::Proxied for TestEnumWithDuplicateStrippedPrefixNames {
         type View<'msg> = TestEnumWithDuplicateStrippedPrefixNames;
     }
-    impl protobuf::AsView for TestEnumWithDuplicateStrippedPrefixNames {
+    impl pbrs::AsView for TestEnumWithDuplicateStrippedPrefixNames {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for TestEnumWithDuplicateStrippedPrefixNames {
+    impl<'msg> pbrs::IntoView<'msg> for TestEnumWithDuplicateStrippedPrefixNames {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -195,17 +195,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for TestEnumWithNumericNames {}
-    impl protobuf::Proxied for TestEnumWithNumericNames {
+    impl pbrs::__internal::SealedInternal for TestEnumWithNumericNames {}
+    impl pbrs::Proxied for TestEnumWithNumericNames {
         type View<'msg> = TestEnumWithNumericNames;
     }
-    impl protobuf::AsView for TestEnumWithNumericNames {
+    impl pbrs::AsView for TestEnumWithNumericNames {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for TestEnumWithNumericNames {
+    impl<'msg> pbrs::IntoView<'msg> for TestEnumWithNumericNames {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -259,17 +259,17 @@ mod __gen {
             }
         }
     }
-    impl protobuf::__internal::SealedInternal for NestedEnum {}
-    impl protobuf::Proxied for NestedEnum {
+    impl pbrs::__internal::SealedInternal for NestedEnum {}
+    impl pbrs::Proxied for NestedEnum {
         type View<'msg> = NestedEnum;
     }
-    impl protobuf::AsView for NestedEnum {
+    impl pbrs::AsView for NestedEnum {
         type Proxied = Self;
         fn as_view(&self) -> Self {
             *self
         }
     }
-    impl<'msg> protobuf::IntoView<'msg> for NestedEnum {
+    impl<'msg> pbrs::IntoView<'msg> for NestedEnum {
         fn into_view<'shorter>(self) -> Self
         where
             'msg: 'shorter,
@@ -285,9 +285,9 @@ mod __gen {
     }
     #[derive(Clone, Debug)]
     pub struct TestMapWithNestedEnum {
-        string_map: Map<protobuf::rt::LazyStr, i32>,
+        string_map: Map<pbrs::rt::LazyStr, i32>,
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for TestMapWithNestedEnum {
         fn eq(&self, other: &Self) -> bool {
@@ -301,7 +301,7 @@ mod __gen {
     impl Default for TestMapWithNestedEnum {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl TestMapWithNestedEnum {
@@ -310,14 +310,14 @@ mod __gen {
         }
         pub const EMPTY_PARSE_OK: bool = true;
         pub const FULL_NAME: &'static str = "enums.TestMapWithNestedEnum";
-        pub fn string_map(&self) -> MapView<'_, protobuf::rt::LazyStr, i32> {
+        pub fn string_map(&self) -> MapView<'_, pbrs::rt::LazyStr, i32> {
             self.string_map.as_view()
         }
-        pub fn string_map_mut(&mut self) -> MapMut<'_, protobuf::rt::LazyStr, i32> {
+        pub fn string_map_mut(&mut self) -> MapMut<'_, pbrs::rt::LazyStr, i32> {
             self.cached_size.dirty();
             self.string_map.as_mut()
         }
-        pub fn set_string_map(&mut self, v: Map<protobuf::rt::LazyStr, i32>) {
+        pub fn set_string_map(&mut self, v: Map<pbrs::rt::LazyStr, i32>) {
             self.cached_size.dirty();
             self.string_map = v;
         }
@@ -329,7 +329,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -337,13 +337,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -352,22 +352,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -376,8 +376,8 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestMapWithNestedEnum_string_map_1(
                                 &wire.window(s, e),
                                 depth + 1,
@@ -387,12 +387,12 @@ mod __gen {
                         _ => self
                             .unknown
                             .fields
-                            .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                            .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                     },
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -404,26 +404,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -432,19 +432,19 @@ mod __gen {
                 }
                 match n {
                     1 => match w {
-                        protobuf::rt::WIRE_LEN => {
-                            let (s, e) = protobuf::rt::read_len_span(data, pos)?;
+                        pbrs::rt::WIRE_LEN => {
+                            let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut ip = 0;
                             let w = wire.window(s, e);
                             let d = w.as_slice();
                             while ip < d.len() {
-                                let (_, ww) = protobuf::rt::decode_tag(d, &mut ip)?;
-                                protobuf::rt::skip_field(d, &mut ip, ww)?;
+                                let (_, ww) = pbrs::rt::decode_tag(d, &mut ip)?;
+                                pbrs::rt::skip_field(d, &mut ip, ww)?;
                             }
                         }
-                        _ => protobuf::rt::skip_field(data, pos, w)?,
+                        _ => pbrs::rt::skip_field(data, pos, w)?,
                     },
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -459,10 +459,10 @@ mod __gen {
             let mut n = self.unknown.encoded_len();
             if !self.string_map.is_empty() {
                 for (k, v) in self.string_map.pairs() {
-                    let inner = protobuf::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                        + protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len((*v) as u64);
-                    n += protobuf::rt::key_len_value_len(1, inner);
+                    let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                        + pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len((*v) as u64);
+                    n += pbrs::rt::key_len_value_len(1, inner);
                 }
             }
             self.cached_size.set(n);
@@ -471,46 +471,44 @@ mod __gen {
         fn write_to(&self, out: &mut Vec<u8>) {
             if !self.string_map.is_empty() {
                 for (k, v) in self.string_map.pairs() {
-                    let inner = protobuf::rt::key_len_value_len(1, k.as_bytes().len() as u64)
-                        + protobuf::rt::tag_len(2, protobuf::rt::WIRE_VARINT)
-                        + protobuf::rt::varint_len((*v) as u64);
-                    protobuf::rt::encode_tag(out, 1, protobuf::rt::WIRE_LEN);
-                    protobuf::rt::encode_varint(out, inner);
-                    protobuf::rt::encode_len_field(out, 1, k.as_bytes());
-                    protobuf::rt::encode_tag(out, 2, protobuf::rt::WIRE_VARINT);
-                    protobuf::rt::encode_varint(out, *v as u64);
+                    let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
+                        + pbrs::rt::tag_len(2, pbrs::rt::WIRE_VARINT)
+                        + pbrs::rt::varint_len((*v) as u64);
+                    pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_LEN);
+                    pbrs::rt::encode_varint(out, inner);
+                    pbrs::rt::encode_len_field(out, 1, k.as_bytes());
+                    pbrs::rt::encode_tag(out, 2, pbrs::rt::WIRE_VARINT);
+                    pbrs::rt::encode_varint(out, *v as u64);
                 }
             }
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(
+    pbrs::impl_typed_message!(
         TestMapWithNestedEnum,
         TestMapWithNestedEnumView,
         TestMapWithNestedEnumMut
     );
     fn decode_map_entry_TestMapWithNestedEnum_string_map_1(
-        wire: &protobuf::rt::Wire,
+        wire: &pbrs::rt::Wire,
         depth: u32,
-    ) -> Result<(protobuf::rt::LazyStr, i32), ParseError> {
+    ) -> Result<(pbrs::rt::LazyStr, i32), ParseError> {
         let _ = depth;
         let data = wire.as_slice();
-        let mut key = protobuf::rt::LazyStr::default();
+        let mut key = pbrs::rt::LazyStr::default();
         let mut val = i32::default();
         let mut pos = 0;
         while pos < data.len() {
-            let (n, w) = protobuf::rt::decode_tag(data, &mut pos)?;
+            let (n, w) = pbrs::rt::decode_tag(data, &mut pos)?;
             match (n, w) {
-                (1, protobuf::rt::WIRE_LEN) => {
-                    let (s, e) = protobuf::rt::read_len_span(data, &mut pos)?;
+                (1, pbrs::rt::WIRE_LEN) => {
+                    let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     std::str::from_utf8(&data[s..e])
                         .map_err(|_| ParseError::new("invalid utf-8"))?;
-                    key = protobuf::rt::LazyStr::from_span(wire, s, e);
+                    key = pbrs::rt::LazyStr::from_span(wire, s, e);
                 }
-                (2, protobuf::rt::WIRE_VARINT) => {
-                    val = protobuf::rt::decode_varint(data, &mut pos)? as i32
-                }
-                _ => protobuf::rt::skip_field(data, &mut pos, w)?,
+                (2, pbrs::rt::WIRE_VARINT) => val = pbrs::rt::decode_varint(data, &mut pos)? as i32,
+                _ => pbrs::rt::skip_field(data, &mut pos, w)?,
             }
         }
         Ok((key, val))
@@ -518,7 +516,7 @@ mod __gen {
     #[derive(Clone, Debug)]
     pub struct InnerNested {
         unknown: UnknownFields,
-        cached_size: protobuf::rt::CachedSize,
+        cached_size: pbrs::rt::CachedSize,
     }
     impl PartialEq for InnerNested {
         fn eq(&self, other: &Self) -> bool {
@@ -529,7 +527,7 @@ mod __gen {
     impl Default for InnerNested {
         #[inline(always)]
         fn default() -> Self {
-            unsafe { protobuf::rt::zeroed_message() }
+            unsafe { pbrs::rt::zeroed_message() }
         }
     }
     impl InnerNested {
@@ -546,7 +544,7 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, true, None)
         }
@@ -554,13 +552,13 @@ mod __gen {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = protobuf::rt::Wire::from_slice(data);
+            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
             self.merge_inner(&w, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             num: u32,
             depth: u32,
@@ -569,22 +567,22 @@ mod __gen {
         }
         fn merge_inner(
             &mut self,
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let _ = enforce;
             self.cached_size.dirty();
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -595,7 +593,7 @@ mod __gen {
                     _ => self
                         .unknown
                         .fields
-                        .push(protobuf::rt::capture_unknown(data, pos, n, w)?),
+                        .push(pbrs::rt::capture_unknown(data, pos, n, w)?),
                 }
             }
             if until.is_some() {
@@ -607,26 +605,26 @@ mod __gen {
             Ok(())
         }
         fn validate_inner(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
         ) -> Result<(), ParseError> {
             Self::validate_until(wire, pos, depth, None)
         }
         fn validate_until(
-            wire: &protobuf::rt::Wire,
+            wire: &pbrs::rt::Wire,
             pos: &mut usize,
             depth: u32,
             until: Option<u32>,
         ) -> Result<(), ParseError> {
-            if depth > protobuf::RECURSION_LIMIT {
+            if depth > pbrs::RECURSION_LIMIT {
                 return Err(ParseError::new("recursion limit exceeded"));
             }
             let data = wire.as_slice();
             while *pos < data.len() {
-                let (n, w) = protobuf::rt::decode_tag(data, pos)?;
+                let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
-                    if w == protobuf::rt::WIRE_EGROUP {
+                    if w == pbrs::rt::WIRE_EGROUP {
                         if n != g {
                             return Err(ParseError::new("mismatched end-group"));
                         }
@@ -634,7 +632,7 @@ mod __gen {
                     }
                 }
                 match n {
-                    _ => protobuf::rt::skip_field(data, pos, w)?,
+                    _ => pbrs::rt::skip_field(data, pos, w)?,
                 }
             }
             if until.is_some() {
@@ -654,7 +652,7 @@ mod __gen {
             self.unknown.encode(out);
         }
     }
-    protobuf::impl_typed_message!(InnerNested, InnerNestedView, InnerNestedMut);
+    pbrs::impl_typed_message!(InnerNested, InnerNestedView, InnerNestedMut);
     pub mod test_map_with_nested_enum {
         pub use super::InnerNested;
         pub mod inner_nested {

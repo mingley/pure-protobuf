@@ -3,12 +3,12 @@
 Pure-Rust Protocol Buffers **kernel** with the Google protobuf **v4 application API**
 (`Parse` / `Serialize` / `proto!` / `ProtoStr` / `RepeatedView` / `DynamicMessage`).
 
-Repo: [`mingley/pure-protobuf`](https://github.com/mingley/pure-protobuf). Cargo package is `pbrs`;
-the lib name stays `protobuf` so `use protobuf::prelude::*` still works. Not Google’s crates.io
-`protobuf` 4.x, not prost, not [`pb-rs`](https://crates.io/crates/pb-rs) (quick-protobuf).
+Repo: [`mingley/pure-protobuf`](https://github.com/mingley/pure-protobuf). Cargo package and lib
+are `pbrs` (`use pbrs::prelude::*`). Not Google’s crates.io `protobuf` 4.x, not prost, not
+[`pb-rs`](https://crates.io/crates/pb-rs) (quick-protobuf).
 
 ```toml
-protobuf = { package = "pbrs", git = "https://github.com/mingley/pure-protobuf" }
+pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 ```
 
 ## How this differs
@@ -45,7 +45,7 @@ tonic’s default stack is **prost** (`tonic-prost`). These types cannot impleme
 The plugin emits `FooClient` / `FooServer` (unary + streaming) that use `protobuf-tonic::ProtobufCodec`. Tonic is only HTTP/2 + framing. Kernel stays tonic-free. **tonic 0.14+ only** (adapter MSRV 1.88). See `protobuf-tonic/README.md`.
 
 ```toml
-protobuf = { package = "pbrs", git = "https://github.com/mingley/pure-protobuf" }
+pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 protobuf-tonic = { git = "https://github.com/mingley/pure-protobuf" }
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
 ```

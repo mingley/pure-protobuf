@@ -1,6 +1,6 @@
-use protobuf::prelude::*;
-use protobuf::testdata::Person;
-use protobuf::{
+use pbrs::prelude::*;
+use pbrs::testdata::Person;
+use pbrs::{
     Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, MapKeyValue,
     MessageDescriptor, Presence, Serialize, Value,
 };

@@ -8,12 +8,12 @@ license = "MIT OR Apache-2.0"
 description = "tonic 0.14+ Codec over pbrs (not tonic-prost; kernel stays tonic-free)"
 
 [build-dependencies]
-protobuf = { package = "pbrs", path = ".." }
+pbrs = { path = ".." }
 
 [dependencies]
 bytes = "1"
 http = "1"
-protobuf = { package = "pbrs", path = ".." }
+pbrs = { path = ".." }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }
 tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }

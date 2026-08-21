@@ -60,7 +60,7 @@ mod unittest_proto3;
 #[path = "google_gen/unittest_proto3_optional.rs"]
 mod unittest_proto3_optional;
 
-use protobuf::prelude::*;
+use pbrs::prelude::*;
 use unittest::TestRequired;
 use unittest_proto3::TestAllTypes;
 use unittest_proto3_optional::TestProto3Optional;
@@ -216,7 +216,7 @@ fn test_string_accessors() {
     assert_eq!(msg.optional_string(), "accessors_test");
 }
 
-use protobuf::{message_eq, Enum, Parse, ParseError, ProtoStr, Serialize, View};
+use pbrs::{message_eq, Enum, Parse, ParseError, ProtoStr, Serialize, View};
 use unittest::TestAllTypes as Proto2;
 use unittest::{test_all_types, NestedMessage, NestedTestAllTypes};
 
@@ -663,7 +663,7 @@ fn threading_send() {
 
 #[test]
 fn message_generics() {
-    fn encoded_len<T: protobuf::Message>(msg: T) -> usize {
+    fn encoded_len<T: pbrs::Message>(msg: T) -> usize {
         msg.as_view().serialize().unwrap().len() + msg.serialize().unwrap().len()
     }
     assert_eq!(encoded_len(Proto2::new()), 0);

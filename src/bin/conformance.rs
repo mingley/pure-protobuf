@@ -1,12 +1,12 @@
 //! Official conformance_test_runner child: stdin/stdout ConformanceRequest/Response.
 //! TestAllTypes path uses generated typed wrappers (same codec as the plugin).
 
-use protobuf::gencode::{
+use pbrs::gencode::{
     EditionsTestAllRequiredTypesProto2, EditionsTestAllTypesProto2, EditionsTestAllTypesProto3,
     TestAllRequiredTypesProto2, TestAllTypesEdition2023, TestAllTypesEditionUnstable,
     TestAllTypesProto2, TestAllTypesProto3,
 };
-use protobuf::{Parse, ParseError, Serialize};
+use pbrs::{Parse, ParseError, Serialize};
 use std::io::{Read, Write};
 
 fn main() {
@@ -41,10 +41,10 @@ fn handle(req: &[u8]) -> Vec<u8> {
 
 trait Conf: Parse + Serialize + Sized {
     fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError>;
-    fn to_json(&self) -> Result<String, protobuf::SerializeError>;
+    fn to_json(&self) -> Result<String, pbrs::SerializeError>;
     fn from_text(text: &str) -> Result<Self, ParseError>;
-    fn to_text(&self) -> Result<String, protobuf::SerializeError>;
-    fn to_text_with_unknown(&self) -> Result<String, protobuf::SerializeError>;
+    fn to_text(&self) -> Result<String, pbrs::SerializeError>;
+    fn to_text_with_unknown(&self) -> Result<String, pbrs::SerializeError>;
 }
 
 macro_rules! impl_conf {
@@ -54,16 +54,16 @@ macro_rules! impl_conf {
                 fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
                     <$t>::from_json_ignore(json, ignore)
                 }
-                fn to_json(&self) -> Result<String, protobuf::SerializeError> {
+                fn to_json(&self) -> Result<String, pbrs::SerializeError> {
                     <$t>::to_json(self)
                 }
                 fn from_text(text: &str) -> Result<Self, ParseError> {
                     <$t>::from_text(text)
                 }
-                fn to_text(&self) -> Result<String, protobuf::SerializeError> {
+                fn to_text(&self) -> Result<String, pbrs::SerializeError> {
                     <$t>::to_text(self)
                 }
-                fn to_text_with_unknown(&self) -> Result<String, protobuf::SerializeError> {
+                fn to_text_with_unknown(&self) -> Result<String, pbrs::SerializeError> {
                     <$t>::to_text_with_unknown(self)
                 }
             }
@@ -168,9 +168,7 @@ struct Request {
 }
 
 fn parse_request(bytes: &[u8]) -> Result<Request, ParseError> {
-    use protobuf::rt::{
-        decode_tag, decode_varint, read_len_bytes, skip_field, WIRE_LEN, WIRE_VARINT,
-    };
+    use pbrs::rt::{decode_tag, decode_varint, read_len_bytes, skip_field, WIRE_LEN, WIRE_VARINT};
     let mut req = Request {
         payload: Payload::None,
         output: 0,
@@ -214,36 +212,36 @@ fn parse_request(bytes: &[u8]) -> Result<Request, ParseError> {
 
 fn encode_response_parse_error(msg: &str) -> Vec<u8> {
     let mut out = Vec::new();
-    protobuf::rt::encode_len_field(&mut out, 1, msg.as_bytes());
+    pbrs::rt::encode_len_field(&mut out, 1, msg.as_bytes());
     out
 }
 
 fn encode_response_protobuf(bytes: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
-    protobuf::rt::encode_len_field(&mut out, 3, bytes);
+    pbrs::rt::encode_len_field(&mut out, 3, bytes);
     out
 }
 
 fn encode_response_json(s: &str) -> Vec<u8> {
     let mut out = Vec::new();
-    protobuf::rt::encode_len_field(&mut out, 4, s.as_bytes());
+    pbrs::rt::encode_len_field(&mut out, 4, s.as_bytes());
     out
 }
 
 fn encode_response_skipped(s: &str) -> Vec<u8> {
     let mut out = Vec::new();
-    protobuf::rt::encode_len_field(&mut out, 5, s.as_bytes());
+    pbrs::rt::encode_len_field(&mut out, 5, s.as_bytes());
     out
 }
 
 fn encode_response_serialize_error(msg: &str) -> Vec<u8> {
     let mut out = Vec::new();
-    protobuf::rt::encode_len_field(&mut out, 6, msg.as_bytes());
+    pbrs::rt::encode_len_field(&mut out, 6, msg.as_bytes());
     out
 }
 
 fn encode_response_text(s: &str) -> Vec<u8> {
     let mut out = Vec::new();
-    protobuf::rt::encode_len_field(&mut out, 8, s.as_bytes());
+    pbrs::rt::encode_len_field(&mut out, 8, s.as_bytes());
     out
 }

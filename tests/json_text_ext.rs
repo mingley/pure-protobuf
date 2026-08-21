@@ -1,4 +1,4 @@
-use protobuf::{
+use pbrs::{
     Cardinality, DynamicMessage, FieldDescriptor, FieldType, MessageDescriptor, Presence,
     Serialize, Value,
 };
