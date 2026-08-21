@@ -11,7 +11,7 @@ fn main() {
             std::io::stdout().write_all(&out).expect("stdout");
         }
         Err(e) => {
-            eprintln!("protoc-gen-pure-protobuf: {e}");
+            eprintln!("protoc-gen-pbrs: {e}");
             std::process::exit(1);
         }
     }

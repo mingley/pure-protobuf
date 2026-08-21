@@ -1,4 +1,4 @@
-//! tonic `Codec` over **pure-protobuf** (`Parse` / `Serialize`).
+//! tonic `Codec` over **pbrs** (`Parse` / `Serialize`).
 //!
 //! Not `tonic-prost`. These types cannot implement `prost::Message`.
 //! The kernel crate does not depend on tonic.

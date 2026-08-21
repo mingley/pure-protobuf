@@ -4,7 +4,7 @@
 //! This is not prost. Google `protoc --rust_out` gencode will not link here.
 //!
 //! ```ignore
-//! protobuf = { package = "pure-protobuf", git = "https://github.com/mingley/pure-protobuf" }
+//! protobuf = { package = "pbrs", git = "https://github.com/mingley/pure-protobuf" }
 //! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]

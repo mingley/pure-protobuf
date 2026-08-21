@@ -12,7 +12,7 @@ exclude = [
 resolver = "2"
 
 [package]
-name = "pure-protobuf"
+name = "pbrs"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.85"
@@ -29,8 +29,8 @@ name = "protobuf"
 path = "src/lib.rs"
 
 [[bin]]
-name = "protoc-gen-pure-protobuf"
-path = "src/bin/protoc-gen-pure-protobuf.rs"
+name = "protoc-gen-pbrs"
+path = "src/bin/protoc-gen-pbrs.rs"
 
 [[bin]]
 name = "conformance"

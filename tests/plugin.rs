@@ -2,10 +2,10 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn plugin_bin() -> PathBuf {
-    if let Ok(p) = std::env::var("CARGO_BIN_EXE_protoc-gen-pure-protobuf") {
+    if let Ok(p) = std::env::var("CARGO_BIN_EXE_protoc-gen-pbrs") {
         return PathBuf::from(p);
     }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/debug/protoc-gen-pure-protobuf")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/debug/protoc-gen-pbrs")
 }
 
 #[test]
@@ -14,10 +14,10 @@ fn protoc_plugin_generates_and_roundtrips() {
     let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto/person.proto");
     let status = Command::new("protoc")
         .arg(format!(
-            "--plugin=protoc-gen-pure-protobuf={}",
+            "--plugin=protoc-gen-pbrs={}",
             plugin_bin().display()
         ))
-        .arg(format!("--pure-protobuf_out={}", tmp.display()))
+        .arg(format!("--pbrs_out={}", tmp.display()))
         .arg("-I")
         .arg(proto.parent().unwrap())
         .arg(&proto)
@@ -53,7 +53,7 @@ fn protoc_plugin_generates_and_roundtrips() {
     std::fs::write(
         consumer.join("Cargo.toml"),
         format!(
-            "[package]\nname = \"plugin-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nprotobuf = {{ package = \"pure-protobuf\", path = \"{}\" }}\n",
+            "[package]\nname = \"plugin-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nprotobuf = {{ package = \"pbrs\", path = \"{}\" }}\n",
             root.display()
         ),
     )
@@ -105,10 +105,10 @@ fn plugin_generates_test_all_types_proto3() {
     let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("third_party/protobuf/src");
     let status = Command::new("protoc")
         .arg(format!(
-            "--plugin=protoc-gen-pure-protobuf={}",
+            "--plugin=protoc-gen-pbrs={}",
             plugin_bin().display()
         ))
-        .arg(format!("--pure-protobuf_out={}", tmp.display()))
+        .arg(format!("--pbrs_out={}", tmp.display()))
         .arg("-I")
         .arg(&src)
         .arg(&proto)
@@ -155,7 +155,7 @@ fn plugin_generates_test_all_types_proto3() {
     std::fs::write(
         consumer.join("Cargo.toml"),
         format!(
-            "[package]\nname = \"tat-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nprotobuf = {{ package = \"pure-protobuf\", path = \"{}\" }}\n",
+            "[package]\nname = \"tat-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\nprotobuf = {{ package = \"pbrs\", path = \"{}\" }}\n",
             root.display()
         ),
     )
@@ -197,10 +197,10 @@ fn plugin_generates_grpc_stubs() {
     let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto/hello.proto");
     let status = Command::new("protoc")
         .arg(format!(
-            "--plugin=protoc-gen-pure-protobuf={}",
+            "--plugin=protoc-gen-pbrs={}",
             plugin_bin().display()
         ))
-        .arg(format!("--pure-protobuf_out={}", tmp.display()))
+        .arg(format!("--pbrs_out={}", tmp.display()))
         .arg("-I")
         .arg(proto.parent().unwrap())
         .arg(&proto)

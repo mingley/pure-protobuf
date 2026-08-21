@@ -3,15 +3,15 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-cargo build --bin protoc-gen-pure-protobuf
-PLUGIN="$ROOT/target/debug/protoc-gen-pure-protobuf"
+cargo build --bin protoc-gen-pbrs
+PLUGIN="$ROOT/target/debug/protoc-gen-pbrs"
 OUT="$ROOT/src/generated"
 SRC="$ROOT/third_party/protobuf/src"
 TREE="$ROOT/third_party/protobuf"
 export PURE_PROTOBUF_SHARED_POOL=1
 run() {
   local proto="$1"
-  protoc --plugin=protoc-gen-pure-protobuf="$PLUGIN" --pure-protobuf_out="$OUT" \
+  protoc --plugin=protoc-gen-pbrs="$PLUGIN" --pbrs_out="$OUT" \
     -I "$SRC" -I "$TREE" "$proto"
 }
 run "$SRC/google/protobuf/any.proto"

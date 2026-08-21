@@ -1,5 +1,5 @@
 [package]
-name = "pure-protobuf-bench"
+name = "pbrs-bench"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -8,7 +8,7 @@ license = "MIT OR Apache-2.0"
 [workspace]
 
 [dependencies]
-protobuf = { package = "pure-protobuf", path = ".." }
+protobuf = { package = "pbrs", path = ".." }
 prost = { version = "0.13", features = ["derive"] }
 v4_tat = { path = "../v4_tat" }
 v4_person = { path = "../v4_person" }

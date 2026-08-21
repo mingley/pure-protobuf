@@ -3,23 +3,23 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-cargo build --bin protoc-gen-pure-protobuf
-PLUGIN="$ROOT/target/debug/protoc-gen-pure-protobuf"
+cargo build --bin protoc-gen-pbrs
+PLUGIN="$ROOT/target/debug/protoc-gen-pbrs"
 OUT="$ROOT/tests/google_gen"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 export PURE_PROTOBUF_NO_REFLECT=1 PURE_PROTOBUF_NO_WKT=1 PURE_PROTOBUF_EMIT_DEPS=1
 I=(-I "$ROOT/vendor/google" -I "$ROOT/third_party/protobuf/src")
 run() {
-  protoc --plugin=protoc-gen-pure-protobuf="$PLUGIN" --pure-protobuf_out="$OUT" \
+  protoc --plugin=protoc-gen-pbrs="$PLUGIN" --pbrs_out="$OUT" \
     "${I[@]}" "$@"
 }
 
 # unittest_proto3 first; optional would otherwise clobber it if generated together.
 run "$ROOT/vendor/google/rust/test/unittest_proto3.proto"
-mv "$OUT/unittest_proto3.rs" /tmp/pure-protobuf-u3.rs
+mv "$OUT/unittest_proto3.rs" /tmp/pbrs-u3.rs
 run "$ROOT/vendor/google/rust/test/unittest_proto3_optional.proto"
-mv /tmp/pure-protobuf-u3.rs "$OUT/unittest_proto3.rs"
+mv /tmp/pbrs-u3.rs "$OUT/unittest_proto3.rs"
 
 run "$ROOT/vendor/google/rust/test/unittest.proto"
 run "$ROOT/vendor/google/rust/test/unittest_import.proto"
@@ -44,7 +44,7 @@ run "$ROOT/vendor/google/rust/test/package.proto"
 run "$ROOT/vendor/google/rust/test/no_package_import.proto"
 run "$ROOT/vendor/google/rust/test/no_package.proto"
 
-protoc --plugin=protoc-gen-pure-protobuf="$PLUGIN" --pure-protobuf_out="$OUT" \
+protoc --plugin=protoc-gen-pbrs="$PLUGIN" --pbrs_out="$OUT" \
   -I "$ROOT/vendor/google/rust-tests/shared" \
   "$ROOT/vendor/google/rust-tests/shared/utf8/no_features_proto2.proto" \
   "$ROOT/vendor/google/rust-tests/shared/utf8/no_features_proto3.proto" \

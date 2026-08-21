@@ -377,6 +377,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a4cf96a295ab7f0ec2334fa557745c0e9526595f6ebabbb129563a98dfc1b2a"
 
 [[package]]
+name = "pbrs"
+version = "0.1.0"
+dependencies = [
+ "paste",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "pbrs-bench"
+version = "0.1.0"
+dependencies = [
+ "buffa",
+ "buffa_person",
+ "buffa_tat",
+ "pbrs",
+ "prost",
+ "prost_tat",
+ "protobuf",
+ "v4_person",
+ "v4_tat",
+]
+
+[[package]]
 name = "petgraph"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -501,30 +525,6 @@ checksum = "fddf7218148e92862511304cfde3ef07ce109e1f03e830601833b9f0cb901a75"
 dependencies = [
  "quote",
  "syn 2.0.119",
-]
-
-[[package]]
-name = "pure-protobuf"
-version = "0.1.0"
-dependencies = [
- "paste",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "pure-protobuf-bench"
-version = "0.1.0"
-dependencies = [
- "buffa",
- "buffa_person",
- "buffa_tat",
- "prost",
- "prost_tat",
- "protobuf",
- "pure-protobuf",
- "v4_person",
- "v4_tat",
 ]
 
 [[package]]

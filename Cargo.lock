@@ -326,6 +326,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 
 [[package]]
+name = "pbrs"
+version = "0.1.0"
+dependencies = [
+ "paste",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -373,19 +382,10 @@ dependencies = [
  "bytes",
  "futures-util",
  "http",
- "pure-protobuf",
+ "pbrs",
  "tokio",
  "tokio-stream",
  "tonic",
-]
-
-[[package]]
-name = "pure-protobuf"
-version = "0.1.0"
-dependencies = [
- "paste",
- "serde",
- "serde_json",
 ]
 
 [[package]]
