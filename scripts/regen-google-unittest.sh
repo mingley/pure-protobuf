@@ -16,9 +16,9 @@ run() {
 
 # unittest_proto3 first; optional would otherwise clobber it if generated together.
 run "$ROOT/vendor/google/rust/test/unittest_proto3.proto"
-mv "$OUT/unittest_proto3.rs" /tmp/pbrs-u3.rs
+mv "$OUT/unittest_proto3.rs" "$OUT/.unittest_proto3.rs.bak"
 run "$ROOT/vendor/google/rust/test/unittest_proto3_optional.proto"
-mv /tmp/pbrs-u3.rs "$OUT/unittest_proto3.rs"
+mv "$OUT/.unittest_proto3.rs.bak" "$OUT/unittest_proto3.rs"
 
 run "$ROOT/vendor/google/rust/test/unittest.proto"
 run "$ROOT/vendor/google/rust/test/unittest_import.proto"

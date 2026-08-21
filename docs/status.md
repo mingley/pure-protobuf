@@ -10,6 +10,8 @@ Gated:
 - 38 `google_shared` tests (rust/test/shared subset)
 - plugin round-trip including `./scripts/gen.sh`
 - tonic 0.14 unary + bidi smoke (`protobuf-tonic`)
+- `./bench` process gate: nine cases, encode + owned decode vs prost, v4,
+  buffa owned. View gated except `tat_populated`
 
 ## Demo to Google rust / gRPC
 
@@ -20,11 +22,11 @@ What to say:
 2. Conformance is the official runner, same pin rust_upb uses, including
    recommended.
 3. Small-message encode/decode beats the crates.io rust+upb wrapper on the
-   gated suite. That wrapper's cost is arena + FFI + extra copy, not upb C
-   being slow.
+   gated suite, including packed-fixed32 and unpacked-256. That wrapper's
+   cost is arena + FFI + extra copy, not upb C being slow.
 4. Views are `&Owned`. buffa `decode_view` and upb arena views are a
-   different product. We lose packed-fixed decode to v4 and unpacked decode
-   to prost/buffa owned. Numbers in `docs/benchmarks.md`.
+   different product. TAT populated vs view is a tie. Numbers in
+   `docs/benchmarks.md`.
 5. tonic works only through `protobuf-tonic`, tonic 0.14+, regenerate
    stubs. Not a `tonic-prost` drop-in. `protoc` still required at codegen.
 
@@ -33,7 +35,20 @@ What not to say:
 - "drop-in for protobuf 4.x" (gencode and `__internal` differ)
 - "zero-copy kernel" (`FooView` is not a wire view)
 - "faster than upb C" (we timed the rust wrapper)
-- "all cases" (extended suite has losses)
+- "all cases" (packed-fixed64 / packed-float still lose owned decode to v4
+  because those fields sit in Cold)
+
+## Remaining application-level gaps vs rust+upb
+
+See `docs/upb.md`. Short list for a review:
+
+- regenerate; do not link `OwnedMessageInner`
+- no arena views
+- JSON/text via DynamicMessage
+- edition 2024 extensions, CORD / cpp VIEW, gtest matchers
+- maps are `Vec` (scan on get)
+- memcpy-packed fields other than `packed_fixed32` are Cold
+- no in-tree fuzzing
 
 ## Skipped rust/test/shared files
 

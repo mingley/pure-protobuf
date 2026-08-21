@@ -103,7 +103,7 @@ fn extension_get_set_roundtrip() {
 
 #[test]
 fn editions_explicit_presence_zero() {
-    // editions 2023 default: explicit presence — 0 is serialized
+    // editions 2023 default: explicit presence. 0 is serialized.
     let mut f = FieldDescriptor::new(
         "count",
         1,

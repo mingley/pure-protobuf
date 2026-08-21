@@ -1,7 +1,7 @@
 # Design
 
-Constraints: same *application* traits as Google protobuf v4, official
-conformance (binary + JSON + text), no C.
+Same *application* traits as Google protobuf v4. Official conformance
+(binary + JSON + text). No C.
 
 ## Storage
 
@@ -10,28 +10,36 @@ or map fields does not allocate those slots.
 
 Messages with six or more cold fields (packed/unpacked scalars, repeated
 messages, WKT) box them in `Option<Box<MsgCold>>`. Maps and repeated
-string/bytes stay on the hot struct (map and strings benches).
+string/bytes stay on the hot struct (map_64 / strings). `packed_fixed32`
+stays hot so packed-fixed parse is a payload copy, not a Cold malloc.
 
 `Default` is `mem::zeroed` of that layout. `Option<bool>` zeroed is
 `Some(false)`, so explicit bools use `OptBool` (0 = unset). Optional
 string/bytes are `Option<Box<LazyStr>>` / `LazyBytes`.
 
-TAT `size_of` is 616 bytes. `TestAllTypesProto3::new` is ~16 ns.
+TAT `size_of` is 624 bytes. `TestAllTypesProto3::new` is ~20 ns.
 
 ## Parse
 
 One pass. Truncated packed, bad varints, UTF-8 (per edition), and depth are
 rejected here, not on getter.
 
-Lazy after that:
+Scalar-only parses do not `Arc` the input. The first lazy string, bytes,
+nested, or packed-varint field builds a `Wire` (`Arc<[u8]>` + range).
+
+After validation:
 
 - strings <= 23 bytes: SSO copy
-- longer strings / bytes: `Wire` window (`Arc<[u8]>` + range)
-- packed: validated payload kept; `Vec` on first get. Varints recode
-  canonical on encode (overlong memcpy fails recommended
-  `ValidDataRepeated`). Fixed-width packed is memcpy-safe.
+- longer strings / bytes: `Wire` window
+- packed varints: validated payload kept; `Vec` on first get. Encode recodes
+  canonical (overlong memcpy fails recommended `ValidDataRepeated`)
+- packed fixed-width: payload-only `Wire` (not the parent message). Encode
+  memcpy that payload. `Vec` on first get
 - nested messages: `LazyMsg` holds the subslice; nested struct on first
   getter (`OnceLock`)
+
+Unpacked scalar runs of the same tag reserve then push without re-matching
+the whole tag table each time.
 
 `FooView` is `&Owned` after this parse. It is not a wire overlay.
 

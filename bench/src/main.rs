@@ -5,10 +5,10 @@ use buffa_tat::protobuf_test_messages::proto3::{
     test_all_types_proto3::NestedMessage as BuffaNested, TestAllTypesProto3 as BuffaTat,
     TestAllTypesProto3View as BuffaTatView,
 };
-use prost::Message;
 use pbrs::gencode::{NestedMessage, TestAllTypesProto3};
 use pbrs::prelude::*;
 use pbrs::testdata::{Address, Person};
+use prost::Message;
 use protobuf_v4::{Parse as V4Parse, Serialize as V4Serialize};
 use std::time::Instant;
 
@@ -103,6 +103,46 @@ fn tat_packed_fixed() -> TestAllTypesProto3 {
     m
 }
 
+fn tat_packed_fixed64() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    for i in 0..256u64 {
+        m.packed_fixed64_mut().push(i);
+    }
+    m
+}
+
+fn tat_packed_float() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    for i in 0..256 {
+        m.packed_float_mut().push(i as f32);
+    }
+    m
+}
+
+fn tat_unpacked_fixed() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    for i in 0..256u32 {
+        m.unpacked_fixed32_mut().push(i);
+    }
+    m
+}
+
+fn tat_oneof() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    m.set_oneof_string("oneof-string-payload");
+    m
+}
+
+fn tat_repeated_nested() -> TestAllTypesProto3 {
+    let mut m = TestAllTypesProto3::new();
+    for i in 0..8 {
+        let mut n = NestedMessage::new();
+        n.set_a(i);
+        m.repeated_nested_message_mut().push(n);
+    }
+    m
+}
+
 fn tat_bytes() -> TestAllTypesProto3 {
     let mut m = TestAllTypesProto3::new();
     m.set_optional_bytes(&b"optional-bytes-payload-0123456789"[..]);
@@ -158,8 +198,29 @@ fn prost_of(m: &TestAllTypesProto3) -> prost_tat::TestAllTypesProto3 {
             .map(|b| b.as_bytes().to_vec())
             .collect(),
         packed_fixed32: m.packed_fixed32().iter().copied().collect(),
+        packed_fixed64: m.packed_fixed64().iter().copied().collect(),
+        packed_float: m.packed_float().iter().copied().collect(),
         packed_bool: m.packed_bool().iter().copied().collect(),
         unpacked_int32: m.unpacked_int32().iter().copied().collect(),
+        unpacked_fixed32: m.unpacked_fixed32().iter().copied().collect(),
+        repeated_nested_message: m
+            .repeated_nested_message()
+            .iter()
+            .map(|n| prost_tat::test_all_types_proto3::NestedMessage {
+                a: n.a(),
+                ..Default::default()
+            })
+            .collect(),
+        oneof_field: m
+            .oneof_uint32_opt()
+            .map(prost_tat::test_all_types_proto3::OneofField::OneofUint32)
+            .or_else(|| {
+                m.oneof_string_opt().map(|s| {
+                    prost_tat::test_all_types_proto3::OneofField::OneofString(
+                        s.to_str().unwrap_or("").to_string(),
+                    )
+                })
+            }),
         ..Default::default()
     }
 }
@@ -203,20 +264,39 @@ fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
     }
     v.set_optional_bool(m.optional_bool());
     v.set_optional_float(m.optional_float());
-    v.set_optional_nested_enum(v4_tat::test_all_types_proto3::NestedEnum::from(
-        i32::from(m.optional_nested_enum()),
-    ));
+    v.set_optional_nested_enum(v4_tat::test_all_types_proto3::NestedEnum::from(i32::from(
+        m.optional_nested_enum(),
+    )));
     for b in m.repeated_bytes().iter() {
         v.repeated_bytes_mut().push(b.as_bytes());
     }
     for i in m.packed_fixed32().iter() {
         v.packed_fixed32_mut().push(*i);
     }
+    for i in m.packed_fixed64().iter() {
+        v.packed_fixed64_mut().push(*i);
+    }
+    for i in m.packed_float().iter() {
+        v.packed_float_mut().push(*i);
+    }
     for i in m.packed_bool().iter() {
         v.packed_bool_mut().push(*i);
     }
     for i in m.unpacked_int32().iter() {
         v.unpacked_int32_mut().push(*i);
+    }
+    for i in m.unpacked_fixed32().iter() {
+        v.unpacked_fixed32_mut().push(*i);
+    }
+    for n in m.repeated_nested_message().iter() {
+        let mut inner = v4_tat::test_all_types_proto3::NestedMessage::new();
+        inner.set_a(n.a());
+        v.repeated_nested_message_mut().push(inner);
+    }
+    if let Some(x) = m.oneof_uint32_opt() {
+        v.set_oneof_uint32(x);
+    } else if let Some(s) = m.oneof_string_opt() {
+        v.set_oneof_string(s.to_str().unwrap_or(""));
     }
     v
 }
@@ -253,8 +333,29 @@ fn buffa_of(m: &TestAllTypesProto3) -> BuffaTat {
             .map(|b| b.as_bytes().to_vec())
             .collect(),
         packed_fixed32: m.packed_fixed32().iter().copied().collect(),
+        packed_fixed64: m.packed_fixed64().iter().copied().collect(),
+        packed_float: m.packed_float().iter().copied().collect(),
         packed_bool: m.packed_bool().iter().copied().collect(),
         unpacked_int32: m.unpacked_int32().iter().copied().collect(),
+        unpacked_fixed32: m.unpacked_fixed32().iter().copied().collect(),
+        repeated_nested_message: m
+            .repeated_nested_message()
+            .iter()
+            .map(|n| BuffaNested {
+                a: n.a(),
+                ..Default::default()
+            })
+            .collect(),
+        oneof_field: m
+            .oneof_uint32_opt()
+            .map(buffa_tat::protobuf_test_messages::proto3::__buffa::oneof::test_all_types_proto3::OneofField::OneofUint32)
+            .or_else(|| {
+                m.oneof_string_opt().map(|s| {
+                    buffa_tat::protobuf_test_messages::proto3::__buffa::oneof::test_all_types_proto3::OneofField::OneofString(
+                        s.to_str().unwrap_or("").to_string(),
+                    )
+                })
+            }),
         ..Default::default()
     }
 }
@@ -454,7 +555,15 @@ fn run_person(iters: u32) -> Case {
 fn gated(name: &str) -> bool {
     matches!(
         name,
-        "empty" | "person" | "tat_populated" | "packed_256" | "map_64" | "nested_8" | "strings"
+        "empty"
+            | "person"
+            | "tat_populated"
+            | "packed_256"
+            | "map_64"
+            | "nested_8"
+            | "strings"
+            | "unpacked_256"
+            | "packed_fixed_256"
     )
 }
 
@@ -480,6 +589,11 @@ fn main() {
         run_tat("packed_fixed_256", tat_packed_fixed(), iters),
         run_tat("bytes", tat_bytes(), iters),
         run_tat("scalars", tat_scalars(), iters),
+        run_tat("packed_fixed64_256", tat_packed_fixed64(), iters),
+        run_tat("packed_float_256", tat_packed_float(), iters),
+        run_tat("unpacked_fixed_256", tat_unpacked_fixed(), iters),
+        run_tat("oneof", tat_oneof(), iters),
+        run_tat("repeated_nested_8", tat_repeated_nested(), iters),
     ];
 
     println!("{{");

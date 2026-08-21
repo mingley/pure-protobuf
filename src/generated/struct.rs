@@ -121,30 +121,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -155,7 +157,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -172,8 +173,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = PbValue::default();
                             let mut ip = 0;
+                            let mut sw = None;
                             inner.merge_inner(
-                                &wire.window(s, e),
+                                &data[s..e],
+                                &mut sw,
                                 &mut ip,
                                 depth + 1,
                                 true,
@@ -361,30 +364,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -395,7 +400,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -410,8 +414,10 @@ mod __gen {
                     1 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let (kk, vv) =
-                                decode_map_entry_Struct_fields_1(&wire.window(s, e), depth + 1)?;
+                            let (kk, vv) = decode_map_entry_Struct_fields_1(
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                depth + 1,
+                            )?;
                             self.fields.push_entry(kk, vv);
                         }
                         _ => self
@@ -585,7 +591,8 @@ mod __gen {
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
-                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
+                    let mut sw = None;
+                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
                 }
                 _ => pbrs::rt::skip_field(data, &mut pos, w)?,
             }
@@ -800,30 +807,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -834,7 +843,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -885,8 +893,11 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.string_value =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.string_value = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -918,8 +929,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.struct_value.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.struct_value.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -927,8 +940,14 @@ mod __gen {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                Struct::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                                self.struct_value = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                Struct::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                                self.struct_value = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -946,8 +965,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.list_value.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.list_value.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -955,8 +976,14 @@ mod __gen {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                ListValue::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                                self.list_value = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                ListValue::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                                self.list_value = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self

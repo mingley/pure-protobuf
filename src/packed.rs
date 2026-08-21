@@ -88,12 +88,44 @@ macro_rules! fixed_codec {
                 if buf.len() % $width != 0 {
                     return Err(ParseError::new("truncated packed fixed"));
                 }
-                for c in buf.chunks_exact($width) {
-                    out.push($read(c));
+                let n = buf.len() / $width;
+                let start = out.len();
+                out.reserve(n);
+                #[cfg(target_endian = "little")]
+                {
+                    // SAFETY: $elem is a fixed-width POD; protobuf wire is LE.
+                    unsafe {
+                        let dest = out.as_mut_ptr().add(start) as *mut u8;
+                        std::ptr::copy_nonoverlapping(buf.as_ptr(), dest, buf.len());
+                        out.set_len(start + n);
+                    }
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    for c in buf.chunks_exact($width) {
+                        out.push($read(c));
+                    }
                 }
                 Ok(())
             }
-            fn encode(_elems: &[$elem], _out: &mut Vec<u8>) {}
+            fn encode(elems: &[$elem], out: &mut Vec<u8>) {
+                #[cfg(target_endian = "little")]
+                {
+                    let bytes = unsafe {
+                        std::slice::from_raw_parts(
+                            elems.as_ptr() as *const u8,
+                            elems.len() * $width,
+                        )
+                    };
+                    out.extend_from_slice(bytes);
+                }
+                #[cfg(target_endian = "big")]
+                {
+                    for e in elems {
+                        out.extend_from_slice(&e.to_le_bytes());
+                    }
+                }
+            }
         }
     };
 }
@@ -182,7 +214,9 @@ impl<C: PackedCodec> Packed<C> {
         }
         let i = self.inner.as_ref()?;
         if C::MEMCPY_SAFE {
-            return i.wire.as_ref().map(|w| w.as_slice());
+            if let Some(w) = i.wire.as_ref() {
+                return Some(w.as_slice());
+            }
         }
         let elems = i.decoded.get_or_init(|| {
             let mut out = Vec::new();
@@ -208,6 +242,41 @@ impl<C: PackedCodec> Packed<C> {
         } else {
             i.wire.as_ref().is_none_or(|w| w.as_slice().is_empty())
         }
+    }
+
+    pub fn append_bytes(&mut self, buf: &[u8]) -> Result<(), ParseError> {
+        C::validate(buf)?;
+        if buf.is_empty() {
+            return Ok(());
+        }
+        if C::MEMCPY_SAFE {
+            match self.inner.as_mut() {
+                None => {
+                    let mut v = Vec::new();
+                    C::decode(buf, &mut v)?;
+                    let d = OnceLock::new();
+                    let _ = d.set(v);
+                    self.inner = Some(Box::new(PackedInner {
+                        wire: None,
+                        decoded: d,
+                        encoded: OnceLock::new(),
+                    }));
+                }
+                Some(_) => {
+                    let mut items = self.take_vec();
+                    C::decode(buf, &mut items)?;
+                    let d = OnceLock::new();
+                    let _ = d.set(items);
+                    self.inner = Some(Box::new(PackedInner {
+                        wire: None,
+                        decoded: d,
+                        encoded: OnceLock::new(),
+                    }));
+                }
+            }
+            return Ok(());
+        }
+        self.append_wire(Wire::from_slice(buf))
     }
 
     pub fn append_wire(&mut self, w: Wire) -> Result<(), ParseError> {
@@ -243,6 +312,13 @@ impl<C: PackedCodec> Packed<C> {
 
     pub fn push(&mut self, v: C::Elem) {
         self.force_vec().push(v);
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        if additional == 0 {
+            return;
+        }
+        self.force_vec().reserve(additional);
     }
 
     pub fn clear(&mut self) {
@@ -371,6 +447,18 @@ mod tests {
     }
 
     #[test]
+    fn append_bytes_fixed_decodes() {
+        let mut fx = PackedFx32::new();
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&1u32.to_le_bytes());
+        buf.extend_from_slice(&2u32.to_le_bytes());
+        fx.append_bytes(&buf).unwrap();
+        assert_eq!(fx.as_view().len(), 2);
+        assert_eq!(*fx.as_view().get(0).unwrap(), 1);
+        assert_eq!(*fx.as_view().get(1).unwrap(), 2);
+    }
+
+    #[test]
     fn append_keeps_wire_until_mut() {
         let mut buf = Vec::new();
         encode_varint(&mut buf, 1);
@@ -386,7 +474,7 @@ mod tests {
             .unwrap();
         assert!(fx.packed_bytes().is_some());
         fx.push(2);
-        assert!(fx.packed_bytes().is_none());
+        assert_eq!(fx.packed_bytes().map(|p| p.len()), Some(8));
     }
 
     #[test]

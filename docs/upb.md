@@ -93,9 +93,16 @@ tonic-free. `protoc` still required at codegen time.
 **FileDescriptorSet.** Nested `field.message` pointers on a raw FDS skeleton
 are empty. Look up by `type_name` in the pool.
 
+**Layout specialization.** `packed_fixed32` is on the hot struct. Other
+memcpy-packed `packed_*` fields stay in `Cold`, so packed-fixed64 / packed
+float decode still pays a Cold malloc and loses to v4 on those benches.
+This is a TAT-shaped choice, not a general overlay kernel.
+
 ## What is not a gap
 
 Passing recommended conformance without rust_upb's skip list. Plugin
 TestAllTypes driven by the runner. Recursion limit 100 (upb/prost/C++).
 Unknown field round-trip. Packed truncated = parse error. Delimited
 messages as groups. Proto3 explicit presence on oneofs / optional.
+Application-level encode/decode of the same-schema `./bench` suite vs the
+crates.io rust+upb wrapper, including packed-fixed and unpacked 256.

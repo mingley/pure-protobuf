@@ -697,7 +697,9 @@ macro_rules! impl_typed_message {
                 enforce: bool,
                 until: Option<u32>,
             ) -> Result<(), $crate::ParseError> {
-                $Owned::merge_inner(self, wire, pos, depth, enforce, until)
+                let data = wire.as_slice();
+                let mut w = Some(wire.clone());
+                $Owned::merge_inner(self, data, &mut w, pos, depth, enforce, until)
             }
         }
         impl $crate::AsMut for $Owned {

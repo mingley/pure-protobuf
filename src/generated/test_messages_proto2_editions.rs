@@ -330,30 +330,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -364,7 +366,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -543,30 +544,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -577,7 +580,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -802,30 +804,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -836,7 +840,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -1040,30 +1043,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -1074,7 +1079,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -1260,30 +1264,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -1294,7 +1300,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -1310,7 +1315,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.data = Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.data = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -1535,30 +1544,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -1569,7 +1580,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -1594,7 +1604,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.concept = Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.concept = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -1605,7 +1619,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.requires.push(pbrs::rt::LazyStr::from_span(wire, s, e));
+                            self.requires.push(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            ));
                         }
                         _ => self
                             .unknown
@@ -2797,30 +2815,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -2831,7 +2851,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -2973,8 +2992,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.required_string =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.required_string = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -2984,8 +3006,9 @@ mod __gen {
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.required_bytes =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))));
+                            self.required_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
+                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                            )));
                         }
                         _ => self
                             .unknown
@@ -2997,8 +3020,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.required_nested_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.required_nested_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -3007,12 +3032,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 NestedMessage::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.required_nested_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.required_nested_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -3025,8 +3051,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.required_foreign_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.required_foreign_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -3035,12 +3063,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 ForeignMessageProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.required_foreign_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.required_foreign_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -3073,7 +3102,11 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             self.required_string_piece =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                                Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                    pbrs::rt::Wire::ensure(wire, data),
+                                    s,
+                                    e,
+                                )));
                         }
                         _ => self
                             .unknown
@@ -3084,8 +3117,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.required_cord =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.required_cord = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -3097,8 +3133,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.recursive_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.recursive_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -3107,12 +3145,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllRequiredTypesProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.recursive_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.recursive_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -3125,10 +3164,12 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_recursive_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.optional_recursive_message
                                     .get_or_insert()
                                     .merge_inner(
-                                        &wire.window(s, e),
+                                        &data[s..e],
+                                        &mut sw,
                                         &mut ip,
                                         depth + 1,
                                         true,
@@ -3137,12 +3178,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllRequiredTypesProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.optional_recursive_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.optional_recursive_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -3152,10 +3194,12 @@ mod __gen {
                     },
                     201 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.data {
-                            Some(existing) => existing.merge_group(wire, pos, 201, depth + 1)?,
+                            Some(existing) => {
+                                existing.merge_group(data, wire, pos, 201, depth + 1)?
+                            }
                             None => {
                                 let mut inner = Data::default();
-                                inner.merge_group(wire, pos, 201, depth + 1)?;
+                                inner.merge_group(data, wire, pos, 201, depth + 1)?;
                                 self.data = Some(Box::new(inner));
                             }
                         },
@@ -3292,8 +3336,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.default_string =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.default_string = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -3303,8 +3350,9 @@ mod __gen {
                     255 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.default_bytes =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))));
+                            self.default_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
+                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                            )));
                         }
                         _ => self
                             .unknown
@@ -4107,30 +4155,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -4141,7 +4191,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -4421,30 +4470,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -4455,7 +4506,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -4556,8 +4606,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.message_set_extension.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.message_set_extension.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -4566,12 +4618,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 MessageSetCorrectExtension1::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.message_set_extension =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.message_set_extension = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -4584,10 +4637,12 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.message_set_extension_4135312.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.message_set_extension_4135312
                                     .get_or_insert()
                                     .merge_inner(
-                                        &wire.window(s, e),
+                                        &data[s..e],
+                                        &mut sw,
                                         &mut ip,
                                         depth + 1,
                                         true,
@@ -4596,12 +4651,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 MessageSetCorrectExtension2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.message_set_extension_4135312 =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.message_set_extension_4135312 = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -4833,30 +4889,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -4867,7 +4925,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -4883,7 +4940,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.str = Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.str = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -5070,30 +5131,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -5104,7 +5167,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -5370,30 +5432,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -5404,7 +5468,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -5430,8 +5493,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.corecursive.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.corecursive.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -5440,11 +5505,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllRequiredTypesProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.corecursive = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.corecursive = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -5457,8 +5524,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_corecursive.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.optional_corecursive.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -5467,12 +5536,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllRequiredTypesProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.optional_corecursive =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.optional_corecursive = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -5676,7 +5746,6 @@ mod __gen {
         packed_uint64: pbrs::rt::PackedU64,
         packed_sint32: pbrs::rt::PackedS32,
         packed_sint64: pbrs::rt::PackedS64,
-        packed_fixed32: pbrs::rt::PackedFx32,
         packed_fixed64: pbrs::rt::PackedFx64,
         packed_sfixed32: pbrs::rt::PackedSfx32,
         packed_sfixed64: pbrs::rt::PackedSfx64,
@@ -5752,6 +5821,7 @@ mod __gen {
         map_string_foreign_message: Map<pbrs::rt::LazyStr, ForeignMessageProto2>,
         map_string_nested_enum: Map<pbrs::rt::LazyStr, i32>,
         map_string_foreign_enum: Map<pbrs::rt::LazyStr, i32>,
+        packed_fixed32: pbrs::rt::PackedFx32,
         map_int32_nested_message: Map<i32, TestAllTypesProto2NestedMessage>,
         map_int32_bool: Map<i32, bool>,
         oneof_uint32: Option<u32>,
@@ -5942,6 +6012,9 @@ mod __gen {
                 return false;
             }
             if self.map_string_foreign_enum != other.map_string_foreign_enum {
+                return false;
+            }
+            if self.packed_fixed32 != other.packed_fixed32 {
                 return false;
             }
             if self.map_int32_nested_message != other.map_int32_nested_message {
@@ -7160,19 +7233,15 @@ mod __gen {
                 pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_fixed32(&self) -> RepeatedView<'_, u32> {
-            self.cold
-                .as_ref()
-                .map(|c| c.packed_fixed32.as_view())
-                .unwrap_or_else(|| RepeatedView::from_slice(&[]))
+            self.packed_fixed32.as_view()
         }
         pub fn packed_fixed32_mut(&mut self) -> RepeatedMut<'_, u32> {
             self.cached_size.dirty();
-            self.cold_mut().packed_fixed32.as_mut()
+            self.packed_fixed32.as_mut()
         }
         pub fn set_packed_fixed32(&mut self, v: impl IntoIterator<Item = u32>) {
             self.cached_size.dirty();
-            self.cold_mut().packed_fixed32 =
-                pbrs::rt::Packed::from_repeated(v.into_iter().collect());
+            self.packed_fixed32 = pbrs::rt::Packed::from_repeated(v.into_iter().collect());
         }
         pub fn packed_fixed64(&self) -> RepeatedView<'_, u64> {
             self.cold
@@ -8476,30 +8545,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -8510,7 +8581,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -8652,8 +8722,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.optional_string =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -8663,8 +8736,9 @@ mod __gen {
                     15 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.optional_bytes =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))));
+                            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
+                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                            )));
                         }
                         _ => self
                             .unknown
@@ -8676,8 +8750,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_nested_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.optional_nested_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -8686,12 +8762,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2NestedMessage::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.optional_nested_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.optional_nested_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -8704,8 +8781,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.optional_foreign_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.optional_foreign_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -8714,12 +8793,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 ForeignMessageProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.optional_foreign_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.optional_foreign_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -8752,7 +8832,11 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             self.optional_string_piece =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                                Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                    pbrs::rt::Wire::ensure(wire, data),
+                                    s,
+                                    e,
+                                )));
                         }
                         _ => self
                             .unknown
@@ -8763,8 +8847,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.optional_cord =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.optional_cord = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -8776,8 +8863,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.recursive_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.recursive_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -8786,12 +8875,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.recursive_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.recursive_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -8809,10 +8899,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .repeated_int32
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .repeated_int32
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_int32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 31 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_int32
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -8828,10 +8937,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i64);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .repeated_int64
-                            .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .repeated_int64
+                                .push(pbrs::rt::decode_varint(data, pos)? as i64);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_int64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 32 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_int64
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -8847,10 +8975,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as u32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .repeated_uint32
-                            .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .repeated_uint32
+                                .push(pbrs::rt::decode_varint(data, pos)? as u32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_uint32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 33 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_uint32
+                                        .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -8866,10 +9013,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)?);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .repeated_uint64
-                            .push(pbrs::rt::decode_varint(data, pos)?),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .repeated_uint64
+                                .push(pbrs::rt::decode_varint(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_uint64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 34 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_uint64
+                                        .push(pbrs::rt::decode_varint(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -8892,7 +9058,27 @@ mod __gen {
                                 .repeated_sint32
                                 .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
                                     data, pos,
-                                )?))
+                                )?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_sint32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 35 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_sint32
+                                        .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
+                                            data, pos,
+                                        )?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -8916,7 +9102,27 @@ mod __gen {
                                 .repeated_sint64
                                 .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
                                     data, pos,
-                                )?))
+                                )?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_sint64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 36 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_sint64
+                                        .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
+                                            data, pos,
+                                        )?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -8933,10 +9139,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed32(p, &mut i)?);
                             }
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .repeated_fixed32
-                            .push(pbrs::rt::read_fixed32(data, pos)?),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .repeated_fixed32
+                                .push(pbrs::rt::read_fixed32(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_fixed32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 37 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .repeated_fixed32
+                                        .push(pbrs::rt::read_fixed32(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -8952,10 +9177,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed64(p, &mut i)?);
                             }
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .repeated_fixed64
-                            .push(pbrs::rt::read_fixed64(data, pos)?),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .repeated_fixed64
+                                .push(pbrs::rt::read_fixed64(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_fixed64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 38 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .repeated_fixed64
+                                        .push(pbrs::rt::read_fixed64(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -8971,10 +9215,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed32(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .repeated_sfixed32
-                            .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .repeated_sfixed32
+                                .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_sfixed32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 39 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .repeated_sfixed32
+                                        .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -8990,10 +9253,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed64(p, &mut i)? as i64);
                             }
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .repeated_sfixed64
-                            .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .repeated_sfixed64
+                                .push(pbrs::rt::read_fixed64(data, pos)? as i64);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_sfixed64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 40 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .repeated_sfixed64
+                                        .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9009,10 +9291,29 @@ mod __gen {
                                     .push(f32::from_bits(pbrs::rt::read_fixed32(p, &mut i)?));
                             }
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .repeated_float
-                            .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .repeated_float
+                                .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_float.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 41 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .repeated_float
+                                        .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9028,10 +9329,29 @@ mod __gen {
                                     .push(f64::from_bits(pbrs::rt::read_fixed64(p, &mut i)?));
                             }
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .repeated_double
-                            .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .repeated_double
+                                .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_double.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 42 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .repeated_double
+                                        .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9047,10 +9367,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? != 0);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .repeated_bool
-                            .push(pbrs::rt::decode_varint(data, pos)? != 0),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .repeated_bool
+                                .push(pbrs::rt::decode_varint(data, pos)? != 0);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_bool.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 43 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_bool
+                                        .push(pbrs::rt::decode_varint(data, pos)? != 0),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9060,8 +9399,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.repeated_string
-                                .push(pbrs::rt::LazyStr::from_span(wire, s, e));
+                            self.repeated_string.push(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            ));
                         }
                         _ => self
                             .unknown
@@ -9071,8 +9413,9 @@ mod __gen {
                     45 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.repeated_bytes
-                                .push(pbrs::rt::LazyBytes::from_wire(wire.window(s, e)));
+                            self.repeated_bytes.push(pbrs::rt::LazyBytes::from_wire(
+                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                            ));
                         }
                         _ => self
                             .unknown
@@ -9084,8 +9427,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = TestAllTypesProto2NestedMessage::default();
                             let mut ip = 0;
+                            let mut sw = None;
                             inner.merge_inner(
-                                &wire.window(s, e),
+                                &data[s..e],
+                                &mut sw,
                                 &mut ip,
                                 depth + 1,
                                 true,
@@ -9103,8 +9448,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let mut inner = ForeignMessageProto2::default();
                             let mut ip = 0;
+                            let mut sw = None;
                             inner.merge_inner(
-                                &wire.window(s, e),
+                                &data[s..e],
+                                &mut sw,
                                 &mut ip,
                                 depth + 1,
                                 true,
@@ -9127,10 +9474,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .repeated_nested_enum
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .repeated_nested_enum
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_nested_enum.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 51 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_nested_enum
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9146,10 +9512,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .repeated_foreign_enum
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .repeated_foreign_enum
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().repeated_foreign_enum.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 52 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .repeated_foreign_enum
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9160,7 +9545,11 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
                             self.repeated_string_piece
-                                .push(pbrs::rt::LazyStr::from_span(wire, s, e));
+                                .push(pbrs::rt::LazyStr::from_span(
+                                    pbrs::rt::Wire::ensure(wire, data),
+                                    s,
+                                    e,
+                                ));
                         }
                         _ => self
                             .unknown
@@ -9171,8 +9560,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.repeated_cord
-                                .push(pbrs::rt::LazyStr::from_span(wire, s, e));
+                            self.repeated_cord.push(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            ));
                         }
                         _ => self
                             .unknown
@@ -9183,7 +9575,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_int32_56(
-                                &wire.window(s, e),
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 depth + 1,
                             )?;
                             self.map_int32_int32.push_entry(kk, vv);
@@ -9197,7 +9589,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int64_int64_57(
-                                &wire.window(s, e),
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 depth + 1,
                             )?;
                             self.map_int64_int64.push_entry(kk, vv);
@@ -9212,7 +9604,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_uint32_uint32_58(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_uint32_uint32.push_entry(kk, vv);
@@ -9227,7 +9619,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_uint64_uint64_59(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_uint64_uint64.push_entry(kk, vv);
@@ -9242,7 +9634,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sint32_sint32_60(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_sint32_sint32.push_entry(kk, vv);
@@ -9257,7 +9649,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sint64_sint64_61(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_sint64_sint64.push_entry(kk, vv);
@@ -9272,7 +9664,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_fixed32_fixed32_62(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_fixed32_fixed32.push_entry(kk, vv);
@@ -9287,7 +9679,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_fixed64_fixed64_63(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_fixed64_fixed64.push_entry(kk, vv);
@@ -9302,7 +9694,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sfixed32_sfixed32_64(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_sfixed32_sfixed32.push_entry(kk, vv);
@@ -9317,7 +9709,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_sfixed64_sfixed64_65(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_sfixed64_sfixed64.push_entry(kk, vv);
@@ -9331,7 +9723,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_float_66(
-                                &wire.window(s, e),
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 depth + 1,
                             )?;
                             self.map_int32_float.push_entry(kk, vv);
@@ -9345,7 +9737,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_double_67(
-                                &wire.window(s, e),
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 depth + 1,
                             )?;
                             self.map_int32_double.push_entry(kk, vv);
@@ -9359,7 +9751,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_bool_bool_68(
-                                &wire.window(s, e),
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 depth + 1,
                             )?;
                             self.map_bool_bool.push_entry(kk, vv);
@@ -9374,7 +9766,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_string_string_69(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_string_string.push_entry(kk, vv);
@@ -9388,7 +9780,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_bytes_70(
-                                &wire.window(s, e),
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 depth + 1,
                             )?;
                             self.map_string_bytes.push_entry(kk, vv);
@@ -9402,7 +9794,7 @@ mod __gen {
                         match w {
                             pbrs::rt::WIRE_LEN => {
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_nested_message_71(&wire.window(s, e), depth + 1)?;
+                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_nested_message_71(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_string_nested_message.push_entry(kk, vv);
                             }
                             _ => self
@@ -9415,7 +9807,7 @@ mod __gen {
                         match w {
                             pbrs::rt::WIRE_LEN => {
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_foreign_message_72(&wire.window(s, e), depth + 1)?;
+                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_string_foreign_message_72(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_string_foreign_message.push_entry(kk, vv);
                             }
                             _ => self
@@ -9429,7 +9821,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_string_nested_enum_73(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_string_nested_enum.push_entry(kk, vv);
@@ -9444,7 +9836,7 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) =
                                 decode_map_entry_TestAllTypesProto2_map_string_foreign_enum_74(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     depth + 1,
                                 )?;
                             self.map_string_foreign_enum.push_entry(kk, vv);
@@ -9459,12 +9851,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_int32
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .packed_int32
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .packed_int32
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_int32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 75 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_int32
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9475,12 +9886,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_int64
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .packed_int64
-                            .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .packed_int64
+                                .push(pbrs::rt::decode_varint(data, pos)? as i64);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_int64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 76 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_int64
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9491,12 +9921,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_uint32
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .packed_uint32
-                            .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .packed_uint32
+                                .push(pbrs::rt::decode_varint(data, pos)? as u32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_uint32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 77 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_uint32
+                                        .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9507,12 +9956,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_uint64
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .packed_uint64
-                            .push(pbrs::rt::decode_varint(data, pos)?),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .packed_uint64
+                                .push(pbrs::rt::decode_varint(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_uint64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 78 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_uint64
+                                        .push(pbrs::rt::decode_varint(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9523,14 +9991,34 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sint32
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
                         pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .packed_sint32
                                 .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
                                     data, pos,
-                                )?))
+                                )?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_sint32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 79 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_sint32
+                                        .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
+                                            data, pos,
+                                        )?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -9542,14 +10030,34 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sint64
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
                         pbrs::rt::WIRE_VARINT => {
                             self.cold_mut()
                                 .packed_sint64
                                 .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
                                     data, pos,
-                                )?))
+                                )?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_sint64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 80 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_sint64
+                                        .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
+                                            data, pos,
+                                        )?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -9559,14 +10067,29 @@ mod __gen {
                     81 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.cold_mut()
-                                .packed_fixed32
-                                .append_wire(wire.window(s, e))?;
+                            self.packed_fixed32
+                                .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .packed_fixed32
-                            .push(pbrs::rt::read_fixed32(data, pos)?),
+                        pbrs::rt::WIRE_I32 => {
+                            self.packed_fixed32.push(pbrs::rt::read_fixed32(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.packed_fixed32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 81 && w2 == pbrs::rt::WIRE_I32 => {
+                                        self.packed_fixed32.push(pbrs::rt::read_fixed32(data, pos)?)
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9577,12 +10100,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_fixed64
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .packed_fixed64
-                            .push(pbrs::rt::read_fixed64(data, pos)?),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .packed_fixed64
+                                .push(pbrs::rt::read_fixed64(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_fixed64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 82 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .packed_fixed64
+                                        .push(pbrs::rt::read_fixed64(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9593,12 +10135,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sfixed32
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .packed_sfixed32
-                            .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .packed_sfixed32
+                                .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_sfixed32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 83 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .packed_sfixed32
+                                        .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9609,12 +10170,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_sfixed64
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .packed_sfixed64
-                            .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .packed_sfixed64
+                                .push(pbrs::rt::read_fixed64(data, pos)? as i64);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_sfixed64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 84 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .packed_sfixed64
+                                        .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9625,12 +10205,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_float
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .packed_float
-                            .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .packed_float
+                                .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_float.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 85 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .packed_float
+                                        .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9641,12 +10240,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_double
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?;
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .packed_double
-                            .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .packed_double
+                                .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_double.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 86 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .packed_double
+                                        .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9655,12 +10273,33 @@ mod __gen {
                     87 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.cold_mut().packed_bool.append_wire(wire.window(s, e))?;
+                            self.cold_mut()
+                                .packed_bool
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .packed_bool
-                            .push(pbrs::rt::decode_varint(data, pos)? != 0),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .packed_bool
+                                .push(pbrs::rt::decode_varint(data, pos)? != 0);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_bool.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 87 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_bool
+                                        .push(pbrs::rt::decode_varint(data, pos)? != 0),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9671,12 +10310,31 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             self.cold_mut()
                                 .packed_nested_enum
-                                .append_wire(wire.window(s, e))?;
+                                .append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?;
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .packed_nested_enum
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .packed_nested_enum
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().packed_nested_enum.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 88 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .packed_nested_enum
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9692,10 +10350,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .unpacked_int32
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .unpacked_int32
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_int32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 89 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .unpacked_int32
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9711,10 +10388,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i64);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .unpacked_int64
-                            .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .unpacked_int64
+                                .push(pbrs::rt::decode_varint(data, pos)? as i64);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_int64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 90 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .unpacked_int64
+                                        .push(pbrs::rt::decode_varint(data, pos)? as i64),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9730,10 +10426,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as u32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .unpacked_uint32
-                            .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .unpacked_uint32
+                                .push(pbrs::rt::decode_varint(data, pos)? as u32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_uint32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 91 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .unpacked_uint32
+                                        .push(pbrs::rt::decode_varint(data, pos)? as u32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9749,10 +10464,29 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)?);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .unpacked_uint64
-                            .push(pbrs::rt::decode_varint(data, pos)?),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .unpacked_uint64
+                                .push(pbrs::rt::decode_varint(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_uint64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 92 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .unpacked_uint64
+                                        .push(pbrs::rt::decode_varint(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9775,7 +10509,27 @@ mod __gen {
                                 .unpacked_sint32
                                 .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
                                     data, pos,
-                                )?))
+                                )?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_sint32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 93 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .unpacked_sint32
+                                        .push(pbrs::rt::decode_zigzag32(pbrs::rt::decode_varint(
+                                            data, pos,
+                                        )?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -9799,7 +10553,27 @@ mod __gen {
                                 .unpacked_sint64
                                 .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
                                     data, pos,
-                                )?))
+                                )?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_sint64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 94 && w2 == pbrs::rt::WIRE_VARINT => self
+                                        .cold_mut()
+                                        .unpacked_sint64
+                                        .push(pbrs::rt::decode_zigzag64(pbrs::rt::decode_varint(
+                                            data, pos,
+                                        )?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
@@ -9816,10 +10590,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed32(p, &mut i)?);
                             }
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .unpacked_fixed32
-                            .push(pbrs::rt::read_fixed32(data, pos)?),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .unpacked_fixed32
+                                .push(pbrs::rt::read_fixed32(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_fixed32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 95 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .unpacked_fixed32
+                                        .push(pbrs::rt::read_fixed32(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9835,10 +10628,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed64(p, &mut i)?);
                             }
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .unpacked_fixed64
-                            .push(pbrs::rt::read_fixed64(data, pos)?),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .unpacked_fixed64
+                                .push(pbrs::rt::read_fixed64(data, pos)?);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_fixed64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 96 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .unpacked_fixed64
+                                        .push(pbrs::rt::read_fixed64(data, pos)?),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9854,10 +10666,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed32(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .unpacked_sfixed32
-                            .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .unpacked_sfixed32
+                                .push(pbrs::rt::read_fixed32(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_sfixed32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 97 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .unpacked_sfixed32
+                                        .push(pbrs::rt::read_fixed32(data, pos)? as i32),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9873,10 +10704,29 @@ mod __gen {
                                     .push(pbrs::rt::read_fixed64(p, &mut i)? as i64);
                             }
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .unpacked_sfixed64
-                            .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .unpacked_sfixed64
+                                .push(pbrs::rt::read_fixed64(data, pos)? as i64);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_sfixed64.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 98 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .unpacked_sfixed64
+                                        .push(pbrs::rt::read_fixed64(data, pos)? as i64),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9892,10 +10742,29 @@ mod __gen {
                                     .push(f32::from_bits(pbrs::rt::read_fixed32(p, &mut i)?));
                             }
                         }
-                        pbrs::rt::WIRE_I32 => self
-                            .cold_mut()
-                            .unpacked_float
-                            .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                        pbrs::rt::WIRE_I32 => {
+                            self.cold_mut()
+                                .unpacked_float
+                                .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_float.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 99 && w2 == pbrs::rt::WIRE_I32 => self
+                                        .cold_mut()
+                                        .unpacked_float
+                                        .push(f32::from_bits(pbrs::rt::read_fixed32(data, pos)?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9911,10 +10780,29 @@ mod __gen {
                                     .push(f64::from_bits(pbrs::rt::read_fixed64(p, &mut i)?));
                             }
                         }
-                        pbrs::rt::WIRE_I64 => self
-                            .cold_mut()
-                            .unpacked_double
-                            .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                        pbrs::rt::WIRE_I64 => {
+                            self.cold_mut()
+                                .unpacked_double
+                                .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?));
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_double.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 100 && w2 == pbrs::rt::WIRE_I64 => self
+                                        .cold_mut()
+                                        .unpacked_double
+                                        .push(f64::from_bits(pbrs::rt::read_fixed64(data, pos)?)),
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9930,10 +10818,30 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? != 0);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .unpacked_bool
-                            .push(pbrs::rt::decode_varint(data, pos)? != 0),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .unpacked_bool
+                                .push(pbrs::rt::decode_varint(data, pos)? != 0);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_bool.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 101 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .unpacked_bool
+                                            .push(pbrs::rt::decode_varint(data, pos)? != 0)
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9949,10 +10857,30 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .cold_mut()
-                            .unpacked_nested_enum
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.cold_mut()
+                                .unpacked_nested_enum
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.cold_mut().unpacked_nested_enum.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 102 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.cold_mut()
+                                            .unpacked_nested_enum
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32)
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -9962,7 +10890,7 @@ mod __gen {
                         match w {
                             pbrs::rt::WIRE_LEN => {
                                 let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_nested_message_103(&wire.window(s, e), depth + 1)?;
+                                let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_nested_message_103(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;
                                 self.map_int32_nested_message.push_entry(kk, vv);
                             }
                             _ => self
@@ -9975,7 +10903,7 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let (kk, vv) = decode_map_entry_TestAllTypesProto2_map_int32_bool_104(
-                                &wire.window(s, e),
+                                &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                 depth + 1,
                             )?;
                             self.map_int32_bool.push_entry(kk, vv);
@@ -10015,8 +10943,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.oneof_nested_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.oneof_nested_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -10025,12 +10955,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2NestedMessage::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.oneof_nested_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.oneof_nested_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -10050,8 +10981,11 @@ mod __gen {
                             self.oneof_enum = None;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.oneof_string =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -10069,8 +11003,9 @@ mod __gen {
                             self.oneof_double = None;
                             self.oneof_enum = None;
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.oneof_bytes =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))));
+                            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
+                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                            )));
                         }
                         _ => self
                             .unknown
@@ -10176,10 +11111,12 @@ mod __gen {
                     },
                     121 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.groupfield {
-                            Some(existing) => existing.merge_group(wire, pos, 121, depth + 1)?,
+                            Some(existing) => {
+                                existing.merge_group(data, wire, pos, 121, depth + 1)?
+                            }
                             None => {
                                 let mut inner = GroupField::default();
-                                inner.merge_group(wire, pos, 121, depth + 1)?;
+                                inner.merge_group(data, wire, pos, 121, depth + 1)?;
                                 self.groupfield = Some(Box::new(inner));
                             }
                         },
@@ -10192,8 +11129,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.extension_string =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.extension_string = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -10203,8 +11143,9 @@ mod __gen {
                     134 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.extension_bytes =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))));
+                            self.extension_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
+                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                            )));
                         }
                         _ => self
                             .unknown
@@ -10213,10 +11154,12 @@ mod __gen {
                     },
                     201 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.data {
-                            Some(existing) => existing.merge_group(wire, pos, 201, depth + 1)?,
+                            Some(existing) => {
+                                existing.merge_group(data, wire, pos, 201, depth + 1)?
+                            }
                             None => {
                                 let mut inner = TestAllTypesProto2Data::default();
-                                inner.merge_group(wire, pos, 201, depth + 1)?;
+                                inner.merge_group(data, wire, pos, 201, depth + 1)?;
                                 self.data = Some(Box::new(inner));
                             }
                         },
@@ -10227,10 +11170,12 @@ mod __gen {
                     },
                     204 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.multiwordgroupfield {
-                            Some(existing) => existing.merge_group(wire, pos, 204, depth + 1)?,
+                            Some(existing) => {
+                                existing.merge_group(data, wire, pos, 204, depth + 1)?
+                            }
                             None => {
                                 let mut inner = MultiWordGroupField::default();
-                                inner.merge_group(wire, pos, 204, depth + 1)?;
+                                inner.merge_group(data, wire, pos, 204, depth + 1)?;
                                 self.multiwordgroupfield = Some(Box::new(inner));
                             }
                         },
@@ -10367,8 +11312,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.default_string =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.default_string = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -10378,8 +11326,9 @@ mod __gen {
                     255 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            self.default_bytes =
-                                Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))));
+                            self.default_bytes = Some(Box::new(pbrs::rt::LazyBytes::from_wire(
+                                pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                            )));
                         }
                         _ => self
                             .unknown
@@ -10553,8 +11502,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.message_set_correct.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.message_set_correct.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -10563,12 +11514,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2MessageSetCorrect::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.message_set_correct =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.message_set_correct = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -12093,6 +13045,15 @@ mod __gen {
                     n += pbrs::rt::key_len_value_len(74, inner);
                 }
             }
+            if let Some(p) = self.packed_fixed32.packed_bytes() {
+                n += pbrs::rt::key_len_value_len(81, p.len() as u64);
+            } else if !self.packed_fixed32.is_empty() {
+                let mut payload = 0u64;
+                for t in self.packed_fixed32.iter() {
+                    payload += 4;
+                }
+                n += pbrs::rt::key_len_value_len(81, payload);
+            }
             if !self.map_int32_nested_message.is_empty() {
                 for (k, v) in self.map_int32_nested_message.pairs() {
                     let inner = pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
@@ -12411,15 +13372,6 @@ mod __gen {
                         payload += pbrs::rt::varint_len(pbrs::rt::encode_zigzag64(*t));
                     }
                     n += pbrs::rt::key_len_value_len(80, payload);
-                }
-                if let Some(p) = c.packed_fixed32.packed_bytes() {
-                    n += pbrs::rt::key_len_value_len(81, p.len() as u64);
-                } else if !c.packed_fixed32.is_empty() {
-                    let mut payload = 0u64;
-                    for t in c.packed_fixed32.iter() {
-                        payload += 4;
-                    }
-                    n += pbrs::rt::key_len_value_len(81, payload);
                 }
                 if let Some(p) = c.packed_fixed64.packed_bytes() {
                     n += pbrs::rt::key_len_value_len(82, p.len() as u64);
@@ -12892,6 +13844,19 @@ mod __gen {
                     pbrs::rt::encode_varint(out, *v as u64);
                 }
             }
+            if let Some(p) = self.packed_fixed32.packed_bytes() {
+                pbrs::rt::encode_len_header(out, 81, p.len() as u64);
+                out.extend_from_slice(p);
+            } else if !self.packed_fixed32.is_empty() {
+                let mut payload = 0u64;
+                for t in self.packed_fixed32.iter() {
+                    payload += 4;
+                }
+                pbrs::rt::encode_len_header(out, 81, payload);
+                for t in self.packed_fixed32.iter() {
+                    (out).extend_from_slice(&(*t).to_le_bytes());
+                }
+            }
             if !self.map_int32_nested_message.is_empty() {
                 for (k, v) in self.map_int32_nested_message.pairs() {
                     let inner = pbrs::rt::tag_len(1, pbrs::rt::WIRE_VARINT)
@@ -13263,19 +14228,6 @@ mod __gen {
                     pbrs::rt::encode_len_header(out, 80, payload);
                     for t in c.packed_sint64.iter() {
                         pbrs::rt::encode_varint(out, pbrs::rt::encode_zigzag64(*t));
-                    }
-                }
-                if let Some(p) = c.packed_fixed32.packed_bytes() {
-                    pbrs::rt::encode_len_header(out, 81, p.len() as u64);
-                    out.extend_from_slice(p);
-                } else if !c.packed_fixed32.is_empty() {
-                    let mut payload = 0u64;
-                    for t in c.packed_fixed32.iter() {
-                        payload += 4;
-                    }
-                    pbrs::rt::encode_len_header(out, 81, payload);
-                    for t in c.packed_fixed32.iter() {
-                        (out).extend_from_slice(&(*t).to_le_bytes());
                     }
                 }
                 if let Some(p) = c.packed_fixed64.packed_bytes() {
@@ -13813,7 +14765,8 @@ mod __gen {
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
-                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
+                    let mut sw = None;
+                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
                 }
                 _ => pbrs::rt::skip_field(data, &mut pos, w)?,
             }
@@ -13839,7 +14792,8 @@ mod __gen {
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
-                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
+                    let mut sw = None;
+                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
                 }
                 _ => pbrs::rt::skip_field(data, &mut pos, w)?,
             }
@@ -13906,7 +14860,8 @@ mod __gen {
                 (2, pbrs::rt::WIRE_LEN) => {
                     let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?;
                     let mut ip = 0;
-                    val.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?;
+                    let mut sw = None;
+                    val.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?;
                 }
                 _ => pbrs::rt::skip_field(data, &mut pos, w)?,
             }
@@ -14006,30 +14961,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -14040,7 +14997,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -14292,30 +15248,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -14326,7 +15284,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -14655,30 +15612,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -14689,7 +15648,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -14806,8 +15764,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.message_set_extension.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.message_set_extension.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -14816,12 +15776,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2MessageSetCorrectExtension1::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.message_set_extension =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.message_set_extension = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -14834,10 +15795,12 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.message_set_extension_4135312.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.message_set_extension_4135312
                                     .get_or_insert()
                                     .merge_inner(
-                                        &wire.window(s, e),
+                                        &data[s..e],
+                                        &mut sw,
                                         &mut ip,
                                         depth + 1,
                                         true,
@@ -14846,12 +15809,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2MessageSetCorrectExtension2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.message_set_extension_4135312 =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.message_set_extension_4135312 = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -14864,8 +15828,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.extension_with_oneof.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.extension_with_oneof.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -14874,12 +15840,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 ExtensionWithOneof::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.extension_with_oneof =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.extension_with_oneof = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -15158,30 +16125,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -15192,7 +16161,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -15208,7 +16176,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.str = Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.str = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -15418,30 +16390,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -15452,7 +16426,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -15478,8 +16451,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.sub_msg.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.sub_msg.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -15488,11 +16463,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2MessageSetCorrect::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.sub_msg = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.sub_msg = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -15719,30 +16696,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -15753,7 +16732,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -16022,30 +17000,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -16056,7 +17036,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -16082,8 +17061,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.corecursive.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.corecursive.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -16092,11 +17073,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 TestAllTypesProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.corecursive = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.corecursive = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -16470,30 +17453,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -16504,7 +17489,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -16525,8 +17509,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a1.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.a1.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -16534,8 +17520,14 @@ mod __gen {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A1::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                                self.a1 = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                A1::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                                self.a1 = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -16552,8 +17544,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a2.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.a2.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -16561,8 +17555,14 @@ mod __gen {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A2::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                                self.a2 = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                A2::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                                self.a2 = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -16579,8 +17579,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a3.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.a3.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -16588,8 +17590,14 @@ mod __gen {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A3::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                                self.a3 = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                A3::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                                self.a3 = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -16606,8 +17614,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a4.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.a4.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -16615,8 +17625,14 @@ mod __gen {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A4::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                                self.a4 = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                A4::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                                self.a4 = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -16633,8 +17649,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.a5.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.a5.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -16642,8 +17660,14 @@ mod __gen {
                                 )?;
                             } else {
                                 let mut ip = 0;
-                                A5::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?;
-                                self.a5 = pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                A5::validate_inner(
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                    &mut ip,
+                                    depth + 1,
+                                )?;
+                                self.a5 = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -16897,30 +17921,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -16931,7 +17957,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -17089,30 +18114,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -17123,7 +18150,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -17281,30 +18307,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -17315,7 +18343,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -17473,30 +18500,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -17507,7 +18536,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -17665,30 +18693,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -17699,7 +18729,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -18000,30 +19029,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -18034,7 +19065,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {
@@ -18059,8 +19089,11 @@ mod __gen {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             let b = &data[s..e];
-                            self.optional_string =
-                                Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)));
+                            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::from_span(
+                                pbrs::rt::Wire::ensure(wire, data),
+                                s,
+                                e,
+                            )));
                         }
                         _ => self
                             .unknown
@@ -18072,8 +19105,10 @@ mod __gen {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
                             if self.nested_message.is_some() {
                                 let mut ip = 0;
+                                let mut sw = None;
                                 self.nested_message.get_or_insert().merge_inner(
-                                    &wire.window(s, e),
+                                    &data[s..e],
+                                    &mut sw,
                                     &mut ip,
                                     depth + 1,
                                     true,
@@ -18082,12 +19117,13 @@ mod __gen {
                             } else {
                                 let mut ip = 0;
                                 ForeignMessageProto2::validate_inner(
-                                    &wire.window(s, e),
+                                    &pbrs::rt::Wire::ensure(wire, data).window(s, e),
                                     &mut ip,
                                     depth + 1,
                                 )?;
-                                self.nested_message =
-                                    pbrs::rt::LazyMsg::from_wire(wire.window(s, e));
+                                self.nested_message = pbrs::rt::LazyMsg::from_wire(
+                                    pbrs::rt::Wire::ensure(wire, data).window(s, e),
+                                );
                             }
                         }
                         _ => self
@@ -18097,10 +19133,12 @@ mod __gen {
                     },
                     1004 => match w {
                         pbrs::rt::WIRE_SGROUP => match &mut self.optionalgroup {
-                            Some(existing) => existing.merge_group(wire, pos, 1004, depth + 1)?,
+                            Some(existing) => {
+                                existing.merge_group(data, wire, pos, 1004, depth + 1)?
+                            }
                             None => {
                                 let mut inner = OptionalGroup::default();
-                                inner.merge_group(wire, pos, 1004, depth + 1)?;
+                                inner.merge_group(data, wire, pos, 1004, depth + 1)?;
                                 self.optionalgroup = Some(Box::new(inner));
                             }
                         },
@@ -18128,9 +19166,28 @@ mod __gen {
                                     .push(pbrs::rt::decode_varint(p, &mut i)? as i32);
                             }
                         }
-                        pbrs::rt::WIRE_VARINT => self
-                            .repeated_int32
-                            .push(pbrs::rt::decode_varint(data, pos)? as i32),
+                        pbrs::rt::WIRE_VARINT => {
+                            self.repeated_int32
+                                .push(pbrs::rt::decode_varint(data, pos)? as i32);
+                            let rest = data.len().saturating_sub(*pos);
+                            if rest > 2 {
+                                self.repeated_int32.reserve(rest / 3);
+                            }
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 1011 && w2 == pbrs::rt::WIRE_VARINT => {
+                                        self.repeated_int32
+                                            .push(pbrs::rt::decode_varint(data, pos)? as i32)
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
+                        }
                         _ => self
                             .unknown
                             .fields
@@ -18405,30 +19462,32 @@ mod __gen {
             if data.is_empty() {
                 return self.check_required();
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, true, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, true, None)
         }
         fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {
             if data.is_empty() {
                 return Ok(());
             }
-            let w = pbrs::rt::Wire::from_slice(data);
             let mut pos = 0;
-            self.merge_inner(&w, &mut pos, depth, false, None)
+            let mut wire = None;
+            self.merge_inner(data, &mut wire, &mut pos, depth, false, None)
         }
         fn merge_group(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             num: u32,
             depth: u32,
         ) -> Result<(), ParseError> {
-            self.merge_inner(wire, pos, depth, false, Some(num))
+            self.merge_inner(data, wire, pos, depth, false, Some(num))
         }
         fn merge_inner(
             &mut self,
-            wire: &pbrs::rt::Wire,
+            data: &[u8],
+            wire: &mut Option<pbrs::rt::Wire>,
             pos: &mut usize,
             depth: u32,
             enforce: bool,
@@ -18439,7 +19498,6 @@ mod __gen {
             }
             let _ = enforce;
             self.cached_size.dirty();
-            let data = wire.as_slice();
             while *pos < data.len() {
                 let (n, w) = pbrs::rt::decode_tag(data, pos)?;
                 if let Some(g) = until {

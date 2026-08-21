@@ -37,6 +37,13 @@ impl Wire {
         &self.buf[self.start as usize..self.end as usize]
     }
 
+    /// Build a `Wire` the first time a lazy string/bytes/nested/packed-varint
+    /// field needs a stable backing buffer. Scalar-only parses skip this copy.
+    #[inline]
+    pub fn ensure<'a>(slot: &'a mut Option<Wire>, data: &[u8]) -> &'a Wire {
+        slot.get_or_insert_with(|| Wire::from_slice(data))
+    }
+
     /// `rel_start..rel_end` are indices into [`as_slice`].
     pub fn window(&self, rel_start: usize, rel_end: usize) -> Self {
         let start = self.start + rel_start as u32;

@@ -1,49 +1,48 @@
 # Architecture
 
-pbrs is a protobuf **kernel**: parse, serialize, reflection, JSON, text, and
-plugin codegen. It is not a wrapper around upb or libprotobuf.
+pbrs is a protobuf kernel: parse, serialize, reflection, JSON, text, plugin
+codegen. No upb, no libprotobuf, no C.
 
 ## Crates
 
 | crate | role |
 |---|---|
-| `pbrs` | kernel + `protoc-gen-pbrs` + conformance child |
-| `protobuf-tonic` | tonic 0.14 `Codec` and generated `FooClient`/`FooServer` |
+| `pbrs` | kernel, `protoc-gen-pbrs`, conformance child |
+| `protobuf-tonic` | tonic 0.14 `Codec` and generated `FooClient` / `FooServer` |
 
-The kernel does not depend on tonic. Generated gRPC stubs do.
+Kernel has no tonic dependency. Stubs do.
 
-Lib name is `pbrs` (`use pbrs::prelude::*`). Cargo package is `pbrs`. GitHub
-repo is `mingley/pure-protobuf`.
+Lib and Cargo package are both `pbrs` (`use pbrs::prelude::*`). GitHub repo
+is `mingley/pure-protobuf`.
 
-## Request path
+## Parse / encode
 
 ```
 bytes
   -> Parse::parse
   -> generated merge_inner (tag match, depth <= 100)
-  -> field storage (scalars / LazyStr / Packed / LazyMsg / Map / Repeated)
+  -> field storage (scalars, LazyStr, Packed, LazyMsg, Map, Repeated)
   -> getters materialize lazy slots on first access
 ```
 
-Encode is the reverse: `CachedSize` then `write_to` into a `Vec<u8>`. Nested
+Encode is the reverse: `CachedSize`, then `write_to` into a `Vec<u8>`. Nested
 and packed fields write in place (`encode_len_header` + `write_to`). No
-temporary buffer per submessage.
+scratch `Vec` per submessage.
 
 JSON and text are not a second codec. Generated `to_json` / `from_json`
-serialize to bytes, then `DynamicMessage` transcodes with a
-`DescriptorPool`.
+serialize to bytes, then `DynamicMessage` transcodes with a `DescriptorPool`.
 
 ## Codegen
 
-`protoc-gen-pbrs` is a normal protoc plugin (`--pbrs_out`). `./scripts/gen.sh`
-builds or finds the plugin, runs protoc, rustfmts the `.rs` it wrote.
+`protoc-gen-pbrs` is a normal protoc plugin (`--pbrs_out`).
+`./scripts/gen.sh` finds or builds it, runs protoc, rustfmts the `.rs` it
+wrote.
 
 Generated messages are field-wise Rust structs plus `impl_typed_message!`.
-They are not `DynamicMessage` wrappers and not Google `OwnedMessageInner`.
+Not `DynamicMessage` wrappers. Not Google `OwnedMessageInner`.
 
-`build.rs` cannot invoke the plugin bin in the same crate. Conformance
-TestAllTypes lives in `src/generated/` and is re-exported from
-`pbrs::gencode`.
+Same-crate `build.rs` cannot invoke the plugin bin. Conformance TestAllTypes
+lives in `src/generated/` and is re-exported from `pbrs::gencode`.
 
 ## Modules
 
@@ -51,7 +50,7 @@ TestAllTypes lives in `src/generated/` and is re-exported from
 |---|---|
 | `rt` | `CachedSize`, `OptBool`, packed aliases, wire helpers |
 | `lazy` | `Wire`, `LazyStr`, `LazyBytes`, `LazyMsg` |
-| `packed` | packed scalars, memcpy only for fixed-width |
+| `packed` | packed scalars; memcpy only for fixed-width |
 | `repeated` / `map` | 8-byte empty (`Option<Box<Vec<_>>>`) |
 | `dynamic` | `DescriptorPool`, `DynamicMessage` |
 | `json` / `text` | WKT + spec codecs on dynamic messages |

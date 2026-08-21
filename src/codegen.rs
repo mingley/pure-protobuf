@@ -550,10 +550,30 @@ fn is_wkt_msg(f: &FieldDescriptor) -> bool {
     name.starts_with("google.protobuf.")
 }
 
+fn is_memcpy_packed(f: &FieldDescriptor) -> bool {
+    f.packed
+        && matches!(
+            f.field_type,
+            FieldType::Fixed32
+                | FieldType::Fixed64
+                | FieldType::Sfixed32
+                | FieldType::Sfixed64
+                | FieldType::Float
+                | FieldType::Double
+        )
+}
+
+/// Only this packed-fixed field sits on the hot struct. Putting every
+/// memcpy-packed slot on TAT grew `size_of` to 824 and lost strings vs v4.
+fn is_hot_packed_fixed32(f: &FieldDescriptor) -> bool {
+    is_memcpy_packed(f) && f.field_type == FieldType::Fixed32 && f.name.starts_with("packed_")
+}
+
 fn is_cold_field(f: &FieldDescriptor) -> bool {
-    // Maps and repeated string/bytes stay on the hot struct so a sparse parse
-    // (map_64, strings) does not memset every packed/WKT slot.
-    if f.is_map {
+    // Maps and repeated string/bytes stay hot (map_64 / strings).
+    // packed_fixed32 is hot. Unpacked scalars, packed varints, other
+    // memcpy packed, repeated messages, and WKT stay in Cold.
+    if f.is_map || is_hot_packed_fixed32(f) {
         return false;
     }
     if f.cardinality == Cardinality::Repeated {
@@ -564,6 +584,10 @@ fn is_cold_field(f: &FieldDescriptor) -> bool {
 
 fn uses_cold_storage(desc: &MessageDescriptor) -> bool {
     desc.fields.values().filter(|f| is_cold_field(f)).count() >= 6
+}
+
+fn stored_hot(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
+    !stored_cold(desc, f)
 }
 
 fn stored_cold(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
@@ -577,6 +601,47 @@ fn store_mut(desc: &MessageDescriptor, f: &FieldDescriptor) -> String {
     } else {
         format!("self.{id}")
     }
+}
+
+fn emit_zeroed_fields_struct<'a>(
+    src: &mut String,
+    name: &str,
+    fields: impl Iterator<Item = &'a FieldDescriptor>,
+) {
+    let _ = writeln!(src, "#[derive(Clone, Debug, PartialEq)]");
+    let _ = writeln!(src, "struct {name} {{");
+    for f in fields {
+        let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
+    }
+    let _ = writeln!(src, "}}");
+    let _ = writeln!(src, "impl Default for {name} {{");
+    let _ = writeln!(src, "    #[inline(always)]");
+    let _ = writeln!(
+        src,
+        "    fn default() -> Self {{ unsafe {{ pbrs::rt::zeroed_message() }} }}"
+    );
+    let _ = writeln!(src, "}}");
+}
+
+fn emit_box_eq(src: &mut String, field: &str, ty: &str) {
+    let _ = writeln!(
+        src,
+        "        match (self.{field}.as_deref(), other.{field}.as_deref()) {{"
+    );
+    let _ = writeln!(src, "            (None, None) => {{}}");
+    let _ = writeln!(
+        src,
+        "            (Some(a), Some(b)) => if a != b {{ return false; }}"
+    );
+    let _ = writeln!(
+        src,
+        "            (None, Some(b)) => if *b != {ty}::default() {{ return false; }}"
+    );
+    let _ = writeln!(
+        src,
+        "            (Some(a), None) => if *a != {ty}::default() {{ return false; }}"
+    );
+    let _ = writeln!(src, "        }}");
 }
 
 fn packed_storage_ty(f: &FieldDescriptor) -> &'static str {
@@ -632,23 +697,15 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     let cold_name = format!("{name}Cold");
     let use_cold = uses_cold_storage(desc);
     if use_cold {
-        let _ = writeln!(src, "#[derive(Clone, Debug, PartialEq)]");
-        let _ = writeln!(src, "struct {cold_name} {{");
-        for f in desc.fields.values().filter(|f| is_cold_field(f)) {
-            let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
-        }
-        let _ = writeln!(src, "}}");
-        let _ = writeln!(src, "impl Default for {cold_name} {{");
-        let _ = writeln!(src, "    #[inline(always)]");
-        let _ = writeln!(
+        emit_zeroed_fields_struct(
             src,
-            "    fn default() -> Self {{ unsafe {{ pbrs::rt::zeroed_message() }} }}"
+            &cold_name,
+            desc.fields.values().filter(|f| is_cold_field(f)),
         );
-        let _ = writeln!(src, "}}");
     }
     let _ = writeln!(src, "#[derive(Clone, Debug)]");
     let _ = writeln!(src, "pub struct {name} {{");
-    for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
+    for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
         let _ = writeln!(src, "    {}: {},", field_id(f), field_storage_ty(f));
     }
     if use_cold {
@@ -659,7 +716,7 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "impl PartialEq for {name} {{");
     let _ = writeln!(src, "    fn eq(&self, other: &Self) -> bool {{");
-    for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
+    for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
         let id = field_id(f);
         let _ = writeln!(
             src,
@@ -667,24 +724,7 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
         );
     }
     if use_cold {
-        let _ = writeln!(
-            src,
-            "        match (self.cold.as_deref(), other.cold.as_deref()) {{"
-        );
-        let _ = writeln!(src, "            (None, None) => {{}}");
-        let _ = writeln!(
-            src,
-            "            (Some(a), Some(b)) => if a != b {{ return false; }}"
-        );
-        let _ = writeln!(
-            src,
-            "            (None, Some(b)) => if *b != {cold_name}::default() {{ return false; }}"
-        );
-        let _ = writeln!(
-            src,
-            "            (Some(a), None) => if *a != {cold_name}::default() {{ return false; }}"
-        );
-        let _ = writeln!(src, "        }}");
+        emit_box_eq(src, "cold", &cold_name);
     }
     let _ = writeln!(src, "        self.unknown == other.unknown");
     let _ = writeln!(src, "    }}");
@@ -1157,26 +1197,25 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let w = pbrs::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, true, None) }}"
+        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, true, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return Ok(()); }} let w = pbrs::rt::Wire::from_slice(data); let mut pos = 0; self.merge_inner(&w, &mut pos, depth, false, None) }}"
+        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return Ok(()); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, false, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_group(&mut self, wire: &pbrs::rt::Wire, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(wire, pos, depth, false, Some(num)) }}"
+        "    fn merge_group(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(data, wire, pos, depth, false, Some(num)) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_inner(&mut self, wire: &pbrs::rt::Wire, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
+        "    fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
     );
     let _ = writeln!(
         src,
         "        if depth > pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let _ = enforce;"
     );
     let _ = writeln!(src, "        self.cached_size.dirty();");
-    let _ = writeln!(src, "        let data = wire.as_slice();");
     let _ = writeln!(src, "        while *pos < data.len() {{");
     let _ = writeln!(
         src,
@@ -1275,7 +1314,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     if desc.message_set_wire_format {
         emit_message_set_size(src, desc);
     } else {
-        for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
+        for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
             emit_size(src, f, "self");
         }
         if uses_cold_storage(desc) {
@@ -1294,7 +1333,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     if desc.message_set_wire_format {
         emit_message_set_write(src, desc);
     } else {
-        for f in desc.fields.values().filter(|f| !stored_cold(desc, f)) {
+        for f in desc.fields.values().filter(|f| stored_hot(desc, f)) {
             emit_write(src, f, "self");
         }
         if uses_cold_storage(desc) {
@@ -1467,7 +1506,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         );
         let _ = writeln!(
             src,
-            "                    let (kk, vv) = decode_map_entry_{}_{}_{num}(&wire.window(s, e), depth + 1)?;",
+            "                    let (kk, vv) = decode_map_entry_{}_{}_{num}(&pbrs::rt::Wire::ensure(wire, data).window(s, e), depth + 1)?;",
             rust_ident(&desc.full_name),
             field_id(f).replace("r#", "")
         );
@@ -1482,28 +1521,34 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             } else {
                 ""
             };
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {st}.push(pbrs::rt::LazyStr::from_span(wire, s, e)); }}");
+            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {st}.push(pbrs::rt::LazyStr::from_span(pbrs::rt::Wire::ensure(wire, data), s, e)); }}");
         } else if f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))); }}");
+            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))); }}");
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
             let t = scalar_type(f);
             if f.field_type == FieldType::Group || f.delimited {
-                let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; {st}.push(inner); }}");
+                let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st}.push(inner); }}");
             } else {
-                let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; {st}.push(inner); }}");
+                let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st}.push(inner); }}");
             }
         } else if f.field_type.is_packable() {
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");
             let packed_wire = wire_const(f.field_type);
             if f.packed {
-                let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.append_wire(wire.window(s, e))?; }}");
+                if is_memcpy_packed(f) {
+                    // Payload-only Arc. Do not Arc the parent message and do
+                    // not eager-decode the Vec on parse.
+                    let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.append_wire(pbrs::rt::Wire::from_slice(&data[s..e]))?; }}");
+                } else {
+                    let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.append_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))?; }}");
+                }
             } else {
                 let expr = read_scalar_expr(f.field_type, "p", "&mut i");
                 let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let p = pbrs::rt::read_len_bytes(data, pos)?; let mut i = 0; while i < p.len() {{ {st}.push({expr}); }} }}");
             }
             let _ = writeln!(
                 src,
-                "                {packed_wire} => {st}.push({unpacked}),"
+                "                {packed_wire} => {{ {st}.push({unpacked}); let rest = data.len().saturating_sub(*pos); if rest > 2 {{ {st}.reserve(rest / 3); }} while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == {packed_wire} => {st}.push({unpacked}), Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
             );
         } else {
             let unpacked = read_scalar_expr(f.field_type, "data", "pos");
@@ -1517,7 +1562,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         if f.field_type == FieldType::Group || f.delimited {
             let _ = writeln!(src, "                pbrs::rt::WIRE_SGROUP => {{");
             emit_oneof_clear(src, desc, f);
-            let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => existing.merge_group(wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(wire, pos, {num}, depth + 1)?; {st} = Some(Box::new(inner)); }} }}");
+            let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => existing.merge_group(data, wire, pos, {num}, depth + 1)?, None => {{ let mut inner = {t}::default(); inner.merge_group(data, wire, pos, {num}, depth + 1)?; {st} = Some(Box::new(inner)); }} }}");
             let _ = writeln!(src, "                    }}");
         } else {
             let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
@@ -1527,9 +1572,9 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
                 "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?;"
             );
             if is_lazy_msg(f) {
-                let _ = writeln!(src, "                    if {st}.is_some() {{ let mut ip = 0; {st}.get_or_insert().merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&wire.window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(wire.window(s, e)); }}");
+                let _ = writeln!(src, "                    if {st}.is_some() {{ let mut ip = 0; let mut sw = None; {st}.get_or_insert().merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} else {{ let mut ip = 0; {t}::validate_inner(&pbrs::rt::Wire::ensure(wire, data).window(s, e), &mut ip, depth + 1)?; {st} = pbrs::rt::LazyMsg::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e)); }}");
             } else {
-                let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; existing.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; inner.merge_inner(&wire.window(s, e), &mut ip, depth + 1, true, None)?; {st} = Some(Box::new(inner)); }} }}");
+                let _ = writeln!(src, "                    match &mut {st} {{ Some(existing) => {{ let mut ip = 0; let mut sw = None; existing.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; }} None => {{ let mut inner = {t}::default(); let mut ip = 0; let mut sw = None; inner.merge_inner(&data[s..e], &mut sw, &mut ip, depth + 1, true, None)?; {st} = Some(Box::new(inner)); }} }}");
             }
             let _ = writeln!(src, "                    }}");
         }
@@ -1542,9 +1587,9 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             ""
         };
         let assign = if is_option(f) {
-            format!("{st} = Some(Box::new(pbrs::rt::LazyStr::from_span(wire, s, e)))")
+            format!("{st} = Some(Box::new(pbrs::rt::LazyStr::from_span(pbrs::rt::Wire::ensure(wire, data), s, e)))")
         } else {
-            format!("{st} = pbrs::rt::LazyStr::from_span(wire, s, e)")
+            format!("{st} = pbrs::rt::LazyStr::from_span(pbrs::rt::Wire::ensure(wire, data), s, e)")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
@@ -1557,9 +1602,9 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     if f.field_type == FieldType::Bytes {
         let assign = if is_option(f) {
-            format!("{st} = Some(Box::new(pbrs::rt::LazyBytes::from_wire(wire.window(s, e))))")
+            format!("{st} = Some(Box::new(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))))")
         } else {
-            format!("{st} = pbrs::rt::LazyBytes::from_wire(wire.window(s, e))")
+            format!("{st} = pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
@@ -1946,7 +1991,7 @@ fn emit_map_scalar_decode(src: &mut String, n: u32, var: &str, ty: FieldType, ut
             let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyBytes::from_wire(wire.window(s, e)); }},");
         }
         FieldType::Message | FieldType::Group => {
-            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; {var}.merge_inner(&wire.window(s, e), &mut ip, depth, true, None)?; }},");
+            let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; let mut ip = 0; let mut sw = None; {var}.merge_inner(&data[s..e], &mut sw, &mut ip, depth, true, None)?; }},");
         }
         FieldType::Float => {
             let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_I32) => {var} = f32::from_bits(pbrs::rt::read_fixed32(data, &mut pos)?),");
