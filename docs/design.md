@@ -5,8 +5,9 @@ official conformance (binary + JSON + text). There is no C.
 
 ## Storage
 
-Empty collections are null pointers, not empty `Vec`s. A TAT with no packed
-or map fields does not allocate those slots.
+Empty collections are null pointers, not empty `Vec`s. A TestAllTypes
+(TAT, the conformance kitchen-sink message) with no packed or map fields
+does not allocate those slots.
 
 Messages with six or more cold fields (packed/unpacked scalars, repeated
 messages, WKT) box them in `Option<Box<MsgCold>>`. Maps and repeated

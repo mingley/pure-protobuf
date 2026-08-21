@@ -80,8 +80,8 @@ still required at codegen time.
 
 `packed_fixed32` is on the hot struct. Other memcpy-packed `packed_*`
 fields stay in `Cold`, so packed-fixed64 / packed float decode still pays
-a Cold malloc and loses to v4 on those benches. This is a TAT-shaped
-choice, not a general overlay kernel.
+a Cold malloc and loses to v4 on those benches. That split is shaped
+around TestAllTypes, not a general overlay kernel.
 
 ## Already matching rust_upb
 

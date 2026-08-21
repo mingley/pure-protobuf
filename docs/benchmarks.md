@@ -2,7 +2,9 @@
 
 ## Method
 
-Every row uses the same `.proto`. pbrs types are plugin-generated.
+Every row uses the same `.proto`. Most cases are
+`TestAllTypesProto3` (TAT), Google's kitchen-sink conformance message.
+pbrs types are plugin-generated.
 Competitors are prost 0.13 (`prost-build` of that proto), crates.io
 `protobuf` 4.35.1-release (`protoc --rust_out kernel=upb`), buffa 0.9.1
 owned, and buffa `decode_view` where it exists.
