@@ -1,26 +1,33 @@
 # Benchmarks
 
-Same `.proto` on every row: plugin-generated pbrs types vs `prost-build` of
-that proto, crates.io `protobuf` **4.35.1-release** (`protoc --rust_out
-kernel=upb`), buffa **0.9.1** owned, and buffa `decode_view` where it
-exists.
+## Method
 
-Decode uses pbrs wire bytes. `./bench` (from `bench/`): 40 000 iters, median
-of 15 after warmup. Release, thin LTO, one codegen unit.
-`size_of::<TestAllTypesProto3>()` = **624**. Default ~20 ns.
+Every row uses the same `.proto`. pbrs types are plugin-generated.
+Competitors are prost 0.13 (`prost-build` of that proto), crates.io
+`protobuf` 4.35.1-release (`protoc --rust_out kernel=upb`), buffa 0.9.1
+owned, and buffa `decode_view` where it exists.
+
+Decode uses pbrs wire bytes. `./bench` (from `bench/`) runs 40000
+iterations and reports the median of 15 after warmup.
+
+Builds are release, thin LTO, one codegen unit.
+`size_of::<TestAllTypesProto3>()` is 624. Default is ~20 ns.
+
+Each cell is encode ns / decode ns. Payload is encoded size in bytes.
+Buffa view has no encode, so that side is `n/a`.
 
 `./bench` exits non-zero if a gated case loses encode or owned decode to
 prost, v4, or buffa owned. Buffa view is gated except `tat_populated`
 (~3% band) and `packed_fixed_256` (view does not build an owned `Vec`; we
 still win that row on this host, it is not a process gate).
 
-Not gated: JSON, text, KiB+ payloads, proto2 required, maps larger than 64,
-WKT. Those are conformance, not this timer.
+JSON, text, KiB+ payloads, proto2 required, maps larger than 64, and WKT
+are not gated. Those are conformance, not this timer.
 
-## Gated (process fails on a loss)
+Numbers below are one Apple Silicon host. Two consecutive
+`./target/release/bench` runs; the second capture is below.
 
-Encode ns / decode ns. One Apple Silicon host. Two consecutive
-`./target/release/bench` runs, second capture below.
+## Gated
 
 | case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|---:|
@@ -37,11 +44,9 @@ Encode ns / decode ns. One Apple Silicon host. Two consecutive
 person uses handwritten `pbrs::testdata::Person` (inline small repeats).
 Everything else is generated TestAllTypesProto3.
 
-TAT populated vs buffa view is a tie at this size. Do not quote a win.
-Person view has more headroom. packed-fixed owned decode is faster than
-buffa view here; that is not gated.
+## Extended
 
-## Extended (reported, not gated)
+Reported, not gated.
 
 | case | payload | pbrs | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|---:|
@@ -53,21 +58,27 @@ buffa view here; that is not gated.
 | oneof string | 23 | **36 / 86** | 95 / 142 | 152 / 88 | 82 / 176 | n/a / 117 |
 | repeated nested 8 | 38 | 91 / 259 | 120 / **223** | 205 / 268 | 124 / 304 | n/a / 247 |
 
-Owned-decode losses vs v4: **packed_fixed64_256**, **packed_float_256**.
-Those slots live in TAT `Cold`. Only `packed_fixed32` is on the hot struct.
-Encode still wins. View losses on those rows are allowed (view does not
-materialize a `Vec`).
+## Losses
 
-Owned-decode loss vs prost: **repeated_nested_8**. Eight small submessages
-through Cold. Encode still wins.
+`packed_fixed64_256` and `packed_float_256` lose owned decode to v4.
+Those slots live in TAT `Cold`. Only `packed_fixed32` is on the hot
+struct. Encode still wins. View losses on those rows are allowed (view
+does not materialize a `Vec`).
 
-Re-run:
+`repeated_nested_8` loses owned decode to prost. Eight small submessages
+go through Cold. Encode still wins.
+
+`tat_populated` versus buffa view is a tie at this size. Person view has
+more headroom.
+
+## Why v4 encode is large on these sizes
+
+Every v4 `serialize` allocates an Arena, calls FFI `upb_Encode`, and
+copies to `Vec`. Codec work on <1 KiB is tens of ns. Setup is hundreds.
+See `docs/upb.md`.
+
+## Re-run
 
 ```bash
 cd bench && cargo build --release && ./target/release/bench
 ```
-
-## Why v4 encode is large on these sizes
-
-Every v4 `serialize`: Arena, FFI `upb_Encode`, copy to `Vec`. Codec work on
-<1 KiB is tens of ns. Setup is hundreds. See `docs/upb.md`.

@@ -1,54 +1,34 @@
 # Status
 
-Gated:
+## Verified
 
 - `cargo fmt --check`, `clippy --all-targets --all-features -- -D warnings`,
-  `cargo test --workspace`
-- CI on `main` (fmt, clippy, tests). Needs `protoc` for plugin and
-  protobuf-tonic `build.rs`
-- conformance v35.1 required and recommended: 5631 + 909, 0 unexpected
-- 38 `google_shared` tests (rust/test/shared subset)
-- plugin round-trip including `./scripts/gen.sh`
-- tonic 0.14 unary + bidi smoke (`protobuf-tonic`)
-- `./bench` process gate: nine cases, encode + owned decode vs prost, v4,
-  buffa owned. View gated except `tat_populated`
+  and `cargo test --workspace` pass.
+- CI on `main` runs fmt, clippy, and tests. It needs `protoc` for the plugin
+  and for protobuf-tonic `build.rs`.
+- Conformance v35.1 required and recommended: 5631 binary+JSON + 909 text,
+  0 unexpected.
+- 38 `google_shared` tests cover a subset of `rust/test/shared`.
+- Plugin round-trip works, including `./scripts/gen.sh`.
+- tonic 0.14 unary and bidi smoke tests pass in `protobuf-tonic`.
+- `./bench` fails the process if a gated case loses encode or owned decode
+  to prost, v4, or buffa owned. The nine cases are empty, person,
+  tat_populated, packed_256, map_64, nested_8, strings, unpacked_256, and
+  packed_fixed_256. View is gated except `tat_populated` (~3% band) and
+  `packed_fixed_256`.
 
-## Demo to Google rust / gRPC
+## Remaining
 
-What to say:
+See `docs/upb.md`. Short list:
 
-1. Pure-Rust kernel with the v4 *application* trait set, not a rust_out
-   replacement. `protoc --rust_out kernel=upb` will not link.
-2. Conformance is the official runner, same pin rust_upb uses, including
-   recommended.
-3. Small-message encode/decode beats the crates.io rust+upb wrapper on the
-   gated suite, including packed-fixed32 and unpacked-256. That wrapper's
-   cost is arena + FFI + extra copy, not upb C being slow.
-4. Views are `&Owned`. buffa `decode_view` and upb arena views are a
-   different product. TAT populated vs view is a tie. Numbers in
-   `docs/benchmarks.md`.
-5. tonic works only through `protobuf-tonic`, tonic 0.14+, regenerate
-   stubs. Not a `tonic-prost` drop-in. `protoc` still required at codegen.
-
-What not to say:
-
-- "drop-in for protobuf 4.x" (gencode and `__internal` differ)
-- "zero-copy kernel" (`FooView` is not a wire view)
-- "faster than upb C" (we timed the rust wrapper)
-- "all cases" (packed-fixed64 / packed-float still lose owned decode to v4
-  because those fields sit in Cold)
-
-## Remaining application-level gaps vs rust+upb
-
-See `docs/upb.md`. Short list for a review:
-
-- regenerate; do not link `OwnedMessageInner`
-- no arena views
-- JSON/text via DynamicMessage
-- edition 2024 extensions, CORD / cpp VIEW, gtest matchers
-- maps are `Vec` (scan on get)
-- memcpy-packed fields other than `packed_fixed32` are Cold
-- no in-tree fuzzing
+- Regenerated code is required. Google rust_out `OwnedMessageInner` will
+  not link.
+- There are no arena views.
+- JSON and text go through `DynamicMessage`.
+- Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
+- Maps are `Vec` (scan on get).
+- memcpy-packed fields other than `packed_fixed32` are Cold.
+- There is no in-tree fuzzing.
 
 ## Skipped rust/test/shared files
 

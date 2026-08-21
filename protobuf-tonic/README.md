@@ -1,15 +1,16 @@
 # protobuf-tonic
 
-tonic 0.14 `Codec` plus plugin-generated client/server stubs over pbrs
+This crate is the tonic 0.14 `Codec` and plugin-generated stubs over pbrs
 (`Parse` / `Serialize`).
 
-Not `tonic-prost`. These types do not implement `prost::Message`. Kernel
-does not depend on tonic. 0.12/0.13 are unsupported. MSRV 1.88.
+It is not `tonic-prost`. These types do not implement `prost::Message`.
+The kernel does not depend on tonic. tonic 0.12 and 0.13 are unsupported.
+MSRV is 1.88.
 
 `protoc-gen-pbrs` (and `pbrs::codegen::generate_from_file_descriptor_set`)
-emit `FooClient` / `FooServer` / a `Foo` trait for each `.proto` service. Stubs
-use `ProtobufCodec`, not prost. `build.rs` in this crate generates `hello.rs`
-from `proto/hello.proto`.
+emit `FooClient` / `FooServer` / a `Foo` trait for each `.proto` service.
+Stubs use `ProtobufCodec`, not prost. `build.rs` in this crate generates
+`hello.rs` from `proto/hello.proto`.
 
 ```rust
 impl Greeter for Echo {
@@ -31,7 +32,8 @@ let resp = client.say_hello(Request::new(req)).await?;
 let stream = client.stream_hello(Request::new(inbound)).await?;
 ```
 
-`ProtobufCodec<Encode, Decode>`: encode type first, decode type second.
+`ProtobufCodec<Encode, Decode>` takes the encode type first and the decode
+type second.
 
 See `tests/unary.rs` and `tests/streaming.rs`.
 

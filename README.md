@@ -1,12 +1,12 @@
 # pbrs
 
-Pure-Rust protobuf kernel. Application API matches Google protobuf v4:
-`Parse`, `Serialize`, `proto!`, `ProtoStr`, `RepeatedView`,
-`DynamicMessage`.
+pbrs is a pure-Rust protobuf kernel. The application API matches Google
+protobuf v4: `Parse`, `Serialize`, `Clear`, `proto!`, `ProtoStr`,
+`RepeatedView`, `DynamicMessage`.
 
-Not crates.io `protobuf` 4.x (upb/C). Not prost. Not
+It is not crates.io `protobuf` 4.x (upb/C), not prost, and not
 [pb-rs](https://crates.io/crates/pb-rs). Google `protoc --rust_out` will
-not link. Regenerate with `protoc-gen-pbrs`.
+not link. Generate with `protoc-gen-pbrs`.
 
 ```toml
 pbrs = { git = "https://github.com/mingley/pure-protobuf" }
@@ -16,7 +16,7 @@ pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 ./scripts/gen.sh -I proto -o gen proto/your.proto
 ```
 
-`protoc` on PATH. Plugin is `protoc-gen-pbrs` / `--pbrs_out`.
+`protoc` must be on PATH. The plugin is `protoc-gen-pbrs` / `--pbrs_out`.
 
 Docs:
 

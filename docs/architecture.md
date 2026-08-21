@@ -1,7 +1,7 @@
 # Architecture
 
-pbrs is a protobuf kernel: parse, serialize, reflection, JSON, text, plugin
-codegen. No upb, no libprotobuf, no C.
+pbrs is a protobuf kernel: parse, serialize, reflection, JSON, text, and
+plugin codegen. There is no upb, no libprotobuf, and no C.
 
 ## Crates
 
@@ -10,39 +10,40 @@ codegen. No upb, no libprotobuf, no C.
 | `pbrs` | kernel, `protoc-gen-pbrs`, conformance child |
 | `protobuf-tonic` | tonic 0.14 `Codec` and generated `FooClient` / `FooServer` |
 
-Kernel has no tonic dependency. Stubs do.
+The kernel has no tonic dependency. Generated stubs depend on tonic.
 
-Lib and Cargo package are both `pbrs` (`use pbrs::prelude::*`). GitHub repo
-is `mingley/pure-protobuf`.
+The Cargo package and the library are both named `pbrs`
+(`use pbrs::prelude::*`). The GitHub repo is `mingley/pure-protobuf`.
 
 ## Parse / encode
 
-```
-bytes
-  -> Parse::parse
-  -> generated merge_inner (tag match, depth <= 100)
-  -> field storage (scalars, LazyStr, Packed, LazyMsg, Map, Repeated)
-  -> getters materialize lazy slots on first access
-```
+1. Bytes enter through `Parse::parse`.
+2. Generated `merge_inner` matches tags, with depth at most 100.
+3. Values land in field storage: scalars, `LazyStr`, `Packed`, `LazyMsg`,
+   `Map`, `Repeated`.
+4. Getters materialize lazy slots on first access.
 
-Encode is the reverse: `CachedSize`, then `write_to` into a `Vec<u8>`. Nested
-and packed fields write in place (`encode_len_header` + `write_to`). No
-scratch `Vec` per submessage.
+Encode is the reverse. `CachedSize` is filled first, then `write_to` writes
+into a `Vec<u8>`. Nested and packed fields write in place
+(`encode_len_header` + `write_to`). There is no scratch `Vec` per
+submessage.
 
 JSON and text are not a second codec. Generated `to_json` / `from_json`
-serialize to bytes, then `DynamicMessage` transcodes with a `DescriptorPool`.
+serialize to bytes, then `DynamicMessage` transcodes with a
+`DescriptorPool`.
 
 ## Codegen
 
 `protoc-gen-pbrs` is a normal protoc plugin (`--pbrs_out`).
-`./scripts/gen.sh` finds or builds it, runs protoc, rustfmts the `.rs` it
-wrote.
+`./scripts/gen.sh` finds or builds it, runs protoc, and rustfmts the `.rs`
+it wrote.
 
 Generated messages are field-wise Rust structs plus `impl_typed_message!`.
-Not `DynamicMessage` wrappers. Not Google `OwnedMessageInner`.
+They are not `DynamicMessage` wrappers and not Google `OwnedMessageInner`.
 
-Same-crate `build.rs` cannot invoke the plugin bin. Conformance TestAllTypes
-lives in `src/generated/` and is re-exported from `pbrs::gencode`.
+A same-crate `build.rs` cannot invoke the plugin binary. Conformance
+TestAllTypes lives in `src/generated/` and is re-exported from
+`pbrs::gencode`.
 
 ## Modules
 
@@ -59,7 +60,7 @@ lives in `src/generated/` and is re-exported from `pbrs::gencode`.
 
 ## Conformance process
 
-`src/bin/conformance.rs` speaks the official runner protocol. The runner is
-C++ (`conformance_test_runner` at protobuf v35.1). Fetch with
+`src/bin/conformance.rs` speaks the official runner protocol. The runner
+is C++ (`conformance_test_runner` at protobuf v35.1). Fetch it with
 `./scripts/fetch-protobuf.sh`. The protobuf tree is gitignored (~115 MiB).
 Pin and rust_upb skip lists live in `vendor/google/` (~304 KiB).

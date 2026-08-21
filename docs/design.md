@@ -1,7 +1,7 @@
 # Design
 
-Same *application* traits as Google protobuf v4. Official conformance
-(binary + JSON + text). No C.
+pbrs matches the application traits of Google protobuf v4. It passes
+official conformance (binary + JSON + text). There is no C.
 
 ## Storage
 
@@ -21,8 +21,8 @@ TAT `size_of` is 624 bytes. `TestAllTypesProto3::new` is ~20 ns.
 
 ## Parse
 
-One pass. Truncated packed, bad varints, UTF-8 (per edition), and depth are
-rejected here, not on getter.
+Parse is one pass. Truncated packed, bad varints, UTF-8 (per edition), and
+depth are rejected here, not on getter.
 
 Scalar-only parses do not `Arc` the input. The first lazy string, bytes,
 nested, or packed-varint field builds a `Wire` (`Arc<[u8]>` + range).
@@ -45,8 +45,9 @@ the whole tag table each time.
 
 ## Encode
 
-`CachedSize` (`AtomicU64`, ignored by `PartialEq`). Every setter, `_mut`,
-and merge calls `dirty()`. First `serialized_len` / `serialize` fills it.
+`CachedSize` is an `AtomicU64` ignored by `PartialEq`. Every setter, `_mut`,
+and merge calls `dirty()`. The first `serialized_len` / `serialize` fills
+it.
 
 Map encode walks the raw pair slice (`pairs()`). Last key wins on parse
 (`push_entry`, no scan). Lookup on `get` scans.
@@ -66,7 +67,7 @@ Generated accessors follow Google rust:
 `__internal` is a module (`SealedInternal`, `Private`). Google rust_upb
 tests treat `__internal` as `()`. Application code should not use it.
 
-## What we did not copy from upb
+## Not copied from upb
 
-No arena. No minitable. No FFI. No `MessagePtr`. Generated types are
+There is no arena, minitable, FFI, or `MessagePtr`. Generated types are
 ordinary Rust structs. Drop is Rust drop.
