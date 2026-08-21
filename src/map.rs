@@ -173,6 +173,15 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
         Self { inner: None }
     }
 
+    #[inline]
+    pub fn from_slice(items: &'msg [(K, V)]) -> Self {
+        if items.is_empty() {
+            Self::empty()
+        } else {
+            Self { inner: Some(items) }
+        }
+    }
+
     pub fn get(self, key: &K) -> Option<&'msg V> {
         self.inner?
             .iter()
@@ -225,6 +234,10 @@ pub struct MapMut<'msg, K: MapKey, V: MapValue> {
 }
 
 impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
+    pub fn from_vec(inner: &'msg mut Vec<(K, V)>) -> Self {
+        Self { inner }
+    }
+
     /// Returns `true` if the key was newly inserted.
     pub fn insert(&mut self, key: impl Into<K>, value: impl Into<V>) -> bool {
         let key = key.into();

@@ -369,7 +369,9 @@ fn run_person(iters: u32) -> Case {
         buffa_dec: median_ns(15, iters, || {
             let _ = buffa_person::example::Person::decode_from_slice(&bytes).unwrap();
         }),
-        buffa_view: None,
+        buffa_view: Some(median_ns(15, iters, || {
+            let _ = buffa_person::example::PersonView::decode_view(&bytes).unwrap();
+        })),
         ours_def: None,
     }
 }

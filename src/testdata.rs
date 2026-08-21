@@ -69,7 +69,7 @@ macro_rules! impl_message {
         impl $crate::message::Serialize for $Owned {
             #[inline]
             fn serialize(&self) -> Result<Vec<u8>, $crate::error::SerializeError> {
-                let mut out = Vec::with_capacity(128);
+                let mut out = Vec::with_capacity(self.compute_size() as usize);
                 self.write_to(&mut out);
                 $crate::wire::check_size(out.len() as u64)?;
                 Ok(out)
@@ -186,19 +186,115 @@ macro_rules! impl_message {
 
 use crate::error::ParseError;
 use crate::map::{Map, MapMut, MapView};
-use crate::proxied::{AsMut, AsView, IntoProxied};
+use crate::proxied::IntoProxied;
 use crate::repeated::{Repeated, RepeatedMut, RepeatedView};
 use crate::string::ProtoString;
 use crate::wire::{
     self, decode_tag, encode_len_field, encode_tag, encode_varint, key_len_value_len,
     read_len_bytes, tag_len, varint_len, UnknownFields, WIRE_LEN, WIRE_VARINT,
 };
+use std::mem::MaybeUninit;
 use std::sync::OnceLock;
 
-#[derive(Clone, Default, Debug, PartialEq)]
+/// Small repeated/map storage: up to N elements inline, no heap.
+struct InlineVec<T, const N: usize> {
+    len: u8,
+    data: [MaybeUninit<T>; N],
+    heap: Vec<T>,
+}
+
+impl<T, const N: usize> Default for InlineVec<T, N> {
+    fn default() -> Self {
+        Self {
+            len: 0,
+            data: std::array::from_fn(|_| MaybeUninit::uninit()),
+            heap: Vec::new(),
+        }
+    }
+}
+
+impl<T, const N: usize> InlineVec<T, N> {
+    fn as_slice(&self) -> &[T] {
+        if self.heap.is_empty() {
+            let n = self.len as usize;
+            // SAFETY: push() initializes data[0..len].
+            unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, n) }
+        } else {
+            &self.heap
+        }
+    }
+
+    fn push(&mut self, v: T) {
+        if self.heap.is_empty() && (self.len as usize) < N {
+            self.data[self.len as usize].write(v);
+            self.len += 1;
+            return;
+        }
+        if self.heap.is_empty() {
+            for i in 0..self.len as usize {
+                // SAFETY: data[0..len] initialized.
+                self.heap.push(unsafe { self.data[i].assume_init_read() });
+            }
+            self.len = 0;
+        }
+        self.heap.push(v);
+    }
+
+    fn as_mut_vec(&mut self) -> &mut Vec<T> {
+        if self.heap.is_empty() {
+            for i in 0..self.len as usize {
+                self.heap.push(unsafe { self.data[i].assume_init_read() });
+            }
+            self.len = 0;
+        }
+        &mut self.heap
+    }
+}
+
+impl<T: Clone, const N: usize> Clone for InlineVec<T, N> {
+    fn clone(&self) -> Self {
+        let mut out = Self::default();
+        for v in self.as_slice() {
+            out.push(v.clone());
+        }
+        out
+    }
+}
+
+impl<T: PartialEq, const N: usize> PartialEq for InlineVec<T, N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl<T: std::fmt::Debug, const N: usize> std::fmt::Debug for InlineVec<T, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self.as_slice(), f)
+    }
+}
+
+impl<T, const N: usize> Drop for InlineVec<T, N> {
+    fn drop(&mut self) {
+        if self.heap.is_empty() {
+            for i in 0..self.len as usize {
+                unsafe { self.data[i].assume_init_drop() };
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Address {
     city: ProtoString,
     unknown: UnknownFields,
+    cached_size: crate::rt::CachedSize,
+}
+
+impl Default for Address {
+    #[inline(always)]
+    fn default() -> Self {
+        unsafe { crate::rt::zeroed_message() }
+    }
 }
 
 impl Address {
@@ -209,19 +305,22 @@ impl Address {
         self.city.as_view()
     }
     pub fn set_city(&mut self, v: impl IntoProxied<ProtoString>) {
+        self.cached_size.dirty();
         self.city = v.into_proxied();
     }
     pub fn clear_city(&mut self) {
+        self.cached_size.dirty();
         self.city.clear();
     }
 
     #[inline]
     fn merge_bytes(&mut self, data: &[u8]) -> Result<(), ParseError> {
+        self.cached_size.dirty();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = decode_tag(data, &mut pos)?;
-            match (n, w) {
-                (1, WIRE_LEN) => {
+            match n {
+                1 if w == WIRE_LEN => {
                     self.city = ProtoString::from_bytes(read_len_bytes(data, &mut pos)?);
                 }
                 _ => self
@@ -234,13 +333,19 @@ impl Address {
     }
 
     fn compute_size(&self) -> u64 {
+        if let Some(n) = self.cached_size.get() {
+            return n;
+        }
         let mut n = 0u64;
         if !self.city.is_empty() {
             n += key_len_value_len(1, self.city.as_bytes().len() as u64);
         }
-        n + self.unknown.encoded_len()
+        n += self.unknown.encoded_len();
+        self.cached_size.set(n);
+        n
     }
 
+    #[inline]
     fn write_to(&self, out: &mut Vec<u8>) {
         if !self.city.is_empty() {
             encode_len_field(out, 1, self.city.as_bytes());
@@ -266,10 +371,11 @@ pub struct Person {
     id: i32,
     name: ProtoString,
     email: Option<ProtoString>,
-    tags: Repeated<ProtoString>,
-    scores: Map<ProtoString, i32>,
+    tags: InlineVec<ProtoString, 4>,
+    scores: InlineVec<(ProtoString, i32), 4>,
     address: Option<Address>,
     unknown: UnknownFields,
+    cached_size: crate::rt::CachedSize,
 }
 
 impl Person {
@@ -280,6 +386,7 @@ impl Person {
         self.id
     }
     pub fn set_id(&mut self, v: i32) {
+        self.cached_size.dirty();
         self.id = v;
     }
 
@@ -287,6 +394,7 @@ impl Person {
         self.name.as_view()
     }
     pub fn set_name(&mut self, v: impl IntoProxied<ProtoString>) {
+        self.cached_size.dirty();
         self.name = v.into_proxied();
     }
 
@@ -303,30 +411,42 @@ impl Person {
         self.email.as_ref().map(ProtoString::as_view)
     }
     pub fn set_email(&mut self, v: impl IntoProxied<ProtoString>) {
+        self.cached_size.dirty();
         self.email = Some(v.into_proxied());
     }
     pub fn clear_email(&mut self) {
+        self.cached_size.dirty();
         self.email = None;
     }
 
     pub fn tags(&self) -> RepeatedView<'_, ProtoString> {
-        self.tags.as_view()
+        RepeatedView::from_slice(self.tags.as_slice())
     }
     pub fn tags_mut(&mut self) -> RepeatedMut<'_, ProtoString> {
-        self.tags.as_mut()
+        self.cached_size.dirty();
+        RepeatedMut::from_vec(self.tags.as_mut_vec())
     }
     pub fn set_tags(&mut self, v: impl IntoProxied<Repeated<ProtoString>>) {
-        self.tags = v.into_proxied();
+        self.cached_size.dirty();
+        self.tags = InlineVec::default();
+        for t in v.into_proxied().into_vec() {
+            self.tags.push(t);
+        }
     }
 
     pub fn scores(&self) -> MapView<'_, ProtoString, i32> {
-        self.scores.as_view()
+        MapView::from_slice(self.scores.as_slice())
     }
     pub fn scores_mut(&mut self) -> MapMut<'_, ProtoString, i32> {
-        self.scores.as_mut()
+        self.cached_size.dirty();
+        MapMut::from_vec(self.scores.as_mut_vec())
     }
     pub fn set_scores(&mut self, v: impl IntoProxied<Map<ProtoString, i32>>) {
-        self.scores = v.into_proxied();
+        self.cached_size.dirty();
+        self.scores = InlineVec::default();
+        for p in v.into_proxied().pairs() {
+            self.scores.push(p.clone());
+        }
     }
 
     pub fn has_address(&self) -> bool {
@@ -342,43 +462,44 @@ impl Person {
         self.address.as_ref().map(AddressView)
     }
     pub fn set_address(&mut self, v: Address) {
+        self.cached_size.dirty();
         self.address = Some(v);
     }
     pub fn clear_address(&mut self) {
+        self.cached_size.dirty();
         self.address = None;
     }
     pub fn address_mut(&mut self) -> AddressMut<'_> {
+        self.cached_size.dirty();
         AddressMut(self.address.get_or_insert_with(Address::default))
     }
 
     #[inline]
     fn merge_bytes(&mut self, data: &[u8]) -> Result<(), ParseError> {
-        if data.len() >= 16 {
-            self.tags.reserve(data.len() / 16);
-        }
+        self.cached_size.dirty();
         let mut pos = 0;
         while pos < data.len() {
             let (n, w) = decode_tag(data, &mut pos)?;
-            match (n, w) {
-                (1, WIRE_VARINT) => {
+            match n {
+                1 if w == WIRE_VARINT => {
                     self.id = crate::wire::decode_varint(data, &mut pos)? as i32;
                 }
-                (2, WIRE_LEN) => {
+                2 if w == WIRE_LEN => {
                     self.name = ProtoString::from_bytes(read_len_bytes(data, &mut pos)?);
                 }
-                (3, WIRE_LEN) => {
+                3 if w == WIRE_LEN => {
                     self.email = Some(ProtoString::from_bytes(read_len_bytes(data, &mut pos)?));
                 }
-                (4, WIRE_LEN) => {
+                4 if w == WIRE_LEN => {
                     self.tags
                         .push(ProtoString::from_bytes(read_len_bytes(data, &mut pos)?));
                 }
-                (5, WIRE_LEN) => {
+                5 if w == WIRE_LEN => {
                     let payload = read_len_bytes(data, &mut pos)?;
                     let (k, v) = decode_string_i32_entry(payload)?;
-                    self.scores.insert(k, v);
+                    self.scores.push((k, v));
                 }
-                (6, WIRE_LEN) => {
+                6 if w == WIRE_LEN => {
                     let payload = read_len_bytes(data, &mut pos)?;
                     match &mut self.address {
                         Some(existing) => existing.merge_bytes(payload)?,
@@ -399,6 +520,9 @@ impl Person {
     }
 
     fn compute_size(&self) -> u64 {
+        if let Some(n) = self.cached_size.get() {
+            return n;
+        }
         let mut n = 0u64;
         if self.id != 0 {
             n += tag_len(1, WIRE_VARINT) + varint_len(self.id as u64);
@@ -409,10 +533,10 @@ impl Person {
         if let Some(email) = &self.email {
             n += key_len_value_len(3, email.as_bytes().len() as u64);
         }
-        for t in self.tags.iter() {
+        for t in self.tags.as_slice() {
             n += key_len_value_len(4, t.as_bytes().len() as u64);
         }
-        for (k, v) in self.scores.iter() {
+        for (k, v) in self.scores.as_slice() {
             let inner = key_len_value_len(1, k.as_bytes().len() as u64)
                 + if *v != 0 {
                     tag_len(2, WIRE_VARINT) + varint_len(*v as u64)
@@ -424,9 +548,12 @@ impl Person {
         if let Some(addr) = &self.address {
             n += key_len_value_len(6, addr.compute_size());
         }
-        n + self.unknown.encoded_len()
+        n += self.unknown.encoded_len();
+        self.cached_size.set(n);
+        n
     }
 
+    #[inline]
     fn write_to(&self, out: &mut Vec<u8>) {
         if self.id != 0 {
             encode_tag(out, 1, WIRE_VARINT);
@@ -438,10 +565,10 @@ impl Person {
         if let Some(email) = &self.email {
             encode_len_field(out, 3, email.as_bytes());
         }
-        for t in self.tags.iter() {
+        for t in self.tags.as_slice() {
             encode_len_field(out, 4, t.as_bytes());
         }
-        for (k, v) in self.scores.iter() {
+        for (k, v) in self.scores.as_slice() {
             let inner = key_len_value_len(1, k.as_bytes().len() as u64)
                 + if *v != 0 {
                     tag_len(2, WIRE_VARINT) + varint_len(*v as u64)

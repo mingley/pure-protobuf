@@ -68,13 +68,13 @@ Encode ns / decode ns (from a real `./target/release/bench` JSON capture):
 
 | case | ours | prost | v4 upb | buffa owned | buffa view |
 |---|---:|---:|---:|---:|---:|
-| empty TAT 0 B | **24 / 18** | 81 / 129 | 148 / 81 | 71 / 168 | — / 117 |
-| person 62 B | **37 / 101** | 39 / 193 | 73 / 158 | 39 / 153 | — |
-| TAT populated 87 B | **75 / 294** | 186 / 441 | 235 / 404 | 131 / 414 | — / 306 |
-| packed_256 388 B | **64 / 255** | 533 / 819 | 469 / 874 | 579 / 379 | — / 393 |
-| map_64 500 B | **251 / 929** | 669 / 2337 | 977 / 3133 | 407 / 1900 | — / 1102 |
-| nested_8 26 B | **214 / 143** | 2313 / 1037 | 1110 / 317 | 622 / 1338 | — / 1416 |
-| strings 163 B | **61 / 150** | 120 / 327 | 186 / 167 | 102 / 320 | — / 190 |
+| empty TAT 0 B | **23 / 17** | 83 / 138 | 155 / 83 | 73 / 174 | — / 115 |
+| person 62 B | **36 / 72** | 41 / 202 | 80 / 170 | 41 / 163 | — / 82 |
+| TAT populated 87 B | **82 / 306** | 151 / 454 | 244 / 411 | 135 / 408 | — / 308 |
+| packed_256 388 B | **67 / 256** | 541 / 815 | 476 / 896 | 583 / 378 | — / 376 |
+| map_64 500 B | **255 / 969** | 675 / 2435 | 1068 / 3206 | 422 / 1753 | — / 1073 |
+| nested_8 26 B | **222 / 143** | 2339 / 1117 | 1174 / 324 | 664 / 1353 | — / 1442 |
+| strings 163 B | **63 / 171** | 123 / 353 | 194 / 176 | 109 / 332 | — / 198 |
 
 v4 encode is slow on small messages because every `serialize` allocates a fresh upb `Arena`, FFI `upb_Encode`, then copies the arena buffer into a Rust `Vec`. See `third_party/protobuf/rust/upb/wire.rs`.
 
