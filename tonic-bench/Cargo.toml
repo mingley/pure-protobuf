@@ -14,13 +14,9 @@ bytes = "1"
 pbrs = { path = ".." }
 prost = "0.14"
 protobuf-tonic = { path = "../protobuf-tonic" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
-tokio-stream = { version = "0.1", features = ["net"] }
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
-tonic-prost = "0.14"
 
 [build-dependencies]
-tonic-prost-build = "0.14"
+prost-build = "0.14"
 
 [[bin]]
 name = "tonic-bench"
