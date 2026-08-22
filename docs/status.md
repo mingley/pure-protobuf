@@ -24,6 +24,9 @@
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
   packed_fixed64_256, packed_float_256, repeated_nested_8. View is gated
   except `tat_populated` (~3% band) and packed-fixed rows.
+- File, enum, method, message, and field custom options survive
+  FileDescriptorSet parse (`custom_option(n)`; file options on
+  `FileDescriptor` / `DescriptorPool::get_file`).
 
 ## Remaining
 
@@ -35,8 +38,6 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- File / enum / method custom options are skipped on FileDescriptorSet
-  parse. Message and field custom options are kept.
 - There is no in-tree fuzzing.
 
 ## Skipped rust/test/shared files
