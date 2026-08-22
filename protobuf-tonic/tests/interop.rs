@@ -3,13 +3,18 @@
 //! Uses `hello.proto` / generated Greeter stubs and `ProtobufCodec`.
 //! Not `grpc.testing.TestService`, and not a second HTTP/2 stack.
 
-use protobuf_tonic::hello::{Greeter, GreeterServer, HelloReply, HelloRequest};
+use protobuf_tonic::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use protobuf_tonic::ProtobufCodec;
 use std::net::SocketAddr;
 use tonic::transport::{Channel, Server};
 use tonic::{Code, Request, Response, Status};
 
-/// Missing-style server used as a registered Greeter for path probes.
+/// Official gRPC interop `special_status_message` text (code 2 / Unknown).
+/// Tabs, CR, LF, BMP ☺ (U+263A), and non-BMP 😈 (U+1F608) must survive.
+const SPECIAL_STATUS_MESSAGE: &str =
+    "\t\ntest with whitespace\r\nand Unicode BMP ☺ and non-BMP 😈\t\n";
+
+/// Missing-style server: unary handler returns a non-OK Status.
 struct SpecialStatus;
 
 impl Greeter for SpecialStatus {
@@ -17,7 +22,7 @@ impl Greeter for SpecialStatus {
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        Ok(Response::new(HelloReply::new()))
+        Err(Status::unknown(SPECIAL_STATUS_MESSAGE))
     }
 
     async fn client_hello(
@@ -113,4 +118,23 @@ async fn unimplemented_service() {
     assert_eq!(err.code(), Code::Unimplemented);
     // tonic router fallback also sets grpc-status only.
     assert_eq!(err.message(), "");
+}
+
+/// Official interop `special_status_message`: server Status message keeps
+/// leading/trailing whitespace and non-ASCII exactly.
+#[tokio::test]
+async fn special_status_message() {
+    let addr = spawn_greeter().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let err = client
+        .say_hello(Request::new(HelloRequest::new()))
+        .await
+        .expect_err("expected special status");
+    assert_eq!(err.code(), Code::Unknown);
+    assert_eq!(err.message(), SPECIAL_STATUS_MESSAGE);
 }
