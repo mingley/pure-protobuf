@@ -97,3 +97,20 @@ async fn unimplemented_method() {
     // Generated GreeterServer catch-all sets grpc-status only; no grpc-message.
     assert_eq!(err.message(), "");
 }
+
+/// Official interop `unimplemented_service`: service name is not registered
+/// on the tonic server (only `helloworld.Greeter` is).
+#[tokio::test]
+async fn unimplemented_service() {
+    let addr = spawn_greeter().await;
+    let mut grpc = connect(addr).await;
+    let err = unary_at(
+        &mut grpc,
+        "/grpc.testing.UnimplementedService/UnimplementedCall",
+    )
+    .await
+    .expect_err("expected unimplemented service");
+    assert_eq!(err.code(), Code::Unimplemented);
+    // tonic router fallback also sets grpc-status only.
+    assert_eq!(err.message(), "");
+}
