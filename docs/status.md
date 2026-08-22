@@ -6,8 +6,14 @@
   and `cargo test --workspace` pass.
 - CI on `main` runs fmt, clippy, and tests. It needs `protoc` for the plugin
   and for protobuf-tonic `build.rs`.
-- Conformance v35.1 required and recommended: 5631 binary+JSON + 909 text,
-  0 unexpected.
+- Conformance v35.1 (`--maximum_edition 2023`, `18a7af1`): required ×2:
+  3323 successes, 0 skipped, 0 expected failures, 2090 unexpected
+  failures. Recommended: 3323 successes, 0 skipped, 0 expected failures,
+  2308 unexpected failures. Both failed. 5631 is 3323+2308 attempted
+  recommended binary+JSON, not passes. Text never started (runner
+  short-circuits after binary+JSON). Failure tail:
+  `Required.Proto3.ProtobufInput.ValidDataScalar.*.JsonOutput` / Failed
+  to parse input or produce output. CI does not run the runner.
 - 38 `google_shared` tests cover a subset of `rust/test/shared`.
 - Plugin round-trip works, including `./scripts/gen.sh`.
 - `protobuf-tonic` on this tonic 0.14 stack covers all four RPC shapes
