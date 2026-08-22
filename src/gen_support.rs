@@ -850,7 +850,9 @@ macro_rules! impl_typed_message {
                     }
                     return self.check_required();
                 }
-                self.merge_bytes(data, 0)
+                let mut pos = 0;
+                let mut wire = None;
+                self.merge_inner(data, &mut wire, &mut pos, 0, true, None)
             }
             fn merge_from_bytes_dont_enforce_required(
                 &mut self,

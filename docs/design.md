@@ -47,6 +47,8 @@ the whole tag table each time.
 
 `FooView` is `&Owned` after this parse. It is not a wire overlay.
 
+Parse `merge_from_bytes` calls `merge_inner` directly on the non-empty path (no `merge_bytes` wrapper). Empty payloads still run `check_required` when the message has proto2 required fields.
+
 ## Encode
 
 `CachedSize` is an `AtomicU64` ignored by `PartialEq`. Every setter, `_mut`,
