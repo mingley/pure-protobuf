@@ -126,9 +126,19 @@ impl Greeter for WithStatusTrailers {
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<Self::ServerHelloStream>, Status> {
-        Err(Status::unimplemented("trailers test"))
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let mut status = Status::failed_precondition(format!("not ready: {name}"));
+        status
+            .metadata_mut()
+            .insert(TRAILER_KEY, TRAILER_VAL.parse().unwrap());
+        Err(status)
     }
 
     type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
@@ -288,6 +298,34 @@ async fn client_streaming_status_trailers_code_message_and_metadata() {
     drop(tx);
     let err = client
         .client_hello(Request::new(ReceiverStream::new(rx)))
+        .await
+        .expect_err("expected non-OK status with trailers");
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "not ready: ada");
+    let got = err
+        .metadata()
+        .get(TRAILER_KEY)
+        .expect("missing status trailers")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, TRAILER_VAL);
+}
+
+/// Server-stream Status fails before a stream (same path as status.rs).
+/// Custom metadata is still HTTP/2 trailers on that Err.
+#[tokio::test]
+async fn server_streaming_status_trailers_code_message_and_metadata() {
+    let addr = spawn(WithStatusTrailers).await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    let err = client
+        .server_hello(Request::new(req))
         .await
         .expect_err("expected non-OK status with trailers");
     assert_eq!(err.code(), Code::FailedPrecondition);
