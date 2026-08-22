@@ -80,9 +80,24 @@ impl Greeter for WithHeaders {
 
     async fn stream_hello(
         &self,
-        _request: Request<Streaming<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Self::StreamHelloStream>, Status> {
-        Err(Status::unimplemented("headers test"))
+        let mut inbound = request.into_inner();
+        let (tx, rx) = tokio::sync::mpsc::channel(4);
+        tokio::spawn(async move {
+            while let Some(Ok(msg)) = inbound.next().await {
+                let mut reply = HelloReply::new();
+                reply.set_message(msg.name().to_str().unwrap_or("").to_string());
+                if tx.send(Ok(reply)).await.is_err() {
+                    break;
+                }
+            }
+        });
+        let mut response = Response::new(ReceiverStream::new(rx));
+        response
+            .metadata_mut()
+            .insert(HEADER_KEY, HEADER_VAL.parse().unwrap());
+        Ok(response)
     }
 }
 
@@ -247,6 +262,42 @@ async fn server_streaming_response_metadata_round_trip() {
     assert_eq!(got, HEADER_VAL);
     let msg = resp
         .into_inner()
+        .next()
+        .await
+        .expect("one reply")
+        .expect("HelloReply");
+    assert_eq!(msg.message().to_str().unwrap_or(""), "ada");
+}
+
+/// Bidi `Response::metadata` is initial headers on the stream wrapper.
+/// tonic returns Ok(Response) as soon as the outbound stream is open.
+#[tokio::test]
+async fn bidi_streaming_response_metadata_round_trip() {
+    let addr = spawn(WithHeaders).await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let mut stream = client
+        .stream_hello(Request::new(ReceiverStream::new(rx)))
+        .await
+        .expect("bidi with initial metadata");
+    let got = stream
+        .metadata()
+        .get(HEADER_KEY)
+        .expect("missing response metadata")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, HEADER_VAL);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    tx.send(req).await.unwrap();
+    drop(tx);
+    let msg = stream
+        .get_mut()
         .next()
         .await
         .expect("one reply")
