@@ -27,12 +27,18 @@
   official interop names (`unimplemented_method`, `unimplemented_service`,
   `special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,
   `cancel_after_begin`, `cancel_after_first_response`,
-  `timeout_on_sleeping_server`). `large_unary` sizes (271828 / 314159)
-  are `hello.proto` string fields (`name` / `message`), not official
-  `SimpleRequest.payload.body` / `response_size`. Cancel analogues abort
-  the client future (`JoinError::Cancelled`, not a `Status`).
-  `timeout_on_sleeping_server` is unary `Request::set_timeout` →
-  `Code::Cancelled` / "Timeout expired", not `DeadlineExceeded`.
+  `timeout_on_sleeping_server`, `custom_metadata`). `large_unary` sizes
+  (271828 / 314159) are `hello.proto` string fields (`name` / `message`),
+  not official `SimpleRequest.payload.body` / `response_size`. Cancel
+  analogues abort the client future (`JoinError::Cancelled`, not a
+  `Status`). `timeout_on_sleeping_server` is unary `Request::set_timeout`
+  → `Code::Cancelled` / "Timeout expired", not `DeadlineExceeded`.
+  `custom_metadata` (unary SayHello): client sends
+  `x-grpc-test-echo-initial` and `x-grpc-test-echo-trailing-bin`; ascii
+  echo is `Response.metadata` (headers). tonic 0.14 has no first-class
+  OK-path custom trailers (`Response` has no `trailers()`);
+  `x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
+  not trailers. `Status.metadata` on `Err` remains the trailer path.
   Same-process tonic, not official interop, not a native gRPC kernel, no
   Google peer. Compression and the per-message `Vec` in `ProtobufCodec`
   are uncovered.
