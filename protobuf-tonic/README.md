@@ -38,10 +38,11 @@ type second.
 `proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
 unary happy path. `tests/streaming.rs` covers client-stream, server-stream,
 and bidi. `tests/status.rs` asserts non-OK `Status` code+message
-(`NotFound`) on unary, client-stream, and server-stream. Server-stream
-fails before a stream (handler `Err(Status)`; client sees it on the call
-`Result`). `tests/trailers.rs` splits initial `Response` metadata
-(headers) from `Status` metadata sent as HTTP/2 trailers.
+(`NotFound`) on all four RPCs. Server-stream fails before a stream.
+Bidi fails after the first inbound name (same path as client-stream;
+client sees it on the call `Result`). `tests/trailers.rs` splits initial
+`Response` metadata (headers) from `Status` metadata sent as HTTP/2
+trailers.
 
 ## License
 
