@@ -52,9 +52,14 @@ impl Greeter for Missing {
 
     async fn stream_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Self::StreamHelloStream>, Status> {
-        Err(Status::unimplemented("status test"))
+        let mut inbound = request.into_inner();
+        let name = match inbound.next().await {
+            Some(Ok(msg)) => msg.name().to_str().unwrap_or("").to_string(),
+            _ => String::new(),
+        };
+        Err(Status::not_found(format!("no such user: {name}")))
     }
 }
 
@@ -126,6 +131,28 @@ async fn server_streaming_not_found_code_and_message() {
     req.set_name("ada");
     let err = client
         .server_hello(Request::new(req))
+        .await
+        .expect_err("expected non-OK status");
+    assert_eq!(err.code(), Code::NotFound);
+    assert_eq!(err.message(), "no such user: ada");
+}
+
+#[tokio::test]
+async fn bidi_streaming_not_found_code_and_message() {
+    let addr = spawn_missing().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    tx.send(req).await.unwrap();
+    drop(tx);
+    let err = client
+        .stream_hello(Request::new(ReceiverStream::new(rx)))
         .await
         .expect_err("expected non-OK status");
     assert_eq!(err.code(), Code::NotFound);
