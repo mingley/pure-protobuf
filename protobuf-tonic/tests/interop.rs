@@ -3,9 +3,11 @@
 //! Uses `hello.proto` / generated Greeter stubs and `ProtobufCodec`.
 //! Not `grpc.testing.TestService`, and not a second HTTP/2 stack.
 
+use futures_util::StreamExt;
 use protobuf_tonic::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use protobuf_tonic::ProtobufCodec;
 use std::net::SocketAddr;
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Channel, Server};
 use tonic::{Code, Request, Response, Status};
 
@@ -115,9 +117,21 @@ impl Greeter for Echo {
 
     async fn stream_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        request: Request<tonic::Streaming<HelloRequest>>,
     ) -> Result<Response<Self::StreamHelloStream>, Status> {
-        Err(Status::unimplemented("interop dummy"))
+        let mut inbound = request.into_inner();
+        let (tx, rx) = tokio::sync::mpsc::channel(4);
+        tokio::spawn(async move {
+            while let Some(Ok(msg)) = inbound.next().await {
+                let mut reply = HelloReply::new();
+                reply.set_message(msg.name().to_str().unwrap_or("").to_string());
+                if tx.send(Ok(reply)).await.is_err() {
+                    break;
+                }
+            }
+            // Empty inbound: no send, then drop(tx) => empty outbound, OK.
+        });
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
 }
 
@@ -247,4 +261,31 @@ async fn large_unary() {
         .expect("large_unary");
     let reply = resp.into_inner();
     assert_eq!(reply.message().as_bytes().len(), LARGE_RESP);
+}
+
+/// Official interop `empty_stream`: FullDuplexCall with no messages.
+/// Client opens StreamHello and half-closes (`drop(tx)`) before any send.
+/// Server sends nothing (`drop(tx)` after empty inbound). Client sees
+/// zero replies and stream end (OK), not a `Status` error.
+#[tokio::test]
+async fn empty_stream() {
+    let addr = spawn_echo().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let mut stream = client
+        .stream_hello(Request::new(ReceiverStream::new(rx)))
+        .await
+        .expect("empty_stream should start OK");
+    drop(tx);
+    let mut replies = 0usize;
+    while let Some(item) = stream.get_mut().next().await {
+        item.expect("empty_stream must complete OK, not Status");
+        replies += 1;
+    }
+    assert_eq!(replies, 0);
 }
