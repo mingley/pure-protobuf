@@ -1,0 +1,156 @@
+pbrs official conformance_test_runner totals
+checkout: 18a7af1d34c879f872bc5024d8caea04a971e75c (main)
+crate: pbrs
+protobuf pin: v35.1 (35cd01f9fe9afbeea38cc7b979a3b6bfcde82c03)
+runner: target/conformance-build/conformance_test_runner
+bin: target/release/conformance
+edition flag: --maximum_edition 2023
+
+RECAP: binary+JSON required 5413 (3323 ok + 2090 unexpected fail); binary+JSON recommended 5631 (3323 ok + 2308 unexpected fail); text suite not executed (runner short-circuits after binary+JSON suite failure); recommended FAILED.
+
+Notes:
+- ./scripts/conformance.sh was run as written after env fixes (libstdc++ linker; rustc 1.85 MSRV).
+- Script required run 1 exited 1; set -e skipped the script's required run 2.
+- Required run 2 and recommended were then invoked with the same runner/bin/edition as the script.
+- Runner printed one CONFORMANCE SUITE line per invocation (binary+JSON only). No per-suite binary/JSON/text split lines.
+- Failed to open file: /failing_tests.txt is the runner writing unexpected failures to output_dir default '/'.
+
+========================================================================
+REQUIRED RUN 1
+command: ./scripts/conformance.sh
+  (internally: $RUNNER --maximum_edition 2023 $BIN)
+exit code: 1
+last ~40 lines:
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[5].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[6].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[5].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[6].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[7].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[8].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[9].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[2].JsonOutput # Failed to parse input or produce output.
+
+Failed to open file: /failing_tests.txt
+CONFORMANCE SUITE FAILED: 3323 successes, 0 skipped, 0 expected failures, 2090 unexpected failures.
+
+
+========================================================================
+REQUIRED RUN 2
+command: $RUNNER --maximum_edition 2023 $BIN
+exit code: 1
+last ~40 lines:
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[5].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[6].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[5].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[6].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[7].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[8].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[9].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[2].JsonOutput # Failed to parse input or produce output.
+
+Failed to open file: /failing_tests.txt
+CONFORMANCE SUITE FAILED: 3323 successes, 0 skipped, 0 expected failures, 2090 unexpected failures.
+
+
+========================================================================
+RECOMMENDED
+command: $RUNNER --enforce_recommended --maximum_edition 2023 $BIN
+exit code: 1
+last ~40 lines:
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SFIXED64[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT32[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.SINT64[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[5].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.STRING[6].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[2].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[3].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[4].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[5].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[6].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[7].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[8].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT32[9].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[0].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[1].JsonOutput # Failed to parse input or produce output.
+  Required.Proto3.ProtobufInput.ValidDataScalar.UINT64[2].JsonOutput # Failed to parse input or produce output.
+
+Failed to open file: /failing_tests.txt
+CONFORMANCE SUITE FAILED: 3323 successes, 0 skipped, 0 expected failures, 2308 unexpected failures.
+
+
