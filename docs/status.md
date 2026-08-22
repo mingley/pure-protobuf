@@ -71,14 +71,18 @@ See `docs/upb.md`. Short list:
   `Message` supertraits, 1× no `assert_compatible_gencode_version`.
   `pbrs::__internal` exports only `Private` and `SealedInternal`.
   rust_out will not link.
-- #34 (`7402420`) landed the inline-path `Arc` skip. That leftover
-  is gone. Hello Parse is a smaller loss: 26.2 vs 21.7 on the #34
-  VM (was 38.2 vs 23.1 on that same host). Different host than
-  #31. Do not mix. 4 KiB Parse is unchanged (~160 vs ~135; long
-  path still `Wire::ensure`). Residual leftover is `merge_inner`
-  glue; inventory of that leftover is still running, not pasted.
-  #32 stays draft (measure-only; the old discarded-Arc inventory).
-  Not a Parse win. Not a win.
+- Inventory is in. #36 is measure-only and stays draft. Do not
+  merge it as done. Leftover is the `merge_inner` wrapper:
+  Parse − reconstruct 6.8–7.6 ns. Reconstruct string arm is
+  already faster than prost. Inside that wrapper (do not sum):
+  Default 1.0 vs 0.4 (48 B vs 24 B), `CachedSize::dirty` 0.3.
+  This VM Parse-only leftover is 2.1–3.2 ns (24.0–24.9 vs
+  21.7–21.9). Host-label it: this is the #36 VM, not the #31
+  host and not the #34 host (~4.5). Do not mix. 4 KiB still
+  pays `Wire::ensure` (long path). Parent `Arc` is off the
+  hello path (#34 landed). #32 stays draft (old discarded-Arc
+  inventory). Verified stays 52.2 vs 25.8. Not a Parse win.
+  Not a win.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
