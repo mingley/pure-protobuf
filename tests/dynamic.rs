@@ -185,12 +185,16 @@ fn file_descriptor_set_bootstrap() {
 
 #[test]
 fn file_descriptor_set_keeps_custom_options() {
+    // FileDescriptorProto.options is field 8 (FileOptions).
     // DescriptorProto.options is field 7 (MessageOptions).
     // FieldDescriptorProto.options is field 8 (FieldOptions).
-    // Tags 51206 / 9999 are not standard option fields; they must survive
+    // EnumDescriptorProto.options is field 3 (EnumOptions).
+    // MethodDescriptorProto.options is field 4 (MethodOptions).
+    // Tags below are not standard option fields; they must survive
     // from_file_descriptor_set instead of being skip_field'd.
     let mut fds = Vec::new();
     let mut file = Vec::new();
+    protobuf_test_encode_string(&mut file, 1, "example.proto");
     protobuf_test_encode_string(&mut file, 2, "example");
     protobuf_test_encode_string(&mut file, 12, "proto3");
     let mut msg = Vec::new();
@@ -208,6 +212,30 @@ fn file_descriptor_set_keeps_custom_options() {
     protobuf_test_encode_len(&mut msg_opts, 51206, b"abc");
     protobuf_test_encode_len(&mut msg, 7, &msg_opts);
     protobuf_test_encode_len(&mut file, 4, &msg);
+    let mut enum_ty = Vec::new();
+    protobuf_test_encode_string(&mut enum_ty, 1, "Kind");
+    let mut enum_val = Vec::new();
+    protobuf_test_encode_string(&mut enum_val, 1, "ZERO");
+    protobuf_test_encode_varint(&mut enum_val, 2, 0);
+    protobuf_test_encode_len(&mut enum_ty, 2, &enum_val);
+    let mut enum_opts = Vec::new();
+    protobuf_test_encode_len(&mut enum_opts, 50002, b"en");
+    protobuf_test_encode_len(&mut enum_ty, 3, &enum_opts);
+    protobuf_test_encode_len(&mut file, 5, &enum_ty);
+    let mut method = Vec::new();
+    protobuf_test_encode_string(&mut method, 1, "Ping");
+    protobuf_test_encode_string(&mut method, 2, ".example.Mini");
+    protobuf_test_encode_string(&mut method, 3, ".example.Mini");
+    let mut method_opts = Vec::new();
+    protobuf_test_encode_len(&mut method_opts, 50003, b"mn");
+    protobuf_test_encode_len(&mut method, 4, &method_opts);
+    let mut service = Vec::new();
+    protobuf_test_encode_string(&mut service, 1, "Greeter");
+    protobuf_test_encode_len(&mut service, 2, &method);
+    protobuf_test_encode_len(&mut file, 6, &service);
+    let mut file_opts = Vec::new();
+    protobuf_test_encode_len(&mut file_opts, 50001, b"fl");
+    protobuf_test_encode_len(&mut file, 8, &file_opts);
     protobuf_test_encode_len(&mut fds, 1, &file);
 
     let pool = DescriptorPool::from_file_descriptor_set(&fds).expect("fds");
@@ -215,6 +243,15 @@ fn file_descriptor_set_keeps_custom_options() {
     assert_eq!(desc.custom_option(51206), Some(b"abc".as_slice()));
     let id = desc.field(1).expect("id");
     assert_eq!(id.custom_option(9999), Some(b"xyz".as_slice()));
+    let file_desc = pool.get_file("example.proto").expect("example.proto");
+    assert_eq!(file_desc.custom_option(50001), Some(b"fl".as_slice()));
+    let kind = pool.get_enum("example.Kind").expect("example.Kind");
+    assert_eq!(kind.custom_option(50002), Some(b"en".as_slice()));
+    let svc = pool
+        .get_service("example.Greeter")
+        .expect("example.Greeter");
+    assert_eq!(svc.methods.len(), 1);
+    assert_eq!(svc.methods[0].custom_option(50003), Some(b"mn".as_slice()));
 }
 
 fn protobuf_test_encode_varint(out: &mut Vec<u8>, number: u32, value: u64) {
