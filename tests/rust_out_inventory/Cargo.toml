@@ -1,0 +1,13 @@
+# INVENTORY ONLY. Official Google protoc --rust_out vs the pbrs kernel.
+# Not a workspace member. Not a compatibility shim. Do not compile from CI.
+[workspace]
+
+[package]
+name = "pbrs-rust-out-inventory"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+# rust_out hardcodes ::protobuf; remap the kernel crate so rustc sees pbrs.
+protobuf = { package = "pbrs", path = "../.." }

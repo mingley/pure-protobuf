@@ -1,0 +1,2697 @@
+# rust_out inventory — MEASURE ONLY
+#
+# Official Google protoc --rust_out (protobuf v35.1 / libprotoc 35.1) compiled
+# against this repo's pbrs kernel. No kernel rewrite. No compatibility shim.
+#
+# protoc: official GitHub release protoc-35.1-linux-x86_64.zip
+#         (https://github.com/protocolbuffers/protobuf/releases/tag/v35.1)
+# proto:  proto/person.proto
+# generate:
+#   protoc --rust_out=DIR --rust_opt=experimental-codegen=enabled,kernel=upb \
+#     -I proto proto/person.proto
+# compile (pbrs remapped as the `protobuf` crate rust_out hardcodes):
+#   cargo check
+#   (cwd tests/rust_out_inventory, rustc 1.85.0; pbrs rust-version = 1.85)
+#   Cargo.toml: protobuf = { package = "pbrs", path = "../.." }
+#
+# Result: rustc could not compile; 234 errors. Transcript below is verbatim
+# cargo/rustc diagnostics from the first error[] through the final
+# "could not compile" line. Cargo crate-download / "Compiling pbrs" lines
+# were stripped so this file is rustc-only.
+#
+# Unique first-lines (count):
+#   147 error[E0433]: could not find `runtime` in `__internal`
+#     (includes OwnedMessageInner, MiniTable*, Message*Inner, UpbGet*, etc.)
+#     6 error[E0433]: could not find `entity_tag` in `__internal`
+#     6 error[E0405]: cannot find trait `EntityType` in `protobuf::__internal`
+#     4 error[E0050]: method `into_proxied` has 2 parameters but trait has 1
+#    70 error[E0277]: rust_out types do not impl pbrs Message supertraits
+#       (Clear, ClearAndParse, CopyFrom, TakeFrom, MergeFrom, Serialize, MessageType)
+#     1 error[E0425]: cannot find `assert_compatible_gencode_version` in `__internal`
+#
+# pbrs::__internal currently exports only Private and SealedInternal.
+# Google rust_out 4.35.1-release also needs __internal::runtime (OwnedMessageInner),
+# __internal::entity_tag, __internal::EntityType, and
+# __internal::assert_compatible_gencode_version.
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+ --> src/person.u.pb.rs:4:74
+  |
+4 | pub(crate) static mut example__Address_msg_init: ::protobuf::__internal::runtime::MiniTableInitPtr =
+  |                                                                          ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+ --> src/person.u.pb.rs:5:29
+  |
+5 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+  |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+ --> src/person.u.pb.rs:5:79
+  |
+5 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+  |                                                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+ --> src/person.u.pb.rs:8:34
+  |
+8 |   inner: ::protobuf::__internal::runtime::OwnedMessageInner<Address>
+  |                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/person.u.pb.rs:24:45
+   |
+24 |     write!(f, "{}", ::protobuf::__internal::runtime::debug_string(self))
+   |                                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/person.u.pb.rs:51:34
+   |
+51 |   inner: ::protobuf::__internal::runtime::MessageViewInner<'msg, Address>,
+   |                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/person.u.pb.rs:62:45
+   |
+62 |     write!(f, "{}", ::protobuf::__internal::runtime::debug_string(self))
+   |                                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/person.u.pb.rs:68:29
+   |
+68 |     ::protobuf::__internal::runtime::MessageViewInner::default().into()
+   |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/person.u.pb.rs:72:41
+   |
+72 | impl<'msg> From<::protobuf::__internal::runtime::MessageViewInner<'msg, Address>> for AddressView<'msg> {
+   |                                         ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/person.u.pb.rs:73:42
+   |
+73 |   fn from(inner: ::protobuf::__internal::runtime::MessageViewInner<'msg, Address>) -> Self {
+   |                                          ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `entity_tag` in `__internal`
+   --> src/person.u.pb.rs:138:40
+    |
+138 |     type Tag = ::protobuf::__internal::entity_tag::MessageTag;
+    |                                        ^^^^^^^^^^ could not find `entity_tag` in `__internal`
+
+error[E0433]: failed to resolve: could not find `entity_tag` in `__internal`
+   --> src/person.u.pb.rs:142:40
+    |
+142 |     type Tag = ::protobuf::__internal::entity_tag::ViewProxyTag;
+    |                                        ^^^^^^^^^^ could not find `entity_tag` in `__internal`
+
+error[E0433]: failed to resolve: could not find `entity_tag` in `__internal`
+   --> src/person.u.pb.rs:146:40
+    |
+146 |     type Tag = ::protobuf::__internal::entity_tag::MutProxyTag;
+    |                                        ^^^^^^^^^^ could not find `entity_tag` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:152:34
+    |
+152 |   inner: ::protobuf::__internal::runtime::MessageMutInner<'msg, Address>,
+    |                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:163:45
+    |
+163 |     write!(f, "{}", ::protobuf::__internal::runtime::debug_string(self))
+    |                                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:167:41
+    |
+167 | impl<'msg> From<::protobuf::__internal::runtime::MessageMutInner<'msg, Address>> for AddressMut<'msg> {
+    |                                         ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:168:42
+    |
+168 |   fn from(inner: ::protobuf::__internal::runtime::MessageMutInner<'msg, Address>) -> Self {
+    |                                          ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:178:32
+    |
+178 |     -> ::protobuf::__internal::runtime::MessageMutInner<'msg, Address> {
+    |                                ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:197:31
+    |
+197 |       ::protobuf::__internal::runtime::message_set_string_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:247:43
+    |
+247 |     Self { inner: ::protobuf::__internal::runtime::OwnedMessageInner::<Self>::new() }
+    |                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:252:112
+    |
+252 | ...ernal::Private) -> ::protobuf::__internal::runtime::MessageMutInner<'_, Address> {
+    |                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:253:29
+    |
+253 |     ::protobuf::__internal::runtime::MessageMutInner::mut_of_owned(&mut self.inner)
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:257:29
+    |
+257 |     ::protobuf::__internal::runtime::MessageViewInner::view_of_owned(&self.inner).into()
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:261:29
+    |
+261 |     ::protobuf::__internal::runtime::MessageMutInner::mut_of_owned(&mut self.inner).into()
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:275:31
+    |
+275 |       ::protobuf::__internal::runtime::message_set_string_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:310:37
+    |
+310 | unsafe impl ::protobuf::__internal::runtime::AssociatedMiniTable for Address {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:311:46
+    |
+311 |   fn mini_table() -> ::protobuf::__internal::runtime::MiniTablePtr {
+    |                                              ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:312:69
+    |
+312 |     static ONCE_LOCK: ::std::sync::OnceLock<::protobuf::__internal::runtime::MiniTableInitPtr> =
+    |                                                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:317:37
+    |
+317 |             ::protobuf::__internal::runtime::build_mini_table("$M1P");
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:318:33
+    |
+318 |         ::protobuf::__internal::runtime::link_mini_table(
+    |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:320:33
+    |
+320 |         ::protobuf::__internal::runtime::MiniTableInitPtr(super::example__Address_msg_init.0)
+    |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:325:37
+    |
+325 | unsafe impl ::protobuf::__internal::runtime::UpbGetArena for Address {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:326:98
+    |
+326 |   fn get_arena(&mut self, _private: ::protobuf::__internal::Private) -> &::protobuf::__internal::runtime::Arena {
+    |                                                                                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:331:37
+    |
+331 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtrMut for Address {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:333:99
+    |
+333 |   fn get_ptr_mut(&mut self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Address> {
+    |                                                                                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:337:37
+    |
+337 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtr for Address {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:339:91
+    |
+339 |   fn get_ptr(&self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Address> {
+    |                                                                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:343:37
+    |
+343 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtrMut for AddressMut<'_> {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:345:99
+    |
+345 |   fn get_ptr_mut(&mut self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Address> {
+    |                                                                                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:349:37
+    |
+349 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtr for AddressMut<'_> {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:351:91
+    |
+351 |   fn get_ptr(&self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Address> {
+    |                                                                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:355:37
+    |
+355 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtr for AddressView<'_> {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:357:91
+    |
+357 |   fn get_ptr(&self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Address> {
+    |                                                                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:362:37
+    |
+362 | unsafe impl ::protobuf::__internal::runtime::UpbGetArena for AddressMut<'_> {
+    |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:363:98
+    |
+363 |   fn get_arena(&mut self, _private: ::protobuf::__internal::Private) -> &::protobuf::__internal::runtime::Arena {
+    |                                                                                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:372:73
+    |
+372 | pub(crate) static mut example__Person_msg_init: ::protobuf::__internal::runtime::MiniTableInitPtr =
+    |                                                                         ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:373:29
+    |
+373 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:373:79
+    |
+373 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+    |                                                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:376:34
+    |
+376 |   inner: ::protobuf::__internal::runtime::OwnedMessageInner<Person>
+    |                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:392:45
+    |
+392 |     write!(f, "{}", ::protobuf::__internal::runtime::debug_string(self))
+    |                                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:419:34
+    |
+419 |   inner: ::protobuf::__internal::runtime::MessageViewInner<'msg, Person>,
+    |                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:430:45
+    |
+430 |     write!(f, "{}", ::protobuf::__internal::runtime::debug_string(self))
+    |                                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:436:29
+    |
+436 |     ::protobuf::__internal::runtime::MessageViewInner::default().into()
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:440:41
+    |
+440 | impl<'msg> From<::protobuf::__internal::runtime::MessageViewInner<'msg, Person>> for PersonView<'msg> {
+    |                                         ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:441:42
+    |
+441 |   fn from(inner: ::protobuf::__internal::runtime::MessageViewInner<'msg, Person>) -> Self {
+    |                                          ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:503:33
+    |
+503 |         ::protobuf::__internal::runtime::empty_array::<::protobuf::ProtoString>,
+    |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:514:40
+    |
+514 |       <Self as ::protobuf::__internal::runtime::UpbGetMessagePtr>::get_ptr(&self, ::protobuf::__internal::Private)
+    |                                        ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:517:35
+    |
+517 |           ::protobuf::__internal::runtime::empty_map::<::protobuf::ProtoString, i32>,
+    |                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:537:53
+    |
+537 |         .map(|ptr| unsafe { ::protobuf::__internal::runtime::MessageViewInner::wrap(ptr).into() })
+    |                                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:545:40
+    |
+545 |       <Self as ::protobuf::__internal::runtime::UpbGetMessagePtr>::get_ptr(&self, ::protobuf::__internal::Private)
+    |                                        ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:548:35
+    |
+548 |           ::protobuf::__internal::runtime::empty_map::<::protobuf::ProtoString, i32>,
+    |                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `entity_tag` in `__internal`
+   --> src/person.u.pb.rs:597:40
+    |
+597 |     type Tag = ::protobuf::__internal::entity_tag::MessageTag;
+    |                                        ^^^^^^^^^^ could not find `entity_tag` in `__internal`
+
+error[E0433]: failed to resolve: could not find `entity_tag` in `__internal`
+   --> src/person.u.pb.rs:601:40
+    |
+601 |     type Tag = ::protobuf::__internal::entity_tag::ViewProxyTag;
+    |                                        ^^^^^^^^^^ could not find `entity_tag` in `__internal`
+
+error[E0433]: failed to resolve: could not find `entity_tag` in `__internal`
+   --> src/person.u.pb.rs:605:40
+    |
+605 |     type Tag = ::protobuf::__internal::entity_tag::MutProxyTag;
+    |                                        ^^^^^^^^^^ could not find `entity_tag` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:611:34
+    |
+611 |   inner: ::protobuf::__internal::runtime::MessageMutInner<'msg, Person>,
+    |                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:622:45
+    |
+622 |     write!(f, "{}", ::protobuf::__internal::runtime::debug_string(self))
+    |                                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:626:41
+    |
+626 | impl<'msg> From<::protobuf::__internal::runtime::MessageMutInner<'msg, Person>> for PersonMut<'msg> {
+    |                                         ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:627:42
+    |
+627 |   fn from(inner: ::protobuf::__internal::runtime::MessageMutInner<'msg, Person>) -> Self {
+    |                                          ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:637:32
+    |
+637 |     -> ::protobuf::__internal::runtime::MessageMutInner<'msg, Person> {
+    |                                ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:682:31
+    |
+682 |       ::protobuf::__internal::runtime::message_set_string_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:715:31
+    |
+715 |       ::protobuf::__internal::runtime::message_set_string_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:729:33
+    |
+729 |         ::protobuf::__internal::runtime::empty_array::<::protobuf::ProtoString>,
+    |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:743:33
+    |
+743 |         ::protobuf::__internal::runtime::InnerRepeatedMut::new(
+    |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:751:31
+    |
+751 |       ::protobuf::__internal::runtime::message_set_repeated_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:762:40
+    |
+762 |       <Self as ::protobuf::__internal::runtime::UpbGetMessagePtr>::get_ptr(&self, ::protobuf::__internal::Private)
+    |                                        ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:765:35
+    |
+765 |           ::protobuf::__internal::runtime::empty_map::<::protobuf::ProtoString, i32>,
+    |                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:773:54
+    |
+773 |       let raw_map = <Self as ::protobuf::__internal::runtime::UpbGetMessagePtrMut>::get_ptr_mut(self, ::protobuf::__internal::Private)
+    |                                                      ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:776:43
+    |
+776 |       let inner = ::protobuf::__internal::runtime::InnerMapMut::new(
+    |                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:785:31
+    |
+785 |       ::protobuf::__internal::runtime::message_set_map_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:813:53
+    |
+813 |         .map(|ptr| unsafe { ::protobuf::__internal::runtime::MessageViewInner::wrap(ptr).into() })
+    |                                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:822:30
+    |
+822 |      ::protobuf::__internal::runtime::MessageMutInner::from_parent(
+    |                              ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:831:31
+    |
+831 |       ::protobuf::__internal::runtime::message_set_sub_message(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:843:40
+    |
+843 |       <Self as ::protobuf::__internal::runtime::UpbGetMessagePtr>::get_ptr(&self, ::protobuf::__internal::Private)
+    |                                        ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:846:35
+    |
+846 |           ::protobuf::__internal::runtime::empty_map::<::protobuf::ProtoString, i32>,
+    |                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:854:54
+    |
+854 |       let raw_map = <Self as ::protobuf::__internal::runtime::UpbGetMessagePtrMut>::get_ptr_mut(self, ::protobuf::__internal::Private)
+    |                                                      ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:857:43
+    |
+857 |       let inner = ::protobuf::__internal::runtime::InnerMapMut::new(
+    |                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:866:31
+    |
+866 |       ::protobuf::__internal::runtime::message_set_map_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:916:43
+    |
+916 |     Self { inner: ::protobuf::__internal::runtime::OwnedMessageInner::<Self>::new() }
+    |                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:921:112
+    |
+921 | ...ernal::Private) -> ::protobuf::__internal::runtime::MessageMutInner<'_, Person> {
+    |                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:922:29
+    |
+922 |     ::protobuf::__internal::runtime::MessageMutInner::mut_of_owned(&mut self.inner)
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:926:29
+    |
+926 |     ::protobuf::__internal::runtime::MessageViewInner::view_of_owned(&self.inner).into()
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:930:29
+    |
+930 |     ::protobuf::__internal::runtime::MessageMutInner::mut_of_owned(&mut self.inner).into()
+    |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+   --> src/person.u.pb.rs:970:31
+    |
+970 |       ::protobuf::__internal::runtime::message_set_string_field(
+    |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1003:31
+     |
+1003 |       ::protobuf::__internal::runtime::message_set_string_field(
+     |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1017:33
+     |
+1017 |         ::protobuf::__internal::runtime::empty_array::<::protobuf::ProtoString>,
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1031:33
+     |
+1031 |         ::protobuf::__internal::runtime::InnerRepeatedMut::new(
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1039:31
+     |
+1039 |       ::protobuf::__internal::runtime::message_set_repeated_field(
+     |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1050:40
+     |
+1050 |       <Self as ::protobuf::__internal::runtime::UpbGetMessagePtr>::get_ptr(&self, ::protobuf::__internal::Private)
+     |                                        ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1053:35
+     |
+1053 |           ::protobuf::__internal::runtime::empty_map::<::protobuf::ProtoString, i32>,
+     |                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1061:54
+     |
+1061 |       let raw_map = <Self as ::protobuf::__internal::runtime::UpbGetMessagePtrMut>::get_ptr_mut(self, ::protobuf::__internal::Private)
+     |                                                      ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1064:43
+     |
+1064 |       let inner = ::protobuf::__internal::runtime::InnerMapMut::new(
+     |                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1073:31
+     |
+1073 |       ::protobuf::__internal::runtime::message_set_map_field(
+     |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1101:53
+     |
+1101 |         .map(|ptr| unsafe { ::protobuf::__internal::runtime::MessageViewInner::wrap(ptr).into() })
+     |                                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1110:30
+     |
+1110 |      ::protobuf::__internal::runtime::MessageMutInner::from_parent(
+     |                              ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1119:31
+     |
+1119 |       ::protobuf::__internal::runtime::message_set_sub_message(
+     |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1131:40
+     |
+1131 |       <Self as ::protobuf::__internal::runtime::UpbGetMessagePtr>::get_ptr(&self, ::protobuf::__internal::Private)
+     |                                        ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1134:35
+     |
+1134 |           ::protobuf::__internal::runtime::empty_map::<::protobuf::ProtoString, i32>,
+     |                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1142:54
+     |
+1142 |       let raw_map = <Self as ::protobuf::__internal::runtime::UpbGetMessagePtrMut>::get_ptr_mut(self, ::protobuf::__internal::Private)
+     |                                                      ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1145:43
+     |
+1145 |       let inner = ::protobuf::__internal::runtime::InnerMapMut::new(
+     |                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1154:31
+     |
+1154 |       ::protobuf::__internal::runtime::message_set_map_field(
+     |                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1189:37
+     |
+1189 | unsafe impl ::protobuf::__internal::runtime::AssociatedMiniTable for Person {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1190:46
+     |
+1190 |   fn mini_table() -> ::protobuf::__internal::runtime::MiniTablePtr {
+     |                                              ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1191:69
+     |
+1191 |     static ONCE_LOCK: ::std::sync::OnceLock<::protobuf::__internal::runtime::MiniTableInitPtr> =
+     |                                                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1196:37
+     |
+1196 |             ::protobuf::__internal::runtime::build_mini_table("$(P1X1TETG3iG");
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1197:33
+     |
+1197 |         ::protobuf::__internal::runtime::link_mini_table(
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1198:105
+     |
+1198 | ...on::ScoresEntry as ::protobuf::__internal::runtime::AssociatedMiniTable>::mini_table(),
+     |                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1199:56
+     |
+1199 |             <super::Address as ::protobuf::__internal::runtime::AssociatedMiniTable>::mini_table(),
+     |                                                        ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1200:68
+     |
+1200 |             <super::person::ExtrasEntry as ::protobuf::__internal::runtime::AssociatedMiniTable>::mini_table(),
+     |                                                                    ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1202:33
+     |
+1202 |         ::protobuf::__internal::runtime::MiniTableInitPtr(super::example__Person_msg_init.0)
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1207:37
+     |
+1207 | unsafe impl ::protobuf::__internal::runtime::UpbGetArena for Person {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1208:98
+     |
+1208 |   fn get_arena(&mut self, _private: ::protobuf::__internal::Private) -> &::protobuf::__internal::runtime::Arena {
+     |                                                                                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1213:37
+     |
+1213 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtrMut for Person {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1215:99
+     |
+1215 |   fn get_ptr_mut(&mut self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Person> {
+     |                                                                                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1219:37
+     |
+1219 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtr for Person {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1221:91
+     |
+1221 |   fn get_ptr(&self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Person> {
+     |                                                                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1225:37
+     |
+1225 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtrMut for PersonMut<'_> {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1227:99
+     |
+1227 |   fn get_ptr_mut(&mut self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Person> {
+     |                                                                                                   ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1231:37
+     |
+1231 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtr for PersonMut<'_> {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1233:91
+     |
+1233 |   fn get_ptr(&self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Person> {
+     |                                                                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1237:37
+     |
+1237 | unsafe impl ::protobuf::__internal::runtime::UpbGetMessagePtr for PersonView<'_> {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1239:91
+     |
+1239 |   fn get_ptr(&self, _private: ::protobuf::__internal::Private) -> ::protobuf::__internal::runtime::MessagePtr<Person> {
+     |                                                                                           ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1244:37
+     |
+1244 | unsafe impl ::protobuf::__internal::runtime::UpbGetArena for PersonMut<'_> {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1245:98
+     |
+1245 |   fn get_arena(&mut self, _private: ::protobuf::__internal::Private) -> &::protobuf::__internal::runtime::Arena {
+     |                                                                                                  ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1252:86
+     |
+1252 | pub(crate) static mut example__Person__ScoresEntry_msg_init: ::protobuf::__internal::runtime::MiniTableInitPtr =
+     |                                                                                      ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1253:29
+     |
+1253 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+     |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1253:79
+     |
+1253 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+     |                                                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1257:37
+     |
+1257 | unsafe impl ::protobuf::__internal::runtime::AssociatedMiniTable for ScoresEntry {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1258:46
+     |
+1258 |   fn mini_table() -> ::protobuf::__internal::runtime::MiniTablePtr {
+     |                                              ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1259:69
+     |
+1259 |     static ONCE_LOCK: ::std::sync::OnceLock<::protobuf::__internal::runtime::MiniTableInitPtr> =
+     |                                                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1264:37
+     |
+1264 |             ::protobuf::__internal::runtime::build_mini_table("%1X(P");
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1265:33
+     |
+1265 |         ::protobuf::__internal::runtime::link_mini_table(
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1267:33
+     |
+1267 |         ::protobuf::__internal::runtime::MiniTableInitPtr(super::super::person::example__Person__ScoresEntry_msg_init.0)
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1274:86
+     |
+1274 | pub(crate) static mut example__Person__ExtrasEntry_msg_init: ::protobuf::__internal::runtime::MiniTableInitPtr =
+     |                                                                                      ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1275:29
+     |
+1275 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+     |                             ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1275:79
+     |
+1275 |     ::protobuf::__internal::runtime::MiniTableInitPtr(::protobuf::__internal::runtime::MiniTablePtr::dangling());
+     |                                                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1279:37
+     |
+1279 | unsafe impl ::protobuf::__internal::runtime::AssociatedMiniTable for ExtrasEntry {
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1280:46
+     |
+1280 |   fn mini_table() -> ::protobuf::__internal::runtime::MiniTablePtr {
+     |                                              ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1281:69
+     |
+1281 |     static ONCE_LOCK: ::std::sync::OnceLock<::protobuf::__internal::runtime::MiniTableInitPtr> =
+     |                                                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1286:37
+     |
+1286 |             ::protobuf::__internal::runtime::build_mini_table("%1X(P");
+     |                                     ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1287:33
+     |
+1287 |         ::protobuf::__internal::runtime::link_mini_table(
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+    --> src/person.u.pb.rs:1289:33
+     |
+1289 |         ::protobuf::__internal::runtime::MiniTableInitPtr(super::super::person::example__Person__ExtrasEntry_msg_init.0)
+     |                                 ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/generated.rs:11:60
+   |
+11 | pub static PERSON_DESCRIPTOR_INFO: ::protobuf::__internal::runtime::__unstable::DescriptorInfo = ::protobuf::__internal::runtime::__unsta...
+   |                                                            ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0433]: failed to resolve: could not find `runtime` in `__internal`
+  --> src/generated.rs:11:122
+   |
+11 | ...::DescriptorInfo = ::protobuf::__internal::runtime::__unstable::DescriptorInfo {
+   |                                               ^^^^^^^ could not find `runtime` in `__internal`
+
+error[E0425]: cannot find function `assert_compatible_gencode_version` in module `protobuf::__internal`
+ --> src/person.u.pb.rs:1:39
+  |
+1 | const _: () = ::protobuf::__internal::assert_compatible_gencode_version("4.35.1-release");
+  |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `protobuf::__internal`
+
+error[E0405]: cannot find trait `EntityType` in module `protobuf::__internal`
+   --> src/person.u.pb.rs:137:30
+    |
+137 | impl ::protobuf::__internal::EntityType for Address {
+    |                              ^^^^^^^^^^ not found in `protobuf::__internal`
+
+error[E0405]: cannot find trait `EntityType` in module `protobuf::__internal`
+   --> src/person.u.pb.rs:141:36
+    |
+141 | impl<'msg> ::protobuf::__internal::EntityType for AddressView<'msg> {
+    |                                    ^^^^^^^^^^ not found in `protobuf::__internal`
+
+error[E0405]: cannot find trait `EntityType` in module `protobuf::__internal`
+   --> src/person.u.pb.rs:145:36
+    |
+145 | impl<'msg> ::protobuf::__internal::EntityType for AddressMut<'msg> {
+    |                                    ^^^^^^^^^^ not found in `protobuf::__internal`
+
+error[E0405]: cannot find trait `EntityType` in module `protobuf::__internal`
+   --> src/person.u.pb.rs:596:30
+    |
+596 | impl ::protobuf::__internal::EntityType for Person {
+    |                              ^^^^^^^^^^ not found in `protobuf::__internal`
+
+error[E0405]: cannot find trait `EntityType` in module `protobuf::__internal`
+   --> src/person.u.pb.rs:600:36
+    |
+600 | impl<'msg> ::protobuf::__internal::EntityType for PersonView<'msg> {
+    |                                    ^^^^^^^^^^ not found in `protobuf::__internal`
+
+error[E0405]: cannot find trait `EntityType` in module `protobuf::__internal`
+   --> src/person.u.pb.rs:604:36
+    |
+604 | impl<'msg> ::protobuf::__internal::EntityType for PersonMut<'msg> {
+    |                                    ^^^^^^^^^^ not found in `protobuf::__internal`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: MergeFrom` is not satisfied
+  --> src/person.u.pb.rs:11:30
+   |
+11 | impl ::protobuf::Message for Address {
+   |                              ^^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::Address`
+   |
+   = help: the following other types implement trait `MergeFrom`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+note: required by a bound in `pbrs::Message`
+  --> /workspace/src/message.rs:86:7
+   |
+73 | pub trait Message:
+   |           ------- required by a bound in this trait
+...
+86 |     + MergeFrom
+   |       ^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: CopyFrom` is not satisfied
+  --> src/person.u.pb.rs:11:30
+   |
+11 | impl ::protobuf::Message for Address {
+   |                              ^^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::Address`
+   |
+   = help: the following other types implement trait `CopyFrom`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+note: required by a bound in `pbrs::Message`
+  --> /workspace/src/message.rs:85:7
+   |
+73 | pub trait Message:
+   |           ------- required by a bound in this trait
+...
+85 |     + CopyFrom
+   |       ^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: TakeFrom` is not satisfied
+  --> src/person.u.pb.rs:11:30
+   |
+11 | impl ::protobuf::Message for Address {
+   |                              ^^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::Address`
+   |
+   = help: the following other types implement trait `TakeFrom`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+note: required by a bound in `pbrs::Message`
+  --> /workspace/src/message.rs:84:7
+   |
+73 | pub trait Message:
+   |           ------- required by a bound in this trait
+...
+84 |     + TakeFrom
+   |       ^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: ClearAndParse` is not satisfied
+  --> src/person.u.pb.rs:11:30
+   |
+11 | impl ::protobuf::Message for Address {
+   |                              ^^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::Address`
+   |
+   = help: the following other types implement trait `ClearAndParse`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+note: required by a bound in `pbrs::Message`
+  --> /workspace/src/message.rs:83:7
+   |
+73 | pub trait Message:
+   |           ------- required by a bound in this trait
+...
+83 |     + ClearAndParse
+   |       ^^^^^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: Clear` is not satisfied
+  --> src/person.u.pb.rs:11:30
+   |
+11 | impl ::protobuf::Message for Address {
+   |                              ^^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::Address`
+   |
+   = help: the following other types implement trait `Clear`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+note: required by a bound in `pbrs::Message`
+  --> /workspace/src/message.rs:82:7
+   |
+73 | pub trait Message:
+   |           ------- required by a bound in this trait
+...
+82 |     + Clear
+   |       ^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: Serialize` is not satisfied
+  --> src/person.u.pb.rs:11:30
+   |
+11 | impl ::protobuf::Message for Address {
+   |                              ^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::Address`
+   |
+   = help: the following other types implement trait `Serialize`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             DynamicMessageView<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+           and 379 others
+note: required by a bound in `pbrs::Message`
+  --> /workspace/src/message.rs:81:7
+   |
+73 | pub trait Message:
+   |           ------- required by a bound in this trait
+...
+81 |     + Serialize
+   |       ^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: MessageType` is not satisfied
+  --> src/person.u.pb.rs:11:30
+   |
+11 | impl ::protobuf::Message for Address {
+   |                              ^^^^^^^ the trait `MessageType` is not implemented for `internal_do_not_use_person::Address`
+   |
+   = help: the following other types implement trait `MessageType`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+             FieldMask
+           and 121 others
+note: required by a bound in `pbrs::Message`
+  --> /workspace/src/message.rs:75:7
+   |
+73 | pub trait Message:
+   |           ------- required by a bound in this trait
+74 |     SealedInternal
+75 |     + MessageType
+   |       ^^^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressView<'msg>: Serialize` is not satisfied
+  --> src/person.u.pb.rs:12:28
+   |
+12 |   type MessageView<'msg> = AddressView<'msg>;
+   |                            ^^^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::AddressView<'msg>`
+   |
+   = help: the following other types implement trait `Serialize`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             DynamicMessageView<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+           and 379 others
+   = note: required for `<internal_do_not_use_person::Address as pbrs::Message>::MessageView<'msg>` to implement `MessageView<'msg>`
+note: required by a bound in `pbrs::Message::MessageView`
+  --> /workspace/src/message.rs:91:29
+   |
+91 |     type MessageView<'msg>: MessageView<'msg, Message = Self>;
+   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageView`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: MergeFrom` is not satisfied
+  --> src/person.u.pb.rs:13:27
+   |
+13 |   type MessageMut<'msg> = AddressMut<'msg>;
+   |                           ^^^^^^^^^^^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+   |
+   = help: the following other types implement trait `MergeFrom`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+   = note: required for `<internal_do_not_use_person::Address as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+  --> /workspace/src/message.rs:92:28
+   |
+92 |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: CopyFrom` is not satisfied
+  --> src/person.u.pb.rs:13:27
+   |
+13 |   type MessageMut<'msg> = AddressMut<'msg>;
+   |                           ^^^^^^^^^^^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+   |
+   = help: the following other types implement trait `CopyFrom`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+   = note: required for `<internal_do_not_use_person::Address as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+  --> /workspace/src/message.rs:92:28
+   |
+92 |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: TakeFrom` is not satisfied
+  --> src/person.u.pb.rs:13:27
+   |
+13 |   type MessageMut<'msg> = AddressMut<'msg>;
+   |                           ^^^^^^^^^^^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+   |
+   = help: the following other types implement trait `TakeFrom`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+   = note: required for `<internal_do_not_use_person::Address as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+  --> /workspace/src/message.rs:92:28
+   |
+92 |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: ClearAndParse` is not satisfied
+  --> src/person.u.pb.rs:13:27
+   |
+13 |   type MessageMut<'msg> = AddressMut<'msg>;
+   |                           ^^^^^^^^^^^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+   |
+   = help: the following other types implement trait `ClearAndParse`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+   = note: required for `<internal_do_not_use_person::Address as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+  --> /workspace/src/message.rs:92:28
+   |
+92 |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: Clear` is not satisfied
+  --> src/person.u.pb.rs:13:27
+   |
+13 |   type MessageMut<'msg> = AddressMut<'msg>;
+   |                           ^^^^^^^^^^^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+   |
+   = help: the following other types implement trait `Clear`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+             EditionsTestAllTypesProto3
+           and 250 others
+   = note: required for `<internal_do_not_use_person::Address as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+  --> /workspace/src/message.rs:92:28
+   |
+92 |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: Serialize` is not satisfied
+  --> src/person.u.pb.rs:13:27
+   |
+13 |   type MessageMut<'msg> = AddressMut<'msg>;
+   |                           ^^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+   |
+   = help: the following other types implement trait `Serialize`:
+             BoolValue
+             BytesValue
+             DoubleValue
+             DynamicMessage
+             DynamicMessageMut<'_>
+             DynamicMessageView<'_>
+             EditionsTestAllRequiredTypesProto2
+             EditionsTestAllTypesProto2
+           and 379 others
+   = note: required for `<internal_do_not_use_person::Address as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+  --> /workspace/src/message.rs:92:28
+   |
+92 |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressView<'msg>: Serialize` is not satisfied
+   --> src/person.u.pb.rs:56:46
+    |
+56  | impl<'msg> ::protobuf::MessageView<'msg> for AddressView<'msg> {
+    |                                              ^^^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::AddressView<'msg>`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+note: required by a bound in `MessageView`
+   --> /workspace/src/message.rs:105:7
+    |
+100 | pub trait MessageView<'msg>:
+    |           ----------- required by a bound in this trait
+...
+105 |     + Serialize
+    |       ^^^^^^^^^ required by this bound in `MessageView`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:57:18
+    |
+57  |   type Message = Address;
+    |                  ^^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:57:18
+    |
+57  |   type Message = Address;
+    |                  ^^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:57:18
+    |
+57  |   type Message = Address;
+    |                  ^^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:57:18
+    |
+57  |   type Message = Address;
+    |                  ^^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: Clear` is not satisfied
+   --> src/person.u.pb.rs:57:18
+    |
+57  |   type Message = Address;
+    |                  ^^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: Serialize` is not satisfied
+   --> src/person.u.pb.rs:57:18
+    |
+57  |   type Message = Address;
+    |                  ^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+    = note: required for `<internal_do_not_use_person::AddressView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: MessageType` is not satisfied
+   --> src/person.u.pb.rs:57:18
+    |
+57  |   type Message = Address;
+    |                  ^^^^^^^ the trait `MessageType` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `MessageType`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+              FieldMask
+            and 121 others
+    = note: required for `<internal_do_not_use_person::AddressView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0050]: method `into_proxied` has 2 parameters but the declaration in trait `into_proxied` has 1
+   --> src/person.u.pb.rs:122:19
+    |
+122 |   fn into_proxied(self, _private: ::protobuf::__internal::Private) -> Address {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected 1 parameter, found 2
+    |
+    = note: `into_proxied` from trait: `fn(Self) -> T`
+
+error[E0050]: method `into_proxied` has 2 parameters but the declaration in trait `into_proxied` has 1
+   --> src/person.u.pb.rs:132:19
+    |
+132 |   fn into_proxied(self, _private: ::protobuf::__internal::Private) -> Address {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected 1 parameter, found 2
+    |
+    = note: `into_proxied` from trait: `fn(Self) -> T`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:157:45
+    |
+157 | impl<'msg> ::protobuf::MessageMut<'msg> for AddressMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:127:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+127 |     + MergeFrom
+    |       ^^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:157:45
+    |
+157 | impl<'msg> ::protobuf::MessageMut<'msg> for AddressMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:126:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+126 |     + CopyFrom
+    |       ^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:157:45
+    |
+157 | impl<'msg> ::protobuf::MessageMut<'msg> for AddressMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:125:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+125 |     + TakeFrom
+    |       ^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:157:45
+    |
+157 | impl<'msg> ::protobuf::MessageMut<'msg> for AddressMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:124:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+124 |     + ClearAndParse
+    |       ^^^^^^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: Clear` is not satisfied
+   --> src/person.u.pb.rs:157:45
+    |
+157 | impl<'msg> ::protobuf::MessageMut<'msg> for AddressMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:123:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+123 |     + Clear
+    |       ^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::AddressMut<'msg>: Serialize` is not satisfied
+   --> src/person.u.pb.rs:157:45
+    |
+157 | impl<'msg> ::protobuf::MessageMut<'msg> for AddressMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::AddressMut<'msg>`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:122:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+122 |     + Serialize
+    |       ^^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:158:18
+    |
+158 |   type Message = Address;
+    |                  ^^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:158:18
+    |
+158 |   type Message = Address;
+    |                  ^^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:158:18
+    |
+158 |   type Message = Address;
+    |                  ^^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:158:18
+    |
+158 |   type Message = Address;
+    |                  ^^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: Clear` is not satisfied
+   --> src/person.u.pb.rs:158:18
+    |
+158 |   type Message = Address;
+    |                  ^^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::AddressMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: Serialize` is not satisfied
+   --> src/person.u.pb.rs:158:18
+    |
+158 |   type Message = Address;
+    |                  ^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+    = note: required for `<internal_do_not_use_person::AddressMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Address: MessageType` is not satisfied
+   --> src/person.u.pb.rs:158:18
+    |
+158 |   type Message = Address;
+    |                  ^^^^^^^ the trait `MessageType` is not implemented for `internal_do_not_use_person::Address`
+    |
+    = help: the following other types implement trait `MessageType`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+              FieldMask
+            and 121 others
+    = note: required for `<internal_do_not_use_person::AddressMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:379:30
+    |
+379 | impl ::protobuf::Message for Person {
+    |                              ^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `pbrs::Message`
+   --> /workspace/src/message.rs:86:7
+    |
+73  | pub trait Message:
+    |           ------- required by a bound in this trait
+...
+86  |     + MergeFrom
+    |       ^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:379:30
+    |
+379 | impl ::protobuf::Message for Person {
+    |                              ^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `pbrs::Message`
+   --> /workspace/src/message.rs:85:7
+    |
+73  | pub trait Message:
+    |           ------- required by a bound in this trait
+...
+85  |     + CopyFrom
+    |       ^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:379:30
+    |
+379 | impl ::protobuf::Message for Person {
+    |                              ^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `pbrs::Message`
+   --> /workspace/src/message.rs:84:7
+    |
+73  | pub trait Message:
+    |           ------- required by a bound in this trait
+...
+84  |     + TakeFrom
+    |       ^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:379:30
+    |
+379 | impl ::protobuf::Message for Person {
+    |                              ^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `pbrs::Message`
+   --> /workspace/src/message.rs:83:7
+    |
+73  | pub trait Message:
+    |           ------- required by a bound in this trait
+...
+83  |     + ClearAndParse
+    |       ^^^^^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: Clear` is not satisfied
+   --> src/person.u.pb.rs:379:30
+    |
+379 | impl ::protobuf::Message for Person {
+    |                              ^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `pbrs::Message`
+   --> /workspace/src/message.rs:82:7
+    |
+73  | pub trait Message:
+    |           ------- required by a bound in this trait
+...
+82  |     + Clear
+    |       ^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: Serialize` is not satisfied
+   --> src/person.u.pb.rs:379:30
+    |
+379 | impl ::protobuf::Message for Person {
+    |                              ^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+note: required by a bound in `pbrs::Message`
+   --> /workspace/src/message.rs:81:7
+    |
+73  | pub trait Message:
+    |           ------- required by a bound in this trait
+...
+81  |     + Serialize
+    |       ^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: MessageType` is not satisfied
+   --> src/person.u.pb.rs:379:30
+    |
+379 | impl ::protobuf::Message for Person {
+    |                              ^^^^^^ the trait `MessageType` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `MessageType`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+              FieldMask
+            and 121 others
+note: required by a bound in `pbrs::Message`
+   --> /workspace/src/message.rs:75:7
+    |
+73  | pub trait Message:
+    |           ------- required by a bound in this trait
+74  |     SealedInternal
+75  |     + MessageType
+    |       ^^^^^^^^^^^ required by this bound in `Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonView<'msg>: Serialize` is not satisfied
+   --> src/person.u.pb.rs:380:28
+    |
+380 |   type MessageView<'msg> = PersonView<'msg>;
+    |                            ^^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::PersonView<'msg>`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+    = note: required for `<internal_do_not_use_person::Person as pbrs::Message>::MessageView<'msg>` to implement `MessageView<'msg>`
+note: required by a bound in `pbrs::Message::MessageView`
+   --> /workspace/src/message.rs:91:29
+    |
+91  |     type MessageView<'msg>: MessageView<'msg, Message = Self>;
+    |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageView`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:381:27
+    |
+381 |   type MessageMut<'msg> = PersonMut<'msg>;
+    |                           ^^^^^^^^^^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::Person as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+   --> /workspace/src/message.rs:92:28
+    |
+92  |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:381:27
+    |
+381 |   type MessageMut<'msg> = PersonMut<'msg>;
+    |                           ^^^^^^^^^^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::Person as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+   --> /workspace/src/message.rs:92:28
+    |
+92  |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:381:27
+    |
+381 |   type MessageMut<'msg> = PersonMut<'msg>;
+    |                           ^^^^^^^^^^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::Person as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+   --> /workspace/src/message.rs:92:28
+    |
+92  |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:381:27
+    |
+381 |   type MessageMut<'msg> = PersonMut<'msg>;
+    |                           ^^^^^^^^^^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::Person as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+   --> /workspace/src/message.rs:92:28
+    |
+92  |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: Clear` is not satisfied
+   --> src/person.u.pb.rs:381:27
+    |
+381 |   type MessageMut<'msg> = PersonMut<'msg>;
+    |                           ^^^^^^^^^^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::Person as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+   --> /workspace/src/message.rs:92:28
+    |
+92  |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: Serialize` is not satisfied
+   --> src/person.u.pb.rs:381:27
+    |
+381 |   type MessageMut<'msg> = PersonMut<'msg>;
+    |                           ^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+    = note: required for `<internal_do_not_use_person::Person as pbrs::Message>::MessageMut<'msg>` to implement `MessageMut<'msg>`
+note: required by a bound in `pbrs::Message::MessageMut`
+   --> /workspace/src/message.rs:92:28
+    |
+92  |     type MessageMut<'msg>: MessageMut<'msg, Message = Self>;
+    |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Message::MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonView<'msg>: Serialize` is not satisfied
+   --> src/person.u.pb.rs:424:46
+    |
+424 | impl<'msg> ::protobuf::MessageView<'msg> for PersonView<'msg> {
+    |                                              ^^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::PersonView<'msg>`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+note: required by a bound in `MessageView`
+   --> /workspace/src/message.rs:105:7
+    |
+100 | pub trait MessageView<'msg>:
+    |           ----------- required by a bound in this trait
+...
+105 |     + Serialize
+    |       ^^^^^^^^^ required by this bound in `MessageView`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:425:18
+    |
+425 |   type Message = Person;
+    |                  ^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:425:18
+    |
+425 |   type Message = Person;
+    |                  ^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:425:18
+    |
+425 |   type Message = Person;
+    |                  ^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:425:18
+    |
+425 |   type Message = Person;
+    |                  ^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: Clear` is not satisfied
+   --> src/person.u.pb.rs:425:18
+    |
+425 |   type Message = Person;
+    |                  ^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: Serialize` is not satisfied
+   --> src/person.u.pb.rs:425:18
+    |
+425 |   type Message = Person;
+    |                  ^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+    = note: required for `<internal_do_not_use_person::PersonView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: MessageType` is not satisfied
+   --> src/person.u.pb.rs:425:18
+    |
+425 |   type Message = Person;
+    |                  ^^^^^^ the trait `MessageType` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `MessageType`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+              FieldMask
+            and 121 others
+    = note: required for `<internal_do_not_use_person::PersonView<'msg> as MessageView<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageView::Message`
+   --> /workspace/src/message.rs:111:19
+    |
+111 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageView::Message`
+
+error[E0050]: method `into_proxied` has 2 parameters but the declaration in trait `into_proxied` has 1
+   --> src/person.u.pb.rs:581:19
+    |
+581 |   fn into_proxied(self, _private: ::protobuf::__internal::Private) -> Person {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected 1 parameter, found 2
+    |
+    = note: `into_proxied` from trait: `fn(Self) -> T`
+
+error[E0050]: method `into_proxied` has 2 parameters but the declaration in trait `into_proxied` has 1
+   --> src/person.u.pb.rs:591:19
+    |
+591 |   fn into_proxied(self, _private: ::protobuf::__internal::Private) -> Person {
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected 1 parameter, found 2
+    |
+    = note: `into_proxied` from trait: `fn(Self) -> T`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:616:45
+    |
+616 | impl<'msg> ::protobuf::MessageMut<'msg> for PersonMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:127:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+127 |     + MergeFrom
+    |       ^^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:616:45
+    |
+616 | impl<'msg> ::protobuf::MessageMut<'msg> for PersonMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:126:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+126 |     + CopyFrom
+    |       ^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:616:45
+    |
+616 | impl<'msg> ::protobuf::MessageMut<'msg> for PersonMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:125:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+125 |     + TakeFrom
+    |       ^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:616:45
+    |
+616 | impl<'msg> ::protobuf::MessageMut<'msg> for PersonMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:124:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+124 |     + ClearAndParse
+    |       ^^^^^^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: Clear` is not satisfied
+   --> src/person.u.pb.rs:616:45
+    |
+616 | impl<'msg> ::protobuf::MessageMut<'msg> for PersonMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:123:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+123 |     + Clear
+    |       ^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::PersonMut<'msg>: Serialize` is not satisfied
+   --> src/person.u.pb.rs:616:45
+    |
+616 | impl<'msg> ::protobuf::MessageMut<'msg> for PersonMut<'msg> {
+    |                                             ^^^^^^^^^^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::PersonMut<'msg>`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+note: required by a bound in `MessageMut`
+   --> /workspace/src/message.rs:122:7
+    |
+115 | pub trait MessageMut<'msg>:
+    |           ---------- required by a bound in this trait
+...
+122 |     + Serialize
+    |       ^^^^^^^^^ required by this bound in `MessageMut`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: MergeFrom` is not satisfied
+   --> src/person.u.pb.rs:617:18
+    |
+617 |   type Message = Person;
+    |                  ^^^^^^ the trait `MergeFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `MergeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: CopyFrom` is not satisfied
+   --> src/person.u.pb.rs:617:18
+    |
+617 |   type Message = Person;
+    |                  ^^^^^^ the trait `CopyFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `CopyFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: TakeFrom` is not satisfied
+   --> src/person.u.pb.rs:617:18
+    |
+617 |   type Message = Person;
+    |                  ^^^^^^ the trait `TakeFrom` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `TakeFrom`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: ClearAndParse` is not satisfied
+   --> src/person.u.pb.rs:617:18
+    |
+617 |   type Message = Person;
+    |                  ^^^^^^ the trait `ClearAndParse` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `ClearAndParse`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: Clear` is not satisfied
+   --> src/person.u.pb.rs:617:18
+    |
+617 |   type Message = Person;
+    |                  ^^^^^^ the trait `Clear` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `Clear`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+            and 250 others
+    = note: required for `<internal_do_not_use_person::PersonMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: Serialize` is not satisfied
+   --> src/person.u.pb.rs:617:18
+    |
+617 |   type Message = Person;
+    |                  ^^^^^^ the trait `Serialize` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `Serialize`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              DynamicMessageMut<'_>
+              DynamicMessageView<'_>
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+            and 379 others
+    = note: required for `<internal_do_not_use_person::PersonMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+error[E0277]: the trait bound `internal_do_not_use_person::Person: MessageType` is not satisfied
+   --> src/person.u.pb.rs:617:18
+    |
+617 |   type Message = Person;
+    |                  ^^^^^^ the trait `MessageType` is not implemented for `internal_do_not_use_person::Person`
+    |
+    = help: the following other types implement trait `MessageType`:
+              BoolValue
+              BytesValue
+              DoubleValue
+              DynamicMessage
+              EditionsTestAllRequiredTypesProto2
+              EditionsTestAllTypesProto2
+              EditionsTestAllTypesProto3
+              FieldMask
+            and 121 others
+    = note: required for `<internal_do_not_use_person::PersonMut<'msg> as MessageMut<'msg>>::Message` to implement `pbrs::Message`
+note: required by a bound in `pbrs::MessageMut::Message`
+   --> /workspace/src/message.rs:131:19
+    |
+131 |     type Message: Message;
+    |                   ^^^^^^^ required by this bound in `MessageMut::Message`
+
+Some errors have detailed explanations: E0050, E0277, E0405, E0425, E0433.
+For more information about an error, try `rustc --explain E0050`.
+error: could not compile `pbrs-rust-out-inventory` (lib) due to 234 previous errors
