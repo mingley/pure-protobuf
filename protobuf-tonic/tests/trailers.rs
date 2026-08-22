@@ -57,9 +57,23 @@ impl Greeter for WithHeaders {
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<Self::ServerHelloStream>, Status> {
-        Err(Status::unimplemented("headers test"))
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let (tx, rx) = tokio::sync::mpsc::channel(4);
+        let mut reply = HelloReply::new();
+        reply.set_message(name);
+        let _ = tx.send(Ok(reply)).await;
+        let mut response = Response::new(ReceiverStream::new(rx));
+        response
+            .metadata_mut()
+            .insert(HEADER_KEY, HEADER_VAL.parse().unwrap());
+        Ok(response)
     }
 
     type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
@@ -195,6 +209,39 @@ async fn client_streaming_response_metadata_round_trip() {
         .unwrap();
     assert_eq!(got, HEADER_VAL);
     assert_eq!(resp.into_inner().message().to_str().unwrap_or(""), "ada");
+}
+
+/// Server-stream initial metadata lives on the `Response` that wraps the
+/// stream (HTTP headers), not on a later trailer.
+#[tokio::test]
+async fn server_streaming_response_metadata_round_trip() {
+    let addr = spawn(WithHeaders).await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    let resp = client
+        .server_hello(Request::new(req))
+        .await
+        .expect("server-streaming with initial metadata");
+    let got = resp
+        .metadata()
+        .get(HEADER_KEY)
+        .expect("missing response metadata")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, HEADER_VAL);
+    let msg = resp
+        .into_inner()
+        .next()
+        .await
+        .expect("one reply")
+        .expect("HelloReply");
+    assert_eq!(msg.message().to_str().unwrap_or(""), "ada");
 }
 
 /// Non-OK `Status` metadata is sent as gRPC HTTP/2 trailers.
