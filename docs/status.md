@@ -20,11 +20,14 @@
 - `protobuf-tonic` on this tonic 0.14 stack covers all four RPC shapes
   (unary, client-stream, server-stream, bidi) including `Status`
   code+message, initial `Response` metadata (headers), and `Status`
-  HTTP/2 trailers. `tests/interop.rs` has three same-process analogues of
+  HTTP/2 trailers. `tests/interop.rs` has same-process analogues of
   official interop names (`unimplemented_method`, `unimplemented_service`,
-  `special_status_message`). Same-process tonic, not official interop,
-  not a native gRPC kernel, no Google peer. Compression and the
-  per-message `Vec` in `ProtobufCodec` are uncovered.
+  `special_status_message`, `empty_unary`, `large_unary`, `empty_stream`).
+  `large_unary` sizes (271828 / 314159) are `hello.proto` string fields
+  (`name` / `message`), not official `SimpleRequest.payload.body` /
+  `response_size`. Same-process tonic, not official interop, not a native
+  gRPC kernel, no Google peer. Compression and the per-message `Vec` in
+  `ProtobufCodec` are uncovered.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
