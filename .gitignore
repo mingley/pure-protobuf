@@ -7,3 +7,4 @@
 /prost_tat/target
 /third_party/protobuf
 .DS_Store
+/tests/rust_out_inventory/target
