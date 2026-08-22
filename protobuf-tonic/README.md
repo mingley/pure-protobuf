@@ -35,7 +35,11 @@ let stream = client.stream_hello(Request::new(inbound)).await?;
 `ProtobufCodec<Encode, Decode>` takes the encode type first and the decode
 type second.
 
-See `tests/unary.rs` and `tests/streaming.rs`.
+`proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
+unary happy path. `tests/streaming.rs` covers client-stream, server-stream,
+and bidi. `tests/status.rs` asserts a unary non-OK `Status` code+message
+(`NotFound`). `tests/trailers.rs` splits initial `Response` metadata
+(headers) from `Status` metadata sent as HTTP/2 trailers.
 
 ## License
 

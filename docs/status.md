@@ -10,7 +10,11 @@
   0 unexpected.
 - 38 `google_shared` tests cover a subset of `rust/test/shared`.
 - Plugin round-trip works, including `./scripts/gen.sh`.
-- tonic 0.14 unary and bidi smoke tests pass in `protobuf-tonic`.
+- `protobuf-tonic` on this tonic 0.14 stack covers all four RPC shapes
+  (unary, client-stream, server-stream, bidi), unary `Status` code+message,
+  initial `Response` metadata (headers), and `Status` HTTP/2 trailers.
+  Same-process tonic, not a native gRPC kernel, no Google peer. Compression
+  and the per-message `Vec` in `ProtobufCodec` are uncovered.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
