@@ -338,9 +338,27 @@ impl Greeter for Hang {
 
     async fn stream_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        request: Request<tonic::Streaming<HelloRequest>>,
     ) -> Result<Response<Self::StreamHelloStream>, Status> {
-        Err(Status::unimplemented("cancel hang"))
+        let mut inbound = request.into_inner();
+        let (tx, rx) = tokio::sync::mpsc::channel(4);
+        tokio::spawn(async move {
+            while let Some(item) = inbound.next().await {
+                match item {
+                    Ok(msg) => {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(msg.name().to_str().unwrap_or("").to_string());
+                        if tx.send(Ok(reply)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+            // Stay open after the first echo until inbound ends (or the
+            // client drops the response stream).
+        });
+        Ok(Response::new(ReceiverStream::new(rx)))
     }
 }
 
@@ -386,6 +404,46 @@ async fn cancel_after_begin() {
     assert!(
         join.unwrap_err().is_cancelled(),
         "tonic cancel-before-send is task abort, not Status"
+    );
+    drop(tx);
+}
+
+/// Official interop `cancel_after_first_response`: FullDuplexCall, recv
+/// one message, then cancel. StreamHello is the analogue.
+///
+/// After the first `HelloReply`, abort the remaining `next()`. tonic
+/// 0.14 has no context-cancel + Recv: the client sees
+/// `JoinError::Cancelled`, not `Status` / `Code::Cancelled`.
+#[tokio::test]
+async fn cancel_after_first_response() {
+    let addr = spawn_hang().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let mut stream = client
+        .stream_hello(Request::new(ReceiverStream::new(rx)))
+        .await
+        .expect("stream should start");
+    let mut req = HelloRequest::new();
+    req.set_name("one");
+    tx.send(req).await.unwrap();
+    let first = stream
+        .get_mut()
+        .next()
+        .await
+        .expect("one reply")
+        .expect("first HelloReply");
+    assert_eq!(first.message().to_str().unwrap_or(""), "one");
+    let handle = tokio::spawn(async move { stream.get_mut().next().await });
+    handle.abort();
+    let join = handle.await;
+    assert!(
+        join.unwrap_err().is_cancelled(),
+        "tonic cancel-after-first is task abort, not Status"
     );
     drop(tx);
 }
