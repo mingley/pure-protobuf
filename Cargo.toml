@@ -2,6 +2,7 @@
 members = [".", "protobuf-tonic"]
 exclude = [
     "bench",
+    "tonic-bench",
     "v4_person",
     "v4_tat",
     "buffa_tat",
