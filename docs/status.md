@@ -40,8 +40,10 @@
   `x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
   not trailers. `Status.metadata` on `Err` remains the trailer path.
   Same-process tonic, not official interop, not a native gRPC kernel, no
-  Google peer. Compression and the per-message `Vec` in `ProtobufCodec`
-  are uncovered.
+  Google peer. Compression is uncovered. `ProtobufCodec` allocates a
+  per-message `Vec` and lost the Codec bench to `ProstCodec` (hello 93.6
+  vs 22.4 ns combined, 4 KiB ~400 vs 202). Not kernel `./bench`. Not in
+  CI. Not a win.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,

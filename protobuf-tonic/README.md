@@ -33,7 +33,9 @@ let stream = client.stream_hello(Request::new(inbound)).await?;
 ```
 
 `ProtobufCodec<Encode, Decode>` takes the encode type first and the decode
-type second.
+type second. `tonic-bench` Codec encode+decode: `ProtobufCodec` lost to
+`ProstCodec` (hello 93.6 vs 22.4 ns combined). Per-message `Vec`. Not
+kernel `./bench`.
 
 `proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
 unary happy path. `tests/streaming.rs` covers client-stream, server-stream,
