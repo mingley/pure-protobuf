@@ -27,8 +27,14 @@ Docs:
 - [Status](docs/status.md)
 - [tonic 0.14](protobuf-tonic/README.md)
 
-Conformance (protobuf v35.1 runner): 5631 binary+JSON + 909 text, 0
-unexpected, including `--enforce_recommended`.
+Conformance (protobuf v35.1, `--maximum_edition 2023`, `18a7af1`):
+required ×2: 3323 successes, 0 skipped, 0 expected failures, 2090
+unexpected failures. Recommended: 3323 successes, 0 skipped, 0 expected
+failures, 2308 unexpected failures. Both failed. 5631 is 3323+2308
+attempted recommended binary+JSON, not passes. Text never started
+(runner short-circuits after binary+JSON). Failure tail:
+`Required.Proto3.ProtobufInput.ValidDataScalar.*.JsonOutput` / Failed
+to parse input or produce output. CI does not run the runner.
 
 ```bash
 ./scripts/fetch-protobuf.sh
