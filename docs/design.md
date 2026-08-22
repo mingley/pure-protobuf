@@ -26,12 +26,14 @@ TAT `size_of` is 648 bytes. `TestAllTypesProto3::new` is ~19 ns.
 Parse is one pass. Truncated packed, bad varints, UTF-8 (per edition), and
 depth are rejected here, not on getter.
 
-Scalar-only parses do not `Arc` the input. The first lazy string, bytes,
-nested, or packed-varint field builds a `Wire` (`Arc<[u8]>` + range).
+Scalar-only parses do not `Arc` the input. The first lazy bytes,
+nested, packed-varint, or **long** string field builds a `Wire`
+(`Arc<[u8]>` + range). Short strings (`len <= 23`) copy into
+`ProtoString` and do not `Wire::ensure` the parent frame.
 
 After validation:
 
-- strings <= 23 bytes: SSO copy
+- strings <= 23 bytes: SSO copy; no parent-frame `Arc`
 - longer strings / bytes: `Wire` window
 - packed varints: validated payload kept; `Vec` on first get. Encode recodes
   canonical (overlong memcpy fails recommended `ValidDataRepeated`)
