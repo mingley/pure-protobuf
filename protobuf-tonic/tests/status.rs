@@ -1,7 +1,9 @@
+use futures_util::StreamExt;
 use protobuf_tonic::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use std::net::SocketAddr;
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Channel, Server};
-use tonic::{Code, Request, Response, Status};
+use tonic::{Code, Request, Response, Status, Streaming};
 
 struct Missing;
 
@@ -21,18 +23,29 @@ impl Greeter for Missing {
 
     async fn client_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("status test"))
+        let mut inbound = request.into_inner();
+        let name = match inbound.next().await {
+            Some(Ok(msg)) => msg.name().to_str().unwrap_or("").to_string(),
+            _ => String::new(),
+        };
+        Err(Status::not_found(format!("no such user: {name}")))
     }
 
     type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<Self::ServerHelloStream>, Status> {
-        Err(Status::unimplemented("status test"))
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        Err(Status::not_found(format!("no such user: {name}")))
     }
 
     type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
@@ -72,6 +85,47 @@ async fn unary_not_found_code_and_message() {
     req.set_name("ada");
     let err = client
         .say_hello(Request::new(req))
+        .await
+        .expect_err("expected non-OK status");
+    assert_eq!(err.code(), Code::NotFound);
+    assert_eq!(err.message(), "no such user: ada");
+}
+
+#[tokio::test]
+async fn client_streaming_not_found_code_and_message() {
+    let addr = spawn_missing().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    tx.send(req).await.unwrap();
+    drop(tx);
+    let err = client
+        .client_hello(Request::new(ReceiverStream::new(rx)))
+        .await
+        .expect_err("expected non-OK status");
+    assert_eq!(err.code(), Code::NotFound);
+    assert_eq!(err.message(), "no such user: ada");
+}
+
+#[tokio::test]
+async fn server_streaming_not_found_code_and_message() {
+    let addr = spawn_missing().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    let err = client
+        .server_hello(Request::new(req))
         .await
         .expect_err("expected non-OK status");
     assert_eq!(err.code(), Code::NotFound);
