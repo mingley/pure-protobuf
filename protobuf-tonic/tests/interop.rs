@@ -7,6 +7,7 @@ use futures_util::StreamExt;
 use protobuf_tonic::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use protobuf_tonic::ProtobufCodec;
 use std::net::SocketAddr;
+use std::time::Duration;
 use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Channel, Server};
 use tonic::{Code, Request, Response, Status};
@@ -288,4 +289,103 @@ async fn empty_stream() {
         replies += 1;
     }
     assert_eq!(replies, 0);
+}
+
+/// Holds ClientHello open until inbound ends. Used so the client can
+/// cancel before sending any request messages.
+struct Hang;
+
+impl Greeter for Hang {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("cancel hang"))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut inbound = request.into_inner();
+        // Wait for a message or inbound end. tonic maps a request-stream
+        // cancel (`Code::Cancelled`) to `None`, same as half-close.
+        match inbound.next().await {
+            Some(Ok(msg)) => {
+                let mut reply = HelloReply::new();
+                reply.set_message(msg.name().to_str().unwrap_or("").to_string());
+                Ok(Response::new(reply))
+            }
+            Some(Err(status)) => Err(status),
+            None => {
+                let mut reply = HelloReply::new();
+                reply.set_message("inbound-end");
+                Ok(Response::new(reply))
+            }
+        }
+    }
+
+    type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerHelloStream>, Status> {
+        Err(Status::unimplemented("cancel hang"))
+    }
+
+    type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn stream_hello(
+        &self,
+        _request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<Self::StreamHelloStream>, Status> {
+        Err(Status::unimplemented("cancel hang"))
+    }
+}
+
+async fn spawn_hang() -> SocketAddr {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        Server::builder()
+            .add_service(GreeterServer::new(Hang))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .ok();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    addr
+}
+
+/// Official interop `cancel_after_begin`: start StreamingInputCall and
+/// cancel before any request messages. ClientHello is the analogue.
+///
+/// tonic 0.14 has no `call.cancel()` / context. Cancel is abort/drop of
+/// the client future (not `drop(tx)`, which is half-close). The aborted
+/// task is `JoinError::Cancelled`; the client does not get a `Status`.
+#[tokio::test]
+async fn cancel_after_begin() {
+    let addr = spawn_hang().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let handle = tokio::spawn(async move {
+        client
+            .client_hello(Request::new(ReceiverStream::new(rx)))
+            .await
+    });
+    // Headers can go out; do not send a request message.
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    handle.abort();
+    let join = handle.await;
+    assert!(
+        join.unwrap_err().is_cancelled(),
+        "tonic cancel-before-send is task abort, not Status"
+    );
+    drop(tx);
 }
