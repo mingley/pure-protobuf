@@ -1,9 +1,7 @@
 //! Same-process Codec bench: `ProtobufCodec` vs tonic+prost `ProstCodec`.
 //!
-//! The Codec table is the result. On the release run this binary lost:
-//! combined encode+decode 93.6 vs 22.4 ns (hello) and 400 vs 202 ns
-//! (4 KiB). `ProtobufCodec` allocates a `Vec` per message. Do not treat
-//! this crate as a win.
+//! The Codec table is the result. Print it; do not treat this crate as a win
+//! unless the table is a win.
 //!
 //! No unary RPC table. A serial pbrs-then-prost unary run (n=5) produced
 //! an order artifact (896 µs vs 2.20 ms). That table was dropped rather
@@ -16,13 +14,14 @@
 //! tonic 0.14 `EncodeBuf` / `DecodeBuf` have no public constructor. The
 //! loops below run the same Encoder/Decoder bodies those codecs use:
 //!
-//! - `ProtobufCodec` encode: `Serialize` to a new `Vec`, then `put_slice`
-//!   into `BytesMut` (the `EncodeBuf` inner buffer).
-//! - `ProtobufCodec` decode: copy-all into a new `Vec`, then `Parse`.
+//! - `ProtobufCodec` encode: `Serialize::encode` into `BytesMut` (the
+//!   `EncodeBuf` inner buffer). No per-message `Vec`.
+//! - `ProtobufCodec` decode: `Parse` from contiguous bytes (`DecodeBuf::chunk`
+//!   when the frame is one piece; typical unary). No pre-copy `Vec`.
 //! - `ProstCodec` encode: `prost::Message::encode` into `BytesMut`.
 //! - `ProstCodec` decode: `prost::Message::decode` from the buffer.
 
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::BytesMut;
 use pbrs::{Parse, Serialize};
 use protobuf_tonic::hello::HelloRequest as PbrsHello;
 use std::time::Instant;
@@ -68,19 +67,15 @@ fn prost_hello(name: &str) -> ProstHello {
     }
 }
 
-/// `ProtobufEncoder`: serialize-to-Vec, then `put_slice` into the dst buffer.
+/// `ProtobufEncoder`: write into the dst buffer (no per-message `Vec`).
 fn pbrs_codec_encode(item: &PbrsHello, dst: &mut BytesMut) {
     dst.clear();
-    let bytes = Serialize::serialize(item).expect("pbrs serialize");
-    dst.put_slice(&bytes);
+    Serialize::encode(item, dst).expect("pbrs encode");
 }
 
-/// `ProtobufDecoder`: copy remaining bytes into a fresh Vec, then `Parse`.
+/// `ProtobufDecoder`: parse contiguous frame bytes (no pre-copy `Vec`).
 fn pbrs_codec_decode(src: &[u8]) -> PbrsHello {
-    let mut buf = src;
-    let mut copy = vec![0u8; buf.remaining()];
-    buf.copy_to_slice(&mut copy);
-    Parse::parse(&copy).expect("pbrs parse")
+    Parse::parse(src).expect("pbrs parse")
 }
 
 /// `ProstEncoder`: prost writes directly into the dst buffer.
@@ -147,14 +142,14 @@ fn main() {
 
     println!("# Codec encode+decode (one unary HelloRequest; no transport)");
     println!();
-    println!("This is the result. ProtobufCodec lost this table.");
-    println!("Encoder/Decoder body only. tonic EncodeBuf/DecodeBuf are crate-private");
-    println!("newtypes over BytesMut / Buf; these are the same operations");
-    println!("ProtobufCodec and ProstCodec run. Not kernel encode vs prost (see bench/).");
-    println!("Not a Google C++/Go peer. ProtobufCodec allocates a Vec per message.");
+    println!("This is the result. Encoder/Decoder body only.");
+    println!("tonic EncodeBuf/DecodeBuf are crate-private newtypes over");
+    println!("BytesMut / Buf; these are the same operations ProtobufCodec");
+    println!("and ProstCodec run. Not kernel encode vs prost (see bench/).");
+    println!("Not a Google C++/Go peer.");
     println!("hello.proto name/message strings only. Not interop payload.body.");
     println!("No unary RPC table (serial pbrs-then-prost was an order artifact).");
-    println!("Do not treat this binary as a win.");
+    println!("Do not treat this binary as a win unless the table is a win.");
     println!();
     println!("iters={codec_iters} samples={codec_samples} (median) release thin-LTO");
     println!();

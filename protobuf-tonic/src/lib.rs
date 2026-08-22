@@ -5,7 +5,7 @@
 
 extern crate self as protobuf_tonic;
 
-use bytes::{Buf, BufMut};
+use bytes::Buf;
 use pbrs::{ClearAndParse, Parse, Serialize};
 use std::marker::PhantomData;
 use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
@@ -44,9 +44,7 @@ impl<T: Serialize> Encoder for ProtobufEncoder<T> {
     type Error = Status;
 
     fn encode(&mut self, item: Self::Item, dst: &mut EncodeBuf<'_>) -> Result<(), Self::Error> {
-        let bytes = Serialize::serialize(&item).map_err(|e| Status::internal(e.to_string()))?;
-        dst.put_slice(&bytes);
-        Ok(())
+        Serialize::encode(&item, dst).map_err(|e| Status::internal(e.to_string()))
     }
 }
 
@@ -58,9 +56,15 @@ impl<T: Parse + Default + ClearAndParse> Decoder for ProtobufDecoder<T> {
     type Error = Status;
 
     fn decode(&mut self, src: &mut DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
-        let mut buf = vec![0u8; src.remaining()];
-        src.copy_to_slice(&mut buf);
-        Parse::parse(&buf)
+        let n = src.remaining();
+        let chunk = src.chunk();
+        if chunk.len() >= n {
+            let item = Parse::parse(&chunk[..n]).map_err(|e| Status::internal(e.to_string()))?;
+            src.advance(n);
+            return Ok(Some(item));
+        }
+        let bytes = src.copy_to_bytes(n);
+        Parse::parse(&bytes)
             .map(Some)
             .map_err(|e| Status::internal(e.to_string()))
     }
