@@ -242,6 +242,16 @@ fn plugin_generates_grpc_stubs() {
         "HelloRequest must store name as a field"
     );
     assert!(
+        generated.contains("LazyStr::from_parse_span(wire, data, s, e)"),
+        "hello string path must skip Wire::ensure on the inline path:\n{}",
+        &generated[..generated.len().min(2500)]
+    );
+    assert!(
+        !generated.contains("LazyStr::from_span(pbrs::rt::Wire::ensure"),
+        "hello must not Arc the parent frame before from_span:\n{}",
+        &generated[..generated.len().min(2500)]
+    );
+    assert!(
         !generated.contains("impl_generated_message!"),
         "must not wrap DynamicMessage"
     );

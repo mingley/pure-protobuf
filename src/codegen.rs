@@ -1536,7 +1536,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             } else {
                 ""
             };
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {st}.push(pbrs::rt::LazyStr::from_span(pbrs::rt::Wire::ensure(wire, data), s, e)); }}");
+            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {st}.push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)); }}");
         } else if f.field_type == FieldType::Bytes {
             let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))); }}");
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
@@ -1605,9 +1605,9 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             ""
         };
         let assign = if is_option(f) {
-            format!("{st} = Some(Box::new(pbrs::rt::LazyStr::from_span(pbrs::rt::Wire::ensure(wire, data), s, e)))")
+            format!("{st} = Some(Box::new(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)))")
         } else {
-            format!("{st} = pbrs::rt::LazyStr::from_span(pbrs::rt::Wire::ensure(wire, data), s, e)")
+            format!("{st} = pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);

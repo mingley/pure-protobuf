@@ -44,8 +44,10 @@
   per-message `Vec` and still lost the Codec bench to `ProstCodec`
   (hello 52.2 vs 25.8 ns combined, 4 KiB 190.6 vs 166.1). Smaller loss
   than #29 (93.6 vs 22.4). Remaining gap is `Parse` / `merge_from_bytes`
-  (hello decode 45.4 vs 22.1). Encode is close. Not kernel `./bench`.
-  Not in CI. Not a win.
+  (hello decode 45.4 vs 22.1). Inline string parse no longer
+  `Wire::ensure`s the parent frame (`len ≤ 23` copies into
+  `ProtoString`). Encode is close. Not kernel `./bench`. Not in CI.
+  Not a win.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
