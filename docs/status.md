@@ -4,14 +4,17 @@
 
 - `cargo fmt --check`, `clippy --all-targets --all-features -- -D warnings`,
   and `cargo test --workspace` pass.
-- CI on `main` runs fmt, clippy, and tests. It needs `protoc` for the plugin
-  and for protobuf-tonic `build.rs`.
+- CI on `main` runs fmt, clippy, tests, and official conformance
+  (`./scripts/conformance.sh`: required ×2 and recommended, v35.1, cmake
+  protoc from the pin, not system, no skip list). The `test` job still
+  apt-installs `protobuf-compiler` for the plugin and protobuf-tonic
+  `build.rs`.
 - Conformance v35.1 (`--maximum_edition 2023`, `6564b0e`, `protoc` hidden
   / vendored FDS): required ×2: 5631 binary+JSON + 909 text, 0 unexpected.
   `--enforce_recommended`: same. No skip list. Empty-FDS hole is closed:
   `build.rs` used to write `[]` when `protoc` was missing; #6 ships
   `vendor/google/conformance_fds.bin` and falls back to it (that was the
-  2090 JsonOutput / `missing desc` cluster). CI does not run the runner.
+  2090 JsonOutput / `missing desc` cluster). CI printed the same totals.
 - 38 `google_shared` tests cover a subset of `rust/test/shared`.
 - Plugin round-trip works, including `./scripts/gen.sh`.
 - `protobuf-tonic` on this tonic 0.14 stack covers all four RPC shapes
