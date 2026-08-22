@@ -35,10 +35,9 @@ let stream = client.stream_hello(Request::new(inbound)).await?;
 `ProtobufCodec<Encode, Decode>` takes the encode type first and the decode
 type second. `tonic-bench` Codec encode+decode: `ProtobufCodec` still
 lost to `ProstCodec` (hello 52.2 vs 25.8 ns combined). Smaller loss after
-dropping the per-message `Vec`. Remaining gap is `Parse`. Parse-only
-hello (no codec framing) is 44.7 vs 22.1. Leftover is a discarded
-parent-frame `Arc`, not UTF-8. Still a loss. Not a win. Not kernel
-`./bench`.
+dropping the per-message `Vec`. Remaining gap is `Parse`. #32 Parse
+buckets are Remaining (`docs/status.md`); measure-only, stays draft,
+not a win. Not kernel `./bench`.
 
 `proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
 unary happy path. `tests/streaming.rs` covers client-stream, server-stream,

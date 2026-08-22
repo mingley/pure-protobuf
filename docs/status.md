@@ -44,14 +44,8 @@
   per-message `Vec` and still lost the Codec bench to `ProstCodec`
   (hello 52.2 vs 25.8 ns combined, 4 KiB 190.6 vs 166.1). Smaller loss
   than #29 (93.6 vs 22.4). Remaining gap is `Parse` / `merge_from_bytes`
-  (hello decode 45.4 vs 22.1). Parse-only hello (no codec framing) is
-  44.7 vs 22.1 (pbrs `Parse` vs prost decode). Leftover is a discarded
-  parent-frame `Arc`: `Wire::ensure` `Arc<[u8]>` of the whole 5-byte
-  hello, then dropped because `ada` is ≤23 and `LazyStr::from_span`
-  inlines a `ProtoString`. Not UTF-8 (UTF-8 is on both sides). 4 KiB
-  Parse-only 153.6 vs 135.5 (Δ18.1) is a fixed per-message cost. #32
-  is measure-only and stays draft. Not a Parse win. Encode is close.
-  Not kernel `./bench`. Not in CI. Not a win.
+  (hello decode 45.4 vs 22.1). Encode is close. Not kernel `./bench`.
+  Not in CI. Not a win.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
@@ -75,6 +69,13 @@ See `docs/upb.md`. Short list:
   `Message` supertraits, 1× no `assert_compatible_gencode_version`.
   `pbrs::__internal` exports only `Private` and `SealedInternal`.
   rust_out will not link.
+- Parse-only hello (no codec framing) is 44.7 vs 22.1 (pbrs `Parse`
+  vs prost decode). Leftover is a discarded parent-frame `Arc`:
+  `Wire::ensure` `Arc<[u8]>` of the 5-byte hello, dropped because
+  `ada` is ≤23 and `LazyStr::from_span` inlines a `ProtoString`.
+  Not UTF-8. 4 KiB Parse-only 153.6 vs 135.5 (Δ18.1) is a fixed
+  per-message cost. #32 is measure-only and stays draft. Not a
+  Parse win. Not a win.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
