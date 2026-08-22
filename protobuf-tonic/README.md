@@ -44,11 +44,16 @@ client sees it on the call `Result`). `tests/trailers.rs` splits initial
 `Response` metadata (headers) from `Status` metadata sent as HTTP/2
 trailers. `tests/interop.rs` is same-process analogues of official gRPC interop
 names (`unimplemented_method`, `unimplemented_service`,
-`special_status_message`, `empty_unary`, `large_unary`, `empty_stream`).
-`large_unary` uses `hello.proto` string-field sizes (271828 / 314159),
-not official `SimpleRequest.payload.body` / `response_size`.
-`empty_stream` is StreamHello open + half-close with no messages; client
-sees OK and zero replies. Not official interop. Not a Google peer.
+`special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,
+`cancel_after_begin`, `cancel_after_first_response`,
+`timeout_on_sleeping_server`). `large_unary` uses `hello.proto`
+string-field sizes (271828 / 314159), not official
+`SimpleRequest.payload.body` / `response_size`. `empty_stream` is
+StreamHello open + half-close with no messages; client sees OK and zero
+replies. Cancel analogues abort the client future (`JoinError::Cancelled`,
+not a `Status`). `timeout_on_sleeping_server` is unary
+`Request::set_timeout` → `Code::Cancelled` / "Timeout expired", not
+`DeadlineExceeded`. Not official interop. Not a Google peer.
 
 ## License
 
