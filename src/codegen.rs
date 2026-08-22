@@ -1341,7 +1341,10 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "        n");
     let _ = writeln!(src, "    }}");
 
-    let _ = writeln!(src, "    fn write_to(&self, out: &mut Vec<u8>) {{");
+    let _ = writeln!(
+        src,
+        "    fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {{"
+    );
     if desc.message_set_wire_format {
         emit_message_set_write(src, desc);
     } else {

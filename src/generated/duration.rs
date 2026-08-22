@@ -209,7 +209,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if self.seconds != 0 {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, self.seconds as u64);

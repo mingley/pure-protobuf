@@ -926,7 +926,7 @@ impl DynamicMessage {
         n + self.unknown.encoded_len()
     }
 
-    fn write_to(&self, out: &mut Vec<u8>) {
+    fn write_to(&self, out: &mut impl crate::wire::WireOut) {
         if self.desc.message_set_wire_format {
             self.write_message_set(out);
             self.unknown.encode(out);
@@ -1016,7 +1016,7 @@ impl DynamicMessage {
         Ok(())
     }
 
-    fn write_message_set(&self, out: &mut Vec<u8>) {
+    fn write_message_set(&self, out: &mut impl crate::wire::WireOut) {
         for (number, val) in &self.fields {
             let FieldValue::Singular(Value::Message(m)) = val else {
                 continue;
@@ -1261,7 +1261,7 @@ fn untyped_size(number: u32, val: &FieldValue) -> u64 {
     }
 }
 
-fn write_untyped(number: u32, val: &FieldValue, out: &mut Vec<u8>) {
+fn write_untyped(number: u32, val: &FieldValue, out: &mut impl crate::wire::WireOut) {
     match val {
         FieldValue::Singular(v) => write_field_value(&synthetic(number, v), val, out),
         FieldValue::Repeated(items) => {
@@ -1304,7 +1304,11 @@ fn field_value_size(field: &FieldDescriptor, val: &FieldValue) -> u64 {
     }
 }
 
-fn write_field_value(field: &FieldDescriptor, val: &FieldValue, out: &mut Vec<u8>) {
+fn write_field_value(
+    field: &FieldDescriptor,
+    val: &FieldValue,
+    out: &mut impl crate::wire::WireOut,
+) {
     match val {
         FieldValue::Singular(v) => {
             if field.presence == Presence::Implicit && v.is_implicit_default() {
@@ -1352,7 +1356,12 @@ fn map_entry_len(field: &FieldDescriptor, key: &MapKeyValue, value: &Value) -> u
     n
 }
 
-fn write_map_entry(field: &FieldDescriptor, key: &MapKeyValue, value: &Value, out: &mut Vec<u8>) {
+fn write_map_entry(
+    field: &FieldDescriptor,
+    key: &MapKeyValue,
+    value: &Value,
+    out: &mut impl crate::wire::WireOut,
+) {
     let kv = map_key_to_value(key);
     let mut kf = field
         .message
@@ -1420,7 +1429,7 @@ fn packed_scalar_len(ty: FieldType, v: &Value) -> u64 {
     }
 }
 
-fn write_scalar(field: &FieldDescriptor, v: &Value, out: &mut Vec<u8>) {
+fn write_scalar(field: &FieldDescriptor, v: &Value, out: &mut impl crate::wire::WireOut) {
     match v {
         Value::Message(m) if field.delimited || field.field_type == FieldType::Group => {
             encode_tag(out, field.number, WIRE_SGROUP);
@@ -1441,7 +1450,7 @@ fn write_scalar(field: &FieldDescriptor, v: &Value, out: &mut Vec<u8>) {
     }
 }
 
-fn write_packed_scalar(ty: FieldType, v: &Value, out: &mut Vec<u8>) {
+fn write_packed_scalar(ty: FieldType, v: &Value, out: &mut impl crate::wire::WireOut) {
     match (ty, v) {
         (FieldType::Double, Value::Double(n)) => out.extend_from_slice(&n.to_bits().to_le_bytes()),
         (FieldType::Float, Value::Float(n)) => out.extend_from_slice(&n.to_bits().to_le_bytes()),
@@ -1557,6 +1566,11 @@ impl Serialize for DynamicMessage {
     fn serialized_len(&self) -> usize {
         self.compute_size() as usize
     }
+    fn encode(&self, out: &mut impl crate::wire::WireOut) -> Result<(), SerializeError> {
+        wire::check_size(self.compute_size())?;
+        self.write_to(out);
+        Ok(())
+    }
 }
 
 impl Serialize for DynamicMessageView<'_> {
@@ -1566,6 +1580,9 @@ impl Serialize for DynamicMessageView<'_> {
     fn serialized_len(&self) -> usize {
         self.inner.serialized_len()
     }
+    fn encode(&self, out: &mut impl crate::wire::WireOut) -> Result<(), SerializeError> {
+        self.inner.encode(out)
+    }
 }
 
 impl Serialize for DynamicMessageMut<'_> {
@@ -1574,6 +1591,9 @@ impl Serialize for DynamicMessageMut<'_> {
     }
     fn serialized_len(&self) -> usize {
         self.inner.serialized_len()
+    }
+    fn encode(&self, out: &mut impl crate::wire::WireOut) -> Result<(), SerializeError> {
+        self.inner.encode(out)
     }
 }
 

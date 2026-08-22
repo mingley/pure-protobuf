@@ -219,7 +219,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if !self.type_url.is_empty() {
                 pbrs::rt::encode_len_field(out, 1, self.type_url.as_bytes());
             }
