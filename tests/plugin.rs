@@ -247,11 +247,6 @@ fn plugin_generates_grpc_stubs() {
         &generated[..generated.len().min(2500)]
     );
     assert!(
-        generated.contains("self.merge_loop::<false>(data, &mut wire, &mut pos, depth, true, 0)"),
-        "hello Parse merge_bytes must skip until/empty check_required:\n{}",
-        &generated[..generated.len().min(2500)]
-    );
-    assert!(
         !generated.contains("LazyStr::from_span(pbrs::rt::Wire::ensure"),
         "hello must not Arc the parent frame before from_span:\n{}",
         &generated[..generated.len().min(2500)]

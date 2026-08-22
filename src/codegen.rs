@@ -1209,7 +1209,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    #[inline(always)] fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, true, None) }}"
+        "    fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, true, None) }}"
     );
     let _ = writeln!(
         src,
