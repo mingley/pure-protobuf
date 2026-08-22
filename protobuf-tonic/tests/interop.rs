@@ -65,7 +65,14 @@ async fn spawn_greeter() -> SocketAddr {
     addr
 }
 
+/// Official interop `large_unary` sizes (`grpc-go` / gRPC interop).
+/// hello.proto has strings, not `SimpleRequest.payload.body`, so these
+/// are UTF-8 field lengths (`name` / `message`), not exact wire sizes.
+const LARGE_REQ: usize = 271828;
+const LARGE_RESP: usize = 314159;
+
 /// Echo-style Greeter: empty `HelloRequest` yields an empty `HelloReply`.
+/// A `LARGE_REQ`-sized name gets a `LARGE_RESP`-sized reply (not an echo).
 struct Echo;
 
 impl Greeter for Echo {
@@ -80,7 +87,11 @@ impl Greeter for Echo {
             .unwrap_or("")
             .to_string();
         let mut reply = HelloReply::new();
-        reply.set_message(name);
+        if name.len() == LARGE_REQ {
+            reply.set_message("x".repeat(LARGE_RESP));
+        } else {
+            reply.set_message(name);
+        }
         Ok(Response::new(reply))
     }
 
@@ -214,4 +225,26 @@ async fn empty_unary() {
         .await
         .expect("empty_unary");
     assert_eq!(resp.into_inner().message().to_str().unwrap_or(""), "");
+}
+
+/// Official interop `large_unary`: one-shot SayHello with a large payload.
+/// Request `name` is `LARGE_REQ` bytes; reply `message` is `LARGE_RESP`.
+#[tokio::test]
+async fn large_unary() {
+    let addr = spawn_echo().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut req = HelloRequest::new();
+    req.set_name("x".repeat(LARGE_REQ));
+    assert_eq!(req.name().as_bytes().len(), LARGE_REQ);
+    let resp = client
+        .say_hello(Request::new(req))
+        .await
+        .expect("large_unary");
+    let reply = resp.into_inner();
+    assert_eq!(reply.message().as_bytes().len(), LARGE_RESP);
 }
