@@ -1186,30 +1186,6 @@ fn map_val_ty(field: &FieldDescriptor) -> FieldType {
         .unwrap_or(FieldType::Int32)
 }
 
-fn emit_merge_field_match(src: &mut String, desc: &MessageDescriptor) {
-    let _ = writeln!(src, "            match n {{");
-    if desc.message_set_wire_format {
-        emit_message_set_merge(src, desc);
-    }
-    for f in desc.fields.values() {
-        if desc.message_set_wire_format && f.number == 1 {
-            continue;
-        }
-        let _ = writeln!(src, "            {} => match w {{", f.number);
-        emit_merge_arm(src, desc, f);
-        let _ = writeln!(
-            src,
-            "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
-        );
-        let _ = writeln!(src, "            }}");
-    }
-    let _ = writeln!(
-        src,
-        "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
-    );
-    let _ = writeln!(src, "            }}");
-}
-
 fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let required: Vec<_> = desc
         .fields
@@ -1231,27 +1207,21 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     }
     let _ = writeln!(src, "        Ok(())");
     let _ = writeln!(src, "    }}");
-    // Parse path: no group `until`, and no empty `check_required` when the
-    // message has no proto2 required fields. Groups still use merge_inner.
     let _ = writeln!(
         src,
-        "    #[inline(always)] fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let mut pos = 0; let mut wire = None; self.merge_loop::<false>(data, &mut wire, &mut pos, depth, true, 0) }}"
+        "    #[inline(always)] fn merge_bytes(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return self.check_required(); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, true, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return Ok(()); }} let mut pos = 0; let mut wire = None; self.merge_loop::<false>(data, &mut wire, &mut pos, depth, false, 0) }}"
+        "    fn merge_bytes_dont_enforce(&mut self, data: &[u8], depth: u32) -> Result<(), ParseError> {{ if data.is_empty() {{ return Ok(()); }} let mut pos = 0; let mut wire = None; self.merge_inner(data, &mut wire, &mut pos, depth, false, None) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_group(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_loop::<true>(data, wire, pos, depth, false, num) }}"
+        "    fn merge_group(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, num: u32, depth: u32) -> Result<(), ParseError> {{ self.merge_inner(data, wire, pos, depth, false, Some(num)) }}"
     );
     let _ = writeln!(
         src,
-        "    fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{ match until {{ Some(g) => self.merge_loop::<true>(data, wire, pos, depth, enforce, g), None => self.merge_loop::<false>(data, wire, pos, depth, enforce, 0) }} }}"
-    );
-    let _ = writeln!(
-        src,
-        "    fn merge_loop<const GROUP: bool>(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: u32) -> Result<(), ParseError> {{"
+        "    fn merge_inner(&mut self, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32, enforce: bool, until: Option<u32>) -> Result<(), ParseError> {{"
     );
     let _ = writeln!(
         src,
@@ -1263,16 +1233,34 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         src,
         "            let (n, w) = pbrs::rt::decode_tag(data, pos)?;"
     );
-    let _ = writeln!(src, "            if GROUP {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != until {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}");
-    emit_merge_field_match(src, desc);
+    let _ = writeln!(src, "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}");
+    let _ = writeln!(src, "            match n {{");
+    if desc.message_set_wire_format {
+        emit_message_set_merge(src, desc);
+    }
+    for f in desc.fields.values() {
+        if desc.message_set_wire_format && f.number == 1 {
+            continue;
+        }
+        let _ = writeln!(src, "            {} => match w {{", f.number);
+        emit_merge_arm(src, desc, f);
+        let _ = writeln!(
+            src,
+            "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+        );
+        let _ = writeln!(src, "            }}");
+    }
+    let _ = writeln!(
+        src,
+        "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+    );
+    let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
     let _ = writeln!(
         src,
-        "        if GROUP {{ return Err(ParseError::new(\"truncated group\")); }}"
+        "        if until.is_some() {{ return Err(ParseError::new(\"truncated group\")); }}"
     );
-    if !required.is_empty() {
-        let _ = writeln!(src, "        if enforce {{ self.check_required()?; }}");
-    }
+    let _ = writeln!(src, "        if enforce {{ self.check_required()?; }}");
     let _ = writeln!(src, "        Ok(())");
     let _ = writeln!(src, "    }}");
 

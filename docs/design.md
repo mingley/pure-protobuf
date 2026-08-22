@@ -47,7 +47,7 @@ the whole tag table each time.
 
 `FooView` is `&Owned` after this parse. It is not a wire overlay.
 
-Top-level `merge_bytes` (the Parse path) monomorphizes `merge_loop::<false>`: no group `until` cursor, and no empty `check_required` when the message has no proto2 required fields.
+Parse `merge_from_bytes` calls `merge_inner` directly on the non-empty path (no `merge_bytes` wrapper). Empty payloads still run `check_required` when the message has proto2 required fields.
 
 ## Encode
 
