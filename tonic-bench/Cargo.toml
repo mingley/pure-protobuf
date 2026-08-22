@@ -1,0 +1,27 @@
+[package]
+name = "pbrs-tonic-bench"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Same-process tonic Codec bench: ProtobufCodec lost encode+decode to ProstCodec (not the kernel wire bench)"
+
+[workspace]
+
+[dependencies]
+bytes = "1"
+pbrs = { path = ".." }
+prost = "0.14"
+protobuf-tonic = { path = "../protobuf-tonic" }
+
+[build-dependencies]
+prost-build = "0.14"
+
+[[bin]]
+name = "tonic-bench"
+path = "src/main.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
