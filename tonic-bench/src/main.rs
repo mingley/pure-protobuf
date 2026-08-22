@@ -1,7 +1,9 @@
 //! Same-process Codec bench: `ProtobufCodec` vs tonic+prost `ProstCodec`.
 //!
-//! The Codec table is the result. Print it; do not treat this crate as a win
-//! unless the table is a win.
+//! The Codec table is the result. On the release run this binary lost:
+//! combined encode+decode 52.2 vs 25.8 ns (hello) and 190.6 vs 166.1 ns
+//! (4 KiB). Encode is close (6.8 vs 3.8; 36.8 vs 32.7). Decode is still
+//! slower (45.4 vs 22.1; 153.8 vs 133.4). Do not treat this crate as a win.
 //!
 //! No unary RPC table. A serial pbrs-then-prost unary run (n=5) produced
 //! an order artifact (896 µs vs 2.20 ms). That table was dropped rather
@@ -142,7 +144,7 @@ fn main() {
 
     println!("# Codec encode+decode (one unary HelloRequest; no transport)");
     println!();
-    println!("This is the result. Encoder/Decoder body only.");
+    println!("This is the result. ProtobufCodec lost this table.");
     println!("tonic EncodeBuf/DecodeBuf are crate-private newtypes over");
     println!("BytesMut / Buf; these are the same operations ProtobufCodec");
     println!("and ProstCodec run. Not kernel encode vs prost (see bench/).");
