@@ -58,7 +58,6 @@ are not applicable and not vendored.
 | Fuzzing | conformance + cargo tests only | Not in-tree. |
 | 2 GiB cap | `MAX_MESSAGE_BYTES = 2^31 - 1` | Same order as C++. |
 | Nested `field.message` on a raw FileDescriptorSet skeleton | look up by `type_name` in the pool | Pointers on the skeleton are empty. |
-| File / enum / method custom options | skipped on FileDescriptorSet parse | Message and field custom options survive (`DescriptorOption` / `custom_option(n)`). |
 
 ### Views
 
