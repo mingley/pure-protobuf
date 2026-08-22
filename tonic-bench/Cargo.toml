@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.88"
 publish = false
 license = "MIT OR Apache-2.0"
-description = "Same-process tonic Codec bench: ProtobufCodec still loses encode+decode to ProstCodec (31.8 vs 25.0 ns hello after skipping inline Arc; not the kernel wire bench)"
+description = "Same-process tonic Codec bench: ProtobufCodec still loses encode+decode to ProstCodec (52.2 vs 25.8 ns hello; not the kernel wire bench)"
 
 [workspace]
 

@@ -1,10 +1,9 @@
 //! Same-process Codec bench: `ProtobufCodec` vs tonic+prost `ProstCodec`.
 //!
-//! The Codec table is the result. After skipping the parent-frame Arc
-//! on inline strings, hello decode is a smaller loss (25.0 vs 21.5 ns)
-//! but still a loss. Combined hello 31.8 vs 25.0. 4 KiB decode is still
-//! a loss (193.5 vs 144.4 on this VM; long strings still Wire::ensure).
-//! Encode is close (6.8 vs 3.5; 36.9 vs 32.6). Not a win.
+//! The Codec table is the result. On the release run this binary lost:
+//! combined encode+decode 52.2 vs 25.8 ns (hello) and 190.6 vs 166.1 ns
+//! (4 KiB). Encode is close (6.8 vs 3.8; 36.8 vs 32.7). Decode is still
+//! slower (45.4 vs 22.1; 153.8 vs 133.4). Do not treat this crate as a win.
 //!
 //! No unary RPC table. A serial pbrs-then-prost unary run (n=5) produced
 //! an order artifact (896 µs vs 2.20 ms). That table was dropped rather
