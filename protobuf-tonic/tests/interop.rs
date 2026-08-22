@@ -570,6 +570,10 @@ impl Greeter for EchoMetadata {
         if let Some(initial) = initial {
             response.metadata_mut().insert(ECHO_INITIAL, initial);
         }
+        // tonic 0.14 Response has no trailers / trailing-metadata API.
+        // EncodeBody on Ok emits only Status::ok("") (grpc-status: 0).
+        // Err(Status::ok(...)) would be into_http headers, not body
+        // trailers after a successful message — do not fake that.
         Ok(response)
     }
 
@@ -646,5 +650,21 @@ async fn custom_metadata() {
         .to_str()
         .unwrap();
     assert_eq!(got, ECHO_INITIAL_VAL);
+    // Official also wants x-grpc-test-echo-trailing-bin as trailing
+    // metadata. tonic 0.14 has no Response::trailers(); the unary
+    // client merges EncodeBody's OK trailers into this same
+    // Response.metadata bag. Those trailers are grpc-status: 0 only.
+    // Custom -bin is not attached and is not exposed via extensions.
+    assert_eq!(
+        resp.metadata()
+            .get("grpc-status")
+            .map(|v| v.to_str().unwrap()),
+        Some("0")
+    );
+    assert!(
+        resp.metadata().get_bin(ECHO_TRAILING_BIN).is_none(),
+        "custom OK-path trailers are not a first-class tonic Response API"
+    );
+    assert!(resp.extensions().is_empty());
     assert_eq!(resp.into_inner().message().to_str().unwrap_or(""), "ada");
 }
