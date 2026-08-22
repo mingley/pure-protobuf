@@ -9,6 +9,7 @@ use protobuf_tonic::ProtobufCodec;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio_stream::wrappers::ReceiverStream;
+use tonic::metadata::MetadataValue;
 use tonic::transport::{Channel, Server};
 use tonic::{Code, Request, Response, Status};
 
@@ -526,4 +527,144 @@ async fn timeout_on_sleeping_server() {
         .expect_err("expected deadline to fire");
     assert_eq!(err.code(), Code::Cancelled);
     assert_eq!(err.message(), "Timeout expired");
+}
+
+/// Official interop `custom_metadata` keys (`grpc` interop-test-descriptions).
+const ECHO_INITIAL: &str = "x-grpc-test-echo-initial";
+const ECHO_INITIAL_VAL: &str = "test_initial_metadata_value";
+const ECHO_TRAILING_BIN: &str = "x-grpc-test-echo-trailing-bin";
+const ECHO_TRAILING_BIN_VAL: &[u8] = &[0xab, 0xab, 0xab];
+
+/// Reads request metadata and echoes the ascii key as `Response.metadata`
+/// (HTTP/2 headers). The `-bin` key is required so the server actually
+/// reads it; it is not copied onto the Response (that would still be
+/// headers, not trailers).
+struct EchoMetadata;
+
+impl Greeter for EchoMetadata {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let initial = request.metadata().get(ECHO_INITIAL).cloned();
+        let trail = request.metadata().get_bin(ECHO_TRAILING_BIN).cloned();
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let Some(trail) = trail else {
+            return Err(Status::invalid_argument(
+                "missing x-grpc-test-echo-trailing-bin",
+            ));
+        };
+        if trail != MetadataValue::from_bytes(ECHO_TRAILING_BIN_VAL) {
+            return Err(Status::invalid_argument(
+                "bad x-grpc-test-echo-trailing-bin",
+            ));
+        }
+        let mut reply = HelloReply::new();
+        reply.set_message(name);
+        let mut response = Response::new(reply);
+        if let Some(initial) = initial {
+            response.metadata_mut().insert(ECHO_INITIAL, initial);
+        }
+        // tonic 0.14 Response has no trailers / trailing-metadata API.
+        // EncodeBody on Ok emits only Status::ok("") (grpc-status: 0).
+        // Err(Status::ok(...)) would be into_http headers, not body
+        // trailers after a successful message — do not fake that.
+        Ok(response)
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("custom_metadata"))
+    }
+
+    type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerHelloStream>, Status> {
+        Err(Status::unimplemented("custom_metadata"))
+    }
+
+    type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn stream_hello(
+        &self,
+        _request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<Self::StreamHelloStream>, Status> {
+        Err(Status::unimplemented("custom_metadata"))
+    }
+}
+
+async fn spawn_echo_metadata() -> SocketAddr {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        Server::builder()
+            .add_service(GreeterServer::new(EchoMetadata))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .ok();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    addr
+}
+
+/// Official interop `custom_metadata` (unary SayHello first).
+/// Client sends ascii + `-bin` request metadata. Server reads
+/// `request.metadata()` and echoes the ascii key into
+/// `Response.metadata` (initial headers).
+#[tokio::test]
+async fn custom_metadata() {
+    let addr = spawn_echo_metadata().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut body = HelloRequest::new();
+    body.set_name("ada");
+    let mut req = Request::new(body);
+    req.metadata_mut()
+        .insert(ECHO_INITIAL, ECHO_INITIAL_VAL.parse().unwrap());
+    req.metadata_mut().insert_bin(
+        ECHO_TRAILING_BIN,
+        MetadataValue::from_bytes(ECHO_TRAILING_BIN_VAL),
+    );
+    let resp = client
+        .say_hello(req)
+        .await
+        .expect("custom_metadata should succeed");
+    let got = resp
+        .metadata()
+        .get(ECHO_INITIAL)
+        .expect("missing echoed initial metadata")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, ECHO_INITIAL_VAL);
+    // Official also wants x-grpc-test-echo-trailing-bin as trailing
+    // metadata. tonic 0.14 has no Response::trailers(); the unary
+    // client merges EncodeBody's OK trailers into this same
+    // Response.metadata bag. Those trailers are grpc-status: 0 only.
+    // Custom -bin is not attached and is not exposed via extensions.
+    assert_eq!(
+        resp.metadata()
+            .get("grpc-status")
+            .map(|v| v.to_str().unwrap()),
+        Some("0")
+    );
+    assert!(
+        resp.metadata().get_bin(ECHO_TRAILING_BIN).is_none(),
+        "custom OK-path trailers are not a first-class tonic Response API"
+    );
+    assert!(resp.extensions().is_empty());
+    assert_eq!(resp.into_inner().message().to_str().unwrap_or(""), "ada");
 }
