@@ -15,6 +15,22 @@ impl Greeter for Echo {
         Err(Status::unimplemented("streaming test"))
     }
 
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("streaming test"))
+    }
+
+    type ServerHelloStream = ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerHelloStream>, Status> {
+        Err(Status::unimplemented("streaming test"))
+    }
+
     type StreamHelloStream = ReceiverStream<Result<HelloReply, Status>>;
 
     async fn stream_hello(
