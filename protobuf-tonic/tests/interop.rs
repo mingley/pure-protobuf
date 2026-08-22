@@ -291,8 +291,7 @@ async fn empty_stream() {
     assert_eq!(replies, 0);
 }
 
-/// Holds ClientHello open until inbound ends. Used so the client can
-/// cancel before sending any request messages.
+/// Holds ClientHello / StreamHello open so the client can cancel.
 struct Hang;
 
 impl Greeter for Hang {
@@ -446,4 +445,85 @@ async fn cancel_after_first_response() {
         "tonic cancel-after-first is task abort, not Status"
     );
     drop(tx);
+}
+
+/// Sleeps past a short client deadline on unary SayHello.
+struct Sleeping;
+
+impl Greeter for Sleeping {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        let mut reply = HelloReply::new();
+        reply.set_message("late");
+        Ok(Response::new(reply))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("sleeping"))
+    }
+
+    type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerHelloStream>, Status> {
+        Err(Status::unimplemented("sleeping"))
+    }
+
+    type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn stream_hello(
+        &self,
+        _request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<Self::StreamHelloStream>, Status> {
+        Err(Status::unimplemented("sleeping"))
+    }
+}
+
+async fn spawn_sleeping() -> SocketAddr {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        Server::builder()
+            .add_service(GreeterServer::new(Sleeping))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .ok();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    addr
+}
+
+/// Official interop `timeout_on_sleeping_server`: short deadline against
+/// a server that sleeps past it. Official wants `DeadlineExceeded`
+/// (FullDuplexCall, 1ms).
+///
+/// `Request::set_timeout` writes `grpc-timeout`. tonic 0.14.6 maps
+/// `TimeoutExpired` to `Code::Cancelled` / "Timeout expired", not
+/// `DeadlineExceeded`. Unary SayHello so the timeout covers the whole
+/// RPC (bidi `set_timeout` only covers stream open).
+#[tokio::test]
+async fn timeout_on_sleeping_server() {
+    let addr = spawn_sleeping().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut req = Request::new(HelloRequest::new());
+    req.set_timeout(Duration::from_millis(50));
+    let err = client
+        .say_hello(req)
+        .await
+        .expect_err("expected deadline to fire");
+    assert_eq!(err.code(), Code::Cancelled);
+    assert_eq!(err.message(), "Timeout expired");
 }
