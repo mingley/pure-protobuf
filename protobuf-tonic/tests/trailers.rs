@@ -94,9 +94,18 @@ impl Greeter for WithStatusTrailers {
 
     async fn client_hello(
         &self,
-        _request: Request<Streaming<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("trailers test"))
+        let mut inbound = request.into_inner();
+        let name = match inbound.next().await {
+            Some(Ok(msg)) => msg.name().to_str().unwrap_or("").to_string(),
+            _ => String::new(),
+        };
+        let mut status = Status::failed_precondition(format!("not ready: {name}"));
+        status
+            .metadata_mut()
+            .insert(TRAILER_KEY, TRAILER_VAL.parse().unwrap());
+        Err(status)
     }
 
     type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
@@ -202,6 +211,36 @@ async fn unary_status_trailers_code_message_and_metadata() {
     req.set_name("ada");
     let err = client
         .say_hello(Request::new(req))
+        .await
+        .expect_err("expected non-OK status with trailers");
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "not ready: ada");
+    let got = err
+        .metadata()
+        .get(TRAILER_KEY)
+        .expect("missing status trailers")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, TRAILER_VAL);
+}
+
+/// Client-stream non-OK `Status` metadata is HTTP/2 trailers, same as unary.
+#[tokio::test]
+async fn client_streaming_status_trailers_code_message_and_metadata() {
+    let addr = spawn(WithStatusTrailers).await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    tx.send(req).await.unwrap();
+    drop(tx);
+    let err = client
+        .client_hello(Request::new(ReceiverStream::new(rx)))
         .await
         .expect_err("expected non-OK status with trailers");
     assert_eq!(err.code(), Code::FailedPrecondition);
