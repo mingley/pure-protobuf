@@ -42,7 +42,9 @@ and bidi. `tests/status.rs` asserts non-OK `Status` code+message
 Bidi fails after the first inbound name (same path as client-stream;
 client sees it on the call `Result`). `tests/trailers.rs` splits initial
 `Response` metadata (headers) from `Status` metadata sent as HTTP/2
-trailers.
+trailers. `tests/interop.rs` is three same-process analogues of official
+gRPC interop names (`unimplemented_method`, `unimplemented_service`,
+`special_status_message`). Not official interop. Not a Google peer.
 
 ## License
 
