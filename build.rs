@@ -14,11 +14,17 @@ fn main() {
         println!("cargo:warning=wrote conformance descriptor set");
         return;
     }
+    // Never write an empty FDS: that produced 2090 unexpected JsonOutput failures.
     if vendored.exists() {
-        std::fs::copy(vendored, &fds).expect("copy vendored conformance FDS");
+        std::fs::copy(vendored, &fds).unwrap_or_else(|e| {
+            panic!("failed to copy vendor/google/conformance_fds.bin: {e}");
+        });
         return;
     }
-    let _ = std::fs::write(&fds, []);
+    panic!(
+        "missing vendor/google/conformance_fds.bin; \
+         refusing to write an empty conformance descriptor set"
+    );
 }
 
 fn try_protoc(fds: &Path, root: &Path, src: &Path) -> bool {

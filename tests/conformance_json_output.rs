@@ -7,6 +7,20 @@ use pbrs::gencode::{
 };
 
 #[test]
+fn build_rs_does_not_write_empty_conformance_fds() {
+    let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/build.rs"));
+    assert!(
+        !src.contains("write(&fds, [])"),
+        "build.rs must fail if vendor/google/conformance_fds.bin is missing; \
+         never write an empty descriptor set"
+    );
+    assert!(
+        src.contains("vendor/google/conformance_fds.bin"),
+        "build.rs must name vendor/google/conformance_fds.bin on the hard error path"
+    );
+}
+
+#[test]
 fn conformance_pool_has_test_all_types() {
     let pool = conformance_pool();
     for name in [
