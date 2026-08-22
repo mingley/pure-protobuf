@@ -42,8 +42,11 @@ and bidi. `tests/status.rs` asserts non-OK `Status` code+message
 Bidi fails after the first inbound name (same path as client-stream;
 client sees it on the call `Result`). `tests/trailers.rs` splits initial
 `Response` metadata (headers) from `Status` metadata sent as HTTP/2
-trailers. `tests/interop.rs` is same-process analogues of official gRPC interop
-names (`unimplemented_method`, `unimplemented_service`,
+trailers on unary, client-stream, server-stream, and bidi.
+Server-stream trailers still fail before a stream. Client-stream
+headers need the reply `Response`. `tests/interop.rs` is same-process
+analogues of official gRPC interop names (`unimplemented_method`,
+`unimplemented_service`,
 `special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,
 `cancel_after_begin`, `cancel_after_first_response`,
 `timeout_on_sleeping_server`). `large_unary` uses `hello.proto`

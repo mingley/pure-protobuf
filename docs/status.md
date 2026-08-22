@@ -9,18 +9,21 @@
   protoc from the pin, not system, no skip list). The `test` job still
   apt-installs `protobuf-compiler` for the plugin and protobuf-tonic
   `build.rs`.
-- Conformance v35.1 (`--maximum_edition 2023`, `6564b0e`, `protoc` hidden
-  / vendored FDS): required ×2: 5631 binary+JSON + 909 text, 0 unexpected.
-  `--enforce_recommended`: same. No skip list. Empty-FDS hole is closed:
-  `build.rs` used to write `[]` when `protoc` was missing; #6 ships
+- Conformance v35.1 (`--maximum_edition 2023`, `protoc` hidden / vendored
+  FDS): required ×2: 5631 binary+JSON + 909 text, 0 unexpected.
+  `--enforce_recommended`: same. No skip list. Empty-FDS hole was closed
+  in #6: `build.rs` used to write `[]` when `protoc` was missing; #6 ships
   `vendor/google/conformance_fds.bin` and falls back to it (that was the
   2090 JsonOutput / `missing desc` cluster). CI printed the same totals.
 - 38 `google_shared` tests cover a subset of `rust/test/shared`.
 - Plugin round-trip works, including `./scripts/gen.sh`.
 - `protobuf-tonic` on this tonic 0.14 stack covers all four RPC shapes
   (unary, client-stream, server-stream, bidi) including `Status`
-  code+message, initial `Response` metadata (headers), and `Status`
-  HTTP/2 trailers. `tests/interop.rs` has same-process analogues of
+  code+message. Initial `Response` metadata is headers; `Status` metadata
+  is HTTP/2 trailers. Client-stream, server-stream, and bidi carry both
+  (same split as unary). Server-stream trailers still fail before a
+  stream. Client-stream headers need the reply `Response`.
+  `tests/interop.rs` has same-process analogues of
   official interop names (`unimplemented_method`, `unimplemented_service`,
   `special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,
   `cancel_after_begin`, `cancel_after_first_response`,
