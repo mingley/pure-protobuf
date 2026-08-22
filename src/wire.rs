@@ -2,6 +2,39 @@
 
 use crate::error::ParseError;
 use crate::internal::MAX_MESSAGE_BYTES;
+use bytes::BufMut;
+
+/// Byte sink for binary encode. Implemented for every [`BufMut`] (`Vec<u8>`,
+/// `BytesMut`, tonic `EncodeBuf`).
+///
+/// `push` / `extend_from_slice` match generated `write_to` bodies so those
+/// methods can target `EncodeBuf` without a per-message `Vec`.
+pub trait WireOut {
+    fn put_u8(&mut self, b: u8);
+    fn put_slice(&mut self, data: &[u8]);
+
+    #[inline]
+    fn push(&mut self, b: u8) {
+        self.put_u8(b);
+    }
+
+    #[inline]
+    fn extend_from_slice(&mut self, data: &[u8]) {
+        self.put_slice(data);
+    }
+}
+
+impl<T: BufMut + ?Sized> WireOut for T {
+    #[inline]
+    fn put_u8(&mut self, b: u8) {
+        <T as BufMut>::put_u8(self, b);
+    }
+
+    #[inline]
+    fn put_slice(&mut self, data: &[u8]) {
+        <T as BufMut>::put_slice(self, data);
+    }
+}
 
 pub const WIRE_VARINT: u32 = 0;
 pub const WIRE_I64: u32 = 1;
@@ -99,7 +132,7 @@ impl UnknownFields {
         self.fields.iter().map(UnknownField::encoded_len).sum()
     }
 
-    pub fn encode(&self, out: &mut Vec<u8>) {
+    pub fn encode(&self, out: &mut impl WireOut) {
         for f in self.fields.iter() {
             f.encode(out);
         }
@@ -121,7 +154,7 @@ impl UnknownField {
         }
     }
 
-    fn encode(&self, out: &mut Vec<u8>) {
+    fn encode(&self, out: &mut impl WireOut) {
         match self {
             Self::Varint { number, value } => {
                 encode_tag(out, *number, WIRE_VARINT);
@@ -224,7 +257,7 @@ pub fn decode_varint(buf: &[u8], pos: &mut usize) -> Result<u64, ParseError> {
 }
 
 #[inline(always)]
-pub fn encode_varint(out: &mut Vec<u8>, mut value: u64) {
+pub fn encode_varint(out: &mut impl WireOut, mut value: u64) {
     if value < 0x80 {
         out.push(value as u8);
         return;
@@ -241,7 +274,7 @@ pub fn encode_varint(out: &mut Vec<u8>, mut value: u64) {
 }
 
 #[inline(always)]
-pub fn encode_tag(out: &mut Vec<u8>, number: u32, wire: u32) {
+pub fn encode_tag(out: &mut impl WireOut, number: u32, wire: u32) {
     encode_varint(out, u64::from((number << 3) | wire));
 }
 
@@ -279,13 +312,13 @@ pub fn decode_tag(buf: &[u8], pos: &mut usize) -> Result<(u32, u32), ParseError>
 }
 
 #[inline(always)]
-pub fn encode_len_header(out: &mut Vec<u8>, number: u32, len: u64) {
+pub fn encode_len_header(out: &mut impl WireOut, number: u32, len: u64) {
     encode_tag(out, number, WIRE_LEN);
     encode_varint(out, len);
 }
 
 #[inline(always)]
-pub fn encode_len_field(out: &mut Vec<u8>, number: u32, payload: &[u8]) {
+pub fn encode_len_field(out: &mut impl WireOut, number: u32, payload: &[u8]) {
     encode_len_header(out, number, payload.len() as u64);
     out.extend_from_slice(payload);
 }

@@ -36,6 +36,15 @@ where
 pub trait Serialize: SealedInternal {
     fn serialize(&self) -> Result<Vec<u8>, SerializeError>;
     fn serialized_len(&self) -> usize;
+    /// Write the binary payload into `out` without a per-call `Vec`.
+    ///
+    /// Default implementation serializes to a temporary `Vec` then copies.
+    /// Generated messages override this to call `write_to`.
+    fn encode(&self, out: &mut impl crate::wire::WireOut) -> Result<(), SerializeError> {
+        let bytes = self.serialize()?;
+        out.put_slice(&bytes);
+        Ok(())
+    }
 }
 
 pub trait Clear: SealedInternal {

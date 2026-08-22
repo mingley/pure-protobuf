@@ -30,7 +30,7 @@ pub use crate::proxied::{
 };
 pub use crate::repeated::{ProtoPut, Repeated, RepeatedIter, RepeatedMut, RepeatedView, Singular};
 pub use crate::string::{ProtoBytes, ProtoStr, ProtoString, Utf8Error};
-pub use crate::wire::UnknownFields;
+pub use crate::wire::{UnknownFields, WireOut};
 
 pub use Singular as ProxiedInRepeated;
 

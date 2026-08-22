@@ -533,6 +533,12 @@ macro_rules! impl_generated_message {
             fn serialized_len(&self) -> usize {
                 $crate::Serialize::serialized_len(&self.inner)
             }
+            fn encode(
+                &self,
+                out: &mut impl $crate::rt::WireOut,
+            ) -> Result<(), $crate::SerializeError> {
+                $crate::Serialize::encode(&self.inner, out)
+            }
         }
         impl $crate::Serialize for $View<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
@@ -541,6 +547,12 @@ macro_rules! impl_generated_message {
             fn serialized_len(&self) -> usize {
                 $crate::Serialize::serialized_len(self.0)
             }
+            fn encode(
+                &self,
+                out: &mut impl $crate::rt::WireOut,
+            ) -> Result<(), $crate::SerializeError> {
+                $crate::Serialize::encode(self.0, out)
+            }
         }
         impl $crate::Serialize for $Mut<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
@@ -548,6 +560,12 @@ macro_rules! impl_generated_message {
             }
             fn serialized_len(&self) -> usize {
                 $crate::Serialize::serialized_len(self.0)
+            }
+            fn encode(
+                &self,
+                out: &mut impl $crate::rt::WireOut,
+            ) -> Result<(), $crate::SerializeError> {
+                $crate::Serialize::encode(self.0, out)
             }
         }
         impl $crate::Clear for $Owned {
@@ -763,6 +781,15 @@ macro_rules! impl_typed_message {
             fn serialized_len(&self) -> usize {
                 self.compute_size() as usize
             }
+            #[inline]
+            fn encode(
+                &self,
+                out: &mut impl $crate::rt::WireOut,
+            ) -> Result<(), $crate::SerializeError> {
+                $crate::rt::check_size(self.compute_size())?;
+                self.write_to(out);
+                Ok(())
+            }
         }
         impl $crate::Serialize for $View<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
@@ -771,6 +798,12 @@ macro_rules! impl_typed_message {
             fn serialized_len(&self) -> usize {
                 self.0.serialized_len()
             }
+            fn encode(
+                &self,
+                out: &mut impl $crate::rt::WireOut,
+            ) -> Result<(), $crate::SerializeError> {
+                self.0.encode(out)
+            }
         }
         impl $crate::Serialize for $Mut<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::SerializeError> {
@@ -778,6 +811,12 @@ macro_rules! impl_typed_message {
             }
             fn serialized_len(&self) -> usize {
                 self.0.serialized_len()
+            }
+            fn encode(
+                &self,
+                out: &mut impl $crate::rt::WireOut,
+            ) -> Result<(), $crate::SerializeError> {
+                self.0.encode(out)
             }
         }
         impl $crate::Clear for $Owned {

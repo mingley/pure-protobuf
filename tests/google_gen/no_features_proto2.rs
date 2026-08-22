@@ -193,7 +193,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(s) = &self.my_field {
                 pbrs::rt::encode_len_field(out, 1, s.as_bytes());
             }
@@ -388,7 +388,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(s) = &self.my_field {
                 pbrs::rt::encode_len_field(out, 1, s.as_bytes());
             }
@@ -583,7 +583,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(s) = &self.my_field {
                 pbrs::rt::encode_len_field(out, 1, s.as_bytes());
             }
