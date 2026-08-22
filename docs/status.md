@@ -71,13 +71,14 @@ See `docs/upb.md`. Short list:
   `Message` supertraits, 1× no `assert_compatible_gencode_version`.
   `pbrs::__internal` exports only `Private` and `SealedInternal`.
   rust_out will not link.
-- Parse-only hello (no codec framing) is 44.7 vs 22.1 (pbrs `Parse`
-  vs prost decode). Leftover is a discarded parent-frame `Arc`:
-  `Wire::ensure` `Arc<[u8]>` of the 5-byte hello, dropped because
-  `ada` is ≤23 and `LazyStr::from_span` inlines a `ProtoString`.
-  Not UTF-8. 4 KiB Parse-only 153.6 vs 135.5 (Δ18.1) is a fixed
-  per-message cost. #32 is measure-only and stays draft. Not a
-  Parse win. Not a win.
+- #34 (`7402420`) landed the inline-path `Arc` skip. That leftover
+  is gone. Hello Parse is a smaller loss: 26.2 vs 21.7 on the #34
+  VM (was 38.2 vs 23.1 on that same host). Different host than
+  #31. Do not mix. 4 KiB Parse is unchanged (~160 vs ~135; long
+  path still `Wire::ensure`). Residual leftover is `merge_inner`
+  glue; inventory of that leftover is still running, not pasted.
+  #32 stays draft (measure-only; the old discarded-Arc inventory).
+  Not a Parse win. Not a win.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
