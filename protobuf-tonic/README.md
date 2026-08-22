@@ -36,9 +36,9 @@ let stream = client.stream_hello(Request::new(inbound)).await?;
 type second. `tonic-bench` Codec encode+decode: `ProtobufCodec` still
 lost to `ProstCodec` (hello 52.2 vs 25.8 ns combined). Smaller loss after
 dropping the per-message `Vec`. Remaining gap is `Parse`. Inventory is
-in; leftover is the `merge_inner` wrapper. 4 KiB still `Wire::ensure`.
-#32 and #36 stay draft. See `docs/status.md` Remaining. Not a win.
-Not kernel `./bench`.
+in; leftover is still `merge_inner` glue. Flatten (#39) tried and
+discarded. 4 KiB still `Wire::ensure`. #32 and #36 stay draft. See
+`docs/status.md` Remaining. Not a win. Not kernel `./bench`.
 
 `proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
 unary happy path. `tests/streaming.rs` covers client-stream, server-stream,

@@ -72,15 +72,22 @@ See `docs/upb.md`. Short list:
   `pbrs::__internal` exports only `Private` and `SealedInternal`.
   rust_out will not link.
 - Inventory is in. #36 is measure-only and stays draft. Do not
-  merge it as done. Leftover is the `merge_inner` wrapper:
-  Parse − reconstruct 6.8–7.6 ns. Reconstruct string arm is
-  already faster than prost. Inside that wrapper (do not sum):
+  merge it as done. Leftover is still `merge_inner` glue
+  (Default / dirty / tag loop), not `merge_bytes`. Parse −
+  reconstruct 6.8–7.6 ns. Reconstruct string arm is already
+  faster than prost. Inside that wrapper (do not sum):
   Default 1.0 vs 0.4 (48 B vs 24 B), `CachedSize::dirty` 0.3.
   This VM Parse-only leftover is 2.1–3.2 ns (24.0–24.9 vs
   21.7–21.9). Host-label it: this is the #36 VM, not the #31
-  host and not the #34 host (~4.5). Do not mix. 4 KiB still
-  pays `Wire::ensure` (long path). Parent `Arc` is off the
-  hello path (#34 landed). #32 stays draft (old discarded-Arc
+  host and not the #34 host (~4.5). Do not mix. #39 tried
+  flattening `merge_from_bytes` → `merge_inner` (and skip-until
+  / `inline(always)`). Tried and discarded. Stays draft. Do
+  not merge. Flatten made hello Parse worse on that VM: 24.5 →
+  ~32 ns. Host-label it: this is the #39 VM. The extra
+  `merge_bytes` frame was not the leftover. 4 KiB still pays
+  `Wire::ensure` (long path). PE is inventorying that next.
+  Do not invent 4 KiB buckets. Parent `Arc` is off the hello
+  path (#34 landed). #32 stays draft (old discarded-Arc
   inventory). Verified stays 52.2 vs 25.8. Not a Parse win.
   Not a win.
 - There are no arena views.
