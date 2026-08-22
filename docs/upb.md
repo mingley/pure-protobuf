@@ -44,7 +44,7 @@ are not applicable and not vendored.
 
 | Gap | Instead | Consequence |
 |---|---|---|
-| Google `protoc --rust_out` | `protoc-gen-pbrs` | Gencode calls `::protobuf::__internal` and `OwnedMessageInner`. It will not link. |
+| Google `protoc --rust_out` | `protoc-gen-pbrs` | Official rust_out 4.35.1-release of `person.proto` vs pbrs as `protobuf`: 234 rustc errors, 147 missing `__internal::runtime`. It will not link. |
 | JSON / text (specialized in upb/C++) | serialize, then `DynamicMessage` | Correct (conformance). Not a JSON microbench winner. |
 | Edition 2024 extensions (`extensions.proto` in rust/test) | plugin max is 2023; `extensions_test.rs` is an empty stub | Proto2 extensions on dynamic messages work (`tests/json_text_ext.rs`). |
 | C++-only string types | ordinary strings | `ctype=STRING_PIECE` / `CORD` and `pb.cpp.string_type=VIEW` are stored as ordinary strings. |

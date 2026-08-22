@@ -55,8 +55,16 @@
 
 See `docs/upb.md`. Short list:
 
-- Regenerated code is required. Google rust_out `OwnedMessageInner` will
-  not link.
+- Regenerated code is required (`protoc-gen-pbrs`). Official
+  `protoc --rust_out` kernel=upb of `proto/person.proto` compiled
+  against pbrs as crate `protobuf` is 234 rustc errors (gencode
+  4.35.1-release). Dominant miss is 147× E0433 no `__internal::runtime`
+  (`OwnedMessageInner`, `MiniTable*`, Arena ABI). Also 6× no
+  `entity_tag`, 6× no `EntityType`, 4× `into_proxied` arity (rust_out
+  `(self, Private)` vs pbrs `(self)`), 70× rust_out types miss pbrs
+  `Message` supertraits, 1× no `assert_compatible_gencode_version`.
+  `pbrs::__internal` exports only `Private` and `SealedInternal`.
+  rust_out will not link.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
