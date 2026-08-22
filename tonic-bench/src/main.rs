@@ -1,5 +1,14 @@
 //! Same-process unary Codec bench: `ProtobufCodec` vs tonic+prost `ProstCodec`.
 //!
+//! The Codec table is the result that matters. On the release run this
+//! binary lost: combined encode+decode 93.6 vs 22.4 ns (hello) and 400
+//! vs 202 ns (4 KiB). `ProtobufCodec` allocates a `Vec` per message.
+//! Do not treat this crate as a win.
+//!
+//! The unary table is a second, noisier measurement. Samples are serial
+//! pbrs-then-prost, n=5. The small-payload cell is an order artifact.
+//! 4 KiB unary is a tie (transport). Do not headline unary.
+//!
 //! This is **not** `bench/` (kernel encode/decode vs prost / v4 / buffa).
 //! This is **not** a Google C++/Go peer. hello.proto strings only; not
 //! official interop `SimpleRequest.payload.body`.
@@ -12,8 +21,6 @@
 //! - `ProtobufCodec` decode: copy-all into a new `Vec`, then `Parse`.
 //! - `ProstCodec` encode: `prost::Message::encode` into `BytesMut`.
 //! - `ProstCodec` decode: `prost::Message::decode` from the buffer.
-//!
-//! `ProtobufCodec` currently allocates a `Vec` per message on both sides.
 
 use bytes::{Buf, BufMut, BytesMut};
 use pbrs::{Parse, Serialize};
@@ -326,6 +333,9 @@ async fn run_unary(
     let prost = prost_hello(field);
     let payload = Serialize::serialize(&pbrs).expect("pbrs wire").len();
 
+    // Serial pbrs-then-prost, n=5. The small-payload gap is an order
+    // artifact (first stack runs cold-to-warm, second inherits the
+    // machine). 4 KiB is a tie. Not a win either way.
     let mut xs: Vec<f64> = Vec::with_capacity(samples);
     for _ in 0..samples {
         xs.push(bench_unary_pbrs(pbrs_client, &pbrs, iters).await);
@@ -359,11 +369,13 @@ async fn main() {
 
     println!("# Codec encode+decode (one unary HelloRequest; no transport)");
     println!();
+    println!("This is the result that matters. ProtobufCodec lost this table.");
     println!("Encoder/Decoder body only. tonic EncodeBuf/DecodeBuf are crate-private");
     println!("newtypes over BytesMut / Buf; these are the same operations");
     println!("ProtobufCodec and ProstCodec run. Not kernel encode vs prost (see bench/).");
     println!("Not a Google C++/Go peer. ProtobufCodec allocates a Vec per message.");
     println!("hello.proto name/message strings only. Not interop payload.body.");
+    println!("Do not treat this binary as a win.");
     println!();
     println!("iters={codec_iters} samples={codec_samples} (median) release thin-LTO");
     println!();
@@ -393,6 +405,9 @@ async fn main() {
     println!();
     println!("# Same-process tonic unary RPC (localhost TCP + HTTP/2 + Codec)");
     println!();
+    println!("Not the headline. Serial pbrs-then-prost, n=5. Order artifact.");
+    println!("The small-payload cell is noise. 4 KiB is a tie (transport).");
+    println!("Do not treat the tiny unary cell as a win.");
     println!("Both sides in one process. Reused Channel. Echo SayHello.");
     println!("Includes transport, h2 framing, and handler work; codec is a fraction.");
     println!("Request is cloned each call. Not a Google peer. Not kernel encode.");
@@ -443,5 +458,6 @@ async fn main() {
         );
     }
     println!();
-    println!("ns/op for one unary SayHello.");
+    println!("ns/op for one unary SayHello. Serial pbrs-then-prost, n=5.");
+    println!("Order artifact. 4 KiB is a tie. Not a win.");
 }

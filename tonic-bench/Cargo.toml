@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.88"
 publish = false
 license = "MIT OR Apache-2.0"
-description = "Same-process tonic Codec / unary bench: ProtobufCodec vs ProstCodec (not the kernel wire bench)"
+description = "Same-process tonic Codec bench: ProtobufCodec lost encode+decode to ProstCodec (not the kernel wire bench)"
 
 [workspace]
 
