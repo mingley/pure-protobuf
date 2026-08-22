@@ -16,8 +16,8 @@ pub use paste as __paste;
 
 pub use crate::dynamic::{
     Cardinality, DescriptorOption, DescriptorPool, DynamicMessage, DynamicMessageMut,
-    DynamicMessageView, EnumDescriptor, FieldDescriptor, FieldType, MapKeyValue, MessageDescriptor,
-    MethodDescriptor, Presence, ServiceDescriptor, Value, RECURSION_LIMIT,
+    DynamicMessageView, EnumDescriptor, FieldDescriptor, FieldType, FileDescriptor, MapKeyValue,
+    MessageDescriptor, MethodDescriptor, Presence, ServiceDescriptor, Value, RECURSION_LIMIT,
 };
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
