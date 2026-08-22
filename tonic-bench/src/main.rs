@@ -32,15 +32,21 @@ pub mod helloworld {
 
 use helloworld::HelloRequest as ProstHello;
 
-fn median_ns<F: FnMut()>(samples: usize, iters: u32, mut f: F) -> f64 {
+fn median_ns<F, R>(samples: usize, iters: u32, mut f: F) -> f64
+where
+    F: FnMut() -> R,
+{
     let mut xs: Vec<f64> = (0..samples).map(|_| bench_ns(iters, &mut f)).collect();
     xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
     xs[samples / 2]
 }
 
-fn bench_ns<F: FnMut()>(iters: u32, mut f: F) -> f64 {
+fn bench_ns<F, R>(iters: u32, mut f: F) -> f64
+where
+    F: FnMut() -> R,
+{
     for _ in 0..iters / 10 {
-        f();
+        std::hint::black_box(f());
     }
     let t = Instant::now();
     for _ in 0..iters {
@@ -111,18 +117,14 @@ fn run_codec(name: &'static str, field: &str, iters: u32, samples: usize) -> Cod
     let mut dst = BytesMut::new();
     let pbrs_enc = median_ns(samples, iters, || {
         pbrs_codec_encode(&pbrs, &mut dst);
-        std::hint::black_box(dst.len());
+        dst.len()
     });
-    let pbrs_dec = median_ns(samples, iters, || {
-        std::hint::black_box(pbrs_codec_decode(&pbrs_wire));
-    });
+    let pbrs_dec = median_ns(samples, iters, || pbrs_codec_decode(&pbrs_wire));
     let prost_enc = median_ns(samples, iters, || {
         prost_codec_encode(&prost, &mut dst);
-        std::hint::black_box(dst.len());
+        dst.len()
     });
-    let prost_dec = median_ns(samples, iters, || {
-        std::hint::black_box(prost_codec_decode(&prost_wire));
-    });
+    let prost_dec = median_ns(samples, iters, || prost_codec_decode(&prost_wire));
 
     CodecRow {
         name,
