@@ -384,8 +384,20 @@ async fn main() {
         );
     }
 
-    let unary_iters = 2_000u32;
-    let unary_samples = 7usize;
+    // Localhost unary on this host is ~ms, not tens of ns. Keep the
+    // process in tens of seconds (codec table is cheap; this is the bulk).
+    let unary_iters = 200u32;
+    let unary_samples = 5usize;
+    println!();
+    println!("# Same-process tonic unary RPC (localhost TCP + HTTP/2 + Codec)");
+    println!();
+    println!("Both sides in one process. Reused Channel. Echo SayHello.");
+    println!("Includes transport, h2 framing, and handler work; codec is a fraction.");
+    println!("Request is cloned each call. Not a Google peer. Not kernel encode.");
+    println!();
+    println!("iters={unary_iters} samples={unary_samples} (median) release thin-LTO");
+    println!();
+
     let mut pbrs_client = spawn_pbrs().await;
     let mut prost_client = spawn_prost().await;
     // One warmup RPC so the HTTP/2 session is up before the timed samples.
@@ -420,15 +432,6 @@ async fn main() {
         .await,
     ];
 
-    println!();
-    println!("# Same-process tonic unary RPC (localhost TCP + HTTP/2 + Codec)");
-    println!();
-    println!("Both sides in one process. Reused Channel. Echo SayHello.");
-    println!("Includes transport, h2 framing, and handler work; codec is a fraction.");
-    println!("Request is cloned each call. Not a Google peer. Not kernel encode.");
-    println!();
-    println!("iters={unary_iters} samples={unary_samples} (median) release thin-LTO");
-    println!();
     println!("| case | payload | protobuf-tonic | tonic-prost |");
     println!("|---|---:|---:|---:|");
     for r in &unary_rows {
