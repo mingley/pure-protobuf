@@ -65,6 +65,65 @@ async fn spawn_greeter() -> SocketAddr {
     addr
 }
 
+/// Echo-style Greeter: empty `HelloRequest` yields an empty `HelloReply`.
+struct Echo;
+
+impl Greeter for Echo {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let mut reply = HelloReply::new();
+        reply.set_message(name);
+        Ok(Response::new(reply))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("interop dummy"))
+    }
+
+    type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerHelloStream>, Status> {
+        Err(Status::unimplemented("interop dummy"))
+    }
+
+    type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn stream_hello(
+        &self,
+        _request: Request<tonic::Streaming<HelloRequest>>,
+    ) -> Result<Response<Self::StreamHelloStream>, Status> {
+        Err(Status::unimplemented("interop dummy"))
+    }
+}
+
+async fn spawn_echo() -> SocketAddr {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        Server::builder()
+            .add_service(GreeterServer::new(Echo))
+            .serve_with_incoming(tokio_stream::wrappers::TcpListenerStream::new(listener))
+            .await
+            .ok();
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    addr
+}
+
 async fn connect(addr: SocketAddr) -> tonic::client::Grpc<Channel> {
     let channel = Channel::from_shared(format!("http://{addr}"))
         .unwrap()
@@ -137,4 +196,22 @@ async fn special_status_message() {
         .expect_err("expected special status");
     assert_eq!(err.code(), Code::Unknown);
     assert_eq!(err.message(), SPECIAL_STATUS_MESSAGE);
+}
+
+/// Official interop `empty_unary`: empty request, empty reply.
+/// On hello.proto this is `HelloRequest` / `HelloReply` with empty strings.
+#[tokio::test]
+async fn empty_unary() {
+    let addr = spawn_echo().await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let resp = client
+        .say_hello(Request::new(HelloRequest::new()))
+        .await
+        .expect("empty_unary");
+    assert_eq!(resp.into_inner().message().to_str().unwrap_or(""), "");
 }
