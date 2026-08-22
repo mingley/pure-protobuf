@@ -1,7 +1,9 @@
+use futures_util::StreamExt;
 use protobuf_tonic::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use std::net::SocketAddr;
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::transport::{Channel, Server};
-use tonic::{Code, Request, Response, Status};
+use tonic::{Code, Request, Response, Status, Streaming};
 
 /// Initial response metadata (HTTP/2 headers), not gRPC trailers.
 const HEADER_KEY: &str = "x-pbrs-meta";
@@ -35,9 +37,20 @@ impl Greeter for WithHeaders {
 
     async fn client_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("headers test"))
+        let mut inbound = request.into_inner();
+        let name = match inbound.next().await {
+            Some(Ok(msg)) => msg.name().to_str().unwrap_or("").to_string(),
+            _ => String::new(),
+        };
+        let mut reply = HelloReply::new();
+        reply.set_message(name);
+        let mut response = Response::new(reply);
+        response
+            .metadata_mut()
+            .insert(HEADER_KEY, HEADER_VAL.parse().unwrap());
+        Ok(response)
     }
 
     type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
@@ -53,7 +66,7 @@ impl Greeter for WithHeaders {
 
     async fn stream_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Self::StreamHelloStream>, Status> {
         Err(Status::unimplemented("headers test"))
     }
@@ -81,7 +94,7 @@ impl Greeter for WithStatusTrailers {
 
     async fn client_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         Err(Status::unimplemented("trailers test"))
     }
@@ -99,7 +112,7 @@ impl Greeter for WithStatusTrailers {
 
     async fn stream_hello(
         &self,
-        _request: Request<tonic::Streaming<HelloRequest>>,
+        _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Self::StreamHelloStream>, Status> {
         Err(Status::unimplemented("trailers test"))
     }
@@ -135,6 +148,36 @@ async fn unary_response_metadata_round_trip() {
         .say_hello(Request::new(req))
         .await
         .expect("unary with initial metadata");
+    let got = resp
+        .metadata()
+        .get(HEADER_KEY)
+        .expect("missing response metadata")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, HEADER_VAL);
+    assert_eq!(resp.into_inner().message().to_str().unwrap_or(""), "ada");
+}
+
+/// Client-stream `Response::metadata` is initial headers, same as unary.
+/// tonic attaches them on the successful `HelloReply`, not before it.
+#[tokio::test]
+async fn client_streaming_response_metadata_round_trip() {
+    let addr = spawn(WithHeaders).await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let (tx, rx) = tokio::sync::mpsc::channel(4);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    tx.send(req).await.unwrap();
+    drop(tx);
+    let resp = client
+        .client_hello(Request::new(ReceiverStream::new(rx)))
+        .await
+        .expect("client-streaming with initial metadata");
     let got = resp
         .metadata()
         .get(HEADER_KEY)
