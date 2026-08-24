@@ -50,14 +50,11 @@
   `x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
   not trailers. `Status.metadata` on `Err` remains the trailer path.
   Same-process tonic, not official interop, not a native gRPC kernel, no
-  Google peer. Compression is uncovered. `ProtobufCodec` dropped the
-  per-message `Vec`. On Apple M4 Pro (same host as kernel `./bench`,
-  second of two runs) hello combined **wins** 16.1 vs 22.6 ns (decode
-  10.7 vs 18.9; encode still 5.4 vs 3.7). 4 KiB still loses 204.1 vs
-  185.4. Linux x86_64 line of record remains #31 (hello 52.2 vs 25.8
-  combined). Inline string parse no longer `Wire::ensure`s the parent
-  frame (`len ≤ 23` copies into `ProtoString`). Not kernel `./bench`.
-  Not in CI. 4 KiB is not a win.
+  Google peer. Compression is uncovered. Codec survey
+  (`tonic-bench`, `proto/codec_cases.proto`) vs prost and v4 upb is in
+  `docs/benchmarks.md`. Typical unary `rpc_mixed` is already ~2× prost
+  and beats v4. 1-string 4 KiB still loses to prost; bytes of the same
+  size win. Not kernel `./bench`. Not in CI.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
@@ -76,13 +73,12 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- Plugin-gencode 4 KiB Codec decode is still slower than prost. Hello
-  combined now wins on Apple M4 Pro (16.1 vs 22.6); Linux #31 was 52.2
-  vs 25.8. Leftover is `merge_inner` glue (Default / `CachedSize::dirty`
-  / tag loop),
-  not `merge_bytes`. Closed inventories (notes + harnesses, not
-  merged as wins): `docs/inventory/`. [#27](https://github.com/mingley/pure-protobuf/pull/27)
-  rust_out 234 errors is superseded by #42.
+- 1-string 4 KiB Codec decode still loses to prost; `blob_4kib` of the
+  same size wins. Next lever is the string arm, not flatten
+  `merge_inner` (#39). Survey: `docs/benchmarks.md`. Closed inventories
+  (notes + harnesses, not merged as wins): `docs/inventory/`.
+  [#27](https://github.com/mingley/pure-protobuf/pull/27) rust_out 234
+  errors is superseded by #42.
 
 ## Skipped rust/test/shared files
 
