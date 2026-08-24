@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.88"
 publish = false
 license = "MIT OR Apache-2.0"
-description = "Same-process tonic Codec bench: ProtobufCodec still loses encode+decode to ProstCodec (52.2 vs 25.8 ns hello; not the kernel wire bench)"
+description = "Same-process codec survey: pbrs vs prost vs protobuf 4.35.1-release (upb) on common unary shapes"
 
 [workspace]
 
@@ -14,8 +14,10 @@ bytes = "1"
 pbrs = { path = ".." }
 prost = "0.14"
 protobuf-tonic = { path = "../protobuf-tonic" }
+protobuf = { version = "=4.35.1-release" }
 
 [build-dependencies]
+pbrs = { path = ".." }
 prost-build = "0.14"
 
 [[bin]]
