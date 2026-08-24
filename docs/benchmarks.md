@@ -108,29 +108,83 @@ See `docs/upb.md`.
 cd bench && cargo build --release && ./target/release/bench
 ```
 
-## tonic Codec (Apple M4 Pro)
+## tonic Codec survey (Apple M4 Pro)
 
-Same-process `ProtobufCodec` vs `ProstCodec`, no transport. Not kernel
-`./bench`. Not a Google peer. Not in CI. Two consecutive
+Same-process encode into `BytesMut` (`Serialize::encode` / prost
+`Message::encode`). v4 is `Serialize::serialize` (new Arena + FFI +
+copy; no EncodeBuf). Not kernel `./bench`. Not in CI. Two consecutive
 `./target/release/tonic-bench` runs; second capture below.
 
-| case | ProtobufCodec enc / dec | ProstCodec enc / dec |
-|---|---:|---:|
-| hello | 5.4 / **10.7** | **3.7** / 18.9 |
-| hello_4kib | 49.7 / 154.4 | **43.2 / 142.2** |
+`hello` / `hello_4kib` are the old 1-string rows. Everything else is
+`proto/codec_cases.proto`: one message per common unary shape, so
+gencode is specialized (hello-sized), not TestAllTypes.
 
-Combined encode+decode: hello **16.1 vs 22.6** ns (win). 4 KiB 204.1 vs
-185.4 ns (loss). Encode is still behind on both rows. Remaining 4 KiB
-gap is decode (`Parse` / `merge_from_bytes`). Encode writes into
-`EncodeBuf`; decode uses a contiguous frame. No per-message `Vec`.
+Cells are encode ns / decode ns. Combined win/loss is pbrs vs that
+column.
 
-Linux x86_64 line of record after dropping the per-message `Vec` (#31):
-hello 6.8 / 45.4 vs 3.8 / 22.1 (combined 52.2 vs 25.8). 4 KiB 36.8 /
-153.8 vs 32.7 / 133.4 (combined 190.6 vs 166.1). That host is not this
-one.
+### Published 1-string
 
-#29 first-run (historical, with the `Vec`): hello 93.6 vs 22.4 ns
-combined, 4 KiB ~400 vs 202.
+| case | payload | pbrs | prost | v4 upb | vs prost | vs v4 |
+|---|---:|---:|---:|---:|---|---|
+| hello | 5 | 5.6 / 10.3 | **3.8** / 22.1 | 33.1 / 43.3 | win | win |
+| hello_4kib | 4099 | 44.3 / 159.0 | **46.6 / 144.3** | 98.8 / 245.0 | loss | win |
+
+### Common shapes
+
+| case | payload | pbrs | prost | v4 upb | vs prost | vs v4 |
+|---|---:|---:|---:|---:|---|---|
+| empty | 0 | 1.7 / 1.5 | **0.2 / 0.2** | 26.3 / 33.5 | loss | win |
+| id | 2 | **3.1 / 2.6** | 4.7 / 3.1 | 31.4 / 38.7 | win | win |
+| scalars | 23 | **13.7 / 13.8** | 20.3 / 16.6 | 47.9 / 61.2 | win | win |
+| name_short | 5 | 5.0 / **10.7** | **3.8** / 22.4 | 32.6 / 43.9 | win | win |
+| name_80 | 82 | 5.9 / 24.0 | **4.0** / 26.6 | 32.9 / 41.8 | win | win |
+| name_4kib | 4099 | 49.6 / 147.8 | **47.6 / 142.8** | 99.6 / 248.1 | loss | win |
+| blob_32 | 34 | **5.2 / 20.5** | 5.4 / 38.5 | 32.8 / 40.1 | win | win |
+| blob_4kib | 4099 | **45.4 / 63.5** | 46.4 / 124.7 | 97.9 / 103.5 | win | win |
+| blob_64kib | 65540 | **563 / 735** | 5408 / 1661 | 705 / 746 | win | win |
+| envelope | 30 | **17.4 / 55.2** | 24.4 / 56.1 | 49.2 / 71.0 | win | win |
+| nest_d4 | 14 | **20.3 / 45.4** | 39.6 / 55.6 | 52.8 / 77.0 | win | win |
+| packed_16 | 18 | **5.7 / 34.9** | 31.3 / 84.4 | 38.8 / 78.5 | win | win |
+| packed_256 | 387 | **9.8 / 140** | 905 / 723 | 353 / 798 | win | win |
+| tags_4 | 27 | 18.7 / **63.7** | **17.5** / 112.1 | 42.7 / 73.4 | win | win |
+| tags_32 | 160 | **108 / 410** | 157 / 828 | 112 / **382** | win | loss |
+| map_8 | 172 | **85 / 258** | 124 / 709 | 132 / 473 | win | win |
+| oneof_ok | 6 | **5.2 / 21.0** | 6.4 / 21.8 | 36.1 / 43.7 | win | win |
+| rpc_mixed | 176 | **94 / 304** | 160 / 674 | 152 / 349 | win | win |
+| rpc_sparse | 2 | 6.7 / 19.5 | **6.9 / 14.1** | 37.7 / 36.7 | loss | win |
+
+v4 loses every row except `tags_32` decode (410 vs 382). Typical unary
+`rpc_mixed` is already ~2× prost. Packed encode is the cached-bytes
+path (10 vs 905 vs 353). `blob_64kib` prost encode jumped 0.56 µs →
+5.4 µs across runs; treat that cell as noisy. Decode 0.74 vs 1.66 µs
+is stable.
+
+### What to chase
+
+The 1-string 4 KiB **loss vs prost** does not show up on bytes of the
+same size (`blob_4kib` decode **63 vs 125**). Same `Wire::ensure` of
+the parent frame. Extra on `name_4kib` is the string arm (`from_utf8`
++ `LazyStr`), not “long field” in general.
+
+Do not spend the next pass on:
+
+- prost empty (ZST, 0.2 ns)
+- short-string encode (5.0 vs 3.8)
+- flatten `merge_inner` (#39, made hello worse)
+
+Worth measuring next, in order:
+
+1. String-only 4 KiB vs bytes 4 KiB (why +85 ns on the string arm).
+2. `rpc_sparse` decode (19.5 vs 14.1): fat generated match on a
+   9-field message for a 2-byte payload.
+3. `tags_32` vs v4 decode (410 vs 382): many short SSO strings vs
+   one arena.
+
+Keep: packed canonical cache, bytes window, map/repeated vs prost.
+
+Linux x86_64 1-string line of record after dropping the per-message
+`Vec` (#31): hello 6.8 / 45.4 vs 3.8 / 22.1 (combined 52.2 vs 25.8).
+4 KiB 36.8 / 153.8 vs 32.7 / 133.4. That host is not this one.
 
 ```bash
 cd tonic-bench && cargo build --release && ./target/release/tonic-bench
