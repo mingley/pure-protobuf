@@ -7,6 +7,9 @@ exclude = [
     "buffa_tat",
     "buffa_person",
     "prost_tat",
+    "rust_out_shared",
+    "rust_out_person",
+    "grpc_remap",
     "target",
 ]
 resolver = "2"

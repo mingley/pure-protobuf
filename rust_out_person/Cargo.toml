@@ -1,0 +1,10 @@
+[package]
+name = "rust_out_person"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+pbrs = { path = ".." }
