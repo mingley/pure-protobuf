@@ -1,8 +1,22 @@
 //! Eager-validate, lazy-materialize string/bytes over a shared wire buffer.
 
+use crate::error::ParseError;
 use crate::map::MapKey;
 use crate::string::{ProtoBytes, ProtoStr, ProtoString};
 use std::sync::Arc;
+
+/// Proto3 string UTF-8 check. All-ASCII uses a word-wise high-bit scan.
+///
+/// `name_4kib` vs `blob_4kib` decode (~80 ns) was `str::from_utf8` on 4 KiB
+/// of `'x'`. ASCII is valid UTF-8; fall back to `from_utf8` only when a
+/// high bit is set.
+#[inline(always)]
+pub fn require_utf8(b: &[u8]) -> Result<(), ParseError> {
+    match simdutf8::basic::from_utf8(b) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(ParseError::new("invalid utf-8")),
+    }
+}
 
 /// Shared immutable wire bytes. Windows are cheap (`Arc` clone + range).
 #[derive(Clone, Debug)]
@@ -31,6 +45,21 @@ impl Wire {
         let buf: Arc<[u8]> = Arc::from(data);
         let end = buf.len() as u32;
         Self { buf, start: 0, end }
+    }
+
+    /// One-pass copy of `s` into an Arc, with a high-bit scan.
+    ///
+    /// ASCII is valid UTF-8. Non-ASCII falls back to `str::from_utf8`.
+    /// Used for long parsed strings so we do not pay `from_utf8` and then a
+    /// second parent-frame `ensure` (that pair was the `name_4kib` vs
+    /// `blob_4kib` decode gap).
+    #[inline]
+    pub fn from_utf8_payload(s: &[u8]) -> Result<Self, ParseError> {
+        // memcpy into Arc first so the UTF-8/ASCII scan hits the copy (L1),
+        // instead of `str::from_utf8` on the source plus a second parent copy.
+        let w = Self::from_slice(s);
+        require_utf8(w.as_slice())?;
+        Ok(w)
     }
 
     pub fn as_slice(&self) -> &[u8] {
@@ -98,21 +127,23 @@ impl LazyStr {
     ///
     /// `len <= 23` copies into inline [`ProtoString`] and does **not**
     /// [`Wire::ensure`] the parent frame (hello `"ada"` would otherwise
-    /// Arc the 5-byte message and drop it). Longer strings still share
-    /// a window on the parent [`Wire`].
+    /// Arc the 5-byte message and drop it). Longer strings copy the
+    /// payload once while checking UTF-8 (see [`Wire::from_utf8_payload`])
+    /// instead of `str::from_utf8` plus a parent-frame Arc.
     #[inline]
     pub fn from_parse_span(
         slot: &mut Option<Wire>,
         data: &[u8],
         rel_start: usize,
         rel_end: usize,
-    ) -> Self {
+    ) -> Result<Self, ParseError> {
         let s = &data[rel_start..rel_end];
         if s.len() <= Self::INLINE {
-            Self::from_bytes(s)
-        } else {
-            Self::from_span(Wire::ensure(slot, data), rel_start, rel_end)
+            require_utf8(s)?;
+            return Ok(Self::from_bytes(s));
         }
+        let _ = slot;
+        Ok(Self::Wire(Wire::from_utf8_payload(s)?))
     }
 
     #[inline]
@@ -593,7 +624,7 @@ mod tests {
         // hello name "ada" (3 ≤ 23): copy into ProtoString, no parent Arc.
         let data = b"ada";
         let mut slot = None;
-        let s = LazyStr::from_parse_span(&mut slot, data, 0, data.len());
+        let s = LazyStr::from_parse_span(&mut slot, data, 0, data.len()).unwrap();
         assert_eq!(s.as_view(), "ada");
         assert!(
             slot.is_none(),
@@ -603,27 +634,44 @@ mod tests {
     }
 
     #[test]
-    fn from_parse_span_keeps_wire_window_when_long() {
+    fn from_parse_span_long_copies_payload_not_parent() {
         let data = [b'x'; 24];
         let mut slot = None;
-        let s = LazyStr::from_parse_span(&mut slot, &data, 0, data.len());
+        let s = LazyStr::from_parse_span(&mut slot, &data, 0, data.len()).unwrap();
         assert_eq!(s.as_bytes(), &data);
         assert!(
-            slot.is_some(),
-            "len > 23 must still share the parent Wire window"
+            slot.is_none(),
+            "len > 23 copies the payload once; does not Wire::ensure the parent"
         );
         assert!(matches!(s, LazyStr::Wire(_)));
-        assert_eq!(slot.as_ref().unwrap().as_slice(), &data);
     }
 
     #[test]
     fn from_parse_span_empty_skips_parent_arc() {
         let data = b"";
         let mut slot = None;
-        let s = LazyStr::from_parse_span(&mut slot, data, 0, 0);
+        let s = LazyStr::from_parse_span(&mut slot, data, 0, 0).unwrap();
         assert!(s.is_empty());
         assert!(slot.is_none());
         assert!(matches!(s, LazyStr::Empty));
+    }
+
+    #[test]
+    fn require_utf8_accepts_ascii_and_multibyte_rejects_invalid() {
+        super::require_utf8(b"ada").unwrap();
+        super::require_utf8(&[b'x'; 4096]).unwrap();
+        super::require_utf8("é".as_bytes()).unwrap();
+        assert!(super::require_utf8(&[0xff, 0xfe, 0xfd]).is_err());
+    }
+
+    #[test]
+    fn from_parse_span_rejects_invalid_utf8() {
+        let data = [0xff, 0xfe, 0xfd];
+        let mut slot = None;
+        assert!(LazyStr::from_parse_span(&mut slot, &data, 0, 3).is_err());
+        let long = vec![0xff; 24];
+        let mut slot = None;
+        assert!(LazyStr::from_parse_span(&mut slot, &long, 0, 24).is_err());
     }
 
     #[test]

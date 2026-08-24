@@ -3,7 +3,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub use crate::error::{ParseError, SerializeError};
-pub use crate::lazy::{LazyBytes, LazyMsg, LazyStr, MergeBytes, Wire};
+pub use crate::lazy::{require_utf8, LazyBytes, LazyMsg, LazyStr, MergeBytes, Wire};
 pub use crate::packed::{
     Bools, FixedI32, FixedI64, FixedU32, FixedU64, Ieee32, Ieee64, Packed, PackedBool, PackedCodec,
     PackedF32, PackedF64, PackedFx32, PackedFx64, PackedI32, PackedI64, PackedS32, PackedS64,
