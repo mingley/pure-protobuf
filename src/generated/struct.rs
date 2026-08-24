@@ -738,7 +738,9 @@ mod __gen {
             self.bool_value = pbrs::rt::OptBool::NONE;
             self.struct_value = Default::default();
             self.list_value = Default::default();
-            self.string_value = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.string_value = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_string_value(&mut self) {
             self.cached_size.dirty();

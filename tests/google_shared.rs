@@ -316,13 +316,13 @@ fn repeated_numeric_set_and_iter() {
     m.push(3);
     m.set(2, 4);
     m.set(2, 0);
-    assert_eq!(m.iter().copied().collect::<Vec<_>>(), vec![2, 1, 0]);
+    assert_eq!(m.iter().collect::<Vec<_>>(), vec![2, 1, 0]);
     let mut iter = m.iter();
     assert_eq!(iter.len(), 3);
-    assert_eq!(iter.next(), Some(&2));
+    assert_eq!(iter.next(), Some(2));
     assert_eq!(iter.len(), 2);
-    assert_eq!(iter.next(), Some(&1));
-    assert_eq!(iter.next(), Some(&0));
+    assert_eq!(iter.next(), Some(1));
+    assert_eq!(iter.next(), Some(0));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
 
@@ -332,7 +332,7 @@ fn repeated_numeric_set_and_iter() {
     }
     msg.set_repeated_int32(msg2.repeated_int32());
     assert_eq!(
-        msg.repeated_int32().iter().copied().collect::<Vec<_>>(),
+        msg.repeated_int32().iter().collect::<Vec<_>>(),
         vec![0, 1, 2, 3, 4]
     );
 }
@@ -345,17 +345,14 @@ fn repeated_bool_enum_message() {
     b.set(0, false);
     b.push(true);
     b.extend([false]);
-    assert_eq!(
-        b.iter().copied().collect::<Vec<_>>(),
-        vec![false, true, false]
-    );
+    assert_eq!(b.iter().collect::<Vec<_>>(), vec![false, true, false]);
 
     let mut e = msg.repeated_nested_enum_mut();
     e.push(i32::from(test_all_types::NestedEnum::Foo));
     e.set(0, i32::from(test_all_types::NestedEnum::Bar));
     e.push(i32::from(test_all_types::NestedEnum::Baz));
     assert_eq!(
-        e.iter().copied().collect::<Vec<_>>(),
+        e.iter().collect::<Vec<_>>(),
         vec![
             i32::from(test_all_types::NestedEnum::Bar),
             i32::from(test_all_types::NestedEnum::Baz)
@@ -397,17 +394,14 @@ fn maps_insert_get_keys() {
     assert!(!msg.map_int32_int32_mut().insert(0, 0));
     assert!(msg.map_int32_int32_mut().insert(1, 1));
     assert_eq!(msg.map_int32_int32().len(), 2);
-    assert_eq!(msg.map_int32_int32().get(&1), Some(&1));
+    assert_eq!(msg.map_int32_int32().get(1), Some(1));
     assert_eq!(msg.map_int32_int32().keys().count(), 2);
     assert_eq!(msg.map_int32_int32().values().count(), 2);
 
     msg.map_string_string_mut().insert("hello", "world");
     msg.map_string_string_mut().insert("fizz", "buzz");
     assert_eq!(
-        msg.map_string_string()
-            .get(&"fizz".into())
-            .unwrap()
-            .as_view(),
+        msg.map_string_string().get("fizz").unwrap().as_view(),
         "buzz"
     );
     msg.map_string_string_mut().clear();
@@ -464,7 +458,7 @@ fn copy_take_merge() {
     src.repeated_int32_mut().extend(0..5);
     dst.merge_from(src.as_view());
     assert_eq!(
-        dst.repeated_int32().iter().copied().collect::<Vec<_>>(),
+        dst.repeated_int32().iter().collect::<Vec<_>>(),
         vec![0, 1, 2, 3, 4]
     );
     dst.repeated_int32_mut().clear();
@@ -473,7 +467,7 @@ fn copy_take_merge() {
     src.repeated_int32_mut().extend(5..10);
     dst.merge_from(src.as_view());
     assert_eq!(
-        dst.repeated_int32().iter().copied().collect::<Vec<_>>(),
+        dst.repeated_int32().iter().collect::<Vec<_>>(),
         (0..10).collect::<Vec<_>>()
     );
 
@@ -526,7 +520,7 @@ fn edition2023_presence() {
     msg.set_str_view("hello");
     assert_eq!(msg.str_view(), "hello");
     assert!(msg.has_str_view());
-    msg.repeated_str_view_mut().push("first".into());
+    msg.repeated_str_view_mut().push("first");
     assert_eq!(msg.repeated_str_view().len(), 1);
 }
 
@@ -754,7 +748,7 @@ fn proto_macro_infer_and_spread() {
         repeated_int32: [1, 1 + 1, 3]
     });
     assert_eq!(
-        nums.repeated_int32().iter().copied().collect::<Vec<_>>(),
+        nums.repeated_int32().iter().collect::<Vec<_>>(),
         vec![1, 2, 3]
     );
 
@@ -785,10 +779,7 @@ fn proto_macro_infer_and_spread() {
     });
     assert_eq!(mmap.map_string_string().len(), 2);
     assert_eq!(
-        mmap.map_string_string()
-            .get(&"foo".into())
-            .unwrap()
-            .as_view(),
+        mmap.map_string_string().get("foo").unwrap().as_view(),
         "bar"
     );
 }

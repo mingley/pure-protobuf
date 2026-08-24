@@ -6,5 +6,8 @@
 /buffa_tat/target
 /buffa_person/target
 /prost_tat/target
+/rust_out_person/target
+/rust_out_shared/target
+/grpc_remap/target
 /third_party/protobuf
 .DS_Store

@@ -421,7 +421,9 @@ mod __gen {
         }
         pub fn set_optional_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_string(&mut self) {
             self.cached_size.dirty();
@@ -441,7 +443,9 @@ mod __gen {
         }
         pub fn set_optional_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes(&mut self) {
             self.cached_size.dirty();
@@ -461,7 +465,9 @@ mod __gen {
         }
         pub fn set_optional_cord(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_cord = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_cord = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_cord(&mut self) {
             self.cached_size.dirty();
@@ -1766,7 +1772,7 @@ mod __gen {
         }
         pub fn set_s(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.s = pbrs::rt::LazyStr::owned(v.into_proxied());
+            self.s = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private));
         }
         #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {

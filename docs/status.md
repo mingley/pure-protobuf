@@ -15,7 +15,17 @@
   in #6: `build.rs` used to write `[]` when `protoc` was missing; #6 ships
   `vendor/google/conformance_fds.bin` and falls back to it (that was the
   2090 JsonOutput / `missing desc` cluster). CI printed the same totals.
-- 38 `google_shared` tests cover a subset of `rust/test/shared`.
+- Official `protoc --rust_out` (4.35.1-release, `kernel=upb`) for
+  `proto/person.proto` links against this crate as `protobuf` and
+  parse→serialize→parse roundtrips (`rust_out_person/`).
+- `rust_out_shared` runs official `rust/test/shared` googletest files
+  (19 crates, 0 failed) against `protoc --rust_out kernel=upb`. Skips are
+  only the files listed below.
+- In-tree fuzz: `tests/fuzz_parse.rs` (empty / truncated / Person / TAT).
+- grpc 0.9 unary remap (`grpc_remap/`): `ok name=ada message=Hello ada`
+  through `protobuf-shim` → pbrs, not protobuf-tonic.
+- 38 `google_shared` tests cover a plugin-generated subset of
+  `rust/test/shared`.
 - Plugin round-trip works, including `./scripts/gen.sh`.
 - `protobuf-tonic` on this tonic 0.14 stack covers all four RPC shapes
   (unary, client-stream, server-stream, bidi) including `Status`
@@ -61,16 +71,10 @@
 
 See `docs/upb.md`. Short list:
 
-- Regenerated code is required (`protoc-gen-pbrs`). Official
-  `protoc --rust_out` kernel=upb of `proto/person.proto` compiled
-  against pbrs as crate `protobuf` is 234 rustc errors (gencode
-  4.35.1-release). Dominant miss is 147× E0433 no `__internal::runtime`
-  (`OwnedMessageInner`, `MiniTable*`, Arena ABI). Also 6× no
-  `entity_tag`, 6× no `EntityType`, 4× `into_proxied` arity (rust_out
-  `(self, Private)` vs pbrs `(self)`), 70× rust_out types miss pbrs
-  `Message` supertraits, 1× no `assert_compatible_gencode_version`.
-  `pbrs::__internal` exports only `Private` and `SealedInternal`.
-  rust_out will not link.
+- There are no arena views.
+- JSON and text go through `DynamicMessage`.
+- Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
+- Maps are `Vec` (scan on get).
 - Inventory is in. #36 is measure-only and stays draft. Do not
   merge it as done. Leftover is still `merge_inner` glue
   (Default / dirty / tag loop), not `merge_bytes`. Parse −
@@ -90,11 +94,6 @@ See `docs/upb.md`. Short list:
   path (#34 landed). #32 stays draft (old discarded-Arc
   inventory). Verified stays 52.2 vs 25.8. Not a Parse win.
   Not a win.
-- There are no arena views.
-- JSON and text go through `DynamicMessage`.
-- Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
-- Maps are `Vec` (scan on get).
-- There is no in-tree fuzzing.
 
 ## Skipped rust/test/shared files
 

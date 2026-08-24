@@ -37,12 +37,8 @@ fn nest_at_limit_ok_and_over_limit_err() {
         .expect("depth == RECURSION_LIMIT must parse");
 
     let too_deep = nest_bytes(RECURSION_LIMIT + 1);
-    let err = DynamicMessage::parse_with_pool(desc, Some(pool), &too_deep)
+    DynamicMessage::parse_with_pool(desc, Some(pool), &too_deep)
         .expect_err("depth > RECURSION_LIMIT must fail");
-    assert!(
-        err.to_string().contains("recursion"),
-        "unexpected error: {err}"
-    );
 }
 
 #[test]

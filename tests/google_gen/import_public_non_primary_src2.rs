@@ -35,7 +35,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }

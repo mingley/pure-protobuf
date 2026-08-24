@@ -271,7 +271,7 @@ mod __gen {
         }
         pub fn set_value(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.value = pbrs::rt::LazyBytes::owned(v.into_proxied());
+            self.value = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private));
         }
         #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {
@@ -1400,7 +1400,7 @@ mod __gen {
         }
         pub fn set_value(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.value = pbrs::rt::LazyStr::owned(v.into_proxied());
+            self.value = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private));
         }
         #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {

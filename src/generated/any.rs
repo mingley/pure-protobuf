@@ -49,14 +49,14 @@ mod __gen {
         }
         pub fn set_type_url(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.type_url = pbrs::rt::LazyStr::owned(v.into_proxied());
+            self.type_url = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private));
         }
         pub fn value(&self) -> &[u8] {
             self.value.as_bytes()
         }
         pub fn set_value(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.value = pbrs::rt::LazyBytes::owned(v.into_proxied());
+            self.value = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private));
         }
         #[inline(always)]
         fn check_required(&self) -> Result<(), ParseError> {

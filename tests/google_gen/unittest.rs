@@ -64,7 +64,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -164,7 +164,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -264,7 +264,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -356,7 +356,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -431,7 +431,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -504,7 +504,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -577,7 +577,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -648,7 +648,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -719,7 +719,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -792,7 +792,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -863,7 +863,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -937,7 +937,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1010,7 +1010,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1084,7 +1084,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1158,7 +1158,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1225,7 +1225,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1304,7 +1304,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1571,7 +1571,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1744,7 +1744,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1815,7 +1815,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -3175,7 +3175,9 @@ mod __gen {
         }
         pub fn set_str1(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str1 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str1 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str1(&mut self) {
             self.cached_size.dirty();
@@ -3195,7 +3197,9 @@ mod __gen {
         }
         pub fn set_str2(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str2 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str2 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str2(&mut self) {
             self.cached_size.dirty();
@@ -3215,7 +3219,9 @@ mod __gen {
         }
         pub fn set_str3(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str3 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str3 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str3(&mut self) {
             self.cached_size.dirty();
@@ -3235,7 +3241,9 @@ mod __gen {
         }
         pub fn set_str4(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str4 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str4 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str4(&mut self) {
             self.cached_size.dirty();
@@ -3255,7 +3263,9 @@ mod __gen {
         }
         pub fn set_str5(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str5 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str5 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str5(&mut self) {
             self.cached_size.dirty();
@@ -3275,7 +3285,9 @@ mod __gen {
         }
         pub fn set_str6(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str6 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str6 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str6(&mut self) {
             self.cached_size.dirty();
@@ -3295,7 +3307,9 @@ mod __gen {
         }
         pub fn set_str7(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str7 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str7 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str7(&mut self) {
             self.cached_size.dirty();
@@ -3315,7 +3329,9 @@ mod __gen {
         }
         pub fn set_str8(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str8 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str8 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str8(&mut self) {
             self.cached_size.dirty();
@@ -3335,7 +3351,9 @@ mod __gen {
         }
         pub fn set_str9(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str9 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str9 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str9(&mut self) {
             self.cached_size.dirty();
@@ -3355,7 +3373,9 @@ mod __gen {
         }
         pub fn set_str10(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str10 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str10 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str10(&mut self) {
             self.cached_size.dirty();
@@ -3375,7 +3395,9 @@ mod __gen {
         }
         pub fn set_str11(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str11 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str11 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str11(&mut self) {
             self.cached_size.dirty();
@@ -3395,7 +3417,9 @@ mod __gen {
         }
         pub fn set_str12(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str12 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str12 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str12(&mut self) {
             self.cached_size.dirty();
@@ -3415,7 +3439,9 @@ mod __gen {
         }
         pub fn set_str13(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str13 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str13 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str13(&mut self) {
             self.cached_size.dirty();
@@ -3435,7 +3461,9 @@ mod __gen {
         }
         pub fn set_str14(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str14 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str14 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str14(&mut self) {
             self.cached_size.dirty();
@@ -3455,7 +3483,9 @@ mod __gen {
         }
         pub fn set_str15(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str15 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str15 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str15(&mut self) {
             self.cached_size.dirty();
@@ -3475,7 +3505,9 @@ mod __gen {
         }
         pub fn set_str16(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str16 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str16 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str16(&mut self) {
             self.cached_size.dirty();
@@ -3495,7 +3527,9 @@ mod __gen {
         }
         pub fn set_str17(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str17 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str17 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str17(&mut self) {
             self.cached_size.dirty();
@@ -3515,7 +3549,9 @@ mod __gen {
         }
         pub fn set_str18(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str18 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str18 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str18(&mut self) {
             self.cached_size.dirty();
@@ -3535,7 +3571,9 @@ mod __gen {
         }
         pub fn set_str19(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str19 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str19 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str19(&mut self) {
             self.cached_size.dirty();
@@ -3555,7 +3593,9 @@ mod __gen {
         }
         pub fn set_str20(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str20 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str20 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str20(&mut self) {
             self.cached_size.dirty();
@@ -3575,7 +3615,9 @@ mod __gen {
         }
         pub fn set_str21(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str21 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str21 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str21(&mut self) {
             self.cached_size.dirty();
@@ -3595,7 +3637,9 @@ mod __gen {
         }
         pub fn set_str22(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str22 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str22 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str22(&mut self) {
             self.cached_size.dirty();
@@ -3615,7 +3659,9 @@ mod __gen {
         }
         pub fn set_str23(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str23 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str23 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str23(&mut self) {
             self.cached_size.dirty();
@@ -3635,7 +3681,9 @@ mod __gen {
         }
         pub fn set_str24(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str24 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str24 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str24(&mut self) {
             self.cached_size.dirty();
@@ -3655,7 +3703,9 @@ mod __gen {
         }
         pub fn set_str25(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str25 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str25 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str25(&mut self) {
             self.cached_size.dirty();
@@ -3675,7 +3725,9 @@ mod __gen {
         }
         pub fn set_str26(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str26 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str26 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str26(&mut self) {
             self.cached_size.dirty();
@@ -3695,7 +3747,9 @@ mod __gen {
         }
         pub fn set_str27(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str27 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str27 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str27(&mut self) {
             self.cached_size.dirty();
@@ -3715,7 +3769,9 @@ mod __gen {
         }
         pub fn set_str28(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str28 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str28 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str28(&mut self) {
             self.cached_size.dirty();
@@ -3735,7 +3791,9 @@ mod __gen {
         }
         pub fn set_str29(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str29 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str29 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str29(&mut self) {
             self.cached_size.dirty();
@@ -3755,7 +3813,9 @@ mod __gen {
         }
         pub fn set_str30(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str30 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str30 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str30(&mut self) {
             self.cached_size.dirty();
@@ -3775,7 +3835,9 @@ mod __gen {
         }
         pub fn set_str31(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str31 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str31 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str31(&mut self) {
             self.cached_size.dirty();
@@ -3795,7 +3857,9 @@ mod __gen {
         }
         pub fn set_str32(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str32 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str32 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str32(&mut self) {
             self.cached_size.dirty();
@@ -5749,7 +5813,9 @@ mod __gen {
         }
         pub fn set_data(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.data = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.data = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_data(&mut self) {
             self.cached_size.dirty();
@@ -5938,7 +6004,9 @@ mod __gen {
         }
         pub fn set_data(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.data = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.data = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_data(&mut self) {
             self.cached_size.dirty();
@@ -6726,8 +6794,9 @@ mod __gen {
         }
         pub fn set_optional_redacted_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_redacted_string =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_redacted_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_redacted_string(&mut self) {
             self.cached_size.dirty();
@@ -6749,8 +6818,9 @@ mod __gen {
         }
         pub fn set_optional_unredacted_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_unredacted_string =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_unredacted_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_unredacted_string(&mut self) {
             self.cached_size.dirty();
@@ -6913,8 +6983,9 @@ mod __gen {
             v: impl pbrs::IntoProxied<ProtoString>,
         ) {
             self.cached_size.dirty();
-            self.optional_redacted_false_string =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_redacted_false_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_redacted_false_string(&mut self) {
             self.cached_size.dirty();
@@ -6934,7 +7005,9 @@ mod __gen {
         }
         pub fn set_redacted_extension(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.redacted_extension = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.redacted_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_redacted_extension(&mut self) {
             self.cached_size.dirty();
@@ -8529,8 +8602,9 @@ mod __gen {
         }
         pub fn set_optional_string_extension(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_string_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_string_extension(&mut self) {
             self.cached_size.dirty();
@@ -8550,8 +8624,9 @@ mod __gen {
         }
         pub fn set_optional_bytes_extension(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes_extension =
-                Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes_extension = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes_extension(&mut self) {
             self.cached_size.dirty();
@@ -8733,8 +8808,9 @@ mod __gen {
             v: impl pbrs::IntoProxied<ProtoString>,
         ) {
             self.cached_size.dirty();
-            self.optional_string_piece_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_string_piece_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_string_piece_extension(&mut self) {
             self.cached_size.dirty();
@@ -8754,8 +8830,9 @@ mod __gen {
         }
         pub fn set_optional_cord_extension(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_cord_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_cord_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_cord_extension(&mut self) {
             self.cached_size.dirty();
@@ -9374,8 +9451,9 @@ mod __gen {
         }
         pub fn set_default_string_extension(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.default_string_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.default_string_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_string_extension(&mut self) {
             self.cached_size.dirty();
@@ -9395,8 +9473,9 @@ mod __gen {
         }
         pub fn set_default_bytes_extension(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.default_bytes_extension =
-                Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.default_bytes_extension = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_bytes_extension(&mut self) {
             self.cached_size.dirty();
@@ -9455,8 +9534,9 @@ mod __gen {
             v: impl pbrs::IntoProxied<ProtoString>,
         ) {
             self.cached_size.dirty();
-            self.default_string_piece_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.default_string_piece_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_string_piece_extension(&mut self) {
             self.cached_size.dirty();
@@ -9476,8 +9556,9 @@ mod __gen {
         }
         pub fn set_default_cord_extension(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.default_cord_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.default_cord_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_cord_extension(&mut self) {
             self.cached_size.dirty();
@@ -9499,8 +9580,9 @@ mod __gen {
         }
         pub fn set_optional_bytes_cord_extension(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes_cord_extension =
-                Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes_cord_extension = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes_cord_extension(&mut self) {
             self.cached_size.dirty();
@@ -9563,8 +9645,9 @@ mod __gen {
         }
         pub fn set_oneof_string_extension(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.oneof_string_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.oneof_string_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_string_extension(&mut self) {
             self.cached_size.dirty();
@@ -9584,8 +9667,9 @@ mod __gen {
         }
         pub fn set_oneof_bytes_extension(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.oneof_bytes_extension =
-                Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.oneof_bytes_extension = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_bytes_extension(&mut self) {
             self.cached_size.dirty();
@@ -9645,7 +9729,9 @@ mod __gen {
         }
         pub fn set_test(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.test = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.test = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_test(&mut self) {
             self.cached_size.dirty();
@@ -9665,8 +9751,9 @@ mod __gen {
         }
         pub fn set_nested_string_extension(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.nested_string_extension =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.nested_string_extension = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_nested_string_extension(&mut self) {
             self.cached_size.dirty();
@@ -13128,7 +13215,9 @@ mod __gen {
         }
         pub fn set_optional_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_string(&mut self) {
             self.cached_size.dirty();
@@ -13148,7 +13237,9 @@ mod __gen {
         }
         pub fn set_optional_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes(&mut self) {
             self.cached_size.dirty();
@@ -13325,7 +13416,9 @@ mod __gen {
         }
         pub fn set_optional_string_piece(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_string_piece(&mut self) {
             self.cached_size.dirty();
@@ -13345,7 +13438,9 @@ mod __gen {
         }
         pub fn set_optional_cord(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_cord = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_cord = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_cord(&mut self) {
             self.cached_size.dirty();
@@ -13939,7 +14034,9 @@ mod __gen {
         }
         pub fn set_default_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.default_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.default_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_string(&mut self) {
             self.cached_size.dirty();
@@ -13959,7 +14056,9 @@ mod __gen {
         }
         pub fn set_default_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.default_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.default_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_bytes(&mut self) {
             self.cached_size.dirty();
@@ -14030,7 +14129,9 @@ mod __gen {
         }
         pub fn set_default_string_piece(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.default_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.default_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_string_piece(&mut self) {
             self.cached_size.dirty();
@@ -14050,7 +14151,9 @@ mod __gen {
         }
         pub fn set_default_cord(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.default_cord = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.default_cord = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_default_cord(&mut self) {
             self.cached_size.dirty();
@@ -14070,7 +14173,9 @@ mod __gen {
         }
         pub fn set_optional_bytes_cord(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes_cord(&mut self) {
             self.cached_size.dirty();
@@ -14151,7 +14256,9 @@ mod __gen {
             self.oneof_cord = None;
             self.oneof_string_piece = None;
             self.oneof_lazy_nested_message = Default::default();
-            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_string(&mut self) {
             self.cached_size.dirty();
@@ -14171,7 +14278,9 @@ mod __gen {
         }
         pub fn set_oneof_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_bytes(&mut self) {
             self.cached_size.dirty();
@@ -14197,7 +14306,9 @@ mod __gen {
             self.oneof_bytes = None;
             self.oneof_string_piece = None;
             self.oneof_lazy_nested_message = Default::default();
-            self.oneof_cord = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.oneof_cord = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_cord(&mut self) {
             self.cached_size.dirty();
@@ -14223,7 +14334,9 @@ mod __gen {
             self.oneof_bytes = None;
             self.oneof_cord = None;
             self.oneof_lazy_nested_message = Default::default();
-            self.oneof_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.oneof_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_string_piece(&mut self) {
             self.cached_size.dirty();
@@ -17763,7 +17876,9 @@ mod __gen {
         }
         pub fn set_StringField(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.StringField = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.StringField = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_StringField(&mut self) {
             self.cached_size.dirty();
@@ -17826,7 +17941,9 @@ mod __gen {
         }
         pub fn set_StringPieceField(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.StringPieceField = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.StringPieceField = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_StringPieceField(&mut self) {
             self.cached_size.dirty();
@@ -17846,7 +17963,9 @@ mod __gen {
         }
         pub fn set_CordField(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.CordField = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.CordField = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_CordField(&mut self) {
             self.cached_size.dirty();
@@ -18522,7 +18641,9 @@ mod __gen {
         }
         pub fn set_a(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.a = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.a = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_a(&mut self) {
             self.cached_size.dirty();
@@ -18542,7 +18663,9 @@ mod __gen {
         }
         pub fn set_b(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_b(&mut self) {
             self.cached_size.dirty();
@@ -18854,7 +18977,9 @@ mod __gen {
         }
         pub fn set_a(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.a = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.a = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_a(&mut self) {
             self.cached_size.dirty();
@@ -18874,7 +18999,9 @@ mod __gen {
         }
         pub fn set_b(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_b(&mut self) {
             self.cached_size.dirty();
@@ -19640,7 +19767,9 @@ mod __gen {
         }
         pub fn set_a(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.a = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.a = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_a(&mut self) {
             self.cached_size.dirty();
@@ -19840,7 +19969,9 @@ mod __gen {
         }
         pub fn set_optional_bytes_cord(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes_cord(&mut self) {
             self.cached_size.dirty();
@@ -19862,8 +19993,9 @@ mod __gen {
         }
         pub fn set_optional_bytes_cord_default(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes_cord_default =
-                Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes_cord_default = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes_cord_default(&mut self) {
             self.cached_size.dirty();
@@ -22496,7 +22628,9 @@ mod __gen {
         }
         pub fn set_bytes_field(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.bytes_field = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.bytes_field = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bytes_field(&mut self) {
             self.cached_size.dirty();
@@ -23550,7 +23684,9 @@ mod __gen {
         }
         pub fn set_my_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_string(&mut self) {
             self.cached_size.dirty();
@@ -23746,7 +23882,9 @@ mod __gen {
         }
         pub fn set_my_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_string(&mut self) {
             self.cached_size.dirty();
@@ -23943,7 +24081,9 @@ mod __gen {
         }
         pub fn set_my_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_string(&mut self) {
             self.cached_size.dirty();
@@ -24779,7 +24919,9 @@ mod __gen {
         }
         pub fn set_escaped_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.escaped_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.escaped_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_escaped_bytes(&mut self) {
             self.cached_size.dirty();
@@ -24867,7 +25009,9 @@ mod __gen {
         }
         pub fn set_utf8_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.utf8_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.utf8_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_utf8_string(&mut self) {
             self.cached_size.dirty();
@@ -25108,7 +25252,9 @@ mod __gen {
         }
         pub fn set_cpp_trigraph(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.cpp_trigraph = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.cpp_trigraph = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_cpp_trigraph(&mut self) {
             self.cached_size.dirty();
@@ -25162,7 +25308,9 @@ mod __gen {
         }
         pub fn set_string_with_zero(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.string_with_zero = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.string_with_zero = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_string_with_zero(&mut self) {
             self.cached_size.dirty();
@@ -25182,7 +25330,9 @@ mod __gen {
         }
         pub fn set_bytes_with_zero(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.bytes_with_zero = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.bytes_with_zero = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bytes_with_zero(&mut self) {
             self.cached_size.dirty();
@@ -25202,8 +25352,9 @@ mod __gen {
         }
         pub fn set_string_piece_with_zero(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.string_piece_with_zero =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.string_piece_with_zero = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_string_piece_with_zero(&mut self) {
             self.cached_size.dirty();
@@ -25223,7 +25374,9 @@ mod __gen {
         }
         pub fn set_cord_with_zero(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.cord_with_zero = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.cord_with_zero = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_cord_with_zero(&mut self) {
             self.cached_size.dirty();
@@ -25243,7 +25396,9 @@ mod __gen {
         }
         pub fn set_replacement_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.replacement_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.replacement_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_replacement_string(&mut self) {
             self.cached_size.dirty();
@@ -26124,7 +26279,9 @@ mod __gen {
         }
         pub fn set_my_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_string(&mut self) {
             self.cached_size.dirty();
@@ -26222,7 +26379,9 @@ mod __gen {
         }
         pub fn set_my_extension_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_extension_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_extension_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_extension_string(&mut self) {
             self.cached_size.dirty();
@@ -28143,7 +28302,9 @@ mod __gen {
         }
         pub fn set_optional_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_string(&mut self) {
             self.cached_size.dirty();
@@ -28163,7 +28324,9 @@ mod __gen {
         }
         pub fn set_optional_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.optional_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_bytes(&mut self) {
             self.cached_size.dirty();
@@ -28302,7 +28465,9 @@ mod __gen {
             self.oneof_uint32 = None;
             self.oneof_test_all_types = Default::default();
             self.oneof_bytes = None;
-            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_string(&mut self) {
             self.cached_size.dirty();
@@ -28322,7 +28487,9 @@ mod __gen {
         }
         pub fn set_oneof_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_bytes(&mut self) {
             self.cached_size.dirty();
@@ -31084,7 +31251,9 @@ mod __gen {
         }
         pub fn set_m4(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.m4 = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.m4 = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_m4(&mut self) {
             self.cached_size.dirty();
@@ -35679,7 +35848,9 @@ mod __gen {
         }
         pub fn set_inner_name(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.inner_name = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.inner_name = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_inner_name(&mut self) {
             self.cached_size.dirty();
@@ -36336,7 +36507,9 @@ mod __gen {
         }
         pub fn set_but_why_tho(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.but_why_tho = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.but_why_tho = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_but_why_tho(&mut self) {
             self.cached_size.dirty();
@@ -36563,7 +36736,9 @@ mod __gen {
         }
         pub fn set_another_field(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.another_field = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.another_field = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_another_field(&mut self) {
             self.cached_size.dirty();
@@ -37360,8 +37535,9 @@ mod __gen {
             v: impl pbrs::IntoProxied<ProtoString>,
         ) {
             self.cached_size.dirty();
-            self.optional_unredacted_nested_string =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_unredacted_nested_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_unredacted_nested_string(&mut self) {
             self.cached_size.dirty();
@@ -37386,8 +37562,9 @@ mod __gen {
             v: impl pbrs::IntoProxied<ProtoString>,
         ) {
             self.cached_size.dirty();
-            self.optional_redacted_nested_string =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.optional_redacted_nested_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_optional_redacted_nested_string(&mut self) {
             self.cached_size.dirty();
@@ -38345,7 +38522,9 @@ mod __gen {
             self.foo_int = None;
             self.foo_message = Default::default();
             self.foogroup = None;
-            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_string(&mut self) {
             self.cached_size.dirty();
@@ -38737,7 +38916,9 @@ mod __gen {
         }
         pub fn set_b(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_b(&mut self) {
             self.cached_size.dirty();
@@ -39071,7 +39252,9 @@ mod __gen {
             self.foogroup = None;
             self.foo_lazy_message = Default::default();
             self.foo_bytes_cord = None;
-            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_string(&mut self) {
             self.cached_size.dirty();
@@ -39100,7 +39283,9 @@ mod __gen {
             self.foogroup = None;
             self.foo_lazy_message = Default::default();
             self.foo_bytes_cord = None;
-            self.foo_cord = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.foo_cord = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_cord(&mut self) {
             self.cached_size.dirty();
@@ -39129,7 +39314,9 @@ mod __gen {
             self.foogroup = None;
             self.foo_lazy_message = Default::default();
             self.foo_bytes_cord = None;
-            self.foo_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.foo_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_string_piece(&mut self) {
             self.cached_size.dirty();
@@ -39146,7 +39333,9 @@ mod __gen {
         }
         pub fn set_foo_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.foo_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.foo_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_bytes(&mut self) {
             self.cached_size.dirty();
@@ -39334,7 +39523,9 @@ mod __gen {
             self.bar_cord_with_empty_default = None;
             self.bar_string_piece_with_empty_default = None;
             self.bar_bytes_with_empty_default = None;
-            self.bar_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.bar_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_string(&mut self) {
             self.cached_size.dirty();
@@ -39363,7 +39554,9 @@ mod __gen {
             self.bar_cord_with_empty_default = None;
             self.bar_string_piece_with_empty_default = None;
             self.bar_bytes_with_empty_default = None;
-            self.bar_cord = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.bar_cord = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_cord(&mut self) {
             self.cached_size.dirty();
@@ -39392,7 +39585,9 @@ mod __gen {
             self.bar_cord_with_empty_default = None;
             self.bar_string_piece_with_empty_default = None;
             self.bar_bytes_with_empty_default = None;
-            self.bar_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.bar_string_piece = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_string_piece(&mut self) {
             self.cached_size.dirty();
@@ -39412,7 +39607,9 @@ mod __gen {
         }
         pub fn set_bar_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.bar_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.bar_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_bytes(&mut self) {
             self.cached_size.dirty();
@@ -39475,7 +39672,9 @@ mod __gen {
         }
         pub fn set_baz_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.baz_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.baz_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_baz_string(&mut self) {
             self.cached_size.dirty();
@@ -39509,8 +39708,9 @@ mod __gen {
             self.bar_cord_with_empty_default = None;
             self.bar_string_piece_with_empty_default = None;
             self.bar_bytes_with_empty_default = None;
-            self.bar_string_with_empty_default =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.bar_string_with_empty_default = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_string_with_empty_default(&mut self) {
             self.cached_size.dirty();
@@ -39541,8 +39741,9 @@ mod __gen {
             self.bar_string_with_empty_default = None;
             self.bar_string_piece_with_empty_default = None;
             self.bar_bytes_with_empty_default = None;
-            self.bar_cord_with_empty_default =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.bar_cord_with_empty_default = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_cord_with_empty_default(&mut self) {
             self.cached_size.dirty();
@@ -39576,8 +39777,9 @@ mod __gen {
             self.bar_string_with_empty_default = None;
             self.bar_cord_with_empty_default = None;
             self.bar_bytes_with_empty_default = None;
-            self.bar_string_piece_with_empty_default =
-                Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.bar_string_piece_with_empty_default = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_string_piece_with_empty_default(&mut self) {
             self.cached_size.dirty();
@@ -39599,8 +39801,9 @@ mod __gen {
         }
         pub fn set_bar_bytes_with_empty_default(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.bar_bytes_with_empty_default =
-                Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.bar_bytes_with_empty_default = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bar_bytes_with_empty_default(&mut self) {
             self.cached_size.dirty();
@@ -39620,7 +39823,9 @@ mod __gen {
         }
         pub fn set_foo_bytes_cord(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.foo_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.foo_bytes_cord = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_bytes_cord(&mut self) {
             self.cached_size.dirty();
@@ -40613,7 +40818,9 @@ mod __gen {
         }
         pub fn set_b(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_b(&mut self) {
             self.cached_size.dirty();
@@ -41201,7 +41408,9 @@ mod __gen {
         }
         pub fn set_foo_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_string(&mut self) {
             self.cached_size.dirty();
@@ -41582,7 +41791,9 @@ mod __gen {
         }
         pub fn set_b(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.b = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_b(&mut self) {
             self.cached_size.dirty();
@@ -52719,7 +52930,9 @@ mod __gen {
             self.foo_int = None;
             self.foo_message = Default::default();
             self.foo_lazy_message = Default::default();
-            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.foo_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_foo_string(&mut self) {
             self.cached_size.dirty();

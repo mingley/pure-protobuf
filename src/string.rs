@@ -19,6 +19,12 @@ impl std::error::Error for Utf8Error {}
 #[repr(transparent)]
 pub struct ProtoStr([u8]);
 
+impl<'msg> From<&'msg str> for &'msg ProtoStr {
+    fn from(s: &'msg str) -> &'msg ProtoStr {
+        ProtoStr::from_str(s)
+    }
+}
+
 impl ProtoStr {
     pub fn from_bytes(bytes: &[u8]) -> &Self {
         // SAFETY: transparent over [u8]
@@ -69,6 +75,18 @@ impl PartialEq<str> for ProtoStr {
 impl PartialEq<&str> for ProtoStr {
     fn eq(&self, other: &&str) -> bool {
         self.as_bytes() == other.as_bytes()
+    }
+}
+
+impl PartialEq<ProtoString> for ProtoStr {
+    fn eq(&self, other: &ProtoString) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+
+impl fmt::Display for ProtoStr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&String::from_utf8_lossy(self.as_bytes()), f)
     }
 }
 
@@ -143,6 +161,16 @@ impl ProtoString {
 
 impl PartialEq for ProtoString {
     fn eq(&self, other: &Self) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+impl PartialEq<str> for ProtoString {
+    fn eq(&self, other: &str) -> bool {
+        self.as_bytes() == other.as_bytes()
+    }
+}
+impl PartialEq<&str> for ProtoString {
+    fn eq(&self, other: &&str) -> bool {
         self.as_bytes() == other.as_bytes()
     }
 }
@@ -225,52 +253,52 @@ impl AsView for &ProtoStr {
 }
 
 impl IntoProxied<ProtoString> for &str {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self)
     }
 }
 impl IntoProxied<ProtoString> for String {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self)
     }
 }
 impl IntoProxied<ProtoString> for &String {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_str())
     }
 }
 impl IntoProxied<ProtoString> for &ProtoStr {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self)
     }
 }
 impl IntoProxied<ProtoString> for std::borrow::Cow<'_, str> {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_ref())
     }
 }
 impl IntoProxied<ProtoString> for Box<str> {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_ref())
     }
 }
 impl IntoProxied<ProtoString> for std::rc::Rc<str> {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_ref())
     }
 }
 impl IntoProxied<ProtoString> for std::sync::Arc<str> {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.as_ref())
     }
 }
 impl IntoProxied<ProtoString> for std::ffi::OsString {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.to_string_lossy().as_ref())
     }
 }
 impl IntoProxied<ProtoString> for &std::ffi::OsStr {
-    fn into_proxied(self) -> ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoString {
         ProtoString::from(self.to_string_lossy().as_ref())
     }
 }
@@ -334,37 +362,42 @@ impl AsView for ProtoBytes {
     }
 }
 impl IntoProxied<ProtoBytes> for &[u8] {
-    fn into_proxied(self) -> ProtoBytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self)
     }
 }
 impl IntoProxied<ProtoBytes> for Vec<u8> {
-    fn into_proxied(self) -> ProtoBytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self)
     }
 }
+impl IntoProxied<ProtoBytes> for &Vec<u8> {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
+        ProtoBytes::from(self.as_slice())
+    }
+}
 impl<const N: usize> IntoProxied<ProtoBytes> for &[u8; N] {
-    fn into_proxied(self) -> ProtoBytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self.as_slice())
     }
 }
 impl IntoProxied<ProtoBytes> for std::borrow::Cow<'_, [u8]> {
-    fn into_proxied(self) -> ProtoBytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self.as_ref())
     }
 }
 impl IntoProxied<ProtoBytes> for Box<[u8]> {
-    fn into_proxied(self) -> ProtoBytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self.as_ref())
     }
 }
 impl IntoProxied<ProtoBytes> for std::rc::Rc<[u8]> {
-    fn into_proxied(self) -> ProtoBytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self.as_ref())
     }
 }
 impl IntoProxied<ProtoBytes> for std::sync::Arc<[u8]> {
-    fn into_proxied(self) -> ProtoBytes {
+    fn into_proxied(self, _private: crate::internal::Private) -> ProtoBytes {
         ProtoBytes::from(self.as_ref())
     }
 }

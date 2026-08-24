@@ -46,8 +46,8 @@ fn implicit_presence_omits_defaults() {
 #[test]
 fn repeated_and_map() {
     let mut msg = Person::new();
-    msg.tags_mut().push("a".into());
-    msg.tags_mut().push("b".into());
+    msg.tags_mut().push("a");
+    msg.tags_mut().push("b");
     msg.scores_mut().insert("x", 7);
 
     let bytes = msg.serialize().unwrap();
@@ -55,7 +55,7 @@ fn repeated_and_map() {
     assert_eq!(parsed.tags().len(), 2);
     assert_eq!(parsed.tags().get(0).unwrap().as_view(), "a");
     assert_eq!(parsed.tags().get(1).unwrap().as_view(), "b");
-    assert_eq!(*parsed.scores().get(&"x".into()).unwrap(), 7);
+    assert_eq!(parsed.scores().get("x").unwrap(), 7);
 }
 
 #[test]

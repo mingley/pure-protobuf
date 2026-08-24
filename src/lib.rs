@@ -1,7 +1,7 @@
 //! Pure-Rust protobuf kernel. Application API matches Google protobuf v4.
 //!
 //! Not crates.io `protobuf` 4.x (upb/C). Not prost.
-//! Google `protoc --rust_out` will not link. See the crate README and `docs/`.
+//! Official `protoc --rust_out` links against `__internal::runtime`.
 //!
 //! ```ignore
 //! pbrs = { git = "https://github.com/mingley/pure-protobuf" }
@@ -38,7 +38,11 @@ pub mod prelude;
 
 #[doc(hidden)]
 pub mod __internal {
-    pub use crate::internal::{Private, SealedInternal};
+    pub use crate::internal::{
+        assert_compatible_gencode_version, entity_tag, EntityType, Enum, MatcherEq, Private,
+        SealedInternal,
+    };
+    pub use crate::runtime;
 }
 
 pub mod codegen;
@@ -56,6 +60,8 @@ mod packed;
 mod proxied;
 mod repeated;
 pub mod rt;
+#[doc(hidden)]
+pub mod runtime;
 mod string;
 pub mod testdata;
 pub(crate) mod text;
@@ -104,7 +110,7 @@ macro_rules! proto {
     (@owned $this:ident, $field:ident : __ { $($sub:tt)* } $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             {
-                let __n = $this.[<$field _mut>]();
+                let mut __n = $this.[<$field _mut>]();
                 $crate::proto!(@spread_mut __n, [] $($sub)*);
             }
         }
@@ -133,7 +139,7 @@ macro_rules! proto {
     (@mut $this:ident, $field:ident : __ { $($sub:tt)* } $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             {
-                let __n = $this.[<$field _mut>]();
+                let mut __n = $this.[<$field _mut>]();
                 $crate::proto!(@spread_mut __n, [] $($sub)*);
             }
         }
@@ -160,7 +166,7 @@ macro_rules! proto {
         $crate::__paste::paste! {
             {
                 let mut __r = $this.[<$field _mut>]();
-                let __e = __r.push_default();
+                let mut __e = __r.push_default();
                 $crate::proto!(@spread_mut __e, [] $($sub)*);
             }
         }
@@ -175,9 +181,10 @@ macro_rules! proto {
     (@arr $this:ident, $field:ident, ($k:expr, __ { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             {
-                let mut __v = ::core::default::Default::default();
+                let mut __r = $this.[<$field _mut>]();
+                let mut __v = __r.default_value();
                 $crate::proto!(@owned __v, $($sub)*);
-                $this.[<$field _mut>]().insert($k, __v);
+                __r.insert($k, __v);
             }
         }
         $crate::proto!(@arr $this, $field, $($($rest)*)?);
@@ -205,7 +212,7 @@ macro_rules! proto {
         $crate::__paste::paste! {
             {
                 let mut __r = $this.[<$field _mut>]();
-                let __e = __r.push_default();
+                let mut __e = __r.push_default();
                 $crate::proto!(@spread_mut __e, [] $($sub)*);
             }
         }
@@ -220,9 +227,10 @@ macro_rules! proto {
     (@arr_mut $this:ident, $field:ident, ($k:expr, __ { $($sub:tt)* }) $(, $($rest:tt)*)?) => {
         $crate::__paste::paste! {
             {
-                let mut __v = ::core::default::Default::default();
+                let mut __r = $this.[<$field _mut>]();
+                let mut __v = __r.default_value();
                 $crate::proto!(@owned __v, $($sub)*);
-                $this.[<$field _mut>]().insert($k, __v);
+                __r.insert($k, __v);
             }
         }
         $crate::proto!(@arr_mut $this, $field, $($($rest)*)?);

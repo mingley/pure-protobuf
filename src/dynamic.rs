@@ -1485,6 +1485,14 @@ pub struct DynamicMessageView<'msg> {
     inner: &'msg DynamicMessage,
 }
 
+impl Default for DynamicMessageView<'_> {
+    fn default() -> Self {
+        Self {
+            inner: crate::gen_support::default_instance_of::<DynamicMessage>(),
+        }
+    }
+}
+
 pub struct DynamicMessageMut<'msg> {
     inner: &'msg mut DynamicMessage,
 }

@@ -1,0 +1,13 @@
+[package]
+name = "protobuf"
+version = "4.34.0-release"
+edition = "2021"
+publish = false
+description = "Thin protobuf crate whose lib name is protobuf; re-exports pbrs"
+
+[lib]
+name = "protobuf"
+path = "src/lib.rs"
+
+[dependencies]
+pbrs = { path = "../.." }

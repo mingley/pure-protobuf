@@ -392,6 +392,23 @@ macro_rules! impl_generated_message {
         #[derive(Clone, Copy, Debug)]
         pub struct $View<'msg>(pub &'msg $Owned);
         pub struct $Mut<'msg>(pub &'msg mut $Owned);
+        impl std::ops::Deref for $View<'_> {
+            type Target = $Owned;
+            fn deref(&self) -> &Self::Target {
+                self.0
+            }
+        }
+        impl std::ops::Deref for $Mut<'_> {
+            type Target = $Owned;
+            fn deref(&self) -> &Self::Target {
+                self.0
+            }
+        }
+        impl std::ops::DerefMut for $Mut<'_> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.0
+            }
+        }
 
         impl $Owned {
             pub const FULL_NAME: &'static str = $full;
@@ -680,6 +697,23 @@ macro_rules! impl_typed_message {
         #[derive(Clone, Copy, Debug)]
         pub struct $View<'msg>(pub &'msg $Owned);
         pub struct $Mut<'msg>(pub &'msg mut $Owned);
+        impl std::ops::Deref for $View<'_> {
+            type Target = $Owned;
+            fn deref(&self) -> &Self::Target {
+                self.0
+            }
+        }
+        impl std::ops::Deref for $Mut<'_> {
+            type Target = $Owned;
+            fn deref(&self) -> &Self::Target {
+                self.0
+            }
+        }
+        impl std::ops::DerefMut for $Mut<'_> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.0
+            }
+        }
         impl $crate::__internal::SealedInternal for $Owned {}
         impl $crate::MessageType for $Owned {}
         impl $crate::Proxied for $Owned {
@@ -692,13 +726,6 @@ macro_rules! impl_typed_message {
             type Proxied = Self;
             fn as_view(&self) -> $View<'_> {
                 $View(self)
-            }
-        }
-        impl $crate::__internal::SealedInternal for &$Owned {}
-        impl $crate::AsView for &$Owned {
-            type Proxied = $Owned;
-            fn as_view(&self) -> $View<'_> {
-                $View(*self)
             }
         }
         impl Default for $View<'_> {

@@ -50,7 +50,9 @@ mod __gen {
         }
         pub fn set_my_field(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_field = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_field = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_field(&mut self) {
             self.cached_size.dirty();
@@ -242,7 +244,9 @@ mod __gen {
         }
         pub fn set_my_field(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_field = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_field = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_field(&mut self) {
             self.cached_size.dirty();
@@ -437,7 +441,9 @@ mod __gen {
         }
         pub fn set_my_field(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.my_field = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.my_field = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_my_field(&mut self) {
             self.cached_size.dirty();

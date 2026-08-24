@@ -190,6 +190,11 @@ macro_rules! impl_message {
             type MessageView<'msg> = $View<'msg>;
             type MessageMut<'msg> = $Mut<'msg>;
         }
+        impl Default for $View<'_> {
+            fn default() -> Self {
+                $View($crate::gen_support::default_instance_of::<$Owned>())
+            }
+        }
         impl<'msg> $crate::message::MessageView<'msg> for $View<'msg> {
             type Message = $Owned;
         }
@@ -326,7 +331,7 @@ impl Address {
     }
     pub fn set_city(&mut self, v: impl IntoProxied<ProtoString>) {
         self.cached_size.dirty();
-        self.city = v.into_proxied();
+        self.city = v.into_proxied(pbrs::__internal::Private);
     }
     pub fn clear_city(&mut self) {
         self.cached_size.dirty();
@@ -377,6 +382,23 @@ impl Address {
 #[derive(Clone, Copy, Debug)]
 pub struct AddressView<'msg>(pub &'msg Address);
 pub struct AddressMut<'msg>(pub &'msg mut Address);
+impl std::ops::Deref for AddressView<'_> {
+    type Target = Address;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl std::ops::Deref for AddressMut<'_> {
+    type Target = Address;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl std::ops::DerefMut for AddressMut<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
 
 impl AddressView<'_> {
     pub fn city(&self) -> &crate::ProtoStr {
@@ -415,7 +437,7 @@ impl Person {
     }
     pub fn set_name(&mut self, v: impl IntoProxied<ProtoString>) {
         self.cached_size.dirty();
-        self.name = v.into_proxied();
+        self.name = v.into_proxied(pbrs::__internal::Private);
     }
 
     pub fn has_email(&self) -> bool {
@@ -432,7 +454,7 @@ impl Person {
     }
     pub fn set_email(&mut self, v: impl IntoProxied<ProtoString>) {
         self.cached_size.dirty();
-        self.email = Some(v.into_proxied());
+        self.email = Some(v.into_proxied(pbrs::__internal::Private));
     }
     pub fn clear_email(&mut self) {
         self.cached_size.dirty();
@@ -449,7 +471,7 @@ impl Person {
     pub fn set_tags(&mut self, v: impl IntoProxied<Repeated<ProtoString>>) {
         self.cached_size.dirty();
         self.tags = InlineVec::default();
-        for t in v.into_proxied().into_vec() {
+        for t in v.into_proxied(pbrs::__internal::Private).into_vec() {
             self.tags.push(t);
         }
     }
@@ -464,7 +486,7 @@ impl Person {
     pub fn set_scores(&mut self, v: impl IntoProxied<Map<ProtoString, i32>>) {
         self.cached_size.dirty();
         self.scores = InlineVec::default();
-        for p in v.into_proxied().pairs() {
+        for p in v.into_proxied(pbrs::__internal::Private).pairs() {
             self.scores.push(p.clone());
         }
     }
@@ -632,6 +654,23 @@ fn decode_string_i32_entry(data: &[u8]) -> Result<(ProtoString, i32), ParseError
 #[derive(Clone, Copy, Debug)]
 pub struct PersonView<'msg>(&'msg Person);
 pub struct PersonMut<'msg>(&'msg mut Person);
+impl std::ops::Deref for PersonView<'_> {
+    type Target = Person;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl std::ops::Deref for PersonMut<'_> {
+    type Target = Person;
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+impl std::ops::DerefMut for PersonMut<'_> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
 
 impl PersonView<'_> {
     pub fn id(&self) -> i32 {

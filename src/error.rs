@@ -1,23 +1,18 @@
-use std::borrow::Cow;
 use std::fmt;
 
 /// An error that happened during parsing.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ParseError {
-    pub(crate) message: Cow<'static, str>,
-}
+///
+/// Official rust_out tests match this as a unit struct (`matches_pattern!(&ParseError)`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ParseError;
 
 impl ParseError {
-    pub fn new(message: &'static str) -> Self {
-        Self {
-            message: Cow::Borrowed(message),
-        }
+    pub fn new(_message: &'static str) -> Self {
+        Self
     }
 
-    pub fn owned(message: String) -> Self {
-        Self {
-            message: Cow::Owned(message),
-        }
+    pub fn owned(_message: String) -> Self {
+        Self
     }
 }
 
@@ -25,7 +20,7 @@ impl std::error::Error for ParseError {}
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.message)
+        f.write_str("parse error")
     }
 }
 
