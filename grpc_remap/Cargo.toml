@@ -1,0 +1,35 @@
+[workspace]
+members = [".", "protobuf-shim"]
+resolver = "2"
+
+[package]
+name = "grpc_remap"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+description = "Proof: grpc + grpc-protobuf with crates.io protobuf remapped to pbrs"
+
+[features]
+default = ["grpc"]
+grpc = ["dep:grpc", "dep:grpc-protobuf"]
+
+[[bin]]
+name = "grpc_unary"
+path = "src/grpc_unary.rs"
+required-features = ["grpc"]
+
+[[bin]]
+name = "person_roundtrip"
+path = "src/person_roundtrip.rs"
+
+[dependencies]
+bytes = "1"
+protobuf = { path = "protobuf-shim" }
+# crates.io latest is 0.9 (protobuf 4.34.0-release). 0.10 is unpublished
+# (local /Users/mingley/dev/grpc-rust-upstream, protobuf 4.35.1-release).
+grpc = { version = "0.9", optional = true }
+grpc-protobuf = { version = "0.9", optional = true }
+
+[patch.crates-io]
+protobuf = { path = "protobuf-shim" }
