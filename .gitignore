@@ -9,5 +9,8 @@
 /rust_out_person/target
 /rust_out_shared/target
 /grpc_remap/target
+/parse-leftover/parse-hello-gap/target
+/parse-leftover/parse-hello-delta/target
+/parse-leftover/parse-4kib-delta/target
 /third_party/protobuf
 .DS_Store

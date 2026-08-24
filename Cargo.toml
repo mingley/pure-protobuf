@@ -11,6 +11,7 @@ exclude = [
     "rust_out_shared",
     "rust_out_person",
     "grpc_remap",
+    "parse-leftover",
     "target",
 ]
 resolver = "2"

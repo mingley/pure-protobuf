@@ -1,0 +1,236 @@
+//! Throwaway Parse-only hello timing. Not a workspace member.
+//!
+//! MEASURE ONLY. Not a win. Does not change the kernel.
+//! Same Instant median as tonic-bench (40000 × 15, thin LTO).
+//! Inventory: `docs/inventory/parse-hello-gap.md`.
+
+use pbrs::{ClearAndParse, Parse, Serialize};
+use prost::Message;
+use protobuf_tonic::hello::HelloRequest as PbrsHello;
+use std::mem::size_of;
+use std::time::Instant;
+
+pub mod helloworld {
+    include!(concat!(env!("OUT_DIR"), "/helloworld.rs"));
+}
+
+use helloworld::HelloRequest as ProstHello;
+
+fn median_ns<F, R>(samples: usize, iters: u32, mut f: F) -> f64
+where
+    F: FnMut() -> R,
+{
+    let mut xs: Vec<f64> = (0..samples).map(|_| bench_ns(iters, &mut f)).collect();
+    xs.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    xs[samples / 2]
+}
+
+fn bench_ns<F, R>(iters: u32, mut f: F) -> f64
+where
+    F: FnMut() -> R,
+{
+    for _ in 0..iters / 10 {
+        std::hint::black_box(f());
+    }
+    let t = Instant::now();
+    for _ in 0..iters {
+        std::hint::black_box(f());
+    }
+    t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
+}
+
+/// Generated string arm of HelloRequest::merge_inner, using public rt helpers.
+/// Same bytes as Parse, no Default / cached_size / trait / unknown / required.
+fn reconstruct_string_arm(data: &[u8]) -> pbrs::rt::LazyStr {
+    let mut pos = 0;
+    let mut wire = None;
+    let (n, w) = pbrs::rt::decode_tag(data, &mut pos).expect("tag");
+    debug_assert_eq!(n, 1);
+    debug_assert_eq!(w, pbrs::rt::WIRE_LEN);
+    let (s, e) = pbrs::rt::read_len_span(data, &mut pos).expect("len");
+    let b = &data[s..e];
+    std::str::from_utf8(b).expect("utf8");
+    pbrs::rt::LazyStr::from_span(pbrs::rt::Wire::ensure(&mut wire, data), s, e)
+}
+
+fn tag_walk_only(data: &[u8]) -> (usize, usize) {
+    let mut pos = 0;
+    let (_n, _w) = pbrs::rt::decode_tag(data, &mut pos).expect("tag");
+    pbrs::rt::read_len_span(data, &mut pos).expect("len")
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn main() {
+    let iters = 40_000u32;
+    let samples = 15usize;
+
+    let mut pbrs = PbrsHello::new();
+    pbrs.set_name("ada");
+    let hello = Serialize::serialize(&pbrs).expect("pbrs hello");
+    let mut prost_hello = Vec::new();
+    prost::Message::encode(
+        &ProstHello {
+            name: "ada".to_string(),
+        },
+        &mut prost_hello,
+    )
+    .expect("prost hello");
+    assert_eq!(hello, prost_hello, "hello wire must match");
+    assert_eq!(hello, [0x0a, 0x03, b'a', b'd', b'a']);
+
+    let kib_name = "x".repeat(4096);
+    let mut pbrs4 = PbrsHello::new();
+    pbrs4.set_name(&kib_name);
+    let hello4 = Serialize::serialize(&pbrs4).expect("pbrs 4kib");
+    let mut prost4 = Vec::new();
+    prost::Message::encode(
+        &ProstHello {
+            name: kib_name.clone(),
+        },
+        &mut prost4,
+    )
+    .expect("prost 4kib");
+    assert_eq!(hello4, prost4);
+
+    println!("# Parse-only hello vs prost (no codec framing)");
+    println!();
+    println!("MEASURE ONLY. Not a win. Not codec parity.");
+    println!("iters={iters} samples={samples} median release thin-LTO");
+    println!();
+    println!("hello bytes ({}): {}", hello.len(), hex(&hello));
+    println!("hello_4kib bytes: {}", hello4.len());
+    println!(
+        "size_of PbrsHello={} ProstHello={} LazyStr={} Wire={} ProtoString={} UnknownFields={} CachedSize={} String={}",
+        size_of::<PbrsHello>(),
+        size_of::<ProstHello>(),
+        size_of::<pbrs::rt::LazyStr>(),
+        size_of::<pbrs::rt::Wire>(),
+        size_of::<pbrs::ProtoString>(),
+        size_of::<pbrs::UnknownFields>(),
+        size_of::<pbrs::rt::CachedSize>(),
+        size_of::<String>(),
+    );
+    println!();
+
+    let pbrs_hello = median_ns(samples, iters, || {
+        <PbrsHello as Parse>::parse(&hello).expect("parse")
+    });
+    let prost_hello_ns = median_ns(samples, iters, || {
+        ProstHello::decode(hello.as_slice()).expect("decode")
+    });
+    let pbrs_4k = median_ns(samples, iters, || {
+        <PbrsHello as Parse>::parse(&hello4).expect("parse")
+    });
+    let prost_4k = median_ns(samples, iters, || {
+        ProstHello::decode(hello4.as_slice()).expect("decode")
+    });
+    let pbrs_empty = median_ns(samples, iters, || {
+        <PbrsHello as Parse>::parse(&[]).expect("empty")
+    });
+    let prost_empty = median_ns(samples, iters, || {
+        ProstHello::decode([].as_slice()).expect("empty")
+    });
+
+    println!("## Parse-only (verbatim for the inventory)");
+    println!(
+        "pbrs hello Parse:  {:.1} ns",
+        pbrs_hello
+    );
+    println!(
+        "prost hello decode: {:.1} ns",
+        prost_hello_ns
+    );
+    println!(
+        "delta hello:        {:.1} ns (pbrs − prost)",
+        pbrs_hello - prost_hello_ns
+    );
+    println!(
+        "pbrs hello_4kib Parse:  {:.1} ns",
+        pbrs_4k
+    );
+    println!(
+        "prost hello_4kib decode: {:.1} ns",
+        prost_4k
+    );
+    println!(
+        "delta 4kib:              {:.1} ns",
+        pbrs_4k - prost_4k
+    );
+    println!(
+        "pbrs empty Parse:   {:.1} ns",
+        pbrs_empty
+    );
+    println!(
+        "prost empty decode: {:.1} ns",
+        prost_empty
+    );
+    println!();
+
+    let default_pbrs = median_ns(samples, iters, PbrsHello::default);
+    let default_prost = median_ns(samples, iters, ProstHello::default);
+    let cached_dirty = median_ns(samples, iters, || {
+        let c = pbrs::rt::CachedSize::default();
+        c.dirty();
+        c
+    });
+    let utf8_ada = median_ns(samples, iters, || std::str::from_utf8(b"ada").unwrap());
+    let utf8_4k = median_ns(samples, iters, || {
+        std::str::from_utf8(kib_name.as_bytes()).unwrap()
+    });
+    let string_ada = median_ns(samples, iters, || String::from("ada"));
+    let string_4k = median_ns(samples, iters, || kib_name.clone());
+    let proto_ada = median_ns(samples, iters, || pbrs::ProtoString::from_bytes(b"ada"));
+    let wire_hello = median_ns(samples, iters, || pbrs::rt::Wire::from_slice(&hello));
+    let wire_4k = median_ns(samples, iters, || pbrs::rt::Wire::from_slice(&hello4));
+    let walk = median_ns(samples, iters, || tag_walk_only(&hello));
+    let recon = median_ns(samples, iters, || reconstruct_string_arm(&hello));
+    let recon4 = median_ns(samples, iters, || reconstruct_string_arm(&hello4));
+    let lazy_owned = median_ns(samples, iters, || {
+        pbrs::rt::LazyStr::from_bytes(b"ada")
+    });
+    let wire_then_span = median_ns(samples, iters, || {
+        let w = pbrs::rt::Wire::from_slice(&hello);
+        pbrs::rt::LazyStr::from_span(&w, 2, 5)
+    });
+    let merge_bytes = median_ns(samples, iters, || {
+        let mut m = PbrsHello::default();
+        ClearAndParse::merge_from_bytes(&mut m, &hello).expect("merge");
+        m
+    });
+
+    println!("## Component proxies (not a clean additive split)");
+    println!("These are isolated public-API timings. They overlap. Do not sum to the gap.");
+    println!("pbrs HelloRequest::default:     {:.1} ns", default_pbrs);
+    println!("prost HelloRequest::default:    {:.1} ns", default_prost);
+    println!("ClearAndParse::merge_from_bytes (after Default): {:.1} ns", merge_bytes);
+    println!("CachedSize::default+dirty:      {:.1} ns", cached_dirty);
+    println!("from_utf8(\"ada\"):             {:.1} ns", utf8_ada);
+    println!("from_utf8(4KiB):                {:.1} ns", utf8_4k);
+    println!("String::from(\"ada\"):          {:.1} ns", string_ada);
+    println!("String clone 4KiB:              {:.1} ns", string_4k);
+    println!("ProtoString::from_bytes(\"ada\"): {:.1} ns", proto_ada);
+    println!("LazyStr::from_bytes(\"ada\"):   {:.1} ns", lazy_owned);
+    println!("Wire::from_slice(hello 5B):     {:.1} ns", wire_hello);
+    println!("Wire::from_slice(hello_4kib):   {:.1} ns", wire_4k);
+    println!("decode_tag + read_len_span:     {:.1} ns", walk);
+    println!("reconstruct string arm hello:   {:.1} ns", recon);
+    println!("reconstruct string arm 4kib:    {:.1} ns", recon4);
+    println!("Wire::from_slice + from_span:   {:.1} ns", wire_then_span);
+    println!();
+    println!("reconstruct ≈ generated string arm (tag, utf8, Wire::ensure, from_span).");
+    println!(
+        "Parse − reconstruct hello ≈ {:.1} ns (Default + cached_size.dirty + trait/required/loop).",
+        pbrs_hello - recon
+    );
+    println!(
+        "reconstruct − (walk + utf8) hello ≈ {:.1} ns (Wire::ensure + LazyStr).",
+        recon - walk - utf8_ada
+    );
+}

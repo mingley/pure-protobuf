@@ -73,5 +73,9 @@ tests treat `__internal` as `()`. Application code should not use it.
 
 ## Not copied from upb
 
-There is no arena, minitable, FFI, or `MessagePtr`. Generated types are
-ordinary Rust structs. Drop is Rust drop.
+Plugin-generated types (`protoc-gen-pbrs`) are ordinary Rust structs.
+Drop is Rust drop. There is no C.
+
+Official `protoc --rust_out kernel=upb` links `src/runtime.rs`, a
+pure-Rust MiniTable/Arena stand-in (`OwnedMessageInner`, `MessagePtr`).
+That ABI is not upb C and is not used by the plugin gencode.
