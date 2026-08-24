@@ -1446,7 +1446,7 @@ fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usiz
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String {
             let utf = if f.utf8_validate {
-                "std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?;"
+                "pbrs::rt::require_utf8(&data[s..e])?;"
             } else {
                 ""
             };
@@ -1494,7 +1494,7 @@ fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usiz
     }
     if f.field_type == FieldType::String {
         let utf = if f.utf8_validate {
-            "std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?;"
+            "pbrs::rt::require_utf8(&data[s..e])?;"
         } else {
             ""
         };
@@ -1531,12 +1531,7 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String {
-            let utf = if f.utf8_validate {
-                "std::str::from_utf8(b).map_err(|_| ParseError::new(\"invalid utf-8\"))?;"
-            } else {
-                ""
-            };
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {st}.push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)); }}");
+            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?); }}");
         } else if f.field_type == FieldType::Bytes {
             let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))); }}");
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
@@ -1599,21 +1594,16 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         return;
     }
     if f.field_type == FieldType::String {
-        let utf = if f.utf8_validate {
-            "std::str::from_utf8(b).map_err(|_| ParseError::new(\"invalid utf-8\"))?;"
-        } else {
-            ""
-        };
         let assign = if is_option(f) {
-            format!("{st} = Some(Box::new(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)))")
+            format!("{st} = Some(Box::new(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?))")
         } else {
-            format!("{st} = pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)")
+            format!("{st} = pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
         let _ = writeln!(
             src,
-            "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?; let b = &data[s..e]; {utf} {assign};"
+            "                    let (s, e) = pbrs::rt::read_len_span(data, pos)?; {assign};"
         );
         let _ = writeln!(src, "                    }}");
         return;
@@ -2000,7 +1990,7 @@ fn emit_map_scalar_decode(src: &mut String, n: u32, var: &str, ty: FieldType, ut
     match ty {
         FieldType::String => {
             if utf8 {
-                let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; std::str::from_utf8(&data[s..e]).map_err(|_| ParseError::new(\"invalid utf-8\"))?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},");
+                let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; pbrs::rt::require_utf8(&data[s..e])?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},");
             } else {
                 let _ = writeln!(src, "        ({n}, pbrs::rt::WIRE_LEN) => {{ let (s, e) = pbrs::rt::read_len_span(data, &mut pos)?; {var} = pbrs::rt::LazyStr::from_span(wire, s, e); }},");
             }

@@ -384,6 +384,7 @@ dependencies = [
  "paste",
  "serde",
  "serde_json",
+ "simdutf8",
 ]
 
 [[package]]

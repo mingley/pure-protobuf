@@ -495,4 +495,23 @@ fn main() {
     println!();
     print_table("## Published 1-string (hello.proto)", &published);
     print_table("## Common shapes (codec_cases.proto)", &survey);
+
+    let mut failed = false;
+    for r in survey.iter() {
+        if r.name != "name_4kib" && r.name != "blob_4kib" {
+            continue;
+        }
+        let ours = r.pbrs_enc + r.pbrs_dec;
+        let prost = r.prost_enc + r.prost_dec;
+        if ours >= prost {
+            eprintln!(
+                "perf gate failed: {} combined {:.1} vs prost {:.1}",
+                r.name, ours, prost
+            );
+            failed = true;
+        }
+    }
+    if failed {
+        std::process::exit(1);
+    }
 }
