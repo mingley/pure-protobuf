@@ -8,7 +8,17 @@
   and for protobuf-tonic `build.rs`.
 - Conformance v35.1 required and recommended: 5631 binary+JSON + 909 text,
   0 unexpected.
-- 38 `google_shared` tests cover a subset of `rust/test/shared`.
+- Official `protoc --rust_out` (4.35.1-release, `kernel=upb`) for
+  `proto/person.proto` links against this crate as `protobuf` and
+  parse→serialize→parse roundtrips (`rust_out_person/`).
+- `rust_out_shared` runs official `rust/test/shared` googletest files
+  (19 crates, 0 failed) against `protoc --rust_out kernel=upb`. Skips are
+  only the files listed below.
+- In-tree fuzz: `tests/fuzz_parse.rs` (empty / truncated / Person / TAT).
+- grpc 0.9 unary remap (`grpc_remap/`): `ok name=ada message=Hello ada`
+  through `protobuf-shim` → pbrs, not protobuf-tonic.
+- 38 `google_shared` tests cover a plugin-generated subset of
+  `rust/test/shared`.
 - Plugin round-trip works, including `./scripts/gen.sh`.
 - tonic 0.14 unary and bidi smoke tests pass in `protobuf-tonic`.
 - `./bench` fails the process if a gated case loses encode or owned decode
@@ -21,19 +31,12 @@
 
 See `docs/upb.md`. Short list:
 
-- Official `protoc --rust_out` (4.35.1-release, `kernel=upb`) for
-  `proto/person.proto` links against this crate as `protobuf` and
-  parse→serialize→parse roundtrips (`rust_out_person/`).
-- `rust_out_shared` runs official `rust/test/shared` googletest files
-  (19 crates, 0 failed) against `protoc --rust_out kernel=upb`. Skipped
-  files remain as listed below.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
 - File / enum / method custom options are skipped on FileDescriptorSet
   parse. Message and field custom options are kept.
-- In-tree fuzz: `tests/fuzz_parse.rs` (empty / truncated / Person / TAT).
 
 ## Skipped rust/test/shared files
 
