@@ -449,7 +449,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(v) = self.legacy_closed_enum.get() {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, u64::from(v));
@@ -813,7 +813,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(v) = self.plain_field {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, v as u64);

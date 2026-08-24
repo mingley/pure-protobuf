@@ -525,7 +525,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if self.c != 0 {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, self.c as u64);
@@ -822,7 +822,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(p) = self.child.wire_bytes() {
                 pbrs::rt::encode_len_header(out, 1, p.len() as u64);
                 out.extend_from_slice(p);
@@ -3762,7 +3762,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if self.optional_int32 != 0 {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, self.optional_int32 as u64);
@@ -4282,7 +4282,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if self.bb != 0 {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, self.bb as u64);
@@ -4427,7 +4427,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }
@@ -6712,7 +6712,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if self.b1 {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, u64::from(self.b1));
@@ -7166,7 +7166,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if self.dummy {
                 pbrs::rt::encode_tag(out, 536870911, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, u64::from(self.dummy));
@@ -7354,7 +7354,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(v) = self.foo_enum {
                 pbrs::rt::encode_tag(out, 6, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, v as u64);
@@ -8506,7 +8506,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(p) = self.packed_fixed32.packed_bytes() {
                 pbrs::rt::encode_len_header(out, 96, p.len() as u64);
                 out.extend_from_slice(p);
@@ -9810,7 +9810,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(c) = self.cold.as_deref() {
                 for t in c.repeated_int32.iter() {
                     pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
@@ -10052,7 +10052,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(v) = self.d {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, v as u64);

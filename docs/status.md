@@ -4,10 +4,17 @@
 
 - `cargo fmt --check`, `clippy --all-targets --all-features -- -D warnings`,
   and `cargo test --workspace` pass.
-- CI on `main` runs fmt, clippy, and tests. It needs `protoc` for the plugin
-  and for protobuf-tonic `build.rs`.
-- Conformance v35.1 required and recommended: 5631 binary+JSON + 909 text,
-  0 unexpected.
+- CI on `main` runs fmt, clippy, tests, and official conformance
+  (`./scripts/conformance.sh`: required ×2 and recommended, v35.1, cmake
+  protoc from the pin, not system, no skip list). The `test` job still
+  apt-installs `protobuf-compiler` for the plugin and protobuf-tonic
+  `build.rs`.
+- Conformance v35.1 (`--maximum_edition 2023`, `protoc` hidden / vendored
+  FDS): required ×2: 5631 binary+JSON + 909 text, 0 unexpected.
+  `--enforce_recommended`: same. No skip list. Empty-FDS hole was closed
+  in #6: `build.rs` used to write `[]` when `protoc` was missing; #6 ships
+  `vendor/google/conformance_fds.bin` and falls back to it (that was the
+  2090 JsonOutput / `missing desc` cluster). CI printed the same totals.
 - Official `protoc --rust_out` (4.35.1-release, `kernel=upb`) for
   `proto/person.proto` links against this crate as `protobuf` and
   parse→serialize→parse roundtrips (`rust_out_person/`).
@@ -20,12 +27,45 @@
 - 38 `google_shared` tests cover a plugin-generated subset of
   `rust/test/shared`.
 - Plugin round-trip works, including `./scripts/gen.sh`.
-- tonic 0.14 unary and bidi smoke tests pass in `protobuf-tonic`.
+- `protobuf-tonic` on this tonic 0.14 stack covers all four RPC shapes
+  (unary, client-stream, server-stream, bidi) including `Status`
+  code+message. Initial `Response` metadata is headers; `Status` metadata
+  is HTTP/2 trailers. Client-stream, server-stream, and bidi carry both
+  (same split as unary). Server-stream trailers still fail before a
+  stream. Client-stream headers need the reply `Response`.
+  `tests/interop.rs` has same-process analogues of
+  official interop names (`unimplemented_method`, `unimplemented_service`,
+  `special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,
+  `cancel_after_begin`, `cancel_after_first_response`,
+  `timeout_on_sleeping_server`, `custom_metadata`). `large_unary` sizes
+  (271828 / 314159) are `hello.proto` string fields (`name` / `message`),
+  not official `SimpleRequest.payload.body` / `response_size`. Cancel
+  analogues abort the client future (`JoinError::Cancelled`, not a
+  `Status`). `timeout_on_sleeping_server` is unary `Request::set_timeout`
+  → `Code::Cancelled` / "Timeout expired", not `DeadlineExceeded`.
+  `custom_metadata` (unary SayHello): client sends
+  `x-grpc-test-echo-initial` and `x-grpc-test-echo-trailing-bin`; ascii
+  echo is `Response.metadata` (headers). tonic 0.14 has no first-class
+  OK-path custom trailers (`Response` has no `trailers()`);
+  `x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
+  not trailers. `Status.metadata` on `Err` remains the trailer path.
+  Same-process tonic, not official interop, not a native gRPC kernel, no
+  Google peer. Compression is uncovered. `ProtobufCodec` dropped the
+  per-message `Vec` and still lost the Codec bench to `ProstCodec`
+  (hello 52.2 vs 25.8 ns combined, 4 KiB 190.6 vs 166.1). Smaller loss
+  than #29 (93.6 vs 22.4). Remaining gap is `Parse` / `merge_from_bytes`
+  (hello decode 45.4 vs 22.1). Inline string parse no longer
+  `Wire::ensure`s the parent frame (`len ≤ 23` copies into
+  `ProtoString`). Encode is close. Not kernel `./bench`. Not in CI.
+  Not a win.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
   packed_fixed64_256, packed_float_256, repeated_nested_8. View is gated
   except `tat_populated` (~3% band) and packed-fixed rows.
+- File, enum, method, message, and field custom options survive
+  FileDescriptorSet parse (`custom_option(n)`; file options on
+  `FileDescriptor` / `DescriptorPool::get_file`).
 
 ## Remaining
 
@@ -35,8 +75,25 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- File / enum / method custom options are skipped on FileDescriptorSet
-  parse. Message and field custom options are kept.
+- Inventory is in. #36 is measure-only and stays draft. Do not
+  merge it as done. Leftover is still `merge_inner` glue
+  (Default / dirty / tag loop), not `merge_bytes`. Parse −
+  reconstruct 6.8–7.6 ns. Reconstruct string arm is already
+  faster than prost. Inside that wrapper (do not sum):
+  Default 1.0 vs 0.4 (48 B vs 24 B), `CachedSize::dirty` 0.3.
+  This VM Parse-only leftover is 2.1–3.2 ns (24.0–24.9 vs
+  21.7–21.9). Host-label it: this is the #36 VM, not the #31
+  host and not the #34 host (~4.5). Do not mix. #39 tried
+  flattening `merge_from_bytes` → `merge_inner` (and skip-until
+  / `inline(always)`). Tried and discarded. Stays draft. Do
+  not merge. Flatten made hello Parse worse on that VM: 24.5 →
+  ~32 ns. Host-label it: this is the #39 VM. The extra
+  `merge_bytes` frame was not the leftover. 4 KiB still pays
+  `Wire::ensure` (long path). PE is inventorying that next.
+  Do not invent 4 KiB buckets. Parent `Arc` is off the hello
+  path (#34 landed). #32 stays draft (old discarded-Arc
+  inventory). Verified stays 52.2 vs 25.8. Not a Parse win.
+  Not a win.
 
 ## Skipped rust/test/shared files
 

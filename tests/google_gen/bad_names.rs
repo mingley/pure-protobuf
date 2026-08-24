@@ -507,7 +507,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(p) = self.set_x_2.wire_bytes() {
                 pbrs::rt::encode_len_header(out, 2, p.len() as u64);
                 out.extend_from_slice(p);
@@ -670,7 +670,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }
@@ -811,7 +811,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }
@@ -952,7 +952,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }
@@ -1093,7 +1093,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }
@@ -1238,7 +1238,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }
@@ -1418,7 +1418,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(v) = self.r#const {
                 pbrs::rt::encode_tag(out, 3, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, v as u64);
@@ -1913,7 +1913,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(v) = self.r#for {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, v as u64);
@@ -2084,7 +2084,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }
@@ -2225,7 +2225,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }

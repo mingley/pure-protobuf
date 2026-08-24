@@ -2,6 +2,7 @@
 members = [".", "protobuf-tonic"]
 exclude = [
     "bench",
+    "tonic-bench",
     "v4_person",
     "v4_tat",
     "buffa_tat",
@@ -40,6 +41,7 @@ name = "conformance"
 path = "src/bin/conformance.rs"
 
 [dependencies]
+bytes = "1"
 paste = "1.0"
 serde = "1.0"
 serde_json = { version = "1.0", features = ["arbitrary_precision"] }

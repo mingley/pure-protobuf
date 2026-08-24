@@ -242,8 +242,7 @@ impl MessageDescriptor {
     }
 }
 
-/// One custom option on a message or field descriptor (`MessageOptions` /
-/// `FieldOptions` extension tag).
+/// One custom option on a file, message, field, enum, or method descriptor.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DescriptorOption {
     pub number: u32,
@@ -260,6 +259,18 @@ pub struct EnumDescriptor {
     /// Proto-order (number, original name). First entry is the default.
     pub listed: Vec<(i32, String)>,
     pub closed: bool,
+    /// Unrecognized `EnumOptions` tags (custom options).
+    pub options: Vec<DescriptorOption>,
+}
+
+impl EnumDescriptor {
+    /// Custom `EnumOptions` tag payload, if present.
+    pub fn custom_option(&self, number: u32) -> Option<&[u8]> {
+        self.options
+            .iter()
+            .find(|o| o.number == number)
+            .map(|o| o.value.as_slice())
+    }
 }
 
 pub struct MessageDescriptorBuilder {
@@ -295,6 +306,18 @@ pub struct MethodDescriptor {
     pub output_type: String,
     pub client_streaming: bool,
     pub server_streaming: bool,
+    /// Unrecognized `MethodOptions` tags (custom options).
+    pub options: Vec<DescriptorOption>,
+}
+
+impl MethodDescriptor {
+    /// Custom `MethodOptions` tag payload, if present.
+    pub fn custom_option(&self, number: u32) -> Option<&[u8]> {
+        self.options
+            .iter()
+            .find(|o| o.number == number)
+            .map(|o| o.value.as_slice())
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -306,11 +329,30 @@ pub struct ServiceDescriptor {
 }
 
 #[derive(Clone, Debug, Default)]
+pub struct FileDescriptor {
+    pub name: String,
+    pub package: String,
+    /// Unrecognized `FileOptions` tags (custom options).
+    pub options: Vec<DescriptorOption>,
+}
+
+impl FileDescriptor {
+    /// Custom `FileOptions` tag payload, if present.
+    pub fn custom_option(&self, number: u32) -> Option<&[u8]> {
+        self.options
+            .iter()
+            .find(|o| o.number == number)
+            .map(|o| o.value.as_slice())
+    }
+}
+
+#[derive(Clone, Debug, Default)]
 pub struct DescriptorPool {
     messages: BTreeMap<String, Arc<MessageDescriptor>>,
     enums: BTreeMap<String, Arc<EnumDescriptor>>,
     extensions_by_name: BTreeMap<String, (String, u32)>,
     services: BTreeMap<String, Arc<ServiceDescriptor>>,
+    files: BTreeMap<String, Arc<FileDescriptor>>,
     /// file name -> public import file names
     public_imports: BTreeMap<String, Vec<String>>,
 }
@@ -379,6 +421,15 @@ impl DescriptorPool {
             .cloned()
     }
 
+    pub fn get_file(&self, name: &str) -> Option<Arc<FileDescriptor>> {
+        self.files.get(name).cloned().or_else(|| {
+            self.files
+                .values()
+                .find(|f| file_name_matches(name, &f.name))
+                .cloned()
+        })
+    }
+
     pub fn collect_services(&self) -> Vec<Arc<ServiceDescriptor>> {
         self.services.values().cloned().collect()
     }
@@ -401,6 +452,14 @@ impl DescriptorPool {
         }
         let mut pool = resolve_pool(raw, raw_enums, extensions);
         for file in &files {
+            pool.files.insert(
+                file.name.clone(),
+                Arc::new(FileDescriptor {
+                    name: file.name.clone(),
+                    package: file.package.clone(),
+                    options: file.options.clone(),
+                }),
+            );
             let pubs: Vec<String> = file
                 .public_dependency
                 .iter()
@@ -867,7 +926,7 @@ impl DynamicMessage {
         n + self.unknown.encoded_len()
     }
 
-    fn write_to(&self, out: &mut Vec<u8>) {
+    fn write_to(&self, out: &mut impl crate::wire::WireOut) {
         if self.desc.message_set_wire_format {
             self.write_message_set(out);
             self.unknown.encode(out);
@@ -957,7 +1016,7 @@ impl DynamicMessage {
         Ok(())
     }
 
-    fn write_message_set(&self, out: &mut Vec<u8>) {
+    fn write_message_set(&self, out: &mut impl crate::wire::WireOut) {
         for (number, val) in &self.fields {
             let FieldValue::Singular(Value::Message(m)) = val else {
                 continue;
@@ -1202,7 +1261,7 @@ fn untyped_size(number: u32, val: &FieldValue) -> u64 {
     }
 }
 
-fn write_untyped(number: u32, val: &FieldValue, out: &mut Vec<u8>) {
+fn write_untyped(number: u32, val: &FieldValue, out: &mut impl crate::wire::WireOut) {
     match val {
         FieldValue::Singular(v) => write_field_value(&synthetic(number, v), val, out),
         FieldValue::Repeated(items) => {
@@ -1245,7 +1304,11 @@ fn field_value_size(field: &FieldDescriptor, val: &FieldValue) -> u64 {
     }
 }
 
-fn write_field_value(field: &FieldDescriptor, val: &FieldValue, out: &mut Vec<u8>) {
+fn write_field_value(
+    field: &FieldDescriptor,
+    val: &FieldValue,
+    out: &mut impl crate::wire::WireOut,
+) {
     match val {
         FieldValue::Singular(v) => {
             if field.presence == Presence::Implicit && v.is_implicit_default() {
@@ -1293,7 +1356,12 @@ fn map_entry_len(field: &FieldDescriptor, key: &MapKeyValue, value: &Value) -> u
     n
 }
 
-fn write_map_entry(field: &FieldDescriptor, key: &MapKeyValue, value: &Value, out: &mut Vec<u8>) {
+fn write_map_entry(
+    field: &FieldDescriptor,
+    key: &MapKeyValue,
+    value: &Value,
+    out: &mut impl crate::wire::WireOut,
+) {
     let kv = map_key_to_value(key);
     let mut kf = field
         .message
@@ -1361,7 +1429,7 @@ fn packed_scalar_len(ty: FieldType, v: &Value) -> u64 {
     }
 }
 
-fn write_scalar(field: &FieldDescriptor, v: &Value, out: &mut Vec<u8>) {
+fn write_scalar(field: &FieldDescriptor, v: &Value, out: &mut impl crate::wire::WireOut) {
     match v {
         Value::Message(m) if field.delimited || field.field_type == FieldType::Group => {
             encode_tag(out, field.number, WIRE_SGROUP);
@@ -1382,7 +1450,7 @@ fn write_scalar(field: &FieldDescriptor, v: &Value, out: &mut Vec<u8>) {
     }
 }
 
-fn write_packed_scalar(ty: FieldType, v: &Value, out: &mut Vec<u8>) {
+fn write_packed_scalar(ty: FieldType, v: &Value, out: &mut impl crate::wire::WireOut) {
     match (ty, v) {
         (FieldType::Double, Value::Double(n)) => out.extend_from_slice(&n.to_bits().to_le_bytes()),
         (FieldType::Float, Value::Float(n)) => out.extend_from_slice(&n.to_bits().to_le_bytes()),
@@ -1506,6 +1574,11 @@ impl Serialize for DynamicMessage {
     fn serialized_len(&self) -> usize {
         self.compute_size() as usize
     }
+    fn encode(&self, out: &mut impl crate::wire::WireOut) -> Result<(), SerializeError> {
+        wire::check_size(self.compute_size())?;
+        self.write_to(out);
+        Ok(())
+    }
 }
 
 impl Serialize for DynamicMessageView<'_> {
@@ -1515,6 +1588,9 @@ impl Serialize for DynamicMessageView<'_> {
     fn serialized_len(&self) -> usize {
         self.inner.serialized_len()
     }
+    fn encode(&self, out: &mut impl crate::wire::WireOut) -> Result<(), SerializeError> {
+        self.inner.encode(out)
+    }
 }
 
 impl Serialize for DynamicMessageMut<'_> {
@@ -1523,6 +1599,9 @@ impl Serialize for DynamicMessageMut<'_> {
     }
     fn serialized_len(&self) -> usize {
         self.inner.serialized_len()
+    }
+    fn encode(&self, out: &mut impl crate::wire::WireOut) -> Result<(), SerializeError> {
+        self.inner.encode(out)
     }
 }
 
@@ -1711,6 +1790,7 @@ struct RawFile {
     services: Vec<RawService>,
     dependencies: Vec<String>,
     public_dependency: Vec<i32>,
+    options: Vec<DescriptorOption>,
 }
 
 #[derive(Default, Clone)]
@@ -1764,6 +1844,7 @@ struct RawEnum {
     file_name: String,
     values: Vec<(i32, String)>,
     closed: bool,
+    options: Vec<DescriptorOption>,
 }
 
 fn file_name_matches(wanted: &str, file_name: &str) -> bool {
@@ -1820,7 +1901,9 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
             }
             (8, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
-                file.features = parse_file_options(payload)?;
+                let (features, options) = parse_file_options(payload)?;
+                file.features = features;
+                file.options = options;
             }
             (12, WIRE_LEN) => file.syntax = read_string(bytes, &mut pos)?,
             (14, WIRE_VARINT) => file.edition = decode_varint(bytes, &mut pos)? as i32,
@@ -1898,6 +1981,10 @@ fn parse_method(bytes: &[u8]) -> Result<MethodDescriptor, ParseError> {
             (3, WIRE_LEN) => m.output_type = read_string(bytes, &mut pos)?,
             (5, WIRE_VARINT) => m.client_streaming = decode_varint(bytes, &mut pos)? != 0,
             (6, WIRE_VARINT) => m.server_streaming = decode_varint(bytes, &mut pos)? != 0,
+            (4, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                m.options = parse_method_options(payload)?;
+            }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
     }
@@ -2078,8 +2165,9 @@ fn capture_option_value(bytes: &[u8], pos: &mut usize, w: u32) -> Result<Vec<u8>
     }
 }
 
-fn parse_file_options(bytes: &[u8]) -> Result<RawFeatures, ParseError> {
+fn parse_file_options(bytes: &[u8]) -> Result<(RawFeatures, Vec<DescriptorOption>), ParseError> {
     let mut features = RawFeatures::default();
+    let mut options = Vec::new();
     let mut pos = 0;
     while pos < bytes.len() {
         let (n, w) = decode_tag(bytes, &mut pos)?;
@@ -2087,10 +2175,47 @@ fn parse_file_options(bytes: &[u8]) -> Result<RawFeatures, ParseError> {
             let payload = read_len_bytes(bytes, &mut pos)?;
             features = parse_features(payload)?;
         } else {
-            wire::skip_field(bytes, &mut pos, w)?;
+            options.push(DescriptorOption {
+                number: n,
+                value: capture_option_value(bytes, &mut pos, w)?,
+            });
         }
     }
-    Ok(features)
+    Ok((features, options))
+}
+
+fn parse_enum_options(bytes: &[u8]) -> Result<Vec<DescriptorOption>, ParseError> {
+    let mut options = Vec::new();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        if n == 7 && w == WIRE_LEN {
+            wire::skip_field(bytes, &mut pos, w)?;
+        } else {
+            options.push(DescriptorOption {
+                number: n,
+                value: capture_option_value(bytes, &mut pos, w)?,
+            });
+        }
+    }
+    Ok(options)
+}
+
+fn parse_method_options(bytes: &[u8]) -> Result<Vec<DescriptorOption>, ParseError> {
+    let mut options = Vec::new();
+    let mut pos = 0;
+    while pos < bytes.len() {
+        let (n, w) = decode_tag(bytes, &mut pos)?;
+        if n == 35 && w == WIRE_LEN {
+            wire::skip_field(bytes, &mut pos, w)?;
+        } else {
+            options.push(DescriptorOption {
+                number: n,
+                value: capture_option_value(bytes, &mut pos, w)?,
+            });
+        }
+    }
+    Ok(options)
 }
 
 fn parse_features(bytes: &[u8]) -> Result<RawFeatures, ParseError> {
@@ -2147,6 +2272,10 @@ fn parse_enum(bytes: &[u8], closed: bool) -> Result<RawEnum, ParseError> {
             (2, WIRE_LEN) => {
                 let payload = read_len_bytes(bytes, &mut pos)?;
                 e.values.push(parse_enum_value(payload)?);
+            }
+            (3, WIRE_LEN) => {
+                let payload = read_len_bytes(bytes, &mut pos)?;
+                e.options = parse_enum_options(payload)?;
             }
             _ => wire::skip_field(bytes, &mut pos, w)?,
         }
@@ -2265,6 +2394,7 @@ fn resolve_pool(
             names: BTreeMap::new(),
             listed: raw_e.values.clone(),
             closed: raw_e.closed,
+            options: raw_e.options.clone(),
         };
         for (num, n) in &raw_e.values {
             ed.values.entry(*num).or_insert_with(|| n.clone());
@@ -2354,6 +2484,7 @@ fn resolve_pool(
         enums: enum_arcs,
         extensions_by_name: ext_index,
         services: BTreeMap::new(),
+        files: BTreeMap::new(),
         public_imports: BTreeMap::new(),
     }
 }

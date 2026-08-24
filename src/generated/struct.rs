@@ -287,7 +287,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             for t in self.values.iter() {
                 pbrs::rt::encode_len_header(out, 1, t.compute_size());
                 t.write_to(out);
@@ -532,7 +532,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if !self.fields.is_empty() {
                 for (k, v) in self.fields.pairs() {
                     let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
@@ -1145,7 +1145,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if let Some(v) = self.null_value {
                 pbrs::rt::encode_tag(out, 1, pbrs::rt::WIRE_VARINT);
                 pbrs::rt::encode_varint(out, v as u64);

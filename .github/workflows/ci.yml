@@ -22,3 +22,30 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo test --workspace
+
+  # Official runner from the v35.1 pin. protoc comes from this cmake
+  # build ($BUILD/protoc), not apt protobuf-compiler. The test job above
+  # still installs system protoc for plugin / protobuf-tonic build.rs.
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cmake (not protobuf-compiler)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++
+          cmake --version
+      - name: Cache protobuf pin source
+        uses: actions/cache@v4
+        with:
+          path: third_party/protobuf
+          key: protobuf-src-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Cache cmake runner (v35.1 pin)
+        uses: actions/cache@v4
+        with:
+          path: target/conformance-build
+          key: conformance-runner-${{ runner.os }}-${{ hashFiles('vendor/google/PIN', 'vendor/google/SHA') }}
+      - name: Official conformance_test_runner
+        run: ./scripts/conformance.sh

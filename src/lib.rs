@@ -16,8 +16,8 @@ pub use paste as __paste;
 
 pub use crate::dynamic::{
     Cardinality, DescriptorOption, DescriptorPool, DynamicMessage, DynamicMessageMut,
-    DynamicMessageView, EnumDescriptor, FieldDescriptor, FieldType, MapKeyValue, MessageDescriptor,
-    MethodDescriptor, Presence, ServiceDescriptor, Value, RECURSION_LIMIT,
+    DynamicMessageView, EnumDescriptor, FieldDescriptor, FieldType, FileDescriptor, MapKeyValue,
+    MessageDescriptor, MethodDescriptor, Presence, ServiceDescriptor, Value, RECURSION_LIMIT,
 };
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
@@ -30,7 +30,7 @@ pub use crate::proxied::{
 };
 pub use crate::repeated::{ProtoPut, Repeated, RepeatedIter, RepeatedMut, RepeatedView, Singular};
 pub use crate::string::{ProtoBytes, ProtoStr, ProtoString, Utf8Error};
-pub use crate::wire::UnknownFields;
+pub use crate::wire::{UnknownFields, WireOut};
 
 pub use Singular as ProxiedInRepeated;
 

@@ -469,7 +469,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             if !self.string_map.is_empty() {
                 for (k, v) in self.string_map.pairs() {
                     let inner = pbrs::rt::key_len_value_len(1, k.as_bytes().len() as u64)
@@ -650,7 +650,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             self.unknown.encode(out);
         }
     }

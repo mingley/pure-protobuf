@@ -104,3 +104,29 @@ See `docs/upb.md`.
 ```bash
 cd bench && cargo build --release && ./target/release/bench
 ```
+
+## tonic Codec (Linux x86_64)
+
+This is a smaller loss, not a win. Same-process `ProtobufCodec` vs
+`ProstCodec`, no transport. Not kernel `./bench`. Not a Google peer.
+Not in CI.
+
+Line of record after dropping the per-message `Vec`:
+
+| case | ProtobufCodec enc / dec | ProstCodec enc / dec |
+|---|---:|---:|
+| hello | 6.8 / 45.4 | 3.8 / 22.1 |
+| hello_4kib | 36.8 / 153.8 | 32.7 / 133.4 |
+
+Combined encode+decode: hello 52.2 vs 25.8 ns. 4 KiB 190.6 vs 166.1 ns.
+
+Encode is close. Remaining gap is `Parse` / `merge_from_bytes` (hello
+decode 45.4 vs 22.1). Encode writes into `EncodeBuf`; decode uses a
+contiguous frame. No per-message `Vec`.
+
+#29 first-run (historical, with the `Vec`): hello 93.6 vs 22.4 ns
+combined, 4 KiB ~400 vs 202.
+
+```bash
+cd tonic-bench && cargo build --release && ./target/release/tonic-bench
+```

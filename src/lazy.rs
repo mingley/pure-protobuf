@@ -67,6 +67,9 @@ pub enum LazyStr {
 }
 
 impl LazyStr {
+    /// Matches [`ProtoString`] SSO. Inline copies do not keep a [`Wire`].
+    const INLINE: usize = 23;
+
     pub fn owned(s: ProtoString) -> Self {
         if s.is_empty() {
             Self::Empty
@@ -84,10 +87,31 @@ impl LazyStr {
         let s = &wire.as_slice()[rel_start..rel_end];
         if s.is_empty() {
             Self::Empty
-        } else if s.len() <= 23 {
+        } else if s.len() <= Self::INLINE {
             Self::Owned(ProtoString::from_bytes(s))
         } else {
             Self::Wire(wire.window(rel_start, rel_end))
+        }
+    }
+
+    /// Parse a string span from the parent message bytes.
+    ///
+    /// `len <= 23` copies into inline [`ProtoString`] and does **not**
+    /// [`Wire::ensure`] the parent frame (hello `"ada"` would otherwise
+    /// Arc the 5-byte message and drop it). Longer strings still share
+    /// a window on the parent [`Wire`].
+    #[inline]
+    pub fn from_parse_span(
+        slot: &mut Option<Wire>,
+        data: &[u8],
+        rel_start: usize,
+        rel_end: usize,
+    ) -> Self {
+        let s = &data[rel_start..rel_end];
+        if s.len() <= Self::INLINE {
+            Self::from_bytes(s)
+        } else {
+            Self::from_span(Wire::ensure(slot, data), rel_start, rel_end)
         }
     }
 
@@ -506,5 +530,57 @@ impl<T: MergeBytes + PartialEq> PartialEq for LazyMsg<T> {
 impl<T: MergeBytes + std::fmt::Debug> std::fmt::Debug for LazyMsg<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(&self.as_deref(), f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{LazyStr, Wire};
+
+    #[test]
+    fn from_parse_span_skips_parent_arc_when_inline() {
+        // hello name "ada" (3 ≤ 23): copy into ProtoString, no parent Arc.
+        let data = b"ada";
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, data, 0, data.len());
+        assert_eq!(s.as_view(), "ada");
+        assert!(
+            slot.is_none(),
+            "inline string must not Wire::ensure the parent frame"
+        );
+        assert!(matches!(s, LazyStr::Owned(_)));
+    }
+
+    #[test]
+    fn from_parse_span_keeps_wire_window_when_long() {
+        let data = [b'x'; 24];
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 0, data.len());
+        assert_eq!(s.as_bytes(), &data);
+        assert!(
+            slot.is_some(),
+            "len > 23 must still share the parent Wire window"
+        );
+        assert!(matches!(s, LazyStr::Wire(_)));
+        assert_eq!(slot.as_ref().unwrap().as_slice(), &data);
+    }
+
+    #[test]
+    fn from_parse_span_empty_skips_parent_arc() {
+        let data = b"";
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, data, 0, 0);
+        assert!(s.is_empty());
+        assert!(slot.is_none());
+        assert!(matches!(s, LazyStr::Empty));
+    }
+
+    #[test]
+    fn from_span_still_inlines_after_ensure() {
+        let data = b"ada";
+        let w = Wire::from_slice(data);
+        let s = LazyStr::from_span(&w, 0, 3);
+        assert!(matches!(s, LazyStr::Owned(_)));
+        assert_eq!(s.as_view(), "ada");
     }
 }

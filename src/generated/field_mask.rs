@@ -191,7 +191,7 @@ mod __gen {
             self.cached_size.set(n);
             n
         }
-        fn write_to(&self, out: &mut Vec<u8>) {
+        fn write_to(&self, out: &mut impl pbrs::rt::WireOut) {
             for t in self.paths.iter() {
                 pbrs::rt::encode_len_field(out, 1, t.as_bytes());
             }

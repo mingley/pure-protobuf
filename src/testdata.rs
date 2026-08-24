@@ -77,6 +77,14 @@ macro_rules! impl_message {
             fn serialized_len(&self) -> usize {
                 self.compute_size() as usize
             }
+            fn encode(
+                &self,
+                out: &mut impl $crate::wire::WireOut,
+            ) -> Result<(), $crate::error::SerializeError> {
+                $crate::wire::check_size(self.compute_size())?;
+                self.write_to(out);
+                Ok(())
+            }
         }
         impl $crate::message::Serialize for $View<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::error::SerializeError> {
@@ -85,6 +93,12 @@ macro_rules! impl_message {
             fn serialized_len(&self) -> usize {
                 self.0.serialized_len()
             }
+            fn encode(
+                &self,
+                out: &mut impl $crate::wire::WireOut,
+            ) -> Result<(), $crate::error::SerializeError> {
+                self.0.encode(out)
+            }
         }
         impl $crate::message::Serialize for $Mut<'_> {
             fn serialize(&self) -> Result<Vec<u8>, $crate::error::SerializeError> {
@@ -92,6 +106,12 @@ macro_rules! impl_message {
             }
             fn serialized_len(&self) -> usize {
                 self.0.serialized_len()
+            }
+            fn encode(
+                &self,
+                out: &mut impl $crate::wire::WireOut,
+            ) -> Result<(), $crate::error::SerializeError> {
+                self.0.encode(out)
             }
         }
         impl $crate::message::Clear for $Owned {
@@ -351,7 +371,7 @@ impl Address {
     }
 
     #[inline]
-    fn write_to(&self, out: &mut Vec<u8>) {
+    fn write_to(&self, out: &mut impl crate::wire::WireOut) {
         if !self.city.is_empty() {
             encode_len_field(out, 1, self.city.as_bytes());
         }
@@ -576,7 +596,7 @@ impl Person {
     }
 
     #[inline]
-    fn write_to(&self, out: &mut Vec<u8>) {
+    fn write_to(&self, out: &mut impl crate::wire::WireOut) {
         if self.id != 0 {
             encode_tag(out, 1, WIRE_VARINT);
             encode_varint(out, self.id as u64);
