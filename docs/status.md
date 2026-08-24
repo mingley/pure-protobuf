@@ -78,18 +78,9 @@ See `docs/upb.md`. Short list:
 - Plugin-gencode hello Parse is still slower than prost. Codec line
   of record is #31: 52.2 vs 25.8 ns combined. Leftover is
   `merge_inner` glue (Default / `CachedSize::dirty` / tag loop),
-  not `merge_bytes`. Closed inventories: [#32](https://github.com/mingley/pure-protobuf/pull/32)
-  (hello ~23 ns vs prost, discarded-Arc path),
-  [#36](https://github.com/mingley/pure-protobuf/pull/36)
-  (wrapper 6.8–7.6 ns; Default 1.0 vs 0.4, dirty 0.3 inside it;
-  do not mix hosts with #31 / #34),
-  [#39](https://github.com/mingley/pure-protobuf/pull/39)
-  (flatten `merge_from_bytes` → `merge_inner` made hello Parse
-  worse, 24.5 → ~32 ns, discarded),
-  [#41](https://github.com/mingley/pure-protobuf/pull/41)
-  (4 KiB still `Wire::ensure`s the parent frame; leftover
-  ~21–23 ns). Do not merge those diffs. [#27](https://github.com/mingley/pure-protobuf/pull/27)
-  (234 rust_out link errors) is superseded by #42.
+  not `merge_bytes`. Closed inventories (notes + harnesses, not
+  merged as wins): `docs/inventory/`. [#27](https://github.com/mingley/pure-protobuf/pull/27)
+  rust_out 234 errors is superseded by #42.
 
 ## Skipped rust/test/shared files
 

@@ -1,0 +1,26 @@
+[package]
+name = "parse-hello-gap"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Throwaway Parse-only hello timing vs prost. Not a workspace member. MEASURE ONLY."
+
+[workspace]
+
+[dependencies]
+pbrs = { path = "../.." }
+prost = "0.14"
+protobuf-tonic = { path = "../../protobuf-tonic" }
+
+[build-dependencies]
+prost-build = "0.14"
+
+[[bin]]
+name = "parse-hello-gap"
+path = "src/main.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
