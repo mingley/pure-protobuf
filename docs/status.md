@@ -53,8 +53,8 @@
   Google peer. Compression is uncovered. Codec survey
   (`tonic-bench`, `proto/codec_cases.proto`) vs prost and v4 upb is in
   `docs/benchmarks.md`. Typical unary `rpc_mixed` is already ~2× prost
-  and beats v4. 1-string 4 KiB still loses to prost; bytes of the same
-  size win. Not kernel `./bench`. Not in CI.
+  and beats v4. `name_4kib` combined beats prost (gated). Not kernel
+  `./bench`. Not in CI.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
@@ -73,10 +73,11 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- 1-string 4 KiB Codec decode still loses to prost; `blob_4kib` of the
-  same size wins. Next lever is the string arm, not flatten
-  `merge_inner` (#39). Survey: `docs/benchmarks.md`. Closed inventories
-  (notes + harnesses, not merged as wins): `docs/inventory/`.
+- `name_4kib` Codec combined now beats prost (gated in `tonic-bench`).
+  `blob_4kib` still wins. Leftover unary items are `rpc_sparse` decode
+  and `tags_32` vs v4. Flatten `merge_inner` (#39) stays discarded.
+  Survey: `docs/benchmarks.md`. Closed inventories (notes + harnesses,
+  not merged as wins): `docs/inventory/`.
   [#27](https://github.com/mingley/pure-protobuf/pull/27) rust_out 234
   errors is superseded by #42.
 
