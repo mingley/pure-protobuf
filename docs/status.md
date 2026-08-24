@@ -51,18 +51,19 @@
   not trailers. `Status.metadata` on `Err` remains the trailer path.
   Same-process tonic, not official interop, not a native gRPC kernel, no
   Google peer. Compression is uncovered. `ProtobufCodec` dropped the
-  per-message `Vec` and still lost the Codec bench to `ProstCodec`
-  (hello 52.2 vs 25.8 ns combined, 4 KiB 190.6 vs 166.1). Smaller loss
-  than #29 (93.6 vs 22.4). Remaining gap is `Parse` / `merge_from_bytes`
-  (hello decode 45.4 vs 22.1). Inline string parse no longer
-  `Wire::ensure`s the parent frame (`len ≤ 23` copies into
-  `ProtoString`). Encode is close. Not kernel `./bench`. Not in CI.
-  Not a win.
+  per-message `Vec`. On Apple M4 Pro (same host as kernel `./bench`,
+  second of two runs) hello combined **wins** 16.1 vs 22.6 ns (decode
+  10.7 vs 18.9; encode still 5.4 vs 3.7). 4 KiB still loses 204.1 vs
+  185.4. Linux x86_64 line of record remains #31 (hello 52.2 vs 25.8
+  combined). Inline string parse no longer `Wire::ensure`s the parent
+  frame (`len ≤ 23` copies into `ProtoString`). Not kernel `./bench`.
+  Not in CI. 4 KiB is not a win.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
   packed_fixed64_256, packed_float_256, repeated_nested_8. View is gated
-  except `tat_populated` (~3% band) and packed-fixed rows.
+  except `tat_populated` and packed-fixed rows. `tat_populated` view now
+  wins on this host (281 vs 309) and is still not a process gate.
 - File, enum, method, message, and field custom options survive
   FileDescriptorSet parse (`custom_option(n)`; file options on
   `FileDescriptor` / `DescriptorPool::get_file`).
@@ -75,9 +76,10 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- Plugin-gencode hello Parse is still slower than prost. Codec line
-  of record is #31: 52.2 vs 25.8 ns combined. Leftover is
-  `merge_inner` glue (Default / `CachedSize::dirty` / tag loop),
+- Plugin-gencode 4 KiB Codec decode is still slower than prost. Hello
+  combined now wins on Apple M4 Pro (16.1 vs 22.6); Linux #31 was 52.2
+  vs 25.8. Leftover is `merge_inner` glue (Default / `CachedSize::dirty`
+  / tag loop),
   not `merge_bytes`. Closed inventories (notes + harnesses, not
   merged as wins): `docs/inventory/`. [#27](https://github.com/mingley/pure-protobuf/pull/27)
   rust_out 234 errors is superseded by #42.
