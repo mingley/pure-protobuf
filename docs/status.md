@@ -75,25 +75,21 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- Inventory is in. #36 is measure-only and stays draft. Do not
-  merge it as done. Leftover is still `merge_inner` glue
-  (Default / dirty / tag loop), not `merge_bytes`. Parse −
-  reconstruct 6.8–7.6 ns. Reconstruct string arm is already
-  faster than prost. Inside that wrapper (do not sum):
-  Default 1.0 vs 0.4 (48 B vs 24 B), `CachedSize::dirty` 0.3.
-  This VM Parse-only leftover is 2.1–3.2 ns (24.0–24.9 vs
-  21.7–21.9). Host-label it: this is the #36 VM, not the #31
-  host and not the #34 host (~4.5). Do not mix. #39 tried
-  flattening `merge_from_bytes` → `merge_inner` (and skip-until
-  / `inline(always)`). Tried and discarded. Stays draft. Do
-  not merge. Flatten made hello Parse worse on that VM: 24.5 →
-  ~32 ns. Host-label it: this is the #39 VM. The extra
-  `merge_bytes` frame was not the leftover. 4 KiB still pays
-  `Wire::ensure` (long path). PE is inventorying that next.
-  Do not invent 4 KiB buckets. Parent `Arc` is off the hello
-  path (#34 landed). #32 stays draft (old discarded-Arc
-  inventory). Verified stays 52.2 vs 25.8. Not a Parse win.
-  Not a win.
+- Plugin-gencode hello Parse is still slower than prost. Codec line
+  of record is #31: 52.2 vs 25.8 ns combined. Leftover is
+  `merge_inner` glue (Default / `CachedSize::dirty` / tag loop),
+  not `merge_bytes`. Closed inventories: [#32](https://github.com/mingley/pure-protobuf/pull/32)
+  (hello ~23 ns vs prost, discarded-Arc path),
+  [#36](https://github.com/mingley/pure-protobuf/pull/36)
+  (wrapper 6.8–7.6 ns; Default 1.0 vs 0.4, dirty 0.3 inside it;
+  do not mix hosts with #31 / #34),
+  [#39](https://github.com/mingley/pure-protobuf/pull/39)
+  (flatten `merge_from_bytes` → `merge_inner` made hello Parse
+  worse, 24.5 → ~32 ns, discarded),
+  [#41](https://github.com/mingley/pure-protobuf/pull/41)
+  (4 KiB still `Wire::ensure`s the parent frame; leftover
+  ~21–23 ns). Do not merge those diffs. [#27](https://github.com/mingley/pure-protobuf/pull/27)
+  (234 rust_out link errors) is superseded by #42.
 
 ## Skipped rust/test/shared files
 
