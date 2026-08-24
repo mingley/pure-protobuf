@@ -13,7 +13,8 @@ fn median_ns(samples: usize, iters: u32, mut f: impl FnMut()) -> f64 {
             }
             let t = Instant::now();
             for _ in 0..iters {
-                std::hint::black_box(f());
+                f();
+                std::hint::black_box(());
             }
             t.elapsed().as_secs_f64() * 1e9 / f64::from(iters)
         })
