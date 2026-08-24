@@ -1,5 +1,7 @@
 /target
 /bench/target
+/bench/capture-*.json
+/bench/capture-*.err
 /tonic-bench/target
 /v4_person/target
 /v4_tat/target

@@ -380,6 +380,7 @@ checksum = "3a4cf96a295ab7f0ec2334fa557745c0e9526595f6ebabbb129563a98dfc1b2a"
 name = "pbrs"
 version = "0.1.0"
 dependencies = [
+ "bytes",
  "paste",
  "serde",
  "serde_json",

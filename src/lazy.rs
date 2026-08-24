@@ -375,6 +375,57 @@ impl From<Vec<u8>> for LazyBytes {
         Self::owned(ProtoBytes::from(s.as_slice()))
     }
 }
+impl crate::proxied::IntoProxied<LazyBytes> for Vec<u8> {
+    fn into_proxied(self, _private: crate::internal::Private) -> LazyBytes {
+        LazyBytes::from(self)
+    }
+}
+impl crate::proxied::IntoProxied<LazyBytes> for &[u8] {
+    fn into_proxied(self, _private: crate::internal::Private) -> LazyBytes {
+        LazyBytes::from(self)
+    }
+}
+
+/// View of [`LazyBytes`]. Newtype so `&[u8]` can stay [`ProtoBytes`]'s View.
+#[derive(Copy, Clone, Debug)]
+pub struct LazyBytesView<'msg>(pub &'msg [u8]);
+
+impl std::ops::Deref for LazyBytesView<'_> {
+    type Target = [u8];
+    fn deref(&self) -> &[u8] {
+        self.0
+    }
+}
+impl LazyBytesView<'_> {
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0
+    }
+}
+impl crate::internal::SealedInternal for LazyBytes {}
+impl crate::internal::SealedInternal for LazyBytesView<'_> {}
+impl crate::proxied::Proxied for LazyBytes {
+    type View<'msg> = LazyBytesView<'msg>;
+}
+impl crate::proxied::AsView for LazyBytes {
+    type Proxied = Self;
+    fn as_view(&self) -> LazyBytesView<'_> {
+        LazyBytesView(self.as_bytes())
+    }
+}
+impl crate::proxied::AsView for LazyBytesView<'_> {
+    type Proxied = LazyBytes;
+    fn as_view(&self) -> LazyBytesView<'_> {
+        *self
+    }
+}
+impl<'msg> crate::proxied::IntoView<'msg> for LazyBytesView<'msg> {
+    fn into_view<'shorter>(self) -> LazyBytesView<'shorter>
+    where
+        'msg: 'shorter,
+    {
+        LazyBytesView(self.0)
+    }
+}
 
 /// Generated messages implement this so [`LazyMsg`] can validate without
 /// constructing `T`, then materialize on first getter.

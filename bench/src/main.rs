@@ -93,7 +93,7 @@ fn tat_strings() -> TestAllTypesProto3 {
     m.set_optional_string_piece("string piece payload for encode/decode");
     m.set_optional_cord("cord-shaped string used as a singular field");
     for s in ["alpha", "beta", "gamma", "delta"] {
-        m.repeated_string_mut().push(s.into());
+        m.repeated_string_mut().push(s);
     }
     m
 }
@@ -158,7 +158,7 @@ fn tat_bytes() -> TestAllTypesProto3 {
     let mut m = TestAllTypesProto3::new();
     m.set_optional_bytes(&b"optional-bytes-payload-0123456789"[..]);
     for i in 0..8u8 {
-        m.repeated_bytes_mut().push(vec![i; 32].into());
+        m.repeated_bytes_mut().push(vec![i; 32]);
     }
     m
 }
@@ -204,9 +204,9 @@ fn prost_of(m: &TestAllTypesProto3) -> prost_tat::TestAllTypesProto3 {
         optional_string_piece: m.optional_string_piece().to_str().unwrap_or("").to_string(),
         optional_cord: m.optional_cord().to_str().unwrap_or("").to_string(),
         recursive_message: rec,
-        repeated_int32: m.repeated_int32().iter().copied().collect(),
-        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (*k, *v)).collect(),
-        packed_int32: m.packed_int32().iter().copied().collect(),
+        repeated_int32: m.repeated_int32().iter().collect(),
+        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (k, v)).collect(),
+        packed_int32: m.packed_int32().iter().collect(),
         repeated_string: m
             .repeated_string()
             .iter()
@@ -220,12 +220,12 @@ fn prost_of(m: &TestAllTypesProto3) -> prost_tat::TestAllTypesProto3 {
             .iter()
             .map(|b| b.as_bytes().to_vec())
             .collect(),
-        packed_fixed32: m.packed_fixed32().iter().copied().collect(),
-        packed_fixed64: m.packed_fixed64().iter().copied().collect(),
-        packed_float: m.packed_float().iter().copied().collect(),
-        packed_bool: m.packed_bool().iter().copied().collect(),
-        unpacked_int32: m.unpacked_int32().iter().copied().collect(),
-        unpacked_fixed32: m.unpacked_fixed32().iter().copied().collect(),
+        packed_fixed32: m.packed_fixed32().iter().collect(),
+        packed_fixed64: m.packed_fixed64().iter().collect(),
+        packed_float: m.packed_float().iter().collect(),
+        packed_bool: m.packed_bool().iter().collect(),
+        unpacked_int32: m.unpacked_int32().iter().collect(),
+        unpacked_fixed32: m.unpacked_fixed32().iter().collect(),
         repeated_nested_message: m
             .repeated_nested_message()
             .iter()
@@ -273,13 +273,13 @@ fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
         v.set_recursive_message(v4_of(r));
     }
     for i in m.repeated_int32().iter() {
-        v.repeated_int32_mut().push(*i);
+        v.repeated_int32_mut().push(i);
     }
     for (k, val) in m.map_int32_int32().iter() {
-        v.map_int32_int32_mut().insert(*k, *val);
+        v.map_int32_int32_mut().insert(k, val);
     }
     for i in m.packed_int32().iter() {
-        v.packed_int32_mut().push(*i);
+        v.packed_int32_mut().push(i);
     }
     for s in m.repeated_string().iter() {
         v.repeated_string_mut()
@@ -294,22 +294,22 @@ fn v4_of(m: &TestAllTypesProto3) -> v4_tat::TestAllTypesProto3 {
         v.repeated_bytes_mut().push(b.as_bytes());
     }
     for i in m.packed_fixed32().iter() {
-        v.packed_fixed32_mut().push(*i);
+        v.packed_fixed32_mut().push(i);
     }
     for i in m.packed_fixed64().iter() {
-        v.packed_fixed64_mut().push(*i);
+        v.packed_fixed64_mut().push(i);
     }
     for i in m.packed_float().iter() {
-        v.packed_float_mut().push(*i);
+        v.packed_float_mut().push(i);
     }
     for i in m.packed_bool().iter() {
-        v.packed_bool_mut().push(*i);
+        v.packed_bool_mut().push(i);
     }
     for i in m.unpacked_int32().iter() {
-        v.unpacked_int32_mut().push(*i);
+        v.unpacked_int32_mut().push(i);
     }
     for i in m.unpacked_fixed32().iter() {
-        v.unpacked_fixed32_mut().push(*i);
+        v.unpacked_fixed32_mut().push(i);
     }
     for n in m.repeated_nested_message().iter() {
         let mut inner = v4_tat::test_all_types_proto3::NestedMessage::new();
@@ -339,9 +339,9 @@ fn buffa_of(m: &TestAllTypesProto3) -> BuffaTat {
         optional_string_piece: m.optional_string_piece().to_str().unwrap_or("").to_string(),
         optional_cord: m.optional_cord().to_str().unwrap_or("").to_string(),
         recursive_message: m.recursive_message_opt().map(buffa_of).into(),
-        repeated_int32: m.repeated_int32().iter().copied().collect(),
-        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (*k, *v)).collect(),
-        packed_int32: m.packed_int32().iter().copied().collect(),
+        repeated_int32: m.repeated_int32().iter().collect(),
+        map_int32_int32: m.map_int32_int32().iter().map(|(k, v)| (k, v)).collect(),
+        packed_int32: m.packed_int32().iter().collect(),
         repeated_string: m
             .repeated_string()
             .iter()
@@ -355,12 +355,12 @@ fn buffa_of(m: &TestAllTypesProto3) -> BuffaTat {
             .iter()
             .map(|b| b.as_bytes().to_vec())
             .collect(),
-        packed_fixed32: m.packed_fixed32().iter().copied().collect(),
-        packed_fixed64: m.packed_fixed64().iter().copied().collect(),
-        packed_float: m.packed_float().iter().copied().collect(),
-        packed_bool: m.packed_bool().iter().copied().collect(),
-        unpacked_int32: m.unpacked_int32().iter().copied().collect(),
-        unpacked_fixed32: m.unpacked_fixed32().iter().copied().collect(),
+        packed_fixed32: m.packed_fixed32().iter().collect(),
+        packed_fixed64: m.packed_fixed64().iter().collect(),
+        packed_float: m.packed_float().iter().collect(),
+        packed_bool: m.packed_bool().iter().collect(),
+        unpacked_int32: m.unpacked_int32().iter().collect(),
+        unpacked_fixed32: m.unpacked_fixed32().iter().collect(),
         repeated_nested_message: m
             .repeated_nested_message()
             .iter()
@@ -390,8 +390,8 @@ fn person_ours() -> Person {
     p.set_id(7);
     p.set_name("ada lovelace");
     p.set_email("ada@example.com");
-    p.tags_mut().push("math".into());
-    p.tags_mut().push("eng".into());
+    p.tags_mut().push("math");
+    p.tags_mut().push("eng");
     p.scores_mut().insert("notes", 12);
     p.set_address(addr);
     p
@@ -510,7 +510,7 @@ fn run_person(iters: u32) -> Case {
         scores: msg
             .scores()
             .iter()
-            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), *v))
+            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), v))
             .collect(),
         address: Some(ProstAddress {
             city: msg.address().city().to_str().unwrap_or("").to_string(),
@@ -526,7 +526,7 @@ fn run_person(iters: u32) -> Case {
     for (k, v) in msg.scores().iter() {
         v4_msg
             .scores_mut()
-            .insert(k.as_view().to_str().unwrap_or(""), *v);
+            .insert(k.as_view().to_str().unwrap_or(""), v);
     }
     v4_msg
         .address_mut()
@@ -545,7 +545,7 @@ fn run_person(iters: u32) -> Case {
         scores: msg
             .scores()
             .iter()
-            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), *v))
+            .map(|(k, v)| (k.as_view().to_str().unwrap_or("").to_string(), v))
             .collect(),
         address: Some(buffa_person::example::Address {
             city: msg.address().city().to_str().unwrap_or("").to_string(),
