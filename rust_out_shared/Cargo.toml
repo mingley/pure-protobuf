@@ -1,0 +1,20 @@
+[workspace]
+
+[package]
+name = "rust_out_shared"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+description = "Official rust/test/shared against protoc --rust_out (kernel=upb), protobuf remapped to pbrs"
+
+[dependencies]
+pbrs = { path = ".." }
+paste = "1.0"
+
+[dev-dependencies]
+googletest = "0.14.2"
+paste = "1.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(bzl)'] }
