@@ -21,15 +21,19 @@
 
 See `docs/upb.md`. Short list:
 
-- Regenerated code is required. Google rust_out `OwnedMessageInner` will
-  not link.
+- Official `protoc --rust_out` (4.35.1-release, `kernel=upb`) for
+  `proto/person.proto` links against this crate as `protobuf` and
+  parse→serialize→parse roundtrips (`rust_out_person/`).
+- `rust_out_shared` runs official `rust/test/shared` googletest files
+  (19 crates, 0 failed) against `protoc --rust_out kernel=upb`. Skipped
+  files remain as listed below.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
 - File / enum / method custom options are skipped on FileDescriptorSet
   parse. Message and field custom options are kept.
-- There is no in-tree fuzzing.
+- In-tree fuzz: `tests/fuzz_parse.rs` (empty / truncated / Person / TAT).
 
 ## Skipped rust/test/shared files
 
