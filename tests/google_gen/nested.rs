@@ -36,7 +36,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -103,7 +103,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1098,7 +1098,9 @@ mod __gen {
         }
         pub fn set_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_string(&mut self) {
             self.cached_size.dirty();
@@ -1115,7 +1117,9 @@ mod __gen {
         }
         pub fn set_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_bytes(&mut self) {
             self.cached_size.dirty();

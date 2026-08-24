@@ -368,10 +368,9 @@ fn decode_into(
             .ok_or_else(|| ParseError::new("map missing value"))?;
         for (k, v) in obj {
             let key = parse_map_key(kf.field_type, k)?;
-            match decode_leaf(vf, v, ignore_unknown, pool.clone()) {
-                Ok(value) => msg.insert_map(field.number, key, value),
-                Err(e) if e.to_string() == "skip-unknown-enum" => continue,
-                Err(e) => return Err(e),
+            match decode_leaf(vf, v, ignore_unknown, pool.clone())? {
+                Some(value) => msg.insert_map(field.number, key, value),
+                None => continue,
             }
         }
         return Ok(());
@@ -381,18 +380,15 @@ fn decode_into(
             .as_array()
             .ok_or_else(|| ParseError::new("json repeated must be an array"))?;
         for item in arr {
-            match decode_leaf(field, item, ignore_unknown, pool.clone()) {
-                Ok(v) => msg.push(field.number, v),
-                Err(e) if e.to_string() == "skip-unknown-enum" => continue,
-                Err(e) => return Err(e),
+            match decode_leaf(field, item, ignore_unknown, pool.clone())? {
+                Some(v) => msg.push(field.number, v),
+                None => continue,
             }
         }
         return Ok(());
     }
-    match decode_leaf(field, val, ignore_unknown, pool) {
-        Ok(v) => msg.set(field.number, v),
-        Err(e) if e.to_string() == "skip-unknown-enum" => {}
-        Err(e) => return Err(e),
+    if let Some(v) = decode_leaf(field, val, ignore_unknown, pool)? {
+        msg.set(field.number, v);
     }
     Ok(())
 }
@@ -402,8 +398,8 @@ fn decode_leaf(
     val: &Json,
     ignore_unknown: bool,
     pool: Option<Arc<DescriptorPool>>,
-) -> Result<Value, ParseError> {
-    Ok(match field.field_type {
+) -> Result<Option<Value>, ParseError> {
+    Ok(Some(match field.field_type {
         FieldType::Double => Value::Double(json_as_f64(val)?),
         FieldType::Float => Value::Float(json_as_f32(val)?),
         FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
@@ -429,7 +425,12 @@ fn decode_leaf(
             )?
             .as_slice(),
         )),
-        FieldType::Enum => Value::Enum(parse_enum(field, val, ignore_unknown, pool.as_ref())?),
+        FieldType::Enum => {
+            let Some(n) = parse_enum(field, val, ignore_unknown, pool.as_ref())? else {
+                return Ok(None);
+            };
+            Value::Enum(n)
+        }
         FieldType::Message | FieldType::Group => {
             let desc = field
                 .message
@@ -443,7 +444,7 @@ fn decode_leaf(
                 .ok_or_else(|| ParseError::new("unresolved message"))?;
             Value::Message(decode_message(desc, val, ignore_unknown, pool)?)
         }
-    })
+    }))
 }
 
 fn parse_enum(
@@ -451,7 +452,7 @@ fn parse_enum(
     val: &Json,
     ignore_unknown: bool,
     pool: Option<&Arc<DescriptorPool>>,
-) -> Result<i32, ParseError> {
+) -> Result<Option<i32>, ParseError> {
     if let Some(s) = val.as_str() {
         let en = field.enum_ty.clone().or_else(|| {
             field
@@ -461,19 +462,19 @@ fn parse_enum(
         });
         if let Some(en) = en {
             if let Some(n) = en.names.get(s) {
-                return Ok(*n);
+                return Ok(Some(*n));
             }
             if ignore_unknown {
-                return Err(ParseError::new("skip-unknown-enum"));
+                return Ok(None);
             }
             return Err(ParseError::owned(format!("unknown enum {s}")));
         }
         if ignore_unknown {
-            return Err(ParseError::new("skip-unknown-enum"));
+            return Ok(None);
         }
         return Err(ParseError::owned(format!("unknown enum {s}")));
     }
-    Ok(json_as_i64(val)? as i32)
+    Ok(Some(json_as_i64(val)? as i32))
 }
 
 fn parse_map_key(ty: FieldType, s: &str) -> Result<MapKeyValue, ParseError> {
@@ -670,7 +671,10 @@ fn decode_wrapper(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMessa
         _ => FieldType::Int32,
     };
     let field = FieldDescriptor::new("value", 1, ty, Cardinality::Optional, Presence::Implicit);
-    msg.set(1, decode_leaf(&field, v, false, None)?);
+    msg.set(
+        1,
+        decode_leaf(&field, v, false, None)?.ok_or_else(|| ParseError::new("wrapper"))?,
+    );
     Ok(msg)
 }
 

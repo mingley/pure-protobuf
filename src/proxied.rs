@@ -37,11 +37,11 @@ pub trait IntoMut<'msg>: SealedInternal + AsMut {
 
 /// A value-to-`Proxied` conversion that consumes the input.
 pub trait IntoProxied<T> {
-    fn into_proxied(self) -> T;
+    fn into_proxied(self, _private: crate::internal::Private) -> T;
 }
 
 impl<T> IntoProxied<T> for T {
-    fn into_proxied(self) -> T {
+    fn into_proxied(self, _private: crate::internal::Private) -> T {
         self
     }
 }
@@ -72,3 +72,53 @@ macro_rules! impl_copy_proxied {
 }
 
 impl_copy_proxied!(i32, i64, u32, u64, f32, f64, bool);
+
+impl<T: Proxied> SealedInternal for &T {}
+impl<T: Proxied> AsView for &T {
+    type Proxied = T;
+    fn as_view(&self) -> View<'_, T> {
+        (**self).as_view()
+    }
+}
+
+impl<T: Proxied> SealedInternal for &mut T {}
+impl<T: Proxied> AsView for &mut T {
+    type Proxied = T;
+    fn as_view(&self) -> View<'_, T> {
+        (**self).as_view()
+    }
+}
+
+impl<'msg, T: Proxied> IntoView<'msg> for &'msg T {
+    fn into_view<'shorter>(self) -> View<'shorter, T>
+    where
+        'msg: 'shorter,
+    {
+        (*self).as_view()
+    }
+}
+
+impl<'msg, T: Proxied> IntoView<'msg> for &'msg mut T {
+    fn into_view<'shorter>(self) -> View<'shorter, T>
+    where
+        'msg: 'shorter,
+    {
+        (*self).as_view()
+    }
+}
+
+impl<T: MutProxied> AsMut for &mut T {
+    type MutProxied = T;
+    fn as_mut(&mut self) -> Mut<'_, T> {
+        (*self).as_mut()
+    }
+}
+
+impl<'msg, T: MutProxied> IntoMut<'msg> for &'msg mut T {
+    fn into_mut<'shorter>(self) -> Mut<'shorter, T>
+    where
+        'msg: 'shorter,
+    {
+        (*self).as_mut()
+    }
+}

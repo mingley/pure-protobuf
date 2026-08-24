@@ -53,7 +53,7 @@ fn generated_wkt_duration_any_empty_mask() {
     assert!(Serialize::serialize(&e).unwrap().is_empty());
 
     let mut m = FieldMask::new();
-    m.paths_mut().push("foo".into());
+    m.paths_mut().push("foo");
     assert_eq!(
         FieldMask::parse(&Serialize::serialize(&m).unwrap())
             .unwrap()
@@ -93,7 +93,7 @@ fn packed_parse_roundtrip_without_touching_getters() {
     let again = Serialize::serialize(&parsed).unwrap();
     assert_eq!(bytes, again);
     assert_eq!(
-        parsed.repeated_int32().iter().copied().collect::<Vec<_>>(),
+        parsed.repeated_int32().iter().collect::<Vec<_>>(),
         (0..8).collect::<Vec<_>>()
     );
 }

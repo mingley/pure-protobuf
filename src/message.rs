@@ -69,6 +69,11 @@ pub trait MergeFrom: AsView + SealedInternal {
 /// Marker implemented only by message types.
 pub trait MessageType {}
 
+impl<T> MessageType for T where
+    T: crate::internal::EntityType<Tag = crate::internal::entity_tag::MessageTag>
+{
+}
+
 /// A trait that all owned message types implement.
 pub trait Message:
     SealedInternal
@@ -81,7 +86,6 @@ pub trait Message:
     + Serialize
     + Clear
     + ClearAndParse
-    + TakeFrom
     + CopyFrom
     + MergeFrom
     + Send
@@ -107,6 +111,7 @@ pub trait MessageView<'msg>:
     + Sync
     + Copy
     + Clone
+    + Default
 {
     type Message: Message;
 }
@@ -122,7 +127,6 @@ pub trait MessageMut<'msg>:
     + Serialize
     + Clear
     + ClearAndParse
-    + TakeFrom
     + CopyFrom
     + MergeFrom
     + Send
@@ -137,12 +141,19 @@ pub trait Enum: Into<i32> + Copy + SealedInternal + 'static {
     fn is_known(value: i32) -> bool;
 }
 
+impl<T: crate::internal::Enum> Enum for T {
+    const NAME: &'static str = <T as crate::internal::Enum>::NAME;
+    fn is_known(value: i32) -> bool {
+        <T as crate::internal::Enum>::is_known(value)
+    }
+}
+
 /// An integer value wasn't known for an enum while converting.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct UnknownEnumValue<T>(i32, std::marker::PhantomData<T>);
 
 impl<T> UnknownEnumValue<T> {
-    pub fn new(unknown_value: i32) -> Self {
+    pub fn new(_private: crate::internal::Private, unknown_value: i32) -> Self {
         Self(unknown_value, std::marker::PhantomData)
     }
 

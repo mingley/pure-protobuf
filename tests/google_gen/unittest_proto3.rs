@@ -246,7 +246,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -317,7 +317,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -1147,14 +1147,16 @@ mod __gen {
         }
         pub fn set_optional_string(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string = pbrs::rt::LazyStr::owned(v.into_proxied());
+            self.optional_string =
+                pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private));
         }
         pub fn optional_bytes(&self) -> &[u8] {
             self.optional_bytes.as_bytes()
         }
         pub fn set_optional_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.optional_bytes = pbrs::rt::LazyBytes::owned(v.into_proxied());
+            self.optional_bytes =
+                pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private));
         }
         pub fn has_optional_nested_message(&self) -> bool {
             self.optional_nested_message.is_some()
@@ -1253,14 +1255,16 @@ mod __gen {
         }
         pub fn set_optional_string_piece(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_string_piece = pbrs::rt::LazyStr::owned(v.into_proxied());
+            self.optional_string_piece =
+                pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private));
         }
         pub fn optional_cord(&self) -> &pbrs::ProtoStr {
             self.optional_cord.as_view()
         }
         pub fn set_optional_cord(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.optional_cord = pbrs::rt::LazyStr::owned(v.into_proxied());
+            self.optional_cord =
+                pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private));
         }
         pub fn has_optional_lazy_message(&self) -> bool {
             self.optional_lazy_message.is_some()
@@ -1682,7 +1686,9 @@ mod __gen {
             self.oneof_uint32 = None;
             self.oneof_nested_message = Default::default();
             self.oneof_bytes = None;
-            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.oneof_string = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_string(&mut self) {
             self.cached_size.dirty();
@@ -1702,7 +1708,9 @@ mod __gen {
         }
         pub fn set_oneof_bytes(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {
             self.cached_size.dirty();
-            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied())));
+            self.oneof_bytes = Some(Box::new(pbrs::rt::LazyBytes::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_oneof_bytes(&mut self) {
             self.cached_size.dirty();

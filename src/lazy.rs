@@ -159,12 +159,117 @@ impl From<&str> for LazyStr {
         Self::owned(ProtoString::from(s))
     }
 }
+impl crate::proxied::IntoProxied<LazyStr> for &str {
+    fn into_proxied(self, _private: crate::internal::Private) -> LazyStr {
+        LazyStr::from(self)
+    }
+}
+impl crate::proxied::IntoProxied<LazyStr> for String {
+    fn into_proxied(self, _private: crate::internal::Private) -> LazyStr {
+        LazyStr::from(self)
+    }
+}
+impl crate::proxied::IntoProxied<LazyStr> for ProtoString {
+    fn into_proxied(self, _private: crate::internal::Private) -> LazyStr {
+        LazyStr::from(self)
+    }
+}
 impl From<String> for LazyStr {
     fn from(s: String) -> Self {
         Self::owned(ProtoString::from(s))
     }
 }
 impl MapKey for LazyStr {}
+
+#[derive(Copy, Clone, Debug)]
+pub struct LazyStrView<'msg>(pub &'msg ProtoStr);
+
+impl std::ops::Deref for LazyStrView<'_> {
+    type Target = ProtoStr;
+    fn deref(&self) -> &ProtoStr {
+        self.0
+    }
+}
+impl crate::internal::SealedInternal for LazyStr {}
+impl crate::internal::SealedInternal for LazyStrView<'_> {}
+impl crate::proxied::Proxied for LazyStr {
+    type View<'msg> = LazyStrView<'msg>;
+}
+impl crate::proxied::AsView for LazyStr {
+    type Proxied = Self;
+    fn as_view(&self) -> LazyStrView<'_> {
+        LazyStrView(LazyStr::as_view(self))
+    }
+}
+impl crate::proxied::AsView for LazyStrView<'_> {
+    type Proxied = LazyStr;
+    fn as_view(&self) -> LazyStrView<'_> {
+        *self
+    }
+}
+impl<'msg> crate::proxied::IntoView<'msg> for LazyStrView<'msg> {
+    fn into_view<'shorter>(self) -> LazyStrView<'shorter>
+    where
+        'msg: 'shorter,
+    {
+        LazyStrView(self.0)
+    }
+}
+impl PartialEq<str> for LazyStrView<'_> {
+    fn eq(&self, other: &str) -> bool {
+        self.0.as_bytes() == other.as_bytes()
+    }
+}
+impl PartialEq<&str> for LazyStrView<'_> {
+    fn eq(&self, other: &&str) -> bool {
+        self.0.as_bytes() == other.as_bytes()
+    }
+}
+
+impl crate::map::MapQuery<LazyStr> for LazyStr {
+    fn eq_key(&self, k: &LazyStr) -> bool {
+        self == k
+    }
+    fn to_owned_key(&self) -> LazyStr {
+        self.clone()
+    }
+    fn key_bytes(&self) -> Vec<u8> {
+        self.as_bytes().to_vec()
+    }
+}
+impl crate::map::MapQuery<LazyStr> for &LazyStr {
+    fn eq_key(&self, k: &LazyStr) -> bool {
+        *self == k
+    }
+    fn to_owned_key(&self) -> LazyStr {
+        (*self).clone()
+    }
+    fn key_bytes(&self) -> Vec<u8> {
+        self.as_bytes().to_vec()
+    }
+}
+impl crate::map::MapQuery<LazyStr> for &str {
+    fn eq_key(&self, k: &LazyStr) -> bool {
+        k.as_bytes() == self.as_bytes()
+    }
+    fn to_owned_key(&self) -> LazyStr {
+        LazyStr::from(*self)
+    }
+    fn key_bytes(&self) -> Vec<u8> {
+        self.as_bytes().to_vec()
+    }
+}
+impl crate::map::MapQuery<LazyStr> for crate::string::ProtoString {
+    fn eq_key(&self, k: &LazyStr) -> bool {
+        k.as_bytes() == self.as_bytes()
+    }
+    fn to_owned_key(&self) -> LazyStr {
+        LazyStr::from(self.clone())
+    }
+    fn key_bytes(&self) -> Vec<u8> {
+        self.as_bytes().to_vec()
+    }
+}
 
 /// Singular `bytes`. Same cow as [`LazyStr`].
 #[derive(Clone, Default)]

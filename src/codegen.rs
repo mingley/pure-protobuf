@@ -951,7 +951,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             emit_oneof_clear(src, desc, f);
             let _ = writeln!(
                 src,
-                "        self.{id} = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));"
+                "        self.{id} = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private))));"
             );
             let _ = writeln!(src, "    }}");
             let _ = writeln!(
@@ -965,7 +965,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::LazyStr::owned(v.into_proxied()); }}"
+                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private)); }}"
             );
         }
         return;
@@ -987,7 +987,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied()))); }}"
+                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)))); }}"
             );
             let _ = writeln!(
                 src,
@@ -1000,7 +1000,7 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::LazyBytes::owned(v.into_proxied()); }}"
+                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)); }}"
             );
         }
         return;
@@ -2340,7 +2340,7 @@ fn emit_enum(src: &mut String, ed: &crate::dynamic::EnumDescriptor) {
         );
         let _ = writeln!(
             src,
-            "        if <Self as Enum>::is_known(val) {{ Ok(Self(val)) }} else {{ Err(UnknownEnumValue::new(val)) }}"
+            "        if <Self as Enum>::is_known(val) {{ Ok(Self(val)) }} else {{ Err(UnknownEnumValue::new(pbrs::__internal::Private, val)) }}"
         );
         let _ = writeln!(src, "    }}");
         let _ = writeln!(src, "}}");

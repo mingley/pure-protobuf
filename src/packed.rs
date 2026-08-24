@@ -454,8 +454,8 @@ mod tests {
         buf.extend_from_slice(&2u32.to_le_bytes());
         fx.append_bytes(&buf).unwrap();
         assert_eq!(fx.as_view().len(), 2);
-        assert_eq!(*fx.as_view().get(0).unwrap(), 1);
-        assert_eq!(*fx.as_view().get(1).unwrap(), 2);
+        assert_eq!(fx.as_view().get(0).unwrap(), 1);
+        assert_eq!(fx.as_view().get(1).unwrap(), 2);
     }
 
     #[test]

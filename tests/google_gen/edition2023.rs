@@ -38,7 +38,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -111,7 +111,7 @@ mod __gen {
             if <Self as Enum>::is_known(val) {
                 Ok(Self(val))
             } else {
-                Err(UnknownEnumValue::new(val))
+                Err(UnknownEnumValue::new(pbrs::__internal::Private, val))
             }
         }
     }
@@ -551,7 +551,9 @@ mod __gen {
         }
         pub fn set_str_view(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {
             self.cached_size.dirty();
-            self.str_view = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied())));
+            self.str_view = Some(Box::new(pbrs::rt::LazyStr::owned(
+                v.into_proxied(pbrs::__internal::Private),
+            )));
         }
         pub fn clear_str_view(&mut self) {
             self.cached_size.dirty();
