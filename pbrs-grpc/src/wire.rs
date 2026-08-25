@@ -1,9 +1,10 @@
 //! HTTP/2 gRPC protocol helpers (headers, framing, trailers).
 
 use crate::codec;
+use crate::gzip;
 use crate::metadata::Metadata;
 use crate::status::{Code, Status};
-use crate::stream::Inbound;
+use crate::stream::{InItem, Inbound, OutItem};
 use bytes::{Bytes, BytesMut};
 use h2::{Reason, RecvStream, SendStream};
 use http::{HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode};
@@ -16,13 +17,22 @@ pub(crate) fn grpc_request(
     path: &str,
     md: &Metadata,
     timeout: Option<Duration>,
+    send_gzip: bool,
 ) -> Result<Request<()>, Status> {
     let uri = format!("http://{authority}{path}");
-    let mut req = Request::builder()
+    let mut builder = Request::builder()
         .method(http::Method::POST)
         .uri(&uri)
         .header(http::header::CONTENT_TYPE, "application/grpc")
         .header(http::header::TE, "trailers")
+        .header(
+            HeaderName::from_static("grpc-accept-encoding"),
+            "identity,gzip",
+        );
+    if send_gzip {
+        builder = builder.header(HeaderName::from_static("grpc-encoding"), "gzip");
+    }
+    let mut req = builder
         .body(())
         .map_err(|e| Status::internal(e.to_string()))?;
     if let Some(d) = timeout {
@@ -68,9 +78,15 @@ pub(crate) fn serialize_payload<T: Serialize>(msg: &T) -> Result<Vec<u8>, Status
 pub(crate) fn send_frame(
     send: &mut SendStream<Bytes>,
     payload: &[u8],
+    compress: bool,
     end: bool,
 ) -> Result<(), Status> {
-    let frame = codec::encode(payload)?;
+    let frame = if compress {
+        let body = gzip::encode(payload)?;
+        codec::encode(&body, true)?
+    } else {
+        codec::encode(payload, false)?
+    };
     send.send_data(frame, end)
         .map_err(|e| Status::internal(e.to_string()))
 }
@@ -114,10 +130,15 @@ pub(crate) fn send_trailers_only(
 pub(crate) fn send_ok_headers(
     respond: &mut h2::server::SendResponse<Bytes>,
     md: &Metadata,
+    send_gzip: bool,
 ) -> Result<SendStream<Bytes>, Status> {
-    let mut res = Response::builder()
+    let mut builder = Response::builder()
         .status(StatusCode::OK)
-        .header(http::header::CONTENT_TYPE, "application/grpc")
+        .header(http::header::CONTENT_TYPE, "application/grpc");
+    if send_gzip {
+        builder = builder.header(HeaderName::from_static("grpc-encoding"), "gzip");
+    }
+    let mut res = builder
         .body(())
         .map_err(|e| Status::internal(e.to_string()))?;
     md.write_to(res.headers_mut())?;
@@ -135,8 +156,8 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
                 let msg = map
                     .get(HeaderName::from_static("grpc-message"))
                     .and_then(|v| v.to_str().ok())
-                    .unwrap_or("")
-                    .to_string();
+                    .map(percent_decode)
+                    .unwrap_or_default();
                 (Code::from_i32(n), msg, Metadata::from_headers(map))
             })
     };
@@ -187,12 +208,21 @@ impl FrameReader {
         self.buf.extend_from_slice(&bytes);
     }
 
-    fn pop_parsed<T: Parse + Default>(&mut self) -> Result<Option<T>, Status> {
+    fn pop_parsed<T: Parse + Default>(&mut self) -> Result<Option<InItem<T>>, Status> {
         match codec::pop(&mut self.buf)? {
             None => Ok(None),
-            Some(p) => T::parse(&p)
-                .map(Some)
-                .map_err(|e| Status::internal(e.to_string())),
+            Some(frame) => {
+                let raw = if frame.compressed {
+                    gzip::decode(&frame.payload)?
+                } else {
+                    frame.payload.to_vec()
+                };
+                let message = T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?;
+                Ok(Some(InItem {
+                    message,
+                    compressed: frame.compressed,
+                }))
+            }
         }
     }
 
@@ -207,7 +237,7 @@ impl FrameReader {
 
 pub(crate) async fn read_all_messages<T: Parse + Default>(
     recv: &mut RecvStream,
-) -> Result<(Vec<T>, Option<HeaderMap>), Status> {
+) -> Result<(Vec<InItem<T>>, Option<HeaderMap>), Status> {
     let mut reader = FrameReader::new();
     let mut out = Vec::new();
     while let Some(bytes) = next_data(recv).await? {
@@ -224,9 +254,12 @@ pub(crate) async fn read_all_messages<T: Parse + Default>(
     Ok((out, trailers))
 }
 
-pub(crate) fn one_or_default<T: Default>(mut msgs: Vec<T>) -> Result<T, Status> {
+pub(crate) fn one_or_default<T: Default>(mut msgs: Vec<InItem<T>>) -> Result<InItem<T>, Status> {
     match msgs.len() {
-        0 => Ok(T::default()),
+        0 => Ok(InItem {
+            message: T::default(),
+            compressed: false,
+        }),
         1 => msgs
             .pop()
             .ok_or_else(|| Status::internal("missing message")),
@@ -236,8 +269,8 @@ pub(crate) fn one_or_default<T: Default>(mut msgs: Vec<T>) -> Result<T, Status> 
 
 pub(crate) async fn pump_inbound<T: Parse + Default>(
     mut recv: RecvStream,
-    tx: mpsc::Sender<Result<T, Status>>,
-) {
+    tx: mpsc::Sender<Result<InItem<T>, Status>>,
+) -> Metadata {
     let mut reader = FrameReader::new();
     loop {
         match next_data(&mut recv).await {
@@ -247,13 +280,13 @@ pub(crate) async fn pump_inbound<T: Parse + Default>(
                     match reader.pop_parsed() {
                         Ok(Some(msg)) => {
                             if tx.send(Ok(msg)).await.is_err() {
-                                return;
+                                return Metadata::new();
                             }
                         }
                         Ok(None) => break,
                         Err(e) => {
                             tx.send(Err(e)).await.ok();
-                            return;
+                            return Metadata::new();
                         }
                     }
                 }
@@ -261,7 +294,7 @@ pub(crate) async fn pump_inbound<T: Parse + Default>(
             Ok(None) => break,
             Err(e) => {
                 tx.send(Err(e)).await.ok();
-                return;
+                return Metadata::new();
             }
         }
     }
@@ -269,36 +302,43 @@ pub(crate) async fn pump_inbound<T: Parse + Default>(
         tx.send(Err(Status::internal("truncated grpc frame")))
             .await
             .ok();
-        return;
+        return Metadata::new();
     }
     match recv.trailers().await {
         Ok(Some(t)) => {
             let st = status_from(&t, Some(&t));
+            let md = Metadata::from_headers(&t);
             if st.code() != Code::Ok {
                 tx.send(Err(st)).await.ok();
             }
+            md
         }
-        Ok(None) => {}
+        Ok(None) => Metadata::new(),
         Err(e) => {
             if e.is_reset() {
                 tx.send(Err(Status::cancelled())).await.ok();
             } else {
                 tx.send(Err(Status::internal(e.to_string()))).await.ok();
             }
+            Metadata::new()
         }
     }
 }
 
 pub(crate) async fn pump_outbound<T: Serialize>(
     mut send: SendStream<Bytes>,
-    mut rx: mpsc::Receiver<Result<T, Status>>,
+    mut rx: mpsc::Receiver<Result<OutItem<T>, Status>>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
 ) {
+    let mut watch_cancel = true;
     loop {
         tokio::select! {
-            _ = cancel_rx.wait_for(|v| *v) => {
-                send.send_reset(Reason::CANCEL);
-                return;
+            r = cancel_rx.wait_for(|v| *v), if watch_cancel => {
+                if r.is_ok() {
+                    send.send_reset(Reason::CANCEL);
+                    return;
+                }
+                watch_cancel = false;
             }
             item = rx.recv() => {
                 match item {
@@ -306,16 +346,12 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                         send.send_data(Bytes::new(), true).ok();
                         return;
                     }
-                    Some(Ok(msg)) => {
-                        let Ok(payload) = serialize_payload(&msg) else {
+                    Some(Ok(item)) => {
+                        let Ok(payload) = serialize_payload(&item.message) else {
                             send.send_reset(Reason::INTERNAL_ERROR);
                             return;
                         };
-                        let Ok(frame) = codec::encode(&payload) else {
-                            send.send_reset(Reason::INTERNAL_ERROR);
-                            return;
-                        };
-                        if send.send_data(frame, false).is_err() {
+                        if send_frame(&mut send, &payload, item.compress, false).is_err() {
                             return;
                         }
                     }
@@ -361,15 +397,16 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
     if st.code() != Code::Ok {
         return Err(st);
     }
-    let msg = one_or_default(msgs)?;
+    let item = one_or_default(msgs)?;
     let trailers_md = trailers
         .as_ref()
         .map(Metadata::from_headers)
         .unwrap_or_default();
-    Ok(crate::request::Response::from_parts(
-        msg,
+    Ok(crate::request::Response::from_parts_compress(
+        item.message,
         headers_md,
         trailers_md,
+        item.compressed,
     ))
 }
 
@@ -387,9 +424,12 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
         }
     }
     let headers_md = Metadata::from_headers(&parts.headers);
-    let (tx, inbound) = Inbound::channel(16);
+    let (tx, mut inbound) = Inbound::channel(16);
+    let (tr_tx, tr_rx) = tokio::sync::oneshot::channel();
+    inbound.set_trailers(tr_rx);
     drop(tokio::spawn(async move {
-        pump_inbound::<Resp>(body, tx).await;
+        let trailers = pump_inbound::<Resp>(body, tx).await;
+        tr_tx.send(trailers).ok();
     }));
     Ok(crate::request::Response::from_parts(
         inbound,
@@ -408,4 +448,29 @@ fn percent_encode(s: &str) -> String {
         }
     }
     out
+}
+
+fn percent_decode(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes.get(i).copied() == Some(b'%') {
+            let h1 = bytes.get(i + 1).copied();
+            let h2 = bytes.get(i + 2).copied();
+            if let (Some(a), Some(b)) = (h1, h2) {
+                if let Ok(v) = u8::from_str_radix(core::str::from_utf8(&[a, b]).unwrap_or("00"), 16)
+                {
+                    out.push(v);
+                    i += 3;
+                    continue;
+                }
+            }
+        }
+        if let Some(&b) = bytes.get(i) {
+            out.push(b);
+        }
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }

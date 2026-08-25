@@ -3,18 +3,27 @@
 use crate::status::Status;
 use bytes::{BufMut, Bytes, BytesMut};
 
-/// Encode one uncompressed gRPC data frame.
-pub fn encode(payload: &[u8]) -> Result<Bytes, Status> {
+/// One decoded gRPC data frame.
+#[derive(Debug)]
+pub struct Frame {
+    /// Compressed-Flag (1 = gzip of the protobuf bytes).
+    pub compressed: bool,
+    /// Frame payload (still compressed if [`Self::compressed`] is set).
+    pub payload: Bytes,
+}
+
+/// Encode one gRPC data frame. `compressed` is the Compressed-Flag.
+pub fn encode(payload: &[u8], compressed: bool) -> Result<Bytes, Status> {
     let len = u32::try_from(payload.len()).map_err(|_| Status::internal("message too large"))?;
     let mut buf = BytesMut::with_capacity(5 + payload.len());
-    buf.put_u8(0);
+    buf.put_u8(u8::from(compressed));
     buf.put_u32(len);
     buf.extend_from_slice(payload);
     Ok(buf.freeze())
 }
 
 /// Pop one complete frame from `buf`. `Ok(None)` if more bytes are needed.
-pub fn pop(buf: &mut BytesMut) -> Result<Option<Bytes>, Status> {
+pub fn pop(buf: &mut BytesMut) -> Result<Option<Frame>, Status> {
     if buf.len() < 5 {
         return Ok(None);
     }
@@ -22,8 +31,8 @@ pub fn pop(buf: &mut BytesMut) -> Result<Option<Bytes>, Status> {
         .first()
         .copied()
         .ok_or_else(|| Status::internal("short frame"))?;
-    if flag != 0 {
-        return Err(Status::unimplemented("compressed grpc messages"));
+    if flag > 1 {
+        return Err(Status::internal("invalid compressed-flag"));
     }
     let mut len_bytes = [0u8; 4];
     let slice = buf
@@ -39,7 +48,10 @@ pub fn pop(buf: &mut BytesMut) -> Result<Option<Bytes>, Status> {
         return Ok(None);
     }
     drop(buf.split_to(5));
-    Ok(Some(buf.split_to(len).freeze()))
+    Ok(Some(Frame {
+        compressed: flag == 1,
+        payload: buf.split_to(len).freeze(),
+    }))
 }
 
 #[cfg(test)]
@@ -49,26 +61,28 @@ mod tests {
 
     #[test]
     fn roundtrip_empty_and_payload() {
-        let empty = encode(&[]).expect("encode");
+        let empty = encode(&[], false).expect("encode");
         let mut buf = BytesMut::from(empty.as_ref());
         let got = pop(&mut buf).expect("pop").expect("frame");
-        assert!(got.is_empty());
+        assert!(!got.compressed);
+        assert!(got.payload.is_empty());
         assert!(buf.is_empty());
 
         let payload = b"hello";
-        let framed = encode(payload).expect("encode");
+        let framed = encode(payload, true).expect("encode");
         buf.extend_from_slice(&framed);
         let got = pop(&mut buf).expect("pop").expect("frame");
-        assert_eq!(&got[..], payload);
+        assert!(got.compressed);
+        assert_eq!(&got.payload[..], payload);
     }
 
     #[test]
     fn incomplete_waits() {
-        let framed = encode(&[1, 2, 3]).expect("encode");
+        let framed = encode(&[1, 2, 3], false).expect("encode");
         let mut buf = BytesMut::from(&framed[..4]);
         assert!(pop(&mut buf).expect("pop").is_none());
         buf.extend_from_slice(&framed[4..]);
         let got = pop(&mut buf).expect("pop").expect("frame");
-        assert_eq!(&got[..], &[1, 2, 3]);
+        assert_eq!(&got.payload[..], &[1, 2, 3]);
     }
 }

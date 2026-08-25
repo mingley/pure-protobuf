@@ -3,6 +3,7 @@ members = [".", "protobuf-tonic", "pbrs-grpc"]
 exclude = [
     "bench",
     "tonic-bench",
+    "rpc-bench",
     "v4_person",
     "v4_tat",
     "buffa_tat",

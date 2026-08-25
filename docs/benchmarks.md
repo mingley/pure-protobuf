@@ -190,3 +190,19 @@ Linux x86_64 1-string line of record after dropping the per-message
 ```bash
 cd tonic-bench && cargo build --release && ./target/release/tonic-bench
 ```
+
+## pbrs-grpc vs tonic 0.14 loopback (Apple M4 Pro)
+
+Excluded crate `rpc-bench/`. Same official `grpc.testing.TestService`
+empty_unary / large_unary payloads (271828 / 314159). Process-gated:
+kernel median ns must be strictly below tonic 0.14 on both cases.
+Two consecutive release runs:
+
+| run | empty kernel | empty tonic | large kernel | large tonic |
+|---|---:|---:|---:|---:|
+| 1 | 63375 | 110750 | 384875 | 902542 |
+| 2 | 72833 | 79750 | 439042 | 1066625 |
+
+```bash
+cd rpc-bench && cargo build --release && ./target/release/rpc-bench
+```

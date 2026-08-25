@@ -13,6 +13,7 @@ pbrs = { path = ".." }
 [dependencies]
 base64 = "0.22"
 bytes = "1"
+flate2 = "1"
 h2 = "0.4"
 http = "1"
 pbrs = { path = ".." }
@@ -24,6 +25,14 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time",
 [[bin]]
 name = "pbrs-grpc-hello"
 path = "src/bin/pbrs-grpc-hello.rs"
+
+[[bin]]
+name = "pbrs-grpc-interop-server"
+path = "src/bin/pbrs-grpc-interop-server.rs"
+
+[[bin]]
+name = "pbrs-grpc-interop-client"
+path = "src/bin/pbrs-grpc-interop-client.rs"
 
 [lints]
 workspace = true

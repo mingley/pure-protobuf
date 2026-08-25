@@ -30,7 +30,11 @@ impl Channel {
             .map_err(|e| Status::unavailable(e.to_string()))?;
         tcp.set_nodelay(true)
             .map_err(|e| Status::unavailable(e.to_string()))?;
-        let (send, conn) = h2::client::handshake(tcp)
+        let (send, conn) = h2::client::Builder::new()
+            .initial_window_size(16 * 1024 * 1024)
+            .initial_connection_window_size(16 * 1024 * 1024)
+            .max_frame_size(1024 * 1024)
+            .handshake(tcp)
             .await
             .map_err(|e| Status::unavailable(e.to_string()))?;
         drop(tokio::spawn(async move {
@@ -133,10 +137,11 @@ where
     Req: Serialize,
     Resp: Parse + Default,
 {
-    let (msg, md, timeout) = req.into_parts();
-    let (resp_fut, mut send_stream) = open(send_req, authority, path, &md, timeout).await?;
+    let (msg, md, timeout, compress) = req.into_parts();
+    let (resp_fut, mut send_stream) =
+        open(send_req, authority, path, &md, timeout, compress).await?;
     let payload = serialize_payload(&msg)?;
-    send_frame(&mut send_stream, &payload, true)?;
+    send_frame(&mut send_stream, &payload, compress, true)?;
     race(
         async {
             let response = resp_fut
@@ -162,10 +167,11 @@ where
     Req: Serialize,
     Resp: Parse + Default + Send + 'static,
 {
-    let (msg, md, timeout) = req.into_parts();
-    let (resp_fut, mut send_stream) = open(send_req, authority, path, &md, timeout).await?;
+    let (msg, md, timeout, compress) = req.into_parts();
+    let (resp_fut, mut send_stream) =
+        open(send_req, authority, path, &md, timeout, compress).await?;
     let payload = serialize_payload(&msg)?;
-    send_frame(&mut send_stream, &payload, true)?;
+    send_frame(&mut send_stream, &payload, compress, true)?;
     race(
         async {
             let response = resp_fut
@@ -185,15 +191,15 @@ async fn run_client_stream<Req, Resp>(
     authority: &str,
     path: &str,
     req: Request<()>,
-    rx: mpsc::Receiver<Result<Req, Status>>,
+    rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
     cancel_rx: watch::Receiver<bool>,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default,
 {
-    let (_, md, timeout) = req.into_parts();
-    let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout).await?;
+    let (_, md, timeout, compress) = req.into_parts();
+    let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout, compress).await?;
     drop(tokio::spawn(pump_outbound(
         send_stream,
         rx,
@@ -218,15 +224,15 @@ async fn run_bidi<Req, Resp>(
     authority: &str,
     path: &str,
     req: Request<()>,
-    rx: mpsc::Receiver<Result<Req, Status>>,
+    rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
     cancel_rx: watch::Receiver<bool>,
 ) -> Result<Response<Inbound<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default + Send + 'static,
 {
-    let (_, md, timeout) = req.into_parts();
-    let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout).await?;
+    let (_, md, timeout, compress) = req.into_parts();
+    let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout, compress).await?;
     drop(tokio::spawn(pump_outbound(
         send_stream,
         rx,
@@ -252,13 +258,14 @@ async fn open(
     path: &str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
+    send_gzip: bool,
 ) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
     let send_req = send_req.clone();
     let mut send_req = send_req
         .ready()
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;
-    let http_req = grpc_request(authority, path, md, timeout)?;
+    let http_req = grpc_request(authority, path, md, timeout, send_gzip)?;
     send_req
         .send_request(http_req, false)
         .map_err(|e| Status::unavailable(e.to_string()))

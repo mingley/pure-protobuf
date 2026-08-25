@@ -20,7 +20,7 @@ mod common;
 
 use common::{name_of, req, spawn_greeter};
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
-use pbrs_grpc::{Code, Inbound, Request, Response, Status};
+use pbrs_grpc::{Code, InItem, Inbound, Request, Response, Status};
 
 struct Echo;
 
@@ -69,7 +69,14 @@ impl Greeter for Echo {
             for part in name.split(',') {
                 let mut reply = HelloReply::new();
                 reply.set_message(part.to_string());
-                if tx.send(Ok(reply)).await.is_err() {
+                if tx
+                    .send(Ok(InItem {
+                        message: reply,
+                        compressed: false,
+                    }))
+                    .await
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -87,7 +94,14 @@ impl Greeter for Echo {
             while let Ok(Some(msg)) = inbound.message().await {
                 let mut reply = HelloReply::new();
                 reply.set_message(msg.name().to_str().unwrap_or("").to_string());
-                if tx.send(Ok(reply)).await.is_err() {
+                if tx
+                    .send(Ok(InItem {
+                        message: reply,
+                        compressed: false,
+                    }))
+                    .await
+                    .is_err()
+                {
                     break;
                 }
             }

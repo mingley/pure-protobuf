@@ -13,6 +13,8 @@ pub struct Request<T> {
     message: T,
     metadata: Metadata,
     timeout: Option<Duration>,
+    compress: bool,
+    compressed: bool,
 }
 
 impl<T> Request<T> {
@@ -23,6 +25,8 @@ impl<T> Request<T> {
             message,
             metadata: Metadata::new(),
             timeout: None,
+            compress: false,
+            compressed: false,
         }
     }
 
@@ -54,12 +58,27 @@ impl<T> Request<T> {
         self.timeout
     }
 
-    pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>) {
-        (self.message, self.metadata, self.timeout)
+    /// Compress this request's protobuf payload with gzip (Compressed-Flag 1).
+    pub fn set_compress(&mut self, compress: bool) {
+        self.compress = compress;
+    }
+
+    /// Whether the inbound message had Compressed-Flag 1.
+    #[must_use]
+    pub fn compressed(&self) -> bool {
+        self.compressed
+    }
+
+    pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>, bool) {
+        (self.message, self.metadata, self.timeout, self.compress)
     }
 
     pub(crate) fn set_metadata(&mut self, metadata: Metadata) {
         self.metadata = metadata;
+    }
+
+    pub(crate) fn set_compressed(&mut self, compressed: bool) {
+        self.compressed = compressed;
     }
 }
 
@@ -68,6 +87,7 @@ pub struct Response<T> {
     message: T,
     metadata: Metadata,
     trailers: Metadata,
+    compress: bool,
 }
 
 impl<T> Response<T> {
@@ -78,6 +98,7 @@ impl<T> Response<T> {
             message,
             metadata: Metadata::new(),
             trailers: Metadata::new(),
+            compress: false,
         }
     }
 
@@ -109,16 +130,42 @@ impl<T> Response<T> {
         &mut self.trailers
     }
 
+    /// Compress this response payload with gzip.
+    pub fn set_compress(&mut self, compress: bool) {
+        self.compress = compress;
+    }
+
+    /// Whether the inbound payload had Compressed-Flag 1.
+    #[must_use]
+    pub fn compressed(&self) -> bool {
+        self.compress
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
             metadata,
             trailers,
+            compress: false,
         }
     }
 
-    pub(crate) fn split(self) -> (T, Metadata, Metadata) {
-        (self.message, self.metadata, self.trailers)
+    pub(crate) fn from_parts_compress(
+        message: T,
+        metadata: Metadata,
+        trailers: Metadata,
+        compress: bool,
+    ) -> Self {
+        Self {
+            message,
+            metadata,
+            trailers,
+            compress,
+        }
+    }
+
+    pub(crate) fn split(self) -> (T, Metadata, Metadata, bool) {
+        (self.message, self.metadata, self.trailers, self.compress)
     }
 }
 

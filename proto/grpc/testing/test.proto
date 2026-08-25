@@ -1,0 +1,24 @@
+syntax = "proto3";
+package grpc.testing;
+
+import "grpc/testing/empty.proto";
+import "grpc/testing/messages.proto";
+
+service TestService {
+  rpc EmptyCall(grpc.testing.Empty) returns (grpc.testing.Empty);
+  rpc UnaryCall(SimpleRequest) returns (SimpleResponse);
+  rpc CacheableUnaryCall(SimpleRequest) returns (SimpleResponse);
+  rpc StreamingOutputCall(StreamingOutputCallRequest)
+      returns (stream StreamingOutputCallResponse);
+  rpc StreamingInputCall(stream StreamingInputCallRequest)
+      returns (StreamingInputCallResponse);
+  rpc FullDuplexCall(stream StreamingOutputCallRequest)
+      returns (stream StreamingOutputCallResponse);
+  rpc HalfDuplexCall(stream StreamingOutputCallRequest)
+      returns (stream StreamingOutputCallResponse);
+  rpc UnimplementedCall(grpc.testing.Empty) returns (grpc.testing.Empty);
+}
+
+service UnimplementedService {
+  rpc UnimplementedCall(grpc.testing.Empty) returns (grpc.testing.Empty);
+}
