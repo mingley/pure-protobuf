@@ -1,0 +1,30 @@
+[package]
+name = "pbrs-rpc-bench"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Loopback empty_unary/large_unary: pbrs-grpc vs tonic 0.14"
+
+[workspace]
+
+[dependencies]
+http = "1"
+pbrs = { path = ".." }
+pbrs-grpc = { path = "../pbrs-grpc" }
+protobuf-tonic = { path = "../protobuf-tonic" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+
+[build-dependencies]
+pbrs = { path = ".." }
+
+[[bin]]
+name = "rpc-bench"
+path = "src/main.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

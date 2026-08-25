@@ -3,6 +3,7 @@
 /bench/capture-*.json
 /bench/capture-*.err
 /tonic-bench/target
+/rpc-bench/target
 /v4_person/target
 /v4_tat/target
 /buffa_tat/target
@@ -15,4 +16,5 @@
 /parse-leftover/parse-hello-delta/target
 /parse-leftover/parse-4kib-delta/target
 /third_party/protobuf
+.interop-bin
 .DS_Store

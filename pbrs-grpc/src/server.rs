@@ -63,7 +63,13 @@ pub trait Http2Handler: Send + Sync + 'static {
 }
 
 async fn serve_conn<H: Http2Handler>(handler: Arc<H>, tcp: TcpStream) {
-    let Ok(mut conn) = h2::server::handshake(tcp).await else {
+    let Ok(mut conn) = h2::server::Builder::new()
+        .initial_window_size(16 * 1024 * 1024)
+        .initial_connection_window_size(16 * 1024 * 1024)
+        .max_frame_size(1024 * 1024)
+        .handshake(tcp)
+        .await
+    else {
         return;
     };
     while let Some(item) = conn.accept().await {
@@ -96,9 +102,10 @@ pub(crate) async fn dispatch_unary<Req, Resp, F, Fut>(
     let (_, mut recv) = request.into_parts();
     let prepared = wrap_timeout(timeout, async {
         let (msgs, _) = read_all_messages::<Req>(&mut recv).await?;
-        let msg = one_or_default(msgs)?;
-        let mut req = Request::new(msg);
+        let item = one_or_default(msgs)?;
+        let mut req = Request::new(item.message);
         req.set_metadata(header_md);
+        req.set_compressed(item.compressed);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -157,9 +164,10 @@ pub(crate) async fn dispatch_server_stream<Req, Resp, F, Fut>(
     let (_, mut recv) = request.into_parts();
     let prepared = wrap_timeout(timeout, async {
         let (msgs, _) = read_all_messages::<Req>(&mut recv).await?;
-        let msg = one_or_default(msgs)?;
-        let mut req = Request::new(msg);
+        let item = one_or_default(msgs)?;
+        let mut req = Request::new(item.message);
         req.set_metadata(header_md);
+        req.set_compressed(item.compressed);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -206,12 +214,12 @@ async fn finish_handler<Resp: Serialize>(
     match prepared {
         Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
         Ok(resp) => {
-            let (msg, md, trailers) = resp.split();
-            let Ok(mut send) = send_ok_headers(&mut respond, &md) else {
+            let (msg, md, trailers, compress) = resp.split();
+            let Ok(mut send) = send_ok_headers(&mut respond, &md, compress) else {
                 return;
             };
             if let Ok(payload) = serialize_payload(&msg) {
-                send_frame(&mut send, &payload, false).ok();
+                send_frame(&mut send, &payload, compress, false).ok();
             }
             let mut st = Status::new(Code::Ok, "");
             *st.metadata_mut() = trailers;
@@ -229,27 +237,30 @@ async fn finish_stream_handler<Resp: Serialize + Send>(
     match prepared {
         Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
         Ok(resp) => {
-            let (mut inbound, md, trailers) = resp.split();
-            let Ok(mut send) = send_ok_headers(&mut respond, &md) else {
+            let (mut inbound, md, trailers, compress_hdr) = resp.split();
+            let Ok(mut send) = send_ok_headers(&mut respond, &md, compress_hdr) else {
                 return;
             };
+            let mut stream_status = Status::new(Code::Ok, "");
+            *stream_status.metadata_mut() = trailers;
             loop {
-                match inbound.message().await {
-                    Ok(Some(msg)) => {
-                        let Ok(payload) = serialize_payload(&msg) else {
+                match inbound.next_item().await {
+                    Ok(Some(item)) => {
+                        let Ok(payload) = serialize_payload(&item.message) else {
                             break;
                         };
-                        if send_frame(&mut send, &payload, false).is_err() {
+                        if send_frame(&mut send, &payload, item.compressed, false).is_err() {
                             return;
                         }
                     }
                     Ok(None) => break,
-                    Err(_) => break,
+                    Err(st) => {
+                        stream_status = st;
+                        break;
+                    }
                 }
             }
-            let mut st = Status::new(Code::Ok, "");
-            *st.metadata_mut() = trailers;
-            if let Ok(t) = grpc_trailers(&st) {
+            if let Ok(t) = grpc_trailers(&stream_status) {
                 send.send_trailers(t).ok();
             }
         }

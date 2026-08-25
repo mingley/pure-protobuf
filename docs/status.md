@@ -65,20 +65,24 @@
 - File, enum, method, message, and field custom options survive
   FileDescriptorSet parse (`custom_option(n)`; file options on
   `FileDescriptor` / `DescriptorPool::get_file`).
-- `pbrs-grpc` is a native HTTP/2 gRPC kernel (cleartext prior knowledge,
-  identity framing) over pbrs. It is not tonic. Loopback tests cover all
-  four Greeter shapes, OK-path `-bin` trailers, `DEADLINE_EXCEEDED` on
-  `grpc-timeout`, and `CANCELLED` on client cancel. Binary
-  `pbrs-grpc-hello` prints the unary echo body. `protobuf-tonic` stays
+- `pbrs-grpc` is a native HTTP/2 gRPC kernel over pbrs. It is not tonic.
+  Official `grpc.testing.TestService` interop binaries
+  (`pbrs-grpc-interop-server` / `pbrs-grpc-interop-client`) pass the
+  shared uncompressed `_TEST_CASES` against Go `interop/client` and
+  `interop/server` (`--use_tls=false`) and the four gzip cases
+  kernel-vs-kernel. Loopback `rpc-bench` empty_unary / large_unary is
+  process-gated strictly faster than tonic 0.14. `protobuf-tonic` stays
   the tonic adapter.
 
 ## Remaining
 
 See `docs/upb.md`. Short list:
 
-- Native gRPC is `pbrs-grpc` (HTTP/2 prior knowledge, identity framing).
-  TLS, gzip, health, and reflection stay out of that crate; tonic adapter
-  still covers health/gzip/reflection via tonic crates.
+- Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop
+  (`empty_unary` … `timeout_on_sleeping_server`, plus the four gzip cases)
+  is implemented. TLS, health, reflection, GCP-auth, and ORCA stay out of
+  that crate; tonic adapter still covers health/gzip/reflection via tonic
+  crates.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
