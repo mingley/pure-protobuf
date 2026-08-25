@@ -1,8 +1,5 @@
-# Lints that carry the rules the reviewers currently carry.
-#
-# Every entry here should trace back to a real incident or a real review
-# comment. The point is that a lesson learned once becomes a build error for
-# everyone afterwards, instead of a wiki page nobody rereads.
+# Workspace clippy configuration.
+# Restriction lints only; rustc/clippy deny-by-default is not repeated here.
 
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
@@ -13,17 +10,8 @@ too-many-lines-threshold = 200
 
 doc-valid-idents = [ "..", "LinkedIn", "MySQL", "REST.li", "SQLAlchemy", "Updog" ]
 
-# Blocking calls on an async executor.
-#
-# TOOLS-494794 (August 2026): a pre-fork OpenTelemetry exporter interacting with
-# uWSGI worker recycling stalled otherwise-healthy hosts for 20-30 seconds. The
-# Rust process model does not reproduce that bug, but the shape of it -- work
-# that blocks a worker which the surrounding code assumes will not block -- is
-# reproducible in async Rust, and the compiler does not catch it.
-#
-# This list is an enumeration, not a proof. Rust has no effect system for "this
-# function blocks", so this cannot be complete. It pairs with the runtime-stall
-# tests in updog-store rather than replacing them.
+# Blocking calls on an async executor. Enumeration, not a proof: rustc has no
+# effect system for "this function blocks".
 #
 # pbrs kernel / plugin codegen is sync (build.rs, protoc plugin). Those paths
 # use std::fs with an explicit clippy expect. protobuf-tonic is the async

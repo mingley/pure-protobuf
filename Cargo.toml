@@ -67,11 +67,11 @@ unused_must_use = "deny"
 unused_results = "allow"
 
 [workspace.lints.clippy]
-# Failure paths must be written down, not inferred. These are the lints that
-# turn "someone should have noticed" into "the build said no".
-# `deny` + `#[expect]` fails on generated files: unused/non_snake_case/clippy::all
-# are not all fulfilled in every file (`unfulfilled_lint_expectations`).
-# Blanket allows with a reason stay; allows without a reason stay denied.
+# Allow- or warn-by-default only. Deny-by-default rustc/clippy lints are not
+# repeated here.
+# `allow_attributes` stays allow: generated `#[allow(..., reason = "...")]`
+# would fail `unfulfilled_lint_expectations` under `#[expect]`.
+# Allows without a reason stay denied.
 allow_attributes = "allow"
 allow_attributes_without_reason = "deny"
 unwrap_used = "deny"
@@ -84,8 +84,7 @@ let_underscore_must_use = "deny"
 let_underscore_future = "deny"
 mem_forget = "deny"
 
-# prior bug was a blocking call on a path that
-# was assumed to be non-blocking. These are the mechanical parts of that class.
+# Blocking IO and lock-across-await.
 await_holding_lock = "deny"
 await_holding_refcell_ref = "deny"
 await_holding_invalid_type = "deny"
@@ -94,7 +93,7 @@ disallowed_types = "deny"
 disallowed_macros = "deny"
 indexing_slicing = "deny"
 
-# Integer and conversion footguns that Python hides and MySQL will expose.
+# Integer and conversion footguns.
 cast_possible_truncation = "deny"
 cast_possible_wrap = "deny"
 cast_sign_loss = "deny"
