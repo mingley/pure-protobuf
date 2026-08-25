@@ -4,7 +4,9 @@ This crate is the tonic 0.14 `Codec` and plugin-generated stubs over pbrs
 (`Parse` / `Serialize`).
 
 It is not `tonic-prost`. These types do not implement `prost::Message`.
-The kernel does not depend on tonic. tonic 0.12 and 0.13 are unsupported.
+The protobuf kernel does not depend on tonic. A native HTTP/2 gRPC stack
+over the same messages lives in `pbrs-grpc` and does not use this crate.
+tonic 0.12 and 0.13 are unsupported.
 MSRV is 1.88. This crate depends on `pbrs` by path (git until `pbrs` is
 on crates.io); `cargo publish -p protobuf-tonic` cannot succeed until that
 registry version exists.

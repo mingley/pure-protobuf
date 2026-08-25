@@ -7,10 +7,11 @@ plugin codegen. There is no upb, no libprotobuf, and no C.
 
 | crate | role |
 |---|---|
-| `pbrs` | kernel, `protoc-gen-pbrs`, conformance child |
+| `pbrs` | protobuf kernel, `protoc-gen-pbrs`, conformance child |
 | `protobuf-tonic` | tonic 0.14 `Codec` and generated `FooClient` / `FooServer` |
+| `pbrs-grpc` | HTTP/2 gRPC kernel over pbrs (not tonic) |
 
-The kernel has no tonic dependency. Generated stubs depend on tonic.
+The protobuf kernel has no tonic, h2, or hyper dependency. `pbrs-grpc` has no tonic dependency. `protobuf-tonic` has no `pbrs-grpc` dependency. A consumer can use pbrs alone, pbrs plus the tonic adapter, or pbrs plus the gRPC kernel.
 
 The Cargo package and the library are both named `pbrs`
 (`use pbrs::prelude::*`). The GitHub repo is `mingley/pure-protobuf`.
