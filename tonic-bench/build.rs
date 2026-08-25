@@ -29,24 +29,10 @@ fn main() {
 }
 
 fn gen_pbrs(proto: &Path, proto_dir: &Path, out: &Path) {
-    let fds = out.join("codec_cases.fds");
-    let status = Command::new("protoc")
-        .arg("--include_imports")
-        .arg(format!("--descriptor_set_out={}", fds.display()))
-        .arg("-I")
-        .arg(proto_dir)
-        .arg(proto)
-        .status()
-        .expect("protoc fds");
-    assert!(status.success(), "protoc fds failed: {status}");
-    let bytes = fs::read(&fds).expect("fds");
-    let files =
-        pbrs::codegen::generate_from_file_descriptor_set(&bytes, &["codec_cases.proto".into()])
-            .expect("pbrs codegen");
-    assert!(!files.is_empty(), "pbrs codegen emitted no files");
-    for (name, src) in files {
-        fs::write(out.join(name), src).expect("write pbrs gencode");
-    }
+    pbrs::codegen::Config::new()
+        .out_dir(out)
+        .compile_protos(&[proto], &[proto_dir])
+        .expect("pbrs codegen");
 }
 
 fn gen_v4(proto: &Path, proto_dir: &Path, out: &Path) {

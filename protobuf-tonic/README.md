@@ -35,8 +35,15 @@ let stream = client.stream_hello(Request::new(inbound)).await?;
 `ProtobufCodec<Encode, Decode>` takes the encode type first and the decode
 type second. `tonic-bench` Codec survey vs prost and v4 upb lives in
 `docs/benchmarks.md`. Typical unary `rpc_mixed` is already ~2× prost.
-`name_4kib` combined beats prost (process-gated). Flatten (#39) tried
-and discarded. See `docs/status.md` Remaining. Not kernel `./bench`.
+`name_4kib` combined beats prost (process-gated). `rpc_sparse` decode
+is also gated. Flatten (#39) tried and discarded. See
+`docs/status.md` Remaining. Not kernel `./bench`.
+
+Generated `FooClient` / `FooServer` expose tonic `send_compressed` /
+`accept_compressed`. `tests/gzip.rs` runs unary `say_hello` with gzip.
+`tests/health_reflection.rs` serves gRPC health (SERVING) and server
+reflection that lists `helloworld.Greeter`. Health and reflection are
+tonic's crates, not a second stack.
 
 `proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
 unary happy path. `tests/streaming.rs` covers client-stream, server-stream,

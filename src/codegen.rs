@@ -8,6 +8,8 @@ use crate::error::ParseError;
 use crate::wire::{self, decode_tag, encode_len_field, encode_varint, read_len_bytes, WIRE_LEN};
 use std::cell::RefCell;
 use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 thread_local! {
     static IDENTS: RefCell<std::collections::BTreeMap<String, String>> =
@@ -181,6 +183,79 @@ pub fn generate_from_file_descriptor_set(
     generate_from_code_generator_request(&req)
 }
 
+/// prost-build-shaped compile: `protoc` FileDescriptorSet, then gencode into
+/// `OUT_DIR` (or [`Config::out_dir`]).
+pub fn compile_protos(
+    protos: &[impl AsRef<Path>],
+    includes: &[impl AsRef<Path>],
+) -> Result<(), ParseError> {
+    Config::new().compile_protos(protos, includes)
+}
+
+/// Options for [`compile_protos`].
+#[derive(Default)]
+pub struct Config {
+    out_dir: Option<PathBuf>,
+}
+
+impl Config {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn out_dir(&mut self, path: impl Into<PathBuf>) -> &mut Self {
+        self.out_dir = Some(path.into());
+        self
+    }
+
+    pub fn compile_protos(
+        &self,
+        protos: &[impl AsRef<Path>],
+        includes: &[impl AsRef<Path>],
+    ) -> Result<(), ParseError> {
+        let out = match &self.out_dir {
+            Some(p) => p.clone(),
+            None => PathBuf::from(
+                std::env::var("OUT_DIR").map_err(|_| ParseError::new("missing OUT_DIR"))?,
+            ),
+        };
+        std::fs::create_dir_all(&out).map_err(|e| ParseError::owned(e.to_string()))?;
+        for p in protos {
+            println!("cargo:rerun-if-changed={}", p.as_ref().display());
+        }
+        let fds_path = out.join("pbrs.fds");
+        let mut cmd = Command::new("protoc");
+        cmd.arg("--include_imports")
+            .arg(format!("--descriptor_set_out={}", fds_path.display()));
+        for inc in includes {
+            cmd.arg("-I").arg(inc.as_ref());
+        }
+        for p in protos {
+            cmd.arg(p.as_ref());
+        }
+        let status = cmd.status().map_err(|e| ParseError::owned(e.to_string()))?;
+        if !status.success() {
+            return Err(ParseError::owned(format!("protoc failed: {status}")));
+        }
+        let bytes = std::fs::read(&fds_path).map_err(|e| ParseError::owned(e.to_string()))?;
+        let names: Vec<String> = protos
+            .iter()
+            .map(|p| {
+                p.as_ref()
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("generated.proto")
+                    .to_string()
+            })
+            .collect();
+        let files = generate_from_file_descriptor_set(&bytes, &names)?;
+        for (name, src) in files {
+            std::fs::write(out.join(name), src).map_err(|e| ParseError::owned(e.to_string()))?;
+        }
+        Ok(())
+    }
+}
+
 pub fn encode_code_generator_response(files: &[(String, String)]) -> Vec<u8> {
     let mut out = Vec::new();
     // PROTO3_OPTIONAL | SUPPORTS_EDITIONS
@@ -214,7 +289,7 @@ fn file_matches(wanted: &std::collections::BTreeSet<String>, file_name: &str) ->
 }
 
 fn emit_fds(src: &mut String, fds: &[u8]) {
-    src.push_str("const FILE_DESCRIPTOR_SET: &[u8] = &[\n");
+    src.push_str("pub const FILE_DESCRIPTOR_SET: &[u8] = &[\n");
     for (i, b) in fds.iter().enumerate() {
         if i % 16 == 0 {
             src.push_str("    ");
@@ -582,6 +657,16 @@ fn is_hot_repeated_nested(f: &FieldDescriptor) -> bool {
         && f.name == "repeated_nested_message"
 }
 
+fn is_light_merge_field(f: &FieldDescriptor) -> bool {
+    if f.is_map || f.cardinality == Cardinality::Repeated {
+        return false;
+    }
+    !matches!(
+        f.field_type,
+        FieldType::String | FieldType::Bytes | FieldType::Message | FieldType::Group
+    )
+}
+
 fn is_cold_field(f: &FieldDescriptor) -> bool {
     // Maps and repeated string/bytes stay hot (map_64 / strings).
     // packed_fixed32/64, packed_float, and repeated_nested_message stay hot.
@@ -594,8 +679,25 @@ fn is_cold_field(f: &FieldDescriptor) -> bool {
     is_lazy_msg(f) && is_wkt_msg(f)
 }
 
+fn uses_sparse_cold(desc: &MessageDescriptor) -> bool {
+    !desc.message_set_wire_format
+        && (1..=4).contains(
+            &desc
+                .fields
+                .values()
+                .filter(|f| is_light_merge_field(f))
+                .count(),
+        )
+        && desc
+            .fields
+            .values()
+            .filter(|f| !is_light_merge_field(f))
+            .count()
+            >= 3
+}
+
 fn uses_cold_storage(desc: &MessageDescriptor) -> bool {
-    desc.fields.values().filter(|f| is_cold_field(f)).count() >= 6
+    uses_sparse_cold(desc) || desc.fields.values().filter(|f| is_cold_field(f)).count() >= 6
 }
 
 fn stored_hot(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
@@ -603,7 +705,11 @@ fn stored_hot(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
 }
 
 fn stored_cold(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
-    uses_cold_storage(desc) && is_cold_field(f)
+    if uses_sparse_cold(desc) {
+        !is_light_merge_field(f)
+    } else {
+        uses_cold_storage(desc) && is_cold_field(f)
+    }
 }
 
 fn store_mut(desc: &MessageDescriptor, f: &FieldDescriptor) -> String {
@@ -712,7 +818,7 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
         emit_zeroed_fields_struct(
             src,
             &cold_name,
-            desc.fields.values().filter(|f| is_cold_field(f)),
+            desc.fields.values().filter(|f| stored_cold(desc, f)),
         );
     }
     let _ = writeln!(src, "#[derive(Clone, Debug)]");
@@ -930,18 +1036,29 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     if f.field_type == FieldType::String {
         let fallback = string_default_lit(f);
+        let st = store_mut(desc, f);
+        let read = if stored_cold(desc, f) {
+            format!("self.cold.as_ref().and_then(|c| c.{id}.as_ref())")
+        } else {
+            format!("self.{id}.as_ref()")
+        };
+        let read_view = if stored_cold(desc, f) {
+            format!("self.cold.as_ref().map(|c| c.{id}.as_view())")
+        } else {
+            format!("Some(self.{id}.as_view())")
+        };
         if is_option(f) {
             let _ = writeln!(
                 src,
-                "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
+                "    pub fn has_{m}(&self) -> bool {{ {read}.is_some() }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ self.{id}.as_ref().map(|s| s.as_view()).unwrap_or_else(|| pbrs::ProtoStr::from_bytes({fallback})) }}"
+                "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ {read}.map(|s| s.as_view()).unwrap_or_else(|| pbrs::ProtoStr::from_bytes({fallback})) }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn {id}_opt(&self) -> Option<&pbrs::ProtoStr> {{ self.{id}.as_ref().map(|s| s.as_view()) }}"
+                "    pub fn {id}_opt(&self) -> Option<&pbrs::ProtoStr> {{ {read}.map(|s| s.as_view()) }}"
             );
             let _ = writeln!(
                 src,
@@ -951,56 +1068,67 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
             emit_oneof_clear(src, desc, f);
             let _ = writeln!(
                 src,
-                "        self.{id} = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private))));"
+                "        {st} = Some(Box::new(pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private))));"
             );
             let _ = writeln!(src, "    }}");
             let _ = writeln!(
                 src,
-                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ self.{id}.as_view() }}"
+                "    pub fn {id}(&self) -> &pbrs::ProtoStr {{ {read_view}.unwrap_or_else(|| pbrs::ProtoStr::from_bytes({fallback})) }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private)); }}"
+                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoString>) {{ self.cached_size.dirty(); {st} = pbrs::rt::LazyStr::owned(v.into_proxied(pbrs::__internal::Private)); }}"
             );
         }
         return;
     }
     if f.field_type == FieldType::Bytes {
         let fallback = bytes_default_lit(f);
+        let st = store_mut(desc, f);
+        let read = if stored_cold(desc, f) {
+            format!("self.cold.as_ref().and_then(|c| c.{id}.as_ref())")
+        } else {
+            format!("self.{id}.as_ref()")
+        };
+        let read_bytes = if stored_cold(desc, f) {
+            format!("self.cold.as_ref().map(|c| c.{id}.as_bytes())")
+        } else {
+            format!("Some(self.{id}.as_bytes())")
+        };
         if is_option(f) {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &[u8] {{ self.{id}.as_ref().map(|b| b.as_bytes()).unwrap_or({fallback}) }}"
+                "    pub fn {id}(&self) -> &[u8] {{ {read}.map(|b| b.as_bytes()).unwrap_or({fallback}) }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn {id}_opt(&self) -> Option<&[u8]> {{ self.{id}.as_ref().map(|b| b.as_bytes()) }}"
+                "    pub fn {id}_opt(&self) -> Option<&[u8]> {{ {read}.map(|b| b.as_bytes()) }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn has_{m}(&self) -> bool {{ self.{id}.is_some() }}"
+                "    pub fn has_{m}(&self) -> bool {{ {read}.is_some() }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)))); }}"
+                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); {st} = Some(Box::new(pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)))); }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); self.{id} = None; }}"
+                "    pub fn clear_{m}(&mut self) {{ self.cached_size.dirty(); {st} = None; }}"
             );
         } else {
             let _ = writeln!(
                 src,
-                "    pub fn {id}(&self) -> &[u8] {{ self.{id}.as_bytes() }}"
+                "    pub fn {id}(&self) -> &[u8] {{ {read_bytes}.unwrap_or({fallback}) }}"
             );
             let _ = writeln!(
                 src,
-                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); self.{id} = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)); }}"
+                "    pub fn set_{m}(&mut self, v: impl pbrs::IntoProxied<ProtoBytes>) {{ self.cached_size.dirty(); {st} = pbrs::rt::LazyBytes::owned(v.into_proxied(pbrs::__internal::Private)); }}"
             );
         }
         return;
@@ -1228,33 +1356,64 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         "        if depth > pbrs::RECURSION_LIMIT {{ return Err(ParseError::new(\"recursion limit exceeded\")); }} let _ = enforce;"
     );
     let _ = writeln!(src, "        self.cached_size.dirty();");
+    let lights: Vec<_> = desc
+        .fields
+        .values()
+        .filter(|f| is_light_merge_field(f))
+        .collect();
+    let heavies: Vec<_> = desc
+        .fields
+        .values()
+        .filter(|f| !is_light_merge_field(f))
+        .collect();
+    let split_heavy =
+        !desc.message_set_wire_format && (1..=4).contains(&lights.len()) && !heavies.is_empty();
     let _ = writeln!(src, "        while *pos < data.len() {{");
     let _ = writeln!(
         src,
         "            let (n, w) = pbrs::rt::decode_tag(data, pos)?;"
     );
     let _ = writeln!(src, "            if let Some(g) = until {{ if w == pbrs::rt::WIRE_EGROUP {{ if n != g {{ return Err(ParseError::new(\"mismatched end-group\")); }} return Ok(()); }} }}");
-    let _ = writeln!(src, "            match n {{");
-    if desc.message_set_wire_format {
-        emit_message_set_merge(src, desc);
-    }
-    for f in desc.fields.values() {
-        if desc.message_set_wire_format && f.number == 1 {
-            continue;
+    if split_heavy {
+        for f in &lights {
+            let _ = writeln!(src, "            if n == {} {{", f.number);
+            let _ = writeln!(src, "                match w {{");
+            emit_merge_arm(src, desc, f);
+            let _ = writeln!(
+                src,
+                "                    _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+            );
+            let _ = writeln!(src, "                }}");
+            let _ = writeln!(src, "                continue;");
+            let _ = writeln!(src, "            }}");
         }
-        let _ = writeln!(src, "            {} => match w {{", f.number);
-        emit_merge_arm(src, desc, f);
+        let _ = writeln!(
+            src,
+            "            self.merge_heavy(n, w, data, wire, pos, depth)?;"
+        );
+    } else {
+        let _ = writeln!(src, "            match n {{");
+        if desc.message_set_wire_format {
+            emit_message_set_merge(src, desc);
+        }
+        for f in desc.fields.values() {
+            if desc.message_set_wire_format && f.number == 1 {
+                continue;
+            }
+            let _ = writeln!(src, "            {} => match w {{", f.number);
+            emit_merge_arm(src, desc, f);
+            let _ = writeln!(
+                src,
+                "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+            );
+            let _ = writeln!(src, "            }}");
+        }
         let _ = writeln!(
             src,
             "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
         );
         let _ = writeln!(src, "            }}");
     }
-    let _ = writeln!(
-        src,
-        "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
-    );
-    let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
     let _ = writeln!(
         src,
@@ -1263,6 +1422,30 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "        if enforce {{ self.check_required()?; }}");
     let _ = writeln!(src, "        Ok(())");
     let _ = writeln!(src, "    }}");
+    if split_heavy {
+        let _ = writeln!(src, "    #[inline(never)]");
+        let _ = writeln!(
+            src,
+            "    fn merge_heavy(&mut self, n: u32, w: u32, data: &[u8], wire: &mut Option<pbrs::rt::Wire>, pos: &mut usize, depth: u32) -> Result<(), ParseError> {{"
+        );
+        let _ = writeln!(src, "        match n {{");
+        for f in &heavies {
+            let _ = writeln!(src, "            {} => match w {{", f.number);
+            emit_merge_arm(src, desc, f);
+            let _ = writeln!(
+                src,
+                "                _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+            );
+            let _ = writeln!(src, "            }}");
+        }
+        let _ = writeln!(
+            src,
+            "            _ => self.unknown.fields.push(pbrs::rt::capture_unknown(data, pos, n, w)?),"
+        );
+        let _ = writeln!(src, "        }}");
+        let _ = writeln!(src, "        Ok(())");
+        let _ = writeln!(src, "    }}");
+    }
 
     let _ = writeln!(
         src,
@@ -1331,7 +1514,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         }
         if uses_cold_storage(desc) {
             let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
-            for f in desc.fields.values().filter(|f| is_cold_field(f)) {
+            for f in desc.fields.values().filter(|f| stored_cold(desc, f)) {
                 emit_size(src, f, "c");
             }
             let _ = writeln!(src, "        }}");
@@ -1353,7 +1536,7 @@ fn emit_codec(src: &mut String, desc: &MessageDescriptor) {
         }
         if uses_cold_storage(desc) {
             let _ = writeln!(src, "        if let Some(c) = self.cold.as_deref() {{");
-            for f in desc.fields.values().filter(|f| is_cold_field(f)) {
+            for f in desc.fields.values().filter(|f| stored_cold(desc, f)) {
                 emit_write(src, f, "c");
             }
             let _ = writeln!(src, "        }}");
@@ -2491,21 +2674,65 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         src,
         "    pub fn new(channel: tonic::transport::Channel) -> Self {{ Self {{ inner: tonic::client::Grpc::new(channel) }} }}"
     );
+    let _ = writeln!(
+        src,
+        "    pub fn send_compressed(self, encoding: tonic::codec::CompressionEncoding) -> Self {{ Self {{ inner: self.inner.send_compressed(encoding) }} }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn accept_compressed(self, encoding: tonic::codec::CompressionEncoding) -> Self {{ Self {{ inner: self.inner.accept_compressed(encoding) }} }}"
+    );
     for m in &svc.methods {
         emit_client_method(src, m, &path_prefix);
     }
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "pub struct {server}<T> {{ inner: Arc<T> }}");
-    let _ = writeln!(src, "impl<T> Clone for {server}<T> {{");
+    let _ = writeln!(src, "pub struct {server}<T> {{");
+    let _ = writeln!(src, "    inner: Arc<T>,");
     let _ = writeln!(
         src,
-        "    fn clone(&self) -> Self {{ Self {{ inner: self.inner.clone() }} }}"
+        "    accept_compression_encodings: tonic::codec::EnabledCompressionEncodings,"
+    );
+    let _ = writeln!(
+        src,
+        "    send_compression_encodings: tonic::codec::EnabledCompressionEncodings,"
     );
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl<T: {svc_ty}> {server}<T> {{");
+    let _ = writeln!(src, "impl<T> Clone for {server}<T> {{");
+    let _ = writeln!(src, "    fn clone(&self) -> Self {{");
+    let _ = writeln!(src, "        Self {{");
+    let _ = writeln!(src, "            inner: self.inner.clone(),");
     let _ = writeln!(
         src,
-        "    pub fn new(inner: T) -> Self {{ Self {{ inner: Arc::new(inner) }} }}"
+        "            accept_compression_encodings: self.accept_compression_encodings,"
+    );
+    let _ = writeln!(
+        src,
+        "            send_compression_encodings: self.send_compression_encodings,"
+    );
+    let _ = writeln!(src, "        }}");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(src, "}}");
+    let _ = writeln!(src, "impl<T: {svc_ty}> {server}<T> {{");
+    let _ = writeln!(src, "    pub fn new(inner: T) -> Self {{");
+    let _ = writeln!(src, "        Self {{");
+    let _ = writeln!(src, "            inner: Arc::new(inner),");
+    let _ = writeln!(
+        src,
+        "            accept_compression_encodings: Default::default(),"
+    );
+    let _ = writeln!(
+        src,
+        "            send_compression_encodings: Default::default(),"
+    );
+    let _ = writeln!(src, "        }}");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn accept_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.accept_compression_encodings.enable(encoding); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn send_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.send_compression_encodings.enable(encoding); self }}"
     );
     let _ = writeln!(src, "}}");
     let _ = writeln!(
@@ -2538,6 +2765,11 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         "    fn call(&mut self, req: http::Request<B>) -> Self::Future {{"
     );
     let _ = writeln!(src, "        let inner = self.inner.clone();");
+    let _ = writeln!(
+        src,
+        "        let accept = self.accept_compression_encodings;"
+    );
+    let _ = writeln!(src, "        let send = self.send_compression_encodings;");
     let _ = writeln!(src, "        Box::pin(async move {{");
     let _ = writeln!(src, "            match req.uri().path() {{");
     for m in &svc.methods {
@@ -2646,7 +2878,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default());");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.unary(Svc(inner), req).await)"
@@ -2672,7 +2904,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default());");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.streaming(Svc(inner), req).await)"
@@ -2693,7 +2925,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default());");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.client_streaming(Svc(inner), req).await)"
@@ -2719,7 +2951,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default());");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.server_streaming(Svc(inner), req).await)"

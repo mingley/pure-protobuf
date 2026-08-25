@@ -498,6 +498,16 @@ fn main() {
 
     let mut failed = false;
     for r in survey.iter() {
+        if r.name == "rpc_sparse" {
+            if r.pbrs_dec >= r.prost_dec {
+                eprintln!(
+                    "perf gate failed: rpc_sparse decode {:.1} vs prost {:.1}",
+                    r.pbrs_dec, r.prost_dec
+                );
+                failed = true;
+            }
+            continue;
+        }
         if r.name != "name_4kib" && r.name != "blob_4kib" {
             continue;
         }

@@ -5,8 +5,11 @@ protobuf v4: `Parse`, `Serialize`, `Clear`, `proto!`, `ProtoStr`,
 `RepeatedView`, `DynamicMessage`.
 
 It is not crates.io `protobuf` 4.x (upb/C), not prost, and not
-[pb-rs](https://crates.io/crates/pb-rs). Google `protoc --rust_out` will
-not link. Generate with `protoc-gen-pbrs`.
+[pb-rs](https://crates.io/crates/pb-rs). Generate with `protoc-gen-pbrs`,
+or from a `build.rs` with `pbrs::codegen::compile_protos` (prost-build
+shape). Official `protoc --rust_out kernel=upb` also links against this
+crate as `protobuf` via the MiniTable stand-in in `src/runtime.rs`
+(`rust_out_person` roundtrips).
 
 ```toml
 pbrs = { git = "https://github.com/mingley/pure-protobuf" }
@@ -14,6 +17,13 @@ pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 
 ```bash
 ./scripts/gen.sh -I proto -o gen proto/your.proto
+```
+
+```rust
+// build.rs
+fn main() {
+    pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"]).unwrap();
+}
 ```
 
 `protoc` must be on PATH. The plugin is `protoc-gen-pbrs` / `--pbrs_out`.

@@ -74,8 +74,9 @@ See `docs/upb.md`. Short list:
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
 - `name_4kib` Codec combined now beats prost (gated in `tonic-bench`).
-  `blob_4kib` still wins. Leftover unary items are `rpc_sparse` decode
-  and `tags_32` vs v4. Flatten `merge_inner` (#39) stays discarded.
+  `blob_4kib` still wins. `rpc_sparse` decode is also gated. Leftover
+  unary item is `tags_32` vs v4. Flatten `merge_inner` (#39) stays
+  discarded.
   Survey: `docs/benchmarks.md`. Closed inventories (notes + harnesses,
   not merged as wins): `docs/inventory/`.
   [#27](https://github.com/mingley/pure-protobuf/pull/27) rust_out 234
