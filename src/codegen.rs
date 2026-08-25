@@ -1706,6 +1706,15 @@ fn lazy_str_from_parse(f: &FieldDescriptor) -> &'static str {
     }
 }
 
+/// Same-tag run for repeated length-delimited items (strings/bytes).
+/// Reserve from remaining bytes so `tags_32` does not grow the Vec 5×.
+fn emit_repeated_len_run(src: &mut String, num: u32, st: &str, push: &str) {
+    let _ = writeln!(
+        src,
+        "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; let rest = data.len().saturating_sub(e); if rest > 2 {{ {st}.reserve(1 + rest / (e - s + 2).max(1)); }} {st}.push({push}); while *pos < data.len() {{ let save = *pos; match pbrs::rt::decode_tag(data, pos) {{ Ok((n2, w2)) if n2 == {num} && w2 == pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push({push}); }} Ok(_) => {{ *pos = save; break; }} Err(e) => return Err(e), }} }} }}"
+    );
+}
+
 fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
     let st = store_mut(desc, f);
     let num = f.number;
@@ -1727,10 +1736,14 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String {
-            let parse = lazy_str_from_parse(f);
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push({parse}); }}");
+            emit_repeated_len_run(src, num, &st, lazy_str_from_parse(f));
         } else if f.field_type == FieldType::Bytes {
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))); }}");
+            emit_repeated_len_run(
+                src,
+                num,
+                &st,
+                "pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))",
+            );
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
             let t = scalar_type(f);
             if f.field_type == FieldType::Group || f.delimited {
@@ -2674,24 +2687,59 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     }
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "#[derive(Clone, Debug)]");
-    let _ = writeln!(src, "pub struct {client} {{");
-    let _ = writeln!(
-        src,
-        "    inner: tonic::client::Grpc<tonic::transport::Channel>,"
-    );
+    let _ = writeln!(src, "pub struct {client}<T> {{");
+    let _ = writeln!(src, "    inner: tonic::client::Grpc<T>,");
     let _ = writeln!(src, "}}");
-    let _ = writeln!(src, "impl {client} {{");
+    let _ = writeln!(src, "impl<T> {client}<T>");
+    let _ = writeln!(src, "where");
+    let _ = writeln!(src, "    T: tonic::client::GrpcService<tonic::body::Body>,");
+    let _ = writeln!(src, "    T::Error: Into<tonic::codegen::StdError>,");
     let _ = writeln!(
         src,
-        "    pub fn new(channel: tonic::transport::Channel) -> Self {{ Self {{ inner: tonic::client::Grpc::new(channel) }} }}"
+        "    T::ResponseBody: tonic::codegen::Body<Data = tonic::codegen::Bytes> + Send + 'static,"
     );
     let _ = writeln!(
         src,
-        "    pub fn send_compressed(self, encoding: tonic::codec::CompressionEncoding) -> Self {{ Self {{ inner: self.inner.send_compressed(encoding) }} }}"
+        "    <T::ResponseBody as tonic::codegen::Body>::Error: Into<tonic::codegen::StdError> + Send,"
+    );
+    let _ = writeln!(src, "{{");
+    let _ = writeln!(
+        src,
+        "    pub fn new(inner: T) -> Self {{ Self {{ inner: tonic::client::Grpc::new(inner) }} }}"
     );
     let _ = writeln!(
         src,
-        "    pub fn accept_compressed(self, encoding: tonic::codec::CompressionEncoding) -> Self {{ Self {{ inner: self.inner.accept_compressed(encoding) }} }}"
+        "    pub fn with_interceptor<F>(inner: T, interceptor: F) -> {client}<tonic::service::interceptor::InterceptedService<T, F>>"
+    );
+    let _ = writeln!(src, "    where");
+    let _ = writeln!(src, "        F: tonic::service::Interceptor,");
+    let _ = writeln!(src, "        T::ResponseBody: Default,");
+    let _ = writeln!(src, "        T: tonic::codegen::Service<http::Request<tonic::body::Body>, Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>>,");
+    let _ = writeln!(
+        src,
+        "        <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error: Into<tonic::codegen::StdError> + Send + Sync,"
+    );
+    let _ = writeln!(src, "    {{");
+    let _ = writeln!(
+        src,
+        "        {client}::new(tonic::service::interceptor::InterceptedService::new(inner, interceptor))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn send_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.inner = self.inner.send_compressed(encoding); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn accept_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.inner = self.inner.accept_compressed(encoding); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {{ self.inner = self.inner.max_decoding_message_size(limit); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {{ self.inner = self.inner.max_encoding_message_size(limit); self }}"
     );
     for m in &svc.methods {
         emit_client_method(src, m, &path_prefix);
@@ -2707,6 +2755,8 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         src,
         "    send_compression_encodings: tonic::codec::EnabledCompressionEncodings,"
     );
+    let _ = writeln!(src, "    max_decoding_message_size: Option<usize>,");
+    let _ = writeln!(src, "    max_encoding_message_size: Option<usize>,");
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "impl<T> Clone for {server}<T> {{");
     let _ = writeln!(src, "    fn clone(&self) -> Self {{");
@@ -2719,6 +2769,14 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(
         src,
         "            send_compression_encodings: self.send_compression_encodings,"
+    );
+    let _ = writeln!(
+        src,
+        "            max_decoding_message_size: self.max_decoding_message_size,"
+    );
+    let _ = writeln!(
+        src,
+        "            max_encoding_message_size: self.max_encoding_message_size,"
     );
     let _ = writeln!(src, "        }}");
     let _ = writeln!(src, "    }}");
@@ -2735,7 +2793,19 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         src,
         "            send_compression_encodings: Default::default(),"
     );
+    let _ = writeln!(src, "            max_decoding_message_size: None,");
+    let _ = writeln!(src, "            max_encoding_message_size: None,");
     let _ = writeln!(src, "        }}");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn with_interceptor<F>(inner: T, interceptor: F) -> tonic::service::interceptor::InterceptedService<Self, F>"
+    );
+    let _ = writeln!(src, "    where F: tonic::service::Interceptor {{");
+    let _ = writeln!(
+        src,
+        "        tonic::service::interceptor::InterceptedService::new(Self::new(inner), interceptor)"
+    );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
@@ -2744,6 +2814,14 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
     let _ = writeln!(
         src,
         "    pub fn send_compressed(mut self, encoding: tonic::codec::CompressionEncoding) -> Self {{ self.send_compression_encodings.enable(encoding); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {{ self.max_decoding_message_size = Some(limit); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {{ self.max_encoding_message_size = Some(limit); self }}"
     );
     let _ = writeln!(src, "}}");
     let _ = writeln!(
@@ -2781,6 +2859,8 @@ fn emit_service(src: &mut String, svc: &ServiceDescriptor) {
         "        let accept = self.accept_compression_encodings;"
     );
     let _ = writeln!(src, "        let send = self.send_compression_encodings;");
+    let _ = writeln!(src, "        let max_dec = self.max_decoding_message_size;");
+    let _ = writeln!(src, "        let max_enc = self.max_encoding_message_size;");
     let _ = writeln!(src, "        Box::pin(async move {{");
     let _ = writeln!(src, "            match req.uri().path() {{");
     for m in &svc.methods {
@@ -2836,7 +2916,7 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
     match (m.client_streaming, m.server_streaming) {
         (false, false) => {
             let _ = writeln!(src, "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<{resp}>, tonic::Status> {{");
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.to_string()))?;");
+            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
             let _ = writeln!(src, "        self.inner.unary(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
@@ -2846,7 +2926,7 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
                 src,
                 "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
             );
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.to_string()))?;");
+            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
             let _ = writeln!(src, "        self.inner.streaming(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
@@ -2856,13 +2936,13 @@ fn emit_client_method(src: &mut String, m: &MethodDescriptor, prefix: &str) {
                 src,
                 "    where S: tokio_stream::Stream<Item = {req}> + Send + 'static {{"
             );
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.to_string()))?;");
+            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
             let _ = writeln!(src, "        self.inner.client_streaming(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
         (false, true) => {
             let _ = writeln!(src, "    pub async fn {fn_name}(&mut self, request: tonic::Request<{req}>) -> Result<tonic::Response<tonic::Streaming<{resp}>>, tonic::Status> {{");
-            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.to_string()))?;");
+            let _ = writeln!(src, "        self.inner.ready().await.map_err(|e| tonic::Status::unknown(e.into().to_string()))?;");
             let _ = writeln!(src, "        self.inner.server_streaming(request, \"{path}\".parse().unwrap(), ProtobufCodec::<{req}, {resp}>::default()).await");
             let _ = writeln!(src, "    }}");
         }
@@ -2889,7 +2969,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.unary(Svc(inner), req).await)"
@@ -2915,7 +2995,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.streaming(Svc(inner), req).await)"
@@ -2936,7 +3016,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.client_streaming(Svc(inner), req).await)"
@@ -2962,7 +3042,7 @@ fn emit_server_route(src: &mut String, m: &MethodDescriptor, prefix: &str, svc_t
             let _ = writeln!(src, "                            Box::pin(async move {{ inner.{fn_name}(request).await }})");
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }}");
-            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send);");
+            let _ = writeln!(src, "                    let mut grpc = tonic::server::Grpc::new(ProtobufCodec::<{resp}, {req}>::default()).apply_compression_config(accept, send).apply_max_message_size_config(max_dec, max_enc);");
             let _ = writeln!(
                 src,
                 "                    Ok(grpc.server_streaming(Svc(inner), req).await)"

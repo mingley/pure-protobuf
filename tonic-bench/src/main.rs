@@ -508,6 +508,16 @@ fn main() {
             }
             continue;
         }
+        if r.name == "tags_32" {
+            if r.pbrs_dec >= r.v4_dec {
+                eprintln!(
+                    "perf gate failed: tags_32 decode {:.1} vs v4 {:.1}",
+                    r.pbrs_dec, r.v4_dec
+                );
+                failed = true;
+            }
+            continue;
+        }
         if r.name != "name_4kib" && r.name != "blob_4kib" {
             continue;
         }

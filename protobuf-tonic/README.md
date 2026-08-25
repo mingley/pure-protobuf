@@ -5,7 +5,9 @@ This crate is the tonic 0.14 `Codec` and plugin-generated stubs over pbrs
 
 It is not `tonic-prost`. These types do not implement `prost::Message`.
 The kernel does not depend on tonic. tonic 0.12 and 0.13 are unsupported.
-MSRV is 1.88.
+MSRV is 1.88. This crate depends on `pbrs` by path (git until `pbrs` is
+on crates.io); `cargo publish -p protobuf-tonic` cannot succeed until that
+registry version exists.
 
 `protoc-gen-pbrs` (and `pbrs::codegen::generate_from_file_descriptor_set`)
 emit `FooClient` / `FooServer` / a `Foo` trait for each `.proto` service.
@@ -36,11 +38,15 @@ let stream = client.stream_hello(Request::new(inbound)).await?;
 type second. `tonic-bench` Codec survey vs prost and v4 upb lives in
 `docs/benchmarks.md`. Typical unary `rpc_mixed` is already ~2× prost.
 `name_4kib` combined beats prost (process-gated). `rpc_sparse` decode
-is also gated. Flatten (#39) tried and discarded. See
+and `tags_32` decode vs v4 are also gated. Flatten (#39) tried and
+discarded. See
 `docs/status.md` Remaining. Not kernel `./bench`.
 
 Generated `FooClient` / `FooServer` expose tonic `send_compressed` /
-`accept_compressed`. `tests/gzip.rs` runs unary `say_hello` with gzip.
+`accept_compressed`, `with_interceptor`, and `max_decoding_message_size` /
+`max_encoding_message_size`. `tests/gzip.rs` runs unary `say_hello` with gzip.
+`tests/interceptor_size.rs` runs a unary RPC through a request interceptor
+and through encode/decode size bounds.
 `tests/health_reflection.rs` serves gRPC health (SERVING) and server
 reflection that lists `helloworld.Greeter`. Health and reflection are
 tonic's crates, not a second stack.

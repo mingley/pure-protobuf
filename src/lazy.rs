@@ -9,11 +9,11 @@ use crate::map::MapKey;
 use crate::string::{ProtoBytes, ProtoStr, ProtoString};
 use std::sync::Arc;
 
-/// Proto3 string UTF-8 check. All-ASCII uses a word-wise high-bit scan.
+/// Proto3 string UTF-8 check via `simdutf8`.
 ///
 /// `name_4kib` vs `blob_4kib` decode (~80 ns) was `str::from_utf8` on 4 KiB
-/// of `'x'`. ASCII is valid UTF-8; fall back to `from_utf8` only when a
-/// high bit is set.
+/// of `'x'`. ASCII is valid UTF-8; `simdutf8` is the fast path for both
+/// short tags and 4 KiB payloads.
 #[inline(always)]
 pub fn require_utf8(b: &[u8]) -> Result<(), ParseError> {
     match simdutf8::basic::from_utf8(b) {
