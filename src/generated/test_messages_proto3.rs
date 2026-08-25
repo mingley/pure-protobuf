@@ -8269,13 +8269,8 @@ mod __gen {
                     14 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let b = &data[s..e];
-                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.optional_string = pbrs::rt::LazyStr::from_span(
-                                pbrs::rt::Wire::ensure(wire, data),
-                                s,
-                                e,
-                            );
+                            self.optional_string =
+                                pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?;
                         }
                         _ => self
                             .unknown
@@ -8386,13 +8381,8 @@ mod __gen {
                     24 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let b = &data[s..e];
-                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.optional_string_piece = pbrs::rt::LazyStr::from_span(
-                                pbrs::rt::Wire::ensure(wire, data),
-                                s,
-                                e,
-                            );
+                            self.optional_string_piece =
+                                pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?;
                         }
                         _ => self
                             .unknown
@@ -8402,13 +8392,8 @@ mod __gen {
                     25 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let b = &data[s..e];
-                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.optional_cord = pbrs::rt::LazyStr::from_span(
-                                pbrs::rt::Wire::ensure(wire, data),
-                                s,
-                                e,
-                            );
+                            self.optional_cord =
+                                pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?;
                         }
                         _ => self
                             .unknown
@@ -8912,13 +8897,28 @@ mod __gen {
                     44 => match w {
                         pbrs::rt::WIRE_LEN => {
                             let (s, e) = pbrs::rt::read_len_span(data, pos)?;
-                            let b = &data[s..e];
-                            std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8"))?;
-                            self.repeated_string.push(pbrs::rt::LazyStr::from_span(
-                                pbrs::rt::Wire::ensure(wire, data),
-                                s,
-                                e,
-                            ));
+                            let rest = data.len().saturating_sub(e);
+                            if rest > 2 {
+                                self.repeated_string.reserve(1 + rest / (e - s + 2).max(1));
+                            }
+                            self.repeated_string
+                                .push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?);
+                            while *pos < data.len() {
+                                let save = *pos;
+                                match pbrs::rt::decode_tag(data, pos) {
+                                    Ok((n2, w2)) if n2 == 44 && w2 == pbrs::rt::WIRE_LEN => {
+                                        let (s, e) = pbrs::rt::read_len_span(data, pos)?;
+                                        self.repeated_string.push(
+                                            pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?,
+                                        );
+                                    }
+                                    Ok(_) => {
+                                        *pos = save;
+                                        break;
+                                    }
+                                    Err(e) => return Err(e),
+                                }
+                            }
                         }
                         _ => self
                             .unknown
