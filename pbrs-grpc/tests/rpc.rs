@@ -20,7 +20,7 @@ mod common;
 
 use common::{name_of, req, spawn_greeter};
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
-use pbrs_grpc::{Code, InItem, Inbound, Request, Response, Status};
+use pbrs_grpc::{Channel, Code, InItem, Inbound, Request, Response, Status};
 
 struct Echo;
 
@@ -208,4 +208,28 @@ async fn failing_rpc_nonzero_grpc_status() {
         }
         Ok(_) => panic!("expected nonzero grpc-status"),
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn concurrent_unary_on_connection_pool() {
+    let (addr, _) = spawn_greeter(Echo).await.expect("spawn");
+    let client =
+        pbrs_grpc::hello::GreeterClient::new(Channel::connect_pool(addr, 4).await.expect("pool"));
+    let mut hs = Vec::new();
+    for i in 0..16u32 {
+        let c = client.clone();
+        hs.push(tokio::spawn(async move {
+            let label = format!("n{i}");
+            let resp = c.say_hello(Request::new(req(&label))).await.expect("unary");
+            name_of(&resp.into_inner())
+        }));
+    }
+    let mut got = Vec::new();
+    for h in hs {
+        got.push(h.await.expect("join"));
+    }
+    got.sort();
+    let mut want: Vec<String> = (0..16u32).map(|i| format!("n{i}")).collect();
+    want.sort();
+    assert_eq!(got, want);
 }

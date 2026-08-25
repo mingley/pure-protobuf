@@ -27,11 +27,13 @@ use tonic::{Request, Response, Status};
 
 const LARGE_REQ: i32 = 271828;
 const LARGE_RESP: i32 = 314159;
-const ITERS: u32 = 400;
+const ITERS: u32 = 800;
 const LARGE_ITERS: u32 = 80;
-const QPS_SECS: f64 = 2.0;
-const EMPTY_CONC: [u32; 3] = [1, 16, 64];
-const LARGE_CONC: [u32; 3] = [1, 8, 16];
+const QPS_SECS: f64 = 3.0;
+const QPS_CONC_LOW: u32 = 1;
+const QPS_CONNS_LOW: usize = 1;
+const QPS_CONC_HIGH: u32 = 16;
+const QPS_CONNS_HIGH: usize = 4;
 
 struct TonicInterop;
 
@@ -386,6 +388,10 @@ fn qps(count: u64, dur: Duration) -> u64 {
     (count as f64 / dur.as_secs_f64()).round() as u64
 }
 
+fn ratio_widens(k_low: u64, t_low: u64, k_high: u64, t_high: u64) -> bool {
+    k_high.saturating_mul(t_low) > k_low.saturating_mul(t_high)
+}
+
 #[tokio::main]
 async fn main() {
     let k_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -415,41 +421,74 @@ async fn main() {
     );
 
     let dur = Duration::from_secs_f64(QPS_SECS);
-    for conc in EMPTY_CONC {
-        let (kn, ke) = qps_kernel_empty(k_addr, conc, 1, dur).await;
-        let (tn, te) = qps_tonic_empty(t_addr, conc, 1, dur).await;
-        println!(
-            "qps empty conc={conc} conns=1 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
-            qps(kn, dur),
-            qps(tn, dur)
-        );
-    }
-    let (kn, ke) = qps_kernel_empty(k_addr, 64, 4, dur).await;
-    let (tn, te) = qps_tonic_empty(t_addr, 64, 4, dur).await;
+    let (ek1n, ek1e) = qps_kernel_empty(k_addr, QPS_CONC_LOW, QPS_CONNS_LOW, dur).await;
+    let (et1n, et1e) = qps_tonic_empty(t_addr, QPS_CONC_LOW, QPS_CONNS_LOW, dur).await;
+    let (ekhn, ekhe) = qps_kernel_empty(k_addr, QPS_CONC_HIGH, QPS_CONNS_HIGH, dur).await;
+    let (ethn, ethe) = qps_tonic_empty(t_addr, QPS_CONC_HIGH, QPS_CONNS_HIGH, dur).await;
+    let ek1 = qps(ek1n, dur);
+    let et1 = qps(et1n, dur);
+    let ekh = qps(ekhn, dur);
+    let eth = qps(ethn, dur);
     println!(
-        "qps empty conc=64 conns=4 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
-        qps(kn, dur),
-        qps(tn, dur)
+        "qps empty conc={QPS_CONC_LOW} conns={QPS_CONNS_LOW} kernel={ek1} tonic={et1} kernel_err={ek1e} tonic_err={et1e}"
     );
-    for conc in LARGE_CONC {
-        let (kn, ke) = qps_kernel_large(k_addr, conc, 1, dur).await;
-        let (tn, te) = qps_tonic_large(t_addr, conc, 1, dur).await;
-        println!(
-            "qps large conc={conc} conns=1 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
-            qps(kn, dur),
-            qps(tn, dur)
-        );
-    }
-    let (kn, ke) = qps_kernel_large(k_addr, 16, 4, dur).await;
-    let (tn, te) = qps_tonic_large(t_addr, 16, 4, dur).await;
     println!(
-        "qps large conc=16 conns=4 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
-        qps(kn, dur),
-        qps(tn, dur)
+        "qps empty conc={QPS_CONC_HIGH} conns={QPS_CONNS_HIGH} kernel={ekh} tonic={eth} kernel_err={ekhe} tonic_err={ethe}"
     );
 
+    let (lk1n, lk1e) = qps_kernel_large(k_addr, QPS_CONC_LOW, QPS_CONNS_LOW, dur).await;
+    let (lt1n, lt1e) = qps_tonic_large(t_addr, QPS_CONC_LOW, QPS_CONNS_LOW, dur).await;
+    let (lkhn, lkhe) = qps_kernel_large(k_addr, QPS_CONC_HIGH, QPS_CONNS_HIGH, dur).await;
+    let (lthn, lthe) = qps_tonic_large(t_addr, QPS_CONC_HIGH, QPS_CONNS_HIGH, dur).await;
+    let lk1 = qps(lk1n, dur);
+    let lt1 = qps(lt1n, dur);
+    let lkh = qps(lkhn, dur);
+    let lth = qps(lthn, dur);
+    println!(
+        "qps large conc={QPS_CONC_LOW} conns={QPS_CONNS_LOW} kernel={lk1} tonic={lt1} kernel_err={lk1e} tonic_err={lt1e}"
+    );
+    println!(
+        "qps large conc={QPS_CONC_HIGH} conns={QPS_CONNS_HIGH} kernel={lkh} tonic={lth} kernel_err={lkhe} tonic_err={lthe}"
+    );
+
+    let mut failed = false;
     if k_empty >= t_empty || k_large >= t_large {
         eprintln!("perf gate failed: kernel empty {k_empty} vs tonic {t_empty}; large {k_large} vs {t_large}");
+        failed = true;
+    }
+    if ek1e != 0
+        || et1e != 0
+        || ekhe != 0
+        || ethe != 0
+        || lk1e != 0
+        || lt1e != 0
+        || lkhe != 0
+        || lthe != 0
+    {
+        eprintln!("qps gate failed: nonzero RPC errors");
+        failed = true;
+    }
+    if ek1 <= et1 || ekh <= eth {
+        eprintln!(
+            "qps gate failed: empty kernel not strictly above tonic ({ek1}/{et1} then {ekh}/{eth})"
+        );
+        failed = true;
+    }
+    if lk1 <= lt1 || lkh <= lth {
+        eprintln!(
+            "qps gate failed: large kernel not strictly above tonic ({lk1}/{lt1} then {lkh}/{lth})"
+        );
+        failed = true;
+    }
+    if !ratio_widens(ek1, et1, ekh, eth) {
+        eprintln!("qps gate failed: empty ratio did not widen ({ek1}/{et1} -> {ekh}/{eth})");
+        failed = true;
+    }
+    if !ratio_widens(lk1, lt1, lkh, lth) {
+        eprintln!("qps gate failed: large ratio did not widen ({lk1}/{lt1} -> {lkh}/{lth})");
+        failed = true;
+    }
+    if failed {
         std::process::exit(1);
     }
 }

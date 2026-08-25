@@ -78,6 +78,17 @@
 
 ## Remaining
 
+QPS-vs-conc (WIP on `mingley/rpc-qps`, not gated): `rpc-bench` now
+process-gates kernel>tonic QPS and a widening kernel/tonic ratio from
+conc=1/conns=1 to conc=16/conns=4. Empty usually widens; **large
+often fails the ratio gate** because conc=1 kernel is already ~2.1×
+tonic (memcpy-uncontended) and high-conc memcpy saturates, so the
+ratio shrinks or ties (last fail: `2720/1240 -> 3312/1512`). Need
+kernel large high-conc QPS to pull away (target ≳4k vs tonic ~1.5k
+on that cell, previously seen at `4105/1621`) without inflating
+conc=1. Do not mix conn counts between stacks at a given conc.
+`Channel::connect_pool` is round-robin, not task-sticky.
+
 See `docs/upb.md`. Short list:
 
 - Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop

@@ -39,9 +39,11 @@ impl Channel {
         Self::connect_pool(addr, 1).await
     }
 
-    /// Dial `n` prior-knowledge HTTP/2 connections to `addr`. RPCs pick a
-    /// connection round-robin so a high-concurrency tokio runtime can drive
-    /// more than one h2 task.
+    /// Dial `n` prior-knowledge HTTP/2 connections to `addr`.
+    ///
+    /// RPCs pick a connection round-robin. Task-sticky assignment was
+    /// tried for QPS scaling and reverted; see Remaining in
+    /// `docs/status.md`.
     pub async fn connect_pool(addr: SocketAddr, n: usize) -> Result<Self, Status> {
         let n = n.max(1);
         let authority: Authority = addr
@@ -64,7 +66,10 @@ impl Channel {
     fn grab(&self) -> Result<h2::client::SendRequest<Bytes>, Status> {
         let sends = &self.inner.sends;
         let n = sends.len();
-        let i = if n == 0 {
+        if n == 0 {
+            return Err(Status::unavailable("empty connection pool"));
+        }
+        let i = if n == 1 {
             0
         } else {
             self.inner.next.fetch_add(1, Ordering::Relaxed) % n
