@@ -279,6 +279,114 @@ fn plugin_generates_grpc_stubs() {
     );
 }
 
+#[test]
+fn plugin_proto2_none_parses_non_utf8_proto3_rejects() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-utf8");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let utf8_dir =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("vendor/google/rust-tests/shared/utf8");
+    for name in ["no_features_proto2.proto", "no_features_proto3.proto"] {
+        let proto = utf8_dir.join(name);
+        let status = Command::new("protoc")
+            .arg(format!(
+                "--plugin=protoc-gen-pbrs={}",
+                plugin_bin().display()
+            ))
+            .arg(format!("--pbrs_out={}", tmp.display()))
+            .arg("-I")
+            .arg(&utf8_dir)
+            .arg(&proto)
+            .status()
+            .expect("run protoc");
+        assert!(status.success(), "protoc plugin failed for {name}");
+    }
+    let p2_src = std::fs::read_to_string(tmp.join("no_features_proto2.rs")).expect("p2");
+    let p3_src = std::fs::read_to_string(tmp.join("no_features_proto3.rs")).expect("p3");
+    assert!(
+        p2_src.contains("from_parse_span_unchecked(wire, data, s, e)"),
+        "proto2 NONE must skip UTF-8 on merge:\n{}",
+        &p2_src[p2_src.len().saturating_sub(2500)..]
+    );
+    assert!(
+        !p2_src.contains("from_parse_span(wire, data, s, e)"),
+        "proto2 NONE must not call the validating parse"
+    );
+    assert!(
+        p3_src.contains("from_parse_span(wire, data, s, e)?"),
+        "proto3 must still UTF-8-check:\n{}",
+        &p3_src[p3_src.len().saturating_sub(2500)..]
+    );
+    assert!(
+        !p3_src.contains("from_parse_span_unchecked"),
+        "proto3 must not skip UTF-8"
+    );
+
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"utf8-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
+            root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::copy(
+        tmp.join("no_features_proto2.rs"),
+        consumer.join("src/no_features_proto2.rs"),
+    )
+    .unwrap();
+    std::fs::copy(
+        tmp.join("no_features_proto3.rs"),
+        consumer.join("src/no_features_proto3.rs"),
+    )
+    .unwrap();
+    std::fs::write(
+        consumer.join("src/main.rs"),
+        r#"mod no_features_proto2;
+mod no_features_proto3;
+use no_features_proto2::NoFeaturesProto2;
+use no_features_proto3::NoFeaturesProto3;
+use pbrs::Parse;
+fn main() {
+    let wire = [0x0a, 0x01, 0x80];
+    let p2 = NoFeaturesProto2::parse(&wire).expect("proto2 NONE Parse of \\x80");
+    assert_eq!(p2.my_field().as_bytes(), &[0x80]);
+    assert!(NoFeaturesProto3::parse(&wire).is_err(), "proto3 must reject \\x80");
+    let mut long = vec![0x0a, 0x18];
+    long.extend(std::iter::repeat(0x80).take(24));
+    let p2l = NoFeaturesProto2::parse(&long).expect("proto2 NONE long");
+    assert_eq!(p2l.my_field().as_bytes(), &[0x80; 24]);
+    assert!(NoFeaturesProto3::parse(&long).is_err());
+    println!("ok");
+}
+"#,
+    )
+    .unwrap();
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+    let mut build = Command::new("cargo");
+    build
+        .arg("run")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(h) = cargo_home {
+        build.env("CARGO_HOME", h);
+    }
+    let run = build.output().expect("cargo run utf8 consumer");
+    assert!(
+        run.status.success(),
+        "utf8 consumer failed:\n{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&run.stdout).trim(), "ok");
+}
+
 fn tempfile_dir_tat() -> PathBuf {
     let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target")

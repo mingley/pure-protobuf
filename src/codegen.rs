@@ -1510,6 +1510,14 @@ fn emit_validate_arm(src: &mut String, f: &FieldDescriptor, req_bit: Option<usiz
     let _ = writeln!(src, "                {w} => {{ let _ = {expr};{mark} }}");
 }
 
+fn lazy_str_from_parse(f: &FieldDescriptor) -> &'static str {
+    if f.utf8_validate {
+        "pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?"
+    } else {
+        "pbrs::rt::LazyStr::from_parse_span_unchecked(wire, data, s, e)"
+    }
+}
+
 fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
     let st = store_mut(desc, f);
     let num = f.number;
@@ -1531,7 +1539,8 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
     if f.cardinality == Cardinality::Repeated {
         if f.field_type == FieldType::String {
-            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?); }}");
+            let parse = lazy_str_from_parse(f);
+            let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push({parse}); }}");
         } else if f.field_type == FieldType::Bytes {
             let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{ let (s, e) = pbrs::rt::read_len_span(data, pos)?; {st}.push(pbrs::rt::LazyBytes::from_wire(pbrs::rt::Wire::ensure(wire, data).window(s, e))); }}");
         } else if f.field_type == FieldType::Message || f.field_type == FieldType::Group {
@@ -1594,10 +1603,11 @@ fn emit_merge_arm(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
         return;
     }
     if f.field_type == FieldType::String {
+        let parse = lazy_str_from_parse(f);
         let assign = if is_option(f) {
-            format!("{st} = Some(Box::new(pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?))")
+            format!("{st} = Some(Box::new({parse}))")
         } else {
-            format!("{st} = pbrs::rt::LazyStr::from_parse_span(wire, data, s, e)?")
+            format!("{st} = {parse}")
         };
         let _ = writeln!(src, "                pbrs::rt::WIRE_LEN => {{");
         emit_oneof_clear(src, desc, f);
