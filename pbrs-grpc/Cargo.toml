@@ -1,0 +1,29 @@
+[package]
+name = "pbrs-grpc"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "HTTP/2 gRPC kernel over pbrs (not tonic; protobuf-tonic stays the tonic adapter)"
+
+[build-dependencies]
+pbrs = { path = ".." }
+
+[dependencies]
+base64 = "0.22"
+bytes = "1"
+h2 = "0.4"
+http = "1"
+pbrs = { path = ".." }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
+
+[[bin]]
+name = "pbrs-grpc-hello"
+path = "src/bin/pbrs-grpc-hello.rs"
+
+[lints]
+workspace = true

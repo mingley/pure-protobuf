@@ -67,14 +67,16 @@ Google rust `MessageView` on upb can borrow the arena object. buffa
 Our `FooView` is `&Owned` after copy. `LazyStr` can still point into the
 parse `Arc<[u8]>` until `set_*`. That is not a first-class view type.
 
-### tonic
+### tonic and pbrs-grpc
 
 Google rust gRPC is not tonic. Existing tonic 0.14+ services using prost
 cannot `impl prost::Message` on these types.
 
 The plugin emits `FooClient`/`FooServer` over
-`protobuf-tonic::ProtobufCodec`. The kernel stays tonic-free. `protoc` is
-still required at codegen time.
+`protobuf-tonic::ProtobufCodec`. The protobuf kernel stays tonic-free.
+`pbrs-grpc` is a separate HTTP/2 gRPC crate over the same `Parse` /
+`Serialize` types; it does not use tonic. `protoc` is still required at
+codegen time.
 
 ### Layout specialization
 

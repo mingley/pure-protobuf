@@ -21,6 +21,10 @@ pbrs = "0.1"
 until a registry version exists. Do not `cargo publish -p protobuf-tonic`
 against that path dep.
 
+`pbrs-grpc` is a separate HTTP/2 gRPC kernel over pbrs. It does not depend
+on tonic. The tonic adapter does not depend on `pbrs-grpc`. Use one, the
+other, or neither.
+
 ```bash
 ./scripts/gen.sh -I proto -o gen proto/your.proto
 ```
@@ -42,6 +46,7 @@ Docs:
 - [Benchmarks](docs/benchmarks.md)
 - [Status](docs/status.md)
 - [tonic 0.14](protobuf-tonic/README.md)
+- [HTTP/2 gRPC kernel](pbrs-grpc/README.md)
 
 Conformance (official `conformance_test_runner` v35.1,
 `--maximum_edition 2023`, `protoc` hidden / vendored FDS):

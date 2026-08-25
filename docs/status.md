@@ -49,8 +49,8 @@
   OK-path custom trailers (`Response` has no `trailers()`);
   `x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
   not trailers. `Status.metadata` on `Err` remains the trailer path.
-  Same-process tonic, not official interop, not a native gRPC kernel, no
-  Google peer. Gzip is covered (`tests/gzip.rs`). Generated stubs expose
+  Same-process tonic, not official interop, no Google peer. Gzip is covered
+  (`tests/gzip.rs`). Generated stubs expose
   `with_interceptor` and `max_decoding_message_size` /
   `max_encoding_message_size` (`tests/interceptor_size.rs`). Codec survey
   (`tonic-bench`, `proto/codec_cases.proto`) vs prost and v4 upb is in
@@ -65,11 +65,20 @@
 - File, enum, method, message, and field custom options survive
   FileDescriptorSet parse (`custom_option(n)`; file options on
   `FileDescriptor` / `DescriptorPool::get_file`).
+- `pbrs-grpc` is a native HTTP/2 gRPC kernel (cleartext prior knowledge,
+  identity framing) over pbrs. It is not tonic. Loopback tests cover all
+  four Greeter shapes, OK-path `-bin` trailers, `DEADLINE_EXCEEDED` on
+  `grpc-timeout`, and `CANCELLED` on client cancel. Binary
+  `pbrs-grpc-hello` prints the unary echo body. `protobuf-tonic` stays
+  the tonic adapter.
 
 ## Remaining
 
 See `docs/upb.md`. Short list:
 
+- Native gRPC is `pbrs-grpc` (HTTP/2 prior knowledge, identity framing).
+  TLS, gzip, health, and reflection stay out of that crate; tonic adapter
+  still covers health/gzip/reflection via tonic crates.
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.

@@ -11,7 +11,7 @@ use crate::dynamic::{
 };
 use crate::error::ParseError;
 use crate::wire::{self, decode_tag, encode_len_field, encode_varint, read_len_bytes, WIRE_LEN};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -23,6 +23,7 @@ thread_local! {
         const { RefCell::new(std::collections::BTreeMap::new()) };
     static FIELD_RAWS: RefCell<std::collections::BTreeMap<u32, String>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
+    static EMIT_TONIC_STUBS: Cell<bool> = const { Cell::new(true) };
 }
 
 pub fn generate_from_code_generator_request(
@@ -144,7 +145,7 @@ pub fn generate_from_code_generator_request(
             .into_iter()
             .filter(|s| file_matches(&wanted, &s.file_name))
             .collect();
-        if !services.is_empty() {
+        if !services.is_empty() && EMIT_TONIC_STUBS.with(Cell::get) {
             src.push_str("\n// --- gRPC stubs (protobuf-tonic, not tonic-prost) ---\n");
             src.push_str("use protobuf_tonic::ProtobufCodec;\n");
             src.push_str("use std::convert::Infallible;\n");
@@ -198,9 +199,18 @@ pub fn compile_protos(
 }
 
 /// Options for [`compile_protos`].
-#[derive(Default)]
 pub struct Config {
     out_dir: Option<PathBuf>,
+    emit_tonic_stubs: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            out_dir: None,
+            emit_tonic_stubs: true,
+        }
+    }
 }
 
 impl Config {
@@ -210,6 +220,15 @@ impl Config {
 
     pub fn out_dir(&mut self, path: impl Into<PathBuf>) -> &mut Self {
         self.out_dir = Some(path.into());
+        self
+    }
+
+    /// Emit tonic `FooClient`/`FooServer` text into generated files.
+    ///
+    /// Default is on so `protobuf-tonic` keeps working. The native gRPC
+    /// kernel crate turns this off and compiles messages only.
+    pub fn emit_tonic_stubs(&mut self, enable: bool) -> &mut Self {
+        self.emit_tonic_stubs = enable;
         self
     }
 
@@ -253,7 +272,10 @@ impl Config {
                     .to_string()
             })
             .collect();
-        let files = generate_from_file_descriptor_set(&bytes, &names)?;
+        EMIT_TONIC_STUBS.with(|c| c.set(self.emit_tonic_stubs));
+        let files = generate_from_file_descriptor_set(&bytes, &names);
+        EMIT_TONIC_STUBS.with(|c| c.set(true));
+        let files = files?;
         for (name, src) in files {
             std::fs::write(out.join(name), src).map_err(|e| ParseError::owned(e.to_string()))?;
         }
