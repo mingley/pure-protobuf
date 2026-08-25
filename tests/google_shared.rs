@@ -7,6 +7,22 @@
 //! SKIP edition2023 `str_view` cpp `pb.cpp.string_type=VIEW` (tested as ordinary string).
 //! SKIP proto! `#[cfg(bzl)]` qualified-path (`::crate::Type`).
 
+#![allow(
+    clippy::disallowed_methods,
+    clippy::let_underscore_must_use,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::too_many_lines,
+    clippy::unimplemented,
+    clippy::disallowed_types,
+    unreachable_pub,
+    reason = "integration tests are sync; generated fixtures live in the test crate"
+)]
 #[path = "google_gen/bad_names.rs"]
 mod bad_names;
 #[path = "google_gen/child.rs"]

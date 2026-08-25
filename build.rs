@@ -1,3 +1,12 @@
+//! Fetch the official conformance FileDescriptorSet for the runner child.
+#![allow(
+    clippy::panic,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::disallowed_methods,
+    reason = "build.rs is a sync compile-time script; panic fails the build"
+)]
+
 use std::path::Path;
 use std::process::Command;
 

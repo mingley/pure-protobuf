@@ -8,6 +8,25 @@
 //! ```
 
 #![deny(unsafe_op_in_unsafe_fn)]
+#![expect(
+    missing_docs,
+    reason = "the v4 application API is described in the crate docs and README; per-item rustdoc is follow-up"
+)]
+#![expect(
+    unsafe_code,
+    reason = "MiniTable ABI, ProtoStr cast, packed memcpy, JSON strtod, generated zeroed Default"
+)]
+#![allow(
+    clippy::indexing_slicing,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::let_underscore_must_use,
+    clippy::too_many_lines,
+    clippy::mem_forget,
+    unreachable_pub,
+    reason = "wire parser and generated gencode: checked offsets, specified integer widths, String fmt is infallible"
+)]
 
 extern crate self as pbrs;
 

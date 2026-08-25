@@ -1,4 +1,9 @@
 //! Packed repeated scalars: eager-validate, lazy-materialize, memcpy encode.
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "fixed-width packed try_into after a length check; OnceLock poison is a bug"
+)]
 
 use crate::error::ParseError;
 use crate::lazy::Wire;

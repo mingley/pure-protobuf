@@ -1,0 +1,49 @@
+# Lints that carry the rules the reviewers currently carry.
+#
+# Every entry here should trace back to a real incident or a real review
+# comment. The point is that a lesson learned once becomes a build error for
+# everyone afterwards, instead of a wiki page nobody rereads.
+
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-indexing-slicing-in-tests = true
+
+too-many-lines-threshold = 200
+
+doc-valid-idents = [ "..", "LinkedIn", "MySQL", "REST.li", "SQLAlchemy", "Updog" ]
+
+# Blocking calls on an async executor.
+#
+# TOOLS-494794 (August 2026): a pre-fork OpenTelemetry exporter interacting with
+# uWSGI worker recycling stalled otherwise-healthy hosts for 20-30 seconds. The
+# Rust process model does not reproduce that bug, but the shape of it -- work
+# that blocks a worker which the surrounding code assumes will not block -- is
+# reproducible in async Rust, and the compiler does not catch it.
+#
+# This list is an enumeration, not a proof. Rust has no effect system for "this
+# function blocks", so this cannot be complete. It pairs with the runtime-stall
+# tests in updog-store rather than replacing them.
+#
+# pbrs kernel / plugin codegen is sync (build.rs, protoc plugin). Those paths
+# use std::fs with an explicit clippy expect. protobuf-tonic is the async
+# crate and must not call these on the executor.
+disallowed-methods = [
+  { path = "std::thread::sleep", reason = "Blocks the executor thread. Use tokio::time::sleep." },
+  { path = "std::fs::read", reason = "Blocking IO on an async runtime. Use tokio::fs." },
+  { path = "std::fs::read_to_string", reason = "Blocking IO on an async runtime. Use tokio::fs." },
+  { path = "std::fs::write", reason = "Blocking IO on an async runtime. Use tokio::fs." },
+  { path = "std::net::TcpStream::connect", reason = "Blocking connect. Use tokio::net::TcpStream." },
+]
+
+disallowed-types = [
+  { path = "std::sync::Mutex", reason = "Held across await points too easily. Use tokio::sync::Mutex, or parking_lot for short non-async critical sections." },
+  { path = "std::sync::RwLock", reason = "Held across await points too easily. Use tokio::sync::RwLock, or parking_lot for short non-async critical sections." },
+]
+
+# These guards encode thread-local enter/exit state. Holding one across an
+# await lets another task run inside the wrong trace context.
+await-holding-invalid-types = [
+  { path = "tracing::span::Entered", reason = "Do not hold a tracing span guard across await. Use Future::instrument or #[instrument]." },
+  { path = "tracing::span::EnteredSpan", reason = "Do not hold a tracing span guard across await. Use Future::instrument or #[instrument]." },
+]

@@ -1,4 +1,9 @@
 //! Helpers for plugin-generated typed wrappers around [`DynamicMessage`].
+#![allow(
+    clippy::disallowed_types,
+    clippy::unwrap_used,
+    reason = "default_instance_of uses a short std Mutex; never held across await"
+)]
 
 use crate::dynamic::{DynamicMessage, MapKeyValue, Value};
 use crate::map::{Map, MapKey, MapValue};

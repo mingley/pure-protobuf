@@ -1,5 +1,11 @@
 //! Pure-Rust stand-in for Google protobuf `__internal::runtime` (upb kernel ABI).
 //! Official `protoc --rust_out` links against these names. No C/upb.
+#![allow(
+    clippy::unimplemented,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "null MiniTable/MessagePtr is a rust_out kernel invariant, not a user Result"
+)]
 
 use crate::error::{ParseError, SerializeError};
 use crate::internal::{Private, SealedInternal};
@@ -182,11 +188,20 @@ pub struct MsgData {
 #[derive(Debug)]
 pub struct ArenaInner {
     // Boxed so pointers handed to rust_out stay valid across Vec growth.
-    #[allow(clippy::vec_box)]
+    #[expect(
+        clippy::vec_box,
+        reason = "upb-shaped repeated message slots are Box<Msg>"
+    )]
     msgs: Vec<Box<MsgData>>,
-    #[allow(clippy::vec_box)]
+    #[expect(
+        clippy::vec_box,
+        reason = "upb-shaped repeated message slots are Box<Msg>"
+    )]
     arrays: Vec<Box<RawArrayInner>>,
-    #[allow(clippy::vec_box)]
+    #[expect(
+        clippy::vec_box,
+        reason = "upb-shaped repeated message slots are Box<Msg>"
+    )]
     maps: Vec<Box<RawMapInner>>,
 }
 
@@ -288,7 +303,10 @@ impl<T> MessagePtr<T> {
         unsafe { &*self.raw }
     }
 
-    #[allow(clippy::mut_from_ref)]
+    #[expect(
+        clippy::mut_from_ref,
+        reason = "MessagePtr::as_mut matches the 4.35.1-release kernel ABI"
+    )]
     fn data_mut(&self) -> &mut MsgData {
         unsafe { &mut *self.raw }
     }

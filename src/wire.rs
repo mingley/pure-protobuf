@@ -1,4 +1,8 @@
 //! Binary wire codec. No schema.
+#![allow(
+    clippy::unwrap_used,
+    reason = "fixed32/64 try_into after a length check"
+)]
 
 use crate::error::ParseError;
 use crate::internal::MAX_MESSAGE_BYTES;
@@ -54,7 +58,10 @@ pub enum UnknownField {
 
 /// Unknown-field list. Empty is an 8-byte null so TAT Default stays small.
 /// Named `fields` so generated `self.unknown.fields.push(...)` keeps working.
-#[allow(clippy::box_collection)]
+#[expect(
+    clippy::box_collection,
+    reason = "unknown fields stay a boxed vec so empty messages stay small"
+)]
 #[derive(Clone, Debug)]
 pub struct FieldList(Option<Box<Vec<UnknownField>>>);
 

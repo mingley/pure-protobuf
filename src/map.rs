@@ -1,3 +1,4 @@
+//! Map field storage and views.
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
 use crate::string::ProtoString;
@@ -180,7 +181,10 @@ pub trait MapValue: Clone + 'static {}
 impl<T: Clone + 'static> MapValue for T {}
 
 /// Empty is an 8-byte null. Parse appends to a `Vec`; lookup scans, last key wins.
-#[allow(clippy::box_collection)]
+#[expect(
+    clippy::box_collection,
+    reason = "Option<Box<Vec<(K,V)>>> is the 8-byte empty TAT layout"
+)]
 #[derive(Clone)]
 pub struct Map<K: MapKey, V: MapValue>(Option<Box<Vec<(K, V)>>>);
 

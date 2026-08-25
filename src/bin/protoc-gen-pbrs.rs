@@ -1,4 +1,5 @@
 //! protoc plugin: emit this crate's typed accessors (not Google upb gencode).
+#![allow(clippy::expect_used, reason = "plugin IO failure exits the process")]
 
 use std::io::{Read, Write};
 

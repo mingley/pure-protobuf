@@ -1,3 +1,4 @@
+//! Owned and borrowed protobuf string/bytes types (`ProtoStr` may be invalid UTF-8).
 use crate::internal::SealedInternal;
 use crate::proxied::{AsView, IntoProxied, IntoView, Proxied};
 use std::fmt;
@@ -31,7 +32,10 @@ impl ProtoStr {
         unsafe { &*(bytes as *const [u8] as *const ProtoStr) }
     }
 
-    #[allow(clippy::should_implement_trait)]
+    #[expect(
+        clippy::should_implement_trait,
+        reason = "from_str is a ProtoStr constructor, not the std FromStr trait"
+    )]
     pub fn from_str(s: &str) -> &Self {
         Self::from_bytes(s.as_bytes())
     }
