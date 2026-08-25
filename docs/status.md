@@ -50,17 +50,18 @@
   `x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
   not trailers. `Status.metadata` on `Err` remains the trailer path.
   Same-process tonic, not official interop, not a native gRPC kernel, no
-  Google peer. Compression is uncovered. Codec survey
+  Google peer. Gzip is covered (`tests/gzip.rs`). Generated stubs expose
+  `with_interceptor` and `max_decoding_message_size` /
+  `max_encoding_message_size` (`tests/interceptor_size.rs`). Codec survey
   (`tonic-bench`, `proto/codec_cases.proto`) vs prost and v4 upb is in
   `docs/benchmarks.md`. Typical unary `rpc_mixed` is already ~2× prost
-  and beats v4. `name_4kib` combined beats prost (gated). Not kernel
-  `./bench`. Not in CI.
+  and beats v4. `name_4kib` combined beats prost (gated). `tags_32`
+  decode beats v4 (gated). Not kernel `./bench`. Not in CI.
 - `./bench` fails the process if a gated case loses encode or owned decode
   to prost, v4, or buffa owned. Twelve cases: empty, person, tat_populated,
   packed_256, map_64, nested_8, strings, unpacked_256, packed_fixed_256,
   packed_fixed64_256, packed_float_256, repeated_nested_8. View is gated
-  except `tat_populated` and packed-fixed rows. `tat_populated` view now
-  wins on this host (281 vs 309) and is still not a process gate.
+  except `tat_populated`, `person`, and packed-fixed rows.
 - File, enum, method, message, and field custom options survive
   FileDescriptorSet parse (`custom_option(n)`; file options on
   `FileDescriptor` / `DescriptorPool::get_file`).
@@ -73,12 +74,12 @@ See `docs/upb.md`. Short list:
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are `Vec` (scan on get).
-- `name_4kib` Codec combined now beats prost (gated in `tonic-bench`).
-  `blob_4kib` still wins. `rpc_sparse` decode is also gated. Leftover
-  unary item is `tags_32` vs v4. Flatten `merge_inner` (#39) stays
-  discarded.
-  Survey: `docs/benchmarks.md`. Closed inventories (notes + harnesses,
-  not merged as wins): `docs/inventory/`.
+- `name_4kib` Codec combined beats prost (gated). `blob_4kib` still
+  wins. `rpc_sparse` decode and `tags_32` decode vs v4 are gated.
+  Leftover unary item is `name_80` combined. Flatten `merge_inner`
+  (#39) stays discarded. Survey: `docs/benchmarks.md`. Closed
+  inventories (notes + harnesses, not merged as wins):
+  `docs/inventory/`.
   [#27](https://github.com/mingley/pure-protobuf/pull/27) rust_out 234
   errors is superseded by #42.
 
@@ -94,5 +95,9 @@ See `docs/upb.md`. Short list:
 
 ## Publish
 
-`publish = false`. crates.io `pbrs` was free as of 2026-08-20. Do not
-publish as `protobuf`. Nearby name `pb-rs` is quick-protobuf.
+`pbrs` is registry-ready (`cargo publish -p pbrs --dry-run` on
+crates.io). Live upload is not done from this tree. Do not publish as
+`protobuf`. Nearby name `pb-rs` is quick-protobuf. `protobuf-tonic`
+keeps a path (git until a registry version exists) dependency on `pbrs`;
+`cargo publish -p protobuf-tonic` cannot succeed until that version
+exists.

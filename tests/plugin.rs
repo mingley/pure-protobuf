@@ -281,6 +281,19 @@ fn plugin_generates_grpc_stubs() {
         generated.contains("pub struct GreeterServer"),
         "missing GreeterServer"
     );
+    assert!(
+        generated.contains("fn with_interceptor"),
+        "missing with_interceptor:\n{}",
+        &generated[generated.len().saturating_sub(2500)..]
+    );
+    assert!(
+        generated.contains("fn max_decoding_message_size"),
+        "missing max_decoding_message_size"
+    );
+    assert!(
+        generated.contains("fn max_encoding_message_size"),
+        "missing max_encoding_message_size"
+    );
     assert!(generated.contains("fn say_hello"), "missing say_hello");
     assert!(
         generated.contains("fn stream_hello"),
@@ -294,6 +307,74 @@ fn plugin_generates_grpc_stubs() {
         !generated.contains("tonic_prost") && !generated.contains("prost::Message"),
         "must not use prost"
     );
+}
+
+#[test]
+fn plugin_repeated_string_same_tag_parses_32() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("plugin-test-tags");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    std::fs::write(
+        tmp.join("tags.proto"),
+        "syntax = \"proto3\";\npackage tags;\nmessage Tags { repeated string tags = 1; }\n",
+    )
+    .unwrap();
+    let status = Command::new("protoc")
+        .arg(format!(
+            "--plugin=protoc-gen-pbrs={}",
+            plugin_bin().display()
+        ))
+        .arg(format!("--pbrs_out={}", tmp.display()))
+        .arg("-I")
+        .arg(&tmp)
+        .arg(tmp.join("tags.proto"))
+        .status()
+        .expect("run protoc");
+    assert!(status.success(), "protoc plugin failed for tags.proto");
+    let generated = std::fs::read_to_string(tmp.join("tags.rs")).expect("tags.rs");
+    assert!(
+        generated.contains("Ok((n2, w2)) if n2 == 1 && w2 == pbrs::rt::WIRE_LEN"),
+        "repeated string must same-tag run:\n{}",
+        &generated[generated.len().saturating_sub(2500)..]
+    );
+    let consumer = tmp.join("consumer");
+    std::fs::create_dir_all(consumer.join("src")).unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    std::fs::write(
+        consumer.join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"tags-consumer\"\nversion = \"0.0.1\"\nedition = \"2021\"\n[workspace]\n[dependencies]\npbrs = {{ path = \"{}\" }}\n",
+            root.display()
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        consumer.join("src/main.rs"),
+        format!(
+            "{generated}\nuse pbrs::Parse;\nfn main() {{\n  let mut wire = Vec::new();\n  for i in 0..32 {{\n    let s = format!(\"t{{i:02}}\");\n    wire.push(0x0a);\n    wire.push(s.len() as u8);\n    wire.extend(s.bytes());\n  }}\n  let m = <Tags as Parse>::parse(&wire).expect(\"parse 32\");\n  assert_eq!(m.tags().len(), 32);\n  assert_eq!(m.tags().get(0).unwrap(), \"t00\");\n  assert_eq!(m.tags().get(31).unwrap(), \"t31\");\n  println!(\"ok {{}}\", m.tags().len());\n}}\n"
+        ),
+    )
+    .unwrap();
+    let cargo_home = std::env::var("CARGO_HOME").ok();
+    let mut build = Command::new("cargo");
+    build
+        .arg("run")
+        .arg("--offline")
+        .arg("--quiet")
+        .current_dir(&consumer);
+    if let Some(h) = cargo_home {
+        build.env("CARGO_HOME", h);
+    }
+    let run = build.output().expect("cargo run tags consumer");
+    assert!(
+        run.status.success(),
+        "tags consumer failed:\n{}\n{}",
+        String::from_utf8_lossy(&run.stdout),
+        String::from_utf8_lossy(&run.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&run.stdout).trim(), "ok 32");
 }
 
 #[test]
