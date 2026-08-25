@@ -206,3 +206,20 @@ Two consecutive release runs:
 ```bash
 cd rpc-bench && cargo build --release && ./target/release/rpc-bench
 ```
+
+Throughput is reported, not gated. One HTTP/2 connection, `N` concurrent
+in-flight unaries, 2 s windows, zero RPC errors. Two consecutive runs
+after the latency gate (Apple M4 Pro):
+
+| case | conc | kernel QPS | tonic QPS |
+|---|---:|---:|---:|
+| empty | 1 | 16859 / 16917 | 11809 / 12029 |
+| empty | 16 | 56640 / 55962 | 42604 / 42187 |
+| empty | 64 | 55029 / 54273 | 44224 / 43598 |
+| large | 1 | 3028 / 3023 | 1341 / 1072 |
+| large | 8 | 2851 / 2812 | 1457 / 1456 |
+| large | 16 | 2683 / 2572 | 1499 / 1488 |
+
+Empty peaks near conc=16 on both stacks (~56k vs ~43k). Large is
+fastest for the kernel at conc=1 (~3.0k vs ~1.1–1.3k); extra in-flight
+does not raise kernel QPS on loopback.

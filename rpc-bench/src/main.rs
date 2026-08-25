@@ -9,6 +9,8 @@
 )]
 
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
@@ -27,11 +29,17 @@ const LARGE_REQ: i32 = 271828;
 const LARGE_RESP: i32 = 314159;
 const ITERS: u32 = 400;
 const LARGE_ITERS: u32 = 80;
+const QPS_SECS: f64 = 2.0;
+const EMPTY_CONC: [u32; 3] = [1, 16, 64];
+const LARGE_CONC: [u32; 3] = [1, 8, 16];
 
 struct TonicInterop;
 
 impl tonic_gen::TestService for TonicInterop {
-    async fn empty_call(&self, _req: Request<tonic_gen::Empty>) -> Result<Response<tonic_gen::Empty>, Status> {
+    async fn empty_call(
+        &self,
+        _req: Request<tonic_gen::Empty>,
+    ) -> Result<Response<tonic_gen::Empty>, Status> {
         Ok(Response::new(tonic_gen::Empty::new()))
     }
     async fn unary_call(
@@ -51,8 +59,9 @@ impl tonic_gen::TestService for TonicInterop {
     ) -> Result<Response<tonic_gen::SimpleResponse>, Status> {
         self.unary_call(req).await
     }
-    type StreamingOutputCallStream =
-        tokio_stream::wrappers::ReceiverStream<Result<tonic_gen::StreamingOutputCallResponse, Status>>;
+    type StreamingOutputCallStream = tokio_stream::wrappers::ReceiverStream<
+        Result<tonic_gen::StreamingOutputCallResponse, Status>,
+    >;
     async fn streaming_output_call(
         &self,
         _req: Request<tonic_gen::StreamingOutputCallRequest>,
@@ -65,16 +74,18 @@ impl tonic_gen::TestService for TonicInterop {
     ) -> Result<Response<tonic_gen::StreamingInputCallResponse>, Status> {
         Err(Status::unimplemented("bench"))
     }
-    type FullDuplexCallStream =
-        tokio_stream::wrappers::ReceiverStream<Result<tonic_gen::StreamingOutputCallResponse, Status>>;
+    type FullDuplexCallStream = tokio_stream::wrappers::ReceiverStream<
+        Result<tonic_gen::StreamingOutputCallResponse, Status>,
+    >;
     async fn full_duplex_call(
         &self,
         _req: Request<tonic::Streaming<tonic_gen::StreamingOutputCallRequest>>,
     ) -> Result<Response<Self::FullDuplexCallStream>, Status> {
         Err(Status::unimplemented("bench"))
     }
-    type HalfDuplexCallStream =
-        tokio_stream::wrappers::ReceiverStream<Result<tonic_gen::StreamingOutputCallResponse, Status>>;
+    type HalfDuplexCallStream = tokio_stream::wrappers::ReceiverStream<
+        Result<tonic_gen::StreamingOutputCallResponse, Status>,
+    >;
     async fn half_duplex_call(
         &self,
         _req: Request<tonic::Streaming<tonic_gen::StreamingOutputCallRequest>>,
@@ -165,6 +176,190 @@ async fn bench_tonic(addr: SocketAddr) -> (u128, u128) {
     (median_ns(empty), median_ns(large))
 }
 
+fn large_kernel_req() -> SimpleRequest {
+    let mut sr = SimpleRequest::new();
+    sr.set_response_size(LARGE_RESP);
+    let mut p = pbrs_grpc::Payload::new();
+    p.set_body(vec![0u8; LARGE_REQ as usize]);
+    sr.set_payload(p);
+    sr
+}
+
+fn large_tonic_req() -> tonic_gen::SimpleRequest {
+    let mut sr = tonic_gen::SimpleRequest::new();
+    sr.set_response_size(LARGE_RESP);
+    let mut p = tonic_gen::Payload::new();
+    p.set_body(vec![0u8; LARGE_REQ as usize]);
+    sr.set_payload(p);
+    sr
+}
+
+async fn qps_kernel_empty(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
+    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+    for _ in 0..32 {
+        client.empty_call(KReq::new(Empty::new())).await.unwrap();
+    }
+    let n = Arc::new(AtomicU64::new(0));
+    let err = Arc::new(AtomicU64::new(0));
+    let run = Arc::new(AtomicBool::new(true));
+    let mut hs = Vec::new();
+    for _ in 0..conc {
+        let c = client.clone();
+        let n = Arc::clone(&n);
+        let err = Arc::clone(&err);
+        let run = Arc::clone(&run);
+        hs.push(tokio::spawn(async move {
+            while run.load(Ordering::Relaxed) {
+                match c.empty_call(KReq::new(Empty::new())).await {
+                    Ok(_) => {
+                        n.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(_) => {
+                        err.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+            }
+        }));
+    }
+    tokio::time::sleep(dur).await;
+    run.store(false, Ordering::Relaxed);
+    for h in hs {
+        h.await.unwrap();
+    }
+    (n.load(Ordering::Relaxed), err.load(Ordering::Relaxed))
+}
+
+async fn qps_kernel_large(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
+    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+    let sr = large_kernel_req();
+    for _ in 0..8 {
+        client.unary_call(KReq::new(sr.clone())).await.unwrap();
+    }
+    let n = Arc::new(AtomicU64::new(0));
+    let err = Arc::new(AtomicU64::new(0));
+    let run = Arc::new(AtomicBool::new(true));
+    let mut hs = Vec::new();
+    for _ in 0..conc {
+        let c = client.clone();
+        let sr = sr.clone();
+        let n = Arc::clone(&n);
+        let err = Arc::clone(&err);
+        let run = Arc::clone(&run);
+        hs.push(tokio::spawn(async move {
+            while run.load(Ordering::Relaxed) {
+                match c.unary_call(KReq::new(sr.clone())).await {
+                    Ok(_) => {
+                        n.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(_) => {
+                        err.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+            }
+        }));
+    }
+    tokio::time::sleep(dur).await;
+    run.store(false, Ordering::Relaxed);
+    for h in hs {
+        h.await.unwrap();
+    }
+    (n.load(Ordering::Relaxed), err.load(Ordering::Relaxed))
+}
+
+async fn qps_tonic_empty(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
+    let ch = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    let client = tonic_gen::TestServiceClient::new(ch);
+    {
+        let mut c = client.clone();
+        for _ in 0..32 {
+            c.empty_call(Request::new(tonic_gen::Empty::new()))
+                .await
+                .unwrap();
+        }
+    }
+    let n = Arc::new(AtomicU64::new(0));
+    let err = Arc::new(AtomicU64::new(0));
+    let run = Arc::new(AtomicBool::new(true));
+    let mut hs = Vec::new();
+    for _ in 0..conc {
+        let mut c = client.clone();
+        let n = Arc::clone(&n);
+        let err = Arc::clone(&err);
+        let run = Arc::clone(&run);
+        hs.push(tokio::spawn(async move {
+            while run.load(Ordering::Relaxed) {
+                match c.empty_call(Request::new(tonic_gen::Empty::new())).await {
+                    Ok(_) => {
+                        n.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(_) => {
+                        err.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+            }
+        }));
+    }
+    tokio::time::sleep(dur).await;
+    run.store(false, Ordering::Relaxed);
+    for h in hs {
+        h.await.unwrap();
+    }
+    (n.load(Ordering::Relaxed), err.load(Ordering::Relaxed))
+}
+
+async fn qps_tonic_large(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
+    let ch = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    let client = tonic_gen::TestServiceClient::new(ch);
+    let sr = large_tonic_req();
+    {
+        let mut c = client.clone();
+        for _ in 0..8 {
+            c.unary_call(Request::new(sr.clone())).await.unwrap();
+        }
+    }
+    let n = Arc::new(AtomicU64::new(0));
+    let err = Arc::new(AtomicU64::new(0));
+    let run = Arc::new(AtomicBool::new(true));
+    let mut hs = Vec::new();
+    for _ in 0..conc {
+        let mut c = client.clone();
+        let sr = sr.clone();
+        let n = Arc::clone(&n);
+        let err = Arc::clone(&err);
+        let run = Arc::clone(&run);
+        hs.push(tokio::spawn(async move {
+            while run.load(Ordering::Relaxed) {
+                match c.unary_call(Request::new(sr.clone())).await {
+                    Ok(_) => {
+                        n.fetch_add(1, Ordering::Relaxed);
+                    }
+                    Err(_) => {
+                        err.fetch_add(1, Ordering::Relaxed);
+                    }
+                }
+            }
+        }));
+    }
+    tokio::time::sleep(dur).await;
+    run.store(false, Ordering::Relaxed);
+    for h in hs {
+        h.await.unwrap();
+    }
+    (n.load(Ordering::Relaxed), err.load(Ordering::Relaxed))
+}
+
+fn qps(count: u64, dur: Duration) -> u64 {
+    (count as f64 / dur.as_secs_f64()).round() as u64
+}
+
 #[tokio::main]
 async fn main() {
     let k_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -192,10 +387,29 @@ async fn main() {
     println!(
         "empty_unary kernel_ns={k_empty} tonic_ns={t_empty}\nlarge_unary kernel_ns={k_large} tonic_ns={t_large}"
     );
+
+    let dur = Duration::from_secs_f64(QPS_SECS);
+    for conc in EMPTY_CONC {
+        let (kn, ke) = qps_kernel_empty(k_addr, conc, dur).await;
+        let (tn, te) = qps_tonic_empty(t_addr, conc, dur).await;
+        println!(
+            "qps empty conc={conc} kernel={} tonic={} kernel_err={ke} tonic_err={te}",
+            qps(kn, dur),
+            qps(tn, dur)
+        );
+    }
+    for conc in LARGE_CONC {
+        let (kn, ke) = qps_kernel_large(k_addr, conc, dur).await;
+        let (tn, te) = qps_tonic_large(t_addr, conc, dur).await;
+        println!(
+            "qps large conc={conc} kernel={} tonic={} kernel_err={ke} tonic_err={te}",
+            qps(kn, dur),
+            qps(tn, dur)
+        );
+    }
+
     if k_empty >= t_empty || k_large >= t_large {
         eprintln!("perf gate failed: kernel empty {k_empty} vs tonic {t_empty}; large {k_large} vs {t_large}");
         std::process::exit(1);
     }
 }
-
-

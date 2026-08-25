@@ -71,7 +71,8 @@
   shared uncompressed `_TEST_CASES` against Go `interop/client` and
   `interop/server` (`--use_tls=false`) and the four gzip cases
   kernel-vs-kernel. Loopback `rpc-bench` empty_unary / large_unary is
-  process-gated strictly faster than tonic 0.14. `protobuf-tonic` stays
+  process-gated strictly faster than tonic 0.14. The same binary reports
+  max QPS (not gated) at a few concurrency levels. `protobuf-tonic` stays
   the tonic adapter.
 
 ## Remaining

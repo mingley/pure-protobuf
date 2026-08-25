@@ -27,4 +27,4 @@ Official interop: `pbrs-grpc-interop-server --port N` and
 `pbrs-grpc-interop-client --server_host H --server_port N --test_case=empty_unary`.
 The Go peer is `google.golang.org/grpc/interop/{client,server}` with
 `-use_tls=false`. Loopback empty_unary / large_unary vs tonic 0.14 is
-`rpc-bench` (excluded crate; process-gated).
+`rpc-bench` (excluded crate; latency process-gated, QPS reported).

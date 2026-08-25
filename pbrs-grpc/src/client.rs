@@ -34,6 +34,7 @@ impl Channel {
             .initial_window_size(16 * 1024 * 1024)
             .initial_connection_window_size(16 * 1024 * 1024)
             .max_frame_size(1024 * 1024)
+            .max_concurrent_streams(256)
             .handshake(tcp)
             .await
             .map_err(|e| Status::unavailable(e.to_string()))?;
