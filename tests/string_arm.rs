@@ -85,3 +85,31 @@ fn fourk_string_vs_bytes_parse_components() {
     );
     assert!(parse_s > 0.0 && parse_b > 0.0, "shipped Parse must run");
 }
+
+#[test]
+fn kernel_strings_case_roundtrip() {
+    let mut m = TestAllTypesProto3::new();
+    m.set_optional_string("the quick brown fox jumps over the lazy dog");
+    m.set_optional_string_piece("string piece payload for encode/decode");
+    m.set_optional_cord("cord-shaped string used as a singular field");
+    for s in ["alpha", "beta", "gamma", "delta"] {
+        m.repeated_string_mut().push(s);
+    }
+    let wire = Serialize::serialize(&m).expect("strings wire");
+    let p = TestAllTypesProto3::parse(&wire).expect("shipped Parse");
+    assert_eq!(
+        p.optional_string(),
+        "the quick brown fox jumps over the lazy dog"
+    );
+    assert_eq!(
+        p.optional_string_piece(),
+        "string piece payload for encode/decode"
+    );
+    assert_eq!(
+        p.optional_cord(),
+        "cord-shaped string used as a singular field"
+    );
+    assert_eq!(p.repeated_string().len(), 4);
+    assert_eq!(p.repeated_string().get(0).unwrap(), "alpha");
+    assert_eq!(p.repeated_string().get(3).unwrap(), "delta");
+}

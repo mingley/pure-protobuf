@@ -131,9 +131,12 @@ impl LazyStr {
     ///
     /// `len <= 23` copies into inline [`ProtoString`] and does **not**
     /// [`Wire::ensure`] the parent frame (hello `"ada"` would otherwise
-    /// Arc the 5-byte message and drop it). Longer strings copy the
-    /// payload once while checking UTF-8 (see [`Wire::from_utf8_payload`])
-    /// instead of `str::from_utf8` plus a parent-frame Arc.
+    /// Arc the 5-byte message and drop it).
+    ///
+    /// Longer strings that are almost the whole message (`name_4kib`) copy
+    /// the payload once while checking UTF-8. Several medium strings in one
+    /// message (kernel `strings`) share the parent frame instead of one Arc
+    /// each.
     ///
     /// proto3 / `utf8_validation = VERIFY`. proto2 NONE uses
     /// [`from_parse_span_unchecked`].
@@ -149,8 +152,16 @@ impl LazyStr {
             require_utf8(s)?;
             return Ok(Self::from_bytes(s));
         }
-        let _ = slot;
-        Ok(Self::Wire(Wire::from_utf8_payload(s)?))
+        if s.len().saturating_add(8) >= data.len() {
+            let _ = slot;
+            return Ok(Self::Wire(Wire::from_utf8_payload(s)?));
+        }
+        require_utf8(s)?;
+        Ok(Self::from_span(
+            Wire::ensure(slot, data),
+            rel_start,
+            rel_end,
+        ))
     }
 
     /// Same copy strategy as [`from_parse_span`], no UTF-8 check.
@@ -668,6 +679,20 @@ mod tests {
         assert!(
             slot.is_none(),
             "len > 23 copies the payload once; does not Wire::ensure the parent"
+        );
+        assert!(matches!(s, LazyStr::Wire(_)));
+    }
+
+    #[test]
+    fn from_parse_span_medium_shares_parent_frame() {
+        let mut data = vec![0u8; 163];
+        data[10..34].fill(b'x');
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 10, 34).unwrap();
+        assert_eq!(s.as_bytes(), &[b'x'; 24]);
+        assert!(
+            slot.is_some(),
+            "medium string in a larger message shares the parent Wire"
         );
         assert!(matches!(s, LazyStr::Wire(_)));
     }
