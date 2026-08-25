@@ -27,7 +27,17 @@ repository = "https://github.com/mingley/pure-protobuf"
 readme = "README.md"
 keywords = ["protobuf", "serialization", "proto"]
 categories = ["encoding"]
-publish = false
+include = [
+    "src/**",
+    "build.rs",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE-APACHE",
+    "LICENSE-MIT",
+    "clippy.toml",
+    "rustfmt.toml",
+    "vendor/google/conformance_fds.bin",
+]
 
 [lib]
 name = "pbrs"

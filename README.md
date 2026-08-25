@@ -12,8 +12,14 @@ crate as `protobuf` via the MiniTable stand-in in `src/runtime.rs`
 (`rust_out_person` roundtrips).
 
 ```toml
-pbrs = { git = "https://github.com/mingley/pure-protobuf" }
+pbrs = "0.1"
+# until this version is on crates.io:
+# pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 ```
+
+`protobuf-tonic` still depends on `pbrs` by path (and git in published docs)
+until a registry version exists. Do not `cargo publish -p protobuf-tonic`
+against that path dep.
 
 ```bash
 ./scripts/gen.sh -I proto -o gen proto/your.proto

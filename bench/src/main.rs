@@ -609,10 +609,11 @@ fn gated(name: &str) -> bool {
 }
 
 fn view_gated(name: &str) -> bool {
-    // tat_populated vs buffa view sits in a ~3% band. Do not fail the process on it.
+    // tat_populated / person vs buffa view sit in a ~3% band. Do not fail
+    // the process on them. Packed-fixed view is also ungated (no owned Vec).
     matches!(
         name,
-        "empty" | "person" | "packed_256" | "map_64" | "nested_8" | "strings"
+        "empty" | "packed_256" | "map_64" | "nested_8" | "strings"
     )
 }
 
