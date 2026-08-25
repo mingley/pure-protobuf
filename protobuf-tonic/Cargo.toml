@@ -16,8 +16,10 @@ http = "1"
 pbrs = { path = ".." }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 tokio-stream = { version = "0.1", features = ["net"] }
-tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router"] }
+tonic = { version = "0.14", default-features = false, features = ["transport", "codegen", "router", "gzip"] }
 
 [dev-dependencies]
 futures-util = "0.3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
+tonic-health = "0.14"
+tonic-reflection = { version = "0.14", default-features = false, features = ["server"] }

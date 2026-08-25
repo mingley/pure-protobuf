@@ -173,13 +173,15 @@ Do not spend the next pass on:
 - short-string encode (5.2 vs 3.9)
 - flatten `merge_inner` (#39, made hello worse)
 
+`rpc_sparse` decode is process-gated (pbrs decode must beat prost).
+Messages with a handful of scalar fields plus heavy string/map/message
+fields parse scalars without entering the heavy tag match.
+
 Worth measuring next:
 
-1. `rpc_sparse` decode (20.0 vs 14.2): fat generated match on a
-   9-field message for a 2-byte payload.
-2. `tags_32` vs v4 decode (403 vs 392): many short SSO strings vs
+1. `tags_32` vs v4 decode (403 vs 392): many short SSO strings vs
    one arena.
-3. `name_80` combined (coin-flip / small loss): 80-byte string is
+2. `name_80` combined (coin-flip / small loss): 80-byte string is
    just over the SSO cutoff.
 
 Keep: packed canonical cache, bytes window, `simdutf8` string arm,
