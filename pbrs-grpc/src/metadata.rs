@@ -19,6 +19,11 @@ impl Metadata {
         Self::default()
     }
 
+    #[must_use]
+    pub(crate) fn is_empty(&self) -> bool {
+        self.ascii.is_empty() && self.bin.is_empty()
+    }
+
     /// Insert an ASCII value. Key must not end in `-bin`.
     pub fn insert(
         &mut self,

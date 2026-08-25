@@ -16,6 +16,7 @@ let listener = TcpListener::bind("127.0.0.1:0").await?;
 let addr = listener.local_addr()?;
 tokio::spawn(GreeterServer::new(Echo).serve_listener(listener));
 let client = GreeterClient::new(Channel::connect(addr).await?);
+// Channel::connect_pool(addr, n) for independent h2 driver tasks.
 let resp = client.say_hello(Request::new(req)).await?;
 ```
 

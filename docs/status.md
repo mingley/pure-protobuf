@@ -72,8 +72,9 @@
   `interop/server` (`--use_tls=false`) and the four gzip cases
   kernel-vs-kernel. Loopback `rpc-bench` empty_unary / large_unary is
   process-gated strictly faster than tonic 0.14. The same binary reports
-  max QPS (not gated) at a few concurrency levels. `protobuf-tonic` stays
-  the tonic adapter.
+  max QPS (not gated) at a few concurrency levels and connection-pool
+  sizes. `Channel::connect_pool` opens independent h2 driver tasks.
+  `protobuf-tonic` stays the tonic adapter.
 
 ## Remaining
 

@@ -207,19 +207,22 @@ Two consecutive release runs:
 cd rpc-bench && cargo build --release && ./target/release/rpc-bench
 ```
 
-Throughput is reported, not gated. One HTTP/2 connection, `N` concurrent
-in-flight unaries, 2 s windows, zero RPC errors. Two consecutive runs
-after the latency gate (Apple M4 Pro):
+Throughput is reported, not gated. Concurrent in-flight unaries, 2 s
+windows, zero RPC errors. Two consecutive runs after the latency gate
+(Apple M4 Pro). `conns` is HTTP/2 connections (`Channel::connect_pool`
+vs N tonic channels):
 
-| case | conc | kernel QPS | tonic QPS |
-|---|---:|---:|---:|
-| empty | 1 | 16859 / 16917 | 11809 / 12029 |
-| empty | 16 | 56640 / 55962 | 42604 / 42187 |
-| empty | 64 | 55029 / 54273 | 44224 / 43598 |
-| large | 1 | 3028 / 3023 | 1341 / 1072 |
-| large | 8 | 2851 / 2812 | 1457 / 1456 |
-| large | 16 | 2683 / 2572 | 1499 / 1488 |
+| case | conc | conns | kernel QPS | tonic QPS |
+|---|---:|---:|---:|---:|
+| empty | 1 | 1 | 16927 / 17054 | 11862 / 11892 |
+| empty | 16 | 1 | 55552 / 55861 | 41870 / 42033 |
+| empty | 64 | 1 | 57362 / 57437 | 44395 / 44353 |
+| empty | 64 | 4 | 47802 / 47889 | 33880 / 39869 |
+| large | 1 | 1 | 2567 / 2408 | 1135 / 1007 |
+| large | 8 | 1 | 2445 / 2939 | 1482 / 1455 |
+| large | 16 | 1 | 2563 / 2558 | 1461 / 1472 |
+| large | 16 | 4 | 4105 / 4207 | 1621 / 1648 |
 
-Empty peaks near conc=16 on both stacks (~56k vs ~43k). Large is
-fastest for the kernel at conc=1 (~3.0k vs ~1.1–1.3k); extra in-flight
-does not raise kernel QPS on loopback.
+Empty saturates one h2 driver (~57k vs ~44k at conc=64). Extra
+connections do not help empty. Large is copy-bound on one connection;
+a 4-connection pool raises kernel QPS to ~4.2k vs tonic ~1.6k.

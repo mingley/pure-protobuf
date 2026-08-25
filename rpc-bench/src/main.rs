@@ -194,8 +194,12 @@ fn large_tonic_req() -> tonic_gen::SimpleRequest {
     sr
 }
 
-async fn qps_kernel_empty(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
-    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+async fn qps_kernel_empty(addr: SocketAddr, conc: u32, conns: usize, dur: Duration) -> (u64, u64) {
+    let client = TestServiceClient::new(
+        pbrs_grpc::Channel::connect_pool(addr, conns.max(1))
+            .await
+            .unwrap(),
+    );
     for _ in 0..32 {
         client.empty_call(KReq::new(Empty::new())).await.unwrap();
     }
@@ -229,8 +233,12 @@ async fn qps_kernel_empty(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u
     (n.load(Ordering::Relaxed), err.load(Ordering::Relaxed))
 }
 
-async fn qps_kernel_large(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
-    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+async fn qps_kernel_large(addr: SocketAddr, conc: u32, conns: usize, dur: Duration) -> (u64, u64) {
+    let client = TestServiceClient::new(
+        pbrs_grpc::Channel::connect_pool(addr, conns.max(1))
+            .await
+            .unwrap(),
+    );
     let sr = large_kernel_req();
     for _ in 0..8 {
         client.unary_call(KReq::new(sr.clone())).await.unwrap();
@@ -266,17 +274,23 @@ async fn qps_kernel_large(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u
     (n.load(Ordering::Relaxed), err.load(Ordering::Relaxed))
 }
 
-async fn qps_tonic_empty(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
-    let ch = Channel::from_shared(format!("http://{addr}"))
-        .unwrap()
-        .connect()
-        .await
-        .unwrap();
-    let client = tonic_gen::TestServiceClient::new(ch);
+async fn qps_tonic_empty(addr: SocketAddr, conc: u32, conns: usize, dur: Duration) -> (u64, u64) {
+    let nconn = conns.max(1);
+    let mut clients = Vec::with_capacity(nconn);
+    for _ in 0..nconn {
+        let ch = Channel::from_shared(format!("http://{addr}"))
+            .unwrap()
+            .connect()
+            .await
+            .unwrap();
+        clients.push(tonic_gen::TestServiceClient::new(ch));
+    }
     {
-        let mut c = client.clone();
+        let Some(c0) = clients.first_mut() else {
+            return (0, 1);
+        };
         for _ in 0..32 {
-            c.empty_call(Request::new(tonic_gen::Empty::new()))
+            c0.empty_call(Request::new(tonic_gen::Empty::new()))
                 .await
                 .unwrap();
         }
@@ -285,8 +299,11 @@ async fn qps_tonic_empty(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u6
     let err = Arc::new(AtomicU64::new(0));
     let run = Arc::new(AtomicBool::new(true));
     let mut hs = Vec::new();
-    for _ in 0..conc {
-        let mut c = client.clone();
+    for i in 0..conc {
+        let mut c = clients
+            .get(i as usize % nconn)
+            .cloned()
+            .unwrap_or_else(|| clients.first().cloned().unwrap());
         let n = Arc::clone(&n);
         let err = Arc::clone(&err);
         let run = Arc::clone(&run);
@@ -311,26 +328,35 @@ async fn qps_tonic_empty(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u6
     (n.load(Ordering::Relaxed), err.load(Ordering::Relaxed))
 }
 
-async fn qps_tonic_large(addr: SocketAddr, conc: u32, dur: Duration) -> (u64, u64) {
-    let ch = Channel::from_shared(format!("http://{addr}"))
-        .unwrap()
-        .connect()
-        .await
-        .unwrap();
-    let client = tonic_gen::TestServiceClient::new(ch);
+async fn qps_tonic_large(addr: SocketAddr, conc: u32, conns: usize, dur: Duration) -> (u64, u64) {
+    let nconn = conns.max(1);
+    let mut clients = Vec::with_capacity(nconn);
+    for _ in 0..nconn {
+        let ch = Channel::from_shared(format!("http://{addr}"))
+            .unwrap()
+            .connect()
+            .await
+            .unwrap();
+        clients.push(tonic_gen::TestServiceClient::new(ch));
+    }
     let sr = large_tonic_req();
     {
-        let mut c = client.clone();
+        let Some(c0) = clients.first_mut() else {
+            return (0, 1);
+        };
         for _ in 0..8 {
-            c.unary_call(Request::new(sr.clone())).await.unwrap();
+            c0.unary_call(Request::new(sr.clone())).await.unwrap();
         }
     }
     let n = Arc::new(AtomicU64::new(0));
     let err = Arc::new(AtomicU64::new(0));
     let run = Arc::new(AtomicBool::new(true));
     let mut hs = Vec::new();
-    for _ in 0..conc {
-        let mut c = client.clone();
+    for i in 0..conc {
+        let mut c = clients
+            .get(i as usize % nconn)
+            .cloned()
+            .unwrap_or_else(|| clients.first().cloned().unwrap());
         let sr = sr.clone();
         let n = Arc::clone(&n);
         let err = Arc::clone(&err);
@@ -390,23 +416,37 @@ async fn main() {
 
     let dur = Duration::from_secs_f64(QPS_SECS);
     for conc in EMPTY_CONC {
-        let (kn, ke) = qps_kernel_empty(k_addr, conc, dur).await;
-        let (tn, te) = qps_tonic_empty(t_addr, conc, dur).await;
+        let (kn, ke) = qps_kernel_empty(k_addr, conc, 1, dur).await;
+        let (tn, te) = qps_tonic_empty(t_addr, conc, 1, dur).await;
         println!(
-            "qps empty conc={conc} kernel={} tonic={} kernel_err={ke} tonic_err={te}",
+            "qps empty conc={conc} conns=1 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
             qps(kn, dur),
             qps(tn, dur)
         );
     }
+    let (kn, ke) = qps_kernel_empty(k_addr, 64, 4, dur).await;
+    let (tn, te) = qps_tonic_empty(t_addr, 64, 4, dur).await;
+    println!(
+        "qps empty conc=64 conns=4 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
+        qps(kn, dur),
+        qps(tn, dur)
+    );
     for conc in LARGE_CONC {
-        let (kn, ke) = qps_kernel_large(k_addr, conc, dur).await;
-        let (tn, te) = qps_tonic_large(t_addr, conc, dur).await;
+        let (kn, ke) = qps_kernel_large(k_addr, conc, 1, dur).await;
+        let (tn, te) = qps_tonic_large(t_addr, conc, 1, dur).await;
         println!(
-            "qps large conc={conc} kernel={} tonic={} kernel_err={ke} tonic_err={te}",
+            "qps large conc={conc} conns=1 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
             qps(kn, dur),
             qps(tn, dur)
         );
     }
+    let (kn, ke) = qps_kernel_large(k_addr, 16, 4, dur).await;
+    let (tn, te) = qps_tonic_large(t_addr, 16, 4, dur).await;
+    println!(
+        "qps large conc=16 conns=4 kernel={} tonic={} kernel_err={ke} tonic_err={te}",
+        qps(kn, dur),
+        qps(tn, dur)
+    );
 
     if k_empty >= t_empty || k_large >= t_large {
         eprintln!("perf gate failed: kernel empty {k_empty} vs tonic {t_empty}; large {k_large} vs {t_large}");
