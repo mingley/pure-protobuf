@@ -130,6 +130,9 @@ impl LazyStr {
     /// Arc the 5-byte message and drop it). Longer strings copy the
     /// payload once while checking UTF-8 (see [`Wire::from_utf8_payload`])
     /// instead of `str::from_utf8` plus a parent-frame Arc.
+    ///
+    /// proto3 / `utf8_validation = VERIFY`. proto2 NONE uses
+    /// [`from_parse_span_unchecked`].
     #[inline]
     pub fn from_parse_span(
         slot: &mut Option<Wire>,
@@ -144,6 +147,25 @@ impl LazyStr {
         }
         let _ = slot;
         Ok(Self::Wire(Wire::from_utf8_payload(s)?))
+    }
+
+    /// Same copy strategy as [`from_parse_span`], no UTF-8 check.
+    ///
+    /// proto2 `utf8_validation = NONE` (and editions NONE) must Parse
+    /// `\x80`. Does not [`Wire::ensure`] the parent frame.
+    #[inline]
+    pub fn from_parse_span_unchecked(
+        slot: &mut Option<Wire>,
+        data: &[u8],
+        rel_start: usize,
+        rel_end: usize,
+    ) -> Self {
+        let s = &data[rel_start..rel_end];
+        if s.len() <= Self::INLINE {
+            return Self::from_bytes(s);
+        }
+        let _ = slot;
+        Self::Wire(Wire::from_slice(s))
     }
 
     #[inline]
@@ -672,6 +694,21 @@ mod tests {
         let long = vec![0xff; 24];
         let mut slot = None;
         assert!(LazyStr::from_parse_span(&mut slot, &long, 0, 24).is_err());
+    }
+
+    #[test]
+    fn from_parse_span_unchecked_keeps_non_utf8() {
+        let data = [0x80];
+        let mut slot = None;
+        let s = LazyStr::from_parse_span_unchecked(&mut slot, &data, 0, 1);
+        assert_eq!(s.as_bytes(), &[0x80]);
+        assert!(slot.is_none());
+        let long = vec![0x80; 24];
+        let mut slot = None;
+        let s = LazyStr::from_parse_span_unchecked(&mut slot, &long, 0, 24);
+        assert_eq!(s.as_bytes(), &long);
+        assert!(slot.is_none());
+        assert!(matches!(s, LazyStr::Wire(_)));
     }
 
     #[test]
