@@ -1,4 +1,8 @@
 //! Eager-validate, lazy-materialize string/bytes over a shared wire buffer.
+#![allow(
+    clippy::expect_used,
+    reason = "OnceLock get_mut after ensure is an internal invariant"
+)]
 
 use crate::error::ParseError;
 use crate::map::MapKey;

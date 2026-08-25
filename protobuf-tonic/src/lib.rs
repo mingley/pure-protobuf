@@ -11,6 +11,7 @@ use std::marker::PhantomData;
 use tonic::codec::{Codec, DecodeBuf, Decoder, EncodeBuf, Encoder};
 use tonic::Status;
 
+/// tonic [`Codec`] using pbrs [`Serialize`] / [`Parse`] (not `prost::Message`).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ProtobufCodec<E, D> {
     _e: PhantomData<fn() -> E>,
@@ -36,6 +37,7 @@ where
     }
 }
 
+/// Encoder half of [`ProtobufCodec`].
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ProtobufEncoder<T>(PhantomData<fn() -> T>);
 
@@ -48,6 +50,7 @@ impl<T: Serialize> Encoder for ProtobufEncoder<T> {
     }
 }
 
+/// Decoder half of [`ProtobufCodec`].
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ProtobufDecoder<T>(PhantomData<fn() -> T>);
 
@@ -59,7 +62,10 @@ impl<T: Parse + Default + ClearAndParse> Decoder for ProtobufDecoder<T> {
         let n = src.remaining();
         let chunk = src.chunk();
         if chunk.len() >= n {
-            let item = Parse::parse(&chunk[..n]).map_err(|e| Status::internal(e.to_string()))?;
+            let bytes = chunk
+                .get(..n)
+                .ok_or_else(|| Status::internal("short chunk"))?;
+            let item = Parse::parse(bytes).map_err(|e| Status::internal(e.to_string()))?;
             src.advance(n);
             return Ok(Some(item));
         }

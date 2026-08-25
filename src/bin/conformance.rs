@@ -1,5 +1,12 @@
 //! Official conformance_test_runner child: stdin/stdout ConformanceRequest/Response.
 //! TestAllTypes path uses generated typed wrappers (same codec as the plugin).
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::cast_possible_truncation,
+    reason = "conformance child exits on stdin framing errors; wire lengths fit u32"
+)]
 
 use pbrs::gencode::{
     EditionsTestAllRequiredTypesProto2, EditionsTestAllTypesProto2, EditionsTestAllTypesProto3,

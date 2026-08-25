@@ -1,11 +1,18 @@
+//! Repeated field storage and views.
+#![allow(
+    clippy::expect_used,
+    reason = "get_mut after push is an internal invariant"
+)]
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
 use std::fmt;
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
 /// Empty is an 8-byte null. `Box<Vec<_>>` so unused TAT collections stay off the struct.
-#[allow(clippy::box_collection)]
+#[expect(
+    clippy::box_collection,
+    reason = "Option<Box<Vec<T>>> is the 8-byte empty TAT layout"
+)]
 #[derive(Clone)]
 pub struct Repeated<T>(Option<Box<Vec<T>>>);
 
@@ -612,9 +619,6 @@ impl Singular for f64 {}
 impl Singular for bool {}
 impl Singular for crate::string::ProtoString {}
 impl Singular for crate::string::ProtoBytes {}
-
-#[allow(dead_code)]
-struct _Hold<T>(PhantomData<T>);
 
 #[cfg(test)]
 mod tests {

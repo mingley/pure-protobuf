@@ -1,3 +1,20 @@
+//! Live protoc --plugin=protoc-gen-pbrs round-trips.
+
+#![allow(
+    clippy::disallowed_methods,
+    clippy::let_underscore_must_use,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::too_many_lines,
+    clippy::unimplemented,
+    unreachable_pub,
+    reason = "integration tests are sync; generated fixtures live in the test crate"
+)]
 use std::path::PathBuf;
 use std::process::Command;
 
