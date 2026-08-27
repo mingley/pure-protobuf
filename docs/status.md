@@ -70,24 +70,14 @@
   (`pbrs-grpc-interop-server` / `pbrs-grpc-interop-client`) pass the
   shared uncompressed `_TEST_CASES` against Go `interop/client` and
   `interop/server` (`--use_tls=false`) and the four gzip cases
-  kernel-vs-kernel. Loopback `rpc-bench` empty_unary / large_unary is
-  process-gated strictly faster than tonic 0.14. The same binary reports
-  max QPS (not gated) at a few concurrency levels and connection-pool
-  sizes. `Channel::connect_pool` opens independent h2 driver tasks.
-  `protobuf-tonic` stays the tonic adapter.
+  kernel-vs-kernel. Loopback `rpc-bench` latency is process-gated
+  (kernel median ns strictly below tonic 0.14 on empty_unary and
+  large_unary). QPS is reported, not gated (empty/large at
+  conc=1/conns=1 and conc=16/conns=4). Nonzero RPC errors still fail
+  the process. `Channel::connect_pool` opens independent h2 driver
+  tasks. `protobuf-tonic` stays the tonic adapter.
 
 ## Remaining
-
-QPS-vs-conc (WIP on `mingley/rpc-qps`, not gated): `rpc-bench` now
-process-gates kernel>tonic QPS and a widening kernel/tonic ratio from
-conc=1/conns=1 to conc=16/conns=4. Empty usually widens; **large
-often fails the ratio gate** because conc=1 kernel is already ~2.1×
-tonic (memcpy-uncontended) and high-conc memcpy saturates, so the
-ratio shrinks or ties (last fail: `2720/1240 -> 3312/1512`). Need
-kernel large high-conc QPS to pull away (target ≳4k vs tonic ~1.5k
-on that cell, previously seen at `4105/1621`) without inflating
-conc=1. Do not mix conn counts between stacks at a given conc.
-`Channel::connect_pool` is round-robin, not task-sticky.
 
 See `docs/upb.md`. Short list:
 

@@ -207,22 +207,14 @@ Two consecutive release runs:
 cd rpc-bench && cargo build --release && ./target/release/rpc-bench
 ```
 
-Throughput is reported, not gated. Concurrent in-flight unaries, 2 s
-windows, zero RPC errors. Two consecutive runs after the latency gate
-(Apple M4 Pro). `conns` is HTTP/2 connections (`Channel::connect_pool`
-vs N tonic channels):
+Throughput is reported, not gated. Concurrent in-flight unaries, 3 s
+windows. Nonzero RPC errors fail the process (correctness). `conns` is
+HTTP/2 connections (`Channel::connect_pool` vs N tonic channels). The
+binary prints these four cells; run `rpc-bench` locally for values:
 
 | case | conc | conns | kernel QPS | tonic QPS |
 |---|---:|---:|---:|---:|
-| empty | 1 | 1 | 16927 / 17054 | 11862 / 11892 |
-| empty | 16 | 1 | 55552 / 55861 | 41870 / 42033 |
-| empty | 64 | 1 | 57362 / 57437 | 44395 / 44353 |
-| empty | 64 | 4 | 47802 / 47889 | 33880 / 39869 |
-| large | 1 | 1 | 2567 / 2408 | 1135 / 1007 |
-| large | 8 | 1 | 2445 / 2939 | 1482 / 1455 |
-| large | 16 | 1 | 2563 / 2558 | 1461 / 1472 |
-| large | 16 | 4 | 4105 / 4207 | 1621 / 1648 |
-
-Empty saturates one h2 driver (~57k vs ~44k at conc=64). Extra
-connections do not help empty. Large is copy-bound on one connection;
-a 4-connection pool raises kernel QPS to ~4.2k vs tonic ~1.6k.
+| empty | 1 | 1 | run locally | run locally |
+| empty | 16 | 4 | run locally | run locally |
+| large | 1 | 1 | run locally | run locally |
+| large | 16 | 4 | run locally | run locally |

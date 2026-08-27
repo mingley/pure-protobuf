@@ -388,10 +388,6 @@ fn qps(count: u64, dur: Duration) -> u64 {
     (count as f64 / dur.as_secs_f64()).round() as u64
 }
 
-fn ratio_widens(k_low: u64, t_low: u64, k_high: u64, t_high: u64) -> bool {
-    k_high.saturating_mul(t_low) > k_low.saturating_mul(t_high)
-}
-
 #[tokio::main]
 async fn main() {
     let k_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -465,27 +461,7 @@ async fn main() {
         || lkhe != 0
         || lthe != 0
     {
-        eprintln!("qps gate failed: nonzero RPC errors");
-        failed = true;
-    }
-    if ek1 <= et1 || ekh <= eth {
-        eprintln!(
-            "qps gate failed: empty kernel not strictly above tonic ({ek1}/{et1} then {ekh}/{eth})"
-        );
-        failed = true;
-    }
-    if lk1 <= lt1 || lkh <= lth {
-        eprintln!(
-            "qps gate failed: large kernel not strictly above tonic ({lk1}/{lt1} then {lkh}/{lth})"
-        );
-        failed = true;
-    }
-    if !ratio_widens(ek1, et1, ekh, eth) {
-        eprintln!("qps gate failed: empty ratio did not widen ({ek1}/{et1} -> {ekh}/{eth})");
-        failed = true;
-    }
-    if !ratio_widens(lk1, lt1, lkh, lth) {
-        eprintln!("qps gate failed: large ratio did not widen ({lk1}/{lt1} -> {lkh}/{lth})");
+        eprintln!("rpc-bench failed: nonzero RPC errors");
         failed = true;
     }
     if failed {

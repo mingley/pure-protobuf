@@ -42,8 +42,7 @@ impl Channel {
     /// Dial `n` prior-knowledge HTTP/2 connections to `addr`.
     ///
     /// RPCs pick a connection round-robin. Task-sticky assignment was
-    /// tried for QPS scaling and reverted; see Remaining in
-    /// `docs/status.md`.
+    /// tried and reverted.
     pub async fn connect_pool(addr: SocketAddr, n: usize) -> Result<Self, Status> {
         let n = n.max(1);
         let authority: Authority = addr
