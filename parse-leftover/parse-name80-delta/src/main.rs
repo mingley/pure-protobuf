@@ -431,7 +431,7 @@ fn main() {
         parse_span_short
     );
     println!(
-        "LazyStr::from_parse_span(80):    {:.1} ns  (ON; payload Arc + utf8)",
+        "LazyStr::from_parse_span(80):    {:.1} ns  (ON; heap ProtoString + utf8)",
         parse_span_80
     );
     println!(

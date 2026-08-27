@@ -15,8 +15,9 @@ untouched (`name_80` **6.4 / 25.3** vs prost **4.6 / 23.7**). Do **not**
 write this VM's numbers into `docs/status.md` or that table. Do not mix
 hosts.
 
-Scratch only until a same-host cut is kept. Isolated proxies overlap;
-**do not sum**.
+Same-host cut **kept**: almost-whole `24..=256` heap-copies into
+`ProtoString`. Combined leftover shrank and did not widen. Still a
+loss. Isolated proxies overlap; **do not sum**.
 
 ## Confirm: generated `Name` path
 
@@ -289,6 +290,55 @@ Cannot split Arc-header vs memcpy vs enum wrap **inside**
 `from_utf8_payload` without a kernel probe. The reconstruct split plus
 the two-run proxies are the evidence.
 
+## After the heap-copy cut (this VM, same host)
+
+`from_parse_span` for almost-whole `24 <= len <= 256` now
+`require_utf8` + `from_bytes` (heap `ProtoString`). `name_4kib` stays
+on `from_utf8_payload`. Two consecutive harness runs after the cut:
+
+**Run 1**
+
+```
+pbrs name_80 Parse:  40.8 ns
+prost name_80 decode: 25.0 ns
+delta name_80 decode: 15.8 ns
+pbrs name_80 encode:  5.8 ns
+prost name_80 encode: 4.0 ns
+pbrs name_80 combined:  46.6 ns
+prost name_80 combined: 29.0 ns
+delta name_80 combined: 17.6 ns
+reconstruct from_parse_span name_80: 26.8 ns
+name_80 classification: LazyStr::Owned, parent slot None
+pbrs name_4kib Parse:  88.5 ns
+prost name_4kib decode: 129.8 ns
+```
+
+**Run 2**
+
+```
+pbrs name_80 Parse:  40.7 ns
+prost name_80 decode: 24.6 ns
+delta name_80 decode: 16.0 ns
+pbrs name_80 encode:  5.7 ns
+prost name_80 encode: 4.0 ns
+pbrs name_80 combined:  46.4 ns
+prost name_80 combined: 28.6 ns
+delta name_80 combined: 17.8 ns
+reconstruct from_parse_span name_80: 26.7 ns
+```
+
+| piece | before (run 1 / 2) | after (run 1 / 2) |
+|---|---|---|
+| reconstruct − prost | 15.7 / 15.9 | **1.8 / 2.1** |
+| Parse − reconstruct | 13.0 / 21.4 | **14.0 / 14.0** |
+| Parse − prost | 28.7 / 37.3 | **15.8 / 16.0** |
+| combined Δ | 29.8 / 39.3 | **17.6 / 17.8** |
+
+String arm is no longer the expensive side. Leftover is the
+merge_inner wrapper plus a small encode Δ. Combined is still a loss.
+`name_4kib` decode stayed a pbrs win (88 vs 130). Do not write these
+into the M4 Pro survey table or the #31 Verified line.
+
 ## What this is not
 
 - Not a faster `Parse`.
@@ -296,7 +346,7 @@ the two-run proxies are the evidence.
 - Not an API change.
 - Not a win.
 - Not codec parity.
-- Not a kernel change (until a same-host cut is kept).
+- Not a kernel rewrite (one `from_parse_span` arm). The heap-copy cut is kept.
 - Not a replacement of the #31 Verified numbers (52.2 vs 25.8).
 - Not a replacement of the M4 Pro `name_80` survey row.
 - Not a merge of #32 / #36 / #39 / #41.

@@ -92,9 +92,11 @@ See `docs/upb.md`. Short list:
 - Maps are `Vec` (scan on get).
 - `name_4kib` Codec combined beats prost (gated). `blob_4kib` still
   wins. `rpc_sparse` decode and `tags_32` decode vs v4 are gated.
-  Leftover unary item is `name_80` combined. Flatten `merge_inner`
-  (#39) stays discarded. Survey: `docs/benchmarks.md`. Closed
-  inventories (notes + harnesses, not merged as wins):
+  Leftover unary item is `name_80` combined (still a loss). Almost-whole
+  strings `24..=256` now heap-copy into `ProtoString`; same-host Parse
+  leftover shrank, string arm is no longer the expensive side. Flatten
+  `merge_inner` (#39) stays discarded. Survey: `docs/benchmarks.md`.
+  Closed inventories (notes + harnesses, not merged as wins):
   `docs/inventory/`.
   [#27](https://github.com/mingley/pure-protobuf/pull/27) rust_out 234
   errors is superseded by #42.

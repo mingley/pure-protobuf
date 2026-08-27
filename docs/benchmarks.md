@@ -177,8 +177,10 @@ Do not spend the next pass on:
 
 Worth measuring next:
 
-- `name_80` combined (small loss): 80-byte string is just over the SSO
-  cutoff.
+- `name_80` combined (still a loss): 80-byte string is just over the SSO
+  cutoff. Almost-whole `24..=256` now heap-copies into `ProtoString`
+  instead of `Arc<[u8]>`. Same-host Parse leftover shrank; leftover is
+  the merge_inner wrapper. The M4 Pro table above is untouched.
 
 Keep: packed canonical cache, bytes window, `simdutf8` string arm,
 same-tag repeated strings, map/repeated vs prost.
