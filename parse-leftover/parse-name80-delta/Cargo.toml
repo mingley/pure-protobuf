@@ -1,0 +1,27 @@
+[package]
+name = "parse-name80-delta"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Throwaway leftover name_80 combined Δ timing vs prost. Not a workspace member. MEASURE ONLY."
+
+[workspace]
+
+[dependencies]
+bytes = "1"
+pbrs = { path = "../.." }
+prost = "0.14"
+
+[build-dependencies]
+pbrs = { path = "../.." }
+prost-build = "0.14"
+
+[[bin]]
+name = "parse-name80-delta"
+path = "src/main.rs"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

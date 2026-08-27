@@ -15,6 +15,7 @@
 /parse-leftover/parse-hello-gap/target
 /parse-leftover/parse-hello-delta/target
 /parse-leftover/parse-4kib-delta/target
+/parse-leftover/parse-name80-delta/target
 /third_party/protobuf
 .interop-bin
 .DS_Store
