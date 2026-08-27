@@ -5,8 +5,8 @@ use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Inbound;
 use crate::wire::{
-    check_request, grpc_trailers, one_or_default, pump_inbound, read_all_messages, send_frame,
-    send_ok_headers, send_trailers_only, serialize_payload, timeout_from_headers, wrap_timeout,
+    check_request, encode_msg, grpc_trailers, one_or_default, pump_inbound, read_all_messages,
+    send_bytes, send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -63,10 +63,13 @@ pub trait Http2Handler: Send + Sync + 'static {
 }
 
 async fn serve_conn<H: Http2Handler>(handler: Arc<H>, tcp: TcpStream) {
+    tcp.set_nodelay(true).ok();
     let Ok(mut conn) = h2::server::Builder::new()
         .initial_window_size(16 * 1024 * 1024)
         .initial_connection_window_size(16 * 1024 * 1024)
         .max_frame_size(1024 * 1024)
+        .max_concurrent_streams(256)
+        .max_send_buffer_size(1024 * 1024)
         .handshake(tcp)
         .await
     else {
@@ -218,8 +221,8 @@ async fn finish_handler<Resp: Serialize>(
             let Ok(mut send) = send_ok_headers(&mut respond, &md, compress) else {
                 return;
             };
-            if let Ok(payload) = serialize_payload(&msg) {
-                send_frame(&mut send, &payload, compress, false).ok();
+            if let Ok(frame) = encode_msg(&msg, compress) {
+                send_bytes(&mut send, frame, false).await.ok();
             }
             let mut st = Status::new(Code::Ok, "");
             *st.metadata_mut() = trailers;
@@ -246,10 +249,10 @@ async fn finish_stream_handler<Resp: Serialize + Send>(
             loop {
                 match inbound.next_item().await {
                     Ok(Some(item)) => {
-                        let Ok(payload) = serialize_payload(&item.message) else {
-                            break;
+                        let Ok(frame) = encode_msg(&item.message, item.compressed) else {
+                            return;
                         };
-                        if send_frame(&mut send, &payload, item.compressed, false).is_err() {
+                        if send_bytes(&mut send, frame, false).await.is_err() {
                             return;
                         }
                     }

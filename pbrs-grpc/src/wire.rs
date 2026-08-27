@@ -5,24 +5,29 @@ use crate::gzip;
 use crate::metadata::Metadata;
 use crate::status::{Code, Status};
 use crate::stream::{InItem, Inbound, OutItem};
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use h2::{Reason, RecvStream, SendStream};
+use http::uri::{Authority, PathAndQuery, Scheme};
 use http::{HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode};
 use pbrs::{Parse, Serialize};
 use std::time::Duration;
 use tokio::sync::mpsc;
 
 pub(crate) fn grpc_request(
-    authority: &str,
-    path: &str,
+    authority: &Authority,
+    path: &'static str,
     md: &Metadata,
     timeout: Option<Duration>,
     send_gzip: bool,
 ) -> Result<Request<()>, Status> {
-    let uri = format!("http://{authority}{path}");
+    let mut parts = http::uri::Parts::default();
+    parts.scheme = Some(Scheme::HTTP);
+    parts.authority = Some(authority.clone());
+    parts.path_and_query = Some(PathAndQuery::from_static(path));
+    let uri = http::Uri::from_parts(parts).map_err(|e| Status::internal(e.to_string()))?;
     let mut builder = Request::builder()
         .method(http::Method::POST)
-        .uri(&uri)
+        .uri(uri)
         .header(http::header::CONTENT_TYPE, "application/grpc")
         .header(http::header::TE, "trailers")
         .header(
@@ -75,23 +80,64 @@ pub(crate) fn serialize_payload<T: Serialize>(msg: &T) -> Result<Vec<u8>, Status
     T::serialize(msg).map_err(|e| Status::internal(e.to_string()))
 }
 
-pub(crate) fn send_frame(
+fn frame_from_msg<T: Serialize>(msg: &T) -> Result<Bytes, Status> {
+    let n = T::serialized_len(msg);
+    let len = u32::try_from(n).map_err(|_| Status::internal("message too large"))?;
+    let mut buf = BytesMut::with_capacity(5 + n);
+    buf.put_u8(0);
+    buf.put_u32(len);
+    T::encode(msg, &mut buf).map_err(|e| Status::internal(e.to_string()))?;
+    Ok(buf.freeze())
+}
+
+async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Status> {
+    if send.capacity() >= n {
+        return Ok(());
+    }
+    send.reserve_capacity(n);
+    while send.capacity() < n {
+        match std::future::poll_fn(|cx| send.poll_capacity(cx)).await {
+            Some(Ok(_)) => {}
+            Some(Err(e)) => return Err(Status::internal(e.to_string())),
+            None => return Err(Status::internal("stream closed")),
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn encode_msg<T: Serialize>(msg: &T, compress: bool) -> Result<Bytes, Status> {
+    if compress {
+        let body = serialize_payload(msg)?;
+        let gz = gzip::encode(&body)?;
+        codec::encode(&gz, true)
+    } else {
+        frame_from_msg(msg)
+    }
+}
+
+pub(crate) async fn send_bytes(
     send: &mut SendStream<Bytes>,
-    payload: &[u8],
-    compress: bool,
+    frame: Bytes,
     end: bool,
 ) -> Result<(), Status> {
-    let frame = if compress {
-        let body = gzip::encode(payload)?;
-        codec::encode(&body, true)?
-    } else {
-        codec::encode(payload, false)?
-    };
+    // Empty/small frames fit the send buffer. Polling capacity on every
+    // 5-byte unary serializes the connection task.
+    if frame.len() > 16 * 1024 {
+        wait_capacity(send, frame.len()).await?;
+    }
     send.send_data(frame, end)
         .map_err(|e| Status::internal(e.to_string()))
 }
 
 pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
+    if status.code() == Code::Ok && status.message().is_empty() && status.metadata().is_empty() {
+        let mut map = HeaderMap::with_capacity(1);
+        map.insert(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("0"),
+        );
+        return Ok(map);
+    }
     let mut map = HeaderMap::new();
     let code = HeaderValue::from_str(&status.code().to_i32().to_string())
         .map_err(|e| Status::internal(e.to_string()))?;
@@ -212,12 +258,12 @@ impl FrameReader {
         match codec::pop(&mut self.buf)? {
             None => Ok(None),
             Some(frame) => {
-                let raw = if frame.compressed {
-                    gzip::decode(&frame.payload)?
+                let message = if frame.compressed {
+                    let raw = gzip::decode(&frame.payload)?;
+                    T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?
                 } else {
-                    frame.payload.to_vec()
+                    T::parse(frame.payload.as_ref()).map_err(|e| Status::internal(e.to_string()))?
                 };
-                let message = T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Some(InItem {
                     message,
                     compressed: frame.compressed,
@@ -333,8 +379,10 @@ pub(crate) async fn pump_outbound<T: Serialize>(
     let mut watch_cancel = true;
     loop {
         tokio::select! {
-            r = cancel_rx.wait_for(|v| *v), if watch_cancel => {
-                if r.is_ok() {
+            cancelled = async {
+                cancel_rx.wait_for(|v| *v).await.is_ok()
+            }, if watch_cancel => {
+                if cancelled {
                     send.send_reset(Reason::CANCEL);
                     return;
                 }
@@ -347,11 +395,12 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                         return;
                     }
                     Some(Ok(item)) => {
-                        let Ok(payload) = serialize_payload(&item.message) else {
+                        let Ok(frame) = encode_msg(&item.message, item.compress) else {
                             send.send_reset(Reason::INTERNAL_ERROR);
                             return;
                         };
-                        if send_frame(&mut send, &payload, item.compress, false).is_err() {
+                        if send_bytes(&mut send, frame, false).await.is_err() {
+                            send.send_reset(Reason::INTERNAL_ERROR);
                             return;
                         }
                     }

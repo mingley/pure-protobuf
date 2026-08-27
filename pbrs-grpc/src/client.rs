@@ -4,43 +4,83 @@ use crate::request::{Call, Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::{Inbound, StreamingSender};
 use crate::wire::{
-    finish_stream, finish_unary, grpc_request, pump_outbound, send_frame, serialize_payload,
+    encode_msg, finish_stream, finish_unary, grpc_request, pump_outbound, send_bytes,
 };
 use bytes::Bytes;
 use h2::Reason;
+use http::uri::Authority;
 use pbrs::{Parse, Serialize};
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::sync::{mpsc, watch};
 
+struct ChannelInner {
+    sends: Vec<h2::client::SendRequest<Bytes>>,
+    next: AtomicUsize,
+    authority: Authority,
+}
+
 /// Prior-knowledge HTTP/2 connection to a gRPC server.
+///
+/// [`Self::connect`] is one connection. [`Self::connect_pool`] opens several
+/// so concurrent RPCs run on independent h2 driver tasks (one per tokio
+/// worker that the runtime schedules).
 #[derive(Clone)]
 pub struct Channel {
-    send: h2::client::SendRequest<Bytes>,
-    authority: String,
+    inner: Arc<ChannelInner>,
 }
 
 impl Channel {
-    /// Dial `addr` with HTTP/2 prior knowledge (cleartext).
+    /// Dial `addr` with HTTP/2 prior knowledge (cleartext). One connection.
     pub async fn connect(addr: SocketAddr) -> Result<Self, Status> {
-        let authority = addr.to_string();
-        let tcp = TcpStream::connect(addr)
-            .await
-            .map_err(|e| Status::unavailable(e.to_string()))?;
-        tcp.set_nodelay(true)
-            .map_err(|e| Status::unavailable(e.to_string()))?;
-        let (send, conn) = h2::client::Builder::new()
-            .initial_window_size(16 * 1024 * 1024)
-            .initial_connection_window_size(16 * 1024 * 1024)
-            .max_frame_size(1024 * 1024)
-            .handshake(tcp)
-            .await
-            .map_err(|e| Status::unavailable(e.to_string()))?;
-        drop(tokio::spawn(async move {
-            conn.await.ok();
-        }));
-        Ok(Self { send, authority })
+        Self::connect_pool(addr, 1).await
+    }
+
+    /// Dial `n` prior-knowledge HTTP/2 connections to `addr`.
+    ///
+    /// RPCs pick a connection round-robin. Task-sticky assignment was
+    /// tried and reverted.
+    pub async fn connect_pool(addr: SocketAddr, n: usize) -> Result<Self, Status> {
+        let n = n.max(1);
+        let authority: Authority = addr
+            .to_string()
+            .parse()
+            .map_err(|e| Status::unavailable(format!("authority: {e}")))?;
+        let mut sends = Vec::with_capacity(n);
+        for _ in 0..n {
+            sends.push(handshake(addr).await?);
+        }
+        Ok(Self {
+            inner: Arc::new(ChannelInner {
+                sends,
+                next: AtomicUsize::new(0),
+                authority,
+            }),
+        })
+    }
+
+    fn grab(&self) -> Result<h2::client::SendRequest<Bytes>, Status> {
+        let sends = &self.inner.sends;
+        let n = sends.len();
+        if n == 0 {
+            return Err(Status::unavailable("empty connection pool"));
+        }
+        let i = if n == 1 {
+            0
+        } else {
+            self.inner.next.fetch_add(1, Ordering::Relaxed) % n
+        };
+        sends
+            .get(i)
+            .cloned()
+            .ok_or_else(|| Status::unavailable("empty connection pool"))
+    }
+
+    fn authority(&self) -> Authority {
+        self.inner.authority.clone()
     }
 
     /// Unary RPC.
@@ -50,11 +90,16 @@ impl Channel {
         Resp: Parse + Default + Send + 'static,
     {
         let (cancel, cancel_rx) = watch::channel(false);
-        let mut send = self.send.clone();
-        let authority = self.authority.clone();
+        let send = match self.grab() {
+            Ok(s) => s,
+            Err(e) => {
+                return Call::new(cancel, Box::pin(async move { Err(e) }));
+            }
+        };
+        let authority = self.authority();
         Call::new(
             cancel,
-            Box::pin(async move { run_unary(&mut send, &authority, path, req, cancel_rx).await }),
+            Box::pin(async move { run_unary(send, &authority, path, req, cancel_rx).await }),
         )
     }
 
@@ -69,13 +114,18 @@ impl Channel {
         Resp: Parse + Default + Send + 'static,
     {
         let (cancel, cancel_rx) = watch::channel(false);
-        let mut send = self.send.clone();
-        let authority = self.authority.clone();
+        let send = match self.grab() {
+            Ok(s) => s,
+            Err(e) => {
+                return Call::new(cancel, Box::pin(async move { Err(e) }));
+            }
+        };
+        let authority = self.authority();
         Call::new(
             cancel,
-            Box::pin(async move {
-                run_server_stream(&mut send, &authority, path, req, cancel_rx).await
-            }),
+            Box::pin(
+                async move { run_server_stream(send, &authority, path, req, cancel_rx).await },
+            ),
         )
     }
 
@@ -91,13 +141,19 @@ impl Channel {
     {
         let (tx, rx) = mpsc::channel(16);
         let (cancel, cancel_rx) = watch::channel(false);
-        let mut send = self.send.clone();
-        let authority = self.authority.clone();
+        let send = match self.grab() {
+            Ok(s) => s,
+            Err(e) => {
+                let call = Call::new(cancel, Box::pin(async move { Err(e) }));
+                return (StreamingSender::new(tx), call);
+            }
+        };
+        let authority = self.authority();
         let call = Call::new(
             cancel.clone(),
-            Box::pin(async move {
-                run_client_stream(&mut send, &authority, path, req, rx, cancel_rx).await
-            }),
+            Box::pin(
+                async move { run_client_stream(send, &authority, path, req, rx, cancel_rx).await },
+            ),
         );
         (StreamingSender::new(tx), call)
     }
@@ -114,22 +170,47 @@ impl Channel {
     {
         let (tx, rx) = mpsc::channel(16);
         let (cancel, cancel_rx) = watch::channel(false);
-        let mut send = self.send.clone();
-        let authority = self.authority.clone();
+        let send = match self.grab() {
+            Ok(s) => s,
+            Err(e) => {
+                let call = Call::new(cancel, Box::pin(async move { Err(e) }));
+                return (StreamingSender::new(tx), call);
+            }
+        };
+        let authority = self.authority();
         let call = Call::new(
             cancel.clone(),
-            Box::pin(
-                async move { run_bidi(&mut send, &authority, path, req, rx, cancel_rx).await },
-            ),
+            Box::pin(async move { run_bidi(send, &authority, path, req, rx, cancel_rx).await }),
         );
         (StreamingSender::new(tx), call)
     }
 }
 
+async fn handshake(addr: SocketAddr) -> Result<h2::client::SendRequest<Bytes>, Status> {
+    let tcp = TcpStream::connect(addr)
+        .await
+        .map_err(|e| Status::unavailable(e.to_string()))?;
+    tcp.set_nodelay(true)
+        .map_err(|e| Status::unavailable(e.to_string()))?;
+    let (send, conn) = h2::client::Builder::new()
+        .initial_window_size(16 * 1024 * 1024)
+        .initial_connection_window_size(16 * 1024 * 1024)
+        .max_frame_size(1024 * 1024)
+        .max_concurrent_streams(256)
+        .max_send_buffer_size(1024 * 1024)
+        .handshake(tcp)
+        .await
+        .map_err(|e| Status::unavailable(e.to_string()))?;
+    drop(tokio::spawn(async move {
+        conn.await.ok();
+    }));
+    Ok(send)
+}
+
 async fn run_unary<Req, Resp>(
-    send_req: &mut h2::client::SendRequest<Bytes>,
-    authority: &str,
-    path: &str,
+    send_req: h2::client::SendRequest<Bytes>,
+    authority: &Authority,
+    path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
 ) -> Result<Response<Resp>, Status>
@@ -140,8 +221,7 @@ where
     let (msg, md, timeout, compress) = req.into_parts();
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
-    let payload = serialize_payload(&msg)?;
-    send_frame(&mut send_stream, &payload, compress, true)?;
+    send_bytes(&mut send_stream, encode_msg(&msg, compress)?, true).await?;
     race(
         async {
             let response = resp_fut
@@ -157,9 +237,9 @@ where
 }
 
 async fn run_server_stream<Req, Resp>(
-    send_req: &mut h2::client::SendRequest<Bytes>,
-    authority: &str,
-    path: &str,
+    send_req: h2::client::SendRequest<Bytes>,
+    authority: &Authority,
+    path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
 ) -> Result<Response<Inbound<Resp>>, Status>
@@ -170,8 +250,7 @@ where
     let (msg, md, timeout, compress) = req.into_parts();
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
-    let payload = serialize_payload(&msg)?;
-    send_frame(&mut send_stream, &payload, compress, true)?;
+    send_bytes(&mut send_stream, encode_msg(&msg, compress)?, true).await?;
     race(
         async {
             let response = resp_fut
@@ -187,9 +266,9 @@ where
 }
 
 async fn run_client_stream<Req, Resp>(
-    send_req: &mut h2::client::SendRequest<Bytes>,
-    authority: &str,
-    path: &str,
+    send_req: h2::client::SendRequest<Bytes>,
+    authority: &Authority,
+    path: &'static str,
     req: Request<()>,
     rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
     cancel_rx: watch::Receiver<bool>,
@@ -220,9 +299,9 @@ where
 }
 
 async fn run_bidi<Req, Resp>(
-    send_req: &mut h2::client::SendRequest<Bytes>,
-    authority: &str,
-    path: &str,
+    send_req: h2::client::SendRequest<Bytes>,
+    authority: &Authority,
+    path: &'static str,
     req: Request<()>,
     rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
     cancel_rx: watch::Receiver<bool>,
@@ -253,14 +332,13 @@ where
 }
 
 async fn open(
-    send_req: &mut h2::client::SendRequest<Bytes>,
-    authority: &str,
-    path: &str,
+    send_req: h2::client::SendRequest<Bytes>,
+    authority: &Authority,
+    path: &'static str,
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
     send_gzip: bool,
 ) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
-    let send_req = send_req.clone();
     let mut send_req = send_req
         .ready()
         .await
@@ -279,14 +357,16 @@ async fn race<T>(
 ) -> Result<T, Status> {
     let result = if let Some(d) = timeout {
         tokio::select! {
-            _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
-            _ = tokio::time::sleep(d) => Err(Status::deadline_exceeded()),
+            biased;
             r = fut => r,
+            _ = tokio::time::sleep(d) => Err(Status::deadline_exceeded()),
+            _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
         }
     } else {
         tokio::select! {
-            _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
+            biased;
             r = fut => r,
+            _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
         }
     };
     if let Some(send) = send {

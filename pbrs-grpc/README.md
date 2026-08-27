@@ -16,6 +16,7 @@ let listener = TcpListener::bind("127.0.0.1:0").await?;
 let addr = listener.local_addr()?;
 tokio::spawn(GreeterServer::new(Echo).serve_listener(listener));
 let client = GreeterClient::new(Channel::connect(addr).await?);
+// Channel::connect_pool(addr, n) for independent h2 driver tasks.
 let resp = client.say_hello(Request::new(req)).await?;
 ```
 
@@ -27,4 +28,4 @@ Official interop: `pbrs-grpc-interop-server --port N` and
 `pbrs-grpc-interop-client --server_host H --server_port N --test_case=empty_unary`.
 The Go peer is `google.golang.org/grpc/interop/{client,server}` with
 `-use_tls=false`. Loopback empty_unary / large_unary vs tonic 0.14 is
-`rpc-bench` (excluded crate; process-gated).
+`rpc-bench` (excluded crate; latency process-gated, QPS reported).

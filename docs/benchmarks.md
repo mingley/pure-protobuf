@@ -206,3 +206,15 @@ Two consecutive release runs:
 ```bash
 cd rpc-bench && cargo build --release && ./target/release/rpc-bench
 ```
+
+Throughput is reported, not gated. Concurrent in-flight unaries, 3 s
+windows. Nonzero RPC errors fail the process (correctness). `conns` is
+HTTP/2 connections (`Channel::connect_pool` vs N tonic channels). The
+binary prints these four cells; run `rpc-bench` locally for values:
+
+| case | conc | conns | kernel QPS | tonic QPS |
+|---|---:|---:|---:|---:|
+| empty | 1 | 1 | run locally | run locally |
+| empty | 16 | 4 | run locally | run locally |
+| large | 1 | 1 | run locally | run locally |
+| large | 16 | 4 | run locally | run locally |
