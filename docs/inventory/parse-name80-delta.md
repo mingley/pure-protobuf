@@ -6,20 +6,30 @@ MEASURE ONLY. Still a loss. Do not merge as done. No rewrite. No API change.
 
 This is the leftover **`name_80` combined** (encode+decode) gap named in
 `docs/status.md` Remaining / `docs/benchmarks.md` What to chase. 80-byte
-string, just over the SSO cutoff (`len ≤ 23`). Based on current `main`
-(`0383ed0`). Does not merge #32 / #36 / #39 / #41.
+string, just over the SSO cutoff (`len ≤ 23`). Inventory captured on
+`0383ed0`. Branch rebased onto `cb5f92b` (#56 harness/docs only; QPS
+reported, not gated). Does not merge #32 / #36 / #39 / #41.
 
 **Verified codec line of record stays #31.** Hello combined **52.2 vs
 25.8**. The Apple M4 Pro survey table in `docs/benchmarks.md` is
 untouched (`name_80` **6.4 / 25.3** vs prost **4.6 / 23.7**). Do **not**
-write this VM's numbers into `docs/status.md` or that table. Do not mix
-hosts.
+write this VM's numbers into `docs/status.md` Verified or that table.
+Do not mix hosts.
 
-Same-host cut **kept**: almost-whole `24..=256` heap-copies into
-`ProtoString`. Combined leftover shrank and did not widen. Still a
-loss. Isolated proxies overlap; **do not sum**.
+**Read order.** Everything from here through "Where the leftover ns
+goes" is the **pre-cut** path: payload `Arc<[u8]>` /
+`Wire::from_utf8_payload`, `LazyStr::Wire`. That is **not** the current
+arm. The current arm is the later section **After the heap-copy cut**:
+almost-whole `24..=256` → heap `ProtoString` (`LazyStr::Owned`).
+`name_4kib` stays on `from_utf8_payload`. Combined leftover shrank and
+did not widen. Still a loss. Isolated proxies overlap; **do not sum**.
 
-## Confirm: generated `Name` path
+## Pre-cut path (payload Arc / `Wire::from_utf8_payload`)
+
+Not the current arm. This is `from_parse_span` as measured on `0383ed0`
+before the heap-copy.
+
+## Confirm: generated `Name` path (call site; still current)
 
 tonic-bench `name_80` is `cases.Name { name: "x".repeat(80) }` from
 `proto/codec_cases.proto` (proto3, field 1 = `string name`). Same
@@ -72,32 +82,35 @@ fn write_to(...) {
 }
 ```
 
-`LazyStr::from_parse_span` (`src/lazy.rs`) on this payload:
+**Pre-cut** `LazyStr::from_parse_span` (`src/lazy.rs`) on this payload
+(not the current arm):
 
 ```
 let s = &data[rel_start..rel_end];
 if s.len() <= 23 {
     from_bytes(s)                        // name_short "ada"; OFF
 } else if s.len() + 8 >= data.len() {
-    Wire::from_utf8_payload(s)           // ON name_80 and name_4kib
+    Wire::from_utf8_payload(s)           // PRE-CUT name_80 and name_4kib
 } else {
     from_span(Wire::ensure(slot, data), …)  // medium-in-larger; OFF
 }
 ```
 
-`80 + 8 >= 82`, so name_80 is the **payload-only** arm: `Arc<[u8]>` of
-the **80-byte name**, UTF-8 via `simdutf8` on that copy, `LazyStr::Wire`.
-It does **not** `Wire::ensure` the 82-byte parent. `name_4kib` is the
-same arm (4096 + 8 ≥ 4099). name_short stays inline `Owned`.
+`80 + 8 >= 82`, so pre-cut name_80 is the **payload-only** arm:
+`Arc<[u8]>` of the **80-byte name**, UTF-8 via `simdutf8` on that copy,
+`LazyStr::Wire`. It does **not** `Wire::ensure` the 82-byte parent.
+`name_4kib` is the same arm (4096 + 8 ≥ 4099). name_short stays inline
+`Owned`. After the cut, name_80 is heap `Owned`; `name_4kib` stays
+`Wire` (see After).
 
-Harness asserts:
+Pre-cut harness asserts:
 
 - name_short `"ada"`: parent slot `None`, `LazyStr::Owned`
-- name_80: parent slot `None`, `LazyStr::Wire` of 80 bytes
+- name_80: parent slot `None`, `LazyStr::Wire` of 80 bytes (**pre-cut**)
 - name_4kib: parent slot `None`, `LazyStr::Wire` of 4096 bytes
 - 80 bytes inside a 163-byte frame: parent slot `Some` (shared frame)
 
-## Call stack that owns the leftover
+## Call stack that owns the leftover (pre-cut)
 
 ```
 tonic-bench pbrs_codec_decode / Parse::parse
@@ -109,7 +122,7 @@ tonic-bench pbrs_codec_decode / Parse::parse
         decode_tag                      1-byte tag
         read_len_span                   1-byte length + span
         LazyStr::from_parse_span        80+8>=82
-          Wire::from_utf8_payload       Arc<[u8]> of 80 + require_utf8
+          Wire::from_utf8_payload       PRE-CUT: Arc<[u8]> of 80 + require_utf8
 ```
 
 Encode (tonic-bench `Serialize::encode` into `BytesMut`) is a
@@ -142,7 +155,7 @@ store. No `Arc`.
 | `CachedSize` | 8 |
 | `String` | 24 |
 
-## Parse + encode ns (this VM)
+## Parse + encode ns (this VM, pre-cut)
 
 Linux x86_64, rustc 1.98.0, Instant median, 40000 × 15, release thin-LTO.
 Same style as tonic-bench / #32 / #36 / #41. Two consecutive
@@ -195,7 +208,7 @@ cd parse-leftover/parse-name80-delta && cargo run --release
 
 Needs rustc ≥ 1.88 and `protoc`.
 
-## Proxy timings (do not add)
+## Proxy timings (do not add; pre-cut)
 
 Run 1 / run 2. Isolated public-API timings. They overlap.
 
@@ -232,15 +245,16 @@ leftover name_80 combined Δ:               29.8 / 39.3 ns
 `from_parse_span`). No `Default`, no `cached_size`, no unknown /
 required / group. Same split as #32 / #36 / #41.
 
-Parent-ensure reconstruct (40.2) matches current reconstruct (40.5).
+Parent-ensure reconstruct (40.2) matches **pre-cut** reconstruct (40.5).
 The leftover is **not** a wasted parent-frame Arc. It is the payload
-`Arc<[u8]>` + `from_utf8_payload` vs prost one `String`.
+`Arc<[u8]>` + `from_utf8_payload` vs prost one `String`. That arm is
+not the current one.
 
 `simdutf8` at 80 bytes is **not** cheaper than `from_utf8` (7.5 vs
 6.5–6.7). At 4 KiB it is (33 vs 78); that is why `name_4kib` already
 wins and `name_80` does not.
 
-## Bucket table
+## Bucket table (pre-cut)
 
 Isolated proxies overlap. Do not add the `ns` column to the leftover Δ.
 Prefer **Parse-only name_80 pbrs vs prost** plus **reconstruct vs full
@@ -263,7 +277,7 @@ Parse**. Encode is a separate small bucket.
 `Default` and `dirty` sit **inside** the wrapper row. Do not add them
 on top.
 
-## Where the leftover ns goes
+## Where the leftover ns goes (pre-cut)
 
 Not a clean in-function split. No kernel probes. Do not sum the
 isolated Arc / UTF-8 / memcpy rows.
@@ -292,9 +306,14 @@ the two-run proxies are the evidence.
 
 ## After the heap-copy cut (this VM, same host)
 
-`from_parse_span` for almost-whole `24 <= len <= 256` now
-`require_utf8` + `from_bytes` (heap `ProtoString`). `name_4kib` stays
-on `from_utf8_payload`. Two consecutive harness runs after the cut:
+**This is the current arm.** `from_parse_span` for almost-whole
+`24 <= len <= 256` now `require_utf8` + `from_bytes` (heap
+`ProtoString`). `name_4kib` stays on `from_utf8_payload`. Two
+consecutive harness runs after the cut:
+
+`from_parse_span_unchecked` (proto2 / editions `utf8_validation =
+NONE` only) now uses the same almost-whole copy strategy, still
+without a UTF-8 check, so `\x80` Parses. That match is not a win.
 
 **Run 1**
 
@@ -346,7 +365,9 @@ into the M4 Pro survey table or the #31 Verified line.
 - Not an API change.
 - Not a win.
 - Not codec parity.
-- Not a kernel rewrite (one `from_parse_span` arm). The heap-copy cut is kept.
+- Not a kernel rewrite (one `from_parse_span` arm). The heap-copy cut is
+  the current VERIFY arm. proto2 NONE matches that copy strategy only;
+  not a win.
 - Not a replacement of the #31 Verified numbers (52.2 vs 25.8).
 - Not a replacement of the M4 Pro `name_80` survey row.
 - Not a merge of #32 / #36 / #39 / #41.

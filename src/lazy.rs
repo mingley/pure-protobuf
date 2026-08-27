@@ -178,8 +178,10 @@ impl LazyStr {
 
     /// Same copy strategy as [`from_parse_span`], no UTF-8 check.
     ///
-    /// proto2 `utf8_validation = NONE` (and editions NONE) must Parse
-    /// `\x80`. Does not [`Wire::ensure`] the parent frame.
+    /// proto2 `utf8_validation = NONE` (and editions NONE) only. Must
+    /// Parse `\x80`. Almost-whole `24..=256` heap-copies like the VERIFY
+    /// arm; that match is not a codec win. Longer payloads still
+    /// [`Wire::from_slice`]. Does not [`Wire::ensure`] the parent frame.
     #[inline]
     pub fn from_parse_span_unchecked(
         slot: &mut Option<Wire>,
@@ -189,6 +191,10 @@ impl LazyStr {
     ) -> Self {
         let s = &data[rel_start..rel_end];
         if s.len() <= Self::INLINE {
+            return Self::from_bytes(s);
+        }
+        if s.len().saturating_add(8) >= data.len() && s.len() <= Self::HEAP_COPY {
+            let _ = slot;
             return Self::from_bytes(s);
         }
         let _ = slot;
@@ -778,6 +784,13 @@ mod tests {
         let mut slot = None;
         let s = LazyStr::from_parse_span_unchecked(&mut slot, &long, 0, 24);
         assert_eq!(s.as_bytes(), &long);
+        assert!(slot.is_none());
+        // proto2 NONE: same almost-whole 24..=256 heap-copy as VERIFY.
+        assert!(matches!(s, LazyStr::Owned(_)));
+        let kib = vec![0x80; 4096];
+        let mut slot = None;
+        let s = LazyStr::from_parse_span_unchecked(&mut slot, &kib, 0, 4096);
+        assert_eq!(s.as_bytes(), &kib);
         assert!(slot.is_none());
         assert!(matches!(s, LazyStr::Wire(_)));
     }

@@ -16,7 +16,7 @@ The throwaway harnesses are excluded crates under `parse-leftover/`.
 | #36 | After #34, leftover is `merge_inner` wrapper (Default 48 B vs 24 B, `CachedSize::dirty`). Do not sum isolated proxies. Do not mix hosts with #31. | `cd parse-leftover/parse-hello-delta && cargo run --release` |
 | #39 | Flatten `merge_from_bytes` → `merge_inner` made hello Parse worse (~24.5 → ~32 ns). Do not retry that flatten. | see `flatten-merge-inner.md` |
 | #41 | 4 KiB still `Wire::ensure`s the 4099-byte parent frame. Leftover ~21–23 ns vs prost (reconstruct already slower than prost). | `cd parse-leftover/parse-4kib-delta && cargo run --release` |
-| name_80 | Combined leftover vs prost. Before: payload `Arc<[u8]>`. After (kept): almost-whole `24..=256` heap-copies. Combined Δ shrank (~30–39 → ~18 ns this VM). Still a loss. Do not sum proxies. Do not mix hosts with the M4 Pro survey row. | `cd parse-leftover/parse-name80-delta && cargo run --release` |
+| name_80 | Combined leftover vs prost. First half of `parse-name80-delta.md` is the **pre-cut** payload `Arc` path. After (current arm): almost-whole `24..=256` heap-copies. Still a loss. proto2 NONE matches that copy strategy; not a win. Do not sum proxies. Do not mix hosts with the M4 Pro survey row or #31 Verified (52.2 vs 25.8). | `cd parse-leftover/parse-name80-delta && cargo run --release` |
 
 Verified codec line of record remains **#31: 52.2 vs 25.8 ns** hello combined.
 Do not write other VM numbers into `docs/status.md`.
