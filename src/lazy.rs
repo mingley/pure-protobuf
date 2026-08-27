@@ -102,6 +102,10 @@ pub enum LazyStr {
 impl LazyStr {
     /// Matches [`ProtoString`] SSO. Inline copies do not keep a [`Wire`].
     const INLINE: usize = 23;
+    /// Almost-whole-message strings in `(INLINE, HEAP_COPY]` copy into a heap
+    /// [`ProtoString`] (one `Vec`) instead of `Arc<[u8]>`. `name_80` is just
+    /// over SSO; `name_4kib` stays on [`Wire::from_utf8_payload`].
+    const HEAP_COPY: usize = 256;
 
     pub fn owned(s: ProtoString) -> Self {
         if s.is_empty() {
@@ -133,10 +137,14 @@ impl LazyStr {
     /// [`Wire::ensure`] the parent frame (hello `"ada"` would otherwise
     /// Arc the 5-byte message and drop it).
     ///
-    /// Longer strings that are almost the whole message (`name_4kib`) copy
-    /// the payload once while checking UTF-8. Several medium strings in one
-    /// message (kernel `strings`) share the parent frame instead of one Arc
-    /// each.
+    /// Almost-whole-message strings with `24 <= len <= 256` (`name_80`) copy
+    /// into a heap [`ProtoString`]. The payload `Arc<[u8]>` path was the
+    /// leftover vs prost one `String` at 80 bytes (`simdutf8` is not cheaper
+    /// than `from_utf8` there).
+    ///
+    /// Longer almost-whole strings (`name_4kib`) still copy the payload once
+    /// while checking UTF-8. Several medium strings in one message (kernel
+    /// `strings`) share the parent frame instead of one Arc each.
     ///
     /// proto3 / `utf8_validation = VERIFY`. proto2 NONE uses
     /// [`from_parse_span_unchecked`].
@@ -154,6 +162,10 @@ impl LazyStr {
         }
         if s.len().saturating_add(8) >= data.len() {
             let _ = slot;
+            if s.len() <= Self::HEAP_COPY {
+                require_utf8(s)?;
+                return Ok(Self::from_bytes(s));
+            }
             return Ok(Self::Wire(Wire::from_utf8_payload(s)?));
         }
         require_utf8(s)?;
@@ -679,6 +691,36 @@ mod tests {
         assert!(
             slot.is_none(),
             "len > 23 copies the payload once; does not Wire::ensure the parent"
+        );
+        // 24..=256 almost-whole: heap ProtoString, not payload Arc.
+        assert!(matches!(s, LazyStr::Owned(_)));
+    }
+
+    #[test]
+    fn from_parse_span_name80_heap_copies_not_arc() {
+        let data = [b'x'; 80];
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 0, data.len()).unwrap();
+        assert_eq!(s.as_bytes(), &data);
+        assert!(
+            slot.is_none(),
+            "name_80 must not Wire::ensure a parent frame"
+        );
+        assert!(
+            matches!(s, LazyStr::Owned(_)),
+            "name_80 almost-whole copies into ProtoString Heap"
+        );
+    }
+
+    #[test]
+    fn from_parse_span_4kib_still_payload_arc() {
+        let data = [b'x'; 4096];
+        let mut slot = None;
+        let s = LazyStr::from_parse_span(&mut slot, &data, 0, data.len()).unwrap();
+        assert_eq!(s.as_bytes(), &data);
+        assert!(
+            slot.is_none(),
+            "name_4kib copies the payload once; does not Wire::ensure the parent"
         );
         assert!(matches!(s, LazyStr::Wire(_)));
     }
