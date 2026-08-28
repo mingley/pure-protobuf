@@ -37,7 +37,9 @@ message ExtraScalars {
   optional bytes note = 22;
 }
 
-// Real oneof: still serialize then DynamicMessage. Remaining is not closed.
+// Real oneof of proto3 scalars. Used to prove generated JSON / text leave
+// DynamicMessage for this set. TAT / WKT stay on DynamicMessage.
+// Remaining is not closed.
 message OneofHole {
   oneof kind {
     string a = 1;

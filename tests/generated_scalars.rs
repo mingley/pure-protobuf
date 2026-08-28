@@ -2,8 +2,8 @@
 //!
 //! These checks fail on current main: a generated message that uses bool /
 //! int64 / uint / sint / fixed / float / double / bytes / proto3 enums still
-//! serializes then `DynamicMessage`. After the cut it must not. TAT / WKT /
-//! real oneofs stay on `DynamicMessage`.
+//! serializes then `DynamicMessage`. After the cut it must not. TAT / WKT
+//! stay on `DynamicMessage`. Real oneof cover is `generated_oneof.rs`.
 
 #![allow(
     clippy::disallowed_methods,
@@ -347,12 +347,6 @@ fn generated_extra_scalars_json_is_field_wise_and_matches_proto3() {
         !extra_json.contains("DynamicMessage"),
         "generated ExtraScalars JSON must not allocate DynamicMessage:\n{extra_json}"
     );
-    let hole_json = json_method_block(&generated, "OneofHole");
-    assert!(
-        hole_json.contains("DynamicMessage"),
-        "real oneofs must stay on DynamicMessage:\n{hole_json}"
-    );
-
     let official = populated().to_json().expect("dm to_json");
     let consumer = tmp.join("consumer");
     write_consumer(
@@ -439,7 +433,7 @@ fn main() {{
     assert_eq!(ign.big(), 3);
     assert_eq!(ign.kind(), Kind::Unspecified);
 
-    // oneof hole still works via DynamicMessage.
+    // OneofHole in this file stays a sibling fixture; field-wise cover is generated_oneof.rs.
     let hole = OneofHole::from_json("{{\"a\":\"x\"}}").unwrap();
     assert_eq!(hole.a(), "x");
     assert_eq!(hole.to_json().unwrap(), "{{\"a\":\"x\"}}");
@@ -470,12 +464,6 @@ fn generated_extra_scalars_text_is_field_wise_and_matches_proto3() {
         !extra_text.contains("DynamicMessage"),
         "generated ExtraScalars text must not allocate DynamicMessage:\n{extra_text}"
     );
-    let hole_text = text_method_block(&generated, "OneofHole");
-    assert!(
-        hole_text.contains("DynamicMessage"),
-        "real oneofs must stay on DynamicMessage:\n{hole_text}"
-    );
-
     let official = populated().to_text().expect("dm to_text");
     let consumer = tmp.join("consumer");
     write_consumer(
