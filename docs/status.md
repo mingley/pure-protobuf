@@ -31,8 +31,12 @@
   (unary, client-stream, server-stream, bidi) including `Status`
   code+message. Initial `Response` metadata is headers; `Status` metadata
   is HTTP/2 trailers. Client-stream, server-stream, and bidi carry both
-  (same split as unary). Server-stream trailers still fail before a
-  stream. Client-stream headers need the reply `Response`.
+  (same split as unary). Server-stream `Status` trailers also work when
+  the handler returns `Ok(Response(stream))` and the stream errors
+  before any item (empty stream + error, or first item `Err`): headers
+  stay on `Response.metadata`, trailers on `Status.metadata`. Handler
+  `Err(Status)` before opening a stream still lands on the call
+  `Result`. Client-stream headers need the reply `Response`.
   `tests/interop.rs` has same-process analogues of
   official interop names (`unimplemented_method`, `unimplemented_service`,
   `special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,

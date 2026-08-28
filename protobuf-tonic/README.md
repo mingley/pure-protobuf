@@ -56,13 +56,16 @@ tonic's crates, not a second stack.
 `proto/hello.proto` has all four Greeter RPCs. `tests/unary.rs` is the
 unary happy path. `tests/streaming.rs` covers client-stream, server-stream,
 and bidi. `tests/status.rs` asserts non-OK `Status` code+message
-(`NotFound`) on all four RPCs. Server-stream fails before a stream.
-Bidi fails after the first inbound name (same path as client-stream;
+(`NotFound`) on all four RPCs. Server-stream handler `Err(Status)`
+fails before a stream (client sees it on the call `Result`). Bidi
+fails after the first inbound name (same path as client-stream;
 client sees it on the call `Result`). `tests/trailers.rs` splits initial
 `Response` metadata (headers) from `Status` metadata sent as HTTP/2
 trailers on unary, client-stream, server-stream, and bidi.
-Server-stream trailers still fail before a stream. Client-stream
-headers need the reply `Response`. `tests/interop.rs` is same-process
+Server-stream `Status` trailers also work when the handler returns
+`Ok(Response(stream))` and the stream errors before any item (empty
+stream + error, or first item `Err`). Client-stream headers need the
+reply `Response`. `tests/interop.rs` is same-process
 analogues of official gRPC interop names (`unimplemented_method`,
 `unimplemented_service`,
 `special_status_message`, `empty_unary`, `large_unary`, `empty_stream`,
