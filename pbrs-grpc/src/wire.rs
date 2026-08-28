@@ -2,11 +2,12 @@
 //! trailers, and the stream pumps that connect them to [`Streaming`].
 
 use crate::codec::{self, Frame};
+use crate::config::Wire;
 use crate::gzip;
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::status::{Code, Status};
-use crate::stream::{Framed, StreamSender, Streaming};
+use crate::stream::{Framed, Streaming};
 use bytes::{BufMut, Bytes, BytesMut};
 use h2::{Reason, RecvStream, SendStream};
 use http::uri::{Authority, PathAndQuery, Scheme};
@@ -25,11 +26,9 @@ const IDENTITY_GZIP: HeaderValue = HeaderValue::from_static("identity,gzip");
 const GZIP: HeaderValue = HeaderValue::from_static("gzip");
 const STATUS_OK: HeaderValue = HeaderValue::from_static("0");
 
-/// Frames smaller than this skip the flow-control handshake.
-///
-/// Reserving capacity for a 5-byte unary response wakes the connection task
-/// twice for no benefit; the h2 send buffer absorbs small frames directly.
-const CAPACITY_POLL_THRESHOLD: usize = 16 * 1024;
+/// Headers a gRPC request or response carries before user metadata, rounded to
+/// what `HeaderMap` will actually allocate. Sizing up front avoids a rehash.
+const HEADER_CAPACITY: usize = 8;
 
 pub(crate) fn grpc_request(
     authority: &Authority,
@@ -43,11 +42,11 @@ pub(crate) fn grpc_request(
     parts.authority = Some(authority.clone());
     parts.path_and_query = Some(PathAndQuery::from_static(path));
     let uri = http::Uri::from_parts(parts).map_err(|e| Status::internal(e.to_string()))?;
-    let mut req = Request::builder()
-        .method(http::Method::POST)
-        .uri(uri)
-        .body(())
-        .map_err(|e| Status::internal(e.to_string()))?;
+    let mut req = Request::new(());
+    *req.method_mut() = http::Method::POST;
+    *req.uri_mut() = uri;
+    // Pre-sized so the fixed gRPC headers do not force a rehash.
+    *req.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
     let headers = req.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(http::header::TE, TRAILERS);
@@ -131,6 +130,97 @@ pub(crate) fn encode_msg<T: Serialize>(
     codec::encode(&gz, true)
 }
 
+/// How many bytes of stream output to accumulate before handing them to HTTP/2.
+///
+/// gRPC messages are length-prefixed, so a DATA frame may carry any number of
+/// them. Writing one frame per message costs a wakeup and often a syscall per
+/// message, which dominates the cost of a small-message stream; batching to
+/// 32 KiB amortises that without adding meaningful latency, because a batch is
+/// flushed as soon as the producer has nothing more ready.
+const STREAM_BATCH_BYTES: usize = 32 * 1024;
+
+/// Append one length-prefixed message to `buf`.
+///
+/// The uncompressed path serializes straight into `buf`, so a batch of `n`
+/// messages costs one buffer rather than `n`.
+fn append_frame<T: Serialize>(
+    buf: &mut BytesMut,
+    msg: &T,
+    compress: bool,
+    limits: MessageLimits,
+) -> Result<(), Status> {
+    let len = T::serialized_len(msg);
+    limits.check_encode(len)?;
+    if compress {
+        let body = T::serialize(msg).map_err(|e| Status::internal(e.to_string()))?;
+        let gz = gzip::encode(&body)?;
+        let prefix = u32::try_from(gz.len()).map_err(|_| Status::internal("message too large"))?;
+        buf.reserve(codec::HEADER_LEN + gz.len());
+        buf.put_u8(1);
+        buf.put_u32(prefix);
+        buf.extend_from_slice(&gz);
+        return Ok(());
+    }
+    let prefix = u32::try_from(len).map_err(|_| Status::internal("message too large"))?;
+    buf.reserve(codec::HEADER_LEN + len);
+    buf.put_u8(0);
+    buf.put_u32(prefix);
+    T::encode(msg, buf).map_err(|e| Status::internal(e.to_string()))?;
+    Ok(())
+}
+
+/// Accumulates encoded stream output and hands it to HTTP/2 in batches.
+pub(crate) struct OutBatch {
+    buf: BytesMut,
+    wire: Wire,
+}
+
+impl OutBatch {
+    /// Most messages to take from a producer in one go.
+    ///
+    /// Bounded so a fast producer cannot make one batch unboundedly large; the
+    /// byte threshold usually fires first.
+    pub(crate) const BURST: usize = 64;
+
+    pub(crate) fn new(wire: Wire) -> Self {
+        Self {
+            buf: BytesMut::new(),
+            wire,
+        }
+    }
+
+    /// Encode one message into the batch, flushing if the batch is now full.
+    ///
+    /// Takes the message by value so the returned future owns it: holding a
+    /// borrow across the flush would demand `T: Sync` of every streamed
+    /// message type.
+    pub(crate) async fn push<T: Serialize>(
+        &mut self,
+        send: &mut SendStream<Bytes>,
+        item: Framed<T>,
+    ) -> Result<(), Status> {
+        append_frame(
+            &mut self.buf,
+            &item.message,
+            item.compressed,
+            self.wire.limits,
+        )?;
+        if self.buf.len() >= STREAM_BATCH_BYTES {
+            self.flush(send).await?;
+        }
+        Ok(())
+    }
+
+    /// Hand whatever has accumulated to HTTP/2.
+    pub(crate) async fn flush(&mut self, send: &mut SendStream<Bytes>) -> Result<(), Status> {
+        if self.buf.is_empty() {
+            return Ok(());
+        }
+        let frame = std::mem::take(&mut self.buf).freeze();
+        send_bytes(send, frame, false, self.wire.send_buffer).await
+    }
+}
+
 async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Status> {
     if send.capacity() >= n {
         return Ok(());
@@ -146,14 +236,23 @@ async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Sta
     Ok(())
 }
 
+/// Queue one gRPC frame, reserving flow-control capacity only when we have to.
+///
+/// `h2` buffers anything up to the connection's send budget without waiting, so
+/// reserving capacity first would cost a needless round trip through the
+/// connection task on every message. A frame larger than the budget, or one
+/// arriving while the budget is already spent, falls back to reserving capacity
+/// and retrying. `Bytes` is reference-counted, so the retry does not copy.
 pub(crate) async fn send_bytes(
     send: &mut SendStream<Bytes>,
     frame: Bytes,
     end: bool,
+    send_buffer: usize,
 ) -> Result<(), Status> {
-    if frame.len() > CAPACITY_POLL_THRESHOLD {
-        wait_capacity(send, frame.len()).await?;
+    if frame.len() <= send_buffer && send.send_data(frame.clone(), end).is_ok() {
+        return Ok(());
     }
+    wait_capacity(send, frame.len()).await?;
     send.send_data(frame, end)
         .map_err(|e| Status::internal(e.to_string()))
 }
@@ -233,10 +332,9 @@ pub(crate) fn send_ok_headers(
     md: &Metadata,
     send_gzip: bool,
 ) -> Result<SendStream<Bytes>, Status> {
-    let mut res = Response::builder()
-        .status(StatusCode::OK)
-        .body(())
-        .map_err(|e| Status::internal(e.to_string()))?;
+    let mut res = Response::new(());
+    *res.status_mut() = StatusCode::OK;
+    *res.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
     let headers = res.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     if send_gzip {
@@ -402,84 +500,95 @@ pub(crate) async fn read_trailers(recv: &mut RecvStream) -> Result<Option<Header
     recv.trailers().await.map_err(h2_error)
 }
 
-/// Decode a whole inbound stream into `tx`, then return its trailing metadata.
+/// An inbound message stream, decoded straight off its HTTP/2 stream.
 ///
-/// Backpressure: `tx.send` waits when the application is behind, which delays
-/// releasing HTTP/2 capacity and so throttles the peer.
-pub(crate) async fn pump_inbound<T: Parse + Default>(
-    mut recv: RecvStream,
-    tx: StreamSender<T>,
+/// There is no pump task and no intermediate queue: reading a message reads the
+/// wire. That removes a task hop and a copy per message, and makes backpressure
+/// exact, because a reader that stops reading stops releasing HTTP/2 capacity
+/// and the peer stalls at the window.
+pub(crate) struct WireStream<T> {
+    recv: RecvStream,
+    reader: FrameReader,
     limits: MessageLimits,
-) -> Metadata {
-    let mut reader = FrameReader::new(limits);
-    loop {
-        match next_data(&mut recv).await {
-            Ok(Some(chunk)) => {
-                let n = chunk.len();
-                reader.push(chunk);
-                loop {
-                    match reader.next_frame() {
-                        Ok(Some(frame)) => match decode_frame(frame, limits) {
-                            Ok(item) => {
-                                if !tx.send_decoded(item).await {
-                                    return Metadata::new();
-                                }
-                            }
-                            Err(e) => {
-                                tx.send_status(e).await;
-                                return Metadata::new();
-                            }
-                        },
-                        Ok(None) => break,
-                        Err(e) => {
-                            tx.send_status(e).await;
-                            return Metadata::new();
-                        }
-                    }
-                }
-                if let Err(e) = release(&mut recv, n) {
-                    tx.send_status(e).await;
-                    return Metadata::new();
-                }
-            }
-            Ok(None) => break,
-            Err(e) => {
-                tx.send_status(e).await;
-                return Metadata::new();
-            }
-        }
-    }
-    if reader.finish().is_err() {
-        tx.send_status(Status::internal("truncated gRPC frame"))
-            .await;
-        return Metadata::new();
-    }
-    match read_trailers(&mut recv).await {
-        Ok(Some(t)) => {
-            let status = status_from(&t, Some(&t));
-            if status.code() != Code::Ok {
-                tx.send_status(status).await;
-            }
-            Metadata::from_owned_headers(t)
-        }
-        Ok(None) => Metadata::new(),
-        Err(e) => {
-            tx.send_status(e).await;
-            Metadata::new()
+    /// Bound at construction, where `T: Parse` is known, so the public
+    /// [`Streaming`] type needs no `Parse` bound of its own.
+    decode: fn(Frame, MessageLimits) -> Result<Framed<T>, Status>,
+    ended: bool,
+    trailers: Metadata,
+}
+
+impl<T: Parse + Default> WireStream<T> {
+    pub(crate) fn new(recv: RecvStream, limits: MessageLimits) -> Self {
+        Self {
+            recv,
+            reader: FrameReader::new(limits),
+            limits,
+            decode: decode_frame::<T>,
+            ended: false,
+            trailers: Metadata::new(),
         }
     }
 }
 
-/// Encode an outbound stream, watching for cancellation.
+impl<T> WireStream<T> {
+    /// The next message, or `Ok(None)` once the stream has ended cleanly.
+    ///
+    /// A non-OK `grpc-status` in the trailers surfaces here as `Err`.
+    pub(crate) async fn next(&mut self) -> Result<Option<Framed<T>>, Status> {
+        loop {
+            if let Some(frame) = self.reader.next_frame()? {
+                return (self.decode)(frame, self.limits).map(Some);
+            }
+            if self.ended {
+                return Ok(None);
+            }
+            match next_data(&mut self.recv).await? {
+                Some(chunk) => {
+                    let n = chunk.len();
+                    self.reader.push(chunk);
+                    release(&mut self.recv, n)?;
+                }
+                None => {
+                    self.ended = true;
+                    self.reader.finish()?;
+                    return self.finish_trailers().await.map(|()| None);
+                }
+            }
+        }
+    }
+
+    async fn finish_trailers(&mut self) -> Result<(), Status> {
+        let Some(map) = read_trailers(&mut self.recv).await? else {
+            return Ok(());
+        };
+        let status = status_from(&map, Some(&map));
+        self.trailers = Metadata::from_owned_headers(map);
+        if status.code() == Code::Ok {
+            Ok(())
+        } else {
+            Err(status)
+        }
+    }
+
+    /// Trailing metadata, available once the stream has ended.
+    pub(crate) fn trailers(&self) -> &Metadata {
+        &self.trailers
+    }
+}
+
+/// Encode a client's outbound stream, watching for cancellation.
 pub(crate) async fn pump_outbound<T: Serialize>(
     mut send: SendStream<Bytes>,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
-    limits: MessageLimits,
+    wire: Wire,
 ) {
+    let mut batch = OutBatch::new(wire);
+    let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut watch_cancel = true;
     loop {
-        tokio::select! {
+        items.clear();
+        let taken = tokio::select! {
             cancelled = async {
                 cancel_rx.wait_for(|v| *v).await.is_ok()
             }, if watch_cancel => {
@@ -489,29 +598,32 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                 }
                 // The call finished and dropped its sender; stop watching.
                 watch_cancel = false;
+                continue;
             }
-            item = rx.recv() => {
-                match item {
-                    None => {
-                        send.send_data(Bytes::new(), true).ok();
-                        return;
-                    }
-                    Some(Ok(item)) => {
-                        let Ok(frame) = encode_msg(&item.message, item.compressed, limits) else {
-                            send.send_reset(Reason::INTERNAL_ERROR);
-                            return;
-                        };
-                        if send_bytes(&mut send, frame, false).await.is_err() {
-                            send.send_reset(Reason::INTERNAL_ERROR);
-                            return;
-                        }
-                    }
-                    Some(Err(_)) => {
-                        send.send_reset(Reason::INTERNAL_ERROR);
-                        return;
-                    }
-                }
+            taken = rx.recv_many(&mut items, OutBatch::BURST) => taken,
+        };
+        if taken == 0 {
+            // Half-close, carrying whatever is still batched.
+            if batch.flush(&mut send).await.is_err() {
+                send.send_reset(Reason::INTERNAL_ERROR);
+                return;
             }
+            send.send_data(Bytes::new(), true).ok();
+            return;
+        }
+        for item in items.drain(..) {
+            let Ok(item) = item else {
+                send.send_reset(Reason::INTERNAL_ERROR);
+                return;
+            };
+            if batch.push(&mut send, item).await.is_err() {
+                send.send_reset(Reason::INTERNAL_ERROR);
+                return;
+            }
+        }
+        if batch.flush(&mut send).await.is_err() {
+            send.send_reset(Reason::INTERNAL_ERROR);
+            return;
         }
     }
 }
@@ -564,27 +676,20 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
 pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
     response: http::Response<RecvStream>,
     limits: MessageLimits,
-    buffer: usize,
 ) -> Result<crate::request::Response<Streaming<Resp>>, Status> {
     if response.status() != StatusCode::OK {
         return Err(Status::unknown(format!("http {}", response.status())));
     }
     let (parts, body) = response.into_parts();
     if body.is_end_stream() {
+        // Trailers-Only: the status is in the headers and there is no stream.
         let status = status_from(&parts.headers, None);
         if status.code() != Code::Ok {
             return Err(status);
         }
     }
-    let (tx, mut stream) = Streaming::channel(buffer);
-    let (tr_tx, tr_rx) = tokio::sync::oneshot::channel();
-    stream.set_trailers(tr_rx);
-    drop(tokio::spawn(async move {
-        let trailers = pump_inbound::<Resp>(body, tx, limits).await;
-        tr_tx.send(trailers).ok();
-    }));
     Ok(crate::request::Response::from_parts(
-        stream,
+        Streaming::from_wire(WireStream::<Resp>::new(body, limits)),
         Metadata::from_owned_headers(parts.headers),
         Metadata::new(),
     ))

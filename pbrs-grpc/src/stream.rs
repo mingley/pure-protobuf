@@ -51,10 +51,20 @@ impl<T> Framed<T> {
 
 type Item<T> = Result<Framed<T>, Status>;
 
+/// Where a [`Streaming`] gets its messages.
+enum Source<T> {
+    /// Written by application code through a [`StreamSender`].
+    Channel(mpsc::Receiver<Item<T>>),
+    /// Decoded straight off an HTTP/2 stream, with no pump task in between.
+    Wire(Box<crate::wire::WireStream<T>>),
+}
+
 /// A sequence of decoded gRPC messages.
 ///
-/// Reading is the only way to advance the stream, so a handler that stops
-/// reading applies backpressure all the way to the peer's HTTP/2 window.
+/// Reading is the only way to advance the stream. For a received stream that is
+/// literal: the bytes are decoded on the reading task, so a handler that stops
+/// reading stops releasing HTTP/2 capacity and the peer stalls at the window.
+/// There is no pump task and no queue in between.
 ///
 /// ```no_run
 /// # use pbrs_grpc::{HelloReply, Status, Streaming};
@@ -68,8 +78,7 @@ type Item<T> = Result<Framed<T>, Status>;
 /// # }
 /// ```
 pub struct Streaming<T> {
-    rx: mpsc::Receiver<Item<T>>,
-    trailers: Option<tokio::sync::oneshot::Receiver<Metadata>>,
+    source: Source<T>,
 }
 
 impl<T> Streaming<T> {
@@ -104,7 +113,9 @@ impl<T> Streaming<T> {
                 tx,
                 limits: MessageLimits::unlimited(),
             },
-            Self { rx, trailers: None },
+            Self {
+                source: Source::Channel(rx),
+            },
         )
     }
 
@@ -115,6 +126,12 @@ impl<T> Streaming<T> {
         stream
     }
 
+    pub(crate) fn from_wire(inner: crate::wire::WireStream<T>) -> Self {
+        Self {
+            source: Source::Wire(Box::new(inner)),
+        }
+    }
+
     /// The next message, `Ok(None)` at end of stream, `Err` on status.
     pub async fn message(&mut self) -> Result<Option<T>, Status> {
         Ok(self.next_framed().await?.map(Framed::into_inner))
@@ -122,10 +139,12 @@ impl<T> Streaming<T> {
 
     /// [`Self::message`] keeping the Compressed-Flag.
     pub async fn next_framed(&mut self) -> Result<Option<Framed<T>>, Status> {
-        match self.rx.recv().await {
-            None => Ok(None),
-            Some(Ok(item)) => Ok(Some(item)),
-            Some(Err(status)) => Err(status),
+        match &mut self.source {
+            Source::Channel(rx) => match rx.recv().await {
+                None => Ok(None),
+                Some(item) => item.map(Some),
+            },
+            Source::Wire(wire) => wire.next().await,
         }
     }
 
@@ -138,29 +157,45 @@ impl<T> Streaming<T> {
         Ok(out)
     }
 
-    /// Trailing metadata, available once the stream has ended.
+    /// Trailing metadata.
     ///
-    /// Returns empty metadata if the stream is still open or carried none.
+    /// A received stream only has trailers once it has ended, because they
+    /// arrive after the last message; reading them earlier gives empty
+    /// metadata. Application-produced streams never carry any.
     pub async fn trailers(&mut self) -> Metadata {
-        match self.trailers.take() {
-            Some(rx) => rx.await.unwrap_or_default(),
-            None => Metadata::new(),
+        match &mut self.source {
+            Source::Channel(_) => Metadata::new(),
+            Source::Wire(wire) => wire.trailers().clone(),
         }
     }
 
-    pub(crate) fn set_trailers(&mut self, rx: tokio::sync::oneshot::Receiver<Metadata>) {
-        self.trailers = Some(rx);
-    }
-
-    pub(crate) async fn recv(&mut self) -> Option<Item<T>> {
-        self.rx.recv().await
+    /// Wait for at least one message, then take up to `limit` in total.
+    ///
+    /// This is what lets the wire layer batch: a burst of small messages
+    /// becomes one write instead of one per message. Returns the number taken,
+    /// or zero at end of stream.
+    pub(crate) async fn recv_many(&mut self, out: &mut Vec<Item<T>>, limit: usize) -> usize {
+        match &mut self.source {
+            Source::Channel(rx) => rx.recv_many(out, limit).await,
+            Source::Wire(wire) => match wire.next().await.transpose() {
+                None => 0,
+                Some(item) => {
+                    out.push(item);
+                    1
+                }
+            },
+        }
     }
 }
 
 impl<T> std::fmt::Debug for Streaming<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let source = match &self.source {
+            Source::Channel(_) => "channel",
+            Source::Wire(_) => "wire",
+        };
         f.debug_struct("Streaming")
-            .field("buffered", &self.rx.len())
+            .field("source", &source)
             .finish_non_exhaustive()
     }
 }
@@ -235,19 +270,6 @@ impl<T> StreamSender<T> {
     pub fn is_closed(&self) -> bool {
         self.tx.is_closed()
     }
-
-    /// Hand on a message decoded off the wire. `false` means the reader is
-    /// gone, so the pump should stop.
-    ///
-    /// Skips the outbound size check: an inbound message was already measured
-    /// against the inbound cap before it was parsed.
-    pub(crate) async fn send_decoded(&self, item: Framed<T>) -> bool {
-        self.tx.send(Ok(item)).await.is_ok()
-    }
-
-    pub(crate) async fn send_status(&self, status: Status) {
-        self.tx.send(Err(status)).await.ok();
-    }
 }
 
 impl<T> std::fmt::Debug for StreamSender<T> {
@@ -262,32 +284,45 @@ impl<T> std::fmt::Debug for StreamSender<T> {
 #[cfg(test)]
 mod tests {
     use super::{Framed, Streaming};
+    use crate::hello::HelloReply;
     use crate::status::{Code, Status};
+
+    fn reply(message: &str) -> HelloReply {
+        let mut r = HelloReply::new();
+        r.set_message(message);
+        r
+    }
+
+    fn text(reply: &HelloReply) -> String {
+        reply.message().to_str().unwrap_or_default().to_owned()
+    }
 
     #[tokio::test]
     async fn channel_round_trips_messages() {
-        let (tx, mut stream) = Streaming::<u32>::channel(4);
-        assert!(tx.send_decoded(Framed::new(1)).await);
-        assert!(tx.send_decoded(Framed::compressed(2)).await);
+        let (tx, mut stream) = Streaming::<HelloReply>::channel(4);
+        tx.send(reply("one")).await.expect("send");
+        tx.send_compressed(reply("two")).await.expect("send");
         tx.close();
-        assert_eq!(stream.message().await.expect("recv"), Some(1));
+        let first = stream.message().await.expect("recv").expect("item");
+        assert_eq!(text(&first), "one");
         let second = stream.next_framed().await.expect("recv").expect("item");
         assert!(second.compressed);
-        assert_eq!(second.message, 2);
-        assert_eq!(stream.message().await.expect("end"), None);
+        assert_eq!(text(&second.message), "two");
+        assert!(stream.message().await.expect("end").is_none());
     }
 
     #[tokio::test]
     async fn buffer_is_never_zero() {
-        let (tx, mut stream) = Streaming::<u32>::channel(0);
-        assert!(tx.send_decoded(Framed::new(9)).await);
+        let (tx, mut stream) = Streaming::<HelloReply>::channel(0);
+        tx.send(reply("nine")).await.expect("send");
         tx.close();
-        assert_eq!(stream.message().await.expect("recv"), Some(9));
+        let got = stream.message().await.expect("recv").expect("item");
+        assert_eq!(text(&got), "nine");
     }
 
     #[tokio::test]
     async fn fail_surfaces_status() {
-        let (tx, mut stream) = Streaming::<u32>::channel(1);
+        let (tx, mut stream) = Streaming::<HelloReply>::channel(1);
         tx.fail(Status::not_found("gone")).await;
         let err = stream.message().await.expect_err("status");
         assert_eq!(err.code(), Code::NotFound);
@@ -295,27 +330,41 @@ mod tests {
 
     #[tokio::test]
     async fn empty_stream_ends_immediately() {
-        let mut stream = Streaming::<u32>::empty();
-        assert_eq!(stream.message().await.expect("end"), None);
+        let mut stream = Streaming::<HelloReply>::empty();
+        assert!(stream.message().await.expect("end").is_none());
         assert!(stream.trailers().await.is_empty());
     }
 
     #[tokio::test]
     async fn collect_gathers_all() {
-        let (tx, mut stream) = Streaming::<u32>::channel(4);
-        for i in 0..3 {
-            assert!(tx.send_decoded(Framed::new(i)).await);
+        let (tx, mut stream) = Streaming::<HelloReply>::channel(4);
+        for name in ["a", "b", "c"] {
+            tx.send(reply(name)).await.expect("send");
         }
         tx.close();
-        assert_eq!(stream.collect().await.expect("collect"), vec![0, 1, 2]);
+        let got: Vec<String> = stream
+            .collect()
+            .await
+            .expect("collect")
+            .iter()
+            .map(text)
+            .collect();
+        assert_eq!(got, ["a", "b", "c"]);
     }
 
     #[tokio::test]
     async fn dropping_the_reader_closes_the_sender() {
-        let (tx, stream) = Streaming::<u32>::channel(1);
+        let (tx, stream) = Streaming::<HelloReply>::channel(1);
         assert!(!tx.is_closed());
         drop(stream);
-        assert!(!tx.send_decoded(Framed::new(1)).await);
+        assert!(tx.send(reply("late")).await.is_err());
         assert!(tx.is_closed());
+    }
+
+    #[test]
+    fn framed_constructors_set_the_flag() {
+        assert!(!Framed::new(1u32).compressed);
+        assert!(Framed::compressed(1u32).compressed);
+        assert_eq!(Framed::new(7u32).into_inner(), 7);
     }
 }
