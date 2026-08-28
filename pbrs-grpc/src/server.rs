@@ -5,15 +5,15 @@
 //! trait. Writing either by hand is supported and documented, because a
 //! kernel you cannot drive by hand is a kernel you cannot debug.
 
-use crate::config::ServerConfig;
+use crate::config::{ServerConfig, Wire};
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::wire::{
-    check_request, encode_msg, grpc_trailers, pump_inbound, read_one_message, reject, send_bytes,
-    send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout,
+    check_request, encode_msg, grpc_trailers, read_one_message, reject, send_bytes,
+    send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout, OutBatch, WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -183,7 +183,7 @@ impl Rpc {
     {
         let Some(Prepared {
             mut respond,
-            limits,
+            wire,
             outcome,
         }) = self.run_unary_request(handler).await
         else {
@@ -191,7 +191,7 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_unary_response(response, respond, limits).await,
+            Ok(response) => send_unary_response(response, respond, wire).await,
         }
     }
 
@@ -205,7 +205,7 @@ impl Rpc {
     {
         let Some(Prepared {
             mut respond,
-            limits,
+            wire,
             outcome,
         }) = self.run_streaming_request(handler).await
         else {
@@ -213,7 +213,7 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_unary_response(response, respond, limits).await,
+            Ok(response) => send_unary_response(response, respond, wire).await,
         }
     }
 
@@ -227,7 +227,7 @@ impl Rpc {
     {
         let Some(Prepared {
             mut respond,
-            limits,
+            wire,
             outcome,
         }) = self.run_unary_request(handler).await
         else {
@@ -235,7 +235,7 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_stream_response(response, respond, limits).await,
+            Ok(response) => send_stream_response(response, respond, wire).await,
         }
     }
 
@@ -249,7 +249,7 @@ impl Rpc {
     {
         let Some(Prepared {
             mut respond,
-            limits,
+            wire,
             outcome,
         }) = self.run_streaming_request(handler).await
         else {
@@ -257,7 +257,7 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_stream_response(response, respond, limits).await,
+            Ok(response) => send_stream_response(response, respond, wire).await,
         }
     }
 
@@ -295,7 +295,7 @@ impl Rpc {
         .await;
         Some(Prepared {
             respond,
-            limits,
+            wire: config.wire(),
             outcome,
         })
     }
@@ -322,10 +322,9 @@ impl Rpc {
         }
         let timeout = timeout_from_headers(request.headers());
         let (parts, recv) = request.into_parts();
-        let (tx, stream) = Streaming::channel(config.buffer());
-        drop(tokio::spawn(async move {
-            pump_inbound::<Req>(recv, tx, limits).await;
-        }));
+        // Decoded on the handler's task: no pump task, no queue, and reading
+        // is what releases HTTP/2 capacity.
+        let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits));
         let mut req = Request::from_wire(stream, parts.headers, remote_addr);
         if let Some(d) = timeout {
             req.set_timeout(d);
@@ -333,7 +332,7 @@ impl Rpc {
         let outcome = wrap_timeout(timeout, handler(req)).await;
         Some(Prepared {
             respond,
-            limits,
+            wire: config.wire(),
             outcome,
         })
     }
@@ -342,17 +341,17 @@ impl Rpc {
 /// A handler result plus the response channel it still has to be written to.
 struct Prepared<T> {
     respond: h2::server::SendResponse<Bytes>,
-    limits: MessageLimits,
+    wire: Wire,
     outcome: Result<T, Status>,
 }
 
 async fn send_unary_response<Resp: Serialize>(
     response: Response<Resp>,
     mut respond: h2::server::SendResponse<Bytes>,
-    limits: MessageLimits,
+    wire: Wire,
 ) {
     let (msg, headers, trailers, compress) = response.split();
-    let frame = match encode_msg(&msg, compress, limits) {
+    let frame = match encode_msg(&msg, compress, wire.limits) {
         Ok(frame) => frame,
         Err(status) => {
             send_trailers_only(&mut respond, status, &Metadata::new());
@@ -362,7 +361,9 @@ async fn send_unary_response<Resp: Serialize>(
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, compress) else {
         return;
     };
-    send_bytes(&mut send, frame, false).await.ok();
+    send_bytes(&mut send, frame, false, wire.send_buffer)
+        .await
+        .ok();
     let mut status = Status::new(Code::Ok, "");
     *status.metadata_mut() = trailers;
     if let Ok(map) = grpc_trailers(&status) {
@@ -373,7 +374,7 @@ async fn send_unary_response<Resp: Serialize>(
 async fn send_stream_response<Resp: Serialize + Send>(
     response: Response<Streaming<Resp>>,
     mut respond: h2::server::SendResponse<Bytes>,
-    limits: MessageLimits,
+    wire: Wire,
 ) {
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
@@ -381,31 +382,52 @@ async fn send_stream_response<Resp: Serialize + Send>(
     let Ok(mut send) = send_ok_headers(&mut respond, &headers, compress) else {
         return;
     };
-    let mut status = Status::new(Code::Ok, "");
+    let mut status = Status::from_code(Code::Ok);
     *status.metadata_mut() = trailers;
-    while let Some(item) = stream.recv().await {
-        let item = match item {
-            Ok(item) => item,
-            Err(err) => {
-                status = err;
-                break;
-            }
-        };
-        match encode_msg(&item.message, item.compressed, limits) {
-            Ok(frame) => {
-                if send_bytes(&mut send, frame, false).await.is_err() {
-                    return;
-                }
-            }
-            Err(err) => {
-                status = err;
-                break;
-            }
+    if let Err(err) = drain_to_wire(&mut stream, &mut send, wire).await {
+        // A transport failure cannot be reported; a producer failure becomes
+        // the stream's trailing status.
+        match err {
+            DrainError::Transport => return,
+            DrainError::Producer(producer) => status = producer,
         }
     }
     if let Ok(map) = grpc_trailers(&status) {
         send.send_trailers(map).ok();
     }
+}
+
+/// Why a stream stopped before its clean end.
+enum DrainError {
+    /// The wire is gone, so no status can be delivered.
+    Transport,
+    /// The handler ended the stream with a status.
+    Producer(Status),
+}
+
+/// Copy every message from `stream` onto `send`, batching each burst.
+async fn drain_to_wire<Resp: Serialize + Send>(
+    stream: &mut Streaming<Resp>,
+    send: &mut h2::SendStream<Bytes>,
+    wire: Wire,
+) -> Result<(), DrainError> {
+    let mut batch = OutBatch::new(wire);
+    let mut items = Vec::with_capacity(OutBatch::BURST);
+    loop {
+        items.clear();
+        if stream.recv_many(&mut items, OutBatch::BURST).await == 0 {
+            break;
+        }
+        for item in items.drain(..) {
+            let item = item.map_err(DrainError::Producer)?;
+            batch
+                .push(send, item)
+                .await
+                .map_err(|_| DrainError::Transport)?;
+        }
+        batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+    }
+    batch.flush(send).await.map_err(|_| DrainError::Transport)
 }
 
 /// Split `/service/method` without allocating. Unparseable paths yield empty

@@ -1,7 +1,6 @@
 //! gRPC client: [`Channel`] and the four call shapes.
 
-use crate::config::ChannelConfig;
-use crate::limits::MessageLimits;
+use crate::config::{ChannelConfig, Wire};
 use crate::request::{Call, Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::{StreamSender, Streaming};
@@ -228,12 +227,10 @@ impl Channel {
             Err(e) => return Call::new(cancel, Box::pin(async move { Err(e) })),
         };
         let authority = self.inner.authority.clone();
-        let limits = self.config.limits();
+        let wire = self.config.wire();
         Call::new(
             cancel,
-            Box::pin(
-                async move { run_unary(send, &authority, path, req, cancel_rx, limits).await },
-            ),
+            Box::pin(async move { run_unary(send, &authority, path, req, cancel_rx, wire).await }),
         )
     }
 
@@ -253,12 +250,11 @@ impl Channel {
             Err(e) => return Call::new(cancel, Box::pin(async move { Err(e) })),
         };
         let authority = self.inner.authority.clone();
-        let limits = self.config.limits();
-        let buffer = self.config.buffer();
+        let wire = self.config.wire();
         Call::new(
             cancel,
             Box::pin(async move {
-                run_server_stream(send, &authority, path, req, cancel_rx, limits, buffer).await
+                run_server_stream(send, &authority, path, req, cancel_rx, wire).await
             }),
         )
     }
@@ -295,9 +291,9 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
-        let limits = self.config.limits();
+        let wire = self.config.wire();
         let (tx, rx) = Streaming::channel(self.config.buffer());
-        let tx = tx.with_limits(limits);
+        let tx = tx.with_limits(wire.limits);
         let (cancel, cancel_rx) = watch::channel(false);
         let send = match self.grab() {
             Ok(s) => s,
@@ -307,7 +303,7 @@ impl Channel {
         let call = Call::new(
             cancel,
             Box::pin(async move {
-                run_client_stream(send, &authority, path, req, rx, cancel_rx, limits).await
+                run_client_stream(send, &authority, path, req, rx, cancel_rx, wire).await
             }),
         );
         (tx, call)
@@ -323,10 +319,10 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
-        let limits = self.config.limits();
+        let wire = self.config.wire();
         let buffer = self.config.buffer();
         let (tx, rx) = Streaming::channel(buffer);
-        let tx = tx.with_limits(limits);
+        let tx = tx.with_limits(wire.limits);
         let (cancel, cancel_rx) = watch::channel(false);
         let send = match self.grab() {
             Ok(s) => s,
@@ -335,9 +331,9 @@ impl Channel {
         let authority = self.inner.authority.clone();
         let call = Call::new(
             cancel,
-            Box::pin(async move {
-                run_bidi(send, &authority, path, req, rx, cancel_rx, limits, buffer).await
-            }),
+            Box::pin(
+                async move { run_bidi(send, &authority, path, req, rx, cancel_rx, wire).await },
+            ),
         );
         (tx, call)
     }
@@ -369,7 +365,7 @@ async fn run_unary<Req, Resp>(
     path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: MessageLimits,
+    wire: Wire,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize,
@@ -378,16 +374,16 @@ where
     let (msg, md, timeout, compress) = req.into_parts();
     // Encode before opening the stream so an oversize message never reaches
     // the wire and never occupies a stream slot.
-    let frame = encode_msg(&msg, compress, limits)?;
+    let frame = encode_msg(&msg, compress, wire.limits)?;
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
-    send_bytes(&mut send_stream, frame, true).await?;
+    send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_unary::<Resp>(response, limits).await
+            finish_unary::<Resp>(response, wire.limits).await
         },
         cancel_rx,
         timeout,
@@ -406,24 +402,23 @@ async fn run_server_stream<Req, Resp>(
     path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: MessageLimits,
-    buffer: usize,
+    wire: Wire,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize,
     Resp: Parse + Default + Send + 'static,
 {
     let (msg, md, timeout, compress) = req.into_parts();
-    let frame = encode_msg(&msg, compress, limits)?;
+    let frame = encode_msg(&msg, compress, wire.limits)?;
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
-    send_bytes(&mut send_stream, frame, true).await?;
+    send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response, limits, buffer).await
+            finish_stream::<Resp>(response, wire.limits).await
         },
         cancel_rx,
         timeout,
@@ -443,7 +438,7 @@ async fn run_client_stream<Req, Resp>(
     req: Request<()>,
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: MessageLimits,
+    wire: Wire,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -455,14 +450,14 @@ where
         send_stream,
         rx,
         cancel_rx.clone(),
-        limits,
+        wire,
     )));
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_unary::<Resp>(response, limits).await
+            finish_unary::<Resp>(response, wire.limits).await
         },
         cancel_rx,
         timeout,
@@ -482,8 +477,7 @@ async fn run_bidi<Req, Resp>(
     req: Request<()>,
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: MessageLimits,
-    buffer: usize,
+    wire: Wire,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -495,14 +489,14 @@ where
         send_stream,
         rx,
         cancel_rx.clone(),
-        limits,
+        wire,
     )));
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response, limits, buffer).await
+            finish_stream::<Resp>(response, wire.limits).await
         },
         cancel_rx,
         timeout,

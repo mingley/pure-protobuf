@@ -278,6 +278,72 @@ async fn graceful_shutdown_stops_accepting_new_connections() {
     assert!(refused, "the listener must be closed after drain");
 }
 
+/// Answers without ever reading the request stream. Inbound messages are
+/// decoded on the handler's task, so a handler that ignores them must still
+/// terminate the RPC rather than leaving the client blocked on the window.
+struct Deaf;
+
+impl pbrs_grpc::Greeter for Deaf {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("deaf"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut reply = HelloReply::new();
+        reply.set_message("ignored your stream");
+        Ok(Response::new(reply))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("deaf"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("deaf"))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_handler_that_ignores_its_request_stream_still_answers() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Deaf).serve_listener(listener).await.ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, call) = client.client_hello(Request::new(()));
+
+    // Push more than fits in any buffer, from another task, so a hang here
+    // would show up as the test timing out rather than as a deadlock.
+    let sender = tokio::spawn(async move {
+        for i in 0..512 {
+            if tx.send(req(&format!("n{i}"))).await.is_err() {
+                break;
+            }
+        }
+    });
+
+    let reply = tokio::time::timeout(Duration::from_secs(10), call)
+        .await
+        .expect("must not hang")
+        .expect("must answer");
+    assert_eq!(name_of(reply.get_ref()), "ignored your stream");
+    sender.abort();
+    task.abort();
+}
+
 #[tokio::test]
 async fn config_flows_from_the_generated_server_to_the_router() {
     let (addr, listener) = bind().await;

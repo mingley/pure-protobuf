@@ -27,6 +27,14 @@ pub const DEFAULT_MAX_HEADER_LIST_SIZE: u32 = 16 * 1024;
 /// Default in-memory queue depth between application code and the wire.
 pub const DEFAULT_STREAM_BUFFER: usize = 16;
 
+/// The per-stream settings the wire layer needs: message caps plus how much
+/// the connection will buffer before a write has to wait for flow control.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Wire {
+    pub(crate) limits: MessageLimits,
+    pub(crate) send_buffer: usize,
+}
+
 /// HTTP/2 and resource settings for a server.
 ///
 /// Every field has a safe default; override only what you measured.
@@ -156,6 +164,19 @@ impl ServerConfig {
     #[must_use]
     pub fn buffer(self) -> usize {
         self.stream_buffer
+    }
+
+    /// Configured per-connection send buffer.
+    #[must_use]
+    pub fn send_buffer(self) -> usize {
+        self.max_send_buffer_size
+    }
+
+    pub(crate) fn wire(self) -> Wire {
+        Wire {
+            limits: self.limits,
+            send_buffer: self.max_send_buffer_size,
+        }
     }
 
     pub(crate) fn h2_builder(self) -> h2::server::Builder {
@@ -314,6 +335,19 @@ impl ChannelConfig {
     #[must_use]
     pub fn buffer(self) -> usize {
         self.stream_buffer
+    }
+
+    /// Configured per-connection send buffer.
+    #[must_use]
+    pub fn send_buffer(self) -> usize {
+        self.max_send_buffer_size
+    }
+
+    pub(crate) fn wire(self) -> Wire {
+        Wire {
+            limits: self.limits,
+            send_buffer: self.max_send_buffer_size,
+        }
     }
 
     pub(crate) fn h2_builder(self) -> h2::client::Builder {
