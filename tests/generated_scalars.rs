@@ -2,8 +2,9 @@
 //!
 //! These checks fail on current main: a generated message that uses bool /
 //! int64 / uint / sint / fixed / float / double / bytes / proto3 enums still
-//! serializes then `DynamicMessage`. After the cut it must not. TAT / WKT
-//! stay on `DynamicMessage`. Real oneof cover is `generated_oneof.rs`.
+//! serializes then `DynamicMessage`. After the cut it must not. TAT and
+//! WKT other than Timestamp / Duration stay on `DynamicMessage`. Real
+//! oneof cover is `generated_oneof.rs`. WKT cover is `generated_wkt.rs`.
 
 #![allow(
     clippy::disallowed_methods,

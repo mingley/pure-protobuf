@@ -171,6 +171,61 @@ pub fn map_key_bool(s: &str) -> Result<bool, ParseError> {
     s.parse().map_err(|_| ParseError::new("bad map key"))
 }
 
+/// Official proto3 JSON for `google.protobuf.Timestamp` (RFC3339 UTC string).
+pub fn timestamp(seconds: i64, nanos: i32) -> Result<Json, SerializeError> {
+    // RFC3339 range: 0001-01-01T00:00:00Z .. 9999-12-31T23:59:59Z
+    if !(-62_135_596_800..=253_402_300_799).contains(&seconds) {
+        return Err(SerializeError::new("timestamp out of range"));
+    }
+    if !(0..1_000_000_000).contains(&nanos) {
+        return Err(SerializeError::new("timestamp nanos out of range"));
+    }
+    Ok(Json::String(format_timestamp(seconds, nanos)))
+}
+
+/// Parse official proto3 JSON `google.protobuf.Timestamp`.
+pub fn as_timestamp(v: &Json) -> Result<(i64, i32), ParseError> {
+    let s = v
+        .as_str()
+        .ok_or_else(|| ParseError::new("timestamp must be string"))?;
+    parse_timestamp(s)
+}
+
+/// Official proto3 JSON for `google.protobuf.Duration` (`"1.500s"`).
+pub fn duration(seconds: i64, nanos: i32) -> Result<Json, SerializeError> {
+    if !(-315_576_000_000..=315_576_000_000).contains(&seconds) {
+        return Err(SerializeError::new("duration out of range"));
+    }
+    if !(-999_999_999..=999_999_999).contains(&nanos) {
+        return Err(SerializeError::new("duration nanos out of range"));
+    }
+    if seconds != 0 && nanos != 0 && (seconds < 0) != (nanos < 0) {
+        return Err(SerializeError::new("duration nanos sign mismatch"));
+    }
+    if nanos == 0 {
+        Ok(Json::String(format!("{seconds}s")))
+    } else if seconds == 0 && nanos < 0 {
+        Ok(Json::String(format!(
+            "-0.{}s",
+            frac_digits(nanos.unsigned_abs())
+        )))
+    } else {
+        Ok(Json::String(format!(
+            "{seconds}.{}s",
+            frac_digits(nanos.unsigned_abs())
+        )))
+    }
+}
+
+/// Parse official proto3 JSON `google.protobuf.Duration`.
+pub fn as_duration(v: &Json) -> Result<(i64, i32), ParseError> {
+    let s = v
+        .as_str()
+        .ok_or_else(|| ParseError::new("duration must be string"))?
+        .trim();
+    parse_duration(s)
+}
+
 pub(crate) fn encode(msg: &DynamicMessage) -> Result<String, SerializeError> {
     Ok(encode_value(msg)?.to_string())
 }
@@ -847,21 +902,11 @@ fn encode_timestamp(msg: &DynamicMessage) -> Result<Json, SerializeError> {
         Some(Value::Int32(n)) => *n,
         _ => 0,
     };
-    // RFC3339 range: 0001-01-01T00:00:00Z .. 9999-12-31T23:59:59Z
-    if !(-62_135_596_800..=253_402_300_799).contains(&seconds) {
-        return Err(SerializeError::new("timestamp out of range"));
-    }
-    if !(0..1_000_000_000).contains(&nanos) {
-        return Err(SerializeError::new("timestamp nanos out of range"));
-    }
-    Ok(Json::String(format_timestamp(seconds, nanos)))
+    timestamp(seconds, nanos)
 }
 
 fn decode_timestamp(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMessage, ParseError> {
-    let s = v
-        .as_str()
-        .ok_or_else(|| ParseError::new("timestamp must be string"))?;
-    let (seconds, nanos) = parse_timestamp(s)?;
+    let (seconds, nanos) = as_timestamp(v)?;
     let mut msg = DynamicMessage::new(desc);
     if seconds != 0 {
         msg.set(1, Value::Int64(seconds));
@@ -983,28 +1028,7 @@ fn encode_duration(msg: &DynamicMessage) -> Result<Json, SerializeError> {
         Some(Value::Int32(n)) => *n,
         _ => 0,
     };
-    if !(-315_576_000_000..=315_576_000_000).contains(&seconds) {
-        return Err(SerializeError::new("duration out of range"));
-    }
-    if !(-999_999_999..=999_999_999).contains(&nanos) {
-        return Err(SerializeError::new("duration nanos out of range"));
-    }
-    if seconds != 0 && nanos != 0 && (seconds < 0) != (nanos < 0) {
-        return Err(SerializeError::new("duration nanos sign mismatch"));
-    }
-    if nanos == 0 {
-        Ok(Json::String(format!("{seconds}s")))
-    } else if seconds == 0 && nanos < 0 {
-        Ok(Json::String(format!(
-            "-0.{}s",
-            frac_digits(nanos.unsigned_abs())
-        )))
-    } else {
-        Ok(Json::String(format!(
-            "{seconds}.{}s",
-            frac_digits(nanos.unsigned_abs())
-        )))
-    }
+    duration(seconds, nanos)
 }
 
 fn frac_digits(nanos: u32) -> String {
@@ -1018,11 +1042,7 @@ fn frac_digits(nanos: u32) -> String {
     }
 }
 
-fn decode_duration(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMessage, ParseError> {
-    let s = v
-        .as_str()
-        .ok_or_else(|| ParseError::new("duration must be string"))?
-        .trim();
+fn parse_duration(s: &str) -> Result<(i64, i32), ParseError> {
     let s = s
         .strip_suffix('s')
         .ok_or_else(|| ParseError::new("duration must end with s"))?;
@@ -1047,6 +1067,11 @@ fn decode_duration(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMess
     {
         return Err(ParseError::new("duration out of range"));
     }
+    Ok((sec, nanos))
+}
+
+fn decode_duration(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMessage, ParseError> {
+    let (sec, nanos) = as_duration(v)?;
     let mut msg = DynamicMessage::new(desc);
     if sec != 0 {
         msg.set(1, Value::Int64(sec));

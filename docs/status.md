@@ -96,15 +96,19 @@ See `docs/upb.md`. Short list:
   that crate; tonic adapter still covers health/gzip/reflection via tonic
   crates.
 - There are no arena views.
-- TAT / WKT still go through `DynamicMessage` for generated JSON and
-  text. Person-shaped proto3, the extra proto3 scalars (bool, int64,
+- Generated `google.protobuf.Timestamp` and `google.protobuf.Duration`
+  JSON / text are field-wise (official proto3 JSON string mapping;
+  text is `seconds` / `nanos`). Other WKT (Struct, Value, ListValue,
+  Any, FieldMask, Empty, wrappers) still go through `DynamicMessage`.
+  Person-shaped proto3, the extra proto3 scalars (bool, int64,
   uint32, uint64, sint32, sint64, fixed32, fixed64, sfixed32,
   sfixed64, float, double, bytes, open proto3 enums, plus repeated
-  and scalar maps of those types), and real oneofs of that set
-  (`OneofHole`) are field-wise. Map-of-enum is skipped: map-entry
+  and scalar maps of those types), real oneofs of that set
+  (`OneofHole`), and messages whose only WKT fields are Timestamp /
+  Duration are field-wise. Map-of-enum is skipped: map-entry
   descriptors used at codegen do not carry enum names, so names
-  would be a guess. TAT is not closed (it still has WKT). Remaining
-  is not closed.
+  would be a guess. TAT is not closed (it still has the other WKT).
+  Remaining is not closed.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are last-wins `Vec` plus a lazy index (not a codec win).
 - `name_4kib` Codec combined beats prost (gated). `blob_4kib` still

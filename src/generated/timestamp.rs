@@ -236,55 +236,62 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Timestamp")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Timestamp")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            pbrs::json::timestamp(self.seconds(), self.nanos())
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let (seconds, nanos) = pbrs::json::as_timestamp(v)?;
+            let mut msg = Self::new();
+            msg.set_seconds(seconds);
+            msg.set_nanos(nanos);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Timestamp")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Timestamp")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Timestamp")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.seconds() != 0 {
+                pbrs::text::write_named_int64(out, indent, "seconds", self.seconds());
+            }
+            if self.nanos() != 0 {
+                pbrs::text::write_named_int32(out, indent, "nanos", self.nanos());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "seconds" => {
+                        msg.set_seconds(val.as_i64()?);
+                    }
+                    "nanos" => {
+                        msg.set_nanos(val.as_i32()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(Timestamp, TimestampView, TimestampMut);
