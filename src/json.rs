@@ -36,8 +36,8 @@ pub fn as_i32(v: &Json) -> Result<i32, ParseError> {
 }
 
 /// Encode a string field as a JSON string.
-pub fn string(s: impl fmt::Display) -> Json {
-    Json::String(s.to_string())
+pub fn string(s: impl AsRef<[u8]>) -> Json {
+    Json::String(String::from_utf8_lossy(s.as_ref()).into_owned())
 }
 
 /// Decode a JSON string.

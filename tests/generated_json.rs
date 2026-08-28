@@ -215,23 +215,35 @@ fn run_consumer(dir: &std::path::Path) -> String {
 }
 
 fn generate(proto: &str, out: &std::path::Path) -> String {
+    generate_with_stubs(proto, out, true)
+}
+
+fn generate_with_stubs(proto: &str, out: &std::path::Path, stubs: bool) -> String {
     let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(proto);
-    let status = Command::new("protoc")
-        .arg(format!(
-            "--plugin=protoc-gen-pbrs={}",
-            plugin_bin().display()
-        ))
-        .arg(format!("--pbrs_out={}", out.display()))
-        .arg("-I")
-        .arg(proto.parent().unwrap())
-        .arg(&proto)
-        .status()
-        .expect("run protoc");
-    assert!(
-        status.success(),
-        "protoc plugin failed for {}",
-        proto.display()
-    );
+    if stubs {
+        let status = Command::new("protoc")
+            .arg(format!(
+                "--plugin=protoc-gen-pbrs={}",
+                plugin_bin().display()
+            ))
+            .arg(format!("--pbrs_out={}", out.display()))
+            .arg("-I")
+            .arg(proto.parent().unwrap())
+            .arg(&proto)
+            .status()
+            .expect("run protoc");
+        assert!(
+            status.success(),
+            "protoc plugin failed for {}",
+            proto.display()
+        );
+    } else {
+        pbrs::codegen::Config::new()
+            .emit_tonic_stubs(false)
+            .out_dir(out)
+            .compile_protos(&[&proto], &[proto.parent().unwrap()])
+            .expect("compile_protos");
+    }
     let stem = proto.file_stem().unwrap().to_str().unwrap();
     std::fs::read_to_string(out.join(format!("{stem}.rs"))).expect("generated rs")
 }
@@ -258,7 +270,7 @@ fn main() {
     assert_eq!(empty.to_json().unwrap(), "{}");
     let parsed = Person::from_json("{}").unwrap();
     assert_eq!(parsed.id(), 0);
-    assert!(parsed.name().is_empty());
+    assert!(parsed.name().as_bytes().is_empty());
     assert!(!parsed.has_email());
 
     let mut p = Person::new();
@@ -338,7 +350,7 @@ fn generated_hello_json_is_free_with_same_mechanism() {
         .join("generated-json-hello");
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
-    let generated = generate("proto/hello.proto", &tmp);
+    let generated = generate_with_stubs("proto/hello.proto", &tmp, false);
     assert_field_wise_json(&generated);
 
     let consumer = tmp.join("consumer");

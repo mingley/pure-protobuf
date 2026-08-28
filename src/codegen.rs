@@ -1351,7 +1351,7 @@ fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "            for (k, v) in self.{id}() {{");
             let _ = writeln!(
                 src,
-                "                let _ = obj.insert(k.to_string(), pbrs::json::int32(v));"
+                "                let _ = obj.insert(String::from_utf8_lossy(k.as_bytes()).into_owned(), pbrs::json::int32(v));"
             );
             let _ = writeln!(src, "            }}");
             let _ = writeln!(
@@ -1363,7 +1363,7 @@ fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
             let _ = writeln!(
                 src,
-                "            let arr: Vec<pbrs::json::Json> = self.{id}().iter().map(|s| pbrs::json::string(s)).collect();"
+                "            let arr: Vec<pbrs::json::Json> = self.{id}().iter().map(|s| pbrs::json::string(s.as_bytes())).collect();"
             );
             let _ = writeln!(
                 src,
@@ -1382,14 +1382,14 @@ fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
                 let _ = writeln!(src, "        if self.has_{m}() {{");
                 let _ = writeln!(
                     src,
-                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}()));"
+                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}().as_bytes()));"
                 );
                 let _ = writeln!(src, "        }}");
             } else {
-                let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
+                let _ = writeln!(src, "        if !self.{id}().as_bytes().is_empty() {{");
                 let _ = writeln!(
                     src,
-                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}()));"
+                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}().as_bytes()));"
                 );
                 let _ = writeln!(src, "        }}");
             }
