@@ -1307,10 +1307,11 @@ fn can_typed_json(desc: &MessageDescriptor) -> bool {
 fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
     if can_typed_json(desc) {
         emit_typed_json(src, desc);
+        emit_typed_text(src, desc);
     } else {
         emit_dynamic_json(src, &desc.full_name);
+        emit_dynamic_text(src, &desc.full_name);
     }
-    emit_dynamic_text(src, &desc.full_name);
 }
 
 fn emit_typed_json(src: &mut String, desc: &MessageDescriptor) {
@@ -1487,6 +1488,192 @@ fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
         "                    if !ignore {{ return Err(ParseError::owned(format!(\"unknown json field {{key}}\"))); }}"
     );
     let _ = writeln!(src, "                }}");
+    let _ = writeln!(src, "            }}");
+    let _ = writeln!(src, "        }}");
+    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "    }}");
+}
+
+fn emit_typed_text(src: &mut String, desc: &MessageDescriptor) {
+    let _ = writeln!(
+        src,
+        "    pub fn to_text(&self) -> Result<String, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        let mut out = String::new();");
+    let _ = writeln!(src, "        self.write_text(&mut out, 0)?;");
+    let _ = writeln!(src, "        Ok(out)");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        let mut out = String::new();");
+    let _ = writeln!(src, "        self.write_text(&mut out, 0)?;");
+    let _ = writeln!(
+        src,
+        "        pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);"
+    );
+    let _ = writeln!(src, "        Ok(out)");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn from_text(text: &str) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Self::from_text_value(&pbrs::text::parse(text)?)"
+    );
+    let _ = writeln!(src, "    }}");
+    emit_write_text(src, desc);
+    emit_from_text_value(src, desc);
+}
+
+fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
+    let _ = writeln!(
+        src,
+        "    fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {{"
+    );
+    for f in desc.fields.values() {
+        let id = field_id(f);
+        let m = field_raw(f);
+        let name = rust_str(&f.name);
+        if f.is_map {
+            let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
+            let _ = writeln!(
+                src,
+                "            let mut items: Vec<_> = self.{id}().iter().collect();"
+            );
+            let _ = writeln!(
+                src,
+                "            items.sort_by(|(a, _), (b, _)| a.as_bytes().cmp(b.as_bytes()));"
+            );
+            let _ = writeln!(src, "            for (k, v) in items {{");
+            let _ = writeln!(
+                src,
+                "                pbrs::text::write_map_string_i32(out, indent, {name}, k.as_bytes(), v);"
+            );
+            let _ = writeln!(src, "            }}");
+            let _ = writeln!(src, "        }}");
+        } else if f.cardinality == Cardinality::Repeated {
+            let _ = writeln!(src, "        for s in self.{id}() {{");
+            let _ = writeln!(
+                src,
+                "            pbrs::text::write_named_string(out, indent, {name}, s.as_bytes());"
+            );
+            let _ = writeln!(src, "        }}");
+        } else if f.field_type == FieldType::Message {
+            let _ = writeln!(src, "        if self.has_{m}() {{");
+            let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+            let _ = writeln!(src, "            out.push_str({name});");
+            let _ = writeln!(src, "            out.push_str(\" {{\\n\");");
+            let _ = writeln!(src, "            self.{id}().write_text(out, indent + 2)?;");
+            let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+            let _ = writeln!(src, "            out.push_str(\"}}\\n\");");
+            let _ = writeln!(src, "        }}");
+        } else if f.field_type == FieldType::String {
+            if is_option(f) {
+                let _ = writeln!(src, "        if self.has_{m}() {{");
+                let _ = writeln!(
+                    src,
+                    "            pbrs::text::write_named_string(out, indent, {name}, self.{id}().as_bytes());"
+                );
+                let _ = writeln!(src, "        }}");
+            } else {
+                let _ = writeln!(src, "        if !self.{id}().as_bytes().is_empty() {{");
+                let _ = writeln!(
+                    src,
+                    "            pbrs::text::write_named_string(out, indent, {name}, self.{id}().as_bytes());"
+                );
+                let _ = writeln!(src, "        }}");
+            }
+        } else if is_option(f) {
+            let _ = writeln!(src, "        if self.has_{m}() {{");
+            let _ = writeln!(
+                src,
+                "            pbrs::text::write_named_int32(out, indent, {name}, self.{id}());"
+            );
+            let _ = writeln!(src, "        }}");
+        } else {
+            let _ = writeln!(src, "        if self.{id}() != 0 {{");
+            let _ = writeln!(
+                src,
+                "            pbrs::text::write_named_int32(out, indent, {name}, self.{id}());"
+            );
+            let _ = writeln!(src, "        }}");
+        }
+    }
+    let _ = writeln!(src, "        Ok(())");
+    let _ = writeln!(src, "    }}");
+}
+
+fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
+    let _ = writeln!(
+        src,
+        "    fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let mut msg = Self::new();");
+    let _ = writeln!(src, "        for (key, val) in fields {{");
+    let _ = writeln!(src, "            match key.as_str() {{");
+    for f in desc.fields.values() {
+        let id = field_id(f);
+        let m = field_raw(f);
+        let name = rust_str(&f.name);
+        let _ = writeln!(src, "                {name} => {{");
+        if f.is_map {
+            let _ = writeln!(src, "                    let entry = val.as_message()?;");
+            let _ = writeln!(src, "                    let mut k = \"\";");
+            let _ = writeln!(src, "                    let mut v = 0i32;");
+            let _ = writeln!(src, "                    for (ek, ev) in entry {{");
+            let _ = writeln!(src, "                        match ek.as_str() {{");
+            let _ = writeln!(
+                src,
+                "                            \"key\" => k = ev.as_str()?,"
+            );
+            let _ = writeln!(
+                src,
+                "                            \"value\" => v = ev.as_i32()?,"
+            );
+            let _ = writeln!(
+                src,
+                "                            _ => return Err(ParseError::owned(format!(\"unknown field {{ek}}\"))),"
+            );
+            let _ = writeln!(src, "                        }}");
+            let _ = writeln!(src, "                    }}");
+            let _ = writeln!(src, "                    msg.{id}_mut().insert(k, v);");
+        } else if f.cardinality == Cardinality::Repeated {
+            let _ = writeln!(
+                src,
+                "                    if let Some(items) = val.as_list() {{"
+            );
+            let _ = writeln!(src, "                        for item in items {{");
+            let _ = writeln!(
+                src,
+                "                            msg.{id}_mut().push(item.as_str()?);"
+            );
+            let _ = writeln!(src, "                        }}");
+            let _ = writeln!(src, "                    }} else {{");
+            let _ = writeln!(
+                src,
+                "                        msg.{id}_mut().push(val.as_str()?);"
+            );
+            let _ = writeln!(src, "                    }}");
+        } else if f.field_type == FieldType::Message {
+            let ty = scalar_type(f);
+            let _ = writeln!(
+                src,
+                "                    msg.{id}_mut().merge_from({ty}::from_text_value(val.as_message()?)?);"
+            );
+        } else if f.field_type == FieldType::String {
+            let _ = writeln!(src, "                    msg.set_{m}(val.as_str()?);");
+        } else {
+            let _ = writeln!(src, "                    msg.set_{m}(val.as_i32()?);");
+        }
+        let _ = writeln!(src, "                }}");
+    }
+    let _ = writeln!(
+        src,
+        "                _ => return Err(ParseError::owned(format!(\"unknown field {{key}}\"))),"
+    );
     let _ = writeln!(src, "            }}");
     let _ = writeln!(src, "        }}");
     let _ = writeln!(src, "        Ok(msg)");

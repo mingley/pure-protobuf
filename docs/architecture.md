@@ -29,11 +29,11 @@ into a `Vec<u8>`. Nested and packed fields write in place
 (`encode_len_header` + `write_to`). There is no scratch `Vec` per
 submessage.
 
-Generated proto3 JSON is field-wise for messages whose fields are
-int32, string, proto3 optional string, repeated string,
+Generated proto3 JSON and text are field-wise for messages whose fields
+are int32, string, proto3 optional string, repeated string,
 `map<string, int32>`, or nested messages of that set (`Person`,
-`hello`). Other generated JSON, and all text, still serialize to
-bytes and transcode through `DynamicMessage`.
+`hello`). Other generated JSON and text still serialize to bytes and
+transcode through `DynamicMessage`.
 
 ## Codegen
 
@@ -57,7 +57,7 @@ TestAllTypes lives in `src/generated/` and is re-exported from
 | `packed` | packed scalars; memcpy only for fixed-width |
 | `repeated` / `map` | 8-byte empty (`Option<Box<Vec<_>>>`) |
 | `dynamic` | `DescriptorPool`, `DynamicMessage` |
-| `json` / `text` | WKT + spec codecs on dynamic messages |
+| `json` / `text` | WKT + spec codecs on dynamic messages; Person-shaped generated helpers |
 | `codegen` | plugin + FileDescriptorSet |
 | `gen_support` | `impl_typed_message!`, default instances |
 
