@@ -92,7 +92,9 @@ See `docs/upb.md`. Short list:
 - Maps are `Vec` (scan on get).
 - `name_4kib` Codec combined beats prost (gated). `blob_4kib` still
   wins. `rpc_sparse` decode and `tags_32` decode vs v4 are gated.
-  Leftover unary item is `name_80` combined. Flatten `merge_inner`
+  Leftover unary item is `name_80` combined (still a loss). A draft
+  heap-copy try (#57) shrank same-host leftover; leftover is
+  `merge_inner`. The cut is not on main. Flatten `merge_inner`
   (#39) stays discarded. Survey: `docs/benchmarks.md`. Closed
   inventories (notes + harnesses, not merged as wins):
   `docs/inventory/`.

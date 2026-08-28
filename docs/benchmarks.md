@@ -177,8 +177,9 @@ Do not spend the next pass on:
 
 Worth measuring next:
 
-- `name_80` combined (small loss): 80-byte string is just over the SSO
-  cutoff.
+- `name_80` combined (still a loss): 80-byte string is just over the SSO
+  cutoff. Leftover is `merge_inner` after a draft heap-copy try (#57)
+  that is not shipped.
 
 Keep: packed canonical cache, bytes window, `simdutf8` string arm,
 same-tag repeated strings, map/repeated vs prost.
