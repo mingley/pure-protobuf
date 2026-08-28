@@ -120,8 +120,11 @@ impl MessageLimits {
         }
     }
 
-    /// Inbound cap for a decompressed payload, honouring the crate ceiling so
-    /// an unlimited configuration still cannot be used as a memory oracle.
+    /// How many decompressed bytes an inbound frame may produce.
+    ///
+    /// An unlimited configuration really is unlimited here: bounded inflate can
+    /// only stop where a cap tells it to. That is why [`Self::unlimited`]
+    /// documents itself as trusted-peer only.
     pub(crate) fn inflate_budget(self) -> usize {
         self.max_decoding.unwrap_or(usize::MAX)
     }

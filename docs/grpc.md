@@ -488,13 +488,24 @@ goes. Lower it only under memory pressure:
 ServerConfig::new().initial_stream_window_size(1024 * 1024)
 ```
 
-**Stream buffer.** How many messages sit between a streaming handler and the
-wire. Since the wire layer writes whatever is ready as one batch, deeper means
-fewer and larger writes, at the cost of memory:
+**Stream queue depth.** How many messages sit between a producer and the wire.
+The wire layer writes whatever is queued as one batch, so deeper means fewer and
+larger writes, at the cost of memory. On the server this is the buffer the
+handler chooses:
 
 ```rust
-ServerConfig::new().stream_buffer(64)
+let (tx, stream) = Streaming::channel(64);
 ```
+
+On the client it is configuration, because the client's outbound queue belongs
+to the channel:
+
+```rust
+ChannelConfig::new().stream_buffer(64)
+```
+
+Received streams are decoded inline on the reading task, so they have no queue
+to size in either direction.
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size` — is available on both

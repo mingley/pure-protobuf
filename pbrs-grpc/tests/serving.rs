@@ -278,6 +278,82 @@ async fn graceful_shutdown_stops_accepting_new_connections() {
     assert!(refused, "the listener must be closed after drain");
 }
 
+/// A server-streaming handler whose producer stops as soon as reading the
+/// request stream fails, which is what almost every real handler does. When the
+/// read fails because the deadline expired, the RPC must not look like a clean
+/// end of stream.
+struct QuietUntilDeadline;
+
+impl pbrs_grpc::Greeter for QuietUntilDeadline {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("quiet"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("quiet"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("quiet"))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = pbrs_grpc::Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            // Swallows the error and stops, exactly like the reference
+            // interop service and most hand-written handlers.
+            while let Ok(Some(_)) = inbound.message().await {}
+            drop(tx);
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_expired_deadline_is_never_a_clean_end_of_stream() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(QuietUntilDeadline)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+
+    // Repeat, because the original bug was a coin flip between the deadline
+    // firing and the producer stopping.
+    for _ in 0..12 {
+        let mut request = Request::new(());
+        request.set_timeout(Duration::from_millis(5));
+        let (tx, call) = client.stream_hello(request);
+        tx.send(req("ada")).await.ok();
+        let outcome = match call.await {
+            Err(status) => Err(status),
+            Ok(response) => response.into_inner().message().await,
+        };
+        match outcome {
+            Err(status) => assert_eq!(status.code(), Code::DeadlineExceeded),
+            Ok(None) => panic!("an expired deadline must not read as a clean end"),
+            Ok(Some(_)) => panic!("the handler sends nothing"),
+        }
+    }
+
+    task.abort();
+}
+
 /// The wrapping-service pattern from `docs/grpc.md`: authenticate, then
 /// delegate. `NAME` is inherited, so the wrapper mounts where the wrapped
 /// service would.

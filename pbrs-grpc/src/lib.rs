@@ -143,9 +143,11 @@
 //! 2. **Window sizes** — the 16 MiB default keeps a 4 MiB message from
 //!    stalling on a `WINDOW_UPDATE` round trip. Lower it only under memory
 //!    pressure.
-//! 3. **[`ServerConfig::stream_buffer`]** — how many messages sit between a
-//!    streaming handler and the wire. Higher smooths bursty producers at the
-//!    cost of memory.
+//! 3. **Stream queue depth** — the buffer a streaming handler passes to
+//!    [`Streaming::channel`], and [`ChannelConfig::stream_buffer`] on the
+//!    client. The wire layer writes whatever is queued as one batch, so deeper
+//!    means fewer and larger writes at the cost of memory. Received streams are
+//!    decoded inline and have no queue to size.
 //!
 //! Compression is not free: [`Request::set_compress`] trades CPU for
 //! bandwidth, and at LAN latencies identity framing usually wins.
