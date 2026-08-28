@@ -437,6 +437,27 @@ Router::new()
 set returns `NOT_FOUND`. `Watch` streams status changes, and an unknown name
 yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
 
+## Reflection
+
+`grpc.reflection.v1.ServerReflection` ships in-tree so `grpcurl` and friends
+can list and describe what you mounted. Register each generated
+`FILE_DESCRIPTOR_SET` and add the service to the same `Router`:
+
+```rust
+let reflection = pbrs_grpc::reflection::Builder::new()
+    .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)?;
+Router::new()
+    .add_service(reflection.build()?)
+    .add_service(GreeterServer::new(MyGreeter))
+    .serve(addr)
+    .await?;
+```
+
+`list_services` reports every service in those sets. `file_containing_symbol`
+and `file_by_filename` return the serialized `FileDescriptorProto` plus
+whatever transitive imports were in the set. A missing symbol is a
+`NOT_FOUND` on the stream (`ErrorResponse`), not a broken RPC.
+
 ## Graceful shutdown
 
 `serve_with_shutdown` stops accepting, sends `GOAWAY` on every live
@@ -775,7 +796,7 @@ Deliberate omissions, with what to do instead.
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
-| Reflection | Implement it as an ordinary service; it is just a proto. |
+| Reflection | `grpc.reflection.v1` ships in-tree. Register each generated `FILE_DESCRIPTOR_SET` and mount it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 

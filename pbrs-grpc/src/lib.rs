@@ -93,6 +93,7 @@
 //! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`] |
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`] |
 //! | Health | [`health`] |
+//! | Reflection | [`reflection`] |
 //! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
 //! | Limits | [`MessageLimits`] |
@@ -200,6 +201,7 @@ pub mod timeout;
 
 pub mod health;
 pub mod hello;
+pub mod reflection;
 pub mod testing;
 
 #[forbid(unsafe_code)]

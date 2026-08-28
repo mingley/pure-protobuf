@@ -362,7 +362,8 @@ impl DescriptorPool {
         Self::default()
     }
 
-    pub(crate) fn collect_names(&self) -> Vec<String> {
+    /// Fully-qualified names of every message in the pool.
+    pub fn collect_names(&self) -> Vec<String> {
         self.messages.keys().cloned().collect()
     }
 
@@ -376,7 +377,8 @@ impl DescriptorPool {
         self.enums.get(full_name.trim_start_matches('.')).cloned()
     }
 
-    pub(crate) fn collect_enum_names(&self) -> Vec<String> {
+    /// Fully-qualified names of every enum in the pool.
+    pub fn collect_enum_names(&self) -> Vec<String> {
         self.enums.keys().cloned().collect()
     }
 

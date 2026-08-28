@@ -45,4 +45,12 @@ fn main() {
             &[&proto_dir],
         )
         .expect("codegen grpc.health.v1");
+
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .compile_protos(
+            &[&proto_dir.join("grpc/reflection/v1/reflection.proto")],
+            &[&proto_dir],
+        )
+        .expect("codegen grpc.reflection.v1");
 }
