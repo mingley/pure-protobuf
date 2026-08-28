@@ -161,6 +161,37 @@ impl Rpc {
         );
     }
 
+    /// Answer with `status` without reading the request body.
+    ///
+    /// This is how a wrapping [`Service`] turns away an RPC it will not
+    /// delegate, for example on failed authentication. Any trailing metadata on
+    /// `status` is delivered.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Rpc, Service, Status};
+    /// use std::sync::Arc;
+    ///
+    /// /// Requires a bearer token before delegating to `inner`.
+    /// struct RequireAuth<S> {
+    ///     inner: Arc<S>,
+    ///     token: String,
+    /// }
+    ///
+    /// impl<S: Service> Service for RequireAuth<S> {
+    ///     const NAME: &'static str = S::NAME;
+    ///
+    ///     async fn call(&self, rpc: Rpc) {
+    ///         if rpc.metadata().get("authorization") != Some(self.token.as_str()) {
+    ///             return rpc.reject(Status::unauthenticated("bad or missing token"));
+    ///         }
+    ///         self.inner.call(rpc).await;
+    ///     }
+    /// }
+    /// ```
+    pub fn reject(mut self, status: Status) {
+        send_trailers_only(&mut self.respond, status, &Metadata::new());
+    }
+
     /// Serve a unary method: one request message, one response message.
     ///
     /// ```

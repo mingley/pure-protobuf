@@ -23,7 +23,9 @@ against that path dep.
 
 `pbrs-grpc` is a separate HTTP/2 gRPC kernel over pbrs. It does not depend
 on tonic. The tonic adapter does not depend on `pbrs-grpc`. Use one, the
-other, or neither.
+other, or neither. Generate kernel client and server stubs for any
+`.proto` service with `Config::emit_kernel_stubs(true)`; see the
+[gRPC guide](docs/grpc.md).
 
 ```bash
 ./scripts/gen.sh -I proto -o gen proto/your.proto
@@ -46,7 +48,7 @@ Docs:
 - [Benchmarks](docs/benchmarks.md)
 - [Status](docs/status.md)
 - [tonic 0.14](protobuf-tonic/README.md)
-- [HTTP/2 gRPC kernel](pbrs-grpc/README.md)
+- [HTTP/2 gRPC kernel](pbrs-grpc/README.md) and its [guide](docs/grpc.md)
 
 Conformance (official `conformance_test_runner` v35.1,
 `--maximum_edition 2023`, `protoc` hidden / vendored FDS):

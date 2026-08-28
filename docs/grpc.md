@@ -1,0 +1,647 @@
+# Building gRPC services with pbrs-grpc
+
+`pbrs-grpc` is a gRPC kernel: HTTP/2 framing, dispatch, and resource limits
+over [pbrs](../README.md) messages, with no C, no `unsafe` in the kernel, and
+no dependency on tonic. This is the working guide. For the API reference, run
+`cargo doc -p pbrs-grpc --open`; for measured numbers, see
+[benchmarks](benchmarks.md).
+
+- [Quickstart](#quickstart)
+- [The four call shapes](#the-four-call-shapes)
+- [Metadata](#metadata)
+- [Errors and status codes](#errors-and-status-codes)
+- [Deadlines and cancellation](#deadlines-and-cancellation)
+- [Serving several services](#serving-several-services)
+- [Graceful shutdown](#graceful-shutdown)
+- [Compression](#compression)
+- [Limits and the threat model](#limits-and-the-threat-model)
+- [Tuning](#tuning)
+- [Interceptors and middleware](#interceptors-and-middleware)
+- [Testing](#testing)
+- [Writing a service without codegen](#writing-a-service-without-codegen)
+- [What is not here](#what-is-not-here)
+
+## Quickstart
+
+Three files. Start with the proto:
+
+```proto
+// proto/hello.proto
+syntax = "proto3";
+package helloworld;
+
+service Greeter {
+  rpc SayHello (HelloRequest) returns (HelloReply);
+}
+
+message HelloRequest { string name = 1; }
+message HelloReply   { string message = 1; }
+```
+
+Add the dependencies and a build script:
+
+```toml
+# Cargo.toml
+[dependencies]
+pbrs = "0.1"
+pbrs-grpc = "0.1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[build-dependencies]
+pbrs = "0.1"
+```
+
+```rust
+// build.rs
+fn main() {
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .compile_protos(&["proto/hello.proto"], &["proto"])
+        .expect("codegen");
+}
+```
+
+`protoc` must be on `PATH`. `emit_kernel_stubs(true)` is what produces
+`pbrs-grpc` stubs; the default is tonic stubs, and the two are mutually
+exclusive because they claim the same `FooClient` / `FooServer` names.
+
+Then implement the generated trait:
+
+```rust
+use pbrs_grpc::{Request, Response, Status};
+
+mod pb {
+    #![allow(missing_docs)]
+    include!(concat!(env!("OUT_DIR"), "/hello.rs"));
+}
+
+use pb::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
+
+struct MyGreeter;
+
+impl Greeter for MyGreeter {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut reply = HelloReply::new();
+        reply.set_message(format!("hello {}", request.get_ref().name()));
+        Ok(Response::new(reply))
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Status> {
+    GreeterServer::new(MyGreeter)
+        .serve("127.0.0.1:50051".parse().expect("addr"))
+        .await
+}
+```
+
+And call it:
+
+```rust
+let channel = pbrs_grpc::Channel::connect("127.0.0.1:50051").await?;
+let client = GreeterClient::new(channel);
+
+let mut req = HelloRequest::new();
+req.set_name("world");
+let reply = client.say_hello(Request::new(req)).await?;
+println!("{}", reply.get_ref().message());
+```
+
+`Channel::connect` takes anything that converts into a
+[`Target`](https://docs.rs/pbrs-grpc): a `SocketAddr`, or a `host:port`
+string that goes through DNS.
+
+A complete worked example living in the repository is
+[`pbrs-grpc-hello`](../pbrs-grpc/src/bin/pbrs-grpc-hello.rs), which exercises
+all four call shapes over loopback.
+
+## The four call shapes
+
+What the generated trait and client look like depends on which sides of the
+RPC stream.
+
+| `.proto` | Handler receives | Handler returns | Client method returns |
+|---|---|---|---|
+| `rpc M (Req) returns (Resp)` | `Request<Req>` | `Response<Resp>` | `Call<Response<Resp>>` |
+| `rpc M (stream Req) returns (Resp)` | `Request<Streaming<Req>>` | `Response<Resp>` | `(StreamSender<Req>, Call<Response<Resp>>)` |
+| `rpc M (Req) returns (stream Resp)` | `Request<Req>` | `Response<Streaming<Resp>>` | `Call<Response<Streaming<Resp>>>` |
+| `rpc M (stream Req) returns (stream Resp)` | `Request<Streaming<Req>>` | `Response<Streaming<Resp>>` | `(StreamSender<Req>, Call<Response<Streaming<Resp>>>)` |
+
+There are only two streaming types, and they are the two halves of one channel:
+`Streaming<T>` is what you read, `StreamSender<T>` is what you write. The same
+pair is used on both sides of an RPC, so a client-streaming request and a
+server-streaming response are the same shape seen from opposite ends.
+
+### Reading a stream
+
+```rust
+async fn client_hello(
+    &self,
+    request: Request<Streaming<HelloRequest>>,
+) -> Result<Response<HelloReply>, Status> {
+    let mut stream = request.into_inner();
+    let mut names = Vec::new();
+    while let Some(req) = stream.message().await? {
+        names.push(req.name().to_string());
+    }
+    let mut reply = HelloReply::new();
+    reply.set_message(names.join(", "));
+    Ok(Response::new(reply))
+}
+```
+
+Received streams are decoded on the task that calls `message()`. There is no
+pump task and no queue in between, which means backpressure is exact: stop
+reading and you stop releasing HTTP/2 capacity, so the peer stalls at the
+window rather than filling a buffer you own.
+
+A handler is free to ignore its request stream entirely and answer straight
+away; the RPC terminates normally.
+
+### Writing a stream
+
+```rust
+async fn server_hello(
+    &self,
+    request: Request<HelloRequest>,
+) -> Result<Response<Streaming<HelloReply>>, Status> {
+    let name = request.get_ref().name().to_string();
+    let (tx, stream) = Streaming::channel(16);
+    tokio::spawn(async move {
+        for i in 1..=3 {
+            let mut reply = HelloReply::new();
+            reply.set_message(format!("hello {name} #{i}"));
+            // `Err` means the client went away.
+            if tx.send(reply).await.is_err() {
+                break;
+            }
+        }
+    });
+    Ok(Response::new(stream))
+}
+```
+
+Dropping the sender half-closes the stream cleanly. To end it with an error
+instead, use `tx.fail(status).await`, which puts the status in the trailers.
+
+`Streaming::channel(n)` sets how many messages sit between your producer and
+the wire. The wire layer takes whatever is ready in one go and writes it as a
+single batch, so a deeper channel means fewer, larger writes.
+
+### Client streaming
+
+```rust
+let (tx, call) = client.client_hello(Request::new(()));
+for name in ["ada", "grace"] {
+    let mut req = HelloRequest::new();
+    req.set_name(name);
+    tx.send(req).await?;
+}
+tx.close();                       // half-close; `drop(tx)` is equivalent
+let reply = call.await?;
+```
+
+For bidirectional streaming, await the `Call` to get the response stream, then
+interleave freely:
+
+```rust
+let (tx, call) = client.stream_hello(Request::new(()));
+let mut inbound = call.await?.into_inner();
+tx.send(request("ping")).await?;
+let pong = inbound.message().await?;
+```
+
+## Metadata
+
+`Metadata` is HTTP/2 headers or trailers minus the ones the protocol owns.
+Keys ending in `-bin` carry arbitrary bytes and travel base64-encoded;
+everything else carries ASCII. Mixing them up is an error rather than silent
+corruption:
+
+```rust
+let mut req = Request::new(payload);
+req.metadata_mut().insert("x-tenant", "acme")?;
+req.metadata_mut().insert_bin("x-trace-bin", trace_id)?;
+
+assert!(req.metadata_mut().insert("oops-bin", "not base64").is_err());
+```
+
+On the server, request metadata is on the `Request`:
+
+```rust
+let tenant = request.metadata().get("x-tenant").unwrap_or("default");
+let peer = request.remote_addr();
+```
+
+Reading it costs nothing until you read it: `Metadata` wraps the received
+header map rather than copying every entry into owned strings.
+
+A `Response` has two independent sets. `metadata_mut()` is initial headers,
+sent before the first message. `trailers_mut()` is trailing metadata, sent
+with `grpc-status`:
+
+```rust
+let mut resp = Response::new(reply);
+resp.metadata_mut().insert("x-cache", "miss")?;
+resp.trailers_mut().insert("x-rows-scanned", "1742")?;
+```
+
+To attach metadata to an *error*, put it on the `Status`; error responses have
+no separate trailers:
+
+```rust
+let mut status = Status::resource_exhausted("quota exceeded");
+status.metadata_mut().insert("x-retry-after", "30")?;
+return Err(status);
+```
+
+Reserved keys (`grpc-status`, `grpc-timeout`, `content-type`, HTTP/2
+pseudo-headers, ...) are invisible through `Metadata` and are never written
+out, so forwarding received metadata cannot corrupt the protocol framing.
+
+## Errors and status codes
+
+Return `Err(Status)`. All sixteen gRPC codes have constructors, and `Code`
+knows its canonical name:
+
+```rust
+Err(Status::not_found(format!("row {id}")))
+```
+
+```rust
+match client.say_hello(request).await {
+    Ok(reply) => { /* ... */ }
+    Err(status) if status.code() == Code::Unavailable => retry().await,
+    Err(status) => eprintln!("{status}"),   // "NOT_FOUND: row 7"
+}
+```
+
+`Status` is two machine words. Its message and metadata live behind a pointer
+that is only allocated when one of them is set, so `Result<T, Status>` stays
+cheap on paths where nothing goes wrong.
+
+Codes the kernel produces on your behalf:
+
+| Code | When |
+|---|---|
+| `Unimplemented` | unknown service or method; unsupported `grpc-encoding` |
+| `InvalidArgument` | `content-type` is not `application/grpc` |
+| `ResourceExhausted` | a message exceeds an inbound or outbound cap |
+| `DeadlineExceeded` | `grpc-timeout` elapsed |
+| `Cancelled` | the peer reset the stream, or the caller cancelled |
+| `Unavailable` | the connection could not be established or was lost |
+| `Internal` | a malformed frame, or a protobuf parse failure |
+
+## Deadlines and cancellation
+
+A deadline set on a request travels as `grpc-timeout` and is enforced on both
+ends: the server wraps the handler in a timeout, and the client stops waiting
+and resets the stream.
+
+```rust
+let mut req = Request::new(payload);
+req.set_timeout(Duration::from_millis(250));
+match client.say_hello(req).await {
+    Err(status) if status.code() == Code::DeadlineExceeded => { /* ... */ }
+    other => { /* ... */ }
+}
+```
+
+On the server, `request.timeout()` reports what the caller asked for, which is
+what you want when deciding whether to start expensive work.
+
+To cancel from elsewhere, take a handle before awaiting:
+
+```rust
+let call = client.say_hello(Request::new(payload));
+let handle = call.handle();
+tokio::spawn(async move {
+    shutdown.notified().await;
+    handle.cancel();
+});
+let result = call.await;   // Err(Cancelled) if the handle fired
+```
+
+Cancelling resets the HTTP/2 stream, so the server stops working on it rather
+than finishing into a void.
+
+## Serving several services
+
+One service uses `Server`, which has no per-RPC dynamic dispatch:
+
+```rust
+Server::new(GreeterServer::new(MyGreeter)).serve(addr).await?;
+```
+
+Several use `Router`, which looks up the service half of the request path:
+
+```rust
+Router::new()
+    .add_service(GreeterServer::new(MyGreeter))
+    .add_service(EchoServer::new(MyEcho))
+    .serve(addr)
+    .await?;
+```
+
+Generated servers can start the chain themselves, which keeps their
+configuration:
+
+```rust
+GreeterServer::new(MyGreeter)
+    .config(ServerConfig::new().max_concurrent_streams(1024))
+    .add_service(EchoServer::new(MyEcho))
+    .serve(addr)
+    .await?;
+```
+
+A request for a service that is not mounted, or a method the service does not
+have, gets `UNIMPLEMENTED`. Routing costs one hash lookup plus one boxed
+future per RPC; `Server` avoids both.
+
+## Graceful shutdown
+
+`serve_with_shutdown` stops accepting, sends `GOAWAY` on every live
+connection, and waits for in-flight RPCs to finish before returning:
+
+```rust
+let (tx, rx) = tokio::sync::oneshot::channel();
+tokio::spawn(async move {
+    tokio::signal::ctrl_c().await.ok();
+    tx.send(()).ok();
+});
+
+GreeterServer::new(MyGreeter)
+    .serve_with_shutdown(listener, async { rx.await.ok(); })
+    .await?;
+```
+
+An RPC already running when the signal arrives completes and its response is
+delivered. New connections are refused as soon as the signal fires.
+
+## Compression
+
+gzip, via `grpc-encoding` and the per-message Compressed-Flag. It is per
+message rather than per connection, so you can compress the payloads that
+benefit and leave the rest alone:
+
+```rust
+let mut req = Request::new(big_payload);
+req.set_compress(true);
+```
+
+```rust
+let mut resp = Response::new(big_reply);
+resp.set_compress(true);
+```
+
+On a stream, choose per message with `send` or `send_compressed`.
+`request.compressed()` reports whether what arrived was compressed.
+
+Compression is not free. At LAN latencies, identity framing usually wins:
+gzipping a 300 KiB message costs more CPU time than the saved bytes cost in
+transit. Measure before turning it on.
+
+A peer asking for an encoding the kernel does not implement gets
+`UNIMPLEMENTED` with `grpc-accept-encoding: identity,gzip` attached, so it
+knows what to retry with.
+
+## Limits and the threat model
+
+The peer is assumed hostile. Every limit is enforced *before* the memory it
+guards is committed.
+
+| Attack | Defence | Default |
+|---|---|---|
+| Huge declared message length | Refused from the 5-byte frame header, before any payload is buffered | 4 MiB |
+| Decompression bomb | Bounded inflate that stops one byte past the cap | 4 MiB |
+| Metadata flood | HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE` | 16 KiB |
+| Stream flood | HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` | 256 |
+| Unbounded buffering | Per-connection window and send buffer | 16 MiB / 1 MiB |
+| Slow-reader amplification | Capacity is released only after a chunk is handed on | always |
+| Deeply nested protobuf | Recursion limit in `pbrs` | always |
+| Truncated or malformed frames | Protocol error, never treated as an empty message | always |
+| Reserved metadata injection | `grpc-status` and friends are never read from or written to user metadata | always |
+
+The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
+cap is unlimited, because a peer does not control what your own service
+produces.
+
+```rust
+GreeterServer::new(MyGreeter)
+    .max_decoding_message_size(64 * 1024)
+    .max_encoding_message_size(1024 * 1024)
+```
+
+Lifting the inbound cap entirely is possible and is only appropriate when
+every peer is trusted:
+
+```rust
+ServerConfig::new().message_limits(MessageLimits::unlimited())
+```
+
+with the consequence that a single frame header can then ask for as much
+memory as `u32::MAX` allows.
+
+`tests/hostile.rs` is the enforcement. It speaks raw HTTP/2 so it can send
+bytes no real client would — a length prefix claiming 4 GiB, a 64 MiB gzip
+bomb small enough on the wire to pass the frame check, reserved
+compressed-flag values, truncated frames, malformed paths, garbage protobuf —
+and requires that every case answers with a status and leaves the server
+serving.
+
+### `unsafe`
+
+Every hand-written module in `pbrs-grpc` carries `#[forbid(unsafe_code)]`,
+which cannot be relaxed from inside the module, so the claim is
+machine-checked rather than a convention. The exceptions are the two modules
+that `include!` generated message code: `pbrs` gencode uses `unsafe` for
+zeroed-message construction. No gRPC framing, dispatch, or transport code
+contains `unsafe`.
+
+### Panics
+
+`unwrap`, `expect`, `panic!`, indexing, and lossy numeric casts are denied at
+the lint level for the whole workspace. Bad input becomes a `Status`, not an
+abort.
+
+## Tuning
+
+Defaults are chosen for safety first, then throughput. Three knobs actually
+matter.
+
+**Connections.** One connection is one `h2` driver task, so concurrent small
+RPCs serialize behind a single core's framing work. This is the largest
+client-side lever:
+
+```rust
+Channel::connect_with(target, ChannelConfig::new().connections(4)).await?
+```
+
+**Window sizes.** The 16 MiB default keeps a 4 MiB message from stalling on a
+`WINDOW_UPDATE` round trip, which is where large-payload throughput usually
+goes. Lower it only under memory pressure:
+
+```rust
+ServerConfig::new().initial_stream_window_size(1024 * 1024)
+```
+
+**Stream buffer.** How many messages sit between a streaming handler and the
+wire. Since the wire layer writes whatever is ready as one batch, deeper means
+fewer and larger writes, at the cost of memory:
+
+```rust
+ServerConfig::new().stream_buffer(64)
+```
+
+Everything else — `max_frame_size`, `max_concurrent_streams`,
+`max_send_buffer_size`, `max_header_list_size` — is available on both
+`ServerConfig` and `ChannelConfig` and is more likely to be a safety decision
+than a performance one.
+
+## Interceptors and middleware
+
+There is no interceptor type. The kernel deliberately has no `tower` layer,
+because a `Service` implementation is already the interception point: it sees
+the `Rpc` before any body is read, and it can inspect the path and metadata,
+reject, or delegate.
+
+```rust
+use pbrs_grpc::{Rpc, Service, Status};
+use std::sync::Arc;
+
+/// Requires a bearer token before delegating to `inner`.
+struct RequireAuth<S> {
+    inner: Arc<S>,
+    token: String,
+}
+
+impl<S: Service> Service for RequireAuth<S> {
+    const NAME: &'static str = S::NAME;
+
+    async fn call(&self, rpc: Rpc) {
+        let presented = rpc.metadata().get("authorization").map(str::to_owned);
+        if presented.as_deref() != Some(self.token.as_str()) {
+            return rpc.reject(Status::unauthenticated("bad or missing token"));
+        }
+        self.inner.call(rpc).await;
+    }
+}
+```
+
+Because `NAME` is inherited, the wrapper mounts wherever the wrapped service
+would. The same shape covers logging, per-tenant rate limiting, and metrics.
+
+For work that belongs to one method rather than the whole service, do it in the
+handler; you have the metadata, the deadline, and the peer address there.
+
+## Testing
+
+Serve on an ephemeral port and connect a real client. The transport is fast
+enough that in-process loopback is a reasonable default for service tests:
+
+```rust
+#[tokio::test]
+async fn greets() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        GreeterServer::new(MyGreeter).serve_listener(listener).await.ok();
+    });
+
+    let client = GreeterClient::new(Channel::connect(addr).await.expect("connect"));
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    let reply = client.say_hello(Request::new(req)).await.expect("rpc");
+    assert_eq!(reply.get_ref().message(), "hello ada");
+
+    server.abort();
+}
+```
+
+`Request`, `Response`, `Status`, `Streaming`, and `Rpc` all implement `Debug`,
+so `expect_err` and assertion failures print something useful.
+
+For interop against other implementations, the crate ships the official
+`grpc.testing.TestService` and its test cases:
+
+```bash
+cargo run -p pbrs-grpc --bin pbrs-grpc-interop-server -- --port 10000
+cargo run -p pbrs-grpc --bin pbrs-grpc-interop-client -- \
+    --server_host 127.0.0.1 --server_port 10000 --test_case=large_unary
+```
+
+Either side can be replaced with `google.golang.org/grpc/interop/{client,server}`
+run with `-use_tls=false`.
+
+## Writing a service without codegen
+
+Codegen is a convenience, not a requirement. `Service` plus a `match` on the
+method name is the whole contract, and every dispatch shape is public:
+
+```rust
+use pbrs_grpc::{Request, Response, Rpc, Service, Status};
+
+struct Echo;
+
+impl Service for Echo {
+    const NAME: &'static str = "demo.Echo";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Ping" => {
+                rpc.unary(|req: Request<HelloRequest>| async move {
+                    let mut reply = HelloReply::new();
+                    reply.set_message(req.get_ref().name());
+                    Ok::<_, Status>(Response::new(reply))
+                })
+                .await;
+            }
+            "Subscribe" => {
+                rpc.server_streaming(|_req: Request<HelloRequest>| async move {
+                    let (tx, stream) = Streaming::channel(8);
+                    tokio::spawn(async move { /* produce */ });
+                    Ok::<_, Status>(Response::new(stream))
+                })
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
+    }
+}
+```
+
+Consume the `Rpc` with exactly one of `unary`, `client_streaming`,
+`server_streaming`, `bidi_streaming`, `reject`, or `unimplemented`. Each one
+owns the whole response: headers, message frames, and `grpc-status` trailers.
+
+On the client side, `Channel` takes a path directly, so no generated client is
+required either:
+
+```rust
+let reply: HelloReply = channel
+    .unary("/demo.Echo/Ping", Request::new(req))
+    .await?
+    .into_inner();
+```
+
+This is not a second-class path. The in-tree `TestService` implementation and
+the hostile-peer tests both use it.
+
+## What is not here
+
+Deliberate omissions, with what to do instead.
+
+| Missing | Instead |
+|---|---|
+| TLS | Run behind a mesh sidecar or on a trusted network. The kernel speaks cleartext prior-knowledge HTTP/2 only. |
+| Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
+| Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
+| Reflection and health services | Implement them as ordinary services; both are just protos. |
+| `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
+| Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
+
+`pbrs` does not depend on this crate, and this crate does not depend on tonic
+or `protobuf-tonic`. Use one, the other, or neither.

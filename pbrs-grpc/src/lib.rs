@@ -181,6 +181,7 @@ pub mod interop_cases;
 pub mod timeout;
 
 pub mod hello;
+pub mod testing;
 
 #[forbid(unsafe_code)]
 mod client;
@@ -200,8 +201,6 @@ mod status;
 mod stream;
 #[forbid(unsafe_code)]
 mod wire;
-
-mod testing;
 
 /// Re-exports that `protoc-gen-pbrs` stubs name explicitly.
 ///

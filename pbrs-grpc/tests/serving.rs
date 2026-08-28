@@ -278,6 +278,55 @@ async fn graceful_shutdown_stops_accepting_new_connections() {
     assert!(refused, "the listener must be closed after drain");
 }
 
+/// The wrapping-service pattern from `docs/grpc.md`: authenticate, then
+/// delegate. `NAME` is inherited, so the wrapper mounts where the wrapped
+/// service would.
+struct RequireAuth<S> {
+    inner: Arc<S>,
+    token: String,
+}
+
+impl<S: Service> Service for RequireAuth<S> {
+    const NAME: &'static str = S::NAME;
+
+    async fn call(&self, rpc: Rpc) {
+        if rpc.metadata().get("authorization") != Some(self.token.as_str()) {
+            return rpc.reject(Status::unauthenticated("bad or missing token"));
+        }
+        self.inner.call(rpc).await;
+    }
+}
+
+#[tokio::test]
+async fn a_wrapping_service_can_reject_before_the_body_is_read() {
+    let (addr, listener) = bind().await;
+    let guard = RequireAuth {
+        inner: Arc::new(GreeterServer::new(Echo)),
+        token: "Bearer letmein".to_owned(),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(guard).serve_listener(listener).await.ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+
+    let denied = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("no token");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+
+    let mut authorized = Request::new(req("ada"));
+    authorized
+        .metadata_mut()
+        .insert("authorization", "Bearer letmein")
+        .expect("metadata");
+    let allowed = client.say_hello(authorized).await.expect("with token");
+    assert_eq!(name_of(allowed.get_ref()), "ada");
+
+    task.abort();
+}
+
 /// Answers without ever reading the request stream. Inbound messages are
 /// decoded on the handler's task, so a handler that ignores them must still
 /// terminate the RPC rather than leaving the client blocked on the window.
