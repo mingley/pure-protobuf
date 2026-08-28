@@ -20,7 +20,7 @@ mod common;
 
 use common::{name_of, req, spawn_greeter};
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
-use pbrs_grpc::{Channel, Code, InItem, Inbound, Request, Response, Status};
+use pbrs_grpc::{Channel, Code, Request, Response, Status, Streaming};
 
 struct Echo;
 
@@ -42,7 +42,7 @@ impl Greeter for Echo {
 
     async fn client_hello(
         &self,
-        request: Request<Inbound<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         let mut inbound = request.into_inner();
         let mut names = Vec::new();
@@ -57,26 +57,19 @@ impl Greeter for Echo {
     async fn server_hello(
         &self,
         request: Request<HelloRequest>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         let name = request
             .into_inner()
             .name()
             .to_str()
             .unwrap_or("")
             .to_string();
-        let (tx, rx) = Inbound::channel(4);
+        let (tx, rx) = Streaming::channel(4);
         drop(tokio::spawn(async move {
             for part in name.split(',') {
                 let mut reply = HelloReply::new();
                 reply.set_message(part.to_string());
-                if tx
-                    .send(Ok(InItem {
-                        message: reply,
-                        compressed: false,
-                    }))
-                    .await
-                    .is_err()
-                {
+                if tx.send(reply).await.is_err() {
                     break;
                 }
             }
@@ -86,22 +79,15 @@ impl Greeter for Echo {
 
     async fn stream_hello(
         &self,
-        request: Request<Inbound<HelloRequest>>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         let mut inbound = request.into_inner();
-        let (tx, rx) = Inbound::channel(4);
+        let (tx, rx) = Streaming::channel(4);
         drop(tokio::spawn(async move {
             while let Ok(Some(msg)) = inbound.message().await {
                 let mut reply = HelloReply::new();
                 reply.set_message(msg.name().to_str().unwrap_or("").to_string());
-                if tx
-                    .send(Ok(InItem {
-                        message: reply,
-                        compressed: false,
-                    }))
-                    .await
-                    .is_err()
-                {
+                if tx.send(reply).await.is_err() {
                     break;
                 }
             }
@@ -122,7 +108,7 @@ impl Greeter for Fail {
 
     async fn client_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
+        _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         Err(Status::unimplemented("fail"))
     }
@@ -130,14 +116,14 @@ impl Greeter for Fail {
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("fail"))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("fail"))
     }
 }

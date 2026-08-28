@@ -20,7 +20,7 @@ mod common;
 
 use common::{name_of, req};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
-use pbrs_grpc::{Channel, Code, Inbound, Request, Response, Status};
+use pbrs_grpc::{Channel, Code, Request, Response, Status, Streaming};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -50,7 +50,7 @@ impl Greeter for Echo {
 
     async fn client_hello(
         &self,
-        request: Request<Inbound<HelloRequest>>,
+        request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         let mut inbound = request.into_inner();
         let mut names = Vec::new();
@@ -65,14 +65,14 @@ impl Greeter for Echo {
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("message_size"))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("message_size"))
     }
 }

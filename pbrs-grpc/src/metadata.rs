@@ -1,119 +1,172 @@
-//! ASCII and `-bin` gRPC metadata.
+//! gRPC metadata: ASCII headers and base64 `-bin` headers.
 
 use crate::status::Status;
 use base64::engine::general_purpose::STANDARD_NO_PAD;
 use base64::Engine;
 use http::{HeaderMap, HeaderName, HeaderValue};
 
-/// gRPC metadata (headers or trailers). Binary keys must end in `-bin`.
+/// gRPC metadata, i.e. HTTP/2 headers or trailers minus the reserved ones.
+///
+/// Keys ending in `-bin` carry arbitrary bytes and travel base64-encoded;
+/// every other key carries ASCII. The two namespaces are kept apart by
+/// [`Self::insert`] and [`Self::insert_bin`], which reject a mismatched
+/// suffix rather than silently producing metadata no gRPC peer can read.
+///
+/// ```
+/// use pbrs_grpc::Metadata;
+///
+/// let mut md = Metadata::new();
+/// md.insert("x-request-id", "abc123")?;
+/// md.insert_bin("x-trace-bin", [0xde, 0xad])?;
+///
+/// assert_eq!(md.get("X-Request-Id"), Some("abc123"));
+/// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xde, 0xad][..]));
+/// assert!(md.insert("bad-bin", "not base64").is_err());
+/// # Ok::<(), pbrs_grpc::Status>(())
+/// ```
+///
+/// Reserved keys (`content-type`, `grpc-status`, `grpc-timeout`, HTTP/2
+/// pseudo-headers, ...) are invisible here and are never written out, so
+/// echoing received metadata back cannot corrupt the protocol framing.
+///
+/// The total size a peer can send is bounded by
+/// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
+/// not by this type.
 #[derive(Clone, Debug, Default)]
 pub struct Metadata {
-    ascii: Vec<(String, String)>,
-    bin: Vec<(String, Vec<u8>)>,
+    map: HeaderMap,
 }
 
 impl Metadata {
-    /// Empty set.
+    /// Empty metadata.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Whether any non-reserved entry is present.
     #[must_use]
-    pub(crate) fn is_empty(&self) -> bool {
-        self.ascii.is_empty() && self.bin.is_empty()
+    pub fn is_empty(&self) -> bool {
+        !self.map.keys().any(|k| !is_reserved(k.as_str()))
     }
 
-    /// Insert an ASCII value. Key must not end in `-bin`.
-    pub fn insert(
-        &mut self,
-        key: impl Into<String>,
-        value: impl Into<String>,
-    ) -> Result<(), Status> {
-        let key = key.into();
+    /// Number of non-reserved entries, counting repeats of the same key.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.map
+            .iter()
+            .filter(|(k, _)| !is_reserved(k.as_str()))
+            .count()
+    }
+
+    /// Add an ASCII entry. The key must not end in `-bin`.
+    ///
+    /// Repeated keys accumulate rather than replace, matching gRPC's
+    /// comma-joined multi-value semantics.
+    pub fn insert(&mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<(), Status> {
+        let key = key.as_ref();
         if key.ends_with("-bin") {
             return Err(Status::invalid_argument(
                 "ascii metadata key must not end in -bin",
             ));
         }
-        self.ascii.push((key, value.into()));
+        let name = header_name(key)?;
+        let value = HeaderValue::from_str(value.as_ref())
+            .map_err(|_| Status::invalid_argument("metadata value is not valid ASCII"))?;
+        self.map.append(name, value);
         Ok(())
     }
 
-    /// Insert a binary value. Key must end in `-bin`.
+    /// Add a binary entry. The key must end in `-bin`.
     pub fn insert_bin(
         &mut self,
-        key: impl Into<String>,
-        value: impl Into<Vec<u8>>,
+        key: impl AsRef<str>,
+        value: impl AsRef<[u8]>,
     ) -> Result<(), Status> {
-        let key = key.into();
+        let key = key.as_ref();
         if !key.ends_with("-bin") {
             return Err(Status::invalid_argument(
                 "binary metadata key must end in -bin",
             ));
         }
-        self.bin.push((key, value.into()));
+        let name = header_name(key)?;
+        let encoded = STANDARD_NO_PAD.encode(value.as_ref());
+        let value = HeaderValue::from_str(&encoded)
+            .map_err(|e| Status::internal(format!("base64 metadata: {e}")))?;
+        self.map.append(name, value);
         Ok(())
     }
 
-    /// ASCII value for `key`, if present.
+    /// First ASCII value for `key`, matched case-insensitively.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<&str> {
-        self.ascii
-            .iter()
-            .find(|(k, _)| k.eq_ignore_ascii_case(key))
-            .map(|(_, v)| v.as_str())
+        if is_reserved(key) {
+            return None;
+        }
+        self.map.get(key.to_ascii_lowercase())?.to_str().ok()
     }
 
-    /// Binary value for `key`, if present.
+    /// First `-bin` value for `key`, base64-decoded.
     #[must_use]
-    pub fn get_bin(&self, key: &str) -> Option<&[u8]> {
-        self.bin
-            .iter()
-            .find(|(k, _)| k.eq_ignore_ascii_case(key))
-            .map(|(_, v)| v.as_slice())
+    pub fn get_bin(&self, key: &str) -> Option<Vec<u8>> {
+        if is_reserved(key) {
+            return None;
+        }
+        let raw = self.map.get(key.to_ascii_lowercase())?.to_str().ok()?;
+        STANDARD_NO_PAD.decode(raw).ok()
+    }
+
+    /// Every ASCII entry, skipping reserved and `-bin` keys.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &str)> + '_ {
+        self.map.iter().filter_map(|(name, value)| {
+            let key = name.as_str();
+            if is_reserved(key) || key.ends_with("-bin") {
+                return None;
+            }
+            Some((key, value.to_str().ok()?))
+        })
+    }
+
+    /// Every `-bin` entry, base64-decoded.
+    pub fn iter_bin(&self) -> impl Iterator<Item = (&str, Vec<u8>)> + '_ {
+        self.map.iter().filter_map(|(name, value)| {
+            let key = name.as_str();
+            if is_reserved(key) || !key.ends_with("-bin") {
+                return None;
+            }
+            Some((key, STANDARD_NO_PAD.decode(value.to_str().ok()?).ok()?))
+        })
+    }
+
+    /// Take ownership of a received header map.
+    ///
+    /// No per-entry copying: reserved keys are filtered on read and on write,
+    /// so receiving metadata costs nothing until it is used.
+    pub(crate) fn from_owned_headers(map: HeaderMap) -> Self {
+        Self { map }
+    }
+
+    pub(crate) fn from_headers(map: &HeaderMap) -> Self {
+        Self { map: map.clone() }
     }
 
     pub(crate) fn write_to(&self, headers: &mut HeaderMap) -> Result<(), Status> {
-        for (k, v) in &self.ascii {
-            let name = HeaderName::from_bytes(k.as_bytes())
-                .map_err(|e| Status::internal(e.to_string()))?;
-            let value = HeaderValue::from_str(v).map_err(|e| Status::internal(e.to_string()))?;
-            headers.append(name, value);
-        }
-        for (k, v) in &self.bin {
-            let name = HeaderName::from_bytes(k.as_bytes())
-                .map_err(|e| Status::internal(e.to_string()))?;
-            let encoded = STANDARD_NO_PAD.encode(v);
-            let value =
-                HeaderValue::from_str(&encoded).map_err(|e| Status::internal(e.to_string()))?;
-            headers.append(name, value);
+        for (name, value) in &self.map {
+            if is_reserved(name.as_str()) {
+                continue;
+            }
+            headers.append(name.clone(), value.clone());
         }
         Ok(())
     }
-
-    pub(crate) fn from_headers(headers: &HeaderMap) -> Self {
-        let mut md = Self::new();
-        for (name, value) in headers {
-            let key = name.as_str();
-            if is_reserved(key) {
-                continue;
-            }
-            let Ok(raw) = value.to_str() else {
-                continue;
-            };
-            if key.ends_with("-bin") {
-                if let Ok(bytes) = STANDARD_NO_PAD.decode(raw) {
-                    md.bin.push((key.to_string(), bytes));
-                }
-            } else {
-                md.ascii.push((key.to_string(), raw.to_string()));
-            }
-        }
-        md
-    }
 }
 
+fn header_name(key: &str) -> Result<HeaderName, Status> {
+    HeaderName::from_bytes(key.as_bytes())
+        .map_err(|_| Status::invalid_argument(format!("invalid metadata key {key:?}")))
+}
+
+/// Keys the gRPC wire protocol owns. Never surfaced, never echoed.
 fn is_reserved(key: &str) -> bool {
     key.starts_with(':')
         || key.eq_ignore_ascii_case("content-type")
@@ -123,4 +176,87 @@ fn is_reserved(key: &str) -> bool {
         || key.eq_ignore_ascii_case("grpc-timeout")
         || key.eq_ignore_ascii_case("grpc-encoding")
         || key.eq_ignore_ascii_case("grpc-accept-encoding")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Metadata;
+    use http::{HeaderMap, HeaderName, HeaderValue};
+
+    #[test]
+    fn ascii_and_bin_are_separate_namespaces() {
+        let mut md = Metadata::new();
+        md.insert("a", "1").expect("ascii");
+        md.insert_bin("b-bin", [7u8, 8]).expect("bin");
+        assert_eq!(md.get("A"), Some("1"));
+        assert_eq!(md.get_bin("B-Bin").as_deref(), Some(&[7u8, 8][..]));
+        assert!(md.insert("c-bin", "x").is_err());
+        assert!(md.insert_bin("d", [0u8]).is_err());
+    }
+
+    #[test]
+    fn reserved_keys_are_invisible() {
+        let mut raw = HeaderMap::new();
+        raw.insert(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_static("application/grpc"),
+        );
+        raw.insert(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("0"),
+        );
+        raw.insert(
+            HeaderName::from_static("x-real"),
+            HeaderValue::from_static("v"),
+        );
+        let md = Metadata::from_headers(&raw);
+        assert!(!md.is_empty());
+        assert_eq!(md.len(), 1);
+        assert_eq!(md.get("content-type"), None);
+        assert_eq!(md.get("grpc-status"), None);
+        assert_eq!(md.get("x-real"), Some("v"));
+
+        let mut out = HeaderMap::new();
+        md.write_to(&mut out).expect("write");
+        assert_eq!(out.len(), 1);
+        assert!(out.contains_key("x-real"));
+    }
+
+    #[test]
+    fn only_reserved_keys_reads_as_empty() {
+        let mut raw = HeaderMap::new();
+        raw.insert(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_static("application/grpc"),
+        );
+        assert!(Metadata::from_headers(&raw).is_empty());
+    }
+
+    #[test]
+    fn repeated_keys_accumulate() {
+        let mut md = Metadata::new();
+        md.insert("k", "1").expect("first");
+        md.insert("k", "2").expect("second");
+        assert_eq!(md.len(), 2);
+        assert_eq!(md.get("k"), Some("1"));
+        let values: Vec<_> = md.iter().collect();
+        assert_eq!(values, vec![("k", "1"), ("k", "2")]);
+    }
+
+    #[test]
+    fn iterators_split_by_suffix() {
+        let mut md = Metadata::new();
+        md.insert("plain", "v").expect("ascii");
+        md.insert_bin("blob-bin", b"raw").expect("bin");
+        assert_eq!(md.iter().collect::<Vec<_>>(), vec![("plain", "v")]);
+        let bins: Vec<_> = md.iter_bin().collect();
+        assert_eq!(bins, vec![("blob-bin", b"raw".to_vec())]);
+    }
+
+    #[test]
+    fn invalid_keys_and_values_are_rejected() {
+        let mut md = Metadata::new();
+        assert!(md.insert("bad key", "v").is_err());
+        assert!(md.insert("k", "line\nbreak").is_err());
+    }
 }

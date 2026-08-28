@@ -1,10 +1,10 @@
 //! Official `--test_case` procedures driven through the shipped kernel client.
 
 use crate::status::{Code, Status};
-use crate::stream::InItem;
+use crate::stream::Framed;
 use crate::testing::{
     BoolValue, Empty, Payload, SimpleRequest, StreamingInputCallRequest,
-    StreamingOutputCallRequest, TestServiceClient,
+    StreamingOutputCallRequest, TestServiceClient, UnimplementedServiceClient,
 };
 use crate::{Request, Response};
 use std::net::SocketAddr;
@@ -225,7 +225,7 @@ async fn timeout_on_sleeping_server(client: &TestServiceClient) -> Result<(), St
 fn attach_custom_md<T>(req: &mut Request<T>) {
     req.metadata_mut().insert(INITIAL_MD, INITIAL_VAL).ok();
     req.metadata_mut()
-        .insert_bin(TRAILING_MD, TRAILING_VAL.to_vec())
+        .insert_bin(TRAILING_MD, TRAILING_VAL)
         .ok();
 }
 
@@ -236,7 +236,7 @@ fn check_custom_md<T>(resp: &Response<T>) -> Result<(), Status> {
     if resp.metadata().get_bin(TRAILING_MD).is_some() {
         return Err(Status::internal("trailing-bin in headers"));
     }
-    if resp.trailers().get_bin(TRAILING_MD) != Some(TRAILING_VAL) {
+    if resp.trailers().get_bin(TRAILING_MD).as_deref() != Some(TRAILING_VAL) {
         return Err(Status::internal("missing trailing-bin trailers"));
     }
     Ok(())
@@ -269,7 +269,7 @@ async fn custom_metadata(client: &TestServiceClient) -> Result<(), Status> {
     let mut inbound = resp.into_inner();
     while inbound.message().await?.is_some() {}
     let trailers = inbound.trailers().await;
-    if trailers.get_bin(TRAILING_MD) != Some(TRAILING_VAL) {
+    if trailers.get_bin(TRAILING_MD).as_deref() != Some(TRAILING_VAL) {
         return Err(Status::internal("missing trailing-bin trailers"));
     }
     Ok(())
@@ -327,22 +327,19 @@ async fn special_status_message(client: &TestServiceClient) -> Result<(), Status
     }
 }
 
+/// A method the service declares but the server refuses.
 async fn unimplemented_method(client: &TestServiceClient) -> Result<(), Status> {
-    match client
-        .unimplemented_method(Request::new(Empty::new()))
-        .await
-    {
-        Err(st) if st.code() == Code::Unimplemented => Ok(()),
-        Ok(_) => Err(Status::internal("want UNIMPLEMENTED got ok")),
-        Err(st) => Err(Status::internal(format!("want UNIMPLEMENTED {st}"))),
-    }
+    expect_unimplemented(client.unimplemented_call(Request::new(Empty::new())).await)
 }
 
+/// A service the server does not host at all, so the router rejects the path.
 async fn unimplemented_service(client: &TestServiceClient) -> Result<(), Status> {
-    match client
-        .unimplemented_service(Request::new(Empty::new()))
-        .await
-    {
+    let absent = UnimplementedServiceClient::new(client.channel().clone());
+    expect_unimplemented(absent.unimplemented_call(Request::new(Empty::new())).await)
+}
+
+fn expect_unimplemented<T>(result: Result<T, Status>) -> Result<(), Status> {
+    match result {
         Err(st) if st.code() == Code::Unimplemented => Ok(()),
         Ok(_) => Err(Status::internal("want UNIMPLEMENTED got ok")),
         Err(st) => Err(Status::internal(format!("want UNIMPLEMENTED {st}"))),
@@ -444,8 +441,8 @@ async fn server_compressed_streaming(client: &TestServiceClient) -> Result<(), S
     req.response_parameters_mut().push(p1);
     let resp = client.streaming_output_call(Request::new(req)).await?;
     let mut inbound = resp.into_inner();
-    let mut items: Vec<InItem<crate::testing::StreamingOutputCallResponse>> = Vec::new();
-    while let Some(item) = inbound.next_item().await? {
+    let mut items: Vec<Framed<crate::testing::StreamingOutputCallResponse>> = Vec::new();
+    while let Some(item) = inbound.next_framed().await? {
         items.push(item);
     }
     let first = items

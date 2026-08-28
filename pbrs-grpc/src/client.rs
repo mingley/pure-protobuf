@@ -1,9 +1,10 @@
-//! HTTP/2 gRPC client over pbrs messages.
+//! gRPC client: [`Channel`] and the four call shapes.
 
-use crate::codec::SizeLimits;
+use crate::config::ChannelConfig;
+use crate::limits::MessageLimits;
 use crate::request::{Call, Request, Response};
 use crate::status::{Code, Status};
-use crate::stream::{Inbound, StreamingSender};
+use crate::stream::{StreamSender, Streaming};
 use crate::wire::{
     encode_msg, finish_stream, finish_unary, grpc_request, pump_outbound, send_bytes,
 };
@@ -16,7 +17,70 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::watch;
+
+/// Where a [`Channel`] should dial.
+///
+/// Built with [`From`], so `Channel::connect` takes a `SocketAddr`, a
+/// `&str` of the form `host:port`, or a `String`.
+///
+/// ```
+/// use pbrs_grpc::Target;
+///
+/// let from_addr: Target = "127.0.0.1:50051".parse::<std::net::SocketAddr>()?.into();
+/// let from_name: Target = "greeter.internal:50051".into();
+/// assert_eq!(from_addr.authority(), "127.0.0.1:50051");
+/// assert_eq!(from_name.authority(), "greeter.internal:50051");
+/// # Ok::<(), std::net::AddrParseError>(())
+/// ```
+#[derive(Clone, Debug)]
+pub struct Target {
+    authority: String,
+}
+
+impl Target {
+    /// The `host:port` string used both for DNS and for `:authority`.
+    #[must_use]
+    pub fn authority(&self) -> &str {
+        &self.authority
+    }
+
+    fn parse(&self) -> Result<Authority, Status> {
+        self.authority.parse().map_err(|e| {
+            Status::unavailable(format!("invalid authority {:?}: {e}", self.authority))
+        })
+    }
+}
+
+impl From<SocketAddr> for Target {
+    fn from(addr: SocketAddr) -> Self {
+        Self {
+            authority: addr.to_string(),
+        }
+    }
+}
+
+impl From<&str> for Target {
+    fn from(authority: &str) -> Self {
+        Self {
+            authority: authority.to_owned(),
+        }
+    }
+}
+
+impl From<String> for Target {
+    fn from(authority: String) -> Self {
+        Self { authority }
+    }
+}
+
+impl From<&String> for Target {
+    fn from(authority: &String) -> Self {
+        Self {
+            authority: authority.clone(),
+        }
+    }
+}
 
 struct ChannelInner {
     sends: Vec<h2::client::SendRequest<Bytes>>,
@@ -24,36 +88,55 @@ struct ChannelInner {
     authority: Authority,
 }
 
-/// Prior-knowledge HTTP/2 connection to a gRPC server.
+/// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
 ///
-/// [`Self::connect`] is one connection. [`Self::connect_pool`] opens several
-/// so concurrent RPCs run on independent h2 driver tasks (one per tokio
-/// worker that the runtime schedules).
+/// Cloning is cheap and shares the underlying connections, so a `Channel` is
+/// meant to be cloned into every task that needs it.
+///
+/// ```no_run
+/// use pbrs_grpc::{Channel, ChannelConfig};
+///
+/// # async fn run() -> Result<(), pbrs_grpc::Status> {
+/// // One connection, 4 MiB inbound cap.
+/// let channel = Channel::connect("127.0.0.1:50051").await?;
+///
+/// // Four connections, so four cores can drive HTTP/2 framing.
+/// let pooled = Channel::connect_with(
+///     "127.0.0.1:50051",
+///     ChannelConfig::new().connections(4),
+/// )
+/// .await?;
+/// # let _ = (channel, pooled);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
-    limits: SizeLimits,
+    config: ChannelConfig,
 }
 
 impl Channel {
-    /// Dial `addr` with HTTP/2 prior knowledge (cleartext). One connection.
-    pub async fn connect(addr: SocketAddr) -> Result<Self, Status> {
-        Self::connect_pool(addr, 1).await
+    /// Dial `target` with default configuration: one connection, 4 MiB
+    /// inbound cap.
+    pub async fn connect(target: impl Into<Target>) -> Result<Self, Status> {
+        Self::connect_with(target, ChannelConfig::default()).await
     }
 
-    /// Dial `n` prior-knowledge HTTP/2 connections to `addr`.
+    /// Dial `target` with `config`.
     ///
-    /// RPCs pick a connection round-robin. Task-sticky assignment was
-    /// tried and reverted.
-    pub async fn connect_pool(addr: SocketAddr, n: usize) -> Result<Self, Status> {
-        let n = n.max(1);
-        let authority: Authority = addr
-            .to_string()
-            .parse()
-            .map_err(|e| Status::unavailable(format!("authority: {e}")))?;
+    /// Opens [`ChannelConfig::connections`] TCP connections up front; RPCs are
+    /// spread over them round-robin. All of them must succeed.
+    pub async fn connect_with(
+        target: impl Into<Target>,
+        config: ChannelConfig,
+    ) -> Result<Self, Status> {
+        let target = target.into();
+        let authority = target.parse()?;
+        let n = config.connection_count();
         let mut sends = Vec::with_capacity(n);
         for _ in 0..n {
-            sends.push(handshake(addr).await?);
+            sends.push(handshake(target.authority(), config).await?);
         }
         Ok(Self {
             inner: Arc::new(ChannelInner {
@@ -61,37 +144,51 @@ impl Channel {
                 next: AtomicUsize::new(0),
                 authority,
             }),
-            limits: SizeLimits::default(),
+            config,
         })
     }
 
-    /// Cap inbound gRPC message size in bytes. Default is unlimited.
+    /// Shorthand for [`Self::connect_with`] with `connections` connections.
     ///
-    /// Oversize decode is [`Code::ResourceExhausted`]. This is a cap, not a
-    /// latency or QPS win.
+    /// One connection means one `h2` driver task, so concurrent small RPCs
+    /// serialize behind a single core's framing work. Pooling is the fix.
+    pub async fn connect_pool(
+        target: impl Into<Target>,
+        connections: usize,
+    ) -> Result<Self, Status> {
+        Self::connect_with(target, ChannelConfig::default().connections(connections)).await
+    }
+
+    /// The configuration in effect.
+    #[must_use]
+    pub fn config(&self) -> ChannelConfig {
+        self.config
+    }
+
+    /// Cap inbound messages at `limit` bytes. Default 4 MiB.
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
-        self.limits.max_decoding = Some(limit);
+        self.config = self.config.max_decoding_message_size(limit);
         self
     }
 
-    /// Cap outbound gRPC message size in bytes. Default is unlimited.
-    ///
-    /// Oversize encode is [`Code::ResourceExhausted`] and fails closed before
-    /// send. This is a cap, not a latency or QPS win.
+    /// Cap outbound messages at `limit` bytes. Default unlimited.
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
-        self.limits.max_encoding = Some(limit);
+        self.config = self.config.max_encoding_message_size(limit);
         self
+    }
+
+    /// The `:authority` sent with every request.
+    #[must_use]
+    pub fn authority(&self) -> &str {
+        self.inner.authority.as_str()
     }
 
     fn grab(&self) -> Result<h2::client::SendRequest<Bytes>, Status> {
         let sends = &self.inner.sends;
         let n = sends.len();
-        if n == 0 {
-            return Err(Status::unavailable("empty connection pool"));
-        }
-        let i = if n == 1 {
+        let i = if n <= 1 {
             0
         } else {
             self.inner.next.fetch_add(1, Ordering::Relaxed) % n
@@ -102,11 +199,24 @@ impl Channel {
             .ok_or_else(|| Status::unavailable("empty connection pool"))
     }
 
-    fn authority(&self) -> Authority {
-        self.inner.authority.clone()
-    }
-
-    /// Unary RPC.
+    /// Issue a unary RPC: one request message, one response message.
+    ///
+    /// `path` is the full gRPC path, `/<package>.<Service>/<Method>`.
+    /// Generated clients call this for you.
+    ///
+    /// ```no_run
+    /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
+    /// # async fn run(channel: Channel) -> Result<(), pbrs_grpc::Status> {
+    /// let mut req = HelloRequest::new();
+    /// req.set_name("world");
+    /// let reply: HelloReply = channel
+    ///     .unary("/helloworld.Greeter/SayHello", Request::new(req))
+    ///     .await?
+    ///     .into_inner();
+    /// # let _ = reply;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn unary<Req, Resp>(&self, path: &'static str, req: Request<Req>) -> Call<Response<Resp>>
     where
         Req: Serialize + Send + 'static,
@@ -115,12 +225,10 @@ impl Channel {
         let (cancel, cancel_rx) = watch::channel(false);
         let send = match self.grab() {
             Ok(s) => s,
-            Err(e) => {
-                return Call::new(cancel, Box::pin(async move { Err(e) }));
-            }
+            Err(e) => return Call::new(cancel, Box::pin(async move { Err(e) })),
         };
-        let authority = self.authority();
-        let limits = self.limits;
+        let authority = self.inner.authority.clone();
+        let limits = self.config.limits();
         Call::new(
             cancel,
             Box::pin(
@@ -129,12 +237,12 @@ impl Channel {
         )
     }
 
-    /// Server-streaming RPC.
+    /// Issue a server-streaming RPC: one request message, many responses.
     pub fn server_streaming<Req, Resp>(
         &self,
         path: &'static str,
         req: Request<Req>,
-    ) -> Call<Response<Inbound<Resp>>>
+    ) -> Call<Response<Streaming<Resp>>>
     where
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
@@ -142,93 +250,110 @@ impl Channel {
         let (cancel, cancel_rx) = watch::channel(false);
         let send = match self.grab() {
             Ok(s) => s,
-            Err(e) => {
-                return Call::new(cancel, Box::pin(async move { Err(e) }));
-            }
+            Err(e) => return Call::new(cancel, Box::pin(async move { Err(e) })),
         };
-        let authority = self.authority();
-        let limits = self.limits;
+        let authority = self.inner.authority.clone();
+        let limits = self.config.limits();
+        let buffer = self.config.buffer();
         Call::new(
             cancel,
             Box::pin(async move {
-                run_server_stream(send, &authority, path, req, cancel_rx, limits).await
+                run_server_stream(send, &authority, path, req, cancel_rx, limits, buffer).await
             }),
         )
     }
 
-    /// Client-streaming RPC.
+    /// Issue a client-streaming RPC: many request messages, one response.
+    ///
+    /// Send on the returned [`StreamSender`], drop it to half-close, then
+    /// await the [`Call`].
+    ///
+    /// ```no_run
+    /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
+    /// # async fn run(channel: Channel) -> Result<(), pbrs_grpc::Status> {
+    /// let (tx, call) = channel.client_streaming::<HelloRequest, HelloReply>(
+    ///     "/helloworld.Greeter/ClientHello",
+    ///     Request::new(()),
+    /// );
+    /// for name in ["ada", "grace"] {
+    ///     let mut req = HelloRequest::new();
+    ///     req.set_name(name);
+    ///     tx.send(req).await?;
+    /// }
+    /// tx.close();
+    /// let reply = call.await?.into_inner();
+    /// # let _ = reply;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn client_streaming<Req, Resp>(
         &self,
         path: &'static str,
         req: Request<()>,
-    ) -> (StreamingSender<Req>, Call<Response<Resp>>)
+    ) -> (StreamSender<Req>, Call<Response<Resp>>)
     where
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
-        let (tx, rx) = mpsc::channel(16);
+        let limits = self.config.limits();
+        let (tx, rx) = Streaming::channel(self.config.buffer());
+        let tx = tx.with_limits(limits);
         let (cancel, cancel_rx) = watch::channel(false);
         let send = match self.grab() {
             Ok(s) => s,
-            Err(e) => {
-                let call = Call::new(cancel, Box::pin(async move { Err(e) }));
-                return (StreamingSender::new(tx, self.limits.max_encoding), call);
-            }
+            Err(e) => return (tx, Call::new(cancel, Box::pin(async move { Err(e) }))),
         };
-        let authority = self.authority();
-        let limits = self.limits;
+        let authority = self.inner.authority.clone();
         let call = Call::new(
-            cancel.clone(),
+            cancel,
             Box::pin(async move {
                 run_client_stream(send, &authority, path, req, rx, cancel_rx, limits).await
             }),
         );
-        (StreamingSender::new(tx, limits.max_encoding), call)
+        (tx, call)
     }
 
-    /// Bidi-streaming RPC.
+    /// Issue a bidirectional-streaming RPC.
     pub fn bidi<Req, Resp>(
         &self,
         path: &'static str,
         req: Request<()>,
-    ) -> (StreamingSender<Req>, Call<Response<Inbound<Resp>>>)
+    ) -> (StreamSender<Req>, Call<Response<Streaming<Resp>>>)
     where
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
-        let (tx, rx) = mpsc::channel(16);
+        let limits = self.config.limits();
+        let buffer = self.config.buffer();
+        let (tx, rx) = Streaming::channel(buffer);
+        let tx = tx.with_limits(limits);
         let (cancel, cancel_rx) = watch::channel(false);
         let send = match self.grab() {
             Ok(s) => s,
-            Err(e) => {
-                let call = Call::new(cancel, Box::pin(async move { Err(e) }));
-                return (StreamingSender::new(tx, self.limits.max_encoding), call);
-            }
+            Err(e) => return (tx, Call::new(cancel, Box::pin(async move { Err(e) }))),
         };
-        let authority = self.authority();
-        let limits = self.limits;
+        let authority = self.inner.authority.clone();
         let call = Call::new(
-            cancel.clone(),
-            Box::pin(
-                async move { run_bidi(send, &authority, path, req, rx, cancel_rx, limits).await },
-            ),
+            cancel,
+            Box::pin(async move {
+                run_bidi(send, &authority, path, req, rx, cancel_rx, limits, buffer).await
+            }),
         );
-        (StreamingSender::new(tx, limits.max_encoding), call)
+        (tx, call)
     }
 }
 
-async fn handshake(addr: SocketAddr) -> Result<h2::client::SendRequest<Bytes>, Status> {
-    let tcp = TcpStream::connect(addr)
+async fn handshake(
+    authority: &str,
+    config: ChannelConfig,
+) -> Result<h2::client::SendRequest<Bytes>, Status> {
+    let tcp = TcpStream::connect(authority)
         .await
-        .map_err(|e| Status::unavailable(e.to_string()))?;
+        .map_err(|e| Status::unavailable(format!("connect {authority}: {e}")))?;
     tcp.set_nodelay(true)
         .map_err(|e| Status::unavailable(e.to_string()))?;
-    let (send, conn) = h2::client::Builder::new()
-        .initial_window_size(16 * 1024 * 1024)
-        .initial_connection_window_size(16 * 1024 * 1024)
-        .max_frame_size(1024 * 1024)
-        .max_concurrent_streams(256)
-        .max_send_buffer_size(1024 * 1024)
+    let (send, conn) = config
+        .h2_builder()
         .handshake(tcp)
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;
@@ -244,13 +369,15 @@ async fn run_unary<Req, Resp>(
     path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: SizeLimits,
+    limits: MessageLimits,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize,
     Resp: Parse + Default,
 {
     let (msg, md, timeout, compress) = req.into_parts();
+    // Encode before opening the stream so an oversize message never reaches
+    // the wire and never occupies a stream slot.
     let frame = encode_msg(&msg, compress, limits)?;
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
@@ -260,7 +387,7 @@ where
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_unary::<Resp>(response, limits.max_decoding).await
+            finish_unary::<Resp>(response, limits).await
         },
         cancel_rx,
         timeout,
@@ -269,14 +396,19 @@ where
     .await
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one transport handle plus request, cancel, limits, and buffer"
+)]
 async fn run_server_stream<Req, Resp>(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
     path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: SizeLimits,
-) -> Result<Response<Inbound<Resp>>, Status>
+    limits: MessageLimits,
+    buffer: usize,
+) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize,
     Resp: Parse + Default + Send + 'static,
@@ -291,7 +423,7 @@ where
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response, limits.max_decoding).await
+            finish_stream::<Resp>(response, limits, buffer).await
         },
         cancel_rx,
         timeout,
@@ -300,14 +432,18 @@ where
     .await
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one transport handle plus request, stream, cancel, and limits"
+)]
 async fn run_client_stream<Req, Resp>(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
     path: &'static str,
     req: Request<()>,
-    rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
+    rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: SizeLimits,
+    limits: MessageLimits,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -326,7 +462,7 @@ where
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_unary::<Resp>(response, limits.max_decoding).await
+            finish_unary::<Resp>(response, limits).await
         },
         cancel_rx,
         timeout,
@@ -335,15 +471,20 @@ where
     .await
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one transport handle plus request, stream, cancel, limits, and buffer"
+)]
 async fn run_bidi<Req, Resp>(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
     path: &'static str,
     req: Request<()>,
-    rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
+    rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
-    limits: SizeLimits,
-) -> Result<Response<Inbound<Resp>>, Status>
+    limits: MessageLimits,
+    buffer: usize,
+) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default + Send + 'static,
@@ -361,7 +502,7 @@ where
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response, limits.max_decoding).await
+            finish_stream::<Resp>(response, limits, buffer).await
         },
         cancel_rx,
         timeout,
@@ -388,6 +529,8 @@ async fn open(
         .map_err(|e| Status::unavailable(e.to_string()))
 }
 
+/// Race the RPC against its deadline and its cancel signal, resetting the
+/// stream if either wins so the server stops working on it.
 async fn race<T>(
     fut: impl std::future::Future<Output = Result<T, Status>>,
     mut cancel_rx: watch::Receiver<bool>,
@@ -417,4 +560,24 @@ async fn race<T>(
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Target;
+    use std::net::SocketAddr;
+
+    #[test]
+    fn targets_accept_addresses_and_names() {
+        let addr: SocketAddr = "127.0.0.1:50051".parse().expect("addr");
+        assert_eq!(Target::from(addr).authority(), "127.0.0.1:50051");
+        assert_eq!(Target::from("host:1").authority(), "host:1");
+        assert_eq!(Target::from("host:1".to_owned()).authority(), "host:1");
+    }
+
+    #[test]
+    fn bad_authority_is_unavailable_not_a_panic() {
+        let err = Target::from("not a host").parse().expect_err("invalid");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
+    }
 }

@@ -1,34 +1,233 @@
-//! HTTP/2 gRPC kernel over **pbrs**.
+//! A pure-Rust gRPC kernel over [`pbrs`].
 //!
-//! Independent of `tonic` and of `protobuf-tonic`. The protobuf crate
-//! (`pbrs`) has no dependency on this crate. Use `protobuf-tonic` if you
-//! want generated tonic stubs instead of this stack.
+//! `pbrs-grpc` speaks gRPC over HTTP/2 with no C, no `unsafe`, and no
+//! dependency on `tonic`. It is a *kernel*: the protocol, the framing, the
+//! dispatch, and the safety limits, with nothing layered on top that you did
+//! not ask for.
+//!
+//! # Quickstart
+//!
+//! Given `proto/hello.proto`:
+//!
+//! ```proto
+//! syntax = "proto3";
+//! package helloworld;
+//!
+//! service Greeter {
+//!   rpc SayHello (HelloRequest) returns (HelloReply);
+//! }
+//!
+//! message HelloRequest { string name = 1; }
+//! message HelloReply   { string message = 1; }
+//! ```
+//!
+//! generate client and server stubs from `build.rs`:
+//!
+//! ```no_run
+//! // build.rs
+//! fn main() {
+//!     pbrs::codegen::Config::new()
+//!         .emit_kernel_stubs(true)
+//!         .compile_protos(&["proto/hello.proto"], &["proto"])
+//!         .expect("codegen");
+//! }
+//! ```
+//!
+//! then implement the generated trait and serve it:
+//!
+//! ```ignore
+//! use pbrs_grpc::{Request, Response, Status};
+//!
+//! include!(concat!(env!("OUT_DIR"), "/hello.rs"));
+//!
+//! struct MyGreeter;
+//!
+//! impl Greeter for MyGreeter {
+//!     async fn say_hello(
+//!         &self,
+//!         request: Request<HelloRequest>,
+//!     ) -> Result<Response<HelloReply>, Status> {
+//!         let mut reply = HelloReply::new();
+//!         reply.set_message(format!("hello {}", request.get_ref().name()));
+//!         Ok(Response::new(reply))
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Status> {
+//!     GreeterServer::new(MyGreeter)
+//!         .serve("127.0.0.1:50051".parse().expect("addr"))
+//!         .await
+//! }
+//! ```
+//!
+//! The client side mirrors it:
+//!
+//! ```ignore
+//! let channel = Channel::connect("127.0.0.1:50051").await?;
+//! let client = GreeterClient::new(channel);
+//!
+//! let mut req = HelloRequest::new();
+//! req.set_name("world");
+//! let reply = client.say_hello(Request::new(req)).await?;
+//! println!("{}", reply.get_ref().message());
+//! ```
+//!
+//! See [`docs/grpc.md`] in the repository for the full guide, and
+//! [`docs/benchmarks.md`] for measured numbers.
+//!
+//! [`docs/grpc.md`]: https://github.com/mingley/pure-protobuf/blob/main/docs/grpc.md
+//! [`docs/benchmarks.md`]: https://github.com/mingley/pure-protobuf/blob/main/docs/benchmarks.md
+//!
+//! # Map of the crate
+//!
+//! | Concern | Types |
+//! |---|---|
+//! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`ServerConfig`] |
+//! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`] |
+//! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`] |
+//! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
+//! | Limits | [`MessageLimits`] |
+//! | Wire format | [`codec`], [`gzip`], [`timeout`] |
+//!
+//! # Safety
+//!
+//! The crate forbids `unsafe` outright, so no invariant here is upheld by
+//! convention. What remains is resource safety against a peer that is trying
+//! to hurt you.
+//!
+//! ## Threat model
+//!
+//! The peer is assumed hostile and able to send any bytes at any rate. Each
+//! defence below is enforced before the memory it guards is committed.
+//!
+//! | Attack | Defence | Default |
+//! |---|---|---|
+//! | Huge declared message length | Refused from the 5-byte frame header, before the payload is buffered | 4 MiB ([`MessageLimits`]) |
+//! | Decompression bomb | Bounded inflate that stops one byte past the cap | 4 MiB ([`gzip::decode_limited`]) |
+//! | Metadata flood | HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE` | 16 KiB ([`ServerConfig::max_header_list_size`]) |
+//! | Stream flood | HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` | 256 ([`ServerConfig::max_concurrent_streams`]) |
+//! | Unbounded buffering | Per-connection window and send buffer | 16 MiB / 1 MiB |
+//! | Slow reader amplification | Capacity is released only after a chunk is handed on, so a slow handler throttles the peer | always on |
+//! | Deeply nested protobuf | Recursion limit in [`pbrs`] | always on |
+//! | Truncated or malformed frames | Rejected as a protocol error, never treated as an empty message | always on |
+//! | Reserved metadata injection | `grpc-status` and friends are never read from or written to user metadata | always on |
+//!
+//! Not in scope: transport confidentiality and peer authentication. This crate
+//! speaks cleartext prior-knowledge HTTP/2, so run it behind a mesh sidecar or
+//! on a trusted network.
+//!
+//! ## `unsafe`
+//!
+//! Every hand-written module in this crate carries `#[forbid(unsafe_code)]`,
+//! which cannot be overridden from inside the module. The two exceptions are
+//! [`hello`] and [`testing`], which `include!` generated message code; `pbrs`
+//! gencode uses `unsafe` for zeroed-message construction, and that is a `pbrs`
+//! property rather than a gRPC one. No gRPC framing, dispatch, or transport
+//! code in this crate contains `unsafe`.
+//!
+//! ## Panics
+//!
+//! No public API panics on peer input. `unwrap`, `expect`, `panic!`,
+//! indexing, and lossy numeric casts are denied at the lint level for the
+//! whole workspace, so bad input becomes a [`Status`], not an abort.
+//!
+//! # Tuning
+//!
+//! Defaults are chosen for correctness and safety first, then throughput.
+//! Three knobs matter:
+//!
+//! 1. **[`ChannelConfig::connections`]** — one connection is one `h2` driver
+//!    task, so concurrent small RPCs serialize behind one core. Pooling is the
+//!    single biggest win for client-side throughput.
+//! 2. **Window sizes** — the 16 MiB default keeps a 4 MiB message from
+//!    stalling on a `WINDOW_UPDATE` round trip. Lower it only under memory
+//!    pressure.
+//! 3. **[`ServerConfig::stream_buffer`]** — how many messages sit between a
+//!    streaming handler and the wire. Higher smooths bursty producers at the
+//!    cost of memory.
+//!
+//! Compression is not free: [`Request::set_compress`] trades CPU for
+//! bandwidth, and at LAN latencies identity framing usually wins.
+//!
+//! # Relationship to the rest of the workspace
+//!
+//! [`pbrs`] does not depend on this crate, and this crate does not depend on
+//! `tonic` or `protobuf-tonic`. Use `protobuf-tonic` if you need to keep an
+//! existing `tonic` service and only want pbrs message types.
 
+#![deny(unsafe_code)]
 #![deny(unsafe_op_in_unsafe_fn)]
+#![deny(rustdoc::broken_intra_doc_links)]
+#![allow(
+    clippy::needless_doctest_main,
+    reason = "the quickstart shows a real build.rs, which needs its main"
+)]
 
+// Generated stubs refer to this crate by name. Inside the crate itself that
+// name would not resolve without this alias.
+extern crate self as pbrs_grpc;
+
+// `forbid` on each hand-written module cannot be relaxed from inside it, so
+// the no-`unsafe` claim is machine-checked rather than a convention. `hello`
+// and `testing` are excluded because they include generated message code.
+#[forbid(unsafe_code)]
 pub mod codec;
+#[forbid(unsafe_code)]
 pub mod gzip;
-pub mod hello;
+#[forbid(unsafe_code)]
+pub mod interop_cases;
+#[forbid(unsafe_code)]
 pub mod timeout;
 
+pub mod hello;
+
+#[forbid(unsafe_code)]
 mod client;
-pub mod interop_cases;
+#[forbid(unsafe_code)]
+mod config;
+#[forbid(unsafe_code)]
+mod limits;
+#[forbid(unsafe_code)]
 mod metadata;
+#[forbid(unsafe_code)]
 mod request;
+#[forbid(unsafe_code)]
 mod server;
+#[forbid(unsafe_code)]
 mod status;
+#[forbid(unsafe_code)]
 mod stream;
-mod testing;
+#[forbid(unsafe_code)]
 mod wire;
 
-pub use client::Channel;
+mod testing;
+
+/// Re-exports that `protoc-gen-pbrs` stubs name explicitly.
+///
+/// Generated code must not assume the surrounding crate depends on `tokio` by
+/// that name, so it reaches for these instead. Not a stable API.
+#[doc(hidden)]
+#[forbid(unsafe_code)]
+pub mod codegen_support {
+    pub use tokio::net::TcpListener;
+}
+
+pub use client::{Channel, Target};
+pub use config::{
+    ChannelConfig, ServerConfig, DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_FRAME_SIZE,
+    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
+    DEFAULT_WINDOW_SIZE,
+};
+pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
+pub use metadata::Metadata;
+pub use request::{Call, CallHandle, Parts, Request, Response};
+pub use server::{Router, Rpc, Server, Service};
+pub use status::{Code, Status};
+pub use stream::{Framed, StreamSender, Streaming};
+
 pub use hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 pub use interop_cases::run_case;
-pub use metadata::Metadata;
-pub use request::{Call, CallHandle, Request, Response};
-pub use server::{Http2Handler, Server};
-pub use status::{Code, Status};
-pub use stream::{InItem, Inbound, OutItem, StreamingSender};
 pub use testing::{
     BoolValue, EchoStatus, Empty, InteropTestService, Payload, ResponseParameters, SimpleRequest,
     SimpleResponse, StreamingInputCallRequest, StreamingInputCallResponse,
