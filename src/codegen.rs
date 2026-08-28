@@ -1414,7 +1414,6 @@ fn json_encode_leaf(f: &FieldDescriptor, expr: &str, view: bool) -> String {
             )
         }
         FieldType::Message | FieldType::Group => format!("{expr}.to_json_value()?"),
-        _ => format!("pbrs::json::int32({expr})"),
     }
 }
 
@@ -1440,7 +1439,6 @@ fn json_decode_leaf(f: &FieldDescriptor, val: &str) -> String {
         FieldType::Message | FieldType::Group => {
             format!("{}::from_json_value({val}, ignore)?", scalar_type(f))
         }
-        _ => format!("pbrs::json::as_i32({val})?"),
     }
 }
 
@@ -1571,7 +1569,6 @@ fn text_decode_leaf(f: &FieldDescriptor, val: &str) -> String {
         FieldType::Message | FieldType::Group => {
             format!("{}::from_text_value({val}.as_message()?)?", scalar_type(f))
         }
-        _ => format!("{val}.as_i32()?"),
     }
 }
 

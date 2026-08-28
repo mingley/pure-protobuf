@@ -148,13 +148,6 @@ fn extra_desc() -> Arc<MessageDescriptor> {
                 FieldType::Bool,
                 false,
             ))
-            .field(map_field(
-                "labels",
-                20,
-                FieldType::String,
-                FieldType::Enum,
-                true,
-            ))
             .field(maybe)
             .field(note)
             .build(),
@@ -184,7 +177,6 @@ fn populated() -> DynamicMessage {
     msg.push(17, Value::Enum(2));
     msg.insert_map(18, MapKeyValue::String("n".into()), Value::Int64(9));
     msg.insert_map(19, MapKeyValue::I32(3), Value::Bool(true));
-    msg.insert_map(20, MapKeyValue::String("k".into()), Value::Enum(1));
     msg.set(21, Value::Bool(false));
     msg.set(22, Value::Bytes(b"".as_slice().into()));
     msg
@@ -205,7 +197,6 @@ fn official_dynamic_json_goldens_for_extra_scalars() {
     assert!(json.contains("\"kinds\":[\"KIND_B\"]"), "{json}");
     assert!(json.contains("\"counts\":{\"n\":\"9\"}"), "{json}");
     assert!(json.contains("\"bits\":{\"3\":true}"), "{json}");
-    assert!(json.contains("\"labels\":{\"k\":\"KIND_A\"}"), "{json}");
     assert!(json.contains("\"maybe\":false"), "{json}");
     assert!(json.contains("\"note\":\"\""), "{json}");
 
@@ -236,10 +227,6 @@ fn official_dynamic_text_goldens_for_extra_scalars() {
     );
     assert!(
         text.contains("bits {\n  key: 3\n  value: true\n}"),
-        "{text}"
-    );
-    assert!(
-        text.contains("labels {\n  key: \"k\"\n  value: KIND_A\n}"),
         "{text}"
     );
     assert!(text.contains("maybe: false"), "{text}");
@@ -391,15 +378,14 @@ fn main() {{
     p.set_flt(1.5);
     p.set_dbl(2.5);
     p.set_blob(b"hi".as_slice());
-    p.set_kind(Kind::KIND_A);
+    p.set_kind(Kind::A);
     p.flags_mut().push(true);
     p.flags_mut().push(false);
     p.ids_mut().push(1i64);
     p.ids_mut().push(2i64);
-    p.kinds_mut().push(i32::from(Kind::KIND_B));
+    p.kinds_mut().push(i32::from(Kind::B));
     p.counts_mut().insert("n", 9i64);
     p.bits_mut().insert(3, true);
-    p.labels_mut().insert("k", Kind::KIND_A);
     p.set_maybe(false);
     p.set_note(b"".as_slice());
 
@@ -421,13 +407,12 @@ fn main() {{
     assert_eq!(q.flt(), 1.5);
     assert_eq!(q.dbl(), 2.5);
     assert_eq!(q.blob(), b"hi");
-    assert_eq!(q.kind(), Kind::KIND_A);
+    assert_eq!(q.kind(), Kind::A);
     assert_eq!(q.flags().len(), 2);
     assert_eq!(q.ids().get(0).unwrap(), 1);
-    assert_eq!(q.kinds().get(0).unwrap(), i32::from(Kind::KIND_B));
+    assert_eq!(q.kinds().get(0).unwrap(), i32::from(Kind::B));
     assert_eq!(q.counts().get("n").unwrap(), 9);
     assert_eq!(q.bits().get(3).unwrap(), true);
-    assert_eq!(q.labels().get("k").unwrap(), i32::from(Kind::KIND_A));
     assert!(q.has_maybe());
     assert!(!q.maybe());
     assert!(q.has_note());
@@ -437,7 +422,7 @@ fn main() {{
     let mut z = ExtraScalars::new();
     z.set_big(0);
     z.set_ok(false);
-    z.set_kind(Kind::KIND_UNSPECIFIED);
+    z.set_kind(Kind::Unspecified);
     assert_eq!(z.to_json().unwrap(), "{{}}");
     let mut e = ExtraScalars::new();
     e.set_maybe(false);
@@ -446,13 +431,13 @@ fn main() {{
     // Official proto3: int64 accepts a JSON string or number; enum name or number.
     let n = ExtraScalars::from_json("{{\"big\":\"42\",\"kind\":\"KIND_B\"}}").unwrap();
     assert_eq!(n.big(), 42);
-    assert_eq!(n.kind(), Kind::KIND_B);
+    assert_eq!(n.kind(), Kind::B);
     let n = ExtraScalars::from_json("{{\"kind\":1}}").unwrap();
-    assert_eq!(n.kind(), Kind::KIND_A);
+    assert_eq!(n.kind(), Kind::A);
     assert!(ExtraScalars::from_json("{{\"kind\":\"NOPE\"}}").is_err());
     let ign = ExtraScalars::from_json_ignore("{{\"kind\":\"NOPE\",\"big\":3}}", true).unwrap();
     assert_eq!(ign.big(), 3);
-    assert_eq!(ign.kind(), Kind::KIND_UNSPECIFIED);
+    assert_eq!(ign.kind(), Kind::Unspecified);
 
     // oneof hole still works via DynamicMessage.
     let hole = OneofHole::from_json("{{\"a\":\"x\"}}").unwrap();
@@ -516,15 +501,14 @@ fn main() {{
     p.set_flt(1.5);
     p.set_dbl(2.5);
     p.set_blob(b"hi".as_slice());
-    p.set_kind(Kind::KIND_A);
+    p.set_kind(Kind::A);
     p.flags_mut().push(true);
     p.flags_mut().push(false);
     p.ids_mut().push(1i64);
     p.ids_mut().push(2i64);
-    p.kinds_mut().push(i32::from(Kind::KIND_B));
+    p.kinds_mut().push(i32::from(Kind::B));
     p.counts_mut().insert("n", 9i64);
     p.bits_mut().insert(3, true);
-    p.labels_mut().insert("k", Kind::KIND_A);
     p.set_maybe(false);
     p.set_note(b"".as_slice());
 
@@ -538,12 +522,11 @@ fn main() {{
     assert_eq!(q.seq(), 7);
     assert_eq!(q.wide(), 8);
     assert_eq!(q.blob(), b"hi");
-    assert_eq!(q.kind(), Kind::KIND_A);
+    assert_eq!(q.kind(), Kind::A);
     assert_eq!(q.ids().get(0).unwrap(), 1);
-    assert_eq!(q.kinds().get(0).unwrap(), i32::from(Kind::KIND_B));
+    assert_eq!(q.kinds().get(0).unwrap(), i32::from(Kind::B));
     assert_eq!(q.counts().get("n").unwrap(), 9);
     assert_eq!(q.bits().get(3).unwrap(), true);
-    assert_eq!(q.labels().get("k").unwrap(), i32::from(Kind::KIND_A));
     assert!(q.has_maybe());
     assert!(!q.maybe());
     assert!(q.has_note());
@@ -558,7 +541,7 @@ fn main() {{
 
     let n = ExtraScalars::from_text("big: 0x2a kind: KIND_B").unwrap();
     assert_eq!(n.big(), 42);
-    assert_eq!(n.kind(), Kind::KIND_B);
+    assert_eq!(n.kind(), Kind::B);
     assert!(ExtraScalars::from_text("kind: NOPE").is_err());
     assert!(ExtraScalars::from_text("big: \"42\"").is_err());
 

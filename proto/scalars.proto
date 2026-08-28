@@ -31,7 +31,8 @@ message ExtraScalars {
   repeated Kind kinds = 17;
   map<string, int64> counts = 18;
   map<int32, bool> bits = 19;
-  map<string, Kind> labels = 20;
+  // map<string, Kind> is skipped: map-entry descriptors at codegen do not
+  // carry enum names, so field-wise names would be a guess.
   optional bool maybe = 21;
   optional bytes note = 22;
 }

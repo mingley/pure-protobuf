@@ -32,10 +32,11 @@ submessage.
 Generated proto3 JSON and text are field-wise for messages whose fields
 are proto3 scalars (int32, int64, uint32, uint64, sint32, sint64,
 fixed32, fixed64, sfixed32, sfixed64, bool, float, double, string,
-bytes), open proto3 enums, repeated and map of those types, or nested
-messages of that set (`Person`, `hello`, `ExtraScalars`). WKT, real
-oneofs, and TAT still serialize to bytes and transcode through
-`DynamicMessage`. TAT is not closed.
+bytes), open proto3 enums, repeated and scalar maps of those types, or
+nested messages of that set (`Person`, `hello`, `ExtraScalars`).
+Map-of-enum is skipped (map-entry descriptors lack enum names at
+codegen). WKT, real oneofs, and TAT still serialize to bytes and
+transcode through `DynamicMessage`. TAT is not closed.
 
 ## Codegen
 

@@ -100,7 +100,9 @@ See `docs/upb.md`. Short list:
   generated JSON and text. Person-shaped proto3 and the extra proto3
   scalars (bool, int64, uint32, uint64, sint32, sint64, fixed32,
   fixed64, sfixed32, sfixed64, float, double, bytes, open proto3 enums,
-  plus repeated / map of those types) are field-wise. TAT is not closed
+  plus repeated and scalar maps of those types) are field-wise.
+  Map-of-enum is skipped: map-entry descriptors used at codegen do not
+  carry enum names, so names would be a guess. TAT is not closed
   (it still has oneofs and WKT). Remaining is not closed.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are last-wins `Vec` plus a lazy index (not a codec win).
