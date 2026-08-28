@@ -35,11 +35,13 @@ fixed32, fixed64, sfixed32, sfixed64, bool, float, double, string,
 bytes), open proto3 enums, repeated and scalar maps of those types,
 nested messages of that set, real oneofs of that set (`Person`,
 `hello`, `ExtraScalars`, `OneofHole`), or `google.protobuf.Timestamp`
-/ `Duration` (official proto3 JSON string mapping; text is
-`seconds` / `nanos`). Map-of-enum is skipped (map-entry descriptors
-lack enum names at codegen). Other WKT (Struct, Value, ListValue,
-Any, FieldMask, Empty, wrappers) and TAT still serialize to bytes
-and transcode through `DynamicMessage`. TAT is not closed.
+/ `Duration` / `Empty` / proto3 wrappers (official proto3 JSON:
+Timestamp / Duration strings; Empty is `{}`; wrappers are the
+wrapped value, not an object; text is the existing field mapping).
+Map-of-enum is skipped (map-entry descriptors lack enum names at
+codegen). Other WKT (Struct, Value, ListValue, Any, FieldMask) and
+TAT still serialize to bytes and transcode through `DynamicMessage`.
+TAT is not closed.
 
 ## Codegen
 
@@ -63,7 +65,7 @@ TestAllTypes lives in `src/generated/` and is re-exported from
 | `packed` | packed scalars; memcpy only for fixed-width |
 | `repeated` / `map` | 8-byte empty (`Option<Box<Vec<_>>>`) |
 | `dynamic` | `DescriptorPool`, `DynamicMessage` |
-| `json` / `text` | WKT + spec codecs on dynamic messages; field-wise generated helpers for Person-shaped proto3, extra proto3 scalars, real oneofs of that set, and Timestamp / Duration |
+| `json` / `text` | WKT + spec codecs on dynamic messages; field-wise generated helpers for Person-shaped proto3, extra proto3 scalars, real oneofs of that set, Timestamp / Duration, Empty, and proto3 wrappers |
 | `codegen` | plugin + FileDescriptorSet |
 | `gen_support` | `impl_typed_message!`, default instances |
 

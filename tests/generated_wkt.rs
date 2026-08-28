@@ -1,9 +1,10 @@
-//! Field-wise JSON and text for generated Timestamp / Duration.
+//! Field-wise JSON and text for generated Timestamp / Duration / Empty /
+//! proto3 wrappers.
 //!
-//! These checks fail on current main: generated `Timestamp` / `Duration`
+//! These checks fail on current main: generated `Empty` / wrapper
 //! `to_json` / `to_text` still serialize then `DynamicMessage`. After the
-//! cut they must not. Other WKT and TAT stay on `DynamicMessage`.
-//! Remaining is not closed.
+//! cut they must not. Struct / Value / ListValue / Any / FieldMask and
+//! TAT stay on `DynamicMessage`. Remaining is not closed.
 
 #![allow(
     clippy::disallowed_methods,
@@ -20,7 +21,12 @@
     unreachable_pub,
     reason = "integration tests are sync; generated fixtures live in the test crate"
 )]
-use pbrs::gencode::{Duration as GenDuration, Timestamp as GenTimestamp};
+use pbrs::gencode::{
+    BoolValue as GenBoolValue, BytesValue as GenBytesValue, DoubleValue as GenDoubleValue,
+    Duration as GenDuration, Empty as GenEmpty, FloatValue as GenFloatValue,
+    Int32Value as GenInt32Value, Int64Value as GenInt64Value, StringValue as GenStringValue,
+    Timestamp as GenTimestamp, UInt32Value as GenUInt32Value, UInt64Value as GenUInt64Value,
+};
 use pbrs::{DynamicMessage, Value};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -56,6 +62,24 @@ fn dm_duration(seconds: i64, nanos: i32) -> DynamicMessage {
     }
     if nanos != 0 {
         msg.set(2, Value::Int32(nanos));
+    }
+    msg
+}
+
+fn wkt_desc(name: &str) -> Arc<pbrs::MessageDescriptor> {
+    pbrs::gencode::conformance_pool()
+        .get_message(name)
+        .unwrap_or_else(|| panic!("{name} desc"))
+}
+
+fn dm_empty() -> DynamicMessage {
+    DynamicMessage::new(wkt_desc("google.protobuf.Empty"))
+}
+
+fn dm_wrapper(name: &str, value: Option<Value>) -> DynamicMessage {
+    let mut msg = DynamicMessage::new(wkt_desc(name));
+    if let Some(v) = value {
+        msg.set(1, v);
     }
     msg
 }
@@ -215,6 +239,36 @@ fn checked_in_duration_json_text_is_field_wise() {
     let src = checked_in("duration.rs");
     assert_wkt_json_field_wise(&src, "Duration", "duration");
     assert_wkt_text_field_wise(&src, "Duration");
+}
+
+/// Fails on current main: checked-in Empty `to_json` still mentions
+/// `DynamicMessage`.
+#[test]
+fn checked_in_empty_json_text_is_field_wise() {
+    let src = checked_in("empty.rs");
+    assert_wkt_json_field_wise(&src, "Empty", "empty");
+    assert_wkt_text_field_wise(&src, "Empty");
+}
+
+/// Fails on current main: checked-in wrapper `to_json` still mentions
+/// `DynamicMessage`.
+#[test]
+fn checked_in_wrappers_json_text_is_field_wise() {
+    let src = checked_in("wrappers.rs");
+    for (ty, helper) in [
+        ("BoolValue", "boolean"),
+        ("Int32Value", "int32"),
+        ("Int64Value", "int64"),
+        ("UInt32Value", "uint32"),
+        ("UInt64Value", "uint64"),
+        ("FloatValue", "float"),
+        ("DoubleValue", "double"),
+        ("StringValue", "string"),
+        ("BytesValue", "bytes"),
+    ] {
+        assert_wkt_json_field_wise(&src, ty, helper);
+        assert_wkt_text_field_wise(&src, ty);
+    }
 }
 
 #[test]
@@ -522,5 +576,436 @@ fn gencode_timestamp_duration_match_dynamic_message() {
     assert_eq!(
         GenDuration::new().to_json().unwrap(),
         dm_duration(0, 0).to_json().unwrap()
+    );
+}
+
+#[test]
+fn generated_empty_json_is_field_wise_and_matches_proto3() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-json-empty");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/google/protobuf/empty.proto", &tmp);
+    assert_wkt_json_field_wise(&generated, "Empty", "empty");
+
+    let official = dm_empty().to_json().unwrap();
+    assert_eq!(official, "{}");
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    let official = {official:?};
+    assert_eq!(Empty::new().to_json().unwrap(), official);
+    assert_eq!(Empty::from_json("{{}}").unwrap(), Empty::new());
+    assert!(Empty::from_json("[]").is_err());
+    assert!(Empty::from_json("null").is_err());
+    assert!(Empty::from_json("{{\"nope\":1}}").is_err());
+    assert_eq!(Empty::from_json_ignore("{{\"nope\":1}}", true).unwrap(), Empty::new());
+    let json = Empty::new().to_json().expect("to_json");
+    assert!(!json.contains("DynamicMessage"), "{{json}}");
+    println!("ok empty json");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok empty json");
+}
+
+#[test]
+fn generated_empty_text_is_field_wise_and_matches_proto3() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-text-empty");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/google/protobuf/empty.proto", &tmp);
+    assert_wkt_text_field_wise(&generated, "Empty");
+
+    let official = dm_empty().to_text().unwrap();
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    let official = {official:?};
+    assert_eq!(Empty::new().to_text().unwrap(), official);
+    assert_eq!(Empty::from_text("").unwrap(), Empty::new());
+    assert!(Empty::from_text("nope: 1").is_err());
+    let text = Empty::new().to_text().expect("to_text");
+    assert!(!text.contains("DynamicMessage"), "{{text}}");
+    println!("ok empty text");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok empty text");
+}
+
+#[test]
+fn generated_wrappers_json_is_field_wise_and_matches_proto3() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-json-wrappers");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/google/protobuf/wrappers.proto", &tmp);
+    for (ty, helper) in [
+        ("BoolValue", "boolean"),
+        ("Int32Value", "int32"),
+        ("Int64Value", "int64"),
+        ("UInt32Value", "uint32"),
+        ("UInt64Value", "uint64"),
+        ("FloatValue", "float"),
+        ("DoubleValue", "double"),
+        ("StringValue", "string"),
+        ("BytesValue", "bytes"),
+    ] {
+        assert_wkt_json_field_wise(&generated, ty, helper);
+    }
+
+    let official_bool = dm_wrapper("google.protobuf.BoolValue", Some(Value::Bool(true)))
+        .to_json()
+        .unwrap();
+    let official_bool_empty = dm_wrapper("google.protobuf.BoolValue", None)
+        .to_json()
+        .unwrap();
+    let official_i32 = dm_wrapper("google.protobuf.Int32Value", Some(Value::Int32(-7)))
+        .to_json()
+        .unwrap();
+    let official_i64 = dm_wrapper("google.protobuf.Int64Value", Some(Value::Int64(42)))
+        .to_json()
+        .unwrap();
+    let official_u32 = dm_wrapper("google.protobuf.UInt32Value", Some(Value::Uint32(9)))
+        .to_json()
+        .unwrap();
+    let official_u64 = dm_wrapper("google.protobuf.UInt64Value", Some(Value::Uint64(11)))
+        .to_json()
+        .unwrap();
+    let official_f32 = dm_wrapper("google.protobuf.FloatValue", Some(Value::Float(1.5)))
+        .to_json()
+        .unwrap();
+    let official_f64 = dm_wrapper("google.protobuf.DoubleValue", Some(Value::Double(2.5)))
+        .to_json()
+        .unwrap();
+    let official_str = dm_wrapper(
+        "google.protobuf.StringValue",
+        Some(Value::String(pbrs::ProtoString::from("hi"))),
+    )
+    .to_json()
+    .unwrap();
+    let official_bytes = dm_wrapper(
+        "google.protobuf.BytesValue",
+        Some(Value::Bytes(pbrs::ProtoBytes::from(vec![1, 2, 3]))),
+    )
+    .to_json()
+    .unwrap();
+    let official_i64_empty = dm_wrapper("google.protobuf.Int64Value", None)
+        .to_json()
+        .unwrap();
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    assert_eq!(BoolValue::new().to_json().unwrap(), {official_bool_empty:?});
+    let mut b = BoolValue::new();
+    b.set_value(true);
+    let json = b.to_json().expect("to_json");
+    assert_eq!(json, {official_bool:?});
+    assert!(!json.contains("DynamicMessage"), "{{json}}");
+    assert!(BoolValue::from_json("{{}}").is_err());
+    assert!(BoolValue::from_json(&json).unwrap().value());
+
+    let mut i = Int32Value::new();
+    i.set_value(-7);
+    assert_eq!(i.to_json().unwrap(), {official_i32:?});
+    assert_eq!(Int32Value::from_json({official_i32:?}).unwrap().value(), -7);
+
+    let mut i64 = Int64Value::new();
+    i64.set_value(42);
+    assert_eq!(i64.to_json().unwrap(), {official_i64:?});
+    assert_eq!(Int64Value::new().to_json().unwrap(), {official_i64_empty:?});
+    assert_eq!(Int64Value::from_json({official_i64:?}).unwrap().value(), 42);
+
+    let mut u = UInt32Value::new();
+    u.set_value(9);
+    assert_eq!(u.to_json().unwrap(), {official_u32:?});
+    let mut u64 = UInt64Value::new();
+    u64.set_value(11);
+    assert_eq!(u64.to_json().unwrap(), {official_u64:?});
+
+    let mut f = FloatValue::new();
+    f.set_value(1.5);
+    assert_eq!(f.to_json().unwrap(), {official_f32:?});
+    let mut d = DoubleValue::new();
+    d.set_value(2.5);
+    assert_eq!(d.to_json().unwrap(), {official_f64:?});
+
+    let mut s = StringValue::new();
+    s.set_value("hi");
+    assert_eq!(s.to_json().unwrap(), {official_str:?});
+    assert_eq!(StringValue::from_json({official_str:?}).unwrap().value(), "hi");
+
+    let mut bytes = BytesValue::new();
+    bytes.set_value(vec![1, 2, 3]);
+    assert_eq!(bytes.to_json().unwrap(), {official_bytes:?});
+    assert_eq!(BytesValue::from_json({official_bytes:?}).unwrap().value(), &[1, 2, 3]);
+    println!("ok wrappers json");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok wrappers json");
+}
+
+#[test]
+fn generated_wrappers_text_is_field_wise_and_matches_proto3() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-text-wrappers");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/google/protobuf/wrappers.proto", &tmp);
+    for ty in [
+        "BoolValue",
+        "Int32Value",
+        "Int64Value",
+        "StringValue",
+        "BytesValue",
+    ] {
+        assert_wkt_text_field_wise(&generated, ty);
+    }
+
+    let official_empty = dm_wrapper("google.protobuf.BoolValue", None)
+        .to_text()
+        .unwrap();
+    let official_bool = dm_wrapper("google.protobuf.BoolValue", Some(Value::Bool(true)))
+        .to_text()
+        .unwrap();
+    let official_i32 = dm_wrapper("google.protobuf.Int32Value", Some(Value::Int32(42)))
+        .to_text()
+        .unwrap();
+    let official_str = dm_wrapper(
+        "google.protobuf.StringValue",
+        Some(Value::String(pbrs::ProtoString::from("hi"))),
+    )
+    .to_text()
+    .unwrap();
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    assert_eq!(BoolValue::new().to_text().unwrap(), {official_empty:?});
+    let mut b = BoolValue::new();
+    b.set_value(true);
+    let text = b.to_text().expect("to_text");
+    assert_eq!(text, {official_bool:?});
+    assert!(!text.contains("DynamicMessage"), "{{text}}");
+    assert!(BoolValue::from_text(&text).unwrap().value());
+
+    let mut i = Int32Value::new();
+    i.set_value(42);
+    assert_eq!(i.to_text().unwrap(), {official_i32:?});
+    assert_eq!(Int32Value::from_text("value: 0x2a").unwrap().value(), 42);
+
+    let mut s = StringValue::new();
+    s.set_value("hi");
+    assert_eq!(s.to_text().unwrap(), {official_str:?});
+    println!("ok wrappers text");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok wrappers text");
+}
+
+#[test]
+fn generated_has_empty_wrappers_parent_is_field_wise() {
+    let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("generated-json-has-empty-wrappers");
+    let _ = std::fs::remove_dir_all(&tmp);
+    std::fs::create_dir_all(&tmp).unwrap();
+    let generated = generate("proto/wkt.proto", &tmp);
+    assert_wkt_json_field_wise(&generated, "Empty", "empty");
+    assert_wkt_json_field_wise(&generated, "BoolValue", "boolean");
+    let has = json_method_block(&generated, "HasEmptyWrappers");
+    assert!(
+        has.contains("to_json_value"),
+        "HasEmptyWrappers JSON must be field-wise:\n{has}"
+    );
+    assert!(
+        !has.contains("DynamicMessage"),
+        "HasEmptyWrappers JSON must not allocate DynamicMessage:\n{has}"
+    );
+    let official_empty = dm_empty().to_json().unwrap();
+    let official_bool = dm_wrapper("google.protobuf.BoolValue", Some(Value::Bool(true)))
+        .to_json()
+        .unwrap();
+    let consumer = tmp.join("consumer");
+    write_consumer(
+        &consumer,
+        &generated,
+        &format!(
+            r#"
+fn main() {{
+    assert_eq!(HasEmptyWrappers::new().to_json().unwrap(), "{{}}");
+
+    let mut h = HasEmptyWrappers::new();
+    h.set_empty(Empty::new());
+    let mut flag = BoolValue::new();
+    flag.set_value(true);
+    h.set_flag(flag);
+    let mut i = Int32Value::new();
+    i.set_value(3);
+    h.set_num(i);
+    let mut name = StringValue::new();
+    name.set_value("ada");
+    h.set_name(name);
+
+    let json = h.to_json().unwrap();
+    assert!(!json.contains("DynamicMessage"), "{{json}}");
+    assert!(json.contains({official_empty:?}), "{{json}}");
+    assert!(json.contains({official_bool:?}), "{{json}}");
+
+    let q = HasEmptyWrappers::from_json(&json).unwrap();
+    assert!(q.has_empty());
+    assert!(q.flag().value());
+    assert_eq!(q.num().value(), 3);
+    assert_eq!(q.name().value(), "ada");
+    println!("ok has empty wrappers");
+}}
+"#,
+        ),
+    );
+    assert_eq!(run_consumer(&consumer), "ok has empty wrappers");
+}
+
+#[test]
+fn gencode_empty_wrappers_match_dynamic_message() {
+    assert_eq!(
+        GenEmpty::new().to_json().unwrap(),
+        dm_empty().to_json().unwrap()
+    );
+    assert_eq!(
+        GenEmpty::new().to_text().unwrap(),
+        dm_empty().to_text().unwrap()
+    );
+    assert_eq!(GenEmpty::from_json("{}").unwrap(), GenEmpty::new());
+    assert_eq!(GenEmpty::from_text("").unwrap(), GenEmpty::new());
+
+    let mut b = GenBoolValue::new();
+    b.set_value(true);
+    let official = dm_wrapper("google.protobuf.BoolValue", Some(Value::Bool(true)))
+        .to_json()
+        .unwrap();
+    let json = b.to_json().unwrap();
+    assert_eq!(json, official);
+    assert!(!json.contains("DynamicMessage"));
+    assert!(GenBoolValue::from_json(&json).unwrap().value());
+    assert_eq!(
+        b.to_text().unwrap(),
+        dm_wrapper("google.protobuf.BoolValue", Some(Value::Bool(true)))
+            .to_text()
+            .unwrap()
+    );
+
+    let mut i = GenInt32Value::new();
+    i.set_value(-7);
+    assert_eq!(
+        i.to_json().unwrap(),
+        dm_wrapper("google.protobuf.Int32Value", Some(Value::Int32(-7)))
+            .to_json()
+            .unwrap()
+    );
+
+    let mut i64 = GenInt64Value::new();
+    i64.set_value(42);
+    assert_eq!(
+        i64.to_json().unwrap(),
+        dm_wrapper("google.protobuf.Int64Value", Some(Value::Int64(42)))
+            .to_json()
+            .unwrap()
+    );
+    assert_eq!(
+        GenInt64Value::new().to_json().unwrap(),
+        dm_wrapper("google.protobuf.Int64Value", None)
+            .to_json()
+            .unwrap()
+    );
+
+    let mut u = GenUInt32Value::new();
+    u.set_value(9);
+    assert_eq!(
+        u.to_json().unwrap(),
+        dm_wrapper("google.protobuf.UInt32Value", Some(Value::Uint32(9)))
+            .to_json()
+            .unwrap()
+    );
+    let mut u64 = GenUInt64Value::new();
+    u64.set_value(11);
+    assert_eq!(
+        u64.to_json().unwrap(),
+        dm_wrapper("google.protobuf.UInt64Value", Some(Value::Uint64(11)))
+            .to_json()
+            .unwrap()
+    );
+
+    let mut f = GenFloatValue::new();
+    f.set_value(1.5);
+    assert_eq!(
+        f.to_json().unwrap(),
+        dm_wrapper("google.protobuf.FloatValue", Some(Value::Float(1.5)))
+            .to_json()
+            .unwrap()
+    );
+    let mut d = GenDoubleValue::new();
+    d.set_value(2.5);
+    assert_eq!(
+        d.to_json().unwrap(),
+        dm_wrapper("google.protobuf.DoubleValue", Some(Value::Double(2.5)))
+            .to_json()
+            .unwrap()
+    );
+
+    let mut s = GenStringValue::new();
+    s.set_value("hi");
+    assert_eq!(
+        s.to_json().unwrap(),
+        dm_wrapper(
+            "google.protobuf.StringValue",
+            Some(Value::String(pbrs::ProtoString::from("hi")))
+        )
+        .to_json()
+        .unwrap()
+    );
+
+    let mut bytes = GenBytesValue::new();
+    bytes.set_value(vec![1, 2, 3]);
+    assert_eq!(
+        bytes.to_json().unwrap(),
+        dm_wrapper(
+            "google.protobuf.BytesValue",
+            Some(Value::Bytes(pbrs::ProtoBytes::from(vec![1, 2, 3])))
+        )
+        .to_json()
+        .unwrap()
+    );
+    assert_eq!(
+        GenBoolValue::new().to_json().unwrap(),
+        dm_wrapper("google.protobuf.BoolValue", None)
+            .to_json()
+            .unwrap()
     );
 }

@@ -3,10 +3,20 @@ syntax = "proto3";
 package example;
 
 import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 
 // Parent whose only WKT fields are the field-wise Timestamp / Duration set.
 message HasWkt {
   google.protobuf.Timestamp ts = 1;
   google.protobuf.Duration dur = 2;
+}
+
+// Parent whose only WKT fields are the field-wise Empty / wrapper set.
+message HasEmptyWrappers {
+  google.protobuf.Empty empty = 1;
+  google.protobuf.BoolValue flag = 2;
+  google.protobuf.Int32Value num = 3;
+  google.protobuf.StringValue name = 4;
 }

@@ -798,55 +798,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BoolValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BoolValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::boolean(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_bool(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BoolValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BoolValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BoolValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.value() {
+                pbrs::text::write_named_bool(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_bool()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(BoolValue, BoolValueView, BoolValueMut);
@@ -1025,55 +1024,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BytesValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BytesValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::bytes(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_bytes(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BytesValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BytesValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.BytesValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if !self.value().is_empty() {
+                pbrs::text::write_named_string(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_bytes()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(BytesValue, BytesValueView, BytesValueMut);
@@ -1250,55 +1248,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.DoubleValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.DoubleValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::double(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_f64(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.DoubleValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.DoubleValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.DoubleValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.value().to_bits() != 0 {
+                pbrs::text::write_named_double(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_f64()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(DoubleValue, DoubleValueView, DoubleValueMut);
@@ -1709,55 +1706,47 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Empty")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Empty")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::empty())
+        }
+        fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {
+            pbrs::json::as_empty(v, ignore)?;
+            Ok(Self::new())
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Empty")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Empty")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Empty")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(Empty, EmptyView, EmptyMut);
@@ -2171,55 +2160,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.FloatValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.FloatValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::float(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_f32(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.FloatValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.FloatValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.FloatValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.value().to_bits() != 0 {
+                pbrs::text::write_named_float(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_f32()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(FloatValue, FloatValueView, FloatValueMut);
@@ -2397,55 +2385,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int32Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int32Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::int32(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_i32(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int32Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int32Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int32Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.value() != 0 {
+                pbrs::text::write_named_int32(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_i32()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(Int32Value, Int32ValueView, Int32ValueMut);
@@ -2623,55 +2610,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int64Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int64Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::int64(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_i64(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int64Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int64Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.Int64Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.value() != 0 {
+                pbrs::text::write_named_int64(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_i64()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(Int64Value, Int64ValueView, Int64ValueMut);
@@ -3128,55 +3114,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.StringValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.StringValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::string(self.value().as_bytes()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_str(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.StringValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.StringValue")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.StringValue")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if !self.value().as_bytes().is_empty() {
+                pbrs::text::write_named_string(out, indent, "value", self.value().as_bytes());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_str()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(StringValue, StringValueView, StringValueMut);
@@ -3902,55 +3887,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt32Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt32Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::uint32(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_u32(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt32Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt32Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt32Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.value() != 0 {
+                pbrs::text::write_named_uint32(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_u32()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(UInt32Value, UInt32ValueView, UInt32ValueMut);
@@ -4128,55 +4112,54 @@ mod __gen {
             self.unknown.encode(out);
         }
         pub fn to_json(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("json"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt64Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("json"))?
-                .to_json()
+            Ok(self.to_json_value()?.to_string())
         }
         pub fn from_json(json: &str) -> Result<Self, ParseError> {
             Self::from_json_ignore(json, false)
         }
         pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt64Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_json_with_pool(desc, Some(pool), json, ignore)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            let v = pbrs::json::parse(json)?;
+            Self::from_json_value(&v, ignore)
+        }
+        fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
+            Ok(pbrs::json::uint64(self.value()))
+        }
+        fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            msg.set_value(pbrs::json::as_u64(v)?);
+            Ok(msg)
         }
         pub fn to_text(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt64Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            Ok(out)
         }
         pub fn to_text_with_unknown(&self) -> Result<String, SerializeError> {
-            let b = pbrs::Serialize::serialize(self).map_err(|_| SerializeError::new("text"))?;
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt64Value")
-                .ok_or_else(|| SerializeError::new("missing desc"))?;
-            pbrs::DynamicMessage::parse_with_pool(desc, Some(pool), &b)
-                .map_err(|_| SerializeError::new("text"))?
-                .to_text_with_unknown()
+            let mut out = String::new();
+            self.write_text(&mut out, 0)?;
+            pbrs::text::write_unknown_fields(&self.unknown, &mut out, 0);
+            Ok(out)
         }
         pub fn from_text(text: &str) -> Result<Self, ParseError> {
-            let pool = generated_pool();
-            let desc = pool
-                .get_message("google.protobuf.UInt64Value")
-                .ok_or_else(|| ParseError::owned("missing desc".into()))?;
-            let d = pbrs::DynamicMessage::from_text_with_pool(desc, Some(pool), text)?;
-            let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;
-            <Self as pbrs::Parse>::parse(&b)
+            Self::from_text_value(&pbrs::text::parse(text)?)
+        }
+        fn write_text(&self, out: &mut String, indent: usize) -> Result<(), SerializeError> {
+            if self.value() != 0 {
+                pbrs::text::write_named_uint64(out, indent, "value", self.value());
+            }
+            Ok(())
+        }
+        fn from_text_value(fields: &[(String, pbrs::text::TextValue)]) -> Result<Self, ParseError> {
+            let mut msg = Self::new();
+            for (key, val) in fields {
+                match key.as_str() {
+                    "value" => {
+                        msg.set_value(val.as_u64()?);
+                    }
+                    _ => return Err(ParseError::owned(format!("unknown field {key}"))),
+                }
+            }
+            Ok(msg)
         }
     }
     pbrs::impl_typed_message!(UInt64Value, UInt64ValueView, UInt64ValueMut);
