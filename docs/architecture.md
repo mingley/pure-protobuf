@@ -29,9 +29,11 @@ into a `Vec<u8>`. Nested and packed fields write in place
 (`encode_len_header` + `write_to`). There is no scratch `Vec` per
 submessage.
 
-JSON and text are not a second codec. Generated `to_json` / `from_json`
-serialize to bytes, then `DynamicMessage` transcodes with a
-`DescriptorPool`.
+Generated proto3 JSON is field-wise for messages whose fields are
+int32, string, proto3 optional string, repeated string,
+`map<string, int32>`, or nested messages of that set (`Person`,
+`hello`). Other generated JSON, and all text, still serialize to
+bytes and transcode through `DynamicMessage`.
 
 ## Codegen
 

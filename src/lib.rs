@@ -71,7 +71,7 @@ pub mod gen_support;
 pub mod gencode;
 mod generated;
 mod internal;
-pub(crate) mod json;
+pub mod json;
 mod lazy;
 mod map;
 mod message;

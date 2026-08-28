@@ -1,4 +1,8 @@
-//! Proto3 JSON mapping over DynamicMessage.
+//! Proto3 JSON mapping.
+//!
+//! Official mapping for [`crate::DynamicMessage`], plus helpers used by
+//! generated `to_json` / `from_json` so proto3 messages can encode and decode
+//! JSON without allocating a `DynamicMessage`.
 
 use crate::dynamic::{
     Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, FieldValue,
@@ -7,15 +11,45 @@ use crate::dynamic::{
 use crate::error::{ParseError, SerializeError};
 use crate::string::{ProtoBytes, ProtoString};
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
-use serde_json::{Map as JsonMap, Number, Value as Json};
+use serde_json::{Map as JsonMapInner, Number, Value as JsonInner};
 use std::fmt;
 use std::sync::Arc;
 
-pub fn encode(msg: &DynamicMessage) -> Result<String, SerializeError> {
+/// Parsed JSON value used by generated field-wise JSON.
+pub type Json = JsonInner;
+/// JSON object used by generated field-wise JSON.
+pub type JsonMap = JsonMapInner<String, Json>;
+
+/// Parse JSON, rejecting duplicate object keys (official proto3 JSON).
+pub fn parse(s: &str) -> Result<Json, ParseError> {
+    parse_json_no_dup(s)
+}
+
+/// Encode an `int32` / `sint32` / `sfixed32` as a JSON number.
+pub fn int32(n: i32) -> Json {
+    Json::Number(n.into())
+}
+
+/// Decode an `int32` from a JSON number or decimal string.
+pub fn as_i32(v: &Json) -> Result<i32, ParseError> {
+    json_as_i32(v)
+}
+
+/// Encode a string field as a JSON string.
+pub fn string(s: impl AsRef<[u8]>) -> Json {
+    Json::String(String::from_utf8_lossy(s.as_ref()).into_owned())
+}
+
+/// Decode a JSON string.
+pub fn as_str(v: &Json) -> Result<&str, ParseError> {
+    v.as_str().ok_or_else(|| ParseError::new("expected string"))
+}
+
+pub(crate) fn encode(msg: &DynamicMessage) -> Result<String, SerializeError> {
     Ok(encode_value(msg)?.to_string())
 }
 
-pub fn decode(
+pub(crate) fn decode(
     desc: Arc<MessageDescriptor>,
     json: &str,
     ignore_unknown: bool,

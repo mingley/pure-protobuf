@@ -922,7 +922,7 @@ fn emit_message(src: &mut String, desc: &MessageDescriptor) {
     }
     emit_codec(src, desc);
     if std::env::var("PURE_PROTOBUF_NO_REFLECT").as_deref() != Ok("1") {
-        emit_json_text(src, &desc.full_name);
+        emit_json_text(src, desc);
     }
     let _ = writeln!(src, "}}");
     let _ = writeln!(src, "pbrs::impl_typed_message!({name}, {view}, {mut_});");
@@ -1248,7 +1248,252 @@ fn emit_accessors(src: &mut String, desc: &MessageDescriptor, f: &FieldDescripto
     }
 }
 
-fn emit_json_text(src: &mut String, full_name: &str) {
+fn rust_str(s: &str) -> String {
+    format!("\"{}\"", s.escape_default())
+}
+
+fn json_match_keys(f: &FieldDescriptor) -> String {
+    let json = rust_str(&f.json_name);
+    if f.json_name == f.name {
+        json
+    } else {
+        format!("{} | {}", json, rust_str(&f.name))
+    }
+}
+
+fn is_real_oneof(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
+    f.oneof_index
+        .and_then(|i| desc.oneofs.get(i as usize))
+        .is_some_and(|members| members.len() > 1)
+}
+
+fn field_supports_typed_json(f: &FieldDescriptor, desc: &MessageDescriptor, depth: u32) -> bool {
+    if depth > 32 || is_real_oneof(desc, f) {
+        return false;
+    }
+    if f.is_map {
+        return map_key_ty(f) == FieldType::String && map_val_ty(f) == FieldType::Int32;
+    }
+    if f.cardinality == Cardinality::Repeated {
+        return f.field_type == FieldType::String;
+    }
+    match f.field_type {
+        FieldType::Int32 => true,
+        FieldType::String => true,
+        FieldType::Message => {
+            let Some(m) = f.message.as_ref() else {
+                return false;
+            };
+            if m.full_name
+                .trim_start_matches('.')
+                .starts_with("google.protobuf.")
+            {
+                return false;
+            }
+            m.fields
+                .values()
+                .all(|nf| field_supports_typed_json(nf, m, depth + 1))
+        }
+        _ => false,
+    }
+}
+
+fn can_typed_json(desc: &MessageDescriptor) -> bool {
+    desc.fields
+        .values()
+        .all(|f| field_supports_typed_json(f, desc, 0))
+}
+
+fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
+    if can_typed_json(desc) {
+        emit_typed_json(src, desc);
+    } else {
+        emit_dynamic_json(src, &desc.full_name);
+    }
+    emit_dynamic_text(src, &desc.full_name);
+}
+
+fn emit_typed_json(src: &mut String, desc: &MessageDescriptor) {
+    let _ = writeln!(
+        src,
+        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
+    let _ = writeln!(src, "    }}");
+    emit_to_json_value(src, desc);
+    emit_from_json_value(src, desc);
+}
+
+fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
+    let _ = writeln!(
+        src,
+        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        let mut map = pbrs::json::JsonMap::new();");
+    for f in desc.fields.values() {
+        let id = field_id(f);
+        let m = field_raw(f);
+        let key = rust_str(&f.json_name);
+        if f.is_map {
+            let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
+            let _ = writeln!(src, "            let mut obj = pbrs::json::JsonMap::new();");
+            let _ = writeln!(src, "            for (k, v) in self.{id}() {{");
+            let _ = writeln!(
+                src,
+                "                let _ = obj.insert(String::from_utf8_lossy(k.as_bytes()).into_owned(), pbrs::json::int32(v));"
+            );
+            let _ = writeln!(src, "            }}");
+            let _ = writeln!(
+                src,
+                "            let _ = map.insert({key}.into(), pbrs::json::Json::Object(obj));"
+            );
+            let _ = writeln!(src, "        }}");
+        } else if f.cardinality == Cardinality::Repeated {
+            let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
+            let _ = writeln!(
+                src,
+                "            let arr: Vec<pbrs::json::Json> = self.{id}().iter().map(|s| pbrs::json::string(s.as_bytes())).collect();"
+            );
+            let _ = writeln!(
+                src,
+                "            let _ = map.insert({key}.into(), pbrs::json::Json::Array(arr));"
+            );
+            let _ = writeln!(src, "        }}");
+        } else if f.field_type == FieldType::Message {
+            let _ = writeln!(src, "        if self.has_{m}() {{");
+            let _ = writeln!(
+                src,
+                "            let _ = map.insert({key}.into(), self.{id}().to_json_value()?);"
+            );
+            let _ = writeln!(src, "        }}");
+        } else if f.field_type == FieldType::String {
+            if is_option(f) {
+                let _ = writeln!(src, "        if self.has_{m}() {{");
+                let _ = writeln!(
+                    src,
+                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}().as_bytes()));"
+                );
+                let _ = writeln!(src, "        }}");
+            } else {
+                let _ = writeln!(src, "        if !self.{id}().as_bytes().is_empty() {{");
+                let _ = writeln!(
+                    src,
+                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}().as_bytes()));"
+                );
+                let _ = writeln!(src, "        }}");
+            }
+        } else if is_option(f) {
+            let _ = writeln!(src, "        if self.has_{m}() {{");
+            let _ = writeln!(
+                src,
+                "            let _ = map.insert({key}.into(), pbrs::json::int32(self.{id}()));"
+            );
+            let _ = writeln!(src, "        }}");
+        } else {
+            let _ = writeln!(src, "        if self.{id}() != 0 {{");
+            let _ = writeln!(
+                src,
+                "            let _ = map.insert({key}.into(), pbrs::json::int32(self.{id}()));"
+            );
+            let _ = writeln!(src, "        }}");
+        }
+    }
+    let _ = writeln!(src, "        Ok(pbrs::json::Json::Object(map))");
+    let _ = writeln!(src, "    }}");
+}
+
+fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
+    let _ = writeln!(
+        src,
+        "    fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        let obj = v.as_object().ok_or_else(|| ParseError::new(\"json message must be an object\"))?;"
+    );
+    let _ = writeln!(src, "        let mut msg = Self::new();");
+    let _ = writeln!(
+        src,
+        "        let mut seen = std::collections::BTreeSet::<u32>::new();"
+    );
+    let _ = writeln!(src, "        for (key, val) in obj {{");
+    let _ = writeln!(src, "            match key.as_str() {{");
+    for f in desc.fields.values() {
+        let id = field_id(f);
+        let m = field_raw(f);
+        let keys = json_match_keys(f);
+        let num = f.number;
+        let _ = writeln!(src, "                {keys} => {{");
+        let _ = writeln!(
+            src,
+            "                    if !seen.insert({num}u32) {{ return Err(ParseError::owned(format!(\"duplicate json field {{key}}\"))); }}"
+        );
+        let _ = writeln!(src, "                    if val.is_null() {{ continue; }}");
+        if f.is_map {
+            let _ = writeln!(
+                src,
+                "                    let obj = val.as_object().ok_or_else(|| ParseError::new(\"json map must be an object\"))?;"
+            );
+            let _ = writeln!(src, "                    for (k, v) in obj {{");
+            let _ = writeln!(
+                src,
+                "                        msg.{id}_mut().insert(k.as_str(), pbrs::json::as_i32(v)?);"
+            );
+            let _ = writeln!(src, "                    }}");
+        } else if f.cardinality == Cardinality::Repeated {
+            let _ = writeln!(
+                src,
+                "                    let arr = val.as_array().ok_or_else(|| ParseError::new(\"json repeated must be an array\"))?;"
+            );
+            let _ = writeln!(src, "                    for item in arr {{");
+            let _ = writeln!(
+                src,
+                "                        msg.{id}_mut().push(pbrs::json::as_str(item)?);"
+            );
+            let _ = writeln!(src, "                    }}");
+        } else if f.field_type == FieldType::Message {
+            let ty = scalar_type(f);
+            let _ = writeln!(
+                src,
+                "                    msg.set_{m}({ty}::from_json_value(val, ignore)?);"
+            );
+        } else if f.field_type == FieldType::String {
+            let _ = writeln!(
+                src,
+                "                    msg.set_{m}(pbrs::json::as_str(val)?);"
+            );
+        } else {
+            let _ = writeln!(
+                src,
+                "                    msg.set_{m}(pbrs::json::as_i32(val)?);"
+            );
+        }
+        let _ = writeln!(src, "                }}");
+    }
+    let _ = writeln!(src, "                _ => {{");
+    let _ = writeln!(
+        src,
+        "                    if !ignore {{ return Err(ParseError::owned(format!(\"unknown json field {{key}}\"))); }}"
+    );
+    let _ = writeln!(src, "                }}");
+    let _ = writeln!(src, "            }}");
+    let _ = writeln!(src, "        }}");
+    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "    }}");
+}
+
+fn emit_dynamic_json(src: &mut String, full_name: &str) {
     let _ = writeln!(
         src,
         "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
@@ -1278,6 +1523,9 @@ fn emit_json_text(src: &mut String, full_name: &str) {
     let _ = writeln!(src, "        let b = pbrs::Serialize::serialize(&d).map_err(|e| ParseError::owned(e.to_string()))?;");
     let _ = writeln!(src, "        <Self as pbrs::Parse>::parse(&b)");
     let _ = writeln!(src, "    }}");
+}
+
+fn emit_dynamic_text(src: &mut String, full_name: &str) {
     let _ = writeln!(
         src,
         "    pub fn to_text(&self) -> Result<String, SerializeError> {{"
