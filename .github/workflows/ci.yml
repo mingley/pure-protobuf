@@ -22,6 +22,27 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo test --workspace
+      - name: Docs build without warnings
+        run: cargo doc --workspace --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  # Cross-language gRPC interop. The kernel talks to grpc-go's reference
+  # client and server in both directions, so a protocol regression fails here
+  # rather than in somebody's cluster.
+  grpc-interop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install protoc
+        run: sudo apt-get update && sudo apt-get install -y protobuf-compiler
+      - name: Official interop cases, three ways
+        run: ./scripts/grpc-interop.sh
 
   # Official runner from the v35.1 pin. protoc comes from this cmake
   # build ($BUILD/protoc), not apt protobuf-compiler. The test job above

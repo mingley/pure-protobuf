@@ -77,7 +77,7 @@ impl Wire {
         slot.get_or_insert_with(|| Wire::from_slice(data))
     }
 
-    /// `rel_start..rel_end` are indices into [`as_slice`].
+    /// `rel_start..rel_end` are indices into [`Self::as_slice`].
     pub fn window(&self, rel_start: usize, rel_end: usize) -> Self {
         let start = self.start + rel_start as u32;
         let end = self.start + rel_end as u32;
@@ -139,7 +139,7 @@ impl LazyStr {
     /// each.
     ///
     /// proto3 / `utf8_validation = VERIFY`. proto2 NONE uses
-    /// [`from_parse_span_unchecked`].
+    /// [`Self::from_parse_span_unchecked`].
     #[inline]
     pub fn from_parse_span(
         slot: &mut Option<Wire>,
@@ -164,7 +164,7 @@ impl LazyStr {
         ))
     }
 
-    /// Same copy strategy as [`from_parse_span`], no UTF-8 check.
+    /// Same copy strategy as [`Self::from_parse_span`], no UTF-8 check.
     ///
     /// proto2 `utf8_validation = NONE` (and editions NONE) must Parse
     /// `\x80`. Does not [`Wire::ensure`] the parent frame.

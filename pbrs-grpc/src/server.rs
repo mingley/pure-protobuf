@@ -355,7 +355,11 @@ impl Rpc {
         let (parts, recv) = request.into_parts();
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
-        let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits));
+        let stream = Streaming::from_wire(WireStream::<Req>::new(
+            recv,
+            limits,
+            timeout.map(|d| tokio::time::Instant::now() + d),
+        ));
         let mut req = Request::from_wire(stream, parts.headers, remote_addr);
         if let Some(d) = timeout {
             req.set_timeout(d);

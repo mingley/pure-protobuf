@@ -100,16 +100,25 @@ existing tonic service and only swap in pbrs message types.
 
 ## Interop
 
-`grpc.testing.TestService` and the official test cases ship in-tree:
+`grpc.testing.TestService` and the official test cases ship in-tree.
+`scripts/grpc-interop.sh` runs them against grpc-go's reference implementation
+in both directions, and CI runs the script:
 
-```bash
-cargo run -p pbrs-grpc --bin pbrs-grpc-interop-server -- --port 10000
-cargo run -p pbrs-grpc --bin pbrs-grpc-interop-client -- \
-    --server_host 127.0.0.1 --server_port 10000 --test_case=large_unary
+```
+kernel client -> kernel server   18 cases
+kernel client -> Go server       14 cases
+Go client     -> kernel server   14 cases
 ```
 
-Either side can be replaced with `google.golang.org/grpc/interop/{client,server}`
-run with `-use_tls=false`.
+The four cases absent from the cross-language passes are the compression ones;
+grpc-go implements `expect_compressed` and `response_compressed` in neither its
+client nor its server, so they only run where both ends honour them.
+
+```bash
+./scripts/grpc-interop.sh              # all three passes
+./scripts/grpc-interop.sh --self-only  # skip the Go peer
+```
 
 `pbrs-grpc-hello` is a worked example exercising all four call shapes over
-loopback.
+loopback, and `tests/codegen.rs` compiles a fresh `.proto` service the way a
+user's crate does, to keep the generated `::pbrs_grpc` paths honest.
