@@ -388,8 +388,126 @@ async fn client_streaming_status_trailers_code_message_and_metadata() {
     assert_eq!(got, TRAILER_VAL);
 }
 
-/// Server-stream Status fails before a stream (same path as status.rs).
-/// Custom metadata is still HTTP/2 trailers on that Err.
+/// Server-stream Status with custom trailers after the outbound stream is
+/// open, but before any `HelloReply`. Handler returns `Ok(Response(stream))`
+/// (headers can ride on that Response); the stream's first item is `Err`.
+struct ServerStreamErrorBeforeItem;
+
+impl Greeter for ServerStreamErrorBeforeItem {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("stream-before-item"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("stream-before-item"))
+    }
+
+    type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerHelloStream>, Status> {
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let mut status = Status::failed_precondition(format!("not ready: {name}"));
+        status
+            .metadata_mut()
+            .insert(TRAILER_KEY, TRAILER_VAL.parse().unwrap());
+        let _ = tx.send(Err(status)).await;
+        let mut response = Response::new(ReceiverStream::new(rx));
+        response
+            .metadata_mut()
+            .insert(HEADER_KEY, HEADER_VAL.parse().unwrap());
+        Ok(response)
+    }
+
+    type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Self::StreamHelloStream>, Status> {
+        Err(Status::unimplemented("stream-before-item"))
+    }
+}
+
+/// Empty outbound stream, then a Status with custom trailers (no Ok item).
+struct ServerStreamEmptyThenError;
+
+impl Greeter for ServerStreamEmptyThenError {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("empty-then-error"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("empty-then-error"))
+    }
+
+    type ServerHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Self::ServerHelloStream>, Status> {
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        tokio::spawn(async move {
+            let mut status = Status::failed_precondition(format!("not ready: {name}"));
+            status
+                .metadata_mut()
+                .insert(TRAILER_KEY, TRAILER_VAL.parse().unwrap());
+            let _ = tx.send(Err(status)).await;
+        });
+        Ok(Response::new(ReceiverStream::new(rx)))
+    }
+
+    type StreamHelloStream = tokio_stream::wrappers::ReceiverStream<Result<HelloReply, Status>>;
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Self::StreamHelloStream>, Status> {
+        Err(Status::unimplemented("empty-then-error"))
+    }
+}
+
+fn assert_status_trailers(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "not ready: ada");
+    let got = err
+        .metadata()
+        .get(TRAILER_KEY)
+        .expect("missing status trailers")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, TRAILER_VAL);
+}
+
+/// Handler `Err(Status)` before opening a stream (same path as status.rs).
+/// Client sees it on the call `Result`; custom metadata is HTTP/2 trailers.
 #[tokio::test]
 async fn server_streaming_status_trailers_code_message_and_metadata() {
     let addr = spawn(WithStatusTrailers).await;
@@ -445,4 +563,72 @@ async fn bidi_streaming_status_trailers_code_message_and_metadata() {
         .to_str()
         .unwrap();
     assert_eq!(got, TRAILER_VAL);
+}
+
+/// `Ok(Response(stream))` with headers; first stream item is `Err(Status)`
+/// with custom trailers. No `HelloReply`. Headers stay on
+/// `Response.metadata`; trailers stay on `Status.metadata`.
+#[tokio::test]
+async fn server_streaming_status_trailers_before_first_item() {
+    let addr = spawn(ServerStreamErrorBeforeItem).await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    let resp = client
+        .server_hello(Request::new(req))
+        .await
+        .expect("stream opened; Status is the first item, not the call Result");
+    let got = resp
+        .metadata()
+        .get(HEADER_KEY)
+        .expect("missing response headers")
+        .to_str()
+        .unwrap();
+    assert_eq!(got, HEADER_VAL);
+    assert!(
+        resp.metadata().get(TRAILER_KEY).is_none(),
+        "trailers must not appear as Response.metadata headers"
+    );
+    let err = resp
+        .into_inner()
+        .next()
+        .await
+        .expect("stream must yield Status, not end empty")
+        .expect_err("expected Status before any HelloReply");
+    assert_status_trailers(&err);
+}
+
+/// Empty outbound stream + Status (no Ok item). Custom trailers stay on
+/// `Status.metadata`, not on `Response.metadata`.
+#[tokio::test]
+async fn server_streaming_status_trailers_empty_stream_then_error() {
+    let addr = spawn(ServerStreamEmptyThenError).await;
+    let channel = Channel::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .expect("connect");
+    let mut client = GreeterClient::new(channel);
+    let mut req = HelloRequest::new();
+    req.set_name("ada");
+    let resp = client
+        .server_hello(Request::new(req))
+        .await
+        .expect("empty stream opened; Status is the first item, not the call Result");
+    assert!(
+        resp.metadata().get(TRAILER_KEY).is_none(),
+        "trailers must not appear as Response.metadata headers"
+    );
+    let err = resp
+        .into_inner()
+        .next()
+        .await
+        .expect("empty stream + error must yield Status")
+        .expect_err("expected Status, not HelloReply");
+    assert_status_trailers(&err);
 }
