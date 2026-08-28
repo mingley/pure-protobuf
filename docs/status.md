@@ -74,8 +74,13 @@
   (kernel median ns strictly below tonic 0.14 on empty_unary and
   large_unary). QPS is reported, not gated (empty/large at
   conc=1/conns=1 and conc=16/conns=4). Nonzero RPC errors still fail
-  the process. `Channel::connect_pool` opens independent h2 driver
-  tasks. `protobuf-tonic` stays the tonic adapter.
+  the process.   `Channel::connect_pool` opens independent h2 driver
+  tasks. `Channel`, `GreeterClient` / `TestServiceClient`, and
+  `GreeterServer` / `TestServiceServer` expose
+  `max_decoding_message_size` / `max_encoding_message_size`
+  (default unlimited). Oversize encode or decode is
+  `RESOURCE_EXHAUSTED` (`pbrs-grpc/tests/message_size.rs`). Not a
+  latency or QPS win. `protobuf-tonic` stays the tonic adapter.
 
 ## Remaining
 

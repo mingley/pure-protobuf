@@ -23,6 +23,11 @@ let resp = client.say_hello(Request::new(req)).await?;
 OK-path custom trailers (including `-bin`) are first-class.
 `grpc-timeout` maps to `DEADLINE_EXCEEDED`. Client cancel maps to
 `CANCELLED`. Gzip is supported (`grpc-encoding` / Compressed-Flag).
+`Channel`, `GreeterClient` / `TestServiceClient`, and `GreeterServer` /
+`TestServiceServer` accept `max_decoding_message_size` /
+`max_encoding_message_size` (default unlimited). Oversize inbound or
+outbound messages fail with `RESOURCE_EXHAUSTED` before the oversize
+payload is sent or accepted. This is a cap, not a latency or QPS win.
 
 Official interop: `pbrs-grpc-interop-server --port N` and
 `pbrs-grpc-interop-client --server_host H --server_port N --test_case=empty_unary`.

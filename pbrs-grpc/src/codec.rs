@@ -3,6 +3,33 @@
 use crate::status::Status;
 use bytes::{BufMut, Bytes, BytesMut};
 
+/// Optional inbound/outbound gRPC message size caps. `None` is unlimited.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct SizeLimits {
+    pub max_decoding: Option<usize>,
+    pub max_encoding: Option<usize>,
+}
+
+impl SizeLimits {
+    pub(crate) fn check_decode(self, n: usize) -> Result<(), Status> {
+        match self.max_decoding {
+            Some(max) if n > max => Err(Status::resource_exhausted(format!(
+                "decoded message length {n} exceeds limit {max}"
+            ))),
+            _ => Ok(()),
+        }
+    }
+
+    pub(crate) fn check_encode(self, n: usize) -> Result<(), Status> {
+        match self.max_encoding {
+            Some(max) if n > max => Err(Status::resource_exhausted(format!(
+                "encoded message length {n} exceeds limit {max}"
+            ))),
+            _ => Ok(()),
+        }
+    }
+}
+
 /// One decoded gRPC data frame.
 #[derive(Debug)]
 pub struct Frame {
@@ -24,6 +51,13 @@ pub fn encode(payload: &[u8], compressed: bool) -> Result<Bytes, Status> {
 
 /// Pop one complete frame from `buf`. `Ok(None)` if more bytes are needed.
 pub fn pop(buf: &mut BytesMut) -> Result<Option<Frame>, Status> {
+    pop_limited(buf, None)
+}
+
+/// [`pop`] plus an inbound payload-size cap. The 4-byte length is checked
+/// as soon as the 5-byte header is present. Oversize is
+/// [`crate::Code::ResourceExhausted`].
+pub(crate) fn pop_limited(buf: &mut BytesMut, max: Option<usize>) -> Result<Option<Frame>, Status> {
     if buf.len() < 5 {
         return Ok(None);
     }
@@ -41,6 +75,13 @@ pub fn pop(buf: &mut BytesMut) -> Result<Option<Frame>, Status> {
     len_bytes.copy_from_slice(slice);
     let len = usize::try_from(u32::from_be_bytes(len_bytes))
         .map_err(|_| Status::internal("message too large"))?;
+    if let Some(max) = max {
+        if len > max {
+            return Err(Status::resource_exhausted(format!(
+                "decoded message length {len} exceeds limit {max}"
+            )));
+        }
+    }
     let total = 5usize
         .checked_add(len)
         .ok_or_else(|| Status::internal("message too large"))?;
@@ -84,5 +125,13 @@ mod tests {
         buf.extend_from_slice(&framed[4..]);
         let got = pop(&mut buf).expect("pop").expect("frame");
         assert_eq!(&got.payload[..], &[1, 2, 3]);
+    }
+
+    #[test]
+    fn pop_limited_rejects_oversize_from_header() {
+        let framed = encode(&[0u8; 16], false).expect("encode");
+        let mut buf = BytesMut::from(&framed[..5]);
+        let err = super::pop_limited(&mut buf, Some(8)).expect_err("oversize");
+        assert_eq!(err.code(), crate::status::Code::ResourceExhausted);
     }
 }

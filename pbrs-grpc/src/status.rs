@@ -165,6 +165,12 @@ impl Status {
     pub fn invalid_argument(message: impl Into<String>) -> Self {
         Self::new(Code::InvalidArgument, message)
     }
+
+    /// [`Code::ResourceExhausted`].
+    #[must_use]
+    pub fn resource_exhausted(message: impl Into<String>) -> Self {
+        Self::new(Code::ResourceExhausted, message)
+    }
 }
 
 impl fmt::Display for Status {

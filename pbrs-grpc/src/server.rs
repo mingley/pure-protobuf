@@ -1,5 +1,6 @@
 //! HTTP/2 accept loop and per-RPC dispatch helpers.
 
+use crate::codec::SizeLimits;
 use crate::metadata::Metadata;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status};
@@ -89,6 +90,7 @@ async fn serve_conn<H: Http2Handler>(handler: Arc<H>, tcp: TcpStream) {
 pub(crate) async fn dispatch_unary<Req, Resp, F, Fut>(
     request: http::Request<RecvStream>,
     mut respond: h2::server::SendResponse<Bytes>,
+    limits: SizeLimits,
     f: F,
 ) where
     Req: Parse + Default,
@@ -104,7 +106,7 @@ pub(crate) async fn dispatch_unary<Req, Resp, F, Fut>(
     let header_md = Metadata::from_headers(request.headers());
     let (_, mut recv) = request.into_parts();
     let prepared = wrap_timeout(timeout, async {
-        let (msgs, _) = read_all_messages::<Req>(&mut recv).await?;
+        let (msgs, _) = read_all_messages::<Req>(&mut recv, limits.max_decoding).await?;
         let item = one_or_default(msgs)?;
         let mut req = Request::new(item.message);
         req.set_metadata(header_md);
@@ -115,12 +117,13 @@ pub(crate) async fn dispatch_unary<Req, Resp, F, Fut>(
         f(req).await
     })
     .await;
-    finish_handler(prepared, respond).await;
+    finish_handler(prepared, respond, limits).await;
 }
 
 pub(crate) async fn dispatch_client_stream<Req, Resp, F, Fut>(
     request: http::Request<RecvStream>,
     mut respond: h2::server::SendResponse<Bytes>,
+    limits: SizeLimits,
     f: F,
 ) where
     Req: Parse + Default + Send + 'static,
@@ -137,7 +140,7 @@ pub(crate) async fn dispatch_client_stream<Req, Resp, F, Fut>(
     let (_, recv) = request.into_parts();
     let (tx, inbound) = Inbound::channel(16);
     drop(tokio::spawn(async move {
-        pump_inbound::<Req>(recv, tx).await;
+        pump_inbound::<Req>(recv, tx, limits.max_decoding).await;
     }));
     let mut req = Request::new(inbound);
     req.set_metadata(header_md);
@@ -145,12 +148,13 @@ pub(crate) async fn dispatch_client_stream<Req, Resp, F, Fut>(
         req.set_timeout(d);
     }
     let prepared = wrap_timeout(timeout, f(req)).await;
-    finish_handler(prepared, respond).await;
+    finish_handler(prepared, respond, limits).await;
 }
 
 pub(crate) async fn dispatch_server_stream<Req, Resp, F, Fut>(
     request: http::Request<RecvStream>,
     mut respond: h2::server::SendResponse<Bytes>,
+    limits: SizeLimits,
     f: F,
 ) where
     Req: Parse + Default,
@@ -166,7 +170,7 @@ pub(crate) async fn dispatch_server_stream<Req, Resp, F, Fut>(
     let header_md = Metadata::from_headers(request.headers());
     let (_, mut recv) = request.into_parts();
     let prepared = wrap_timeout(timeout, async {
-        let (msgs, _) = read_all_messages::<Req>(&mut recv).await?;
+        let (msgs, _) = read_all_messages::<Req>(&mut recv, limits.max_decoding).await?;
         let item = one_or_default(msgs)?;
         let mut req = Request::new(item.message);
         req.set_metadata(header_md);
@@ -177,12 +181,13 @@ pub(crate) async fn dispatch_server_stream<Req, Resp, F, Fut>(
         f(req).await
     })
     .await;
-    finish_stream_handler(prepared, respond).await;
+    finish_stream_handler(prepared, respond, limits).await;
 }
 
 pub(crate) async fn dispatch_bidi<Req, Resp, F, Fut>(
     request: http::Request<RecvStream>,
     mut respond: h2::server::SendResponse<Bytes>,
+    limits: SizeLimits,
     f: F,
 ) where
     Req: Parse + Default + Send + 'static,
@@ -199,7 +204,7 @@ pub(crate) async fn dispatch_bidi<Req, Resp, F, Fut>(
     let (_, recv) = request.into_parts();
     let (tx, inbound) = Inbound::channel(16);
     drop(tokio::spawn(async move {
-        pump_inbound::<Req>(recv, tx).await;
+        pump_inbound::<Req>(recv, tx, limits.max_decoding).await;
     }));
     let mut req = Request::new(inbound);
     req.set_metadata(header_md);
@@ -207,23 +212,29 @@ pub(crate) async fn dispatch_bidi<Req, Resp, F, Fut>(
         req.set_timeout(d);
     }
     let prepared = wrap_timeout(timeout, f(req)).await;
-    finish_stream_handler(prepared, respond).await;
+    finish_stream_handler(prepared, respond, limits).await;
 }
 
 async fn finish_handler<Resp: Serialize>(
     prepared: Result<Response<Resp>, Status>,
     mut respond: h2::server::SendResponse<Bytes>,
+    limits: SizeLimits,
 ) {
     match prepared {
         Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
         Ok(resp) => {
             let (msg, md, trailers, compress) = resp.split();
+            let frame = match encode_msg(&msg, compress, limits) {
+                Ok(frame) => frame,
+                Err(st) => {
+                    send_trailers_only(&mut respond, st, &Metadata::new());
+                    return;
+                }
+            };
             let Ok(mut send) = send_ok_headers(&mut respond, &md, compress) else {
                 return;
             };
-            if let Ok(frame) = encode_msg(&msg, compress) {
-                send_bytes(&mut send, frame, false).await.ok();
-            }
+            send_bytes(&mut send, frame, false).await.ok();
             let mut st = Status::new(Code::Ok, "");
             *st.metadata_mut() = trailers;
             if let Ok(t) = grpc_trailers(&st) {
@@ -236,6 +247,7 @@ async fn finish_handler<Resp: Serialize>(
 async fn finish_stream_handler<Resp: Serialize + Send>(
     prepared: Result<Response<Inbound<Resp>>, Status>,
     mut respond: h2::server::SendResponse<Bytes>,
+    limits: SizeLimits,
 ) {
     match prepared {
         Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
@@ -249,8 +261,12 @@ async fn finish_stream_handler<Resp: Serialize + Send>(
             loop {
                 match inbound.next_item().await {
                     Ok(Some(item)) => {
-                        let Ok(frame) = encode_msg(&item.message, item.compressed) else {
-                            return;
+                        let frame = match encode_msg(&item.message, item.compressed, limits) {
+                            Ok(frame) => frame,
+                            Err(st) => {
+                                stream_status = st;
+                                break;
+                            }
                         };
                         if send_bytes(&mut send, frame, false).await.is_err() {
                             return;
