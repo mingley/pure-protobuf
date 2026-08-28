@@ -70,6 +70,15 @@ protobuf codec, so the delta is transport only. Four-core Xeon; see
 Unary latency is process-gated: `rpc-bench` exits non-zero unless the kernel
 wins on both p50 and p99. Streaming is gated at parity.
 
+Against grpc-go's reference server — one kernel client, two servers in separate
+processes, so the server is the only variable — the kernel is about 1.4x on
+`empty_unary` p50, 1.7x on its p99, 1.5x on `large_unary` p50, and 1.8x on its
+p99, with a few percent spread across rounds:
+
+```bash
+./scripts/grpc-server-bench.sh
+```
+
 ## Safe
 
 The peer is assumed hostile, and every limit is enforced before the memory it

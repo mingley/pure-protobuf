@@ -610,6 +610,10 @@ cargo run -p pbrs-grpc --bin pbrs-grpc-interop-client -- \
 Either side can be replaced with `google.golang.org/grpc/interop/{client,server}`
 run with `-use_tls=false`.
 
+The interop client also has a `--bench` mode, which is what
+`scripts/grpc-server-bench.sh` uses to compare the kernel's server against
+grpc-go's with the client held constant. See [benchmarks](benchmarks.md).
+
 Wiring these into CI immediately found a bug worth naming, because it is easy to
 reproduce in any gRPC implementation: a deadline has to reach the *reads*, not
 just the call setup. A server that answers with headers and then goes quiet
