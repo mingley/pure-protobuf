@@ -1,0 +1,161 @@
+//! `grpc.health.v1.Health`: the standard health service, generated plus a reporter.
+//!
+//! ```ignore
+//! let (health, reporter) = pbrs_grpc::health::service();
+//! reporter.set_serving("helloworld.Greeter");
+//! Router::new()
+//!     .add_service(health)
+//!     .add_service(GreeterServer::new(MyGreeter))
+//!     .serve(addr)
+//!     .await?;
+//! ```
+
+#![allow(missing_docs, reason = "messages come from the code generator")]
+
+include!(concat!(env!("OUT_DIR"), "/health.rs"));
+
+use crate::request::{Request, Response};
+use crate::status::Status;
+use crate::stream::Streaming;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::watch;
+
+type Snapshot = Arc<HashMap<String, ServingStatus>>;
+
+/// Drives the serving status of the empty name (the process) and of named
+/// services. Cheap to clone; every clone talks to the same map.
+#[derive(Clone)]
+pub struct HealthReporter {
+    tx: watch::Sender<Snapshot>,
+}
+
+impl HealthReporter {
+    fn new() -> Self {
+        let mut map = HashMap::new();
+        map.insert(String::new(), ServingStatus::Serving);
+        let (tx, _) = watch::channel(Arc::new(map));
+        Self { tx }
+    }
+
+    /// Mark `name` as [`ServingStatus::Serving`]. The empty name is the process.
+    pub fn set_serving(&self, name: impl AsRef<str>) {
+        self.set(name.as_ref(), ServingStatus::Serving);
+    }
+
+    /// Mark `name` as [`ServingStatus::NotServing`].
+    pub fn set_not_serving(&self, name: impl AsRef<str>) {
+        self.set(name.as_ref(), ServingStatus::NotServing);
+    }
+
+    /// Replace the status of `name`.
+    pub fn set_status(&self, name: impl AsRef<str>, status: ServingStatus) {
+        self.set(name.as_ref(), status);
+    }
+
+    /// Forget `name`. [`Health::check`] then returns `NOT_FOUND`;
+    /// [`Health::watch`] reports [`ServingStatus::ServiceUnknown`].
+    pub fn clear(&self, name: impl AsRef<str>) {
+        let name = name.as_ref();
+        self.tx.send_modify(|snap| {
+            let mut map = HashMap::clone(snap);
+            map.remove(name);
+            *snap = Arc::new(map);
+        });
+    }
+
+    fn set(&self, name: &str, status: ServingStatus) {
+        self.tx.send_modify(|snap| {
+            let mut map = HashMap::clone(snap);
+            map.insert(name.to_owned(), status);
+            *snap = Arc::new(map);
+        });
+    }
+
+    fn snapshot(&self) -> Snapshot {
+        Arc::clone(&self.tx.borrow())
+    }
+
+    fn subscribe(&self) -> watch::Receiver<Snapshot> {
+        self.tx.subscribe()
+    }
+}
+
+/// Implementation of [`Health`] backed by a [`HealthReporter`].
+#[derive(Clone)]
+pub struct HealthService {
+    reporter: HealthReporter,
+}
+
+impl Health for HealthService {
+    async fn check(
+        &self,
+        request: Request<HealthCheckRequest>,
+    ) -> Result<Response<HealthCheckResponse>, Status> {
+        let name = request
+            .get_ref()
+            .service()
+            .to_str()
+            .unwrap_or("")
+            .to_owned();
+        match self.reporter.snapshot().get(&name).copied() {
+            Some(status) => Ok(Response::new(response(status))),
+            None => Err(Status::not_found(format!("unknown service {name:?}"))),
+        }
+    }
+
+    async fn watch(
+        &self,
+        request: Request<HealthCheckRequest>,
+    ) -> Result<Response<Streaming<HealthCheckResponse>>, Status> {
+        let name = request
+            .get_ref()
+            .service()
+            .to_str()
+            .unwrap_or("")
+            .to_owned();
+        let mut rx = self.reporter.subscribe();
+        let (tx, stream) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            let mut last = None;
+            loop {
+                let status = rx
+                    .borrow_and_update()
+                    .get(&name)
+                    .copied()
+                    .unwrap_or(ServingStatus::ServiceUnknown);
+                if last != Some(status) {
+                    last = Some(status);
+                    if tx.send(response(status)).await.is_err() {
+                        break;
+                    }
+                }
+                if rx.changed().await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+fn response(status: ServingStatus) -> HealthCheckResponse {
+    let mut msg = HealthCheckResponse::new();
+    msg.set_status(status);
+    msg
+}
+
+/// The standard health service and a reporter that drives it.
+///
+/// The empty service name starts as [`ServingStatus::Serving`]. Named services
+/// are unknown until you [`HealthReporter::set_serving`] them.
+#[must_use]
+pub fn service() -> (HealthServer<HealthService>, HealthReporter) {
+    let reporter = HealthReporter::new();
+    (
+        HealthServer::new(HealthService {
+            reporter: reporter.clone(),
+        }),
+        reporter,
+    )
+}

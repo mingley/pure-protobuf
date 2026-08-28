@@ -3987,6 +3987,22 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Bind `addr` and serve over TLS until the listener fails."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_tls(self, addr: ::std::net::SocketAddr, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls(addr, tls).await }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Serve over TLS until `shutdown` resolves, then drain."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_tls_with_shutdown(self, listener: {G}::codegen_support::TcpListener, shutdown: impl ::core::future::Future<Output = ()> + Send, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls_with_shutdown(listener, shutdown, tls).await }}"
+    );
+    let _ = writeln!(
+        src,
         "    fn into_server(self) -> {G}::Server<Self> {{ let config = self.config; {G}::Server::new(self).config(config) }}"
     );
     let _ = writeln!(src, "}}");

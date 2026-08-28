@@ -37,4 +37,12 @@ fn main() {
         .emit_kernel_stubs(true)
         .compile_protos(&[&kv_dir.join("kv.proto")], &[&kv_dir])
         .expect("codegen kv.Store");
+
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .compile_protos(
+            &[&proto_dir.join("grpc/health/v1/health.proto")],
+            &[&proto_dir],
+        )
+        .expect("codegen grpc.health.v1");
 }

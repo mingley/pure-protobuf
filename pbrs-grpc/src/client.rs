@@ -4,6 +4,7 @@ use crate::config::{ChannelConfig, Wire};
 use crate::request::{Call, Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::{StreamSender, Streaming};
+use crate::tls::ClientTls;
 use crate::wire::{
     encode_msg, finish_stream, finish_unary, grpc_request, pump_outbound, send_bytes,
 };
@@ -135,7 +136,7 @@ impl Channel {
         let n = config.connection_count();
         let mut sends = Vec::with_capacity(n);
         for _ in 0..n {
-            sends.push(handshake(target.authority(), config).await?);
+            sends.push(handshake(target.authority(), config, None).await?);
         }
         Ok(Self {
             inner: Arc::new(ChannelInner {
@@ -156,6 +157,38 @@ impl Channel {
         connections: usize,
     ) -> Result<Self, Status> {
         Self::connect_with(target, ChannelConfig::default().connections(connections)).await
+    }
+
+    /// Dial `target` over TLS with default configuration.
+    ///
+    /// `target` is the TCP address; [`ClientTls`] carries the name verified
+    /// against the certificate, which can be different (dial `127.0.0.1`,
+    /// verify `localhost`).
+    pub async fn connect_tls(target: impl Into<Target>, tls: ClientTls) -> Result<Self, Status> {
+        Self::connect_tls_with(target, ChannelConfig::default(), tls).await
+    }
+
+    /// Dial `target` over TLS with `config`.
+    pub async fn connect_tls_with(
+        target: impl Into<Target>,
+        config: ChannelConfig,
+        tls: ClientTls,
+    ) -> Result<Self, Status> {
+        let target = target.into();
+        let authority = target.parse()?;
+        let n = config.connection_count();
+        let mut sends = Vec::with_capacity(n);
+        for _ in 0..n {
+            sends.push(handshake(target.authority(), config, Some(&tls)).await?);
+        }
+        Ok(Self {
+            inner: Arc::new(ChannelInner {
+                sends,
+                next: AtomicUsize::new(0),
+                authority,
+            }),
+            config,
+        })
     }
 
     /// The configuration in effect.
@@ -342,19 +375,47 @@ impl Channel {
 async fn handshake(
     authority: &str,
     config: ChannelConfig,
+    tls: Option<&ClientTls>,
 ) -> Result<h2::client::SendRequest<Bytes>, Status> {
     let tcp = TcpStream::connect(authority)
         .await
         .map_err(|e| Status::unavailable(format!("connect {authority}: {e}")))?;
     tcp.set_nodelay(true)
         .map_err(|e| Status::unavailable(e.to_string()))?;
-    let (send, conn) = config
+    match tls {
+        None => finish_h2(config, tcp).await,
+        Some(tls) => finish_h2(config, tls.connect(tcp).await?).await,
+    }
+}
+
+async fn finish_h2<IO>(
+    config: ChannelConfig,
+    io: IO,
+) -> Result<h2::client::SendRequest<Bytes>, Status>
+where
+    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    let (send, mut conn) = config
         .h2_builder()
-        .handshake(tcp)
+        .handshake(io)
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;
+    let (interval, timeout) = config.keepalive();
+    let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
     drop(tokio::spawn(async move {
-        conn.await.ok();
+        match dead {
+            Some(dead) => {
+                tokio::select! {
+                    r = conn => {
+                        drop(r);
+                    }
+                    _ = crate::keepalive::wait(dead) => {}
+                }
+            }
+            None => {
+                conn.await.ok();
+            }
+        }
     }));
     Ok(send)
 }

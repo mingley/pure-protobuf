@@ -1,6 +1,7 @@
 //! Transport tuning and resource caps for servers and channels.
 
 use crate::limits::MessageLimits;
+use std::time::Duration;
 
 /// Default HTTP/2 stream and connection window: 16 MiB.
 ///
@@ -29,6 +30,9 @@ pub const DEFAULT_MAX_HEADER_LIST_SIZE: u32 = 16 * 1024;
 /// Only outbound streams are queued; received streams are decoded on the
 /// reading task.
 pub const DEFAULT_STREAM_BUFFER: usize = 16;
+
+/// How long to wait for a keepalive PING acknowledgement. Default 20 s.
+pub const DEFAULT_KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// The per-stream settings the wire layer needs: message caps plus how much
 /// the connection will buffer before a write has to wait for flow control.
@@ -59,6 +63,8 @@ pub struct ServerConfig {
     max_concurrent_streams: u32,
     max_send_buffer_size: usize,
     max_header_list_size: u32,
+    keep_alive_interval: Option<Duration>,
+    keep_alive_timeout: Duration,
 }
 
 impl Default for ServerConfig {
@@ -71,6 +77,8 @@ impl Default for ServerConfig {
             max_concurrent_streams: DEFAULT_MAX_CONCURRENT_STREAMS,
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
+            keep_alive_interval: None,
+            keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
         }
     }
 }
@@ -147,6 +155,22 @@ impl ServerConfig {
         self
     }
 
+    /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
+    /// the next RPC. Disabled by default.
+    #[must_use]
+    pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
+        self.keep_alive_interval = Some(interval);
+        self
+    }
+
+    /// How long to wait for a PING acknowledgement before dropping the
+    /// connection. Default 20 s. Values below 1 ms are raised to 1 ms.
+    #[must_use]
+    pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
+        self.keep_alive_timeout = timeout.max(Duration::from_millis(1));
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -157,6 +181,10 @@ impl ServerConfig {
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
+    }
+
+    pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
+        (self.keep_alive_interval, self.keep_alive_timeout)
     }
 
     pub(crate) fn wire(self) -> Wire {
@@ -198,6 +226,8 @@ pub struct ChannelConfig {
     max_send_buffer_size: usize,
     max_header_list_size: u32,
     stream_buffer: usize,
+    keep_alive_interval: Option<Duration>,
+    keep_alive_timeout: Duration,
 }
 
 impl Default for ChannelConfig {
@@ -212,6 +242,8 @@ impl Default for ChannelConfig {
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             stream_buffer: DEFAULT_STREAM_BUFFER,
+            keep_alive_interval: None,
+            keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
         }
     }
 }
@@ -311,6 +343,23 @@ impl ChannelConfig {
         self
     }
 
+    /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
+    /// the next RPC. Disabled by default. PINGs are sent while idle as well
+    /// as while RPCs are in flight.
+    #[must_use]
+    pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
+        self.keep_alive_interval = Some(interval);
+        self
+    }
+
+    /// How long to wait for a PING acknowledgement before dropping the
+    /// connection. Default 20 s. Values below 1 ms are raised to 1 ms.
+    #[must_use]
+    pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
+        self.keep_alive_timeout = timeout.max(Duration::from_millis(1));
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -335,6 +384,10 @@ impl ChannelConfig {
         self.max_send_buffer_size
     }
 
+    pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
+        (self.keep_alive_interval, self.keep_alive_timeout)
+    }
+
     pub(crate) fn wire(self) -> Wire {
         Wire {
             limits: self.limits,
@@ -350,7 +403,8 @@ impl ChannelConfig {
             .max_frame_size(self.max_frame_size)
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
-            .max_header_list_size(self.max_header_list_size);
+            .max_header_list_size(self.max_header_list_size)
+            .enable_push(false);
         builder
     }
 }
@@ -358,6 +412,7 @@ impl ChannelConfig {
 #[cfg(test)]
 mod tests {
     use super::{ChannelConfig, ServerConfig};
+    use std::time::Duration;
 
     #[test]
     fn server_defaults_are_safe() {
@@ -376,6 +431,24 @@ mod tests {
         assert_eq!(
             ChannelConfig::new().stream_buffer(0).stream_buffer_size(),
             1
+        );
+    }
+
+    #[test]
+    fn keep_alive_timeout_never_zero() {
+        assert_eq!(
+            ServerConfig::new()
+                .keep_alive_timeout(Duration::from_millis(0))
+                .keepalive()
+                .1,
+            Duration::from_millis(1)
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .keep_alive_timeout(Duration::from_millis(0))
+                .keepalive()
+                .1,
+            Duration::from_millis(1)
         );
     }
 }

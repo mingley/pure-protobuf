@@ -12,6 +12,8 @@ numbers, see [benchmarks](benchmarks.md).
 - [Errors and status codes](#errors-and-status-codes)
 - [Deadlines and cancellation](#deadlines-and-cancellation)
 - [Serving several services](#serving-several-services)
+- [TLS](#tls)
+- [Health checks](#health-checks)
 - [Graceful shutdown](#graceful-shutdown)
 - [Compression](#compression)
 - [Limits and the threat model](#limits-and-the-threat-model)
@@ -361,6 +363,70 @@ A request for a service that is not mounted, or a method the service does not
 have, gets `UNIMPLEMENTED`. Routing costs one hash lookup plus one boxed
 future per RPC; `Server` avoids both.
 
+## TLS
+
+h2c (cleartext prior-knowledge HTTP/2) is the default, because that is what a
+loopback test and a mesh sidecar speak. Production that is not behind a
+sidecar should serve and dial TLS.
+
+The kernel uses rustls with the Graviola crypto provider. Graviola builds with
+`rustc` only — no C compiler, no `aws-lc-rs`, no `ring`. Certificate
+verification is not optional; there is no insecure constructor. ALPN is `h2`,
+and a peer that does not negotiate it is dropped.
+
+```rust
+use pbrs_grpc::{Channel, ClientTls, Identity, ServerTls};
+
+let identity = Identity::from_pem(cert_pem, key_pem)?;
+GreeterServer::new(MyGreeter)
+    .serve_tls(addr, ServerTls::new(identity)?)
+    .await?;
+
+// Dial 127.0.0.1, verify the certificate as localhost.
+let tls = ClientTls::ca("localhost", ca_pem)?;
+let channel = Channel::connect_tls("127.0.0.1:443", tls).await?;
+```
+
+`ClientTls::webpki("api.example.com")` trusts Mozilla's CA set. For private
+PKI and tests, pin a CA with `ClientTls::ca`. Mutual TLS is
+`ServerTls::mtls(identity, client_ca_pem)` plus `ClientTls::ca_mtls` (or
+`webpki_mtls`) with a client `Identity`.
+
+Graviola currently targets x86_64 and aarch64, and wants a CPU with AES-NI /
+NEON. That is every machine this crate is likely to run a gRPC service on;
+older or more exotic targets stay on h2c.
+
+HTTP/2 PING keepalive is off by default. Turn it on when a NAT or load
+balancer will drop idle connections:
+
+```rust
+ChannelConfig::new().keep_alive_interval(Duration::from_secs(30))
+```
+
+The same setter exists on `ServerConfig`. A PING that is not acknowledged
+within 20 s (configurable) drops the connection, so the next RPC sees
+`UNAVAILABLE` instead of hanging.
+
+## Health checks
+
+`grpc.health.v1.Health` ships in-tree as an ordinary service. Mount it next to
+yours and drive it from a reporter:
+
+```rust
+let (health, reporter) = pbrs_grpc::health::service();
+reporter.set_serving("helloworld.Greeter");
+
+Router::new()
+    .add_service(health)
+    .add_service(GreeterServer::new(MyGreeter))
+    .serve(addr)
+    .await?;
+```
+
+`Check` on the empty name is the process; `Check` on a name you have not
+set returns `NOT_FOUND`. `Watch` streams status changes, and an unknown name
+yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
+
 ## Graceful shutdown
 
 `serve_with_shutdown` stops accepting, sends `GOAWAY` on every live
@@ -468,10 +534,12 @@ deterministic xorshift generator so a failure reproduces from its seed:
 ### Dependencies
 
 `base64`, `bytes`, `flate2` (pinned to its `rust_backend`, i.e. `miniz_oxide`),
-`h2`, `http`, `pbrs`, and `tokio`. Nothing in the graph pulls in `cc`,
-`bindgen`, `pkg-config`, or a vendored zlib, so nothing compiles C or C++. The
-one FFI crate is `libc`, which `tokio` uses for syscalls and which every Rust
-program links through `std` regardless.
+`h2`, `http`, `pbrs`, `tokio`, `rustls` (no default features), `rustls-graviola`,
+`rustls-pemfile`, `tokio-rustls` (no default features), and `webpki-roots`.
+Nothing in the graph pulls in `cc`, `bindgen`, `pkg-config`, `aws-lc-rs`,
+`ring`, or a vendored zlib, so nothing compiles C or C++. The one FFI crate
+is `libc`, which `tokio` uses for syscalls and which every Rust program links
+through `std` regardless.
 
 ### `unsafe`
 
@@ -695,10 +763,9 @@ Deliberate omissions, with what to do instead.
 
 | Missing | Instead |
 |---|---|
-| TLS | Run behind a mesh sidecar or on a trusted network. The kernel speaks cleartext prior-knowledge HTTP/2 only. |
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
-| Reflection and health services | Implement them as ordinary services; both are just protos. |
+| Reflection | Implement it as an ordinary service; it is just a proto. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 

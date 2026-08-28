@@ -5,9 +5,11 @@
 //! limits, with nothing layered on top that you did not ask for.
 //!
 //! No C or C++ is compiled into the build. Nothing in the dependency graph
-//! pulls in `cc`, `bindgen`, `pkg-config`, or a vendored zlib; gzip goes
-//! through `miniz_oxide`. The one FFI crate present is `libc`, which `tokio`
-//! uses for syscalls and which every Rust program links through `std` anyway.
+//! pulls in `cc`, `bindgen`, `pkg-config`, `aws-lc-rs`, `ring`, or a vendored
+//! zlib. gzip goes through `miniz_oxide`. TLS goes through rustls with the
+//! [Graviola](https://crates.io/crates/graviola) provider, which builds with
+//! `rustc` only. The one FFI crate present is `libc`, which `tokio` uses for
+//! syscalls and which every Rust program links through `std` anyway.
 //!
 //! # Quickstart
 //!
@@ -89,6 +91,8 @@
 //! |---|---|
 //! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`ServerConfig`] |
 //! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`] |
+//! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`] |
+//! | Health | [`health`] |
 //! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
 //! | Limits | [`MessageLimits`] |
@@ -116,10 +120,13 @@
 //! | Deeply nested protobuf | Recursion limit in [`pbrs`] | always on |
 //! | Truncated or malformed frames | Rejected as a protocol error, never treated as an empty message | always on |
 //! | Reserved metadata injection | `grpc-status` and friends are never read from or written to user metadata | always on |
+//! | Cleartext interception | TLS 1.2/1.3, ALPN `h2` required, certificate verification is not optional | opt-in [`Server::serve_tls`] / [`Channel::connect_tls`] |
+//! | Impersonation | WebPKI roots or a CA you pin; mTLS via [`ServerTls::mtls`] | opt-in |
 //!
-//! Not in scope: transport confidentiality and peer authentication. This crate
-//! speaks cleartext prior-knowledge HTTP/2, so run it behind a mesh sidecar or
-//! on a trusted network.
+//! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is
+//! what a loopback test and a mesh sidecar speak. Production that is not
+//! behind a sidecar should call [`Server::serve_tls`] / [`Channel::connect_tls`].
+//! There is no constructor that skips certificate verification.
 //!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! and property tests in the wire module cover what fixed cases cannot: frames
@@ -191,6 +198,7 @@ pub mod interop_cases;
 #[forbid(unsafe_code)]
 pub mod timeout;
 
+pub mod health;
 pub mod hello;
 pub mod testing;
 
@@ -198,6 +206,8 @@ pub mod testing;
 mod client;
 #[forbid(unsafe_code)]
 mod config;
+#[forbid(unsafe_code)]
+mod keepalive;
 #[forbid(unsafe_code)]
 mod limits;
 #[forbid(unsafe_code)]
@@ -210,6 +220,8 @@ mod server;
 mod status;
 #[forbid(unsafe_code)]
 mod stream;
+#[forbid(unsafe_code)]
+mod tls;
 #[forbid(unsafe_code)]
 mod wire;
 
@@ -225,9 +237,9 @@ pub mod codegen_support {
 
 pub use client::{Channel, Target};
 pub use config::{
-    ChannelConfig, ServerConfig, DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_FRAME_SIZE,
-    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
-    DEFAULT_WINDOW_SIZE,
+    ChannelConfig, ServerConfig, DEFAULT_KEEP_ALIVE_TIMEOUT, DEFAULT_MAX_CONCURRENT_STREAMS,
+    DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_SEND_BUFFER_SIZE,
+    DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
 };
 pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
@@ -235,6 +247,7 @@ pub use request::{Call, CallHandle, Parts, Request, Response};
 pub use server::{Router, Rpc, Server, Service};
 pub use status::{Code, Status};
 pub use stream::{Framed, StreamSender, Streaming};
+pub use tls::{ClientTls, Identity, ServerTls};
 
 pub use hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 pub use interop_cases::run_case;

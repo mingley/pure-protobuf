@@ -11,6 +11,7 @@ use crate::metadata::Metadata;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
+use crate::tls::ServerTls;
 use crate::wire::{
     check_request, encode_msg, grpc_trailers, let_producer_catch_up, read_one_message, reject,
     send_bytes, send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout, OutBatch,
@@ -25,7 +26,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::sync::{mpsc, watch};
 
 /// A gRPC service that can be served.
@@ -613,6 +614,30 @@ impl<S: Service> Server<S> {
             listener,
             self.config,
             shutdown,
+            None,
+        )
+        .await
+    }
+
+    /// Bind `addr` and serve over TLS until the listener fails.
+    pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
+        self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
+            .await
+    }
+
+    /// Serve over TLS until `shutdown` resolves, then drain.
+    pub async fn serve_tls_with_shutdown(
+        self,
+        listener: TcpListener,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        accept_loop(
+            Arc::new(Single(self.service)),
+            listener,
+            self.config,
+            shutdown,
+            Some(tls),
         )
         .await
     }
@@ -721,7 +746,25 @@ impl Router {
         shutdown: impl Future<Output = ()> + Send,
     ) -> Result<(), Status> {
         let config = self.config;
-        accept_loop(Arc::new(self), listener, config, shutdown).await
+        accept_loop(Arc::new(self), listener, config, shutdown, None).await
+    }
+
+    /// Bind `addr` and serve over TLS until the listener fails.
+    pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
+        self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
+            .await
+    }
+
+    /// Serve over TLS until `shutdown` resolves, then drain. See
+    /// [`Server::serve_with_shutdown`].
+    pub async fn serve_tls_with_shutdown(
+        self,
+        listener: TcpListener,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        let config = self.config;
+        accept_loop(Arc::new(self), listener, config, shutdown, Some(tls)).await
     }
 }
 
@@ -746,6 +789,7 @@ async fn accept_loop<D: Dispatch>(
     listener: TcpListener,
     config: ServerConfig,
     shutdown: impl Future<Output = ()> + Send,
+    tls: Option<ServerTls>,
 ) -> Result<(), Status> {
     // Dropping every clone of `drain_tx` is what tells us the last connection
     // task has finished.
@@ -781,8 +825,17 @@ async fn accept_loop<D: Dispatch>(
                 let dispatch = Arc::clone(&dispatch);
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
+                let tls = tls.clone();
                 drop(tokio::spawn(async move {
-                    serve_conn(dispatch, tcp, Some(peer), config, goaway).await;
+                    tcp.set_nodelay(true).ok();
+                    match tls {
+                        None => serve_io(dispatch, tcp, Some(peer), config, goaway).await,
+                        Some(tls) => {
+                            if let Ok(io) = tls.accept(tcp).await {
+                                serve_io(dispatch, io, Some(peer), config, goaway).await;
+                            }
+                        }
+                    }
                     drop(drain);
                 }));
             }
@@ -800,59 +853,56 @@ async fn accept_loop<D: Dispatch>(
     result
 }
 
-async fn serve_conn<D: Dispatch>(
+async fn serve_io<D, IO>(
     dispatch: Arc<D>,
-    tcp: TcpStream,
+    io: IO,
     peer: Option<SocketAddr>,
     config: ServerConfig,
     goaway: watch::Receiver<bool>,
-) {
-    // Nagle would coalesce a unary response with the next request's ACK and
-    // add a full RTT to every small RPC.
-    tcp.set_nodelay(true).ok();
-    let Ok(mut conn) = config.h2_builder().handshake(tcp).await else {
+) where
+    D: Dispatch,
+    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    let Ok(mut conn) = config.h2_builder().handshake(io).await else {
         return;
     };
-    let drain = std::pin::pin!(wait_for_drain(goaway));
-    let mut drain = Some(drain);
+    let (interval, timeout) = config.keepalive();
+    let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
+    let mut draining = false;
     loop {
-        // `poll_accept` borrows `conn` only for this statement, so the
-        // `graceful_shutdown` call below can borrow it again.
-        let mut draining = false;
-        let accepted = std::future::poll_fn(|cx| {
-            if let Poll::Ready(item) = conn.poll_accept(cx) {
-                return Poll::Ready(item);
+        tokio::select! {
+            biased;
+            accepted = std::future::poll_fn(|cx| conn.poll_accept(cx)) => {
+                let Some(Ok((request, respond))) = accepted else {
+                    break;
+                };
+                let dispatch = Arc::clone(&dispatch);
+                drop(tokio::spawn(async move {
+                    dispatch
+                        .dispatch(Rpc {
+                            request,
+                            respond,
+                            config,
+                            remote_addr: peer,
+                        })
+                        .await;
+                }));
             }
-            if let Some(fut) = drain.as_mut() {
-                if fut.as_mut().poll(cx).is_ready() {
-                    draining = true;
-                    return Poll::Ready(None);
-                }
+            _ = wait_for_drain(goaway.clone()), if !draining => {
+                draining = true;
+                conn.graceful_shutdown();
             }
-            Poll::Pending
-        })
-        .await;
-        if draining {
-            // Stop watching, queue GOAWAY, and keep serving in-flight streams
-            // until the peer closes.
-            drain = None;
-            conn.graceful_shutdown();
-            continue;
+            _ = wait_dead(dead.clone()) => {
+                break;
+            }
         }
-        let Some(Ok((request, respond))) = accepted else {
-            break;
-        };
-        let dispatch = Arc::clone(&dispatch);
-        drop(tokio::spawn(async move {
-            dispatch
-                .dispatch(Rpc {
-                    request,
-                    respond,
-                    config,
-                    remote_addr: peer,
-                })
-                .await;
-        }));
+    }
+}
+
+async fn wait_dead(dead: Option<watch::Receiver<bool>>) {
+    match dead {
+        Some(dead) => crate::keepalive::wait(dead).await,
+        None => std::future::pending().await,
     }
 }
 

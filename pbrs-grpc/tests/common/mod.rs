@@ -26,7 +26,7 @@ use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
 /// Keeps the server task alive for the duration of a test and aborts it after.
-pub struct ServerGuard(JoinHandle<()>);
+pub struct ServerGuard(pub JoinHandle<()>);
 
 impl Drop for ServerGuard {
     fn drop(&mut self) {

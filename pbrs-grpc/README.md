@@ -1,7 +1,8 @@
 # pbrs-grpc
 
 A pure-Rust gRPC kernel over [pbrs](../README.md). No `unsafe` in the kernel,
-no C or C++ compiled into the build, no tonic.
+no C or C++ compiled into the build, no tonic. TLS uses rustls with Graviola
+(rustc only; no `aws-lc-rs` or `ring`).
 
 ```toml
 [dependencies]
@@ -44,9 +45,10 @@ let client = GreeterClient::new(Channel::connect("127.0.0.1:50051").await?);
 let reply = client.say_hello(Request::new(req)).await?;
 ```
 
-All four call shapes, `Router` for several services, graceful drain with
-`GOAWAY`, per-message gzip, deadlines, cancellation, ASCII and `-bin`
-metadata, and OK-path custom trailers.
+All four call shapes, `Router` for several services, TLS (rustls + Graviola,
+no C compiler) and mTLS, `grpc.health.v1`, HTTP/2 PING keepalive, graceful
+drain with `GOAWAY`, per-message gzip, deadlines, cancellation, ASCII and
+`-bin` metadata, and OK-path custom trailers.
 
 **[Guide](../docs/grpc.md)** — building services, streaming, metadata, errors,
 deadlines, compression, limits, tuning, testing, and writing a service without
@@ -103,8 +105,9 @@ See [the threat model](../docs/grpc.md#limits-and-the-threat-model).
 
 ## Scope
 
-Cleartext prior-knowledge HTTP/2 (h2c). No TLS, no load balancing, no
-retries — run behind a mesh sidecar or on a trusted network, and see
+h2c by default; TLS is opt-in via `ServerTls` / `ClientTls` (rustls + Graviola,
+certificate verification is not optional). No load balancing, no retries —
+pool with `ChannelConfig::connections`, retry at the call site, and see
 [what is not here](../docs/grpc.md#what-is-not-here).
 
 `pbrs` does not depend on this crate, and this crate does not depend on tonic
