@@ -86,10 +86,12 @@ guards is committed: a frame length is refused from the 5-byte header, and a
 compressed frame inflates through a reader that stops one byte past the cap.
 
 Defaults: 4 MiB inbound messages, 16 KiB metadata, 256 concurrent streams per
-connection, 16 MiB windows. `tests/hostile.rs` speaks raw HTTP/2 to check
-them, sending length prefixes claiming 4 GiB, gzip bombs, reserved flag
-values, truncated frames, and malformed paths, then verifying the server still
-serves.
+connection, 16 MiB windows. `tests/hostile.rs` speaks raw HTTP/2 to check them,
+sending length prefixes claiming 4 GiB, gzip bombs, reserved flag values,
+truncated frames, and malformed paths, then verifying the server still serves.
+Property tests add what fixed cases cannot: frames survive arbitrary chunk
+boundaries, arbitrary bytes never panic and never exceed the cap, and a
+compressed frame never inflates past it.
 
 Every hand-written module carries `#[forbid(unsafe_code)]`, which cannot be
 relaxed from inside it. The two modules that `include!` generated messages are

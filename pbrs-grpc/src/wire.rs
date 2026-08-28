@@ -786,7 +786,9 @@ fn percent_decode(s: &str) -> String {
 mod tests {
     use super::{percent_decode, percent_encode, FrameReader};
     use crate::codec;
+    use crate::gzip;
     use crate::limits::MessageLimits;
+    use crate::status::Code;
     use bytes::{Bytes, BytesMut};
 
     #[test]
@@ -870,5 +872,138 @@ mod tests {
         reader.push(wire.slice(..7));
         assert!(reader.next_frame().expect("pop").is_none());
         reader.finish().expect_err("truncated");
+    }
+
+    /// Deterministic xorshift, so a failure reproduces from the seed alone
+    /// rather than needing a fuzzing dependency.
+    struct Rng(u64);
+
+    impl Rng {
+        fn next_u64(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+
+        fn below(&mut self, n: usize) -> usize {
+            if n == 0 {
+                0
+            } else {
+                usize::try_from(self.next_u64() % u64::try_from(n).unwrap_or(1)).unwrap_or(0)
+            }
+        }
+
+        fn bytes(&mut self, n: usize) -> Vec<u8> {
+            (0..n)
+                .map(|_| u8::try_from(self.next_u64() & 0xff).unwrap_or(0))
+                .collect()
+        }
+    }
+
+    /// Split `data` at random boundaries, so the reader sees every alignment of
+    /// frames against chunks that HTTP/2 could produce.
+    fn random_chunks(rng: &mut Rng, data: &Bytes) -> Vec<Bytes> {
+        let mut chunks = Vec::new();
+        let mut offset = 0;
+        while offset < data.len() {
+            let remaining = data.len() - offset;
+            let take = 1 + rng.below(remaining.min(64));
+            chunks.push(data.slice(offset..offset + take));
+            offset += take;
+        }
+        chunks
+    }
+
+    /// Property: however the bytes are split, the frames come back intact and
+    /// in order. This is the invariant the zero-copy fast path could break.
+    #[test]
+    fn arbitrary_chunk_boundaries_preserve_every_frame() {
+        let mut rng = Rng(0x5eed_1234_abcd_0001);
+        for _ in 0..2_000 {
+            let count = 1 + rng.below(6);
+            let payloads: Vec<Vec<u8>> = (0..count)
+                .map(|_| {
+                    let len = rng.below(200);
+                    rng.bytes(len)
+                })
+                .collect();
+            let mut wire = BytesMut::new();
+            for payload in &payloads {
+                wire.extend_from_slice(&codec::encode(payload, false).expect("encode"));
+            }
+            let wire = wire.freeze();
+
+            let mut reader = FrameReader::new(MessageLimits::unlimited());
+            let mut got: Vec<Vec<u8>> = Vec::new();
+            for chunk in random_chunks(&mut rng, &wire) {
+                reader.push(chunk);
+                while let Some(frame) = reader.next_frame().expect("well-formed") {
+                    got.push(frame.payload.to_vec());
+                }
+            }
+            reader.finish().expect("clean end");
+            assert_eq!(got, payloads, "chunking must not change the frames");
+        }
+    }
+
+    /// Property: arbitrary bytes in arbitrary chunks produce frames or a
+    /// `Status`, never a panic and never a frame longer than the cap.
+    #[test]
+    fn arbitrary_bytes_never_panic_and_never_exceed_the_cap() {
+        const CAP: usize = 512;
+        let limits = MessageLimits::unlimited().with_max_decoding(CAP);
+        let mut rng = Rng(0xf00d_0bad_1dea_0002);
+        for _ in 0..4_000 {
+            let len = rng.below(600);
+            let garbage = Bytes::from(rng.bytes(len));
+            let mut reader = FrameReader::new(limits);
+            for chunk in random_chunks(&mut rng, &garbage) {
+                reader.push(chunk);
+                loop {
+                    match reader.next_frame() {
+                        Ok(Some(frame)) => assert!(frame.payload.len() <= CAP),
+                        Ok(None) => break,
+                        // A `Status` is the correct answer for garbage.
+                        Err(_) => break,
+                    }
+                }
+            }
+            // Truncation is a legitimate verdict on garbage; either arm is
+            // fine, and neither may panic.
+            match reader.finish() {
+                Ok(()) | Err(_) => {}
+            }
+        }
+    }
+
+    /// Property: a compressed frame never inflates past the cap, whatever it
+    /// claims. Random data barely compresses, so this also exercises the case
+    /// where the inflated size is close to the input size.
+    #[test]
+    fn compressed_frames_respect_the_cap() {
+        const CAP: usize = 256;
+        let limits = MessageLimits::unlimited().with_max_decoding(CAP);
+        let mut rng = Rng(0xdead_beef_cafe_0003);
+        for _ in 0..300 {
+            let len = rng.below(2_000);
+            // Runs of zeros compress well; random bytes do not. Mix both.
+            let payload: Vec<u8> = if rng.below(2) == 0 {
+                vec![0u8; len]
+            } else {
+                rng.bytes(len)
+            };
+            let compressed = gzip::encode(&payload).expect("encode");
+            match gzip::decode_limited(&compressed, limits) {
+                Ok(inflated) => {
+                    assert!(inflated.len() <= CAP);
+                    assert_eq!(inflated, payload);
+                }
+                Err(status) => {
+                    assert!(payload.len() > CAP, "only oversize payloads may fail");
+                    assert_eq!(status.code(), Code::ResourceExhausted);
+                }
+            }
+        }
     }
 }
