@@ -1,0 +1,395 @@
+//! What the server does when the peer is not a well-behaved gRPC client.
+//!
+//! These tests speak raw HTTP/2 so they can send bytes no real client would:
+//! oversize length prefixes, gzip bombs, reserved flag values, truncated
+//! frames, and wrong content types. Every case must produce a `Status` and
+//! leave the server serving.
+
+#![allow(
+    clippy::disallowed_methods,
+    clippy::let_underscore_must_use,
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::too_many_lines,
+    clippy::unimplemented,
+    unreachable_pub,
+    reason = "integration tests"
+)]
+
+mod common;
+
+use bytes::{BufMut, Bytes, BytesMut};
+use common::spawn_greeter_server;
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use http::{HeaderValue, Method, Request as HttpRequest, StatusCode};
+use pbrs_grpc::{Code, ServerConfig};
+use std::io::Write;
+use std::net::SocketAddr;
+use std::time::Duration;
+
+const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
+const STREAM_HELLO: &str = "/helloworld.Greeter/StreamHello";
+
+/// A raw HTTP/2 connection that sends whatever bytes it is told to.
+struct RawPeer {
+    send: h2::client::SendRequest<Bytes>,
+    authority: String,
+}
+
+impl RawPeer {
+    async fn connect(addr: SocketAddr) -> Self {
+        let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
+        let (send, conn) = h2::client::handshake(tcp).await.expect("handshake");
+        drop(tokio::spawn(async move {
+            conn.await.ok();
+        }));
+        Self {
+            send,
+            authority: addr.to_string(),
+        }
+    }
+
+    fn request(&self, path: &str, content_type: &str) -> HttpRequest<()> {
+        let uri = format!("http://{}{path}", self.authority);
+        HttpRequest::builder()
+            .method(Method::POST)
+            .uri(uri)
+            .header(http::header::CONTENT_TYPE, content_type)
+            .header(http::header::TE, "trailers")
+            .body(())
+            .expect("request")
+    }
+
+    /// Send `body` as the whole request and read back the gRPC status.
+    async fn call(&mut self, path: &str, body: Bytes) -> Answer {
+        self.call_with(self.request(path, "application/grpc"), body)
+            .await
+    }
+
+    async fn call_with(&mut self, request: HttpRequest<()>, body: Bytes) -> Answer {
+        let mut send = self.send.clone().ready().await.expect("ready");
+        let (response, mut stream) = send.send_request(request, false).expect("send_request");
+        stream.send_data(body, true).expect("send_data");
+        let response = response.await.expect("response");
+        let http_status = response.status();
+        let header_status = grpc_status(response.headers());
+        let mut body = response.into_body();
+        let mut payload_frames = 0usize;
+        while let Some(chunk) = body.data().await {
+            let chunk = chunk.expect("data");
+            if !chunk.is_empty() {
+                payload_frames += 1;
+            }
+            body.flow_control().release_capacity(chunk.len()).ok();
+        }
+        let trailer_status = body
+            .trailers()
+            .await
+            .ok()
+            .flatten()
+            .and_then(|t| grpc_status(&t));
+        Answer {
+            http_status,
+            code: trailer_status.or(header_status).map(Code::from_i32),
+            payload_frames,
+        }
+    }
+}
+
+struct Answer {
+    http_status: StatusCode,
+    code: Option<Code>,
+    payload_frames: usize,
+}
+
+impl Answer {
+    fn expect_code(&self, want: Code) {
+        assert_eq!(self.http_status, StatusCode::OK, "gRPC always answers 200");
+        assert_eq!(self.code, Some(want));
+    }
+}
+
+fn grpc_status(headers: &http::HeaderMap) -> Option<i32> {
+    headers.get("grpc-status")?.to_str().ok()?.parse().ok()
+}
+
+/// A length-prefixed frame with an arbitrary declared length, so tests can lie.
+fn frame_with_declared_len(flag: u8, declared: u32, payload: &[u8]) -> Bytes {
+    let mut buf = BytesMut::with_capacity(5 + payload.len());
+    buf.put_u8(flag);
+    buf.put_u32(declared);
+    buf.extend_from_slice(payload);
+    buf.freeze()
+}
+
+fn frame(payload: &[u8]) -> Bytes {
+    frame_with_declared_len(0, payload.len() as u32, payload)
+}
+
+fn gzip(payload: &[u8]) -> Vec<u8> {
+    gzip_with(payload, Compression::fast())
+}
+
+fn gzip_with(payload: &[u8], level: Compression) -> Vec<u8> {
+    let mut enc = GzEncoder::new(Vec::new(), level);
+    enc.write_all(payload).expect("write");
+    enc.finish().expect("finish")
+}
+
+/// A valid `HelloRequest { name: "ada" }`.
+fn hello_request() -> Vec<u8> {
+    vec![0x0a, 0x03, b'a', b'd', b'a']
+}
+
+#[tokio::test]
+async fn a_giant_declared_length_is_refused_from_the_header() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    // Claims 4 GiB but sends five bytes. The cap must be applied to the claim.
+    let body = frame_with_declared_len(0, u32::MAX, &hello_request());
+    peer.call(SAY_HELLO, body)
+        .await
+        .expect_code(Code::ResourceExhausted);
+}
+
+#[tokio::test]
+async fn oversize_message_is_resource_exhausted_not_a_hang() {
+    let (addr, _guard) =
+        spawn_greeter_server(ServerConfig::new().max_decoding_message_size(16)).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let payload = vec![0u8; 1024];
+    peer.call(SAY_HELLO, frame(&payload))
+        .await
+        .expect_code(Code::ResourceExhausted);
+}
+
+#[tokio::test]
+async fn a_gzip_bomb_cannot_outgrow_the_cap() {
+    // 64 MiB of zeros compresses to well under 256 KiB, so the frame itself
+    // passes the length check and only bounded inflation stops it.
+    const CAP: usize = 256 * 1024;
+    let (addr, _guard) =
+        spawn_greeter_server(ServerConfig::new().max_decoding_message_size(CAP)).await;
+    let bomb = gzip_with(&vec![0u8; 64 * 1024 * 1024], Compression::best());
+    assert!(
+        bomb.len() < CAP,
+        "the bomb must pass the frame-length check: {} bytes vs {CAP}",
+        bomb.len()
+    );
+    let mut peer = RawPeer::connect(addr).await;
+    let body = frame_with_declared_len(1, bomb.len() as u32, &bomb);
+    peer.call(SAY_HELLO, body)
+        .await
+        .expect_code(Code::ResourceExhausted);
+}
+
+#[tokio::test]
+async fn a_legitimate_compressed_frame_still_round_trips() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let compressed = gzip(&hello_request());
+    let mut peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("gzip"));
+    let body = frame_with_declared_len(1, compressed.len() as u32, &compressed);
+    let answer = peer.call_with(request, body).await;
+    answer.expect_code(Code::Ok);
+    assert_eq!(answer.payload_frames, 1);
+}
+
+#[tokio::test]
+async fn a_reserved_compressed_flag_is_a_protocol_error() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let payload = hello_request();
+    let body = frame_with_declared_len(7, payload.len() as u32, &payload);
+    peer.call(SAY_HELLO, body).await.expect_code(Code::Internal);
+}
+
+#[tokio::test]
+async fn a_truncated_frame_is_not_an_empty_message() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    // Declares 64 bytes, sends 3. The stream then half-closes.
+    let body = frame_with_declared_len(0, 64, &[1, 2, 3]);
+    peer.call(SAY_HELLO, body).await.expect_code(Code::Internal);
+}
+
+#[tokio::test]
+async fn two_messages_on_a_unary_path_are_refused() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let mut body = BytesMut::new();
+    body.extend_from_slice(&frame(&hello_request()));
+    body.extend_from_slice(&frame(&hello_request()));
+    peer.call(SAY_HELLO, body.freeze())
+        .await
+        .expect_code(Code::Internal);
+}
+
+#[tokio::test]
+async fn a_non_grpc_content_type_is_rejected() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let request = peer.request(SAY_HELLO, "application/json");
+    peer.call_with(request, frame(&hello_request()))
+        .await
+        .expect_code(Code::InvalidArgument);
+}
+
+#[tokio::test]
+async fn grpc_proto_content_type_subtypes_are_accepted() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    for content_type in ["application/grpc", "application/grpc+proto"] {
+        let request = peer.request(SAY_HELLO, content_type);
+        let answer = peer.call_with(request, frame(&hello_request())).await;
+        answer.expect_code(Code::Ok);
+        assert_eq!(answer.payload_frames, 1, "{content_type} must get a reply");
+    }
+}
+
+#[tokio::test]
+async fn an_unsupported_encoding_is_unimplemented_and_advertises_what_works() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("snappy"));
+
+    let mut send = peer.send.clone().ready().await.expect("ready");
+    let (response, mut stream) = send.send_request(request, false).expect("send_request");
+    stream
+        .send_data(frame(&hello_request()), true)
+        .expect("send_data");
+    let response = response.await.expect("response");
+    assert_eq!(
+        grpc_status(response.headers()).map(Code::from_i32),
+        Some(Code::Unimplemented)
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("grpc-accept-encoding")
+            .and_then(|v| v.to_str().ok()),
+        Some("identity,gzip"),
+        "the spec requires telling the client what to retry with"
+    );
+}
+
+#[tokio::test]
+async fn an_unknown_method_is_unimplemented() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    peer.call("/helloworld.Greeter/NoSuchMethod", frame(&hello_request()))
+        .await
+        .expect_code(Code::Unimplemented);
+}
+
+#[tokio::test]
+async fn an_unknown_service_is_unimplemented() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    peer.call("/nope.Nothing/Anything", frame(&hello_request()))
+        .await
+        .expect_code(Code::Unimplemented);
+}
+
+#[tokio::test]
+async fn a_malformed_path_is_unimplemented_not_a_panic() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    for path in ["/", "/nomethod", "//", "/a/b/c"] {
+        peer.call(path, frame(&hello_request()))
+            .await
+            .expect_code(Code::Unimplemented);
+    }
+}
+
+#[tokio::test]
+async fn an_empty_body_decodes_to_a_default_message() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let answer = peer.call(SAY_HELLO, Bytes::new()).await;
+    answer.expect_code(Code::Ok);
+    assert_eq!(answer.payload_frames, 1);
+}
+
+#[tokio::test]
+async fn garbage_protobuf_bytes_are_an_error_not_a_panic() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    // Field 1, wire type 5 (fixed32) where a string is expected, truncated.
+    peer.call(SAY_HELLO, frame(&[0x0d, 0xff]))
+        .await
+        .expect_code(Code::Internal);
+}
+
+#[tokio::test]
+async fn a_hostile_stream_does_not_take_the_server_down() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+
+    // Twenty different kinds of bad request on the same connection.
+    for _ in 0..5 {
+        peer.call(SAY_HELLO, frame_with_declared_len(0, u32::MAX, &[]))
+            .await;
+        peer.call(SAY_HELLO, frame_with_declared_len(9, 1, &[0]))
+            .await;
+        peer.call("/unknown.Service/Method", Bytes::new()).await;
+        peer.call(STREAM_HELLO, frame_with_declared_len(0, 99, &[1]))
+            .await;
+    }
+
+    // The server still answers a well-formed request on a fresh connection.
+    let client = common::greeter_client(addr).await;
+    let reply = client
+        .say_hello(pbrs_grpc::Request::new(common::req("ada")))
+        .await
+        .expect("server still healthy");
+    assert_eq!(common::name_of(reply.get_ref()), "ada");
+}
+
+#[tokio::test]
+async fn metadata_beyond_the_header_list_cap_is_refused() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new().max_header_list_size(1024)).await;
+    let peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    let big = "v".repeat(4096);
+    request
+        .headers_mut()
+        .insert("x-flood", HeaderValue::from_str(&big).expect("value"));
+
+    let mut send = peer.send.clone().ready().await.expect("ready");
+    // h2 either refuses locally or the server resets; either way the RPC does
+    // not complete and the server is unharmed.
+    let outcome = match send.send_request(request, false) {
+        Err(_) => None,
+        Ok((response, mut stream)) => {
+            stream.send_data(frame(&hello_request()), true).ok();
+            Some(response.await)
+        }
+    };
+    assert!(
+        outcome.is_none_or(|r| r.is_err()),
+        "oversize header list must not be served"
+    );
+
+    let client = common::greeter_client(addr).await;
+    let reply = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(pbrs_grpc::Request::new(common::req("ada"))),
+    )
+    .await
+    .expect("no hang")
+    .expect("server still healthy");
+    assert_eq!(common::name_of(reply.get_ref()), "ada");
+}

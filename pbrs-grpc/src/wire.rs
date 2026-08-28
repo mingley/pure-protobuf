@@ -204,6 +204,30 @@ pub(crate) fn send_trailers_only(
     respond.send_response(res, true).ok();
 }
 
+/// Answer a request this server refuses to process, advertising what it does
+/// accept.
+///
+/// The gRPC spec requires `grpc-accept-encoding` on a rejection caused by an
+/// unsupported `grpc-encoding`, so the client knows what to retry with. Sending
+/// it on every rejection costs one header and keeps the logic in one place.
+pub(crate) fn reject(respond: &mut h2::server::SendResponse<Bytes>, status: Status) {
+    let mut res = match Response::builder()
+        .status(StatusCode::OK)
+        .header(http::header::CONTENT_TYPE, APPLICATION_GRPC)
+        .header(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP)
+        .body(())
+    {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+    if let Ok(trailers) = grpc_trailers(&status) {
+        for (k, v) in &trailers {
+            res.headers_mut().append(k, v.clone());
+        }
+    }
+    respond.send_response(res, true).ok();
+}
+
 pub(crate) fn send_ok_headers(
     respond: &mut h2::server::SendResponse<Bytes>,
     md: &Metadata,

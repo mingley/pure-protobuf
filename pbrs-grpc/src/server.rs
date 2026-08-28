@@ -12,7 +12,7 @@ use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::wire::{
-    check_request, encode_msg, grpc_trailers, pump_inbound, read_one_message, send_bytes,
+    check_request, encode_msg, grpc_trailers, pump_inbound, read_one_message, reject, send_bytes,
     send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout,
 };
 use bytes::Bytes;
@@ -103,6 +103,15 @@ pub struct Rpc {
     remote_addr: Option<SocketAddr>,
 }
 
+impl std::fmt::Debug for Rpc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Rpc")
+            .field("path", &self.path())
+            .field("remote_addr", &self.remote_addr)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Rpc {
     /// Full request path, e.g. `/helloworld.Greeter/SayHello`.
     #[must_use]
@@ -172,11 +181,14 @@ impl Rpc {
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<Response<Resp>, Status>>,
     {
-        let Prepared {
+        let Some(Prepared {
             mut respond,
             limits,
             outcome,
-        } = self.run_unary_request(handler).await;
+        }) = self.run_unary_request(handler).await
+        else {
+            return;
+        };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
             Ok(response) => send_unary_response(response, respond, limits).await,
@@ -191,11 +203,14 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Resp>, Status>>,
     {
-        let Prepared {
+        let Some(Prepared {
             mut respond,
             limits,
             outcome,
-        } = self.run_streaming_request(handler).await;
+        }) = self.run_streaming_request(handler).await
+        else {
+            return;
+        };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
             Ok(response) => send_unary_response(response, respond, limits).await,
@@ -210,11 +225,14 @@ impl Rpc {
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
-        let Prepared {
+        let Some(Prepared {
             mut respond,
             limits,
             outcome,
-        } = self.run_unary_request(handler).await;
+        }) = self.run_unary_request(handler).await
+        else {
+            return;
+        };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
             Ok(response) => send_stream_response(response, respond, limits).await,
@@ -229,11 +247,14 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
-        let Prepared {
+        let Some(Prepared {
             mut respond,
             limits,
             outcome,
-        } = self.run_streaming_request(handler).await;
+        }) = self.run_streaming_request(handler).await
+        else {
+            return;
+        };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
             Ok(response) => send_stream_response(response, respond, limits).await,
@@ -241,7 +262,9 @@ impl Rpc {
     }
 
     /// Read the single request message, then run `handler` under the deadline.
-    async fn run_unary_request<Req, T, F, Fut>(self, handler: F) -> Prepared<T>
+    ///
+    /// `None` means the request was rejected and already answered.
+    async fn run_unary_request<Req, T, F, Fut>(self, handler: F) -> Option<Prepared<T>>
     where
         Req: Parse + Default,
         F: FnOnce(Request<Req>) -> Fut,
@@ -255,8 +278,8 @@ impl Rpc {
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
-            send_trailers_only(&mut respond, status.clone(), &Metadata::new());
-            return Prepared::sent(respond, limits);
+            reject(&mut respond, status);
+            return None;
         }
         let timeout = timeout_from_headers(request.headers());
         let (parts, mut recv) = request.into_parts();
@@ -270,15 +293,17 @@ impl Rpc {
             handler(req).await
         })
         .await;
-        Prepared {
+        Some(Prepared {
             respond,
             limits,
             outcome,
-        }
+        })
     }
 
     /// Start pumping the request stream, then run `handler` under the deadline.
-    async fn run_streaming_request<Req, T, F, Fut>(self, handler: F) -> Prepared<T>
+    ///
+    /// `None` means the request was rejected and already answered.
+    async fn run_streaming_request<Req, T, F, Fut>(self, handler: F) -> Option<Prepared<T>>
     where
         Req: Parse + Default + Send + 'static,
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
@@ -292,8 +317,8 @@ impl Rpc {
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
-            send_trailers_only(&mut respond, status, &Metadata::new());
-            return Prepared::sent(respond, limits);
+            reject(&mut respond, status);
+            return None;
         }
         let timeout = timeout_from_headers(request.headers());
         let (parts, recv) = request.into_parts();
@@ -306,11 +331,11 @@ impl Rpc {
             req.set_timeout(d);
         }
         let outcome = wrap_timeout(timeout, handler(req)).await;
-        Prepared {
+        Some(Prepared {
             respond,
             limits,
             outcome,
-        }
+        })
     }
 }
 
@@ -319,18 +344,6 @@ struct Prepared<T> {
     respond: h2::server::SendResponse<Bytes>,
     limits: MessageLimits,
     outcome: Result<T, Status>,
-}
-
-impl<T> Prepared<T> {
-    /// The response was already written (a rejected request); make the caller
-    /// take the error arm, which then sends nothing more.
-    fn sent(respond: h2::server::SendResponse<Bytes>, limits: MessageLimits) -> Self {
-        Self {
-            respond,
-            limits,
-            outcome: Err(Status::new(Code::Ok, "")),
-        }
-    }
 }
 
 async fn send_unary_response<Resp: Serialize>(
@@ -425,6 +438,15 @@ fn split_path(path: &str) -> (&str, &str) {
 pub struct Server<S> {
     service: Arc<S>,
     config: ServerConfig,
+}
+
+impl<S: Service> std::fmt::Debug for Server<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Server")
+            .field("service", &S::NAME)
+            .field("config", &self.config)
+            .finish()
+    }
 }
 
 impl<S: Service> Server<S> {
@@ -538,6 +560,17 @@ impl<S: Service> Dispatch for Single<S> {
 pub struct Router {
     routes: HashMap<&'static str, Arc<dyn DynService>>,
     config: ServerConfig,
+}
+
+impl std::fmt::Debug for Router {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut services: Vec<&str> = self.routes.keys().copied().collect();
+        services.sort_unstable();
+        f.debug_struct("Router")
+            .field("services", &services)
+            .field("config", &self.config)
+            .finish()
+    }
 }
 
 impl Router {

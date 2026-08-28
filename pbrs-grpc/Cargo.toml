@@ -13,13 +13,20 @@ pbrs = { path = ".." }
 [dependencies]
 base64 = "0.22"
 bytes = "1"
-flate2 = "1"
+# `rust_backend` is miniz_oxide: pure Rust, no C in the compression path.
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 h2 = "0.4"
 http = "1"
 pbrs = { path = ".." }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
 
 [dev-dependencies]
+# The hostile-peer tests speak raw HTTP/2 so they can send bytes no
+# well-behaved client would.
+bytes = "1"
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+h2 = "0.4"
+http = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
 
 [[bin]]
