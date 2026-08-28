@@ -66,6 +66,7 @@ pub trait TestService: Send + Sync + 'static {
 /// Serve [`TestService`].
 pub struct TestServiceServer<T> {
     inner: Arc<T>,
+    limits: crate::codec::SizeLimits,
 }
 
 impl<T: TestService> TestServiceServer<T> {
@@ -73,7 +74,22 @@ impl<T: TestService> TestServiceServer<T> {
     pub fn new(inner: T) -> Self {
         Self {
             inner: Arc::new(inner),
+            limits: crate::codec::SizeLimits::default(),
         }
+    }
+
+    /// Cap inbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.limits.max_decoding = Some(limit);
+        self
+    }
+
+    /// Cap outbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.limits.max_encoding = Some(limit);
+        self
     }
 
     /// Accept on `listener`.
@@ -89,40 +105,41 @@ impl<T: TestService> Http2Handler for TestServiceServer<T> {
         respond: h2::server::SendResponse<Bytes>,
     ) -> impl Future<Output = ()> + Send {
         let inner = Arc::clone(&self.inner);
+        let limits = self.limits;
         async move {
             match request.uri().path() {
                 EMPTY_CALL => {
-                    dispatch_unary(request, respond, |req| async move {
+                    dispatch_unary(request, respond, limits, |req| async move {
                         inner.empty_call(req).await
                     })
                     .await;
                 }
                 UNARY_CALL => {
-                    dispatch_unary(request, respond, |req| async move {
+                    dispatch_unary(request, respond, limits, |req| async move {
                         inner.unary_call(req).await
                     })
                     .await;
                 }
                 STREAMING_OUTPUT => {
-                    dispatch_server_stream(request, respond, |req| async move {
+                    dispatch_server_stream(request, respond, limits, |req| async move {
                         inner.streaming_output_call(req).await
                     })
                     .await;
                 }
                 STREAMING_INPUT => {
-                    dispatch_client_stream(request, respond, |req| async move {
+                    dispatch_client_stream(request, respond, limits, |req| async move {
                         inner.streaming_input_call(req).await
                     })
                     .await;
                 }
                 FULL_DUPLEX => {
-                    dispatch_bidi(request, respond, |req| async move {
+                    dispatch_bidi(request, respond, limits, |req| async move {
                         inner.full_duplex_call(req).await
                     })
                     .await;
                 }
                 HALF_DUPLEX => {
-                    dispatch_bidi(request, respond, |req| async move {
+                    dispatch_bidi(request, respond, limits, |req| async move {
                         inner.half_duplex_call(req).await
                     })
                     .await;
@@ -144,6 +161,20 @@ impl TestServiceClient {
     #[must_use]
     pub fn new(channel: Channel) -> Self {
         Self { channel }
+    }
+
+    /// Cap inbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.channel = self.channel.max_decoding_message_size(limit);
+        self
+    }
+
+    /// Cap outbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.channel = self.channel.max_encoding_message_size(limit);
+        self
     }
 
     /// EmptyCall.

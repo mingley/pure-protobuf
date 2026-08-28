@@ -66,15 +66,23 @@ impl<T: Send> Inbound<T> {
 /// Client half of a client-stream or bidi call.
 pub struct StreamingSender<T> {
     tx: mpsc::Sender<Result<OutItem<T>, Status>>,
+    max_encoding: Option<usize>,
 }
 
 impl<T: Send> StreamingSender<T> {
-    pub(crate) fn new(tx: mpsc::Sender<Result<OutItem<T>, Status>>) -> Self {
-        Self { tx }
+    pub(crate) fn new(
+        tx: mpsc::Sender<Result<OutItem<T>, Status>>,
+        max_encoding: Option<usize>,
+    ) -> Self {
+        Self { tx, max_encoding }
     }
 
     /// Queue one uncompressed message.
-    pub async fn send(&self, msg: T) -> Result<(), Status> {
+    pub async fn send(&self, msg: T) -> Result<(), Status>
+    where
+        T: pbrs::Serialize,
+    {
+        self.check_encode(&msg)?;
         self.send_item(OutItem {
             message: msg,
             compress: false,
@@ -83,12 +91,24 @@ impl<T: Send> StreamingSender<T> {
     }
 
     /// Queue one gzip-compressed message (Compressed-Flag 1).
-    pub async fn send_compressed(&self, msg: T) -> Result<(), Status> {
+    pub async fn send_compressed(&self, msg: T) -> Result<(), Status>
+    where
+        T: pbrs::Serialize,
+    {
+        self.check_encode(&msg)?;
         self.send_item(OutItem {
             message: msg,
             compress: true,
         })
         .await
+    }
+
+    fn check_encode<U: pbrs::Serialize>(&self, msg: &U) -> Result<(), Status> {
+        crate::codec::SizeLimits {
+            max_decoding: None,
+            max_encoding: self.max_encoding,
+        }
+        .check_encode(U::serialized_len(msg))
     }
 
     async fn send_item(&self, item: OutItem<T>) -> Result<(), Status> {

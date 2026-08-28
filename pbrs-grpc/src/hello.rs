@@ -56,6 +56,7 @@ pub trait Greeter: Send + Sync + 'static {
 /// Serve [`Greeter`] over HTTP/2.
 pub struct GreeterServer<T> {
     inner: Arc<T>,
+    limits: crate::codec::SizeLimits,
 }
 
 impl<T: Greeter> GreeterServer<T> {
@@ -63,7 +64,22 @@ impl<T: Greeter> GreeterServer<T> {
     pub fn new(inner: T) -> Self {
         Self {
             inner: Arc::new(inner),
+            limits: crate::codec::SizeLimits::default(),
         }
+    }
+
+    /// Cap inbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.limits.max_decoding = Some(limit);
+        self
+    }
+
+    /// Cap outbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.limits.max_encoding = Some(limit);
+        self
     }
 
     /// Accept on `listener` until it fails.
@@ -79,30 +95,29 @@ impl<T: Greeter> Http2Handler for GreeterServer<T> {
         respond: h2::server::SendResponse<Bytes>,
     ) -> impl Future<Output = ()> + Send {
         let inner = Arc::clone(&self.inner);
+        let limits = self.limits;
         async move {
             match request.uri().path() {
                 SAY_HELLO => {
-                    dispatch_unary(
-                        request,
-                        respond,
-                        |req| async move { inner.say_hello(req).await },
-                    )
+                    dispatch_unary(request, respond, limits, |req| async move {
+                        inner.say_hello(req).await
+                    })
                     .await;
                 }
                 CLIENT_HELLO => {
-                    dispatch_client_stream(request, respond, |req| async move {
+                    dispatch_client_stream(request, respond, limits, |req| async move {
                         inner.client_hello(req).await
                     })
                     .await;
                 }
                 SERVER_HELLO => {
-                    dispatch_server_stream(request, respond, |req| async move {
+                    dispatch_server_stream(request, respond, limits, |req| async move {
                         inner.server_hello(req).await
                     })
                     .await;
                 }
                 STREAM_HELLO => {
-                    dispatch_bidi(request, respond, |req| async move {
+                    dispatch_bidi(request, respond, limits, |req| async move {
                         inner.stream_hello(req).await
                     })
                     .await;
@@ -124,6 +139,20 @@ impl GreeterClient {
     #[must_use]
     pub fn new(channel: Channel) -> Self {
         Self { channel }
+    }
+
+    /// Cap inbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.channel = self.channel.max_decoding_message_size(limit);
+        self
+    }
+
+    /// Cap outbound gRPC message size in bytes. Default is unlimited.
+    #[must_use]
+    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.channel = self.channel.max_encoding_message_size(limit);
+        self
     }
 
     /// Unary `SayHello`.

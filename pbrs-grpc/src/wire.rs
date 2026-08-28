@@ -1,6 +1,6 @@
 //! HTTP/2 gRPC protocol helpers (headers, framing, trailers).
 
-use crate::codec;
+use crate::codec::{self, SizeLimits};
 use crate::gzip;
 use crate::metadata::Metadata;
 use crate::status::{Code, Status};
@@ -105,7 +105,12 @@ async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Sta
     Ok(())
 }
 
-pub(crate) fn encode_msg<T: Serialize>(msg: &T, compress: bool) -> Result<Bytes, Status> {
+pub(crate) fn encode_msg<T: Serialize>(
+    msg: &T,
+    compress: bool,
+    limits: SizeLimits,
+) -> Result<Bytes, Status> {
+    limits.check_encode(T::serialized_len(msg))?;
     if compress {
         let body = serialize_payload(msg)?;
         let gz = gzip::encode(&body)?;
@@ -241,12 +246,14 @@ pub(crate) async fn next_data(recv: &mut RecvStream) -> Result<Option<Bytes>, St
 
 struct FrameReader {
     buf: BytesMut,
+    max_decoding: Option<usize>,
 }
 
 impl FrameReader {
-    fn new() -> Self {
+    fn new(max_decoding: Option<usize>) -> Self {
         Self {
             buf: BytesMut::new(),
+            max_decoding,
         }
     }
 
@@ -255,11 +262,16 @@ impl FrameReader {
     }
 
     fn pop_parsed<T: Parse + Default>(&mut self) -> Result<Option<InItem<T>>, Status> {
-        match codec::pop(&mut self.buf)? {
+        match codec::pop_limited(&mut self.buf, self.max_decoding)? {
             None => Ok(None),
             Some(frame) => {
                 let message = if frame.compressed {
                     let raw = gzip::decode(&frame.payload)?;
+                    SizeLimits {
+                        max_decoding: self.max_decoding,
+                        max_encoding: None,
+                    }
+                    .check_decode(raw.len())?;
                     T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?
                 } else {
                     T::parse(frame.payload.as_ref()).map_err(|e| Status::internal(e.to_string()))?
@@ -283,8 +295,9 @@ impl FrameReader {
 
 pub(crate) async fn read_all_messages<T: Parse + Default>(
     recv: &mut RecvStream,
+    max_decoding: Option<usize>,
 ) -> Result<(Vec<InItem<T>>, Option<HeaderMap>), Status> {
-    let mut reader = FrameReader::new();
+    let mut reader = FrameReader::new(max_decoding);
     let mut out = Vec::new();
     while let Some(bytes) = next_data(recv).await? {
         reader.push(bytes);
@@ -316,8 +329,9 @@ pub(crate) fn one_or_default<T: Default>(mut msgs: Vec<InItem<T>>) -> Result<InI
 pub(crate) async fn pump_inbound<T: Parse + Default>(
     mut recv: RecvStream,
     tx: mpsc::Sender<Result<InItem<T>, Status>>,
+    max_decoding: Option<usize>,
 ) -> Metadata {
-    let mut reader = FrameReader::new();
+    let mut reader = FrameReader::new(max_decoding);
     loop {
         match next_data(&mut recv).await {
             Ok(Some(bytes)) => {
@@ -375,6 +389,7 @@ pub(crate) async fn pump_outbound<T: Serialize>(
     mut send: SendStream<Bytes>,
     mut rx: mpsc::Receiver<Result<OutItem<T>, Status>>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    limits: SizeLimits,
 ) {
     let mut watch_cancel = true;
     loop {
@@ -395,7 +410,7 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                         return;
                     }
                     Some(Ok(item)) => {
-                        let Ok(frame) = encode_msg(&item.message, item.compress) else {
+                        let Ok(frame) = encode_msg(&item.message, item.compress, limits) else {
                             send.send_reset(Reason::INTERNAL_ERROR);
                             return;
                         };
@@ -429,6 +444,7 @@ pub(crate) async fn wrap_timeout<T>(
 
 pub(crate) async fn finish_unary<Resp: Parse + Default>(
     response: http::Response<RecvStream>,
+    max_decoding: Option<usize>,
 ) -> Result<crate::request::Response<Resp>, Status> {
     if response.status() != StatusCode::OK {
         return Err(Status::unknown(format!("http {}", response.status())));
@@ -441,7 +457,7 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
         }
     }
     let headers_md = Metadata::from_headers(&parts.headers);
-    let (msgs, trailers) = read_all_messages::<Resp>(&mut body).await?;
+    let (msgs, trailers) = read_all_messages::<Resp>(&mut body, max_decoding).await?;
     let st = status_from(&parts.headers, trailers.as_ref());
     if st.code() != Code::Ok {
         return Err(st);
@@ -461,6 +477,7 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
 
 pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
     response: http::Response<RecvStream>,
+    max_decoding: Option<usize>,
 ) -> Result<crate::request::Response<Inbound<Resp>>, Status> {
     if response.status() != StatusCode::OK {
         return Err(Status::unknown(format!("http {}", response.status())));
@@ -477,7 +494,7 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
     let (tr_tx, tr_rx) = tokio::sync::oneshot::channel();
     inbound.set_trailers(tr_rx);
     drop(tokio::spawn(async move {
-        let trailers = pump_inbound::<Resp>(body, tx).await;
+        let trailers = pump_inbound::<Resp>(body, tx, max_decoding).await;
         tr_tx.send(trailers).ok();
     }));
     Ok(crate::request::Response::from_parts(

@@ -1,5 +1,6 @@
 //! HTTP/2 gRPC client over pbrs messages.
 
+use crate::codec::SizeLimits;
 use crate::request::{Call, Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::{Inbound, StreamingSender};
@@ -31,6 +32,7 @@ struct ChannelInner {
 #[derive(Clone)]
 pub struct Channel {
     inner: Arc<ChannelInner>,
+    limits: SizeLimits,
 }
 
 impl Channel {
@@ -59,7 +61,28 @@ impl Channel {
                 next: AtomicUsize::new(0),
                 authority,
             }),
+            limits: SizeLimits::default(),
         })
+    }
+
+    /// Cap inbound gRPC message size in bytes. Default is unlimited.
+    ///
+    /// Oversize decode is [`Code::ResourceExhausted`]. This is a cap, not a
+    /// latency or QPS win.
+    #[must_use]
+    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.limits.max_decoding = Some(limit);
+        self
+    }
+
+    /// Cap outbound gRPC message size in bytes. Default is unlimited.
+    ///
+    /// Oversize encode is [`Code::ResourceExhausted`] and fails closed before
+    /// send. This is a cap, not a latency or QPS win.
+    #[must_use]
+    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.limits.max_encoding = Some(limit);
+        self
     }
 
     fn grab(&self) -> Result<h2::client::SendRequest<Bytes>, Status> {
@@ -97,9 +120,12 @@ impl Channel {
             }
         };
         let authority = self.authority();
+        let limits = self.limits;
         Call::new(
             cancel,
-            Box::pin(async move { run_unary(send, &authority, path, req, cancel_rx).await }),
+            Box::pin(
+                async move { run_unary(send, &authority, path, req, cancel_rx, limits).await },
+            ),
         )
     }
 
@@ -121,11 +147,12 @@ impl Channel {
             }
         };
         let authority = self.authority();
+        let limits = self.limits;
         Call::new(
             cancel,
-            Box::pin(
-                async move { run_server_stream(send, &authority, path, req, cancel_rx).await },
-            ),
+            Box::pin(async move {
+                run_server_stream(send, &authority, path, req, cancel_rx, limits).await
+            }),
         )
     }
 
@@ -145,17 +172,18 @@ impl Channel {
             Ok(s) => s,
             Err(e) => {
                 let call = Call::new(cancel, Box::pin(async move { Err(e) }));
-                return (StreamingSender::new(tx), call);
+                return (StreamingSender::new(tx, self.limits.max_encoding), call);
             }
         };
         let authority = self.authority();
+        let limits = self.limits;
         let call = Call::new(
             cancel.clone(),
-            Box::pin(
-                async move { run_client_stream(send, &authority, path, req, rx, cancel_rx).await },
-            ),
+            Box::pin(async move {
+                run_client_stream(send, &authority, path, req, rx, cancel_rx, limits).await
+            }),
         );
-        (StreamingSender::new(tx), call)
+        (StreamingSender::new(tx, limits.max_encoding), call)
     }
 
     /// Bidi-streaming RPC.
@@ -174,15 +202,18 @@ impl Channel {
             Ok(s) => s,
             Err(e) => {
                 let call = Call::new(cancel, Box::pin(async move { Err(e) }));
-                return (StreamingSender::new(tx), call);
+                return (StreamingSender::new(tx, self.limits.max_encoding), call);
             }
         };
         let authority = self.authority();
+        let limits = self.limits;
         let call = Call::new(
             cancel.clone(),
-            Box::pin(async move { run_bidi(send, &authority, path, req, rx, cancel_rx).await }),
+            Box::pin(
+                async move { run_bidi(send, &authority, path, req, rx, cancel_rx, limits).await },
+            ),
         );
-        (StreamingSender::new(tx), call)
+        (StreamingSender::new(tx, limits.max_encoding), call)
     }
 }
 
@@ -213,21 +244,23 @@ async fn run_unary<Req, Resp>(
     path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
+    limits: SizeLimits,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize,
     Resp: Parse + Default,
 {
     let (msg, md, timeout, compress) = req.into_parts();
+    let frame = encode_msg(&msg, compress, limits)?;
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
-    send_bytes(&mut send_stream, encode_msg(&msg, compress)?, true).await?;
+    send_bytes(&mut send_stream, frame, true).await?;
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_unary::<Resp>(response).await
+            finish_unary::<Resp>(response, limits.max_decoding).await
         },
         cancel_rx,
         timeout,
@@ -242,21 +275,23 @@ async fn run_server_stream<Req, Resp>(
     path: &'static str,
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
+    limits: SizeLimits,
 ) -> Result<Response<Inbound<Resp>>, Status>
 where
     Req: Serialize,
     Resp: Parse + Default + Send + 'static,
 {
     let (msg, md, timeout, compress) = req.into_parts();
+    let frame = encode_msg(&msg, compress, limits)?;
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
-    send_bytes(&mut send_stream, encode_msg(&msg, compress)?, true).await?;
+    send_bytes(&mut send_stream, frame, true).await?;
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response).await
+            finish_stream::<Resp>(response, limits.max_decoding).await
         },
         cancel_rx,
         timeout,
@@ -272,6 +307,7 @@ async fn run_client_stream<Req, Resp>(
     req: Request<()>,
     rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
     cancel_rx: watch::Receiver<bool>,
+    limits: SizeLimits,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -283,13 +319,14 @@ where
         send_stream,
         rx,
         cancel_rx.clone(),
+        limits,
     )));
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_unary::<Resp>(response).await
+            finish_unary::<Resp>(response, limits.max_decoding).await
         },
         cancel_rx,
         timeout,
@@ -305,6 +342,7 @@ async fn run_bidi<Req, Resp>(
     req: Request<()>,
     rx: mpsc::Receiver<Result<crate::stream::OutItem<Req>, Status>>,
     cancel_rx: watch::Receiver<bool>,
+    limits: SizeLimits,
 ) -> Result<Response<Inbound<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -316,13 +354,14 @@ where
         send_stream,
         rx,
         cancel_rx.clone(),
+        limits,
     )));
     race(
         async {
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response).await
+            finish_stream::<Resp>(response, limits.max_decoding).await
         },
         cancel_rx,
         timeout,
