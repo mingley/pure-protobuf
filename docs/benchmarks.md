@@ -289,3 +289,34 @@ which is a different architecture, not a tuning change.
 ```bash
 cd rpc-bench && cargo build --release && ./target/release/rpc-bench
 ```
+
+## pbrs-grpc vs grpc-go (server)
+
+`rpc-bench` puts client and both servers in one process, which makes it
+sensitive to scheduler luck. `scripts/grpc-server-bench.sh` narrows the
+question instead: one kernel client, the same `grpc.testing.TestService`, the
+same payloads, pointed at two servers in separate processes. The only variable
+is the server.
+
+Same 4-core Xeon. Three rounds, 2000 `empty_unary` and 200 `large_unary`
+samples each, nanoseconds:
+
+| Round | Server | empty p50 | empty p99 | large p50 | large p99 |
+|---|---|---:|---:|---:|---:|
+| 1 | **kernel** | **53232** | **71064** | **596055** | **779373** |
+| 1 | grpc-go | 77763 | 109962 | 910288 | 1658270 |
+| 2 | **kernel** | **54387** | **66724** | **595006** | **863454** |
+| 2 | grpc-go | 75316 | 116663 | 939219 | 1587095 |
+| 3 | **kernel** | **54260** | **66371** | **602411** | **849000** |
+| 3 | grpc-go | 77643 | 113256 | 900704 | 1497070 |
+
+Roughly 1.4x on `empty_unary` p50, 1.7x on its p99, 1.5x on `large_unary` p50,
+and 1.8x on its p99. Round-to-round spread is a few percent, because unlike
+`rpc-bench` the two servers are not competing for the same runtime.
+
+Reported, not gated: the script needs a Go toolchain and network access to
+fetch `google.golang.org/grpc`, so it is not something CI should depend on.
+
+```bash
+./scripts/grpc-server-bench.sh
+```

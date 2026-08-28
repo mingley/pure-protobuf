@@ -369,6 +369,37 @@ mod tests {
         }
     }
 
+    /// Sixteen near-identical constructors are a copy-paste hazard: one
+    /// returning the wrong code would be invisible until a caller matched on
+    /// it. This pins every one.
+    #[test]
+    fn every_constructor_carries_its_own_code() {
+        let cases: [(Status, Code); 15] = [
+            (Status::cancelled(), Code::Cancelled),
+            (Status::deadline_exceeded(), Code::DeadlineExceeded),
+            (Status::unknown("m"), Code::Unknown),
+            (Status::invalid_argument("m"), Code::InvalidArgument),
+            (Status::not_found("m"), Code::NotFound),
+            (Status::already_exists("m"), Code::AlreadyExists),
+            (Status::permission_denied("m"), Code::PermissionDenied),
+            (Status::resource_exhausted("m"), Code::ResourceExhausted),
+            (Status::failed_precondition("m"), Code::FailedPrecondition),
+            (Status::aborted("m"), Code::Aborted),
+            (Status::out_of_range("m"), Code::OutOfRange),
+            (Status::unimplemented("m"), Code::Unimplemented),
+            (Status::internal("m"), Code::Internal),
+            (Status::unavailable("m"), Code::Unavailable),
+            (Status::data_loss("m"), Code::DataLoss),
+        ];
+        for (status, want) in cases {
+            assert_eq!(status.code(), want, "{status}");
+            assert!(!status.is_ok());
+            assert!(!status.message().is_empty());
+        }
+        // Listed separately so the array above stays one code per line.
+        assert_eq!(Status::unauthenticated("m").code(), Code::Unauthenticated);
+    }
+
     #[test]
     fn display_matches_canonical_names() {
         assert_eq!(Status::not_found("gone").to_string(), "NOT_FOUND: gone");
