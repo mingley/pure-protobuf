@@ -20,7 +20,7 @@ mod common;
 
 use common::{req, spawn_greeter};
 use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
-use pbrs_grpc::{Code, Inbound, Request, Response, Status};
+use pbrs_grpc::{Code, Request, Response, Status, Streaming};
 use std::time::Duration;
 
 const TRAILER_BIN: &str = "x-grpc-test-echo-trailing-bin";
@@ -46,14 +46,14 @@ impl Greeter for TrailerEcho {
             .insert(HEADER_ASCII, "ok")
             .expect("ascii");
         resp.trailers_mut()
-            .insert_bin(TRAILER_BIN, vec![0x00, 0x01])
+            .insert_bin(TRAILER_BIN, [0x00, 0x01])
             .expect("bin");
         Ok(resp)
     }
 
     async fn client_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
+        _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         Err(Status::unimplemented("gaps"))
     }
@@ -61,14 +61,14 @@ impl Greeter for TrailerEcho {
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("gaps"))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("gaps"))
     }
 }
@@ -88,7 +88,7 @@ impl Greeter for Sleep {
 
     async fn client_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
+        _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
         Err(Status::unimplemented("gaps"))
     }
@@ -96,14 +96,14 @@ impl Greeter for Sleep {
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("gaps"))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<Inbound<HelloRequest>>,
-    ) -> Result<Response<Inbound<HelloReply>>, Status> {
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
         Err(Status::unimplemented("gaps"))
     }
 }
@@ -121,7 +121,7 @@ async fn ok_path_custom_bin_trailers_not_headers() {
         "-bin trailer must not appear as headers"
     );
     assert_eq!(
-        resp.trailers().get_bin(TRAILER_BIN),
+        resp.trailers().get_bin(TRAILER_BIN).as_deref(),
         Some([0x00, 0x01].as_slice())
     );
 }

@@ -1,295 +1,754 @@
-//! HTTP/2 accept loop and per-RPC dispatch helpers.
+//! Serving: the [`Service`] trait, per-RPC dispatch through [`Rpc`], and the
+//! [`Server`] / [`Router`] accept loops.
+//!
+//! Generated code implements [`Service`]; you implement the generated service
+//! trait. Writing either by hand is supported and documented, because a
+//! kernel you cannot drive by hand is a kernel you cannot debug.
 
-use crate::codec::SizeLimits;
+use crate::config::ServerConfig;
+use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status};
-use crate::stream::Inbound;
+use crate::stream::Streaming;
 use crate::wire::{
-    check_request, encode_msg, grpc_trailers, one_or_default, pump_inbound, read_all_messages,
-    send_bytes, send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout,
+    check_request, encode_msg, grpc_trailers, pump_inbound, read_one_message, send_bytes,
+    send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout,
 };
 use bytes::Bytes;
 use h2::RecvStream;
 use pbrs::{Parse, Serialize};
+use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::Poll;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::{mpsc, watch};
 
-/// HTTP/2 prior-knowledge acceptor. `H` is usually [`crate::hello::GreeterServer`].
-pub struct Server<H> {
-    handler: Arc<H>,
+/// A gRPC service that can be served.
+///
+/// `protoc-gen-pbrs` emits one implementation per `service` in your `.proto`,
+/// so the usual path is to implement the generated trait (`Greeter`) and let
+/// the generated type (`GreeterServer`) implement this.
+///
+/// Implementing it by hand takes a name and a `match` on
+/// [`Rpc::method`]:
+///
+/// ```
+/// use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Service, Status};
+///
+/// struct Echo;
+///
+/// impl Service for Echo {
+///     const NAME: &'static str = "demo.Echo";
+///
+///     async fn call(&self, rpc: Rpc) {
+///         match rpc.method() {
+///             "Ping" => {
+///                 rpc.unary(|req: Request<HelloRequest>| async move {
+///                     let mut reply = HelloReply::new();
+///                     reply.set_message(req.get_ref().name());
+///                     Ok::<_, Status>(Response::new(reply))
+///                 })
+///                 .await;
+///             }
+///             _ => rpc.unimplemented(),
+///         }
+///     }
+/// }
+/// ```
+pub trait Service: Send + Sync + 'static {
+    /// Fully qualified proto service name, e.g. `helloworld.Greeter`.
+    ///
+    /// [`Router`] keys on this, and it is the `<service>` half of the
+    /// `/<service>/<method>` request path.
+    const NAME: &'static str;
+
+    /// Dispatch one RPC.
+    ///
+    /// Match on [`Rpc::method`] and consume the [`Rpc`] with the call shape
+    /// the method declares. Returning without consuming it resets the stream.
+    fn call(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
 }
 
-impl<H: Http2Handler> Server<H> {
-    /// Wrap a handler.
-    pub fn new(handler: H) -> Self {
+/// Object-safe [`Service`], so [`Router`] can hold a heterogeneous map.
+trait DynService: Send + Sync + 'static {
+    fn dispatch<'a>(&'a self, rpc: Rpc) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
+}
+
+impl<S: Service> DynService for S {
+    fn dispatch<'a>(&'a self, rpc: Rpc) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        Box::pin(self.call(rpc))
+    }
+}
+
+/// What the accept loop hands each stream. Monomorphic for [`Server`], boxed
+/// for [`Router`].
+trait Dispatch: Send + Sync + 'static {
+    fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
+}
+
+/// One inbound RPC, before its call shape has been chosen.
+///
+/// Consume it with exactly one of [`Self::unary`],
+/// [`Self::client_streaming`], [`Self::server_streaming`],
+/// [`Self::bidi_streaming`], or [`Self::unimplemented`]. Each one owns the
+/// full response: headers, message frames, and `grpc-status` trailers.
+pub struct Rpc {
+    request: http::Request<RecvStream>,
+    respond: h2::server::SendResponse<Bytes>,
+    config: ServerConfig,
+    remote_addr: Option<SocketAddr>,
+}
+
+impl Rpc {
+    /// Full request path, e.g. `/helloworld.Greeter/SayHello`.
+    #[must_use]
+    pub fn path(&self) -> &str {
+        self.request.uri().path()
+    }
+
+    /// Service half of the path, e.g. `helloworld.Greeter`.
+    #[must_use]
+    pub fn service(&self) -> &str {
+        split_path(self.path()).0
+    }
+
+    /// Method half of the path, e.g. `SayHello`.
+    #[must_use]
+    pub fn method(&self) -> &str {
+        split_path(self.path()).1
+    }
+
+    /// Peer address, when the transport exposed one.
+    #[must_use]
+    pub fn remote_addr(&self) -> Option<SocketAddr> {
+        self.remote_addr
+    }
+
+    /// Request headers as gRPC metadata.
+    #[must_use]
+    pub fn metadata(&self) -> Metadata {
+        Metadata::from_headers(self.request.headers())
+    }
+
+    /// Effective message caps for this RPC.
+    #[must_use]
+    pub fn limits(&self) -> MessageLimits {
+        self.config.limits()
+    }
+
+    /// Answer with `UNIMPLEMENTED`, naming the path.
+    ///
+    /// This is the correct default arm of a method `match`: a peer asking for
+    /// a method you do not have is a peer error, not a server error.
+    pub fn unimplemented(mut self) {
+        send_trailers_only(
+            &mut self.respond,
+            Status::unimplemented(self.request.uri().path().to_string()),
+            &Metadata::new(),
+        );
+    }
+
+    /// Serve a unary method: one request message, one response message.
+    ///
+    /// ```
+    /// # use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Status};
+    /// # async fn dispatch(rpc: Rpc) {
+    /// rpc.unary(|req: Request<HelloRequest>| async move {
+    ///     let mut reply = HelloReply::new();
+    ///     reply.set_message(req.get_ref().name());
+    ///     Ok::<_, Status>(Response::new(reply))
+    /// })
+    /// .await;
+    /// # }
+    /// ```
+    pub async fn unary<Req, Resp, F, Fut>(self, handler: F)
+    where
+        Req: Parse + Default,
+        Resp: Serialize,
+        F: FnOnce(Request<Req>) -> Fut,
+        Fut: Future<Output = Result<Response<Resp>, Status>>,
+    {
+        let Prepared {
+            mut respond,
+            limits,
+            outcome,
+        } = self.run_unary_request(handler).await;
+        match outcome {
+            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+            Ok(response) => send_unary_response(response, respond, limits).await,
+        }
+    }
+
+    /// Serve a client-streaming method: many request messages, one response.
+    pub async fn client_streaming<Req, Resp, F, Fut>(self, handler: F)
+    where
+        Req: Parse + Default + Send + 'static,
+        Resp: Serialize,
+        F: FnOnce(Request<Streaming<Req>>) -> Fut,
+        Fut: Future<Output = Result<Response<Resp>, Status>>,
+    {
+        let Prepared {
+            mut respond,
+            limits,
+            outcome,
+        } = self.run_streaming_request(handler).await;
+        match outcome {
+            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+            Ok(response) => send_unary_response(response, respond, limits).await,
+        }
+    }
+
+    /// Serve a server-streaming method: one request message, many responses.
+    pub async fn server_streaming<Req, Resp, F, Fut>(self, handler: F)
+    where
+        Req: Parse + Default,
+        Resp: Serialize + Send,
+        F: FnOnce(Request<Req>) -> Fut,
+        Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
+    {
+        let Prepared {
+            mut respond,
+            limits,
+            outcome,
+        } = self.run_unary_request(handler).await;
+        match outcome {
+            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+            Ok(response) => send_stream_response(response, respond, limits).await,
+        }
+    }
+
+    /// Serve a bidirectional-streaming method.
+    pub async fn bidi_streaming<Req, Resp, F, Fut>(self, handler: F)
+    where
+        Req: Parse + Default + Send + 'static,
+        Resp: Serialize + Send,
+        F: FnOnce(Request<Streaming<Req>>) -> Fut,
+        Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
+    {
+        let Prepared {
+            mut respond,
+            limits,
+            outcome,
+        } = self.run_streaming_request(handler).await;
+        match outcome {
+            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+            Ok(response) => send_stream_response(response, respond, limits).await,
+        }
+    }
+
+    /// Read the single request message, then run `handler` under the deadline.
+    async fn run_unary_request<Req, T, F, Fut>(self, handler: F) -> Prepared<T>
+    where
+        Req: Parse + Default,
+        F: FnOnce(Request<Req>) -> Fut,
+        Fut: Future<Output = Result<T, Status>>,
+    {
+        let Self {
+            request,
+            mut respond,
+            config,
+            remote_addr,
+        } = self;
+        let limits = config.limits();
+        if let Err(status) = check_request(&request) {
+            send_trailers_only(&mut respond, status.clone(), &Metadata::new());
+            return Prepared::sent(respond, limits);
+        }
+        let timeout = timeout_from_headers(request.headers());
+        let (parts, mut recv) = request.into_parts();
+        let outcome = wrap_timeout(timeout, async {
+            let framed = read_one_message::<Req>(&mut recv, limits).await?;
+            let mut req = Request::from_wire(framed.message, parts.headers, remote_addr);
+            req.set_compressed(framed.compressed);
+            if let Some(d) = timeout {
+                req.set_timeout(d);
+            }
+            handler(req).await
+        })
+        .await;
+        Prepared {
+            respond,
+            limits,
+            outcome,
+        }
+    }
+
+    /// Start pumping the request stream, then run `handler` under the deadline.
+    async fn run_streaming_request<Req, T, F, Fut>(self, handler: F) -> Prepared<T>
+    where
+        Req: Parse + Default + Send + 'static,
+        F: FnOnce(Request<Streaming<Req>>) -> Fut,
+        Fut: Future<Output = Result<T, Status>>,
+    {
+        let Self {
+            request,
+            mut respond,
+            config,
+            remote_addr,
+        } = self;
+        let limits = config.limits();
+        if let Err(status) = check_request(&request) {
+            send_trailers_only(&mut respond, status, &Metadata::new());
+            return Prepared::sent(respond, limits);
+        }
+        let timeout = timeout_from_headers(request.headers());
+        let (parts, recv) = request.into_parts();
+        let (tx, stream) = Streaming::channel(config.buffer());
+        drop(tokio::spawn(async move {
+            pump_inbound::<Req>(recv, tx, limits).await;
+        }));
+        let mut req = Request::from_wire(stream, parts.headers, remote_addr);
+        if let Some(d) = timeout {
+            req.set_timeout(d);
+        }
+        let outcome = wrap_timeout(timeout, handler(req)).await;
+        Prepared {
+            respond,
+            limits,
+            outcome,
+        }
+    }
+}
+
+/// A handler result plus the response channel it still has to be written to.
+struct Prepared<T> {
+    respond: h2::server::SendResponse<Bytes>,
+    limits: MessageLimits,
+    outcome: Result<T, Status>,
+}
+
+impl<T> Prepared<T> {
+    /// The response was already written (a rejected request); make the caller
+    /// take the error arm, which then sends nothing more.
+    fn sent(respond: h2::server::SendResponse<Bytes>, limits: MessageLimits) -> Self {
         Self {
-            handler: Arc::new(handler),
-        }
-    }
-
-    /// Bind and serve until the listener fails.
-    pub async fn serve(self, addr: SocketAddr) -> Result<(), Status> {
-        let listener = TcpListener::bind(addr)
-            .await
-            .map_err(|e| Status::unavailable(e.to_string()))?;
-        self.serve_listener(listener).await
-    }
-
-    /// Accept connections on an existing listener.
-    pub async fn serve_listener(self, listener: TcpListener) -> Result<(), Status> {
-        loop {
-            let (tcp, _) = listener
-                .accept()
-                .await
-                .map_err(|e| Status::unavailable(e.to_string()))?;
-            let handler = Arc::clone(&self.handler);
-            drop(tokio::spawn(async move {
-                serve_conn(handler, tcp).await;
-            }));
+            respond,
+            limits,
+            outcome: Err(Status::new(Code::Ok, "")),
         }
     }
 }
 
-/// Per-stream handler (path dispatch lives on the Greeter server).
-pub trait Http2Handler: Send + Sync + 'static {
-    /// Drive one HTTP/2 request to completion.
-    fn handle(
-        &self,
-        request: http::Request<RecvStream>,
-        respond: h2::server::SendResponse<Bytes>,
-    ) -> impl Future<Output = ()> + Send;
-}
-
-async fn serve_conn<H: Http2Handler>(handler: Arc<H>, tcp: TcpStream) {
-    tcp.set_nodelay(true).ok();
-    let Ok(mut conn) = h2::server::Builder::new()
-        .initial_window_size(16 * 1024 * 1024)
-        .initial_connection_window_size(16 * 1024 * 1024)
-        .max_frame_size(1024 * 1024)
-        .max_concurrent_streams(256)
-        .max_send_buffer_size(1024 * 1024)
-        .handshake(tcp)
-        .await
-    else {
+async fn send_unary_response<Resp: Serialize>(
+    response: Response<Resp>,
+    mut respond: h2::server::SendResponse<Bytes>,
+    limits: MessageLimits,
+) {
+    let (msg, headers, trailers, compress) = response.split();
+    let frame = match encode_msg(&msg, compress, limits) {
+        Ok(frame) => frame,
+        Err(status) => {
+            send_trailers_only(&mut respond, status, &Metadata::new());
+            return;
+        }
+    };
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, compress) else {
         return;
     };
-    while let Some(item) = conn.accept().await {
-        let Ok((request, respond)) = item else {
+    send_bytes(&mut send, frame, false).await.ok();
+    let mut status = Status::new(Code::Ok, "");
+    *status.metadata_mut() = trailers;
+    if let Ok(map) = grpc_trailers(&status) {
+        send.send_trailers(map).ok();
+    }
+}
+
+async fn send_stream_response<Resp: Serialize + Send>(
+    response: Response<Streaming<Resp>>,
+    mut respond: h2::server::SendResponse<Bytes>,
+    limits: MessageLimits,
+) {
+    let (mut stream, headers, trailers, compress) = response.split();
+    // Headers go out before the first message so a client that only wants
+    // initial metadata is not blocked behind handler work.
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, compress) else {
+        return;
+    };
+    let mut status = Status::new(Code::Ok, "");
+    *status.metadata_mut() = trailers;
+    while let Some(item) = stream.recv().await {
+        let item = match item {
+            Ok(item) => item,
+            Err(err) => {
+                status = err;
+                break;
+            }
+        };
+        match encode_msg(&item.message, item.compressed, limits) {
+            Ok(frame) => {
+                if send_bytes(&mut send, frame, false).await.is_err() {
+                    return;
+                }
+            }
+            Err(err) => {
+                status = err;
+                break;
+            }
+        }
+    }
+    if let Ok(map) = grpc_trailers(&status) {
+        send.send_trailers(map).ok();
+    }
+}
+
+/// Split `/service/method` without allocating. Unparseable paths yield empty
+/// halves, which route to `UNIMPLEMENTED`.
+fn split_path(path: &str) -> (&str, &str) {
+    let rest = path.strip_prefix('/').unwrap_or(path);
+    match rest.rsplit_once('/') {
+        Some((service, method)) => (service, method),
+        None => ("", ""),
+    }
+}
+
+/// Serves exactly one [`Service`], with no per-RPC dynamic dispatch.
+///
+/// ```no_run
+/// use pbrs_grpc::{Server, ServerConfig};
+/// # use pbrs_grpc::{Rpc, Service};
+/// # struct Echo;
+/// # impl Service for Echo {
+/// #     const NAME: &'static str = "demo.Echo";
+/// #     async fn call(&self, rpc: Rpc) { rpc.unimplemented() }
+/// # }
+/// # async fn run() -> Result<(), pbrs_grpc::Status> {
+/// Server::new(Echo)
+///     .config(ServerConfig::new().max_concurrent_streams(1024))
+///     .serve("127.0.0.1:50051".parse().expect("addr"))
+///     .await
+/// # }
+/// ```
+pub struct Server<S> {
+    service: Arc<S>,
+    config: ServerConfig,
+}
+
+impl<S: Service> Server<S> {
+    /// Serve `service` with default configuration.
+    #[must_use]
+    pub fn new(service: S) -> Self {
+        Self {
+            service: Arc::new(service),
+            config: ServerConfig::default(),
+        }
+    }
+
+    /// Replace the transport and limit configuration.
+    #[must_use]
+    pub fn config(mut self, config: ServerConfig) -> Self {
+        self.config = config;
+        self
+    }
+
+    /// Cap inbound messages at `limit` bytes. Default 4 MiB.
+    #[must_use]
+    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.config = self.config.max_decoding_message_size(limit);
+        self
+    }
+
+    /// Cap outbound messages at `limit` bytes. Default unlimited.
+    #[must_use]
+    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.config = self.config.max_encoding_message_size(limit);
+        self
+    }
+
+    /// Add a second service, switching to path-based routing.
+    #[must_use]
+    pub fn add_service<T: Service>(self, service: T) -> Router {
+        self.into_router().add_service(service)
+    }
+
+    /// Move this service into a [`Router`], keeping the configuration.
+    #[must_use]
+    pub fn into_router(self) -> Router {
+        Router::new().config(self.config).add_arc(self.service)
+    }
+
+    /// Bind `addr` and serve until the listener fails.
+    pub async fn serve(self, addr: SocketAddr) -> Result<(), Status> {
+        self.serve_listener(bind(addr).await?).await
+    }
+
+    /// Serve on an existing listener until it fails.
+    pub async fn serve_listener(self, listener: TcpListener) -> Result<(), Status> {
+        self.serve_with_shutdown(listener, std::future::pending())
+            .await
+    }
+
+    /// Serve until `shutdown` resolves, then drain.
+    ///
+    /// Draining stops accepting, sends `GOAWAY` on every live connection, and
+    /// waits for in-flight RPCs to finish.
+    pub async fn serve_with_shutdown(
+        self,
+        listener: TcpListener,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        accept_loop(
+            Arc::new(Single(self.service)),
+            listener,
+            self.config,
+            shutdown,
+        )
+        .await
+    }
+}
+
+/// Newtype so the monomorphic path gets its own [`Dispatch`] impl.
+struct Single<S>(Arc<S>);
+
+impl<S: Service> Dispatch for Single<S> {
+    fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send {
+        self.0.call(rpc)
+    }
+}
+
+/// Serves several services, routing on the service half of the path.
+///
+/// Routing is a hash lookup on the `/<service>/` prefix plus one boxed future
+/// per RPC. Use [`Server`] when you have a single service and want neither.
+///
+/// ```no_run
+/// use pbrs_grpc::Router;
+/// # use pbrs_grpc::{Rpc, Service};
+/// # struct A; struct B;
+/// # impl Service for A {
+/// #     const NAME: &'static str = "demo.A";
+/// #     async fn call(&self, rpc: Rpc) { rpc.unimplemented() }
+/// # }
+/// # impl Service for B {
+/// #     const NAME: &'static str = "demo.B";
+/// #     async fn call(&self, rpc: Rpc) { rpc.unimplemented() }
+/// # }
+/// # async fn run() -> Result<(), pbrs_grpc::Status> {
+/// Router::new()
+///     .add_service(A)
+///     .add_service(B)
+///     .serve("127.0.0.1:50051".parse().expect("addr"))
+///     .await
+/// # }
+/// ```
+#[derive(Default)]
+pub struct Router {
+    routes: HashMap<&'static str, Arc<dyn DynService>>,
+    config: ServerConfig,
+}
+
+impl Router {
+    /// An empty router with default configuration.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            routes: HashMap::new(),
+            config: ServerConfig::default(),
+        }
+    }
+
+    /// Replace the transport and limit configuration.
+    #[must_use]
+    pub fn config(mut self, config: ServerConfig) -> Self {
+        self.config = config;
+        self
+    }
+
+    /// Mount `service` at `S::NAME`, replacing any service already there.
+    #[must_use]
+    pub fn add_service<S: Service>(self, service: S) -> Self {
+        self.add_arc(Arc::new(service))
+    }
+
+    fn add_arc<S: Service>(mut self, service: Arc<S>) -> Self {
+        self.routes.insert(S::NAME, service);
+        self
+    }
+
+    /// Mounted service names, in unspecified order.
+    pub fn service_names(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.routes.keys().copied()
+    }
+
+    /// Bind `addr` and serve until the listener fails.
+    pub async fn serve(self, addr: SocketAddr) -> Result<(), Status> {
+        self.serve_listener(bind(addr).await?).await
+    }
+
+    /// Serve on an existing listener until it fails.
+    pub async fn serve_listener(self, listener: TcpListener) -> Result<(), Status> {
+        self.serve_with_shutdown(listener, std::future::pending())
+            .await
+    }
+
+    /// Serve until `shutdown` resolves, then drain. See
+    /// [`Server::serve_with_shutdown`].
+    pub async fn serve_with_shutdown(
+        self,
+        listener: TcpListener,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        let config = self.config;
+        accept_loop(Arc::new(self), listener, config, shutdown).await
+    }
+}
+
+impl Dispatch for Router {
+    async fn dispatch(&self, rpc: Rpc) {
+        match self.routes.get(rpc.service()) {
+            Some(service) => service.dispatch(rpc).await,
+            None => rpc.unimplemented(),
+        }
+    }
+}
+
+async fn bind(addr: SocketAddr) -> Result<TcpListener, Status> {
+    TcpListener::bind(addr)
+        .await
+        .map_err(|e| Status::unavailable(e.to_string()))
+}
+
+/// Accept connections until `shutdown` resolves, then drain in-flight work.
+async fn accept_loop<D: Dispatch>(
+    dispatch: Arc<D>,
+    listener: TcpListener,
+    config: ServerConfig,
+    shutdown: impl Future<Output = ()> + Send,
+) -> Result<(), Status> {
+    // Dropping every clone of `drain_tx` is what tells us the last connection
+    // task has finished.
+    let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
+    let (goaway_tx, goaway_rx) = watch::channel(false);
+    let shutdown = std::pin::pin!(shutdown);
+    let mut shutdown = Some(shutdown);
+    let mut result = Ok(());
+    loop {
+        let accepted = {
+            let accept = std::pin::pin!(listener.accept());
+            let mut accept = Some(accept);
+            std::future::poll_fn(|cx| {
+                if let Some(fut) = accept.as_mut() {
+                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
+                        return Poll::Ready(Some(res));
+                    }
+                }
+                if let Some(fut) = shutdown.as_mut() {
+                    if fut.as_mut().poll(cx).is_ready() {
+                        return Poll::Ready(None);
+                    }
+                }
+                Poll::Pending
+            })
+            .await
+        };
+        let Some(accepted) = accepted else {
             break;
         };
-        let handler = Arc::clone(&handler);
+        match accepted {
+            Ok((tcp, peer)) => {
+                let dispatch = Arc::clone(&dispatch);
+                let goaway = goaway_rx.clone();
+                let drain = drain_tx.clone();
+                drop(tokio::spawn(async move {
+                    serve_conn(dispatch, tcp, Some(peer), config, goaway).await;
+                    drop(drain);
+                }));
+            }
+            Err(e) => {
+                result = Err(Status::unavailable(e.to_string()));
+                break;
+            }
+        }
+    }
+    goaway_tx.send(true).ok();
+    drop(goaway_tx);
+    drop(drain_tx);
+    // Resolves once every connection task has dropped its `drain` clone.
+    while drain_rx.recv().await.is_some() {}
+    result
+}
+
+async fn serve_conn<D: Dispatch>(
+    dispatch: Arc<D>,
+    tcp: TcpStream,
+    peer: Option<SocketAddr>,
+    config: ServerConfig,
+    goaway: watch::Receiver<bool>,
+) {
+    // Nagle would coalesce a unary response with the next request's ACK and
+    // add a full RTT to every small RPC.
+    tcp.set_nodelay(true).ok();
+    let Ok(mut conn) = config.h2_builder().handshake(tcp).await else {
+        return;
+    };
+    let drain = std::pin::pin!(wait_for_drain(goaway));
+    let mut drain = Some(drain);
+    loop {
+        // `poll_accept` borrows `conn` only for this statement, so the
+        // `graceful_shutdown` call below can borrow it again.
+        let mut draining = false;
+        let accepted = std::future::poll_fn(|cx| {
+            if let Poll::Ready(item) = conn.poll_accept(cx) {
+                return Poll::Ready(item);
+            }
+            if let Some(fut) = drain.as_mut() {
+                if fut.as_mut().poll(cx).is_ready() {
+                    draining = true;
+                    return Poll::Ready(None);
+                }
+            }
+            Poll::Pending
+        })
+        .await;
+        if draining {
+            // Stop watching, queue GOAWAY, and keep serving in-flight streams
+            // until the peer closes.
+            drain = None;
+            conn.graceful_shutdown();
+            continue;
+        }
+        let Some(Ok((request, respond))) = accepted else {
+            break;
+        };
+        let dispatch = Arc::clone(&dispatch);
         drop(tokio::spawn(async move {
-            handler.handle(request, respond).await;
+            dispatch
+                .dispatch(Rpc {
+                    request,
+                    respond,
+                    config,
+                    remote_addr: peer,
+                })
+                .await;
         }));
     }
 }
 
-pub(crate) async fn dispatch_unary<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default,
-    Resp: Serialize,
-    F: FnOnce(Request<Req>) -> Fut,
-    Fut: Future<Output = Result<Response<Resp>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
-    }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, mut recv) = request.into_parts();
-    let prepared = wrap_timeout(timeout, async {
-        let (msgs, _) = read_all_messages::<Req>(&mut recv, limits.max_decoding).await?;
-        let item = one_or_default(msgs)?;
-        let mut req = Request::new(item.message);
-        req.set_metadata(header_md);
-        req.set_compressed(item.compressed);
-        if let Some(d) = timeout {
-            req.set_timeout(d);
-        }
-        f(req).await
-    })
-    .await;
-    finish_handler(prepared, respond, limits).await;
+async fn wait_for_drain(mut goaway: watch::Receiver<bool>) {
+    // A dropped sender also means "stop accepting": the accept loop is gone.
+    goaway.wait_for(|v| *v).await.ok();
 }
 
-pub(crate) async fn dispatch_client_stream<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default + Send + 'static,
-    Resp: Serialize,
-    F: FnOnce(Request<Inbound<Req>>) -> Fut,
-    Fut: Future<Output = Result<Response<Resp>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
-    }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, recv) = request.into_parts();
-    let (tx, inbound) = Inbound::channel(16);
-    drop(tokio::spawn(async move {
-        pump_inbound::<Req>(recv, tx, limits.max_decoding).await;
-    }));
-    let mut req = Request::new(inbound);
-    req.set_metadata(header_md);
-    if let Some(d) = timeout {
-        req.set_timeout(d);
-    }
-    let prepared = wrap_timeout(timeout, f(req)).await;
-    finish_handler(prepared, respond, limits).await;
-}
+#[cfg(test)]
+mod tests {
+    use super::split_path;
 
-pub(crate) async fn dispatch_server_stream<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default,
-    Resp: Serialize + Send,
-    F: FnOnce(Request<Req>) -> Fut,
-    Fut: Future<Output = Result<Response<Inbound<Resp>>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
+    #[test]
+    fn splits_service_and_method() {
+        assert_eq!(
+            split_path("/helloworld.Greeter/SayHello"),
+            ("helloworld.Greeter", "SayHello")
+        );
+        assert_eq!(split_path("/a.B/C"), ("a.B", "C"));
     }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, mut recv) = request.into_parts();
-    let prepared = wrap_timeout(timeout, async {
-        let (msgs, _) = read_all_messages::<Req>(&mut recv, limits.max_decoding).await?;
-        let item = one_or_default(msgs)?;
-        let mut req = Request::new(item.message);
-        req.set_metadata(header_md);
-        req.set_compressed(item.compressed);
-        if let Some(d) = timeout {
-            req.set_timeout(d);
-        }
-        f(req).await
-    })
-    .await;
-    finish_stream_handler(prepared, respond, limits).await;
-}
 
-pub(crate) async fn dispatch_bidi<Req, Resp, F, Fut>(
-    request: http::Request<RecvStream>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-    f: F,
-) where
-    Req: Parse + Default + Send + 'static,
-    Resp: Serialize + Send,
-    F: FnOnce(Request<Inbound<Req>>) -> Fut,
-    Fut: Future<Output = Result<Response<Inbound<Resp>>, Status>>,
-{
-    if let Err(st) = check_request(&request) {
-        send_trailers_only(&mut respond, st, &Metadata::new());
-        return;
+    #[test]
+    fn unparseable_paths_route_nowhere() {
+        assert_eq!(split_path("/"), ("", ""));
+        assert_eq!(split_path(""), ("", ""));
+        assert_eq!(split_path("/nomethod"), ("", ""));
     }
-    let timeout = timeout_from_headers(request.headers());
-    let header_md = Metadata::from_headers(request.headers());
-    let (_, recv) = request.into_parts();
-    let (tx, inbound) = Inbound::channel(16);
-    drop(tokio::spawn(async move {
-        pump_inbound::<Req>(recv, tx, limits.max_decoding).await;
-    }));
-    let mut req = Request::new(inbound);
-    req.set_metadata(header_md);
-    if let Some(d) = timeout {
-        req.set_timeout(d);
-    }
-    let prepared = wrap_timeout(timeout, f(req)).await;
-    finish_stream_handler(prepared, respond, limits).await;
-}
-
-async fn finish_handler<Resp: Serialize>(
-    prepared: Result<Response<Resp>, Status>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-) {
-    match prepared {
-        Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
-        Ok(resp) => {
-            let (msg, md, trailers, compress) = resp.split();
-            let frame = match encode_msg(&msg, compress, limits) {
-                Ok(frame) => frame,
-                Err(st) => {
-                    send_trailers_only(&mut respond, st, &Metadata::new());
-                    return;
-                }
-            };
-            let Ok(mut send) = send_ok_headers(&mut respond, &md, compress) else {
-                return;
-            };
-            send_bytes(&mut send, frame, false).await.ok();
-            let mut st = Status::new(Code::Ok, "");
-            *st.metadata_mut() = trailers;
-            if let Ok(t) = grpc_trailers(&st) {
-                send.send_trailers(t).ok();
-            }
-        }
-    }
-}
-
-async fn finish_stream_handler<Resp: Serialize + Send>(
-    prepared: Result<Response<Inbound<Resp>>, Status>,
-    mut respond: h2::server::SendResponse<Bytes>,
-    limits: SizeLimits,
-) {
-    match prepared {
-        Err(st) => send_trailers_only(&mut respond, st, &Metadata::new()),
-        Ok(resp) => {
-            let (mut inbound, md, trailers, compress_hdr) = resp.split();
-            let Ok(mut send) = send_ok_headers(&mut respond, &md, compress_hdr) else {
-                return;
-            };
-            let mut stream_status = Status::new(Code::Ok, "");
-            *stream_status.metadata_mut() = trailers;
-            loop {
-                match inbound.next_item().await {
-                    Ok(Some(item)) => {
-                        let frame = match encode_msg(&item.message, item.compressed, limits) {
-                            Ok(frame) => frame,
-                            Err(st) => {
-                                stream_status = st;
-                                break;
-                            }
-                        };
-                        if send_bytes(&mut send, frame, false).await.is_err() {
-                            return;
-                        }
-                    }
-                    Ok(None) => break,
-                    Err(st) => {
-                        stream_status = st;
-                        break;
-                    }
-                }
-            }
-            if let Ok(t) = grpc_trailers(&stream_status) {
-                send.send_trailers(t).ok();
-            }
-        }
-    }
-}
-
-pub(crate) fn reject_unknown(mut respond: h2::server::SendResponse<Bytes>, path: &str) {
-    send_trailers_only(
-        &mut respond,
-        Status::unimplemented(path.to_string()),
-        &Metadata::new(),
-    );
 }
