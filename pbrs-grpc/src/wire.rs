@@ -211,6 +211,11 @@ impl OutBatch {
         Ok(())
     }
 
+    /// Whether the batch has reached the size worth writing on its own.
+    pub(crate) fn is_full(&self) -> bool {
+        self.buf.len() >= STREAM_BATCH_BYTES
+    }
+
     /// Hand whatever has accumulated to HTTP/2.
     pub(crate) async fn flush(&mut self, send: &mut SendStream<Bytes>) -> Result<(), Status> {
         if self.buf.is_empty() {
@@ -219,6 +224,18 @@ impl OutBatch {
         let frame = std::mem::take(&mut self.buf).freeze();
         send_bytes(send, frame, false, self.wire.send_buffer).await
     }
+}
+
+/// Give a producer one scheduling turn to refill the queue before writing.
+///
+/// A producer running ahead of the network is bounded by its channel depth, so
+/// draining it yields only that many messages and the write is smaller than it
+/// could be. One `yield_now` lets it top the queue up, which halves the writes
+/// and the task wakeups for a bulk stream. It costs one re-queue on the same
+/// worker when the producer has nothing more, so an interactive stream pays a
+/// scheduler turn rather than a timer.
+pub(crate) async fn let_producer_catch_up() {
+    tokio::task::yield_now().await;
 }
 
 async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Status> {
@@ -640,6 +657,13 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             send.send_data(Bytes::new(), true).ok();
             return;
         }
+        // See the note in the server's drain loop: yield only when the caller
+        // is demonstrably ahead of the network.
+        let room = OutBatch::BURST - items.len();
+        if items.len() > 1 && room > 0 {
+            let_producer_catch_up().await;
+            rx.try_recv_many(&mut items, room);
+        }
         for item in items.drain(..) {
             let Ok(item) = item else {
                 send.send_reset(Reason::INTERNAL_ERROR);
@@ -650,7 +674,7 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                 return;
             }
         }
-        if batch.flush(&mut send).await.is_err() {
+        if !batch.is_full() && batch.flush(&mut send).await.is_err() {
             send.send_reset(Reason::INTERNAL_ERROR);
             return;
         }

@@ -250,39 +250,53 @@ its p99.
 ### Server-streaming throughput
 
 One server-streaming RPC of 2000 messages × 1 KiB, best of eight rounds.
+Six consecutive runs:
 
-| run | kernel msgs/s | tonic msgs/s | kernel MiB/s | tonic MiB/s |
-|---|---:|---:|---:|---:|
-| 1 | **925k** | 805k | **903** | 786 |
-| 2 | **787k** | 744k | **768** | 726 |
-| 3 | 681k | 737k | 664 | 719 |
+| run | kernel msgs/s | tonic msgs/s | ratio |
+|---|---:|---:|---:|
+| 1 | **1093k** | 917k | 1.19x |
+| 2 | **1028k** | 1025k | 1.00x |
+| 3 | **1055k** | 916k | 1.15x |
+| 4 | **1393k** | 890k | 1.57x |
+| 5 | **849k** | 822k | 1.03x |
+| 6 | 825k | 879k | 0.94x |
+| median | **1041k** | 903k | **1.15x** |
 
-Parity, and gated as such: the kernel must reach at least 80% of tonic.
-The observed ratio swings between about 0.9x and 1.15x run to run on a
-contended machine, so a strictly-faster gate would be a coin flip. 80%
-still catches a real regression, because before response batching and
-inline inbound decoding the kernel sat at **0.24x** (201k against 670k).
+The kernel is ahead on five of six runs and by 15% at the median, but the
+per-run spread is wide enough that a strictly-faster gate would fail on
+noise, so the gate is 90% of tonic. That still catches a real regression:
+this axis started at **0.24x** (201k against 670k).
 
-What closed that gap, in the order it mattered:
+Four changes closed it, in the order they mattered:
 
 1. **Batched output.** gRPC messages are length-prefixed, so one HTTP/2
    DATA frame may carry any number of them. Writing one frame per message
-   cost a wakeup and often a syscall per message. `OutBatch` accumulates
-   up to 32 KiB, or whatever a producer has ready, and writes once.
-   201k → 419k.
+   cost a wakeup and often a syscall per message. `OutBatch` accumulates up
+   to 32 KiB and writes once. 201k → 419k.
 2. **Inline inbound decoding.** `Streaming` reads and decodes on the task
    that calls `message()`, rather than behind a spawned pump task and a
    channel. That removes a task, a queue, and a copy per message on both
    sides. 419k → 843k.
 3. **No speculative flow-control reservation.** `h2` buffers up to the
-   connection's send budget without waiting, so reserving capacity first
-   was a needless round trip through the connection task. Also 12% off
-   large unary latency.
+   connection's send budget without waiting, so reserving capacity first was
+   a needless round trip through the connection task. Also 12% off large
+   unary latency.
+4. **Yielding to a saturated producer.** A producer running ahead of the
+   network is bounded by its channel depth, so draining it yields only that
+   many messages and the write is smaller than it could be. One `yield_now`
+   before flushing lets it top the queue up, halving the writes and the
+   wakeups. 843k → 1041k median.
 
-What remains is one task hop: hyper drains a response body on the
-connection task, while the kernel drains it on the per-RPC task. Closing
-that would mean polling active response streams from the accept loop,
-which is a different architecture, not a tuning change.
+Step 4 is conditional on more than one message being queued. Exactly one
+means the producer is *not* ahead — a request/response stream, say — and a
+scheduling turn there would be pure added latency. That is why unary
+latency and the `ping_pong` interop case are unaffected by it.
+
+The remaining structural difference is one task hop: hyper drains a response
+body on the connection task, while the kernel drains it on the per-RPC task.
+Closing it would mean polling active response streams from the accept loop,
+which is a different architecture rather than a tuning change; the batching
+above is what makes that hop cheap enough not to decide the result.
 
 ### Re-run
 
