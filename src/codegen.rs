@@ -1331,11 +1331,11 @@ fn field_supports_typed_json_message(f: &FieldDescriptor, depth: u32) -> bool {
     }
     m.fields
         .values()
-        .all(|nf| field_supports_typed_json(nf, m, depth + 1))
+        .all(|nf| field_supports_typed_json(nf, depth + 1))
 }
 
-fn field_supports_typed_json(f: &FieldDescriptor, desc: &MessageDescriptor, depth: u32) -> bool {
-    if depth > 32 || is_real_oneof(desc, f) {
+fn field_supports_typed_json(f: &FieldDescriptor, depth: u32) -> bool {
+    if depth > 32 {
         return false;
     }
     if f.is_map {
@@ -1348,7 +1348,7 @@ fn field_supports_typed_json(f: &FieldDescriptor, desc: &MessageDescriptor, dept
         let Some(vf) = entry.field(2) else {
             return false;
         };
-        return field_supports_typed_json(vf, entry, depth + 1);
+        return field_supports_typed_json(vf, depth + 1);
     }
     if f.cardinality == Cardinality::Repeated {
         return match f.field_type {
@@ -1613,7 +1613,33 @@ fn map_value_field(f: &FieldDescriptor) -> Option<&FieldDescriptor> {
 fn can_typed_json(desc: &MessageDescriptor) -> bool {
     desc.fields
         .values()
-        .all(|f| field_supports_typed_json(f, desc, 0))
+        .all(|f| field_supports_typed_json(f, 0))
+}
+
+/// Reject a second JSON member of the same real oneof (official proto3 JSON).
+fn emit_json_oneof_guard(src: &mut String, desc: &MessageDescriptor, f: &FieldDescriptor) {
+    if !is_real_oneof(desc, f) {
+        return;
+    }
+    let Some(idx) = f.oneof_index else {
+        return;
+    };
+    let Some(members) = desc.oneofs.get(idx as usize) else {
+        return;
+    };
+    for n in members {
+        if *n == f.number {
+            continue;
+        }
+        let Some(sib) = desc.field(*n) else {
+            continue;
+        };
+        let raw = field_raw(sib);
+        let _ = writeln!(
+            src,
+            "                    if msg.has_{raw}() {{ return Err(ParseError::new(\"duplicate oneof member\")); }}"
+        );
+    }
 }
 
 fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
@@ -1740,6 +1766,7 @@ fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
             "                    if !seen.insert({num}u32) {{ return Err(ParseError::owned(format!(\"duplicate json field {{key}}\"))); }}"
         );
         let _ = writeln!(src, "                    if val.is_null() {{ continue; }}");
+        emit_json_oneof_guard(src, desc, f);
         if f.is_map {
             let kt = map_key_ty(f);
             let vf = map_value_field(f);
