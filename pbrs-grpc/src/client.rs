@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::sync::watch;
+use tokio::sync::{watch, Mutex};
 
 /// Where a [`Channel`] should dial.
 ///
@@ -82,16 +82,37 @@ impl From<&String> for Target {
     }
 }
 
+/// One pooled HTTP/2 client. `gen` changes whenever the slot is redialed, so a
+/// grabber that observed the previous generation die does not overwrite a
+/// reconnect that already landed.
+struct ConnSlot {
+    gen: u64,
+    send: h2::client::SendRequest<Bytes>,
+}
+
 struct ChannelInner {
-    sends: Vec<h2::client::SendRequest<Bytes>>,
+    slots: Vec<Mutex<ConnSlot>>,
     next: AtomicUsize,
     authority: Authority,
+    /// `host:port` passed to [`TcpStream::connect`].
+    target: String,
+    tls: Option<ClientTls>,
+    /// Settings used to dial. Per-clone message-size overlays on [`Channel`]
+    /// do not change how a dead slot is redialed.
+    dial: ChannelConfig,
 }
 
 /// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
 ///
 /// Cloning is cheap and shares the underlying connections, so a `Channel` is
 /// meant to be cloned into every task that needs it.
+///
+/// If a connection dies — peer `GOAWAY`, TCP reset, keepalive timeout — the
+/// next RPC on that slot dials again. A healthy connection that is only
+/// waiting for a free stream (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not
+/// replaced. Redial is part of the RPC: it is cancelled if the [`Call`] is
+/// cancelled, and it fails with [`Code::DeadlineExceeded`] if the request
+/// deadline elapses while connecting.
 ///
 /// ```no_run
 /// use pbrs_grpc::{Channel, ChannelConfig};
@@ -126,26 +147,13 @@ impl Channel {
     /// Dial `target` with `config`.
     ///
     /// Opens [`ChannelConfig::connections`] TCP connections up front; RPCs are
-    /// spread over them round-robin. All of them must succeed.
+    /// spread over them round-robin. All of them must succeed. A slot that
+    /// later dies is redialed on the next RPC that lands on it.
     pub async fn connect_with(
         target: impl Into<Target>,
         config: ChannelConfig,
     ) -> Result<Self, Status> {
-        let target = target.into();
-        let authority = target.parse()?;
-        let n = config.connection_count();
-        let mut sends = Vec::with_capacity(n);
-        for _ in 0..n {
-            sends.push(handshake(target.authority(), config, None).await?);
-        }
-        Ok(Self {
-            inner: Arc::new(ChannelInner {
-                sends,
-                next: AtomicUsize::new(0),
-                authority,
-            }),
-            config,
-        })
+        connect_inner(target.into(), config, None).await
     }
 
     /// Shorthand for [`Self::connect_with`] with `connections` connections.
@@ -174,21 +182,7 @@ impl Channel {
         config: ChannelConfig,
         tls: ClientTls,
     ) -> Result<Self, Status> {
-        let target = target.into();
-        let authority = target.parse()?;
-        let n = config.connection_count();
-        let mut sends = Vec::with_capacity(n);
-        for _ in 0..n {
-            sends.push(handshake(target.authority(), config, Some(&tls)).await?);
-        }
-        Ok(Self {
-            inner: Arc::new(ChannelInner {
-                sends,
-                next: AtomicUsize::new(0),
-                authority,
-            }),
-            config,
-        })
+        connect_inner(target.into(), config, Some(tls)).await
     }
 
     /// The configuration in effect.
@@ -217,18 +211,23 @@ impl Channel {
         self.inner.authority.as_str()
     }
 
-    fn grab(&self) -> Result<h2::client::SendRequest<Bytes>, Status> {
-        let sends = &self.inner.sends;
-        let n = sends.len();
-        let i = if n <= 1 {
-            0
-        } else {
-            self.inner.next.fetch_add(1, Ordering::Relaxed) % n
-        };
-        sends
-            .get(i)
-            .cloned()
-            .ok_or_else(|| Status::unavailable("empty connection pool"))
+    /// Wait for a live HTTP/2 sender, redialing this slot if the current one
+    /// is dead. Raced against the RPC's deadline and cancel signal so a
+    /// hanging reconnect cannot outlive the call.
+    async fn grab(
+        &self,
+        cancel_rx: watch::Receiver<bool>,
+        deadline: Option<tokio::time::Instant>,
+    ) -> Result<h2::client::SendRequest<Bytes>, Status> {
+        let inner = Arc::clone(&self.inner);
+        let send = prefer_deadline(
+            first_of(inner.acquire(), cancel_rx, deadline).await,
+            deadline,
+        )?;
+        if deadline.is_some_and(|at| tokio::time::Instant::now() >= at) {
+            return Err(Status::deadline_exceeded());
+        }
+        Ok(send)
     }
 
     /// Issue a unary RPC: one request message, one response message.
@@ -255,15 +254,15 @@ impl Channel {
         Resp: Parse + Default + Send + 'static,
     {
         let (cancel, cancel_rx) = watch::channel(false);
-        let send = match self.grab() {
-            Ok(s) => s,
-            Err(e) => return Call::new(cancel, Box::pin(async move { Err(e) })),
-        };
-        let authority = self.inner.authority.clone();
+        let channel = self.clone();
         let wire = self.config.wire();
         Call::new(
             cancel,
-            Box::pin(async move { run_unary(send, &authority, path, req, cancel_rx, wire).await }),
+            Box::pin(async move {
+                let deadline = deadline_from(req.timeout());
+                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                run_unary(send, &channel.inner.authority, path, req, cancel_rx, wire).await
+            }),
         )
     }
 
@@ -278,16 +277,14 @@ impl Channel {
         Resp: Parse + Default + Send + 'static,
     {
         let (cancel, cancel_rx) = watch::channel(false);
-        let send = match self.grab() {
-            Ok(s) => s,
-            Err(e) => return Call::new(cancel, Box::pin(async move { Err(e) })),
-        };
-        let authority = self.inner.authority.clone();
+        let channel = self.clone();
         let wire = self.config.wire();
         Call::new(
             cancel,
             Box::pin(async move {
-                run_server_stream(send, &authority, path, req, cancel_rx, wire).await
+                let deadline = deadline_from(req.timeout());
+                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                run_server_stream(send, &channel.inner.authority, path, req, cancel_rx, wire).await
             }),
         )
     }
@@ -328,15 +325,22 @@ impl Channel {
         let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
         let tx = tx.with_limits(wire.limits);
         let (cancel, cancel_rx) = watch::channel(false);
-        let send = match self.grab() {
-            Ok(s) => s,
-            Err(e) => return (tx, Call::new(cancel, Box::pin(async move { Err(e) }))),
-        };
-        let authority = self.inner.authority.clone();
+        let channel = self.clone();
         let call = Call::new(
             cancel,
             Box::pin(async move {
-                run_client_stream(send, &authority, path, req, rx, cancel_rx, wire).await
+                let deadline = deadline_from(req.timeout());
+                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                run_client_stream(
+                    send,
+                    &channel.inner.authority,
+                    path,
+                    req,
+                    rx,
+                    cancel_rx,
+                    wire,
+                )
+                .await
             }),
         );
         (tx, call)
@@ -357,18 +361,99 @@ impl Channel {
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx.with_limits(wire.limits);
         let (cancel, cancel_rx) = watch::channel(false);
-        let send = match self.grab() {
-            Ok(s) => s,
-            Err(e) => return (tx, Call::new(cancel, Box::pin(async move { Err(e) }))),
-        };
-        let authority = self.inner.authority.clone();
+        let channel = self.clone();
         let call = Call::new(
             cancel,
-            Box::pin(
-                async move { run_bidi(send, &authority, path, req, rx, cancel_rx, wire).await },
-            ),
+            Box::pin(async move {
+                let deadline = deadline_from(req.timeout());
+                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                run_bidi(
+                    send,
+                    &channel.inner.authority,
+                    path,
+                    req,
+                    rx,
+                    cancel_rx,
+                    wire,
+                )
+                .await
+            }),
         );
         (tx, call)
+    }
+}
+
+async fn connect_inner(
+    target: Target,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+) -> Result<Channel, Status> {
+    let host = target.authority().to_owned();
+    let authority = target.parse()?;
+    let n = config.connection_count();
+    let mut sends = Vec::with_capacity(n);
+    for _ in 0..n {
+        sends.push(handshake(&host, config, tls.as_ref()).await?);
+    }
+    Ok(Channel {
+        inner: Arc::new(ChannelInner {
+            slots: sends
+                .into_iter()
+                .map(|send| Mutex::new(ConnSlot { gen: 0, send }))
+                .collect(),
+            next: AtomicUsize::new(0),
+            authority,
+            target: host,
+            tls,
+            dial: config,
+        }),
+        config,
+    })
+}
+
+impl ChannelInner {
+    fn pick(&self) -> Result<usize, Status> {
+        let n = self.slots.len();
+        if n == 0 {
+            return Err(Status::unavailable("empty connection pool"));
+        }
+        if n == 1 {
+            Ok(0)
+        } else {
+            Ok(self.next.fetch_add(1, Ordering::Relaxed) % n)
+        }
+    }
+
+    fn slot(&self, i: usize) -> Result<&Mutex<ConnSlot>, Status> {
+        self.slots
+            .get(i)
+            .ok_or_else(|| Status::unavailable("empty connection pool"))
+    }
+
+    /// Clone a live sender for this slot, redialing only when `ready` reports
+    /// the connection is gone. `ready` waiting on stream capacity is not
+    /// treated as death: that wait happens without holding the slot lock.
+    async fn acquire(&self) -> Result<h2::client::SendRequest<Bytes>, Status> {
+        let i = self.pick()?;
+        loop {
+            let (handle, gen) = {
+                let slot = self.slot(i)?.lock().await;
+                (slot.send.clone(), slot.gen)
+            };
+            match handle.ready().await {
+                Ok(ready) => return Ok(ready),
+                Err(_) => {
+                    let mut slot = self.slot(i)?.lock().await;
+                    if slot.gen != gen {
+                        continue;
+                    }
+                    let send = handshake(&self.target, self.dial, self.tls.as_ref()).await?;
+                    slot.gen = slot.gen.wrapping_add(1);
+                    slot.send = send.clone();
+                    return Ok(send);
+                }
+            }
+        }
     }
 }
 
@@ -624,13 +709,13 @@ fn prefer_deadline<T>(
     }
 }
 
-async fn race<T>(
+/// Race a setup or RPC future against its deadline and cancel signal.
+async fn first_of<T>(
     fut: impl std::future::Future<Output = Result<T, Status>>,
     mut cancel_rx: watch::Receiver<bool>,
     deadline: Option<tokio::time::Instant>,
-    send: Option<&mut h2::SendStream<Bytes>>,
 ) -> Result<T, Status> {
-    let result = if let Some(at) = deadline {
+    if let Some(at) = deadline {
         tokio::select! {
             biased;
             r = fut => r,
@@ -643,7 +728,16 @@ async fn race<T>(
             r = fut => r,
             _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
         }
-    };
+    }
+}
+
+async fn race<T>(
+    fut: impl std::future::Future<Output = Result<T, Status>>,
+    cancel_rx: watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
+    send: Option<&mut h2::SendStream<Bytes>>,
+) -> Result<T, Status> {
+    let result = first_of(fut, cancel_rx, deadline).await;
     if let Some(send) = send {
         if matches!(
             &result,

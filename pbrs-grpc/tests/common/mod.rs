@@ -83,6 +83,34 @@ pub async fn spawn_greeter<G: Greeter>(
     Ok((addr, greeter_client(addr).await, guard))
 }
 
+/// Bind `addr`, retrying through `TIME_WAIT`, and serve `service` on it.
+pub async fn serve_at<G: Greeter>(
+    addr: SocketAddr,
+    service: G,
+    config: ServerConfig,
+) -> Result<ServerGuard, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let handle = tokio::spawn(async move {
+                    GreeterServer::new(service)
+                        .config(config)
+                        .serve_listener(listener)
+                        .await
+                        .ok();
+                });
+                return Ok(ServerGuard(handle));
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
 pub fn name_of(reply: &HelloReply) -> String {
     reply.message().to_str().unwrap_or("").to_string()
 }

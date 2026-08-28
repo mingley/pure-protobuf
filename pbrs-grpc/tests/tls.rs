@@ -208,3 +208,49 @@ async fn cleartext_still_works() {
         .expect("rpc");
     assert_eq!(name_of(reply.get_ref()), "h2c");
 }
+
+async fn serve_tls_at(addr: SocketAddr, tls: ServerTls) -> ServerGuard {
+    let mut last = None;
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let handle = tokio::spawn(async move {
+                    GreeterServer::new(Echo)
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return ServerGuard(handle);
+            }
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    panic!("rebind {addr}: {last:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_dead_tls_channel_redials() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, guard) = serve_tls(tls).await;
+    let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
+    let before = client
+        .say_hello(Request::new(req("before")))
+        .await
+        .expect("before");
+    assert_eq!(name_of(before.get_ref()), "before");
+
+    drop(guard);
+    let _guard = serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls")).await;
+
+    let after = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(Request::new(req("after"))),
+    )
+    .await
+    .expect("tls redial hung")
+    .expect("after");
+    assert_eq!(name_of(after.get_ref()), "after");
+}

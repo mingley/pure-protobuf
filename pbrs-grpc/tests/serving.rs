@@ -22,7 +22,7 @@
 
 mod common;
 
-use common::{greeter_client, name_of, req, Echo};
+use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Channel, Code, Empty, InteropTestService, Request, Response, Router, Rpc, Server, ServerConfig,
@@ -224,10 +224,15 @@ async fn graceful_shutdown_finishes_in_flight_rpcs() {
     });
 
     let client = GreeterClient::new(channel(addr).await);
-    let call = client.say_hello(Request::new(req("ada")));
+    let mut call = client.say_hello(Request::new(req("ada")));
 
-    // Signal shutdown while the 200 ms handler is still running.
-    tokio::time::sleep(Duration::from_millis(30)).await;
+    // Drive the call far enough that Slow's 200 ms handler is running, then
+    // signal drain. Creating a Call does not start the RPC; first poll does.
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("Slow returned before shutdown: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(30)) => {}
+    }
     shutdown_tx.send(()).expect("signal");
 
     let reply = call.await.expect("in-flight RPC must complete");
@@ -489,4 +494,67 @@ async fn config_flows_from_the_generated_server_to_the_router() {
     assert_eq!(err.code(), Code::ResourceExhausted);
 
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_dead_channel_redials_the_same_address() {
+    let (addr, client, guard) = spawn_greeter(Echo).await.expect("spawn");
+    let before = client
+        .say_hello(Request::new(req("before")))
+        .await
+        .expect("before");
+    assert_eq!(name_of(before.get_ref()), "before");
+
+    drop(guard);
+    let _guard = serve_at(addr, Echo, ServerConfig::default())
+        .await
+        .expect("rebind");
+
+    let after = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(Request::new(req("after"))),
+    )
+    .await
+    .expect("redial hung")
+    .expect("after");
+    assert_eq!(name_of(after.get_ref()), "after");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_dead_channel_fails_fast_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_with_shutdown(listener, async {
+                shutdown_rx.await.ok();
+            })
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    client
+        .say_hello(Request::new(req("before")))
+        .await
+        .expect("before");
+
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("drain must finish")
+        .expect("join");
+
+    let mut request = Request::new(req("gone"));
+    request.set_timeout(Duration::from_millis(200));
+    let err = tokio::time::timeout(Duration::from_secs(2), client.say_hello(request))
+        .await
+        .expect("reconnect to a closed port hung")
+        .expect_err("rpc succeeded with no server");
+    assert!(
+        matches!(
+            err.code(),
+            Code::Unavailable | Code::DeadlineExceeded | Code::Cancelled
+        ),
+        "{err}"
+    );
 }

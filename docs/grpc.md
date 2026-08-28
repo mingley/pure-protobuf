@@ -114,7 +114,10 @@ println!("{}", reply.get_ref().message());
 
 `Channel::connect` takes anything that converts into a
 [`Target`](https://docs.rs/pbrs-grpc): a `SocketAddr`, or a `host:port`
-string that goes through DNS.
+string that goes through DNS. The resulting `Channel` is meant to be cloned
+and held for the life of the process: if a connection dies, the next RPC
+redials that slot, so a server restart on the same address does not require
+a new client.
 
 A complete worked example living in the repository is
 [`pbrs-grpc-hello`](../pbrs-grpc/src/bin/pbrs-grpc-hello.rs), which exercises
@@ -404,8 +407,15 @@ ChannelConfig::new().keep_alive_interval(Duration::from_secs(30))
 ```
 
 The same setter exists on `ServerConfig`. A PING that is not acknowledged
-within 20 s (configurable) drops the connection, so the next RPC sees
-`UNAVAILABLE` instead of hanging.
+within 20 s (configurable) drops the connection. The next RPC redials that
+slot; if the peer is still gone, the call fails with `UNAVAILABLE` (or
+`DEADLINE_EXCEEDED` if the request deadline elapses while connecting) instead
+of hanging on a dead socket.
+
+A `Channel` also redials after a peer `GOAWAY` or a TCP reset, so restarting
+the server on the same address does not require constructing a new client.
+Healthy connections waiting only on `SETTINGS_MAX_CONCURRENT_STREAMS` are
+left alone.
 
 ## Health checks
 

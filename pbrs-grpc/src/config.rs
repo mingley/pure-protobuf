@@ -260,6 +260,9 @@ impl ChannelConfig {
     /// One connection means one `h2` driver task, so one core drives all
     /// framing. Raising this is the single biggest throughput lever for
     /// concurrent small RPCs; see [the tuning guide](crate#tuning).
+    ///
+    /// A slot that later dies is redialed on the next RPC that lands on it;
+    /// the other slots keep serving.
     #[must_use]
     pub fn connections(mut self, n: usize) -> Self {
         self.connections = n.max(1);
