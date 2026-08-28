@@ -1192,10 +1192,7 @@ fn gencode_field_mask_match_dynamic_message() {
         GenFieldMask::from_json(&official_empty).unwrap(),
         GenFieldMask::new()
     );
-    assert_eq!(
-        GenFieldMask::from_text("").unwrap(),
-        GenFieldMask::new()
-    );
+    assert_eq!(GenFieldMask::from_text("").unwrap(), GenFieldMask::new());
 
     let mut m = GenFieldMask::new();
     m.paths_mut().push("a");
