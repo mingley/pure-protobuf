@@ -1425,7 +1425,7 @@ fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(
         src,
-        "        let mut seen = std::collections::BTreeSet::new();"
+        "        let mut seen = std::collections::BTreeSet::<u32>::new();"
     );
     let _ = writeln!(src, "        for (key, val) in obj {{");
     let _ = writeln!(src, "            match key.as_str() {{");
