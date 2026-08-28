@@ -1864,7 +1864,7 @@ fn emit_wkt_field_mask_json(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "        pbrs::json::field_mask(self.paths().iter().map(|p| p.as_bytes()))"
+        "        pbrs::json::field_mask(self.paths().iter().map(|p| p.0.as_bytes()))"
     );
     let _ = writeln!(src, "    }}");
     let _ = writeln!(

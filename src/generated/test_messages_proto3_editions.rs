@@ -1945,7 +1945,7 @@ mod __gen {
             Self::from_json_value(&v, ignore)
         }
         fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {
-            pbrs::json::field_mask(self.paths().iter().map(|p| p.as_bytes()))
+            pbrs::json::field_mask(self.paths().iter().map(|p| p.0.as_bytes()))
         }
         fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {
             let mut msg = Self::new();
