@@ -1,36 +1,115 @@
 # pbrs-grpc
 
-HTTP/2 gRPC kernel over pbrs. It is not tonic. `protobuf-tonic` remains
-the adapter for existing tonic 0.14 services.
+A pure-Rust gRPC kernel over [pbrs](../README.md). No C, no `unsafe` in the
+kernel, no tonic.
 
-`pbrs` has no dependency on this crate. This crate has no dependency on
-tonic or on `protobuf-tonic`.
+```toml
+[dependencies]
+pbrs = "0.1"
+pbrs-grpc = "0.1"
 
-Cleartext prior-knowledge HTTP/2 only (no TLS). Identity framing by
-default; gzip via `grpc-encoding` and the Compressed-Flag.
-`helloworld.Greeter` is the in-tree service: unary, client-stream,
-server-stream, and bidi.
-
-```rust
-let listener = TcpListener::bind("127.0.0.1:0").await?;
-let addr = listener.local_addr()?;
-tokio::spawn(GreeterServer::new(Echo).serve_listener(listener));
-let client = GreeterClient::new(Channel::connect(addr).await?);
-// Channel::connect_pool(addr, n) for independent h2 driver tasks.
-let resp = client.say_hello(Request::new(req)).await?;
+[build-dependencies]
+pbrs = "0.1"
 ```
 
-OK-path custom trailers (including `-bin`) are first-class.
-`grpc-timeout` maps to `DEADLINE_EXCEEDED`. Client cancel maps to
-`CANCELLED`. Gzip is supported (`grpc-encoding` / Compressed-Flag).
-`Channel`, `GreeterClient` / `TestServiceClient`, and `GreeterServer` /
-`TestServiceServer` accept `max_decoding_message_size` /
-`max_encoding_message_size` (default unlimited). Oversize inbound or
-outbound messages fail with `RESOURCE_EXHAUSTED` before the oversize
-payload is sent or accepted. This is a cap, not a latency or QPS win.
+```rust
+// build.rs
+pbrs::codegen::Config::new()
+    .emit_kernel_stubs(true)
+    .compile_protos(&["proto/hello.proto"], &["proto"])?;
+```
 
-Official interop: `pbrs-grpc-interop-server --port N` and
-`pbrs-grpc-interop-client --server_host H --server_port N --test_case=empty_unary`.
-The Go peer is `google.golang.org/grpc/interop/{client,server}` with
-`-use_tls=false`. Loopback empty_unary / large_unary vs tonic 0.14 is
-`rpc-bench` (excluded crate; latency process-gated, QPS reported).
+That generates a service trait, a server, and a client for every `service` in
+your `.proto`. Implement the trait:
+
+```rust
+impl Greeter for MyGreeter {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut reply = HelloReply::new();
+        reply.set_message(format!("hello {}", request.get_ref().name()));
+        Ok(Response::new(reply))
+    }
+}
+
+GreeterServer::new(MyGreeter).serve(addr).await?;
+```
+
+and call it:
+
+```rust
+let client = GreeterClient::new(Channel::connect("127.0.0.1:50051").await?);
+let reply = client.say_hello(Request::new(req)).await?;
+```
+
+All four call shapes, `Router` for several services, graceful drain with
+`GOAWAY`, per-message gzip, deadlines, cancellation, ASCII and `-bin`
+metadata, and OK-path custom trailers.
+
+**[Guide](../docs/grpc.md)** — building services, streaming, metadata, errors,
+deadlines, compression, limits, tuning, testing, and writing a service without
+codegen.
+
+## Fast
+
+Measured against tonic 0.14 over loopback on the same service and the same
+protobuf codec, so the delta is transport only. Four-core Xeon; see
+[benchmarks](../docs/benchmarks.md) for method, variance, and three full runs.
+
+| Axis | Kernel | tonic 0.14 |
+|---|---:|---:|
+| `empty_unary` p50 | **54 µs** | 87 µs |
+| `empty_unary` p99 | **110-191 µs** | 42 ms |
+| `large_unary` p50 | **616-822 µs** | 1.48-1.71 ms |
+| Unary QPS, 1 connection | **74k** | 2.5-2.9k |
+| Unary QPS, 16 conc / 4 conns | **84k** | 21-27k |
+| Server-stream, 1 KiB messages | **681-925k/s** | 737-805k/s |
+
+Unary latency is process-gated: `rpc-bench` exits non-zero unless the kernel
+wins on both p50 and p99. Streaming is gated at parity.
+
+## Safe
+
+The peer is assumed hostile, and every limit is enforced before the memory it
+guards is committed: a frame length is refused from the 5-byte header, and a
+compressed frame inflates through a reader that stops one byte past the cap.
+
+Defaults: 4 MiB inbound messages, 16 KiB metadata, 256 concurrent streams per
+connection, 16 MiB windows. `tests/hostile.rs` speaks raw HTTP/2 to check
+them, sending length prefixes claiming 4 GiB, gzip bombs, reserved flag
+values, truncated frames, and malformed paths, then verifying the server still
+serves.
+
+Every hand-written module carries `#[forbid(unsafe_code)]`, which cannot be
+relaxed from inside it. The two modules that `include!` generated messages are
+exempt, because pbrs gencode uses `unsafe` for zeroed-message construction.
+
+See [the threat model](../docs/grpc.md#limits-and-the-threat-model).
+
+## Scope
+
+Cleartext prior-knowledge HTTP/2 (h2c). No TLS, no load balancing, no
+retries — run behind a mesh sidecar or on a trusted network, and see
+[what is not here](../docs/grpc.md#what-is-not-here).
+
+`pbrs` does not depend on this crate, and this crate does not depend on tonic
+or `protobuf-tonic`. Use `protobuf-tonic` instead if you want to keep an
+existing tonic service and only swap in pbrs message types.
+
+## Interop
+
+`grpc.testing.TestService` and the official test cases ship in-tree:
+
+```bash
+cargo run -p pbrs-grpc --bin pbrs-grpc-interop-server -- --port 10000
+cargo run -p pbrs-grpc --bin pbrs-grpc-interop-client -- \
+    --server_host 127.0.0.1 --server_port 10000 --test_case=large_unary
+```
+
+Either side can be replaced with `google.golang.org/grpc/interop/{client,server}`
+run with `-use_tls=false`.
+
+`pbrs-grpc-hello` is a worked example exercising all four call shapes over
+loopback.
