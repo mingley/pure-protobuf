@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package example;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+// Parent whose only WKT fields are the field-wise Timestamp / Duration set.
+message HasWkt {
+  google.protobuf.Timestamp ts = 1;
+  google.protobuf.Duration dur = 2;
+}

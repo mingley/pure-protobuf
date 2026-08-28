@@ -1319,16 +1319,32 @@ fn enum_supports_typed(f: &FieldDescriptor) -> bool {
         .starts_with("google.protobuf.")
 }
 
+fn message_type_name(f: &FieldDescriptor) -> &str {
+    f.type_name
+        .as_deref()
+        .or_else(|| f.message.as_ref().map(|m| m.full_name.as_str()))
+        .unwrap_or("")
+        .trim_start_matches('.')
+}
+
+fn is_fieldwise_wkt(name: &str) -> bool {
+    matches!(
+        name,
+        "google.protobuf.Timestamp" | "google.protobuf.Duration"
+    )
+}
+
 fn field_supports_typed_json_message(f: &FieldDescriptor, depth: u32) -> bool {
+    let name = message_type_name(f);
+    if is_fieldwise_wkt(name) {
+        return true;
+    }
+    if name.starts_with("google.protobuf.") {
+        return false;
+    }
     let Some(m) = f.message.as_ref() else {
         return false;
     };
-    if m.full_name
-        .trim_start_matches('.')
-        .starts_with("google.protobuf.")
-    {
-        return false;
-    }
     m.fields
         .values()
         .all(|nf| field_supports_typed_json(nf, depth + 1))
@@ -1643,13 +1659,73 @@ fn emit_json_oneof_guard(src: &mut String, desc: &MessageDescriptor, f: &FieldDe
 }
 
 fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
-    if can_typed_json(desc) {
-        emit_typed_json(src, desc);
-        emit_typed_text(src, desc);
-    } else {
-        emit_dynamic_json(src, &desc.full_name);
-        emit_dynamic_text(src, &desc.full_name);
+    match desc.full_name.trim_start_matches('.') {
+        "google.protobuf.Timestamp" => {
+            emit_wkt_string_json(src, "timestamp");
+            emit_typed_text(src, desc);
+        }
+        "google.protobuf.Duration" => {
+            emit_wkt_string_json(src, "duration");
+            emit_typed_text(src, desc);
+        }
+        name if name.starts_with("google.protobuf.") => {
+            // Other WKT keep official JSON via DynamicMessage. Field-wise
+            // object JSON for Any / wrappers / FieldMask would be a lie.
+            emit_dynamic_json(src, &desc.full_name);
+            emit_dynamic_text(src, &desc.full_name);
+        }
+        _ if can_typed_json(desc) => {
+            emit_typed_json(src, desc);
+            emit_typed_text(src, desc);
+        }
+        _ => {
+            emit_dynamic_json(src, &desc.full_name);
+            emit_dynamic_text(src, &desc.full_name);
+        }
     }
+}
+
+/// Official proto3 JSON string mapping for Timestamp / Duration.
+fn emit_wkt_string_json(src: &mut String, helper: &str) {
+    let _ = writeln!(
+        src,
+        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        pbrs::json::{helper}(self.seconds(), self.nanos())"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        let (seconds, nanos) = pbrs::json::as_{helper}(v)?;"
+    );
+    let _ = writeln!(src, "        let mut msg = Self::new();");
+    let _ = writeln!(src, "        msg.set_seconds(seconds);");
+    let _ = writeln!(src, "        msg.set_nanos(nanos);");
+    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "    }}");
 }
 
 fn emit_typed_json(src: &mut String, desc: &MessageDescriptor) {

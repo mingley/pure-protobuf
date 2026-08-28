@@ -2,7 +2,8 @@
 //!
 //! These checks fail on current main: `OneofHole` `to_json` / `to_text`
 //! still serialize then `DynamicMessage`. After the cut they must not.
-//! TAT / WKT stay on `DynamicMessage`. Remaining is not closed.
+//! TAT and WKT other than Timestamp / Duration stay on `DynamicMessage`.
+//! Remaining is not closed.
 
 #![allow(
     clippy::disallowed_methods,
