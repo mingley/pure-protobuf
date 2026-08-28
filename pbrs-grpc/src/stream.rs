@@ -157,6 +157,14 @@ impl<T> Streaming<T> {
     }
 }
 
+impl<T> std::fmt::Debug for Streaming<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Streaming")
+            .field("buffered", &self.rx.len())
+            .finish_non_exhaustive()
+    }
+}
+
 /// The write half of a message stream.
 ///
 /// Dropping the sender half-closes the stream cleanly; use
@@ -239,6 +247,15 @@ impl<T> StreamSender<T> {
 
     pub(crate) async fn send_status(&self, status: Status) {
         self.tx.send(Err(status)).await.ok();
+    }
+}
+
+impl<T> std::fmt::Debug for StreamSender<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StreamSender")
+            .field("closed", &self.tx.is_closed())
+            .field("limits", &self.limits)
+            .finish()
     }
 }
 

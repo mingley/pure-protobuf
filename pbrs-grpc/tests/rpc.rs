@@ -130,7 +130,7 @@ impl Greeter for Fail {
 
 #[tokio::test]
 async fn unary_echoes_name() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let resp = client
         .say_hello(Request::new(req("ada")))
         .await
@@ -140,7 +140,7 @@ async fn unary_echoes_name() {
 
 #[tokio::test]
 async fn client_stream_aggregates_names() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let (tx, call) = client.client_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
     tx.send(req("bob")).await.expect("send");
@@ -151,7 +151,7 @@ async fn client_stream_aggregates_names() {
 
 #[tokio::test]
 async fn server_stream_splits_name() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let resp = client
         .server_hello(Request::new(req("ada,bob")))
         .await
@@ -170,7 +170,7 @@ async fn server_stream_splits_name() {
 
 #[tokio::test]
 async fn bidi_round_trip() {
-    let (_addr, client) = spawn_greeter(Echo).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
     tx.close();
@@ -186,7 +186,7 @@ async fn bidi_round_trip() {
 
 #[tokio::test]
 async fn failing_rpc_nonzero_grpc_status() {
-    let (_addr, client) = spawn_greeter(Fail).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Fail).await.expect("spawn");
     match client.say_hello(Request::new(req("ada"))).await {
         Err(err) => {
             assert_ne!(err.code(), Code::Ok);
@@ -198,7 +198,7 @@ async fn failing_rpc_nonzero_grpc_status() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_unary_on_connection_pool() {
-    let (addr, _) = spawn_greeter(Echo).await.expect("spawn");
+    let (addr, _client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let client =
         pbrs_grpc::hello::GreeterClient::new(Channel::connect_pool(addr, 4).await.expect("pool"));
     let mut hs = Vec::new();

@@ -2,6 +2,7 @@
 
 use crate::metadata::Metadata;
 use crate::status::Status;
+use std::fmt;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -159,8 +160,21 @@ impl<T> Request<T> {
     }
 }
 
+impl<T: fmt::Debug> fmt::Debug for Request<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Request")
+            .field("message", &self.message)
+            .field("metadata", &self.metadata)
+            .field("timeout", &self.timeout)
+            .field("compressed", &self.compressed)
+            .field("remote_addr", &self.remote_addr)
+            .finish()
+    }
+}
+
 /// A [`Request`] envelope without its message. See
 /// [`Request::into_message_and_parts`].
+#[derive(Debug)]
 pub struct Parts {
     metadata: Metadata,
     timeout: Option<Duration>,
@@ -314,6 +328,17 @@ impl<T> Response<T> {
     }
 }
 
+impl<T: fmt::Debug> fmt::Debug for Response<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Response")
+            .field("message", &self.message)
+            .field("metadata", &self.metadata)
+            .field("trailers", &self.trailers)
+            .field("compress", &self.compress)
+            .finish()
+    }
+}
+
 /// An RPC in flight.
 ///
 /// Await it for the result. Dropping it without awaiting abandons the RPC;
@@ -366,8 +391,16 @@ impl<T> Future for Call<T> {
     }
 }
 
+impl<T> fmt::Debug for Call<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Call")
+            .field("cancelled", &*self.cancel.borrow())
+            .finish_non_exhaustive()
+    }
+}
+
 /// A cancel signal for an in-flight [`Call`], detached from the call itself.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CallHandle {
     cancel: watch::Sender<bool>,
 }

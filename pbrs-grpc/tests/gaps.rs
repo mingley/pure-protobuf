@@ -110,7 +110,7 @@ impl Greeter for Sleep {
 
 #[tokio::test]
 async fn ok_path_custom_bin_trailers_not_headers() {
-    let (_addr, client) = spawn_greeter(TrailerEcho).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(TrailerEcho).await.expect("spawn");
     let resp = client
         .say_hello(Request::new(req("ada")))
         .await
@@ -128,7 +128,7 @@ async fn ok_path_custom_bin_trailers_not_headers() {
 
 #[tokio::test]
 async fn deadline_exceeded_on_sleeping_handler() {
-    let (_addr, client) = spawn_greeter(Sleep).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Sleep).await.expect("spawn");
     let mut request = Request::new(req("ada"));
     request.set_timeout(Duration::from_millis(80));
     match client.say_hello(request).await {
@@ -142,7 +142,7 @@ async fn deadline_exceeded_on_sleeping_handler() {
 
 #[tokio::test]
 async fn cancelled_on_client_cancel() {
-    let (_addr, client) = spawn_greeter(Sleep).await.expect("spawn");
+    let (_addr, client, _guard) = spawn_greeter(Sleep).await.expect("spawn");
     let call = client.say_hello(Request::new(req("ada")));
     let handle = call.handle();
     drop(tokio::spawn(async move {
