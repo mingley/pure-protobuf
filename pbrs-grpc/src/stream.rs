@@ -186,6 +186,27 @@ impl<T> Streaming<T> {
             },
         }
     }
+
+    /// Take up to `limit` already-queued messages without waiting.
+    ///
+    /// Used to top up a batch after yielding to the producer. A wire-backed
+    /// stream has nothing available for free, so it yields nothing.
+    pub(crate) fn try_recv_many(&mut self, out: &mut Vec<Item<T>>, limit: usize) -> usize {
+        let Source::Channel(rx) = &mut self.source else {
+            return 0;
+        };
+        let mut taken = 0;
+        while taken < limit {
+            match rx.try_recv() {
+                Ok(item) => {
+                    out.push(item);
+                    taken += 1;
+                }
+                Err(_) => break,
+            }
+        }
+        taken
+    }
 }
 
 impl<T> std::fmt::Debug for Streaming<T> {

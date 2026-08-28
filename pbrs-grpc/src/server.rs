@@ -12,8 +12,9 @@ use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::wire::{
-    check_request, encode_msg, grpc_trailers, read_one_message, reject, send_bytes,
-    send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout, OutBatch, WireStream,
+    check_request, encode_msg, grpc_trailers, let_producer_catch_up, read_one_message, reject,
+    send_bytes, send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout, OutBatch,
+    WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -479,6 +480,16 @@ async fn drain_to_wire<Resp: Serialize + Send>(
         if stream.recv_many(&mut items, OutBatch::BURST).await == 0 {
             break;
         }
+        // More than one message queued means the producer is running ahead of
+        // the network and is bounded by its channel depth, so one scheduling
+        // turn lets it top the queue up and doubles the write size. Exactly one
+        // means it is not ahead — a request/response stream, say — and must not
+        // pay a turn of latency for nothing.
+        let room = OutBatch::BURST - items.len();
+        if items.len() > 1 && room > 0 {
+            let_producer_catch_up().await;
+            stream.try_recv_many(&mut items, room);
+        }
         for item in items.drain(..) {
             let item = item.map_err(DrainError::Producer)?;
             batch
@@ -486,7 +497,9 @@ async fn drain_to_wire<Resp: Serialize + Send>(
                 .await
                 .map_err(|_| DrainError::Transport)?;
         }
-        batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+        if !batch.is_full() {
+            batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+        }
     }
     batch.flush(send).await.map_err(|_| DrainError::Transport)
 }

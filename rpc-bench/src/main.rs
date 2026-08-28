@@ -19,12 +19,12 @@
 //! - Unary latency: the kernel must be strictly faster than tonic on both p50
 //!   and p99. This is the axis where the transport difference is clearest and
 //!   the measurement is most stable.
-//! - Stream throughput: the kernel must reach at least 80% of tonic. Both
-//!   stacks hand a server-streaming response through a channel of the same
-//!   depth, and on a small contended machine the observed ratio swings between
-//!   about 0.8x and 1.2x run to run, so a strictly-faster gate would be a coin
-//!   flip. 80% still catches a real regression: before response batching and
-//!   inline inbound decoding, the kernel sat at 0.24x.
+//! - Stream throughput: the kernel must reach at least 90% of tonic. The
+//!   kernel is faster here on most runs and by median, but on a small
+//!   contended machine the per-run ratio ranges from about 0.94x to 1.57x, so
+//!   a strictly-faster gate would fail on noise. 90% still catches a real
+//!   regression: before batching, inline inbound decoding, and yielding to a
+//!   saturated producer, the kernel sat at 0.24x.
 //! - Sustained QPS: reported, not gated. It moves with core count and
 //!   scheduler luck.
 #![allow(
@@ -70,7 +70,7 @@ const STREAM_MSGS: i32 = 2000;
 const STREAM_SIZE: i32 = 1024;
 const STREAM_ROUNDS: usize = 9;
 /// The kernel must reach at least this fraction of tonic's stream throughput.
-const STREAM_PARITY: f64 = 0.8;
+const STREAM_PARITY: f64 = 0.9;
 
 struct TonicInterop;
 

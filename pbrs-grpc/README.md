@@ -60,15 +60,17 @@ protobuf codec, so the delta is transport only. Four-core Xeon; see
 
 | Axis | Kernel | tonic 0.14 |
 |---|---:|---:|
-| `empty_unary` p50 | **54 µs** | 87 µs |
-| `empty_unary` p99 | **110-191 µs** | 42 ms |
-| `large_unary` p50 | **616-822 µs** | 1.48-1.71 ms |
-| Unary QPS, 1 connection | **74k** | 2.5-2.9k |
-| Unary QPS, 16 conc / 4 conns | **84k** | 21-27k |
-| Server-stream, 1 KiB messages | **681-925k/s** | 737-805k/s |
+| `empty_unary` p50 | **33-54 µs** | 50-87 µs |
+| `empty_unary` p99 | **42-191 µs** | 42 ms |
+| `large_unary` p50 | **596-822 µs** | 1.40-1.71 ms |
+| Unary QPS, 1 connection | **74k** | 2.0-2.9k |
+| Unary QPS, 16 conc / 4 conns | **84-101k** | 12-27k |
+| Server-stream, 1 KiB messages | **1041k/s** median | 903k/s median |
 
 Unary latency is process-gated: `rpc-bench` exits non-zero unless the kernel
-wins on both p50 and p99. Streaming is gated at parity.
+wins on both p50 and p99. Streaming is gated at 90% of tonic — the kernel leads
+by 15% at the median and on five of six runs, but the per-run spread on a
+contended machine is wide enough that a strict gate would fail on noise.
 
 Against grpc-go's reference server — one kernel client, two servers in separate
 processes, so the server is the only variable — the kernel is about 1.4x on
