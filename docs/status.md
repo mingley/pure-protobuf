@@ -96,7 +96,9 @@ See `docs/upb.md`. Short list:
   that crate; tonic adapter still covers health/gzip/reflection via tonic
   crates.
 - There are no arena views.
-- JSON and text go through `DynamicMessage`.
+- TAT / WKT / other generated JSON, and TAT / WKT / other generated
+  text, still go through `DynamicMessage`. Person-shaped proto3 JSON
+  and text (`Person`, `hello`) are field-wise. Remaining is not closed.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
 - Maps are last-wins `Vec` plus a lazy index (not a codec win).
 - `name_4kib` Codec combined beats prost (gated). `blob_4kib` still

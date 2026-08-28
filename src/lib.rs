@@ -83,7 +83,7 @@ pub mod rt;
 pub mod runtime;
 mod string;
 pub mod testdata;
-pub(crate) mod text;
+pub mod text;
 mod wire;
 
 /// proto! enables Rust struct-init syntax for protobuf messages.

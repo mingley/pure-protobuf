@@ -1,4 +1,8 @@
 //! Protocol buffer text format (textproto).
+//!
+//! Official mapping for [`crate::DynamicMessage`], plus helpers used by
+//! generated `to_text` / `from_text` so proto3 messages can encode and decode
+//! text without allocating a `DynamicMessage`.
 
 use crate::dynamic::{
     Cardinality, DescriptorPool, DynamicMessage, FieldDescriptor, FieldType, FieldValue,
@@ -45,6 +49,140 @@ pub fn decode_with_pool(
         return Err(ParseError::new("trailing text"));
     }
     Ok(msg)
+}
+
+/// One text-format value. Used by generated field-wise `from_text`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TextValue {
+    /// Unquoted token (integers, bools, idents).
+    Token(String),
+    /// Quoted string or bytes literal (escapes already decoded).
+    Bytes(Vec<u8>),
+    /// `{ ... }` or `< ... >` message body.
+    Message(Vec<(String, TextValue)>),
+    /// `[ ... ]` list (repeated fields).
+    List(Vec<TextValue>),
+}
+
+impl TextValue {
+    /// Decode an `int32` token (decimal / hex / octal, same as DynamicMessage).
+    pub fn as_i32(&self) -> Result<i32, ParseError> {
+        match self {
+            Self::Token(t) => parse_i32(t),
+            _ => Err(ParseError::new("expected int32")),
+        }
+    }
+
+    /// Decode a quoted UTF-8 string.
+    pub fn as_str(&self) -> Result<&str, ParseError> {
+        match self {
+            Self::Bytes(b) => std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8")),
+            _ => Err(ParseError::new("expected string")),
+        }
+    }
+
+    /// Decode a nested message body.
+    pub fn as_message(&self) -> Result<&[(String, TextValue)], ParseError> {
+        match self {
+            Self::Message(fields) => Ok(fields.as_slice()),
+            _ => Err(ParseError::new("expected { for message")),
+        }
+    }
+
+    /// A `[...]` list, if this value is one.
+    pub fn as_list(&self) -> Option<&[TextValue]> {
+        match self {
+            Self::List(items) => Some(items.as_slice()),
+            _ => None,
+        }
+    }
+}
+
+/// Parse a text-format message body without allocating a `DynamicMessage`.
+pub fn parse(text: &str) -> Result<Vec<(String, TextValue)>, ParseError> {
+    let mut p = Parser {
+        src: text.as_bytes(),
+        pos: 0,
+        pool: None,
+        depth: 0,
+    };
+    let fields = p.parse_text_fields()?;
+    p.ws();
+    if p.pos < p.src.len() {
+        return Err(ParseError::new("trailing text"));
+    }
+    Ok(fields)
+}
+
+/// Write indent spaces.
+pub fn pad(out: &mut String, n: usize) {
+    for _ in 0..n {
+        out.push(' ');
+    }
+}
+
+/// Write a quoted text-format string / bytes literal.
+pub fn write_bytes_lit(bytes: &[u8], out: &mut String) {
+    out.push('"');
+    for &b in bytes {
+        match b {
+            b'\n' => out.push_str("\\n"),
+            b'\r' => out.push_str("\\r"),
+            b'\t' => out.push_str("\\t"),
+            b'\\' => out.push_str("\\\\"),
+            b'"' => out.push_str("\\\""),
+            b'\'' => out.push_str("\\'"),
+            0x07 => out.push_str("\\a"),
+            0x08 => out.push_str("\\b"),
+            0x0c => out.push_str("\\f"),
+            0x0b => out.push_str("\\v"),
+            0x20..=0x7e => out.push(b as char),
+            _ => out.push_str(&format!("\\{b:03o}")),
+        }
+    }
+    out.push('"');
+}
+
+/// Write `name: <int32>` at `indent`.
+pub fn write_named_int32(out: &mut String, indent: usize, name: &str, n: i32) {
+    pad(out, indent);
+    out.push_str(name);
+    out.push_str(": ");
+    out.push_str(&n.to_string());
+    out.push('\n');
+}
+
+/// Write `name: "<bytes>"` at `indent`.
+pub fn write_named_string(out: &mut String, indent: usize, name: &str, bytes: &[u8]) {
+    pad(out, indent);
+    out.push_str(name);
+    out.push_str(": ");
+    write_bytes_lit(bytes, out);
+    out.push('\n');
+}
+
+/// Write a `map<string, int32>` entry in DynamicMessage text order.
+pub fn write_map_string_i32(out: &mut String, indent: usize, name: &str, key: &[u8], value: i32) {
+    pad(out, indent);
+    out.push_str(name);
+    out.push_str(" {\n");
+    pad(out, indent + 2);
+    out.push_str("key: ");
+    write_bytes_lit(key, out);
+    out.push('\n');
+    pad(out, indent + 2);
+    out.push_str("value: ");
+    out.push_str(&value.to_string());
+    out.push('\n');
+    pad(out, indent);
+    out.push_str("}\n");
+}
+
+/// Write unknown fields (same printer as [`DynamicMessage::to_text_with_unknown`]).
+pub fn write_unknown_fields(unknown: &crate::wire::UnknownFields, out: &mut String, indent: usize) {
+    for uf in &unknown.fields {
+        write_unknown(uf, out, indent);
+    }
 }
 
 fn write_msg(
@@ -262,33 +400,6 @@ fn write_float64(n: f64, out: &mut String) {
     }
 }
 
-fn write_bytes_lit(bytes: &[u8], out: &mut String) {
-    out.push('"');
-    for &b in bytes {
-        match b {
-            b'\n' => out.push_str("\\n"),
-            b'\r' => out.push_str("\\r"),
-            b'\t' => out.push_str("\\t"),
-            b'\\' => out.push_str("\\\\"),
-            b'"' => out.push_str("\\\""),
-            b'\'' => out.push_str("\\'"),
-            0x07 => out.push_str("\\a"),
-            0x08 => out.push_str("\\b"),
-            0x0c => out.push_str("\\f"),
-            0x0b => out.push_str("\\v"),
-            0x20..=0x7e => out.push(b as char),
-            _ => out.push_str(&format!("\\{b:03o}")),
-        }
-    }
-    out.push('"');
-}
-
-fn pad(out: &mut String, n: usize) {
-    for _ in 0..n {
-        out.push(' ');
-    }
-}
-
 struct Parser<'a> {
     src: &'a [u8],
     pos: usize,
@@ -353,6 +464,100 @@ impl Parser<'_> {
             self.optional_separator()?;
         }
         Ok(msg)
+    }
+
+    fn parse_text_fields(&mut self) -> Result<Vec<(String, TextValue)>, ParseError> {
+        if self.depth > RECURSION_LIMIT {
+            return Err(ParseError::new("recursion limit exceeded"));
+        }
+        let mut fields = Vec::new();
+        self.ws();
+        while self.pos < self.src.len() {
+            let c = self.peek();
+            if c == b'}' || c == b'>' {
+                break;
+            }
+            if c == 0 {
+                break;
+            }
+            if self.try_consume_sep_only()? {
+                continue;
+            }
+            let field_tok = self.field_token()?;
+            self.ws();
+            if self.peek() == b':' {
+                self.pos += 1;
+                self.ws();
+            }
+            let value = if self.peek() == b'[' {
+                self.parse_text_list()?
+            } else {
+                self.parse_text_value()?
+            };
+            fields.push((field_tok, value));
+            self.optional_separator()?;
+        }
+        Ok(fields)
+    }
+
+    fn parse_text_delimited(&mut self) -> Result<TextValue, ParseError> {
+        self.ws();
+        let close = match self.peek() {
+            b'{' => b'}',
+            b'<' => b'>',
+            _ => return Err(ParseError::new("expected { or <")),
+        };
+        self.pos += 1;
+        self.depth += 1;
+        let fields = self.parse_text_fields()?;
+        self.depth -= 1;
+        self.ws();
+        if self.peek() != close {
+            return Err(ParseError::owned(format!("expected {}", close as char)));
+        }
+        self.pos += 1;
+        Ok(TextValue::Message(fields))
+    }
+
+    fn parse_text_value(&mut self) -> Result<TextValue, ParseError> {
+        self.ws();
+        if self.peek() == b'{' || self.peek() == b'<' {
+            return self.parse_text_delimited();
+        }
+        if self.peek() == b'"' || self.peek() == b'\'' {
+            return Ok(TextValue::Bytes(self.concat_strings()?));
+        }
+        Ok(TextValue::Token(self.number_or_ident()?))
+    }
+
+    fn parse_text_list(&mut self) -> Result<TextValue, ParseError> {
+        if self.peek() != b'[' {
+            return Err(ParseError::new("expected ["));
+        }
+        self.pos += 1;
+        self.ws();
+        if self.peek() == b']' {
+            self.pos += 1;
+            return Ok(TextValue::List(Vec::new()));
+        }
+        let mut items = Vec::new();
+        loop {
+            items.push(self.parse_text_value()?);
+            self.ws();
+            if self.peek() == b',' {
+                self.pos += 1;
+                self.ws();
+                if self.peek() == b',' || self.peek() == b']' {
+                    return Err(ParseError::new("invalid list separator"));
+                }
+                continue;
+            }
+            if self.peek() == b']' {
+                self.pos += 1;
+                return Ok(TextValue::List(items));
+            }
+            return Err(ParseError::new("expected , or ]"));
+        }
     }
 
     fn resolve_field(
@@ -701,18 +906,20 @@ impl Parser<'_> {
 
     fn concat_strings(&mut self) -> Result<Vec<u8>, ParseError> {
         let mut out = Vec::new();
+        let mut seen = false;
         loop {
             self.ws();
             if self.peek() != b'"' && self.peek() != b'\'' {
                 break;
             }
+            seen = true;
             out.extend(self.string_bytes()?);
             self.ws();
             if self.peek() != b'"' && self.peek() != b'\'' {
                 break;
             }
         }
-        if out.is_empty() && self.peek() != b'"' && self.peek() != b'\'' {
+        if !seen {
             return Err(ParseError::new("expected string"));
         }
         Ok(out)

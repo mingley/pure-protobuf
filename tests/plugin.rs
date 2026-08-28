@@ -64,6 +64,7 @@ fn protoc_plugin_generates_and_roundtrips() {
         "must not emit Google upb gencode"
     );
     assert_generated_json_is_field_wise(&generated);
+    assert_generated_text_is_field_wise(&generated);
 
     let consumer = tmp.join("consumer");
     std::fs::create_dir_all(consumer.join("src")).unwrap();
@@ -296,6 +297,7 @@ fn plugin_generates_grpc_stubs() {
         "missing max_encoding_message_size"
     );
     assert_generated_json_is_field_wise(&generated);
+    assert_generated_text_is_field_wise(&generated);
     assert!(generated.contains("fn say_hello"), "missing say_hello");
     assert!(
         generated.contains("fn stream_hello"),
@@ -496,9 +498,9 @@ fn tempfile_dir_tat() -> PathBuf {
     p
 }
 
-/// JSON methods from `pub fn to_json` up to `pub fn to_text` (text stays
-/// on DynamicMessage). Fails on current main, where that slice still
-/// serializes then `DynamicMessage::from_json_with_pool`.
+/// JSON methods from `pub fn to_json` up to `pub fn to_text`.
+/// Fails on current main, where that slice still serializes then
+/// `DynamicMessage::from_json_with_pool`.
 fn json_method_blocks(src: &str) -> Vec<&str> {
     let mut blocks = Vec::new();
     let mut rest = src;
@@ -531,6 +533,45 @@ fn assert_generated_json_is_field_wise(src: &str) {
         assert!(
             block.contains("pbrs::json::parse"),
             "from_json must use pbrs::json::parse:\n{block}"
+        );
+    }
+}
+
+/// Text methods from `pub fn to_text` up to `impl_typed_message`.
+/// Fails on current main, where that slice still serializes then
+/// `DynamicMessage::from_text_with_pool`.
+fn text_method_blocks(src: &str) -> Vec<&str> {
+    let mut blocks = Vec::new();
+    let mut rest = src;
+    while let Some(i) = rest.find("pub fn to_text(") {
+        let chunk = &rest[i..];
+        let end = chunk
+            .find("pbrs::impl_typed_message")
+            .expect("to_text without impl_typed_message in generated source");
+        blocks.push(&chunk[..end]);
+        rest = &chunk[end..];
+    }
+    blocks
+}
+
+fn assert_generated_text_is_field_wise(src: &str) {
+    let blocks = text_method_blocks(src);
+    assert!(
+        !blocks.is_empty(),
+        "generated source must emit to_text:\n{src}"
+    );
+    for block in blocks {
+        assert!(
+            block.contains("write_text"),
+            "generated text must be field-wise (no DynamicMessage round-trip):\n{block}"
+        );
+        assert!(
+            !block.contains("DynamicMessage"),
+            "generated text must not allocate DynamicMessage:\n{block}"
+        );
+        assert!(
+            block.contains("pbrs::text::parse"),
+            "from_text must use pbrs::text::parse:\n{block}"
         );
     }
 }
