@@ -2,8 +2,8 @@
 //!
 //! These checks fail on current main: `OneofHole` `to_json` / `to_text`
 //! still serialize then `DynamicMessage`. After the cut they must not.
-//! TAT and WKT other than Timestamp / Duration / Empty / wrappers stay
-//! on `DynamicMessage`.
+//! TAT and WKT other than Timestamp / Duration / Empty / wrappers /
+//! FieldMask stay on `DynamicMessage`.
 //! Remaining is not closed.
 
 #![allow(

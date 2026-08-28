@@ -246,6 +246,41 @@ pub fn as_empty(v: &Json, ignore: bool) -> Result<(), ParseError> {
     Ok(())
 }
 
+/// Official proto3 JSON for `google.protobuf.FieldMask` (comma-separated
+/// camelCase paths, e.g. `"a,b.c"`). Not an object.
+pub fn field_mask<I, S>(paths: I) -> Result<Json, SerializeError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<[u8]>,
+{
+    let mut out = Vec::new();
+    for p in paths {
+        let s = std::str::from_utf8(p.as_ref()).unwrap_or("");
+        out.push(snake_to_camel_strict(s)?);
+    }
+    Ok(Json::String(out.join(",")))
+}
+
+/// Parse official proto3 JSON `google.protobuf.FieldMask`.
+///
+/// Requires a JSON string of camelCase paths. Underscores are rejected.
+pub fn as_field_mask(v: &Json) -> Result<Vec<String>, ParseError> {
+    let s = v
+        .as_str()
+        .ok_or_else(|| ParseError::new("field mask must be string"))?;
+    if s.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut paths = Vec::new();
+    for p in s.split(',') {
+        if p.contains('_') {
+            return Err(ParseError::new("field mask json path must be camelCase"));
+        }
+        paths.push(camel_to_snake(p));
+    }
+    Ok(paths)
+}
+
 pub(crate) fn encode(msg: &DynamicMessage) -> Result<String, SerializeError> {
     Ok(encode_value(msg)?.to_string())
 }
@@ -1261,28 +1296,17 @@ fn encode_field_mask(msg: &DynamicMessage) -> Result<Json, SerializeError> {
     if let Some(items) = msg.get_repeated(1) {
         for v in items {
             if let Value::String(s) = v {
-                paths.push(snake_to_camel_strict(s.to_str().unwrap_or(""))?);
+                paths.push(s.as_bytes());
             }
         }
     }
-    Ok(Json::String(paths.join(",")))
+    field_mask(paths)
 }
 
 fn decode_field_mask(desc: Arc<MessageDescriptor>, v: &Json) -> Result<DynamicMessage, ParseError> {
-    let s = v
-        .as_str()
-        .ok_or_else(|| ParseError::new("field mask must be string"))?;
     let mut msg = DynamicMessage::new(desc);
-    if !s.is_empty() {
-        for p in s.split(',') {
-            if p.contains('_') {
-                return Err(ParseError::new("field mask json path must be camelCase"));
-            }
-            msg.push(
-                1,
-                Value::String(ProtoString::from(camel_to_snake(p).as_str())),
-            );
-        }
+    for p in as_field_mask(v)? {
+        msg.push(1, Value::String(ProtoString::from(p.as_str())));
     }
     Ok(msg)
 }
