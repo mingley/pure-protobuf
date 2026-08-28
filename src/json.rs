@@ -35,6 +35,66 @@ pub fn as_i32(v: &Json) -> Result<i32, ParseError> {
     json_as_i32(v)
 }
 
+/// Encode an `int64` / `sint64` / `sfixed64` as a JSON string (proto3 JSON).
+pub fn int64(n: i64) -> Json {
+    Json::String(n.to_string())
+}
+
+/// Decode an `int64` from a JSON number or decimal string.
+pub fn as_i64(v: &Json) -> Result<i64, ParseError> {
+    json_as_i64(v)
+}
+
+/// Encode a `uint32` / `fixed32` as a JSON number.
+pub fn uint32(n: u32) -> Json {
+    Json::Number(n.into())
+}
+
+/// Decode a `uint32` from a JSON number or decimal string.
+pub fn as_u32(v: &Json) -> Result<u32, ParseError> {
+    json_as_u32(v)
+}
+
+/// Encode a `uint64` / `fixed64` as a JSON string (proto3 JSON).
+pub fn uint64(n: u64) -> Json {
+    Json::String(n.to_string())
+}
+
+/// Decode a `uint64` from a JSON number or decimal string.
+pub fn as_u64(v: &Json) -> Result<u64, ParseError> {
+    json_as_u64(v)
+}
+
+/// Encode a `bool` as a JSON boolean.
+pub fn boolean(b: bool) -> Json {
+    Json::Bool(b)
+}
+
+/// Decode a JSON boolean.
+pub fn as_bool(v: &Json) -> Result<bool, ParseError> {
+    v.as_bool().ok_or_else(|| ParseError::new("expected bool"))
+}
+
+/// Encode a `float` as proto3 JSON (NaN / Infinity strings, else a number).
+pub fn float(n: f32) -> Json {
+    json_f64(n as f64)
+}
+
+/// Decode a `float` from a JSON number or NaN / Infinity string.
+pub fn as_f32(v: &Json) -> Result<f32, ParseError> {
+    json_as_f32(v)
+}
+
+/// Encode a `double` as proto3 JSON (NaN / Infinity strings, else a number).
+pub fn double(n: f64) -> Json {
+    json_f64(n)
+}
+
+/// Decode a `double` from a JSON number or NaN / Infinity string.
+pub fn as_f64(v: &Json) -> Result<f64, ParseError> {
+    json_as_f64(v)
+}
+
 /// Encode a string field as a JSON string.
 pub fn string(s: impl AsRef<[u8]>) -> Json {
     Json::String(String::from_utf8_lossy(s.as_ref()).into_owned())
@@ -43,6 +103,72 @@ pub fn string(s: impl AsRef<[u8]>) -> Json {
 /// Decode a JSON string.
 pub fn as_str(v: &Json) -> Result<&str, ParseError> {
     v.as_str().ok_or_else(|| ParseError::new("expected string"))
+}
+
+/// Encode a `bytes` field as proto3 JSON base64.
+pub fn bytes(b: impl AsRef<[u8]>) -> Json {
+    Json::String(b64_encode(b.as_ref()))
+}
+
+/// Decode a proto3 JSON base64 `bytes` field.
+pub fn as_bytes(v: &Json) -> Result<Vec<u8>, ParseError> {
+    b64_decode(
+        v.as_str()
+            .ok_or_else(|| ParseError::new("expected base64 string"))?,
+    )
+}
+
+/// Encode a proto3 enum as its name, or as a number if the value is unknown.
+pub fn enumeration(name: Option<&str>, n: i32) -> Json {
+    match name {
+        Some(name) => Json::String(name.to_string()),
+        None => Json::Number(n.into()),
+    }
+}
+
+/// Decode a proto3 enum from a JSON name string or number.
+///
+/// Unknown names return `Ok(None)` when `ignore` is set (same as DynamicMessage).
+pub fn as_enum(
+    v: &Json,
+    ignore: bool,
+    lookup: impl Fn(&str) -> Option<i32>,
+) -> Result<Option<i32>, ParseError> {
+    if let Some(s) = v.as_str() {
+        if let Some(n) = lookup(s) {
+            return Ok(Some(n));
+        }
+        if ignore {
+            return Ok(None);
+        }
+        return Err(ParseError::owned(format!("unknown enum {s}")));
+    }
+    Ok(Some(json_as_i64(v)? as i32))
+}
+
+/// Parse a JSON object key as a proto3 `int32` / `sint32` / `sfixed32` map key.
+pub fn map_key_i32(s: &str) -> Result<i32, ParseError> {
+    s.parse().map_err(|_| ParseError::new("bad map key"))
+}
+
+/// Parse a JSON object key as a proto3 `int64` / `sint64` / `sfixed64` map key.
+pub fn map_key_i64(s: &str) -> Result<i64, ParseError> {
+    s.parse().map_err(|_| ParseError::new("bad map key"))
+}
+
+/// Parse a JSON object key as a proto3 `uint32` / `fixed32` map key.
+pub fn map_key_u32(s: &str) -> Result<u32, ParseError> {
+    s.parse().map_err(|_| ParseError::new("bad map key"))
+}
+
+/// Parse a JSON object key as a proto3 `uint64` / `fixed64` map key.
+pub fn map_key_u64(s: &str) -> Result<u64, ParseError> {
+    s.parse().map_err(|_| ParseError::new("bad map key"))
+}
+
+/// Parse a JSON object key as a proto3 `bool` map key (`true` / `false`).
+pub fn map_key_bool(s: &str) -> Result<bool, ParseError> {
+    s.parse().map_err(|_| ParseError::new("bad map key"))
 }
 
 pub(crate) fn encode(msg: &DynamicMessage) -> Result<String, SerializeError> {
