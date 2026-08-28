@@ -1330,8 +1330,35 @@ fn message_type_name(f: &FieldDescriptor) -> &str {
 fn is_fieldwise_wkt(name: &str) -> bool {
     matches!(
         name,
-        "google.protobuf.Timestamp" | "google.protobuf.Duration"
+        "google.protobuf.Timestamp"
+            | "google.protobuf.Duration"
+            | "google.protobuf.Empty"
+            | "google.protobuf.BoolValue"
+            | "google.protobuf.Int32Value"
+            | "google.protobuf.Int64Value"
+            | "google.protobuf.UInt32Value"
+            | "google.protobuf.UInt64Value"
+            | "google.protobuf.FloatValue"
+            | "google.protobuf.DoubleValue"
+            | "google.protobuf.StringValue"
+            | "google.protobuf.BytesValue"
     )
+}
+
+/// Official proto3 JSON encode / decode helpers and the `value` getter expr.
+fn wrapper_json_spec(name: &str) -> Option<(&'static str, &'static str, &'static str)> {
+    Some(match name {
+        "google.protobuf.BoolValue" => ("boolean", "as_bool", "self.value()"),
+        "google.protobuf.Int32Value" => ("int32", "as_i32", "self.value()"),
+        "google.protobuf.Int64Value" => ("int64", "as_i64", "self.value()"),
+        "google.protobuf.UInt32Value" => ("uint32", "as_u32", "self.value()"),
+        "google.protobuf.UInt64Value" => ("uint64", "as_u64", "self.value()"),
+        "google.protobuf.FloatValue" => ("float", "as_f32", "self.value()"),
+        "google.protobuf.DoubleValue" => ("double", "as_f64", "self.value()"),
+        "google.protobuf.StringValue" => ("string", "as_str", "self.value().as_bytes()"),
+        "google.protobuf.BytesValue" => ("bytes", "as_bytes", "self.value()"),
+        _ => return None,
+    })
 }
 
 fn field_supports_typed_json_message(f: &FieldDescriptor, depth: u32) -> bool {
@@ -1668,9 +1695,19 @@ fn emit_json_text(src: &mut String, desc: &MessageDescriptor) {
             emit_wkt_string_json(src, "duration");
             emit_typed_text(src, desc);
         }
+        "google.protobuf.Empty" => {
+            emit_wkt_empty_json(src);
+            emit_typed_text(src, desc);
+        }
+        name if wrapper_json_spec(name).is_some() => {
+            let (encode, decode, value_expr) = wrapper_json_spec(name).expect("wrapper");
+            emit_wkt_wrapper_json(src, encode, decode, value_expr);
+            emit_typed_text(src, desc);
+        }
         name if name.starts_with("google.protobuf.") => {
-            // Other WKT keep official JSON via DynamicMessage. Field-wise
-            // object JSON for Any / wrappers / FieldMask would be a lie.
+            // Struct / Value / ListValue / Any / FieldMask keep official
+            // JSON via DynamicMessage. Field-wise object JSON for those
+            // would disagree with the official mapping.
             emit_dynamic_json(src, &desc.full_name);
             emit_dynamic_text(src, &desc.full_name);
         }
@@ -1724,6 +1761,75 @@ fn emit_wkt_string_json(src: &mut String, helper: &str) {
     let _ = writeln!(src, "        let mut msg = Self::new();");
     let _ = writeln!(src, "        msg.set_seconds(seconds);");
     let _ = writeln!(src, "        msg.set_nanos(nanos);");
+    let _ = writeln!(src, "        Ok(msg)");
+    let _ = writeln!(src, "    }}");
+}
+
+/// Official proto3 JSON for Empty (`{}`).
+fn emit_wkt_empty_json(src: &mut String) {
+    let _ = writeln!(
+        src,
+        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        Ok(pbrs::json::empty())");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    fn from_json_value(v: &pbrs::json::Json, ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        pbrs::json::as_empty(v, ignore)?;");
+    let _ = writeln!(src, "        Ok(Self::new())");
+    let _ = writeln!(src, "    }}");
+}
+
+/// Official proto3 JSON for a wrapper: the wrapped value, not an object.
+fn emit_wkt_wrapper_json(src: &mut String, encode: &str, decode: &str, value_expr: &str) {
+    let _ = writeln!(
+        src,
+        "    pub fn to_json(&self) -> Result<String, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        Ok(self.to_json_value()?.to_string())");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    pub fn from_json(json: &str) -> Result<Self, ParseError> {{ Self::from_json_ignore(json, false) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn from_json_ignore(json: &str, ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let v = pbrs::json::parse(json)?;");
+    let _ = writeln!(src, "        Self::from_json_value(&v, ignore)");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    fn to_json_value(&self) -> Result<pbrs::json::Json, SerializeError> {{"
+    );
+    let _ = writeln!(src, "        Ok(pbrs::json::{encode}({value_expr}))");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    fn from_json_value(v: &pbrs::json::Json, _ignore: bool) -> Result<Self, ParseError> {{"
+    );
+    let _ = writeln!(src, "        let mut msg = Self::new();");
+    let _ = writeln!(src, "        msg.set_value(pbrs::json::{decode}(v)?);");
     let _ = writeln!(src, "        Ok(msg)");
     let _ = writeln!(src, "    }}");
 }

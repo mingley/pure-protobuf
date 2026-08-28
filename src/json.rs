@@ -226,6 +226,26 @@ pub fn as_duration(v: &Json) -> Result<(i64, i32), ParseError> {
     parse_duration(s)
 }
 
+/// Official proto3 JSON for `google.protobuf.Empty` (`{}`).
+pub fn empty() -> Json {
+    Json::Object(JsonMap::new())
+}
+
+/// Parse official proto3 JSON `google.protobuf.Empty`.
+///
+/// Requires a JSON object. Unknown members are rejected unless `ignore`.
+pub fn as_empty(v: &Json, ignore: bool) -> Result<(), ParseError> {
+    let obj = v
+        .as_object()
+        .ok_or_else(|| ParseError::new("empty must be an object"))?;
+    if let Some(key) = obj.keys().next() {
+        if !ignore {
+            return Err(ParseError::owned(format!("unknown json field {key}")));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn encode(msg: &DynamicMessage) -> Result<String, SerializeError> {
     Ok(encode_value(msg)?.to_string())
 }
