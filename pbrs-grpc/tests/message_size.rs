@@ -127,62 +127,61 @@ async fn under_limit_unary_still_works() {
 async fn oversize_outbound_is_resource_exhausted() {
     let (_addr, ch) = spawn(None, None).await.expect("spawn");
     let client = GreeterClient::new(ch).max_encoding_message_size(LIMIT);
-    let err = client
-        .say_hello(Request::new(req(OVERSIZE)))
-        .await
-        .expect_err("oversize outbound");
-    assert_eq!(err.code(), Code::ResourceExhausted);
+    match client.say_hello(Request::new(req(OVERSIZE))).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted),
+        Ok(_) => panic!("oversize outbound must fail"),
+    }
 }
 
 #[tokio::test]
 async fn oversize_inbound_is_resource_exhausted() {
     let (_addr, ch) = spawn(None, None).await.expect("spawn");
     let client = GreeterClient::new(ch).max_decoding_message_size(LIMIT);
-    let err = client
-        .say_hello(Request::new(req(OVERSIZE)))
-        .await
-        .expect_err("oversize inbound");
-    assert_eq!(err.code(), Code::ResourceExhausted);
+    match client.say_hello(Request::new(req(OVERSIZE))).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted),
+        Ok(_) => panic!("oversize inbound must fail"),
+    }
 }
 
 #[tokio::test]
 async fn channel_oversize_outbound_is_resource_exhausted() {
     let (_addr, ch) = spawn(None, None).await.expect("spawn");
     let ch = ch.max_encoding_message_size(LIMIT);
-    let err = ch
+    match ch
         .unary::<HelloRequest, HelloReply>(SAY_HELLO, Request::new(req(OVERSIZE)))
         .await
-        .expect_err("channel outbound");
-    assert_eq!(err.code(), Code::ResourceExhausted);
+    {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted),
+        Ok(_) => panic!("channel outbound must fail"),
+    }
 }
 
 #[tokio::test]
 async fn server_oversize_decode_is_resource_exhausted() {
     let (_addr, ch) = spawn(Some(LIMIT), None).await.expect("spawn");
     let client = GreeterClient::new(ch);
-    let err = client
-        .say_hello(Request::new(req(OVERSIZE)))
-        .await
-        .expect_err("server decode");
-    assert_eq!(err.code(), Code::ResourceExhausted);
+    match client.say_hello(Request::new(req(OVERSIZE))).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted),
+        Ok(_) => panic!("server decode must fail"),
+    }
 }
 
 #[tokio::test]
 async fn server_oversize_encode_is_resource_exhausted() {
     let (_addr, ch) = spawn(None, Some(LIMIT)).await.expect("spawn");
     let client = GreeterClient::new(ch);
-    let err = client
-        .say_hello(Request::new(req(OVERSIZE)))
-        .await
-        .expect_err("server encode");
-    assert_eq!(err.code(), Code::ResourceExhausted);
+    match client.say_hello(Request::new(req(OVERSIZE))).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted),
+        Ok(_) => panic!("server encode must fail"),
+    }
 }
 
 #[tokio::test]
 async fn client_stream_oversize_send_is_resource_exhausted() {
     let (_addr, ch) = spawn(None, None).await.expect("spawn");
     let client = GreeterClient::new(ch).max_encoding_message_size(LIMIT);
-    let (tx, _call) = client.client_hello(Request::new(()));
+    let (tx, call) = client.client_hello(Request::new(()));
     let err = tx.send(req(OVERSIZE)).await.expect_err("stream send");
     assert_eq!(err.code(), Code::ResourceExhausted);
+    drop(call);
 }
