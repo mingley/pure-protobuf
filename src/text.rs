@@ -906,18 +906,20 @@ impl Parser<'_> {
 
     fn concat_strings(&mut self) -> Result<Vec<u8>, ParseError> {
         let mut out = Vec::new();
+        let mut seen = false;
         loop {
             self.ws();
             if self.peek() != b'"' && self.peek() != b'\'' {
                 break;
             }
+            seen = true;
             out.extend(self.string_bytes()?);
             self.ws();
             if self.peek() != b'"' && self.peek() != b'\'' {
                 break;
             }
         }
-        if out.is_empty() && self.peek() != b'"' && self.peek() != b'\'' {
+        if !seen {
             return Err(ParseError::new("expected string"));
         }
         Ok(out)

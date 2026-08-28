@@ -147,6 +147,9 @@ fn official_dynamic_text_goldens_for_person_shape() {
     email.set(3, Value::String("".into()));
     assert_eq!(email.to_text().unwrap(), "email: \"\"\n");
 
+    let empty_email = DynamicMessage::from_text(person_desc(), "email: \"\"").unwrap();
+    assert_eq!(empty_email.get_singular(3), Some(&Value::String("".into())));
+
     let parsed = DynamicMessage::from_text(person_desc(), "id: \"nope\"");
     assert!(parsed.is_err(), "quoted int32 must fail");
     let parsed = DynamicMessage::from_text(person_desc(), "id: 0x2a").unwrap();
@@ -280,7 +283,6 @@ fn generated_person_text_is_field_wise_and_matches_proto3() {
         &generated,
         &format!(
             r#"
-use pbrs::prelude::*;
 fn main() {{
     let official = {official:?};
 
