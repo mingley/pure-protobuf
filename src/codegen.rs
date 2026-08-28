@@ -1267,35 +1267,350 @@ fn is_real_oneof(desc: &MessageDescriptor, f: &FieldDescriptor) -> bool {
         .is_some_and(|members| members.len() > 1)
 }
 
+fn typed_scalar(ty: FieldType) -> bool {
+    matches!(
+        ty,
+        FieldType::Bool
+            | FieldType::Int32
+            | FieldType::Int64
+            | FieldType::Uint32
+            | FieldType::Uint64
+            | FieldType::Sint32
+            | FieldType::Sint64
+            | FieldType::Fixed32
+            | FieldType::Fixed64
+            | FieldType::Sfixed32
+            | FieldType::Sfixed64
+            | FieldType::Float
+            | FieldType::Double
+            | FieldType::String
+            | FieldType::Bytes
+            | FieldType::Enum
+    )
+}
+
+fn typed_map_key(ty: FieldType) -> bool {
+    matches!(
+        ty,
+        FieldType::Bool
+            | FieldType::Int32
+            | FieldType::Int64
+            | FieldType::Uint32
+            | FieldType::Uint64
+            | FieldType::Sint32
+            | FieldType::Sint64
+            | FieldType::Fixed32
+            | FieldType::Fixed64
+            | FieldType::Sfixed32
+            | FieldType::Sfixed64
+            | FieldType::String
+    )
+}
+
+fn enum_supports_typed(f: &FieldDescriptor) -> bool {
+    let Some(en) = f.enum_ty.as_ref() else {
+        return false;
+    };
+    if en.closed {
+        return false;
+    }
+    !en.full_name
+        .trim_start_matches('.')
+        .starts_with("google.protobuf.")
+}
+
+fn field_supports_typed_json_message(f: &FieldDescriptor, depth: u32) -> bool {
+    let Some(m) = f.message.as_ref() else {
+        return false;
+    };
+    if m.full_name
+        .trim_start_matches('.')
+        .starts_with("google.protobuf.")
+    {
+        return false;
+    }
+    m.fields
+        .values()
+        .all(|nf| field_supports_typed_json(nf, m, depth + 1))
+}
+
 fn field_supports_typed_json(f: &FieldDescriptor, desc: &MessageDescriptor, depth: u32) -> bool {
     if depth > 32 || is_real_oneof(desc, f) {
         return false;
     }
     if f.is_map {
-        return map_key_ty(f) == FieldType::String && map_val_ty(f) == FieldType::Int32;
+        if !typed_map_key(map_key_ty(f)) {
+            return false;
+        }
+        let Some(entry) = f.message.as_ref() else {
+            return false;
+        };
+        let Some(vf) = entry.field(2) else {
+            return false;
+        };
+        return field_supports_typed_json(vf, entry, depth + 1);
     }
     if f.cardinality == Cardinality::Repeated {
-        return f.field_type == FieldType::String;
+        return match f.field_type {
+            FieldType::Message => field_supports_typed_json_message(f, depth),
+            FieldType::Enum => enum_supports_typed(f),
+            other => typed_scalar(other),
+        };
     }
     match f.field_type {
-        FieldType::Int32 => true,
-        FieldType::String => true,
-        FieldType::Message => {
-            let Some(m) = f.message.as_ref() else {
-                return false;
-            };
-            if m.full_name
-                .trim_start_matches('.')
-                .starts_with("google.protobuf.")
-            {
-                return false;
-            }
-            m.fields
-                .values()
-                .all(|nf| field_supports_typed_json(nf, m, depth + 1))
-        }
-        _ => false,
+        FieldType::Message => field_supports_typed_json_message(f, depth),
+        FieldType::Enum => enum_supports_typed(f),
+        other => typed_scalar(other),
     }
+}
+
+fn enum_name_from_i32(f: &FieldDescriptor, expr: &str) -> String {
+    let Some(en) = f.enum_ty.as_ref() else {
+        return "None".into();
+    };
+    let mut arms = String::new();
+    for (n, name) in &en.values {
+        let _ = write!(arms, "{n} => Some(\"{}\"), ", name.escape_default());
+    }
+    format!("match {expr} {{ {arms}_ => None }}")
+}
+
+fn enum_lookup_closure(f: &FieldDescriptor) -> String {
+    let Some(en) = f.enum_ty.as_ref() else {
+        return "|_| None".into();
+    };
+    let mut arms = String::new();
+    for (name, n) in &en.names {
+        let _ = write!(arms, "\"{}\" => Some({n}), ", name.escape_default());
+    }
+    format!("|s| match s {{ {arms}_ => None }}")
+}
+
+fn json_encode_leaf(f: &FieldDescriptor, expr: &str, view: bool) -> String {
+    match f.field_type {
+        FieldType::Bool => format!("pbrs::json::boolean({expr})"),
+        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
+            format!("pbrs::json::int32({expr})")
+        }
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
+            format!("pbrs::json::int64({expr})")
+        }
+        FieldType::Uint32 | FieldType::Fixed32 => format!("pbrs::json::uint32({expr})"),
+        FieldType::Uint64 | FieldType::Fixed64 => format!("pbrs::json::uint64({expr})"),
+        FieldType::Float => format!("pbrs::json::float({expr})"),
+        FieldType::Double => format!("pbrs::json::double({expr})"),
+        FieldType::String => format!("pbrs::json::string({expr}.as_bytes())"),
+        FieldType::Bytes if view => format!("pbrs::json::bytes({expr}.as_bytes())"),
+        FieldType::Bytes => format!("pbrs::json::bytes({expr})"),
+        FieldType::Enum => {
+            let n = if view {
+                expr.to_string()
+            } else {
+                format!("i32::from({expr})")
+            };
+            format!(
+                "{{ let n = {n}; pbrs::json::enumeration({}, n) }}",
+                enum_name_from_i32(f, "n")
+            )
+        }
+        FieldType::Message | FieldType::Group => format!("{expr}.to_json_value()?"),
+        _ => format!("pbrs::json::int32({expr})"),
+    }
+}
+
+fn json_decode_leaf(f: &FieldDescriptor, val: &str) -> String {
+    match f.field_type {
+        FieldType::Bool => format!("pbrs::json::as_bool({val})?"),
+        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
+            format!("pbrs::json::as_i32({val})?")
+        }
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
+            format!("pbrs::json::as_i64({val})?")
+        }
+        FieldType::Uint32 | FieldType::Fixed32 => format!("pbrs::json::as_u32({val})?"),
+        FieldType::Uint64 | FieldType::Fixed64 => format!("pbrs::json::as_u64({val})?"),
+        FieldType::Float => format!("pbrs::json::as_f32({val})?"),
+        FieldType::Double => format!("pbrs::json::as_f64({val})?"),
+        FieldType::String => format!("pbrs::json::as_str({val})?"),
+        FieldType::Bytes => format!("pbrs::json::as_bytes({val})?"),
+        FieldType::Enum => format!(
+            "pbrs::json::as_enum({val}, ignore, {})?",
+            enum_lookup_closure(f)
+        ),
+        FieldType::Message | FieldType::Group => {
+            format!("{}::from_json_value({val}, ignore)?", scalar_type(f))
+        }
+        _ => format!("pbrs::json::as_i32({val})?"),
+    }
+}
+
+fn json_map_key_encode(ty: FieldType, k: &str) -> String {
+    if ty == FieldType::String {
+        format!("String::from_utf8_lossy({k}.as_bytes()).into_owned()")
+    } else {
+        format!("{k}.to_string()")
+    }
+}
+
+fn json_map_key_decode(ty: FieldType, k: &str) -> String {
+    match ty {
+        FieldType::String => format!("{k}.as_str()"),
+        FieldType::Bool => format!("pbrs::json::map_key_bool({k})?"),
+        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
+            format!("pbrs::json::map_key_i32({k})?")
+        }
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
+            format!("pbrs::json::map_key_i64({k})?")
+        }
+        FieldType::Uint32 | FieldType::Fixed32 => format!("pbrs::json::map_key_u32({k})?"),
+        FieldType::Uint64 | FieldType::Fixed64 => format!("pbrs::json::map_key_u64({k})?"),
+        _ => format!("{k}.as_str()"),
+    }
+}
+
+fn typed_present_expr(f: &FieldDescriptor, getter: &str) -> String {
+    if is_option(f) {
+        return format!("self.has_{}()", field_raw(f));
+    }
+    match f.field_type {
+        FieldType::Bool => getter.to_string(),
+        FieldType::Float | FieldType::Double => format!("{getter}.to_bits() != 0"),
+        FieldType::String => format!("!{getter}.as_bytes().is_empty()"),
+        FieldType::Bytes => format!("!{getter}.is_empty()"),
+        FieldType::Enum => format!("i32::from({getter}) != 0"),
+        _ => format!("{getter} != 0"),
+    }
+}
+
+fn text_write_named(f: &FieldDescriptor, name: &str, expr: &str, view: bool) -> String {
+    match f.field_type {
+        FieldType::Bool => format!("pbrs::text::write_named_bool(out, indent, {name}, {expr})"),
+        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => {
+            format!("pbrs::text::write_named_int32(out, indent, {name}, {expr})")
+        }
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
+            format!("pbrs::text::write_named_int64(out, indent, {name}, {expr})")
+        }
+        FieldType::Uint32 | FieldType::Fixed32 => {
+            format!("pbrs::text::write_named_uint32(out, indent, {name}, {expr})")
+        }
+        FieldType::Uint64 | FieldType::Fixed64 => {
+            format!("pbrs::text::write_named_uint64(out, indent, {name}, {expr})")
+        }
+        FieldType::Float => format!("pbrs::text::write_named_float(out, indent, {name}, {expr})"),
+        FieldType::Double => format!("pbrs::text::write_named_double(out, indent, {name}, {expr})"),
+        FieldType::String => {
+            format!("pbrs::text::write_named_string(out, indent, {name}, {expr}.as_bytes())")
+        }
+        FieldType::Bytes if view => {
+            format!("pbrs::text::write_named_string(out, indent, {name}, {expr}.as_bytes())")
+        }
+        FieldType::Bytes => {
+            format!("pbrs::text::write_named_string(out, indent, {name}, {expr})")
+        }
+        FieldType::Enum => {
+            let n = if view {
+                expr.to_string()
+            } else {
+                format!("i32::from({expr})")
+            };
+            format!(
+                "{{ let n = {n}; pbrs::text::write_named_enum(out, indent, {name}, {}, n); }}",
+                enum_name_from_i32(f, "n")
+            )
+        }
+        _ => format!("pbrs::text::write_named_int32(out, indent, {name}, {expr})"),
+    }
+}
+
+fn text_write_value(f: &FieldDescriptor, expr: &str, view: bool) -> String {
+    match f.field_type {
+        FieldType::Bool => format!("out.push_str(if {expr} {{ \"true\" }} else {{ \"false\" }})"),
+        FieldType::Float => format!("pbrs::text::write_float_lit(out, {expr})"),
+        FieldType::Double => format!("pbrs::text::write_double_lit(out, {expr})"),
+        FieldType::String => format!("pbrs::text::write_bytes_lit({expr}.as_bytes(), out)"),
+        FieldType::Bytes if view => format!("pbrs::text::write_bytes_lit({expr}.as_bytes(), out)"),
+        FieldType::Bytes => format!("pbrs::text::write_bytes_lit({expr}, out)"),
+        FieldType::Enum => {
+            let n = if view {
+                expr.to_string()
+            } else {
+                format!("i32::from({expr})")
+            };
+            format!(
+                "{{ let n = {n}; pbrs::text::write_enum_lit(out, {}, n); }}",
+                enum_name_from_i32(f, "n")
+            )
+        }
+        FieldType::Int32
+        | FieldType::Sint32
+        | FieldType::Sfixed32
+        | FieldType::Int64
+        | FieldType::Sint64
+        | FieldType::Sfixed64
+        | FieldType::Uint32
+        | FieldType::Fixed32
+        | FieldType::Uint64
+        | FieldType::Fixed64 => format!("out.push_str(&{expr}.to_string())"),
+        _ => format!("out.push_str(&{expr}.to_string())"),
+    }
+}
+
+fn text_decode_leaf(f: &FieldDescriptor, val: &str) -> String {
+    match f.field_type {
+        FieldType::Bool => format!("{val}.as_bool()?"),
+        FieldType::Int32 | FieldType::Sint32 | FieldType::Sfixed32 => format!("{val}.as_i32()?"),
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => format!("{val}.as_i64()?"),
+        FieldType::Uint32 | FieldType::Fixed32 => format!("{val}.as_u32()?"),
+        FieldType::Uint64 | FieldType::Fixed64 => format!("{val}.as_u64()?"),
+        FieldType::Float => format!("{val}.as_f32()?"),
+        FieldType::Double => format!("{val}.as_f64()?"),
+        FieldType::String => format!("{val}.as_str()?"),
+        FieldType::Bytes => format!("{val}.as_bytes()?"),
+        FieldType::Enum => format!("{val}.as_enum({})?", enum_lookup_closure(f)),
+        FieldType::Message | FieldType::Group => {
+            format!("{}::from_text_value({val}.as_message()?)?", scalar_type(f))
+        }
+        _ => format!("{val}.as_i32()?"),
+    }
+}
+
+fn text_map_key_write(ty: FieldType, k: &str) -> String {
+    match ty {
+        FieldType::String => format!("pbrs::text::write_bytes_lit({k}.as_bytes(), out)"),
+        FieldType::Bool => format!("out.push_str(if {k} {{ \"true\" }} else {{ \"false\" }})"),
+        _ => format!("out.push_str(&{k}.to_string())"),
+    }
+}
+
+fn text_map_key_default(ty: FieldType) -> &'static str {
+    match ty {
+        FieldType::String => "\"\"",
+        FieldType::Bool => "false",
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => "0i64",
+        FieldType::Uint32 | FieldType::Fixed32 => "0u32",
+        FieldType::Uint64 | FieldType::Fixed64 => "0u64",
+        _ => "0i32",
+    }
+}
+
+fn text_map_val_default(f: &FieldDescriptor) -> String {
+    match f.field_type {
+        FieldType::String => "\"\"".into(),
+        FieldType::Bytes => "Vec::<u8>::new()".into(),
+        FieldType::Bool => "false".into(),
+        FieldType::Float => "0.0f32".into(),
+        FieldType::Double => "0.0f64".into(),
+        FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => "0i64".into(),
+        FieldType::Uint32 | FieldType::Fixed32 => "0u32".into(),
+        FieldType::Uint64 | FieldType::Fixed64 => "0u64".into(),
+        FieldType::Message | FieldType::Group => format!("{}::new()", scalar_type(f)),
+        _ => "0i32".into(),
+    }
+}
+
+fn map_value_field(f: &FieldDescriptor) -> Option<&FieldDescriptor> {
+    f.message.as_ref().and_then(|e| e.field(2))
 }
 
 fn can_typed_json(desc: &MessageDescriptor) -> bool {
@@ -1346,13 +1661,20 @@ fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
         let id = field_id(f);
         let m = field_raw(f);
         let key = rust_str(&f.json_name);
+        let getter = format!("self.{id}()");
         if f.is_map {
+            let kt = map_key_ty(f);
+            let vf = map_value_field(f);
+            let val = vf
+                .map(|v| json_encode_leaf(v, "v", true))
+                .unwrap_or_else(|| json_encode_leaf(f, "v", true));
             let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
             let _ = writeln!(src, "            let mut obj = pbrs::json::JsonMap::new();");
             let _ = writeln!(src, "            for (k, v) in self.{id}() {{");
             let _ = writeln!(
                 src,
-                "                let _ = obj.insert(String::from_utf8_lossy(k.as_bytes()).into_owned(), pbrs::json::int32(v));"
+                "                let _ = obj.insert({}, {val});",
+                json_map_key_encode(kt, "k")
             );
             let _ = writeln!(src, "            }}");
             let _ = writeln!(
@@ -1361,11 +1683,12 @@ fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
             );
             let _ = writeln!(src, "        }}");
         } else if f.cardinality == Cardinality::Repeated {
+            let item = json_encode_leaf(f, "item", true);
             let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
-            let _ = writeln!(
-                src,
-                "            let arr: Vec<pbrs::json::Json> = self.{id}().iter().map(|s| pbrs::json::string(s.as_bytes())).collect();"
-            );
+            let _ = writeln!(src, "            let mut arr = Vec::new();");
+            let _ = writeln!(src, "            for item in self.{id}() {{");
+            let _ = writeln!(src, "                arr.push({item});");
+            let _ = writeln!(src, "            }}");
             let _ = writeln!(
                 src,
                 "            let _ = map.insert({key}.into(), pbrs::json::Json::Array(arr));"
@@ -1375,37 +1698,16 @@ fn emit_to_json_value(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "        if self.has_{m}() {{");
             let _ = writeln!(
                 src,
-                "            let _ = map.insert({key}.into(), self.{id}().to_json_value()?);"
-            );
-            let _ = writeln!(src, "        }}");
-        } else if f.field_type == FieldType::String {
-            if is_option(f) {
-                let _ = writeln!(src, "        if self.has_{m}() {{");
-                let _ = writeln!(
-                    src,
-                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}().as_bytes()));"
-                );
-                let _ = writeln!(src, "        }}");
-            } else {
-                let _ = writeln!(src, "        if !self.{id}().as_bytes().is_empty() {{");
-                let _ = writeln!(
-                    src,
-                    "            let _ = map.insert({key}.into(), pbrs::json::string(self.{id}().as_bytes()));"
-                );
-                let _ = writeln!(src, "        }}");
-            }
-        } else if is_option(f) {
-            let _ = writeln!(src, "        if self.has_{m}() {{");
-            let _ = writeln!(
-                src,
-                "            let _ = map.insert({key}.into(), pbrs::json::int32(self.{id}()));"
+                "            let _ = map.insert({key}.into(), {});",
+                json_encode_leaf(f, &getter, false)
             );
             let _ = writeln!(src, "        }}");
         } else {
-            let _ = writeln!(src, "        if self.{id}() != 0 {{");
+            let _ = writeln!(src, "        if {} {{", typed_present_expr(f, &getter));
             let _ = writeln!(
                 src,
-                "            let _ = map.insert({key}.into(), pbrs::json::int32(self.{id}()));"
+                "            let _ = map.insert({key}.into(), {});",
+                json_encode_leaf(f, &getter, false)
             );
             let _ = writeln!(src, "        }}");
         }
@@ -1442,15 +1744,37 @@ fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
         );
         let _ = writeln!(src, "                    if val.is_null() {{ continue; }}");
         if f.is_map {
+            let kt = map_key_ty(f);
+            let vf = map_value_field(f);
+            let val_ty = vf.map(|v| v.field_type);
             let _ = writeln!(
                 src,
                 "                    let obj = val.as_object().ok_or_else(|| ParseError::new(\"json map must be an object\"))?;"
             );
             let _ = writeln!(src, "                    for (k, v) in obj {{");
-            let _ = writeln!(
-                src,
-                "                        msg.{id}_mut().insert(k.as_str(), pbrs::json::as_i32(v)?);"
-            );
+            if val_ty == Some(FieldType::Enum) {
+                let Some(vf) = vf else { continue };
+                let _ = writeln!(
+                    src,
+                    "                        if let Some(val) = {} {{",
+                    json_decode_leaf(vf, "v")
+                );
+                let _ = writeln!(
+                    src,
+                    "                            msg.{id}_mut().insert({}, val);",
+                    json_map_key_decode(kt, "k")
+                );
+                let _ = writeln!(src, "                        }}");
+            } else {
+                let decode = vf
+                    .map(|v| json_decode_leaf(v, "v"))
+                    .unwrap_or_else(|| "pbrs::json::as_i32(v)?".into());
+                let _ = writeln!(
+                    src,
+                    "                        msg.{id}_mut().insert({}, {decode});",
+                    json_map_key_decode(kt, "k")
+                );
+            }
             let _ = writeln!(src, "                    }}");
         } else if f.cardinality == Cardinality::Repeated {
             let _ = writeln!(
@@ -1458,26 +1782,38 @@ fn emit_from_json_value(src: &mut String, desc: &MessageDescriptor) {
                 "                    let arr = val.as_array().ok_or_else(|| ParseError::new(\"json repeated must be an array\"))?;"
             );
             let _ = writeln!(src, "                    for item in arr {{");
-            let _ = writeln!(
-                src,
-                "                        msg.{id}_mut().push(pbrs::json::as_str(item)?);"
-            );
+            if f.field_type == FieldType::Enum {
+                let _ = writeln!(
+                    src,
+                    "                        if let Some(item) = {} {{",
+                    json_decode_leaf(f, "item")
+                );
+                let _ = writeln!(
+                    src,
+                    "                            msg.{id}_mut().push(item);"
+                );
+                let _ = writeln!(src, "                        }}");
+            } else {
+                let _ = writeln!(
+                    src,
+                    "                        msg.{id}_mut().push({});",
+                    json_decode_leaf(f, "item")
+                );
+            }
             let _ = writeln!(src, "                    }}");
-        } else if f.field_type == FieldType::Message {
-            let ty = scalar_type(f);
+        } else if f.field_type == FieldType::Enum {
             let _ = writeln!(
                 src,
-                "                    msg.set_{m}({ty}::from_json_value(val, ignore)?);"
+                "                    if let Some(n) = {} {{",
+                json_decode_leaf(f, "val")
             );
-        } else if f.field_type == FieldType::String {
-            let _ = writeln!(
-                src,
-                "                    msg.set_{m}(pbrs::json::as_str(val)?);"
-            );
+            let _ = writeln!(src, "                        msg.set_{m}(n);");
+            let _ = writeln!(src, "                    }}");
         } else {
             let _ = writeln!(
                 src,
-                "                    msg.set_{m}(pbrs::json::as_i32(val)?);"
+                "                    msg.set_{m}({});",
+                json_decode_leaf(f, "val")
             );
         }
         let _ = writeln!(src, "                }}");
@@ -1537,30 +1873,65 @@ fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
         let id = field_id(f);
         let m = field_raw(f);
         let name = rust_str(&f.name);
+        let getter = format!("self.{id}()");
         if f.is_map {
+            let kt = map_key_ty(f);
+            let vf = map_value_field(f);
+            let value_is_msg = vf.is_some_and(|v| v.field_type == FieldType::Message);
+            let sort = if kt == FieldType::String {
+                "items.sort_by(|(a, _), (b, _)| a.as_bytes().cmp(b.as_bytes()))"
+            } else {
+                "items.sort_by(|(a, _), (b, _)| a.cmp(b))"
+            };
             let _ = writeln!(src, "        if !self.{id}().is_empty() {{");
             let _ = writeln!(
                 src,
                 "            let mut items: Vec<_> = self.{id}().iter().collect();"
             );
-            let _ = writeln!(
-                src,
-                "            items.sort_by(|(a, _), (b, _)| a.as_bytes().cmp(b.as_bytes()));"
-            );
+            let _ = writeln!(src, "            {sort};");
             let _ = writeln!(src, "            for (k, v) in items {{");
-            let _ = writeln!(
-                src,
-                "                pbrs::text::write_map_string_i32(out, indent, {name}, k.as_bytes(), v);"
-            );
+            let key_write = text_map_key_write(kt, "k");
+            if value_is_msg {
+                let _ = writeln!(
+                    src,
+                    "                pbrs::text::write_map_entry(out, indent, {name}, |out| {{ {key_write}; }}, |out| {{"
+                );
+                let _ = writeln!(src, "                    out.push_str(\"{{\\n\");");
+                let _ = writeln!(src, "                    v.write_text(out, indent + 4)?;");
+                let _ = writeln!(src, "                    pbrs::text::pad(out, indent + 2);");
+                let _ = writeln!(src, "                    out.push_str(\"}}\\n\");");
+                let _ = writeln!(src, "                    Ok(())");
+                let _ = writeln!(src, "                }}, true)?;");
+            } else {
+                let val_write = vf
+                    .map(|v| text_write_value(v, "v", true))
+                    .unwrap_or_else(|| "out.push_str(&v.to_string())".into());
+                let _ = writeln!(
+                    src,
+                    "                pbrs::text::write_map_entry(out, indent, {name}, |out| {{ {key_write}; }}, |out| {{ {val_write}; Ok(()) }}, false)?;"
+                );
+            }
             let _ = writeln!(src, "            }}");
             let _ = writeln!(src, "        }}");
         } else if f.cardinality == Cardinality::Repeated {
-            let _ = writeln!(src, "        for s in self.{id}() {{");
-            let _ = writeln!(
-                src,
-                "            pbrs::text::write_named_string(out, indent, {name}, s.as_bytes());"
-            );
-            let _ = writeln!(src, "        }}");
+            if f.field_type == FieldType::Message {
+                let _ = writeln!(src, "        for item in self.{id}() {{");
+                let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+                let _ = writeln!(src, "            out.push_str({name});");
+                let _ = writeln!(src, "            out.push_str(\" {{\\n\");");
+                let _ = writeln!(src, "            item.write_text(out, indent + 2)?;");
+                let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
+                let _ = writeln!(src, "            out.push_str(\"}}\\n\");");
+                let _ = writeln!(src, "        }}");
+            } else {
+                let _ = writeln!(src, "        for item in self.{id}() {{");
+                let _ = writeln!(
+                    src,
+                    "            {};",
+                    text_write_named(f, &name, "item", true)
+                );
+                let _ = writeln!(src, "        }}");
+            }
         } else if f.field_type == FieldType::Message {
             let _ = writeln!(src, "        if self.has_{m}() {{");
             let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
@@ -1570,34 +1941,12 @@ fn emit_write_text(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "            pbrs::text::pad(out, indent);");
             let _ = writeln!(src, "            out.push_str(\"}}\\n\");");
             let _ = writeln!(src, "        }}");
-        } else if f.field_type == FieldType::String {
-            if is_option(f) {
-                let _ = writeln!(src, "        if self.has_{m}() {{");
-                let _ = writeln!(
-                    src,
-                    "            pbrs::text::write_named_string(out, indent, {name}, self.{id}().as_bytes());"
-                );
-                let _ = writeln!(src, "        }}");
-            } else {
-                let _ = writeln!(src, "        if !self.{id}().as_bytes().is_empty() {{");
-                let _ = writeln!(
-                    src,
-                    "            pbrs::text::write_named_string(out, indent, {name}, self.{id}().as_bytes());"
-                );
-                let _ = writeln!(src, "        }}");
-            }
-        } else if is_option(f) {
-            let _ = writeln!(src, "        if self.has_{m}() {{");
-            let _ = writeln!(
-                src,
-                "            pbrs::text::write_named_int32(out, indent, {name}, self.{id}());"
-            );
-            let _ = writeln!(src, "        }}");
         } else {
-            let _ = writeln!(src, "        if self.{id}() != 0 {{");
+            let _ = writeln!(src, "        if {} {{", typed_present_expr(f, &getter));
             let _ = writeln!(
                 src,
-                "            pbrs::text::write_named_int32(out, indent, {name}, self.{id}());"
+                "            {};",
+                text_write_named(f, &name, &getter, false)
             );
             let _ = writeln!(src, "        }}");
         }
@@ -1620,18 +1969,44 @@ fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
         let name = rust_str(&f.name);
         let _ = writeln!(src, "                {name} => {{");
         if f.is_map {
+            let kt = map_key_ty(f);
+            let vf = map_value_field(f);
+            let key_decode = match kt {
+                FieldType::String => "ev.as_str()?".to_string(),
+                FieldType::Bool => "ev.as_bool()?".to_string(),
+                FieldType::Int64 | FieldType::Sint64 | FieldType::Sfixed64 => {
+                    "ev.as_i64()?".to_string()
+                }
+                FieldType::Uint32 | FieldType::Fixed32 => "ev.as_u32()?".to_string(),
+                FieldType::Uint64 | FieldType::Fixed64 => "ev.as_u64()?".to_string(),
+                _ => "ev.as_i32()?".to_string(),
+            };
+            let val_decode = match vf {
+                Some(v) if v.field_type == FieldType::Bytes => "ev.as_bytes()?.to_vec()".into(),
+                Some(v) => text_decode_leaf(v, "ev"),
+                None => "ev.as_i32()?".into(),
+            };
             let _ = writeln!(src, "                    let entry = val.as_message()?;");
-            let _ = writeln!(src, "                    let mut k = \"\";");
-            let _ = writeln!(src, "                    let mut v = 0i32;");
+            let _ = writeln!(
+                src,
+                "                    let mut k = {};",
+                text_map_key_default(kt)
+            );
+            let _ = writeln!(
+                src,
+                "                    let mut v = {};",
+                vf.map(text_map_val_default)
+                    .unwrap_or_else(|| "0i32".into())
+            );
             let _ = writeln!(src, "                    for (ek, ev) in entry {{");
             let _ = writeln!(src, "                        match ek.as_str() {{");
             let _ = writeln!(
                 src,
-                "                            \"key\" => k = ev.as_str()?,"
+                "                            \"key\" => k = {key_decode},"
             );
             let _ = writeln!(
                 src,
-                "                            \"value\" => v = ev.as_i32()?,"
+                "                            \"value\" => v = {val_decode},"
             );
             let _ = writeln!(
                 src,
@@ -1641,6 +2016,8 @@ fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "                    }}");
             let _ = writeln!(src, "                    msg.{id}_mut().insert(k, v);");
         } else if f.cardinality == Cardinality::Repeated {
+            let item = text_decode_leaf(f, "item");
+            let one = text_decode_leaf(f, "val");
             let _ = writeln!(
                 src,
                 "                    if let Some(items) = val.as_list() {{"
@@ -1648,14 +2025,11 @@ fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
             let _ = writeln!(src, "                        for item in items {{");
             let _ = writeln!(
                 src,
-                "                            msg.{id}_mut().push(item.as_str()?);"
+                "                            msg.{id}_mut().push({item});"
             );
             let _ = writeln!(src, "                        }}");
             let _ = writeln!(src, "                    }} else {{");
-            let _ = writeln!(
-                src,
-                "                        msg.{id}_mut().push(val.as_str()?);"
-            );
+            let _ = writeln!(src, "                        msg.{id}_mut().push({one});");
             let _ = writeln!(src, "                    }}");
         } else if f.field_type == FieldType::Message {
             let ty = scalar_type(f);
@@ -1663,10 +2037,12 @@ fn emit_from_text_value(src: &mut String, desc: &MessageDescriptor) {
                 src,
                 "                    msg.{id}_mut().merge_from({ty}::from_text_value(val.as_message()?)?);"
             );
-        } else if f.field_type == FieldType::String {
-            let _ = writeln!(src, "                    msg.set_{m}(val.as_str()?);");
         } else {
-            let _ = writeln!(src, "                    msg.set_{m}(val.as_i32()?);");
+            let _ = writeln!(
+                src,
+                "                    msg.set_{m}({});",
+                text_decode_leaf(f, "val")
+            );
         }
         let _ = writeln!(src, "                }}");
     }

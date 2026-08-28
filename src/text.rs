@@ -73,11 +73,95 @@ impl TextValue {
         }
     }
 
+    /// Decode an `int64` token (decimal / hex / octal, same as DynamicMessage).
+    pub fn as_i64(&self) -> Result<i64, ParseError> {
+        match self {
+            Self::Token(t) => parse_i64(t),
+            _ => Err(ParseError::new("expected int64")),
+        }
+    }
+
+    /// Decode a `uint32` token (decimal / hex / octal, same as DynamicMessage).
+    pub fn as_u32(&self) -> Result<u32, ParseError> {
+        match self {
+            Self::Token(t) => parse_u32(t),
+            _ => Err(ParseError::new("expected uint32")),
+        }
+    }
+
+    /// Decode a `uint64` token (decimal / hex / octal, same as DynamicMessage).
+    pub fn as_u64(&self) -> Result<u64, ParseError> {
+        match self {
+            Self::Token(t) => parse_u64(t),
+            _ => Err(ParseError::new("expected uint64")),
+        }
+    }
+
+    /// Decode a bool token (`true` / `True` / `t` / `1` and false forms).
+    pub fn as_bool(&self) -> Result<bool, ParseError> {
+        match self {
+            Self::Token(t) => match t.as_str() {
+                "true" | "True" | "t" | "T" | "1" => Ok(true),
+                "false" | "False" | "f" | "F" | "0" => Ok(false),
+                _ => Err(ParseError::owned(format!("bad bool {t}"))),
+            },
+            _ => Err(ParseError::new("expected bool")),
+        }
+    }
+
+    /// Decode a `float` token (not hex / octal, same as DynamicMessage).
+    pub fn as_f32(&self) -> Result<f32, ParseError> {
+        match self {
+            Self::Token(t) => {
+                if is_hex_or_octal_int(t) {
+                    return Err(ParseError::new("hex/octal float not allowed"));
+                }
+                parse_f32(t)
+            }
+            _ => Err(ParseError::new("expected float")),
+        }
+    }
+
+    /// Decode a `double` token (not hex / octal, same as DynamicMessage).
+    pub fn as_f64(&self) -> Result<f64, ParseError> {
+        match self {
+            Self::Token(t) => {
+                if is_hex_or_octal_int(t) {
+                    return Err(ParseError::new("hex/octal float not allowed"));
+                }
+                parse_f64(t)
+            }
+            _ => Err(ParseError::new("expected double")),
+        }
+    }
+
     /// Decode a quoted UTF-8 string.
     pub fn as_str(&self) -> Result<&str, ParseError> {
         match self {
             Self::Bytes(b) => std::str::from_utf8(b).map_err(|_| ParseError::new("invalid utf-8")),
             _ => Err(ParseError::new("expected string")),
+        }
+    }
+
+    /// Decode a quoted bytes literal.
+    pub fn as_bytes(&self) -> Result<&[u8], ParseError> {
+        match self {
+            Self::Bytes(b) => Ok(b.as_slice()),
+            _ => Err(ParseError::new("expected bytes")),
+        }
+    }
+
+    /// Decode a proto3 enum token (ident name or integer).
+    pub fn as_enum(&self, lookup: impl Fn(&str) -> Option<i32>) -> Result<i32, ParseError> {
+        match self {
+            Self::Token(t) => {
+                if t.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+                    lookup(t).ok_or_else(|| ParseError::owned(format!("unknown enum {t}")))
+                } else {
+                    parse_i32(t)
+                }
+            }
+            _ => Err(ParseError::new("expected enum")),
         }
     }
 
@@ -143,12 +227,89 @@ pub fn write_bytes_lit(bytes: &[u8], out: &mut String) {
     out.push('"');
 }
 
-/// Write `name: <int32>` at `indent`.
-pub fn write_named_int32(out: &mut String, indent: usize, name: &str, n: i32) {
+/// Write `name: <token>` at `indent`.
+pub fn write_named_token(out: &mut String, indent: usize, name: &str, token: &str) {
     pad(out, indent);
     out.push_str(name);
     out.push_str(": ");
-    out.push_str(&n.to_string());
+    out.push_str(token);
+    out.push('\n');
+}
+
+/// Write `name: <int32>` at `indent`.
+pub fn write_named_int32(out: &mut String, indent: usize, name: &str, n: i32) {
+    write_named_token(out, indent, name, &n.to_string());
+}
+
+/// Write `name: <int64>` at `indent`.
+pub fn write_named_int64(out: &mut String, indent: usize, name: &str, n: i64) {
+    write_named_token(out, indent, name, &n.to_string());
+}
+
+/// Write `name: <uint32>` at `indent`.
+pub fn write_named_uint32(out: &mut String, indent: usize, name: &str, n: u32) {
+    write_named_token(out, indent, name, &n.to_string());
+}
+
+/// Write `name: <uint64>` at `indent`.
+pub fn write_named_uint64(out: &mut String, indent: usize, name: &str, n: u64) {
+    write_named_token(out, indent, name, &n.to_string());
+}
+
+/// Write `name: true` / `name: false` at `indent`.
+pub fn write_named_bool(out: &mut String, indent: usize, name: &str, b: bool) {
+    write_named_token(out, indent, name, if b { "true" } else { "false" });
+}
+
+/// Write `name: <float>` at `indent` (nan / inf / -0, same as DynamicMessage).
+pub fn write_named_float(out: &mut String, indent: usize, name: &str, n: f32) {
+    pad(out, indent);
+    out.push_str(name);
+    out.push_str(": ");
+    write_float32(n, out);
+    out.push('\n');
+}
+
+/// Write `name: <double>` at `indent` (nan / inf / -0, same as DynamicMessage).
+pub fn write_named_double(out: &mut String, indent: usize, name: &str, n: f64) {
+    pad(out, indent);
+    out.push_str(name);
+    out.push_str(": ");
+    write_float64(n, out);
+    out.push('\n');
+}
+
+/// Write a float literal (nan / inf / -0, same as DynamicMessage).
+pub fn write_float_lit(out: &mut String, n: f32) {
+    write_float32(n, out);
+}
+
+/// Write a double literal (nan / inf / -0, same as DynamicMessage).
+pub fn write_double_lit(out: &mut String, n: f64) {
+    write_float64(n, out);
+}
+
+/// Write an enum name, or the numeric value if unknown.
+pub fn write_enum_lit(out: &mut String, enum_name: Option<&str>, n: i32) {
+    if let Some(name) = enum_name {
+        out.push_str(name);
+    } else {
+        out.push_str(&n.to_string());
+    }
+}
+
+/// Write `name: <enum>` at `indent`.
+pub fn write_named_enum(
+    out: &mut String,
+    indent: usize,
+    name: &str,
+    enum_name: Option<&str>,
+    n: i32,
+) {
+    pad(out, indent);
+    out.push_str(name);
+    out.push_str(": ");
+    write_enum_lit(out, enum_name, n);
     out.push('\n');
 }
 
@@ -161,21 +322,49 @@ pub fn write_named_string(out: &mut String, indent: usize, name: &str, bytes: &[
     out.push('\n');
 }
 
-/// Write a `map<string, int32>` entry in DynamicMessage text order.
-pub fn write_map_string_i32(out: &mut String, indent: usize, name: &str, key: &[u8], value: i32) {
+/// Write a map entry in DynamicMessage text shape (`key` / `value` body).
+pub fn write_map_entry(
+    out: &mut String,
+    indent: usize,
+    name: &str,
+    write_key: impl FnOnce(&mut String),
+    write_value: impl FnOnce(&mut String) -> Result<(), SerializeError>,
+    value_is_message: bool,
+) -> Result<(), SerializeError> {
     pad(out, indent);
     out.push_str(name);
     out.push_str(" {\n");
     pad(out, indent + 2);
     out.push_str("key: ");
-    write_bytes_lit(key, out);
+    write_key(out);
     out.push('\n');
     pad(out, indent + 2);
-    out.push_str("value: ");
-    out.push_str(&value.to_string());
-    out.push('\n');
+    if value_is_message {
+        out.push_str("value ");
+        write_value(out)?;
+    } else {
+        out.push_str("value: ");
+        write_value(out)?;
+        out.push('\n');
+    }
     pad(out, indent);
     out.push_str("}\n");
+    Ok(())
+}
+
+/// Write a `map<string, int32>` entry in DynamicMessage text order.
+pub fn write_map_string_i32(out: &mut String, indent: usize, name: &str, key: &[u8], value: i32) {
+    let _ = write_map_entry(
+        out,
+        indent,
+        name,
+        |out| write_bytes_lit(key, out),
+        |out| {
+            out.push_str(&value.to_string());
+            Ok(())
+        },
+        false,
+    );
 }
 
 /// Write unknown fields (same printer as [`DynamicMessage::to_text_with_unknown`]).

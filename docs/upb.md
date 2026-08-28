@@ -45,7 +45,7 @@ are not applicable and not vendored.
 | Gap | Instead | Consequence |
 |---|---|---|
 | Google `protoc --rust_out` | `protoc-gen-pbrs`, or `pbrs::codegen::compile_protos` | Official rust_out 4.35.1-release of `person.proto` links as `protobuf` through `src/runtime.rs` (`rust_out_person`). Plugin gencode is the application path. |
-| JSON / text (specialized in upb/C++) | Field-wise JSON and text for Person-shaped proto3 (`Person`, `hello`). Other generated JSON and text still serialize, then `DynamicMessage` | Correct (conformance). Not a JSON/text microbench winner. TAT / WKT JSON and text still go through `DynamicMessage`. |
+| JSON / text (specialized in upb/C++) | Field-wise JSON and text for Person-shaped proto3 and the extra proto3 scalars (bool / int64 / uint32 / uint64 / sint / fixed / sfixed / float / double / bytes / open enums, including repeated and map of those types). TAT / WKT / real oneofs still serialize, then `DynamicMessage` | Correct (conformance). Not a JSON/text microbench winner. TAT is not closed. |
 | Edition 2024 extensions (`extensions.proto` in rust/test) | plugin max is 2023; `extensions_test.rs` is an empty stub | Proto2 extensions on dynamic messages work (`tests/json_text_ext.rs`). |
 | C++-only string types | ordinary strings | `ctype=STRING_PIECE` / `CORD` and `pb.cpp.string_type=VIEW` are stored as ordinary strings. |
 | `protobuf_gtest_matchers` | skip `gtest_matchers_test.rs` | Not implemented. |
