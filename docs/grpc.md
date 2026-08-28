@@ -445,12 +445,25 @@ ServerConfig::new().message_limits(MessageLimits::unlimited())
 with the consequence that a single frame header can then ask for as much
 memory as `u32::MAX` allows.
 
-`tests/hostile.rs` is the enforcement. It speaks raw HTTP/2 so it can send
-bytes no real client would — a length prefix claiming 4 GiB, a 64 MiB gzip
-bomb small enough on the wire to pass the frame check, reserved
-compressed-flag values, truncated frames, malformed paths, garbage protobuf —
-and requires that every case answers with a status and leaves the server
-serving.
+Two layers of tests enforce this.
+
+`tests/hostile.rs` speaks raw HTTP/2 so it can send bytes no real client would
+— a length prefix claiming 4 GiB, a 64 MiB gzip bomb small enough on the wire
+to pass the frame check, reserved compressed-flag values, truncated frames,
+malformed paths, garbage protobuf — and requires that every case answers with a
+status and leaves the server serving.
+
+Property tests in the wire module cover what fixed cases cannot, using a
+deterministic xorshift generator so a failure reproduces from its seed:
+
+- Frames survive arbitrary chunk boundaries. HTTP/2 can split a message
+  anywhere, and the zero-copy fast path is the part that could get this wrong,
+  so 2000 random framings are checked against arbitrary splits.
+- Arbitrary bytes in arbitrary chunks yield frames or a `Status`, never a panic,
+  and never a frame longer than the cap. 4000 cases.
+- A compressed frame never inflates past the cap, and when it fits it
+  round-trips exactly. Mixed compressible and incompressible payloads, so both
+  the high-ratio and near-1:1 cases are exercised.
 
 ### Dependencies
 

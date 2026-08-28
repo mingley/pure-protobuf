@@ -121,6 +121,11 @@
 //! speaks cleartext prior-knowledge HTTP/2, so run it behind a mesh sidecar or
 //! on a trusted network.
 //!
+//! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
+//! and property tests in the wire module cover what fixed cases cannot: frames
+//! survive arbitrary chunk boundaries, arbitrary bytes yield a `Status` rather
+//! than a panic, and a compressed frame never inflates past the cap.
+//!
 //! ## `unsafe`
 //!
 //! Every hand-written module in this crate carries `#[forbid(unsafe_code)]`,
