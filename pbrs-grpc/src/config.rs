@@ -24,7 +24,10 @@ pub const DEFAULT_MAX_SEND_BUFFER_SIZE: usize = 1024 * 1024;
 /// materialise per RPC.
 pub const DEFAULT_MAX_HEADER_LIST_SIZE: u32 = 16 * 1024;
 
-/// Default in-memory queue depth between application code and the wire.
+/// Default queue depth between a client-streaming caller and the wire.
+///
+/// Only outbound streams are queued; received streams are decoded on the
+/// reading task.
 pub const DEFAULT_STREAM_BUFFER: usize = 16;
 
 /// The per-stream settings the wire layer needs: message caps plus how much
@@ -56,7 +59,6 @@ pub struct ServerConfig {
     max_concurrent_streams: u32,
     max_send_buffer_size: usize,
     max_header_list_size: u32,
-    stream_buffer: usize,
 }
 
 impl Default for ServerConfig {
@@ -69,7 +71,6 @@ impl Default for ServerConfig {
             max_concurrent_streams: DEFAULT_MAX_CONCURRENT_STREAMS,
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
-            stream_buffer: DEFAULT_STREAM_BUFFER,
         }
     }
 }
@@ -146,29 +147,15 @@ impl ServerConfig {
         self
     }
 
-    /// Messages buffered between a streaming handler and the wire.
-    /// Default 16.
-    #[must_use]
-    pub fn stream_buffer(mut self, messages: usize) -> Self {
-        self.stream_buffer = messages.max(1);
-        self
-    }
-
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
         self.limits
     }
 
-    /// Configured streaming queue depth.
-    #[must_use]
-    pub fn buffer(self) -> usize {
-        self.stream_buffer
-    }
-
     /// Configured per-connection send buffer.
     #[must_use]
-    pub fn send_buffer(self) -> usize {
+    pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
     }
 
@@ -312,7 +299,12 @@ impl ChannelConfig {
         self
     }
 
-    /// Messages buffered between application code and the wire. Default 16.
+    /// Messages queued between a client-streaming caller and the wire.
+    /// Default 16.
+    ///
+    /// The wire layer sends whatever is queued as one batch, so deeper means
+    /// fewer and larger writes at the cost of memory. Received streams are
+    /// decoded inline and are not queued, so this does not affect them.
     #[must_use]
     pub fn stream_buffer(mut self, messages: usize) -> Self {
         self.stream_buffer = messages.max(1);
@@ -331,15 +323,15 @@ impl ChannelConfig {
         self.connections
     }
 
-    /// Configured streaming queue depth.
+    /// Configured outbound streaming queue depth.
     #[must_use]
-    pub fn buffer(self) -> usize {
+    pub fn stream_buffer_size(self) -> usize {
         self.stream_buffer
     }
 
     /// Configured per-connection send buffer.
     #[must_use]
-    pub fn send_buffer(self) -> usize {
+    pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
     }
 
@@ -371,7 +363,7 @@ mod tests {
     fn server_defaults_are_safe() {
         let config = ServerConfig::new();
         assert_eq!(config.limits().max_decoding(), Some(4 * 1024 * 1024));
-        assert_eq!(config.buffer(), 16);
+        assert_eq!(config.send_buffer_size(), 1024 * 1024);
     }
 
     #[test]
@@ -381,7 +373,9 @@ mod tests {
 
     #[test]
     fn stream_buffer_never_zero() {
-        assert_eq!(ServerConfig::new().stream_buffer(0).buffer(), 1);
-        assert_eq!(ChannelConfig::new().stream_buffer(0).buffer(), 1);
+        assert_eq!(
+            ChannelConfig::new().stream_buffer(0).stream_buffer_size(),
+            1
+        );
     }
 }

@@ -216,6 +216,7 @@ impl Rpc {
             mut respond,
             wire,
             outcome,
+            ..
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -238,6 +239,7 @@ impl Rpc {
             mut respond,
             wire,
             outcome,
+            ..
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -259,6 +261,7 @@ impl Rpc {
         let Some(Prepared {
             mut respond,
             wire,
+            deadline,
             outcome,
         }) = self.run_unary_request(handler).await
         else {
@@ -266,7 +269,7 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_stream_response(response, respond, wire).await,
+            Ok(response) => send_stream_response(response, respond, wire, deadline).await,
         }
     }
 
@@ -281,6 +284,7 @@ impl Rpc {
         let Some(Prepared {
             mut respond,
             wire,
+            deadline,
             outcome,
         }) = self.run_streaming_request(handler).await
         else {
@@ -288,7 +292,7 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_stream_response(response, respond, wire).await,
+            Ok(response) => send_stream_response(response, respond, wire, deadline).await,
         }
     }
 
@@ -313,6 +317,7 @@ impl Rpc {
             return None;
         }
         let timeout = timeout_from_headers(request.headers());
+        let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let (parts, mut recv) = request.into_parts();
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
@@ -327,11 +332,12 @@ impl Rpc {
         Some(Prepared {
             respond,
             wire: config.wire(),
+            deadline,
             outcome,
         })
     }
 
-    /// Start pumping the request stream, then run `handler` under the deadline.
+    /// Hand the request stream to `handler`, under the deadline.
     ///
     /// `None` means the request was rejected and already answered.
     async fn run_streaming_request<Req, T, F, Fut>(self, handler: F) -> Option<Prepared<T>>
@@ -352,14 +358,11 @@ impl Rpc {
             return None;
         }
         let timeout = timeout_from_headers(request.headers());
+        let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let (parts, recv) = request.into_parts();
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
-        let stream = Streaming::from_wire(WireStream::<Req>::new(
-            recv,
-            limits,
-            timeout.map(|d| tokio::time::Instant::now() + d),
-        ));
+        let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits, deadline));
         let mut req = Request::from_wire(stream, parts.headers, remote_addr);
         if let Some(d) = timeout {
             req.set_timeout(d);
@@ -368,6 +371,7 @@ impl Rpc {
         Some(Prepared {
             respond,
             wire: config.wire(),
+            deadline,
             outcome,
         })
     }
@@ -377,6 +381,9 @@ impl Rpc {
 struct Prepared<T> {
     respond: h2::server::SendResponse<Bytes>,
     wire: Wire,
+    /// The RPC's deadline, shared by the handler, the inbound stream, and the
+    /// response writer, so no stage can outlive it.
+    deadline: Option<tokio::time::Instant>,
     outcome: Result<T, Status>,
 }
 
@@ -410,6 +417,7 @@ async fn send_stream_response<Resp: Serialize + Send>(
     response: Response<Streaming<Resp>>,
     mut respond: h2::server::SendResponse<Bytes>,
     wire: Wire,
+    deadline: Option<tokio::time::Instant>,
 ) {
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
@@ -419,12 +427,30 @@ async fn send_stream_response<Resp: Serialize + Send>(
     };
     let mut status = Status::from_code(Code::Ok);
     *status.metadata_mut() = trailers;
-    if let Err(err) = drain_to_wire(&mut stream, &mut send, wire).await {
+    // The deadline has to cover the whole response, not just the handler
+    // future: a producer that stops early because *its* deadline expired must
+    // not be reported as a clean end of stream.
+    let drained = match deadline {
+        None => drain_to_wire(&mut stream, &mut send, wire).await,
+        Some(at) => tokio::time::timeout_at(at, drain_to_wire(&mut stream, &mut send, wire))
+            .await
+            .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
+    };
+    if let Err(err) = drained {
         // A transport failure cannot be reported; a producer failure becomes
         // the stream's trailing status.
         match err {
             DrainError::Transport => return,
             DrainError::Producer(producer) => status = producer,
+        }
+    }
+    // If the deadline elapsed, the RPC did not finish in time, however the
+    // drain ended. A handler reading its request stream sees the deadline as an
+    // error on the read and will usually just stop producing, which would
+    // otherwise be indistinguishable from a clean end of stream.
+    if let Some(at) = deadline {
+        if status.is_ok() && tokio::time::Instant::now() >= at {
+            status = Status::deadline_exceeded();
         }
     }
     if let Ok(map) = grpc_trailers(&status) {

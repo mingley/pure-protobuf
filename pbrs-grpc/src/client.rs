@@ -292,7 +292,7 @@ impl Channel {
         Resp: Parse + Default + Send + 'static,
     {
         let wire = self.config.wire();
-        let (tx, rx) = Streaming::channel(self.config.buffer());
+        let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
         let tx = tx.with_limits(wire.limits);
         let (cancel, cancel_rx) = watch::channel(false);
         let send = match self.grab() {
@@ -320,7 +320,7 @@ impl Channel {
         Resp: Parse + Default + Send + 'static,
     {
         let wire = self.config.wire();
-        let buffer = self.config.buffer();
+        let buffer = self.config.stream_buffer_size();
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx.with_limits(wire.limits);
         let (cancel, cancel_rx) = watch::channel(false);
