@@ -1,7 +1,7 @@
 # pbrs-grpc
 
-A pure-Rust gRPC kernel over [pbrs](../README.md). No C, no `unsafe` in the
-kernel, no tonic.
+A pure-Rust gRPC kernel over [pbrs](../README.md). No `unsafe` in the kernel,
+no C or C++ compiled into the build, no tonic.
 
 ```toml
 [dependencies]

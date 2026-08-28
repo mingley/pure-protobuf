@@ -1,10 +1,10 @@
 # Building gRPC services with pbrs-grpc
 
 `pbrs-grpc` is a gRPC kernel: HTTP/2 framing, dispatch, and resource limits
-over [pbrs](../README.md) messages, with no C, no `unsafe` in the kernel, and
-no dependency on tonic. This is the working guide. For the API reference, run
-`cargo doc -p pbrs-grpc --open`; for measured numbers, see
-[benchmarks](benchmarks.md).
+over [pbrs](../README.md) messages, with no `unsafe` in the kernel, no C or C++
+compiled into the build, and no dependency on tonic. This is the working guide.
+For the API reference, run `cargo doc -p pbrs-grpc --open`; for measured
+numbers, see [benchmarks](benchmarks.md).
 
 - [Quickstart](#quickstart)
 - [The four call shapes](#the-four-call-shapes)
@@ -451,6 +451,14 @@ bomb small enough on the wire to pass the frame check, reserved
 compressed-flag values, truncated frames, malformed paths, garbage protobuf —
 and requires that every case answers with a status and leaves the server
 serving.
+
+### Dependencies
+
+`base64`, `bytes`, `flate2` (pinned to its `rust_backend`, i.e. `miniz_oxide`),
+`h2`, `http`, `pbrs`, and `tokio`. Nothing in the graph pulls in `cc`,
+`bindgen`, `pkg-config`, or a vendored zlib, so nothing compiles C or C++. The
+one FFI crate is `libc`, which `tokio` uses for syscalls and which every Rust
+program links through `std` regardless.
 
 ### `unsafe`
 

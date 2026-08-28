@@ -1,9 +1,13 @@
 //! A pure-Rust gRPC kernel over [`pbrs`].
 //!
-//! `pbrs-grpc` speaks gRPC over HTTP/2 with no C, no `unsafe`, and no
-//! dependency on `tonic`. It is a *kernel*: the protocol, the framing, the
-//! dispatch, and the safety limits, with nothing layered on top that you did
-//! not ask for.
+//! `pbrs-grpc` speaks gRPC over HTTP/2 without `unsafe` and without `tonic`.
+//! It is a *kernel*: the protocol, the framing, the dispatch, and the safety
+//! limits, with nothing layered on top that you did not ask for.
+//!
+//! No C or C++ is compiled into the build. Nothing in the dependency graph
+//! pulls in `cc`, `bindgen`, `pkg-config`, or a vendored zlib; gzip goes
+//! through `miniz_oxide`. The one FFI crate present is `libc`, which `tokio`
+//! uses for syscalls and which every Rust program links through `std` anyway.
 //!
 //! # Quickstart
 //!
