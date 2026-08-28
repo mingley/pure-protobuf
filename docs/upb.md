@@ -51,7 +51,7 @@ are not applicable and not vendored.
 | `protobuf_gtest_matchers` | skip `gtest_matchers_test.rs` | Not implemented. |
 | `__internal == ()` | `__internal` is a module (`SealedInternal`) | Deliberate: generated code needs `SealedInternal`. `no_internal_access_test.rs` does not apply. |
 | `proto!` `#[cfg(bzl)]` `::crate::Type` | skipped | Bazel-qualified `proto!` paths are not supported. |
-| Map representation | `Vec<(K,V)>`, last-wins on parse, scan on `get` (upb uses a hash table) | Fine at map_64. Wrong if maps are huge and hot on lookup. |
+| Map representation | last-wins `Vec` plus lazy index on `get` / `remove` / unique `len` (upb uses a hash table) | Fine at map_64. Not a codec win. Huge hot lookup no longer scans. |
 | Arena lifetime | Drop frees Rust allocations | You cannot parse into a caller-owned buffer and keep submessages alive by keeping that buffer. |
 | cpp kernel, lite runtime, no_std | none | Not offered. |
 | Cargo swap for `protobuf` 4.x | different package name, gencode, and `__internal` | Application traits match. Rebuild. |
