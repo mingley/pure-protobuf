@@ -2,7 +2,64 @@
 use crate::internal::SealedInternal;
 use crate::proxied::{AsMut, AsView, IntoMut, IntoProxied, IntoView, MutProxied, Proxied};
 use crate::string::ProtoString;
+use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::OnceLock;
+
+type LastWins<K> = OnceLock<BTreeMap<K, usize>>;
+
+fn last_wins_index<K: MapKey, V>(entries: &[(K, V)]) -> BTreeMap<K, usize> {
+    let mut idx = BTreeMap::new();
+    for (i, (k, _)) in entries.iter().enumerate() {
+        idx.insert(k.clone(), i);
+    }
+    idx
+}
+
+fn scan_unique_len<K: MapKey, V>(v: &[(K, V)]) -> usize {
+    let mut n = 0;
+    for (i, (k, _)) in v.iter().enumerate() {
+        if v.get(i + 1..)
+            .is_some_and(|rest| rest.iter().all(|(k2, _)| k2 != k))
+        {
+            n += 1;
+        }
+    }
+    n
+}
+
+fn unique_len<K: MapKey, V>(entries: &[(K, V)], index: Option<&LastWins<K>>) -> usize {
+    if entries.is_empty() {
+        return 0;
+    }
+    match index {
+        Some(lock) => lock.get_or_init(|| last_wins_index(entries)).len(),
+        None => scan_unique_len(entries),
+    }
+}
+
+fn last_wins_pos<K: MapKey, V>(
+    entries: &[(K, V)],
+    index: Option<&LastWins<K>>,
+    key: &K,
+) -> Option<usize> {
+    if let Some(lock) = index {
+        return lock
+            .get_or_init(|| last_wins_index(entries))
+            .get(key)
+            .copied();
+    }
+    entries.iter().rposition(|(k, _)| k == key)
+}
+
+fn last_wins_get<'a, K: MapKey, V>(
+    entries: &'a [(K, V)],
+    index: Option<&LastWins<K>>,
+    key: &K,
+) -> Option<&'a V> {
+    let pos = last_wins_pos(entries, index, key)?;
+    entries.get(pos).map(|(_, v)| v)
+}
 
 /// Types allowed as map keys.
 pub trait MapKey: Clone + Ord + Eq + 'static {}
@@ -180,13 +237,23 @@ impl MapQuery<ProtoString> for &crate::string::ProtoStr {
 pub trait MapValue: Clone + 'static {}
 impl<T: Clone + 'static> MapValue for T {}
 
-/// Empty is an 8-byte null. Parse appends to a `Vec`; lookup scans, last key wins.
-#[expect(
-    clippy::box_collection,
-    reason = "Option<Box<Vec<(K,V)>>> is the 8-byte empty TAT layout"
-)]
+/// Empty is an 8-byte null. Parse appends to a `Vec` (last-wins). Lookup uses a lazy index.
 #[derive(Clone)]
-pub struct Map<K: MapKey, V: MapValue>(Option<Box<Vec<(K, V)>>>);
+pub struct Map<K: MapKey, V: MapValue>(Option<Box<MapInner<K, V>>>);
+
+struct MapInner<K: MapKey, V: MapValue> {
+    entries: Vec<(K, V)>,
+    index: LastWins<K>,
+}
+
+impl<K: MapKey, V: MapValue> Clone for MapInner<K, V> {
+    fn clone(&self) -> Self {
+        Self {
+            entries: self.entries.clone(),
+            index: OnceLock::new(),
+        }
+    }
+}
 
 impl<K: MapKey, V: MapValue> Default for Map<K, V> {
     #[inline]
@@ -211,59 +278,72 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
     }
 
     pub fn as_view(&self) -> MapView<'_, K, V> {
-        MapView {
-            inner: self.0.as_deref().map(|v| v.as_slice()),
-            raw: None,
+        match self.0.as_deref() {
+            Some(inner) => MapView {
+                inner: Some(inner.entries.as_slice()),
+                index: Some(&inner.index),
+                raw: None,
+            },
+            None => MapView::empty(),
         }
     }
 
     pub fn as_mut(&mut self) -> MapMut<'_, K, V> {
+        let inner = self.ensure();
         MapMut {
-            inner: Some(self.ensure()),
+            inner: Some(&mut inner.entries),
+            index: Some(&mut inner.index),
             raw: None,
             arena: None,
         }
     }
 
     #[inline]
-    fn ensure(&mut self) -> &mut Vec<(K, V)> {
-        self.0.get_or_insert_with(|| Box::new(Vec::new()))
+    fn ensure(&mut self) -> &mut MapInner<K, V> {
+        self.0.get_or_insert_with(|| {
+            Box::new(MapInner {
+                entries: Vec::new(),
+                index: OnceLock::new(),
+            })
+        })
     }
 
     /// Append a parsed entry without scanning (protobuf last-wins).
     #[inline]
     pub fn push_entry(&mut self, key: K, value: V) {
-        self.ensure().push((key, value));
+        let inner = self.ensure();
+        inner.entries.push((key, value));
+        inner.index = OnceLock::new();
     }
 
     /// Returns `true` if the key was newly inserted.
     pub fn insert(&mut self, key: impl Into<K>, value: impl Into<V>) -> bool {
         let key = key.into();
         let value = value.into();
-        let v = self.ensure();
-        if let Some(e) = v.iter_mut().rev().find(|(k, _)| *k == key) {
-            e.1 = value;
-            false
-        } else {
-            v.push((key, value));
-            true
+        let inner = self.ensure();
+        let existing = last_wins_pos(&inner.entries, Some(&inner.index), &key);
+        inner.index = OnceLock::new();
+        if let Some(i) = existing {
+            if let Some(e) = inner.entries.get_mut(i) {
+                e.1 = value;
+                return false;
+            }
         }
+        inner.entries.push((key, value));
+        true
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
-        self.0
-            .as_ref()?
-            .iter()
-            .rev()
-            .find(|(k, _)| k == key)
-            .map(|(_, v)| v)
+        let inner = self.0.as_ref()?;
+        last_wins_get(&inner.entries, Some(&inner.index), key)
     }
 
     pub fn remove(&mut self, key: &K) -> Option<V> {
-        let v = self.0.as_mut()?;
-        let i = v.iter().rposition(|(k, _)| k == key)?;
-        let out = v.swap_remove(i).1;
-        if v.is_empty() {
+        let inner = self.0.as_mut()?;
+        let i = last_wins_pos(&inner.entries, Some(&inner.index), key)?;
+        let out = inner.entries.swap_remove(i).1;
+        inner.index = OnceLock::new();
+        if inner.entries.is_empty() {
             self.0 = None;
         }
         Some(out)
@@ -279,21 +359,15 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
 
     #[inline]
     pub fn len(&self) -> usize {
-        let Some(v) = self.0.as_ref() else {
+        let Some(inner) = self.0.as_ref() else {
             return 0;
         };
-        let mut n = 0;
-        for (i, (k, _)) in v.iter().enumerate() {
-            if v[i + 1..].iter().all(|(k2, _)| k2 != k) {
-                n += 1;
-            }
-        }
-        n
+        unique_len(&inner.entries, Some(&inner.index))
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.0.as_ref().is_none_or(|v| v.is_empty())
+        self.0.as_ref().is_none_or(|inner| inner.entries.is_empty())
     }
 
     pub fn clear(&mut self) {
@@ -309,7 +383,9 @@ impl<K: MapKey, V: MapValue> Map<K, V> {
 
     #[inline]
     pub fn pairs(&self) -> &[(K, V)] {
-        self.0.as_deref().map_or(&[], |v| v.as_slice())
+        self.0
+            .as_deref()
+            .map_or(&[], |inner| inner.entries.as_slice())
     }
 }
 
@@ -340,6 +416,7 @@ impl<'msg, K: MapKey, V> Iterator for MapIter<'msg, K, V> {
 
 pub struct MapView<'msg, K: MapKey, V: MapValue> {
     inner: Option<&'msg [(K, V)]>,
+    index: Option<&'msg LastWins<K>>,
     raw: Option<crate::runtime::RawMap>,
 }
 
@@ -355,6 +432,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     pub fn empty() -> Self {
         Self {
             inner: None,
+            index: None,
             raw: None,
         }
     }
@@ -366,6 +444,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
         } else {
             Self {
                 inner: Some(items),
+                index: None,
                 raw: None,
             }
         }
@@ -378,6 +457,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     ) -> Self {
         Self {
             inner: None,
+            index: None,
             raw: Some(raw),
         }
     }
@@ -386,6 +466,7 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
     pub unsafe fn from_raw_ptr(raw: crate::runtime::RawMap) -> Self {
         Self {
             inner: None,
+            index: None,
             raw: Some(raw),
         }
     }
@@ -398,7 +479,12 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
             let kb = key.key_bytes();
             return unsafe { crate::runtime::kernel_map_get_bytes::<V>(raw, &kb) };
         }
-        self.inner?
+        let entries = self.inner?;
+        if self.index.is_some() {
+            let owned = key.to_owned_key();
+            return last_wins_get(entries, self.index, &owned).map(crate::proxied::AsView::as_view);
+        }
+        entries
             .iter()
             .rev()
             .find(|(k, _)| key.eq_key(k))
@@ -409,20 +495,14 @@ impl<'msg, K: MapKey, V: MapValue> MapView<'msg, K, V> {
         if let Some(raw) = self.raw {
             return crate::runtime::kernel_map_len(raw);
         }
-        let Some(v) = self.inner else {
-            return 0;
-        };
-        let mut n = 0;
-        for (i, (k, _)) in v.iter().enumerate() {
-            if v[i + 1..].iter().all(|(k2, _)| k2 != k) {
-                n += 1;
-            }
-        }
-        n
+        unique_len(self.inner.unwrap_or(&[]), self.index)
     }
 
     pub fn is_empty(self) -> bool {
-        self.len() == 0
+        if self.raw.is_some() {
+            return self.len() == 0;
+        }
+        self.inner.is_none_or(|v| v.is_empty())
     }
 
     pub fn keys(self) -> impl Iterator<Item = crate::proxied::View<'msg, K>> + 'msg
@@ -458,6 +538,7 @@ impl<K: MapKey + fmt::Debug, V: MapValue + fmt::Debug> fmt::Debug for MapView<'_
 
 pub struct MapMut<'msg, K: MapKey, V: MapValue> {
     inner: Option<&'msg mut Vec<(K, V)>>,
+    index: Option<&'msg mut LastWins<K>>,
     raw: Option<crate::runtime::RawMap>,
     arena: Option<&'msg crate::runtime::Arena>,
 }
@@ -466,6 +547,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     pub fn from_vec(inner: &'msg mut Vec<(K, V)>) -> Self {
         Self {
             inner: Some(inner),
+            index: None,
             raw: None,
             arena: None,
         }
@@ -478,6 +560,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     ) -> Self {
         Self {
             inner: None,
+            index: None,
             raw: Some(inner.raw),
             arena: Some(inner.arena),
         }
@@ -487,8 +570,15 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     pub fn from_raw_inner(raw: crate::runtime::RawMap) -> Self {
         Self {
             inner: None,
+            index: None,
             raw: Some(raw),
             arena: None,
+        }
+    }
+
+    fn drop_index(index: &mut Option<&mut LastWins<K>>) {
+        if let Some(lock) = index.as_mut() {
+            **lock = OnceLock::new();
         }
     }
 
@@ -511,11 +601,16 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         V: 'static,
     {
         if let Some(v) = self.inner.as_mut() {
-            if let Some(e) = v.iter_mut().rev().find(|(k, _)| *k == key) {
-                e.1 = value;
-                return false;
+            let existing = last_wins_pos(v, self.index.as_deref(), &key);
+            if let Some(i) = existing {
+                if let Some(e) = v.get_mut(i) {
+                    e.1 = value;
+                    Self::drop_index(&mut self.index);
+                    return false;
+                }
             }
             v.push((key, value));
+            Self::drop_index(&mut self.index);
             true
         } else if let Some(raw) = self.raw {
             crate::runtime::kernel_map_insert(raw, key, value, self.arena)
@@ -537,10 +632,8 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     {
         let owned = key.to_owned_key();
         if let Some(v) = self.inner.as_mut() {
-            return v
-                .iter_mut()
-                .rev()
-                .find(|(k, _)| *k == owned)
+            return last_wins_pos(v, self.index.as_deref(), &owned)
+                .and_then(|i| v.get_mut(i))
                 .map(|(_, val)| crate::proxied::AsMut::as_mut(val));
         }
         if let (Some(raw), Some(arena)) = (self.raw, self.arena) {
@@ -564,8 +657,9 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     pub fn remove(&mut self, key: impl MapQuery<K>) -> bool {
         let key = key.to_owned_key();
         if let Some(v) = self.inner.as_mut() {
-            if let Some(i) = v.iter().rposition(|(k, _)| *k == key) {
+            if let Some(i) = last_wins_pos(v, self.index.as_deref(), &key) {
                 v.swap_remove(i);
+                Self::drop_index(&mut self.index);
                 return true;
             }
             false
@@ -601,20 +695,17 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
         if let Some(raw) = self.raw {
             return crate::runtime::kernel_map_len(raw);
         }
-        let Some(v) = self.inner.as_ref() else {
-            return 0;
-        };
-        let mut n = 0;
-        for (i, (k, _)) in v.iter().enumerate() {
-            if v[i + 1..].iter().all(|(k2, _)| k2 != k) {
-                n += 1;
-            }
-        }
-        n
+        unique_len(
+            self.inner.as_deref().map_or(&[], |v| v.as_slice()),
+            self.index.as_deref(),
+        )
     }
 
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        if self.raw.is_some() {
+            return self.len() == 0;
+        }
+        self.inner.as_ref().is_none_or(|v| v.is_empty())
     }
 
     pub fn keys(&self) -> impl Iterator<Item = &K> {
@@ -638,6 +729,7 @@ impl<'msg, K: MapKey, V: MapValue> MapMut<'msg, K, V> {
     pub fn clear(&mut self) {
         if let Some(v) = self.inner.as_mut() {
             v.clear();
+            Self::drop_index(&mut self.index);
         } else if let Some(raw) = self.raw {
             unsafe {
                 (*raw).entries.borrow_mut().clear();
@@ -690,6 +782,7 @@ impl<'msg, K: MapKey, V: MapValue> IntoView<'msg> for MapView<'msg, K, V> {
     {
         MapView {
             inner: self.inner,
+            index: self.index,
             raw: self.raw,
         }
     }
@@ -701,6 +794,7 @@ impl<K: MapKey, V: MapValue> AsView for MapMut<'_, K, V> {
     fn as_view(&self) -> MapView<'_, K, V> {
         MapView {
             inner: self.inner.as_ref().map(|v| v.as_slice()),
+            index: self.index.as_deref(),
             raw: self.raw,
         }
     }
@@ -710,6 +804,7 @@ impl<K: MapKey, V: MapValue> AsMut for MapMut<'_, K, V> {
     fn as_mut(&mut self) -> MapMut<'_, K, V> {
         MapMut {
             inner: self.inner.as_deref_mut(),
+            index: self.index.as_deref_mut(),
             raw: self.raw,
             arena: self.arena,
         }
@@ -722,6 +817,7 @@ impl<'msg, K: MapKey, V: MapValue> IntoView<'msg> for MapMut<'msg, K, V> {
     {
         MapView {
             inner: self.inner.map(|v| v.as_slice()),
+            index: self.index.map(|i| &*i),
             raw: self.raw,
         }
     }
@@ -733,6 +829,7 @@ impl<'msg, K: MapKey, V: MapValue> IntoMut<'msg> for MapMut<'msg, K, V> {
     {
         MapMut {
             inner: self.inner,
+            index: self.index,
             raw: self.raw,
             arena: self.arena,
         }
@@ -875,6 +972,10 @@ mod tests {
         let z: Map<i32, i32> = unsafe { std::mem::zeroed() };
         assert!(z.is_empty());
         assert_eq!(z, Map::new());
+        assert_eq!(
+            std::mem::size_of::<Map<i32, i32>>(),
+            std::mem::size_of::<usize>()
+        );
         drop(z);
     }
 
@@ -886,5 +987,67 @@ mod tests {
         assert_eq!(m.get(&1), Some(&3));
         assert_eq!(m.remove(&1), Some(3)); // Map::remove still returns Option
         assert!(m.is_empty());
+    }
+
+    #[test]
+    fn push_entry_last_wins_and_pairs_keep_wire_order() {
+        let mut m = Map::new();
+        m.push_entry(1, 10);
+        m.push_entry(2, 20);
+        m.push_entry(1, 11);
+        assert_eq!(m.pairs().len(), 3);
+        assert_eq!(m.len(), 2);
+        assert_eq!(m.get(&1), Some(&11));
+        assert_eq!(m.get(&2), Some(&20));
+        assert_eq!(m.as_view().get(1), Some(11));
+        assert_eq!(m.as_view().len(), 2);
+        let mut it = m.iter();
+        assert_eq!(it.next(), Some((&2, &20)));
+        assert_eq!(it.next(), Some((&1, &11)));
+        assert_eq!(it.next(), None);
+    }
+
+    #[test]
+    fn index_invalidates_on_insert_remove_clear_push() {
+        let mut m = Map::new();
+        m.push_entry(1, 1);
+        m.push_entry(2, 2);
+        assert_eq!(m.get(&1), Some(&1));
+        m.push_entry(1, 9);
+        assert_eq!(m.get(&1), Some(&9));
+        assert_eq!(m.len(), 2);
+        assert!(!m.insert(2, 8));
+        assert_eq!(m.get(&2), Some(&8));
+        // remove drops the last-wins entry only; an earlier duplicate remains.
+        assert_eq!(m.remove(&1), Some(9));
+        assert_eq!(m.get(&1), Some(&1));
+        assert_eq!(m.len(), 2);
+        assert_eq!(m.remove(&1), Some(1));
+        assert_eq!(m.get(&1), None);
+        assert_eq!(m.len(), 1);
+        m.clear();
+        assert!(m.is_empty());
+        assert_eq!(m.get(&2), None);
+        assert_eq!(m.len(), 0);
+    }
+
+    #[test]
+    fn map_mut_uses_index_and_from_slice_still_scans() {
+        let mut m = Map::new();
+        m.push_entry(1, 1);
+        m.push_entry(1, 2);
+        {
+            let mut mm = m.as_mut();
+            assert_eq!(mm.len(), 1);
+            assert_eq!(mm.get(1), Some(2));
+            assert!(mm.remove(1));
+            assert_eq!(mm.get(1), Some(1));
+            assert!(mm.remove(1));
+            assert!(mm.is_empty());
+        }
+        let pairs = [(3, 30), (3, 31)];
+        let view = MapView::from_slice(&pairs);
+        assert_eq!(view.get(3), Some(31));
+        assert_eq!(view.len(), 1);
     }
 }

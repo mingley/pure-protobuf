@@ -89,7 +89,7 @@ See `docs/upb.md`. Short list:
 - There are no arena views.
 - JSON and text go through `DynamicMessage`.
 - Edition 2024 extensions, CORD / cpp VIEW, and gtest matchers are missing.
-- Maps are `Vec` (scan on get).
+- Maps are last-wins `Vec` plus a lazy index (not a codec win).
 - `name_4kib` Codec combined beats prost (gated). `blob_4kib` still
   wins. `rpc_sparse` decode and `tags_32` decode vs v4 are gated.
   Leftover unary item is `name_80` combined (still a loss). A draft
