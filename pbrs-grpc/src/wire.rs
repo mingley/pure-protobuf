@@ -513,17 +513,26 @@ pub(crate) struct WireStream<T> {
     /// Bound at construction, where `T: Parse` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
     decode: fn(Frame, MessageLimits) -> Result<Framed<T>, Status>,
+    /// When the RPC's deadline expires. A deadline has to reach the reads, not
+    /// just the call setup: a server that answers with headers and then goes
+    /// quiet would otherwise hang the reader forever.
+    deadline: Option<tokio::time::Instant>,
     ended: bool,
     trailers: Metadata,
 }
 
 impl<T: Parse + Default> WireStream<T> {
-    pub(crate) fn new(recv: RecvStream, limits: MessageLimits) -> Self {
+    pub(crate) fn new(
+        recv: RecvStream,
+        limits: MessageLimits,
+        deadline: Option<tokio::time::Instant>,
+    ) -> Self {
         Self {
             recv,
             reader: FrameReader::new(limits),
             limits,
             decode: decode_frame::<T>,
+            deadline,
             ended: false,
             trailers: Metadata::new(),
         }
@@ -533,8 +542,28 @@ impl<T: Parse + Default> WireStream<T> {
 impl<T> WireStream<T> {
     /// The next message, or `Ok(None)` once the stream has ended cleanly.
     ///
-    /// A non-OK `grpc-status` in the trailers surfaces here as `Err`.
+    /// A non-OK `grpc-status` in the trailers surfaces here as `Err`, and so
+    /// does an expired deadline.
     pub(crate) async fn next(&mut self) -> Result<Option<Framed<T>>, Status> {
+        let Some(at) = self.deadline else {
+            return self.next_inner().await;
+        };
+        match tokio::time::timeout_at(at, self.next_inner()).await {
+            Err(_) => Err(Status::deadline_exceeded()),
+            // A peer enforcing the same deadline resets the stream at it, and
+            // that reset can arrive before our timer. Report the deadline
+            // rather than a transport failure.
+            Ok(Err(status))
+                if matches!(status.code(), Code::Unavailable | Code::Cancelled)
+                    && tokio::time::Instant::now() >= at =>
+            {
+                Err(Status::deadline_exceeded())
+            }
+            Ok(result) => result,
+        }
+    }
+
+    async fn next_inner(&mut self) -> Result<Option<Framed<T>>, Status> {
         loop {
             if let Some(frame) = self.reader.next_frame()? {
                 return (self.decode)(frame, self.limits).map(Some);
@@ -676,6 +705,7 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
 pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
     response: http::Response<RecvStream>,
     limits: MessageLimits,
+    deadline: Option<tokio::time::Instant>,
 ) -> Result<crate::request::Response<Streaming<Resp>>, Status> {
     if response.status() != StatusCode::OK {
         return Err(Status::unknown(format!("http {}", response.status())));
@@ -689,7 +719,7 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
         }
     }
     Ok(crate::request::Response::from_parts(
-        Streaming::from_wire(WireStream::<Resp>::new(body, limits)),
+        Streaming::from_wire(WireStream::<Resp>::new(body, limits, deadline)),
         Metadata::from_owned_headers(parts.headers),
         Metadata::new(),
     ))

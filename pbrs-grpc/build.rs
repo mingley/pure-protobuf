@@ -27,4 +27,14 @@ fn main() {
         .emit_deps(true)
         .compile_protos(&[&proto_dir.join("grpc/testing/test.proto")], &[&proto_dir])
         .expect("codegen grpc.testing");
+
+    // `kv.Store` is only used by `tests/codegen.rs`. An integration test is a
+    // separate crate, so compiling generated stubs there proves they resolve
+    // `::pbrs_grpc` as an ordinary dependency rather than through the
+    // `extern crate self` alias this crate uses internally.
+    let kv_dir = manifest.join("tests/proto");
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
+        .compile_protos(&[&kv_dir.join("kv.proto")], &[&kv_dir])
+        .expect("codegen kv.Store");
 }

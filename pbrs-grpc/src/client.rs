@@ -375,6 +375,7 @@ where
     // Encode before opening the stream so an oversize message never reaches
     // the wire and never occupies a stream slot.
     let frame = encode_msg(&msg, compress, wire.limits)?;
+    let deadline = deadline_from(timeout);
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
@@ -386,7 +387,7 @@ where
             finish_unary::<Resp>(response, wire.limits).await
         },
         cancel_rx,
-        timeout,
+        deadline,
         Some(&mut send_stream),
     )
     .await
@@ -410,6 +411,9 @@ where
 {
     let (msg, md, timeout, compress) = req.into_parts();
     let frame = encode_msg(&msg, compress, wire.limits)?;
+    // One deadline for the whole RPC: setup, and every read of the response
+    // stream that outlives it.
+    let deadline = deadline_from(timeout);
     let (resp_fut, mut send_stream) =
         open(send_req, authority, path, &md, timeout, compress).await?;
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
@@ -418,10 +422,10 @@ where
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response, wire.limits).await
+            finish_stream::<Resp>(response, wire.limits, deadline).await
         },
         cancel_rx,
-        timeout,
+        deadline,
         Some(&mut send_stream),
     )
     .await
@@ -445,6 +449,7 @@ where
     Resp: Parse + Default,
 {
     let (_, md, timeout, compress) = req.into_parts();
+    let deadline = deadline_from(timeout);
     let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout, compress).await?;
     drop(tokio::spawn(pump_outbound(
         send_stream,
@@ -460,7 +465,7 @@ where
             finish_unary::<Resp>(response, wire.limits).await
         },
         cancel_rx,
-        timeout,
+        deadline,
         None,
     )
     .await
@@ -484,6 +489,7 @@ where
     Resp: Parse + Default + Send + 'static,
 {
     let (_, md, timeout, compress) = req.into_parts();
+    let deadline = deadline_from(timeout);
     let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout, compress).await?;
     drop(tokio::spawn(pump_outbound(
         send_stream,
@@ -496,10 +502,10 @@ where
             let response = resp_fut
                 .await
                 .map_err(|e| Status::unavailable(e.to_string()))?;
-            finish_stream::<Resp>(response, wire.limits).await
+            finish_stream::<Resp>(response, wire.limits, deadline).await
         },
         cancel_rx,
-        timeout,
+        deadline,
         None,
     )
     .await
@@ -525,17 +531,49 @@ async fn open(
 
 /// Race the RPC against its deadline and its cancel signal, resetting the
 /// stream if either wins so the server stops working on it.
+/// Turn a duration into an absolute instant, so every stage of one RPC races
+/// the same deadline rather than restarting the clock.
+fn deadline_from(timeout: Option<Duration>) -> Option<tokio::time::Instant> {
+    timeout.map(|d| tokio::time::Instant::now() + d)
+}
+
+/// Report an expired deadline as `DEADLINE_EXCEEDED`, whatever the transport
+/// said.
+///
+/// A server enforcing the same `grpc-timeout` resets the stream at the
+/// deadline, and that reset can reach us before our own timer fires. Reporting
+/// it as `UNAVAILABLE` or `CANCELLED` would tell the caller the connection
+/// failed when in fact their deadline elapsed, so the deadline wins. Real
+/// statuses from the peer are left alone.
+fn prefer_deadline<T>(
+    result: Result<T, Status>,
+    deadline: Option<tokio::time::Instant>,
+) -> Result<T, Status> {
+    let Some(at) = deadline else {
+        return result;
+    };
+    match &result {
+        Err(status)
+            if matches!(status.code(), Code::Unavailable | Code::Cancelled)
+                && tokio::time::Instant::now() >= at =>
+        {
+            Err(Status::deadline_exceeded())
+        }
+        _ => result,
+    }
+}
+
 async fn race<T>(
     fut: impl std::future::Future<Output = Result<T, Status>>,
     mut cancel_rx: watch::Receiver<bool>,
-    timeout: Option<Duration>,
+    deadline: Option<tokio::time::Instant>,
     send: Option<&mut h2::SendStream<Bytes>>,
 ) -> Result<T, Status> {
-    let result = if let Some(d) = timeout {
+    let result = if let Some(at) = deadline {
         tokio::select! {
             biased;
             r = fut => r,
-            _ = tokio::time::sleep(d) => Err(Status::deadline_exceeded()),
+            _ = tokio::time::sleep_until(at) => Err(Status::deadline_exceeded()),
             _ = cancel_rx.wait_for(|v| *v) => Err(Status::cancelled()),
         }
     } else {
@@ -553,7 +591,7 @@ async fn race<T>(
             send.send_reset(Reason::CANCEL);
         }
     }
-    result
+    prefer_deadline(result, deadline)
 }
 
 #[cfg(test)]

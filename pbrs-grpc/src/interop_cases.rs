@@ -206,6 +206,9 @@ async fn cancel_after_first_response(client: &TestServiceClient) -> Result<(), S
     }
 }
 
+/// The server accepts the stream and then never answers, so the deadline has to
+/// fire on the *read*, not just on call setup. The official client asserts the
+/// status of the first receive for exactly this reason.
 async fn timeout_on_sleeping_server(client: &TestServiceClient) -> Result<(), Status> {
     let (tx, call) = {
         let mut r = Request::new(());
@@ -215,10 +218,21 @@ async fn timeout_on_sleeping_server(client: &TestServiceClient) -> Result<(), St
     let mut req = StreamingOutputCallRequest::new();
     req.set_payload(zeros(27182));
     tx.send(req).await.ok();
-    match call.await {
-        Err(st) if st.code() == Code::DeadlineExceeded => Ok(()),
-        Err(st) => Err(Status::internal(format!("want DEADLINE_EXCEEDED got {st}"))),
-        Ok(_) => Err(Status::internal("want DEADLINE_EXCEEDED got ok")),
+    let status = match call.await {
+        // Setup lost the race with the deadline: already the expected answer.
+        Err(st) => st,
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(st) => st,
+            Ok(Some(_)) => return Err(Status::internal("sleeping server sent a message")),
+            Ok(None) => return Err(Status::internal("want DEADLINE_EXCEEDED got clean end")),
+        },
+    };
+    if status.code() == Code::DeadlineExceeded {
+        Ok(())
+    } else {
+        Err(Status::internal(format!(
+            "want DEADLINE_EXCEEDED got {status}"
+        )))
     }
 }
 

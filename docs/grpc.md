@@ -565,7 +565,22 @@ async fn greets() {
 so `expect_err` and assertion failures print something useful.
 
 For interop against other implementations, the crate ships the official
-`grpc.testing.TestService` and its test cases:
+`grpc.testing.TestService` and its test cases. `scripts/grpc-interop.sh` runs
+them three ways, and CI runs the script:
+
+| Pass | Cases | Catches |
+|---|---:|---|
+| kernel client → kernel server | 18 | the two halves disagreeing with each other |
+| kernel client → Go server | 14 | the client not speaking real gRPC |
+| Go client → kernel server | 14 | the server not speaking real gRPC |
+
+The four cases missing from the cross-language passes are the compression ones.
+They are built on `SimpleRequest.expect_compressed` and `response_compressed`,
+and grpc-go implements neither: its interop server reads neither field, and its
+interop client rejects the case names. They run in the self-interop pass, which
+is the only pass with an implementation on both ends that honours them.
+
+To drive it by hand:
 
 ```bash
 cargo run -p pbrs-grpc --bin pbrs-grpc-interop-server -- --port 10000
@@ -575,6 +590,14 @@ cargo run -p pbrs-grpc --bin pbrs-grpc-interop-client -- \
 
 Either side can be replaced with `google.golang.org/grpc/interop/{client,server}`
 run with `-use_tls=false`.
+
+Wiring these into CI immediately found a bug worth naming, because it is easy to
+reproduce in any gRPC implementation: a deadline has to reach the *reads*, not
+just the call setup. A server that answers with headers and then goes quiet
+would otherwise hang the reader forever, and a peer that resets the stream at
+the shared deadline would surface as `UNAVAILABLE` rather than
+`DEADLINE_EXCEEDED`. Both are fixed, and `timeout_on_sleeping_server` now
+passes against grpc-go.
 
 ## Writing a service without codegen
 
