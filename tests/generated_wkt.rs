@@ -722,7 +722,7 @@ fn main() {{
     assert_eq!(json, {official_bool:?});
     assert!(!json.contains("DynamicMessage"), "{{json}}");
     assert!(BoolValue::from_json("{{}}").is_err());
-    assert_eq!(BoolValue::from_json(&json).unwrap().value(), true);
+    assert!(BoolValue::from_json(&json).unwrap().value());
 
     let mut i = Int32Value::new();
     i.set_value(-7);
@@ -812,7 +812,7 @@ fn main() {{
     let text = b.to_text().expect("to_text");
     assert_eq!(text, {official_bool:?});
     assert!(!text.contains("DynamicMessage"), "{{text}}");
-    assert_eq!(BoolValue::from_text(&text).unwrap().value(), true);
+    assert!(BoolValue::from_text(&text).unwrap().value());
 
     let mut i = Int32Value::new();
     i.set_value(42);
@@ -881,7 +881,7 @@ fn main() {{
 
     let q = HasEmptyWrappers::from_json(&json).unwrap();
     assert!(q.has_empty());
-    assert_eq!(q.flag().value(), true);
+    assert!(q.flag().value());
     assert_eq!(q.num().value(), 3);
     assert_eq!(q.name().value(), "ada");
     println!("ok has empty wrappers");
@@ -913,7 +913,7 @@ fn gencode_empty_wrappers_match_dynamic_message() {
     let json = b.to_json().unwrap();
     assert_eq!(json, official);
     assert!(!json.contains("DynamicMessage"));
-    assert_eq!(GenBoolValue::from_json(&json).unwrap().value(), true);
+    assert!(GenBoolValue::from_json(&json).unwrap().value());
     assert_eq!(
         b.to_text().unwrap(),
         dm_wrapper("google.protobuf.BoolValue", Some(Value::Bool(true)))
