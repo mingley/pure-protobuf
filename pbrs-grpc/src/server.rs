@@ -95,6 +95,50 @@ trait Dispatch: Send + Sync + 'static {
     fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send;
 }
 
+/// One [`Incoming::accept`] result: a connection, an error, or `None` if exhausted.
+#[allow(
+    clippy::type_complexity,
+    reason = "Option<Result<(Io, peer), Status>> is the accept contract"
+)]
+pub type IncomingAccept<Io> = Option<Result<(Io, Option<SocketAddr>), Status>>;
+
+/// A source of already-accepted byte streams.
+///
+/// [`TcpListener`] and Unix listeners are served by [`Server::serve_listener`]
+/// / [`Server::serve_unix_listener`] so TCP_NODELAY, TCP keepalive, and TLS
+/// stay applied. Implement this for a custom acceptor (in-process duplex,
+/// vsock, a TLS stack you drove yourself).
+///
+/// Returning `None` means the source is exhausted: the server stops accepting,
+/// sends `GOAWAY`, and drains. After the last connection, pending forever is
+/// usually what you want, so the live stream is not torn down.
+///
+/// ```no_run
+/// use std::future::Future;
+/// use pbrs_grpc::{Incoming, IncomingAccept};
+///
+/// struct One(Option<tokio::net::TcpStream>);
+///
+/// impl Incoming for One {
+///     type Io = tokio::net::TcpStream;
+///     fn accept(&mut self) -> impl Future<Output = IncomingAccept<Self::Io>> + Send {
+///         let io = self.0.take();
+///         async move { io.map(|io| Ok((io, None))) }
+///     }
+/// }
+/// ```
+pub trait Incoming: Send {
+    /// Accepted byte stream. Must be an HTTP/2 prior-knowledge transport;
+    /// this crate does not speak HTTP/1.1 or grpc-web.
+    type Io: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static;
+
+    /// Next connection, or `None` when the source is exhausted.
+    ///
+    /// `SocketAddr` is what [`Rpc::remote_addr`] reports; use `None` when the
+    /// transport has no TCP peer (Unix, in-process).
+    fn accept(&mut self) -> impl Future<Output = IncomingAccept<Self::Io>> + Send;
+}
+
 /// One inbound RPC, before its call shape has been chosen.
 ///
 /// Consume it with exactly one of [`Self::unary`],
@@ -732,6 +776,54 @@ impl<S: Service> Server<S> {
         )
         .await
     }
+
+    /// Serve a single already-accepted byte stream until it closes.
+    ///
+    /// No accept loop, no TLS, no TCP options. Pair with [`crate::Channel::from_io`].
+    /// [`Rpc::remote_addr`] is `None`.
+    ///
+    /// ```no_run
+    /// # async fn run(
+    /// #     io: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    /// # ) -> Result<(), pbrs_grpc::Status> {
+    /// # use pbrs_grpc::{Rpc, Server, Service};
+    /// # struct Echo;
+    /// # impl Service for Echo {
+    /// #     const NAME: &'static str = "demo.Echo";
+    /// #     async fn call(&self, rpc: Rpc) { rpc.unimplemented() }
+    /// # }
+    /// Server::new(Echo).serve_connection(io).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn serve_connection<IO>(self, io: IO) -> Result<(), Status>
+    where
+        IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    {
+        serve_one(Arc::new(Single(self.service)), io, None, self.config).await
+    }
+
+    /// Serve connections from `incoming` until it is exhausted or the
+    /// listener-side work fails. See [`Incoming`].
+    pub async fn serve_with_incoming<I: Incoming>(self, incoming: I) -> Result<(), Status> {
+        self.serve_with_incoming_shutdown(incoming, std::future::pending())
+            .await
+    }
+
+    /// [`Self::serve_with_incoming`] until `shutdown` resolves, then drain.
+    pub async fn serve_with_incoming_shutdown<I: Incoming>(
+        self,
+        incoming: I,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        accept_incoming(
+            Arc::new(Single(self.service)),
+            incoming,
+            self.config,
+            shutdown,
+        )
+        .await
+    }
 }
 
 /// Newtype so the monomorphic path gets its own [`Dispatch`] impl.
@@ -895,6 +987,33 @@ impl Router {
         let config = self.config;
         accept_loop(Arc::new(self), listener, config, shutdown, Some(tls)).await
     }
+
+    /// Serve a single already-accepted byte stream until it closes.
+    /// See [`Server::serve_connection`].
+    pub async fn serve_connection<IO>(self, io: IO) -> Result<(), Status>
+    where
+        IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    {
+        let config = self.config;
+        serve_one(Arc::new(self), io, None, config).await
+    }
+
+    /// Serve connections from `incoming` until it is exhausted.
+    /// See [`Server::serve_with_incoming`].
+    pub async fn serve_with_incoming<I: Incoming>(self, incoming: I) -> Result<(), Status> {
+        self.serve_with_incoming_shutdown(incoming, std::future::pending())
+            .await
+    }
+
+    /// [`Self::serve_with_incoming`] until `shutdown` resolves, then drain.
+    pub async fn serve_with_incoming_shutdown<I: Incoming>(
+        self,
+        incoming: I,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        let config = self.config;
+        accept_incoming(Arc::new(self), incoming, config, shutdown).await
+    }
 }
 
 impl Dispatch for Router {
@@ -988,16 +1107,18 @@ async fn accept_loop<D: Dispatch>(
                 let drain = drain_tx.clone();
                 let tls = tls.clone();
                 drop(tokio::spawn(async move {
-                    tcp.set_nodelay(true).ok();
+                    crate::tcp::tune(&tcp, config.tcp_keepalive_period()).ok();
                     match tls {
-                        None => serve_io(dispatch, tcp, Some(peer), config, goaway).await,
+                        None => {
+                            drop(serve_io(dispatch, tcp, Some(peer), config, goaway).await);
+                        }
                         Some(tls) => {
                             let accept = tokio::time::timeout(
                                 config.io_handshake_timeout(),
                                 tls.accept(tcp),
                             );
                             if let Ok(Ok(io)) = accept.await {
-                                serve_io(dispatch, io, Some(peer), config, goaway).await;
+                                drop(serve_io(dispatch, io, Some(peer), config, goaway).await);
                             }
                         }
                     }
@@ -1066,7 +1187,7 @@ async fn accept_unix_loop<D: Dispatch>(
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
                 drop(tokio::spawn(async move {
-                    serve_io(dispatch, io, None, config, goaway).await;
+                    drop(serve_io(dispatch, io, None, config, goaway).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -1084,22 +1205,110 @@ async fn accept_unix_loop<D: Dispatch>(
     result
 }
 
+/// Accept from a custom [`Incoming`] until it is exhausted or `shutdown`
+/// resolves, then drain. No TLS, no TCP options — the acceptor already
+/// holds a byte stream.
+async fn accept_incoming<D: Dispatch, I: Incoming>(
+    dispatch: Arc<D>,
+    mut incoming: I,
+    config: ServerConfig,
+    shutdown: impl Future<Output = ()> + Send,
+) -> Result<(), Status> {
+    let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
+    let (goaway_tx, goaway_rx) = watch::channel(false);
+    let slots = connection_slots(config);
+    let shutdown = std::pin::pin!(shutdown);
+    let mut shutdown = Some(shutdown);
+    let mut result = Ok(());
+    loop {
+        let accepted = {
+            let accept = std::pin::pin!(incoming.accept());
+            let mut accept = Some(accept);
+            std::future::poll_fn(|cx| {
+                if let Some(fut) = accept.as_mut() {
+                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
+                        return Poll::Ready(Some(res));
+                    }
+                }
+                if let Some(fut) = shutdown.as_mut() {
+                    if fut.as_mut().poll(cx).is_ready() {
+                        return Poll::Ready(None);
+                    }
+                }
+                Poll::Pending
+            })
+            .await
+        };
+        let Some(accepted) = accepted else {
+            break;
+        };
+        let Some(accepted) = accepted else {
+            break;
+        };
+        match accepted {
+            Ok((io, peer)) => {
+                let Some(permit) = take_connection_slot(&slots) else {
+                    drop(io);
+                    continue;
+                };
+                let dispatch = Arc::clone(&dispatch);
+                let goaway = goaway_rx.clone();
+                let drain = drain_tx.clone();
+                drop(tokio::spawn(async move {
+                    drop(serve_io(dispatch, io, peer, config, goaway).await);
+                    drop(permit);
+                    drop(drain);
+                }));
+            }
+            Err(e) => {
+                result = Err(e);
+                break;
+            }
+        }
+    }
+    goaway_tx.send(true).ok();
+    drop(goaway_tx);
+    drop(drain_tx);
+    while drain_rx.recv().await.is_some() {}
+    result
+}
+
+async fn serve_one<D, IO>(
+    dispatch: Arc<D>,
+    io: IO,
+    peer: Option<SocketAddr>,
+    config: ServerConfig,
+) -> Result<(), Status>
+where
+    D: Dispatch,
+    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    let (goaway_tx, goaway_rx) = watch::channel(false);
+    let result = serve_io(dispatch, io, peer, config, goaway_rx).await;
+    drop(goaway_tx);
+    result
+}
+
 async fn serve_io<D, IO>(
     dispatch: Arc<D>,
     io: IO,
     peer: Option<SocketAddr>,
     config: ServerConfig,
     goaway: watch::Receiver<bool>,
-) where
+) -> Result<(), Status>
+where
     D: Dispatch,
     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    let handshake = tokio::time::timeout(
+    let mut conn = match tokio::time::timeout(
         config.io_handshake_timeout(),
         config.h2_builder().handshake(io),
-    );
-    let Ok(Ok(mut conn)) = handshake.await else {
-        return;
+    )
+    .await
+    {
+        Ok(Ok(conn)) => conn,
+        Ok(Err(e)) => return Err(Status::unavailable(e.to_string())),
+        Err(_) => return Err(Status::unavailable("http/2 preface timed out")),
     };
     let (interval, timeout) = config.keepalive();
     let (age, idle, grace) = config.connection_lifetime();
@@ -1154,6 +1363,7 @@ async fn serve_io<D, IO>(
             }
         }
     }
+    Ok(())
 }
 
 async fn sleep_until_opt(at: Option<tokio::time::Instant>) {

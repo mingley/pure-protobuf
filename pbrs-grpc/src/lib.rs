@@ -8,8 +8,10 @@
 //! pulls in `cc`, `bindgen`, `pkg-config`, `aws-lc-rs`, `ring`, or a vendored
 //! zlib. gzip goes through `miniz_oxide`. TLS goes through rustls with the
 //! [Graviola](https://crates.io/crates/graviola) provider, which builds with
-//! `rustc` only. The one FFI crate present is `libc`, which `tokio` uses for
-//! syscalls and which every Rust program links through `std` anyway.
+//! `rustc` only. The FFI crates present are `libc` and `socket2` (a safe
+//! wrapper around socket syscalls). Tokio already used both; this crate takes
+//! a direct `socket2` dependency so TCP keepalive can be set. Neither compiles
+//! C.
 //!
 //! # Quickstart
 //!
@@ -120,7 +122,7 @@
 //!
 //! | Concern | Types |
 //! |---|---|
-//! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`ServerConfig`] |
+//! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`Incoming`], [`IncomingAccept`], [`ServerConfig`] |
 //! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`] |
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`] |
 //! | Health | [`health`] |
@@ -159,6 +161,7 @@
 //! | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s ([`ChannelConfig::connect_timeout`] / [`ServerConfig::handshake_timeout`]) |
 //! | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in [`ServerConfig::max_concurrent_connections`] |
 //! | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in [`ServerConfig::timeout`] |
+//! | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in [`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`] |
 //!
 //! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is
 //! what a loopback test and a mesh sidecar speak. Production that is not
@@ -263,6 +266,8 @@ mod status;
 #[forbid(unsafe_code)]
 mod stream;
 #[forbid(unsafe_code)]
+mod tcp;
+#[forbid(unsafe_code)]
 mod tls;
 #[forbid(unsafe_code)]
 mod wire;
@@ -274,6 +279,7 @@ mod wire;
 #[doc(hidden)]
 #[forbid(unsafe_code)]
 pub mod codegen_support {
+    pub use tokio::io::{AsyncRead, AsyncWrite};
     pub use tokio::net::TcpListener;
     #[cfg(unix)]
     pub use tokio::net::UnixListener;
@@ -293,7 +299,7 @@ pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
 pub use pb::{Any, ErrorDetails};
 pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response};
-pub use server::{Router, Rpc, Server, Service};
+pub use server::{Incoming, IncomingAccept, Router, Rpc, Server, Service};
 pub use status::{Code, Status};
 pub use stream::{Framed, StreamSender, Streaming};
 pub use tls::{ClientTls, Identity, ServerTls};

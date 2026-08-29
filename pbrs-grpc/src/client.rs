@@ -116,12 +116,14 @@ struct ChannelInner {
 }
 
 /// Where a handshake should connect. TCP is `host:port`; Unix is a filesystem
-/// path. HTTP/2 `:authority` for a Unix socket is `localhost`.
+/// path. HTTP/2 `:authority` for a Unix socket is `localhost`. [`Self::Once`]
+/// is an already-connected stream that cannot be redialed.
 #[derive(Clone)]
 enum Endpoint {
     Tcp(String),
     #[cfg(unix)]
     Unix(PathBuf),
+    Once,
 }
 
 impl Endpoint {
@@ -130,7 +132,12 @@ impl Endpoint {
             Self::Tcp(host) => host.clone(),
             #[cfg(unix)]
             Self::Unix(path) => path.display().to_string(),
+            Self::Once => "once".to_owned(),
         }
+    }
+
+    fn can_redial(&self) -> bool {
+        !matches!(self, Self::Once)
     }
 }
 
@@ -159,6 +166,10 @@ impl Endpoint {
 ///
 /// On Unix, [`Self::connect_unix`] / [`Self::connect_unix_lazy`] speak the
 /// same protocol over a domain socket. TLS is TCP-only.
+///
+/// [`Self::from_io`] speaks over an already-connected byte stream and cannot
+/// redial. Pair it with [`crate::Server::serve_connection`] for in-process
+/// tests.
 ///
 /// [`Self::intercept`] runs on every outbound RPC before the stream opens,
 /// which is how a client injects auth metadata, a default deadline, or
@@ -325,6 +336,62 @@ impl Channel {
             config,
             None,
             empty_slots(config.connection_count()),
+        ))
+    }
+
+    /// Speak gRPC over an already-connected byte stream.
+    ///
+    /// The channel has one slot and cannot redial: if the stream dies, the
+    /// next RPC fails with [`Code::Unavailable`]. There is no TCP connect,
+    /// no TLS, and no Unix path. Pair with [`crate::Server::serve_connection`]
+    /// over `tokio::io::duplex` or `tokio::net::UnixStream::pair`.
+    ///
+    /// `authority` is the HTTP/2 `:authority` sent on every RPC.
+    /// [`ChannelConfig::connections`] is ignored (always one slot).
+    ///
+    /// ```no_run
+    /// # async fn run(
+    /// #     io: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    /// # ) -> Result<(), pbrs_grpc::Status> {
+    /// let channel = pbrs_grpc::Channel::from_io(io, "localhost").await?;
+    /// # let _ = channel;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn from_io<IO>(io: IO, authority: impl Into<Target>) -> Result<Self, Status>
+    where
+        IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    {
+        Self::from_io_with(io, authority, ChannelConfig::default()).await
+    }
+
+    /// [`Self::from_io`] with `config`.
+    pub async fn from_io_with<IO>(
+        io: IO,
+        authority: impl Into<Target>,
+        config: ChannelConfig,
+    ) -> Result<Self, Status>
+    where
+        IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    {
+        let target = authority.into();
+        let parsed = target.parse()?;
+        let config = config.connections(1);
+        let timeout = config.handshake_timeout();
+        let send = match tokio::time::timeout(timeout, finish_h2(config, io)).await {
+            Ok(result) => result?,
+            Err(_) => {
+                return Err(Status::unavailable(format!(
+                    "connect {parsed}: timed out after {timeout:?}"
+                )));
+            }
+        };
+        Ok(finish_channel(
+            Endpoint::Once,
+            parsed,
+            config,
+            None,
+            live_slots(vec![send]),
         ))
     }
 
@@ -713,7 +780,7 @@ impl ChannelInner {
                         return Ok(send);
                     }
                 }
-                Err(_) if wait_for_ready => {
+                Err(_) if wait_for_ready && self.endpoint.can_redial() => {
                     let delay_ms = WAIT_FOR_READY_BACKOFF_MS
                         .get(attempt)
                         .copied()
@@ -752,7 +819,7 @@ async fn handshake_io(
             let tcp = TcpStream::connect(host)
                 .await
                 .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
-            tcp.set_nodelay(true)
+            crate::tcp::tune(&tcp, config.tcp_keepalive_period())
                 .map_err(|e| Status::unavailable(e.to_string()))?;
             match tls {
                 None => finish_h2(config, tcp).await,
@@ -771,6 +838,7 @@ async fn handshake_io(
             })?;
             finish_h2(config, io).await
         }
+        Endpoint::Once => Err(Status::unavailable("channel has no address to redial")),
     }
 }
 

@@ -1,4 +1,7 @@
 //! HTTP/2 PING so a dead peer is noticed before the next RPC.
+//!
+//! TCP `SO_KEEPALIVE` is [`crate::ServerConfig::tcp_keepalive`] /
+//! [`crate::ChannelConfig::tcp_keepalive`], applied in `tcp`.
 
 use std::time::Duration;
 use tokio::sync::watch;

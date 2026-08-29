@@ -4088,6 +4088,38 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Serve a single already-accepted byte stream until it closes."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_connection<IO>(self, io: IO) -> ::core::result::Result<(), {G}::Status>"
+    );
+    let _ = writeln!(src, "    where");
+    let _ = writeln!(
+        src,
+        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + Unpin + Send + 'static,"
+    );
+    let _ = writeln!(src, "    {{");
+    let _ = writeln!(src, "        self.into_server().serve_connection(io).await");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Serve connections from `incoming` until it is exhausted."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_with_incoming<I: {G}::Incoming>(self, incoming: I) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_with_incoming(incoming).await }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Serve from `incoming` until `shutdown` resolves, then drain."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_with_incoming_shutdown<I: {G}::Incoming>(self, incoming: I, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_with_incoming_shutdown(incoming, shutdown).await }}"
+    );
+    let _ = writeln!(
+        src,
         "    fn into_server(self) -> {G}::Server<Self> {{ let config = self.config; {G}::Server::new(self).config(config) }}"
     );
     let _ = writeln!(src, "}}");

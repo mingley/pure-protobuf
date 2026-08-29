@@ -15,7 +15,9 @@ numbers, see [benchmarks](benchmarks.md).
 - [Connect timeout](#connect-timeout)
 - [Serving several services](#serving-several-services)
 - [TLS](#tls)
+- [Keepalive](#keepalive)
 - [Unix domain sockets](#unix-domain-sockets)
+- [In-process connections](#in-process-connections)
 - [Health checks](#health-checks)
 - [Graceful shutdown](#graceful-shutdown)
 - [Connection age and idle](#connection-age-and-idle)
@@ -495,18 +497,38 @@ Graviola currently targets x86_64 and aarch64, and wants a CPU with AES-NI /
 NEON. That is every machine this crate is likely to run a gRPC service on;
 older or more exotic targets stay on h2c.
 
-HTTP/2 PING keepalive is off by default. Turn it on when a NAT or load
-balancer will drop idle connections:
+## Keepalive
+
+Two independent knobs. They are both off by default.
+
+**HTTP/2 PING.** An application-level ping on the HTTP/2 connection, including
+Unix sockets and TLS. Turn it on when a NAT or load balancer will drop idle
+connections, or when you want a dead peer noticed before the next RPC:
 
 ```rust
 ChannelConfig::new().keep_alive_interval(Duration::from_secs(30))
 ```
 
 The same setter exists on `ServerConfig`. A PING that is not acknowledged
-within 20 s (configurable) drops the connection. The next RPC redials that
-slot; if the peer is still gone, the call fails with `UNAVAILABLE` (or
-`DEADLINE_EXCEEDED` if the request deadline elapses while connecting) instead
-of hanging on a dead socket.
+within 20 s (configurable via `keep_alive_timeout`) drops the connection. The
+next RPC redials that slot; if the peer is still gone, the call fails with
+`UNAVAILABLE` (or `DEADLINE_EXCEEDED` if the request deadline elapses while
+connecting) instead of hanging on a dead socket. PINGs do not reset
+`max_connection_idle`.
+
+**TCP `SO_KEEPALIVE`.** An OS-level probe on the TCP socket, with this idle
+time before the first probe. Probe interval and retry count stay at the kernel
+default. Only TCP is affected; Unix sockets and `Channel::from_io` streams
+are not:
+
+```rust
+ServerConfig::new().tcp_keepalive(Duration::from_secs(30))
+ChannelConfig::new().tcp_keepalive(Duration::from_secs(30))
+```
+
+PING sees a half-open HTTP/2 session. TCP keepalive sees a half-open socket
+when there is no HTTP/2 traffic, including when PING is off. Use both when
+the path has a NAT.
 
 A `Channel` also redials after a peer `GOAWAY` or a TCP reset, so restarting
 the server on the same address does not require constructing a new client.
@@ -529,6 +551,28 @@ TCP. The path is a filesystem path, not a `unix://` URI. Bind fails if the
 path already exists; this crate does not unlink a stale socket.
 
 `:authority` on Unix RPCs is `localhost`.
+
+## In-process connections
+
+Loopback without a port: already-connected byte streams. `Channel::from_io`
+and `Server::serve_connection` speak the same h2c protocol over
+`tokio::io::duplex`, `UnixStream::pair`, or any `AsyncRead + AsyncWrite`.
+The channel has one slot and cannot redial; if the stream dies the next RPC
+fails with `UNAVAILABLE`. TCP keepalive and TLS do not apply — you already
+hold the bytes.
+
+```rust
+let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+tokio::spawn(async move {
+    GreeterServer::new(MyGreeter).serve_connection(server_io).await.ok();
+});
+let channel = Channel::from_io(client_io, "localhost").await?;
+```
+
+A custom acceptor implements `Incoming` and is served with
+`serve_with_incoming`. `TcpListener` / `UnixListener` stay on
+`serve_listener` / `serve_unix_listener` so `TCP_NODELAY`, TCP keepalive,
+and TLS stay applied.
 
 ## Health checks
 
@@ -662,6 +706,7 @@ guards is committed.
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
+| Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
@@ -706,12 +751,13 @@ deterministic xorshift generator so a failure reproduces from its seed:
 ### Dependencies
 
 `base64`, `bytes`, `flate2` (pinned to its `rust_backend`, i.e. `miniz_oxide`),
-`h2`, `http`, `pbrs`, `tokio`, `rustls` (no default features), `rustls-graviola`,
+`h2`, `http`, `pbrs`, `socket2`, `tokio`, `rustls` (no default features), `rustls-graviola`,
 `rustls-pemfile`, `tokio-rustls` (no default features), and `webpki-roots`.
 Nothing in the graph pulls in `cc`, `bindgen`, `pkg-config`, `aws-lc-rs`,
-`ring`, or a vendored zlib, so nothing compiles C or C++. The one FFI crate
-is `libc`, which `tokio` uses for syscalls and which every Rust program links
-through `std` regardless.
+`ring`, or a vendored zlib, so nothing compiles C or C++. The FFI crates
+are `libc` and `socket2` (a safe wrapper around socket syscalls). Tokio
+already used both; the kernel takes a direct `socket2` dependency so TCP
+keepalive can be set.
 
 ### `unsafe`
 
@@ -859,6 +905,9 @@ async fn greets() {
     server.abort();
 }
 ```
+
+For tests that should not bind a port, pair `Channel::from_io` with
+`Server::serve_connection` over `tokio::io::duplex`.
 
 `Request`, `Response`, `Status`, `Streaming`, `Rpc`, `Channel`, `Outgoing`,
 and `Intercepted` all implement `Debug`, so `expect_err` and assertion

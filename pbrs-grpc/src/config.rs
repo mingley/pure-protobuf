@@ -76,6 +76,7 @@ pub struct ServerConfig {
     max_header_list_size: u32,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
+    tcp_keepalive: Option<Duration>,
     handshake_timeout: Duration,
     max_connection_age: Option<Duration>,
     max_connection_idle: Option<Duration>,
@@ -96,6 +97,7 @@ impl Default for ServerConfig {
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+            tcp_keepalive: None,
             handshake_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_age: None,
             max_connection_idle: None,
@@ -180,6 +182,10 @@ impl ServerConfig {
 
     /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
     /// the next RPC. Disabled by default.
+    ///
+    /// This is not TCP keepalive. PINGs run on Unix sockets and on TLS; they
+    /// do not reset [`Self::max_connection_idle`]. For `SO_KEEPALIVE` on TCP
+    /// sockets, see [`Self::tcp_keepalive`].
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);
@@ -191,6 +197,20 @@ impl ServerConfig {
     #[must_use]
     pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
         self.keep_alive_timeout = timeout.max(Duration::from_millis(1));
+        self
+    }
+
+    /// Enable TCP `SO_KEEPALIVE` with this idle time before the first probe.
+    ///
+    /// Disabled by default. Values below 1 ms are raised to 1 ms. Only TCP
+    /// sockets are affected; Unix domain sockets and [`crate::Channel::from_io`]
+    /// streams are not. Probe interval and retry count stay at the kernel
+    /// default.
+    ///
+    /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    #[must_use]
+    pub fn tcp_keepalive(mut self, time: Duration) -> Self {
+        self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
         self
     }
 
@@ -283,6 +303,24 @@ impl ServerConfig {
         self.max_concurrent_connections
     }
 
+    /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
+    #[must_use]
+    pub fn keep_alive_ping_interval(self) -> Option<Duration> {
+        self.keep_alive_interval
+    }
+
+    /// How long to wait for a PING acknowledgement. See [`Self::keep_alive_timeout`].
+    #[must_use]
+    pub fn keep_alive_ack_timeout(self) -> Duration {
+        self.keep_alive_timeout
+    }
+
+    /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
+    #[must_use]
+    pub fn tcp_keepalive_period(self) -> Option<Duration> {
+        self.tcp_keepalive
+    }
+
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
@@ -354,6 +392,7 @@ pub struct ChannelConfig {
     stream_buffer: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
+    tcp_keepalive: Option<Duration>,
     connect_timeout: Duration,
 }
 
@@ -371,6 +410,7 @@ impl Default for ChannelConfig {
             stream_buffer: DEFAULT_STREAM_BUFFER,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+            tcp_keepalive: None,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
         }
     }
@@ -477,6 +517,9 @@ impl ChannelConfig {
     /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
     /// the next RPC. Disabled by default. PINGs are sent while idle as well
     /// as while RPCs are in flight.
+    ///
+    /// This is not TCP keepalive. For `SO_KEEPALIVE` on TCP sockets, see
+    /// [`Self::tcp_keepalive`].
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);
@@ -488,6 +531,20 @@ impl ChannelConfig {
     #[must_use]
     pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
         self.keep_alive_timeout = timeout.max(Duration::from_millis(1));
+        self
+    }
+
+    /// Enable TCP `SO_KEEPALIVE` with this idle time before the first probe.
+    ///
+    /// Disabled by default. Values below 1 ms are raised to 1 ms. Only TCP
+    /// sockets are affected; Unix domain sockets and [`crate::Channel::from_io`]
+    /// streams are not. Probe interval and retry count stay at the kernel
+    /// default.
+    ///
+    /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    #[must_use]
+    pub fn tcp_keepalive(mut self, time: Duration) -> Self {
+        self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
         self
     }
 
@@ -530,6 +587,24 @@ impl ChannelConfig {
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
+    }
+
+    /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
+    #[must_use]
+    pub fn keep_alive_ping_interval(self) -> Option<Duration> {
+        self.keep_alive_interval
+    }
+
+    /// How long to wait for a PING acknowledgement. See [`Self::keep_alive_timeout`].
+    #[must_use]
+    pub fn keep_alive_ack_timeout(self) -> Duration {
+        self.keep_alive_timeout
+    }
+
+    /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
+    #[must_use]
+    pub fn tcp_keepalive_period(self) -> Option<Duration> {
+        self.tcp_keepalive
     }
 
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
@@ -580,6 +655,8 @@ mod tests {
         assert_eq!(config.send_buffer_size(), 1024 * 1024);
         assert_eq!(config.rpc_timeout(), None);
         assert_eq!(config.connection_limit(), None);
+        assert_eq!(config.tcp_keepalive_period(), None);
+        assert_eq!(config.keep_alive_ping_interval(), None);
     }
 
     #[test]
@@ -589,6 +666,22 @@ mod tests {
             .max_concurrent_connections(4);
         assert_eq!(config.rpc_timeout(), Some(Duration::from_millis(1)));
         assert_eq!(config.connection_limit(), Some(4));
+    }
+
+    #[test]
+    fn tcp_keepalive_never_zero() {
+        assert_eq!(
+            ServerConfig::new()
+                .tcp_keepalive(Duration::from_millis(0))
+                .tcp_keepalive_period(),
+            Some(Duration::from_millis(1))
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .tcp_keepalive(Duration::from_millis(0))
+                .tcp_keepalive_period(),
+            Some(Duration::from_millis(1))
+        );
     }
 
     #[test]

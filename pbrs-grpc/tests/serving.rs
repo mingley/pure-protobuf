@@ -25,8 +25,9 @@ mod common;
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Channel, ChannelConfig, Code, Empty, InteropTestService, Outgoing, Request, Response, Router,
-    Rpc, Server, ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
+    Channel, ChannelConfig, Code, Empty, Incoming, InteropTestService, Outgoing, Request, Response,
+    Router, Rpc, Server, ServerConfig, Service, ServiceExt, Status, TestServiceClient,
+    TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -1272,4 +1273,141 @@ async fn extra_connections_are_refused_when_the_cap_is_hit() {
     drop(first);
     let _ = channel(addr).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tcp_keepalive_still_serves_a_unary() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .config(ServerConfig::new().tcp_keepalive(Duration::from_secs(15)))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let cfg = ChannelConfig::new().tcp_keepalive(Duration::from_secs(15));
+    let mut last = None;
+    let connected = {
+        let mut found = None;
+        for _ in 0..80 {
+            match Channel::connect_with(addr, cfg).await {
+                Ok(channel) => {
+                    found = Some(channel);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("connect with tcp keepalive: {last:?}"))
+    };
+    let reply = GreeterClient::new(connected)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+fn duplex_pair() -> (tokio::io::DuplexStream, tokio::io::DuplexStream) {
+    tokio::io::duplex(1024 * 1024)
+}
+
+struct OneIncoming<IO> {
+    io: Option<IO>,
+}
+
+impl<IO> Incoming for OneIncoming<IO>
+where
+    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    type Io = IO;
+
+    fn accept(
+        &mut self,
+    ) -> impl std::future::Future<Output = pbrs_grpc::IncomingAccept<IO>> + Send {
+        let io = self.io.take();
+        async move {
+            match io {
+                Some(io) => Some(Ok((io, None))),
+                None => std::future::pending().await,
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn from_io_round_trips_without_tcp() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert!(format!("{channel:?}").contains("once"), "{channel:?}");
+    let reply = GreeterClient::new(channel)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    server.abort();
+}
+
+#[tokio::test]
+async fn from_io_cannot_redial() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    let client = GreeterClient::new(channel);
+    client
+        .say_hello(Request::new(req("a")))
+        .await
+        .expect("first");
+    server.abort();
+    let err = tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            match client.say_hello(Request::new(req("b"))).await {
+                Ok(_) => tokio::time::sleep(Duration::from_millis(5)).await,
+                Err(e) => return e,
+            }
+        }
+    })
+    .await
+    .expect("should become unavailable");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+}
+
+#[tokio::test]
+async fn serve_with_incoming_accepts_a_duplex() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_with_incoming(OneIncoming {
+                io: Some(server_io),
+            })
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    let reply = GreeterClient::new(channel)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    server.abort();
 }

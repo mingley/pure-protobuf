@@ -450,3 +450,23 @@ fn generated_client_debug_and_into_inner() {
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
     let _ = client.into_inner();
 }
+
+#[tokio::test]
+async fn generated_serve_connection_round_trips() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    let client = StoreClient::new(channel);
+    let mut get = GetRequest::new();
+    get.set_key("alpha");
+    let got = client.get(Request::new(get)).await.expect("unary");
+    assert!(got.get_ref().found());
+    server.abort();
+}

@@ -460,6 +460,7 @@ dependencies = [
  "rustls",
  "rustls-graviola",
  "rustls-pemfile",
+ "socket2",
  "tokio",
  "tokio-rustls",
  "webpki-roots",
