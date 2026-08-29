@@ -878,6 +878,10 @@ impl<T> WireStream<T> {
 }
 
 /// Encode a client's outbound stream, watching for cancellation.
+///
+/// After the sender half-closes, the send half is kept so a
+/// [`crate::CallHandle`] can still `RST_STREAM` while a client-streaming
+/// unary response (or a bidi read) is pending.
 pub(crate) async fn pump_outbound<T: Serialize>(
     mut send: SendStream<Bytes>,
     mut rx: Streaming<T>,
@@ -911,6 +915,10 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                 return;
             }
             send.send_data(Bytes::new(), true).ok();
+            // Half-closed send would otherwise drop here. Client-streaming
+            // has no received Streaming to RST, so keep the send half
+            // watching cancel for a CallHandle after close.
+            reset_on_cancel(send, cancel_rx);
             return;
         }
         // See the note in the server's drain loop: yield only when the caller
@@ -937,10 +945,10 @@ pub(crate) async fn pump_outbound<T: Serialize>(
     }
 }
 
-/// After a server-streaming request is half-closed, keep `send` so a
-/// [`crate::CallHandle`] (or dropping the received [`Streaming`] before the
-/// end) can still `RST_STREAM`. RecvStream drop is not a last-ref reset
-/// while this handle lives.
+/// After a server-streaming request or a client-streaming sender is
+/// half-closed, keep `send` so a [`crate::CallHandle`] (or dropping the
+/// received [`Streaming`] before the end) can still `RST_STREAM`. RecvStream
+/// drop is not a last-ref reset while this handle lives.
 pub(crate) fn reset_on_cancel(
     mut send: SendStream<Bytes>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,

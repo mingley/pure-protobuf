@@ -1528,6 +1528,8 @@ where
         cancel_rx.clone(),
         wire,
     )));
+    // pump_outbound keeps SendStream after half-close so CallHandle still
+    // RSTs while this unary response is pending.
     race(
         async {
             let response = resp_fut.await.map_err(Status::from_h2)?;

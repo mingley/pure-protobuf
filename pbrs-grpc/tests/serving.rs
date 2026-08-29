@@ -4817,7 +4817,16 @@ async fn a_call_handle_cancels_client_streaming_after_the_sender_closes() {
     let handle = call.handle();
     tx.send(req("ada")).await.expect("send");
     tx.close();
-    wait_flag(&drained).await;
+    for _ in 0..80 {
+        if drained.load(Ordering::Relaxed) >= 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(
+        drained.load(Ordering::Relaxed) >= 1,
+        "handler never finished reading the half-closed stream"
+    );
     assert_eq!(
         left.load(Ordering::Relaxed),
         0,
