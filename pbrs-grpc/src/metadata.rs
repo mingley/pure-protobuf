@@ -10,20 +10,29 @@ use std::fmt;
 ///
 /// Keys ending in `-bin` carry arbitrary bytes and travel base64-encoded;
 /// every other key carries ASCII. The two namespaces are kept apart by
-/// [`Self::insert`] and [`Self::insert_bin`], which reject a mismatched
-/// suffix rather than silently producing metadata no gRPC peer can read.
+/// [`Self::insert`] / [`Self::set`] and [`Self::insert_bin`] /
+/// [`Self::set_bin`], which reject a mismatched suffix rather than silently
+/// producing metadata no gRPC peer can read. `insert` appends; `set`
+/// replaces.
 ///
 /// ```
 /// use pbrs_grpc::Metadata;
 ///
 /// let mut md = Metadata::new();
 /// md.insert("x-request-id", "abc123")?;
+/// md.insert("x-request-id", "again")?;
 /// md.insert_bin("x-trace-bin", [0xde, 0xad])?;
 ///
 /// assert_eq!(md.get("X-Request-Id"), Some("abc123"));
+/// assert_eq!(
+///     md.get_all("x-request-id").collect::<Vec<_>>(),
+///     vec!["abc123", "again"]
+/// );
+/// md.set("x-request-id", "other")?;
+/// assert_eq!(md.get_all("x-request-id").collect::<Vec<_>>(), vec!["other"]);
 /// assert!(md.contains("x-request-id"));
-/// assert_eq!(md.get_all("x-request-id").collect::<Vec<_>>(), vec!["abc123"]);
-/// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xde, 0xad][..]));
+/// md.set_bin("x-trace-bin", [0xbe, 0xef])?;
+/// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xbe, 0xef][..]));
 /// assert!(md.contains_bin("x-trace-bin"));
 /// assert_eq!(md.keys().collect::<Vec<_>>(), vec!["x-request-id", "x-trace-bin"]);
 /// md.merge(&md.clone());
@@ -37,12 +46,12 @@ use std::fmt;
 /// Reserved keys (`grpc-*`, `content-type`, HTTP/2 pseudo-headers,
 /// hop-by-hop headers, ...) are invisible here and are never written out, so
 /// echoing received metadata back cannot corrupt the protocol framing.
-/// [`Self::insert`] and [`Self::insert_bin`] reject them rather than storing
-/// a value you cannot read back. `Debug` omits them too, so a dumped
-/// interceptor `Rpc` or `Outgoing` does not look like it can rewrite
-/// `grpc-status`. `user-agent` is readable; on outbound
-/// requests the kernel overwrites it after user metadata so a smuggled value
-/// cannot win.
+/// [`Self::insert`], [`Self::set`], [`Self::insert_bin`], and
+/// [`Self::set_bin`] reject them rather than storing a value you cannot
+/// read back. `Debug` omits them too, so a dumped interceptor `Rpc` or
+/// `Outgoing` does not look like it can rewrite `grpc-status`. `user-agent`
+/// is readable; on outbound requests the kernel overwrites it after user
+/// metadata so a smuggled value cannot win.
 ///
 /// The total size a peer can send is bounded by
 /// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
@@ -92,7 +101,7 @@ impl Metadata {
     /// ...).
     ///
     /// Repeated keys accumulate rather than replace, matching gRPC's
-    /// comma-joined multi-value semantics.
+    /// comma-joined multi-value semantics. To overwrite, use [`Self::set`].
     pub fn insert(&mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<(), Status> {
         let key = key.as_ref();
         if is_reserved(key) {
@@ -112,7 +121,34 @@ impl Metadata {
         Ok(())
     }
 
+    /// Replace every ASCII entry for `key` with `value`.
+    ///
+    /// [`Self::insert`] appends. This is the last-write-wins form an
+    /// interceptor uses when it owns a hop (`authorization`, `x-request-id`).
+    /// Validation matches [`Self::insert`]: reserved names and `-bin` keys
+    /// are rejected, and a failed call leaves the map unchanged.
+    pub fn set(&mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<(), Status> {
+        let key = key.as_ref();
+        if is_reserved(key) {
+            return Err(Status::invalid_argument(format!(
+                "reserved metadata key {key:?}"
+            )));
+        }
+        if key.ends_with("-bin") {
+            return Err(Status::invalid_argument(
+                "ascii metadata key must not end in -bin",
+            ));
+        }
+        let name = header_name(key)?;
+        let value = HeaderValue::from_str(value.as_ref())
+            .map_err(|_| Status::invalid_argument("metadata value is not valid ASCII"))?;
+        drop(self.map.insert(name, value));
+        Ok(())
+    }
+
     /// Add a binary entry. The key must end in `-bin` and must not be reserved.
+    ///
+    /// Repeats accumulate. To overwrite, use [`Self::set_bin`].
     pub fn insert_bin(
         &mut self,
         key: impl AsRef<str>,
@@ -134,6 +170,31 @@ impl Metadata {
         let value = HeaderValue::from_str(&encoded)
             .map_err(|e| Status::internal(format!("base64 metadata: {e}")))?;
         self.map.append(name, value);
+        Ok(())
+    }
+
+    /// Replace every `-bin` entry for `key` with `value`.
+    ///
+    /// [`Self::insert_bin`] appends. Validation matches [`Self::insert_bin`]:
+    /// reserved names and non-`-bin` keys are rejected, and a failed call
+    /// leaves the map unchanged.
+    pub fn set_bin(&mut self, key: impl AsRef<str>, value: impl AsRef<[u8]>) -> Result<(), Status> {
+        let key = key.as_ref();
+        if is_reserved(key) {
+            return Err(Status::invalid_argument(format!(
+                "reserved metadata key {key:?}"
+            )));
+        }
+        if !key.ends_with("-bin") {
+            return Err(Status::invalid_argument(
+                "binary metadata key must end in -bin",
+            ));
+        }
+        let name = header_name(key)?;
+        let encoded = STANDARD_NO_PAD.encode(value.as_ref());
+        let value = HeaderValue::from_str(&encoded)
+            .map_err(|e| Status::internal(format!("base64 metadata: {e}")))?;
+        drop(self.map.insert(name, value));
         Ok(())
     }
 
@@ -189,7 +250,8 @@ impl Metadata {
     ///
     /// [`Self::insert`] appends rather than replacing, so a peer (or an
     /// interceptor that adds a second `x-forwarded-for`) is visible here.
-    /// [`Self::get`] is the first of these. Reserved keys yield nothing.
+    /// [`Self::set`] replaces every value. [`Self::get`] is the first of
+    /// these. Reserved keys yield nothing.
     pub fn get_all(&self, key: &str) -> impl Iterator<Item = &str> + '_ {
         let skip = is_reserved(key);
         self.map
@@ -201,6 +263,7 @@ impl Metadata {
 
     /// Every `-bin` value for `key`, base64-decoded, in insertion order.
     ///
+    /// [`Self::insert_bin`] appends; [`Self::set_bin`] replaces.
     /// [`Self::get_bin`] is the first of these. Reserved keys yield nothing.
     pub fn get_all_bin(&self, key: &str) -> impl Iterator<Item = Vec<u8>> + '_ {
         let skip = is_reserved(key);
@@ -581,6 +644,54 @@ mod tests {
         assert_eq!(dst.get_bin("blob-bin").as_deref(), Some(&[1u8][..]));
         assert_eq!(dst.get_all("grpc-status").count(), 0);
         assert_eq!(src.get("x-from"), Some("a"));
+    }
+
+    #[test]
+    fn set_replaces_existing_values() {
+        let mut md = Metadata::new();
+        md.insert("x-id", "a").expect("first");
+        md.insert("x-id", "b").expect("second");
+        assert_eq!(md.len(), 2);
+        md.set("x-id", "c").expect("replace");
+        assert_eq!(md.get("x-id"), Some("c"));
+        assert_eq!(md.get_all("x-id").collect::<Vec<_>>(), vec!["c"]);
+        assert_eq!(md.len(), 1);
+        md.insert("x-id", "d").expect("append after set");
+        assert_eq!(md.get_all("x-id").collect::<Vec<_>>(), vec!["c", "d"]);
+    }
+
+    #[test]
+    fn set_bin_replaces_existing_values() {
+        let mut md = Metadata::new();
+        md.insert_bin("x-token-bin", b"aa").expect("first");
+        md.insert_bin("x-token-bin", b"bb").expect("second");
+        assert_eq!(md.len(), 2);
+        md.set_bin("x-token-bin", b"cc").expect("replace");
+        assert_eq!(md.get_bin("x-token-bin").as_deref(), Some(&b"cc"[..]));
+        assert_eq!(
+            md.get_all_bin("x-token-bin").collect::<Vec<_>>(),
+            vec![b"cc".to_vec()]
+        );
+        assert_eq!(md.len(), 1);
+        md.insert_bin("x-token-bin", b"dd")
+            .expect("append after set");
+        assert_eq!(
+            md.get_all_bin("x-token-bin").collect::<Vec<_>>(),
+            vec![b"cc".to_vec(), b"dd".to_vec()]
+        );
+    }
+
+    #[test]
+    fn set_rejects_reserved_and_leaves_map() {
+        let mut md = Metadata::new();
+        md.insert("x-ok", "v").expect("seed");
+        assert!(md.set("grpc-status", "0").is_err());
+        assert!(md.set("x-token-bin", "ascii").is_err());
+        assert!(md.set("x-ok", "line\nbreak").is_err());
+        assert!(md.set_bin("authorization", b"x").is_err());
+        assert!(md.set_bin("x-ok", b"x").is_err());
+        assert_eq!(md.len(), 1);
+        assert_eq!(md.get("x-ok"), Some("v"));
     }
 
     #[test]

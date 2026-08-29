@@ -261,12 +261,13 @@ let scheme = request.scheme();
 
 `get` / `get_bin` return the first value. `insert` / `insert_bin` append, so a
 peer that sends two `x-forwarded-for` entries (or an interceptor that adds a
-second) is visible with `get_all` / `get_all_bin`. `contains` / `contains_bin`
-match `get`. `keys` lists unique ASCII and `-bin` names in first-insertion
-order, still skipping reserved names. `clear` drops every user entry;
-`merge` appends another map's user entries (repeats accumulate, reserved
-names are not copied). Reserved protocol keys (`grpc-*`,
-`content-type`, ...) are invisible on every read path.
+second) is visible with `get_all` / `get_all_bin`. `set` / `set_bin` replace
+every value for that key (last write wins) and leave the map unchanged on
+error. `contains` / `contains_bin` match `get`. `keys` lists unique ASCII
+and `-bin` names in first-insertion order, still skipping reserved names.
+`clear` drops every user entry; `merge` appends another map's user entries
+(repeats accumulate, reserved names are not copied). Reserved protocol keys
+(`grpc-*`, `content-type`, ...) are invisible on every read path.
 
 Reading it costs nothing until you read it: `Metadata` wraps the received
 header map rather than copying every entry into owned strings.
