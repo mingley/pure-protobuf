@@ -897,6 +897,9 @@ resp.set_compress(true);
 ```
 
 On a stream, choose per message with `send` or `send_compressed`.
+`Response::set_compress(true)` advertises `grpc-encoding: gzip` so a mixed
+stream (gzip then identity) is legal; it does not gzip identity `send()`
+frames. `set_compress(false)` opts those frames out of `Server::send_compressed`.
 `request.compressed()` is the unary first-frame Compressed-Flag.
 Client- and bidi-streaming requests leave it `false`; each message's flag
 is on `Framed`. `request.encoding()` is the call's `grpc-encoding` header

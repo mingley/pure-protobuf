@@ -4907,3 +4907,26 @@ fn server_and_router_config_is_readable_and_cloneable() {
         Some(Duration::from_secs(2))
     );
 }
+
+#[tokio::test]
+async fn official_compressed_interop_cases_pass_against_the_kernel_server() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(channel(addr).await);
+    for case in [
+        "client_compressed_unary",
+        "server_compressed_unary",
+        "client_compressed_streaming",
+        "server_compressed_streaming",
+    ] {
+        pbrs_grpc::run_case(&client, case)
+            .await
+            .unwrap_or_else(|err| panic!("{case}: {err}"));
+    }
+    task.abort();
+}

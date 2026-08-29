@@ -13,9 +13,9 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::tls::{PeerIdentity, ServerTls};
 use crate::wire::{
-    check_request, encode_msg, grpc_trailers, gzip_outbound, let_producer_catch_up,
-    read_one_message, reject, reject_request, send_bytes, send_ok_headers, send_trailers_only,
-    wrap_timeout, OutBatch, WireStream,
+    check_request, encode_msg, grpc_trailers, gzip_outbound, gzip_stream_frame,
+    let_producer_catch_up, read_one_message, reject, reject_request, send_bytes, send_ok_headers,
+    send_trailers_only, wrap_timeout, OutBatch, WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -1062,15 +1062,8 @@ async fn drain_to_wire<Resp: Serialize + Send>(
         }
         for item in items.drain(..) {
             let mut item = item.map_err(DrainError::Producer)?;
-            item.compressed = gzip_outbound(
-                if item.compressed {
-                    Some(true)
-                } else {
-                    envelope
-                },
-                prefer_gzip,
-                peer_accepts_gzip,
-            );
+            item.compressed =
+                gzip_stream_frame(item.compressed, envelope, prefer_gzip, peer_accepts_gzip);
             batch
                 .push(send, item)
                 .await

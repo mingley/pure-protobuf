@@ -1295,7 +1295,10 @@ impl<T> Response<T> {
     ///
     /// Passing `false` opts out of a later [`crate::Server::send_compressed`]
     /// overlay. [`Self::clear_compress`] drops the choice so that overlay
-    /// can fill it in.
+    /// can fill it in. On a stream, `true` advertises `grpc-encoding: gzip`
+    /// so mixed per-message flags are legal; identity [`crate::StreamSender::send`]
+    /// frames stay identity. Choose gzip per message with
+    /// [`crate::StreamSender::send_compressed`].
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = Some(compress);
     }

@@ -124,6 +124,32 @@ pub(crate) fn gzip_outbound(handler: Option<bool>, configured: bool, peer_accept
     handler.unwrap_or(configured) && peer_accepts
 }
 
+/// Per-message Compressed-Flag on a server stream.
+///
+/// `send_compressed` (`framed`) stays gzip when the peer accepts.
+/// Identity `send` frames follow the overlay unless the envelope opted out
+/// with [`crate::Response::set_compress`]`(false)`. [`crate::Response::set_compress`]`(true)`
+/// advertises `grpc-encoding: gzip` and does not rewrite identity frames, so a
+/// mixed stream (gzip then identity) keeps both flags.
+pub(crate) fn gzip_stream_frame(
+    framed: bool,
+    envelope: Option<bool>,
+    configured: bool,
+    peer_accepts: bool,
+) -> bool {
+    gzip_outbound(
+        if framed {
+            Some(true)
+        } else if envelope == Some(false) {
+            Some(false)
+        } else {
+            None
+        },
+        configured,
+        peer_accepts,
+    )
+}
+
 /// How [`check_request`] turns a request away.
 pub(crate) enum RequestReject {
     /// Trailers-only gRPC status on HTTP 200.
@@ -1019,8 +1045,8 @@ fn percent_decode(s: &str) -> String {
 mod tests {
     use super::{
         accepts_gzip, effective_timeout, grpc_content_type, grpc_encoding, grpc_encoding_supported,
-        grpc_request, gzip_outbound, percent_decode, percent_encode, soonest, FrameReader,
-        DEFAULT_UA, PBRS_GRPC_UA,
+        grpc_request, gzip_outbound, gzip_stream_frame, percent_decode, percent_encode, soonest,
+        FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
     };
     use crate::codec;
     use crate::gzip;
@@ -1146,6 +1172,15 @@ mod tests {
         assert!(gzip_outbound(Some(true), false, true));
         assert!(!gzip_outbound(None, false, true));
         assert!(!gzip_outbound(Some(false), true, true));
+        // Mixed stream: set_compress(true) advertises gzip and must not rewrite
+        // identity send() frames. Overlay still fills those when the envelope
+        // is unset; set_compress(false) opts that fill out.
+        assert!(gzip_stream_frame(true, Some(true), false, true));
+        assert!(!gzip_stream_frame(false, Some(true), false, true));
+        assert!(gzip_stream_frame(false, None, true, true));
+        assert!(!gzip_stream_frame(false, Some(false), true, true));
+        assert!(gzip_stream_frame(true, Some(false), true, true));
+        assert!(!gzip_stream_frame(true, Some(true), true, false));
     }
 
     #[test]
