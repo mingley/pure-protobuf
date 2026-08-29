@@ -343,6 +343,63 @@ fn assert_typed_fail(err: &Status) {
     assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
 }
 
+fn typed_stream_status() -> Status {
+    let mut status = typed_status();
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
+fn assert_typed_stream_fail(err: &Status) {
+    assert_typed_fail(err);
+    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+}
+
+fn fail_after_one() -> Streaming<HelloReply> {
+    let (tx, stream) = Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut reply = HelloReply::new();
+        reply.set_message("ada");
+        tx.send(reply).await.ok();
+        tx.fail(typed_stream_status()).await;
+    }));
+    stream
+}
+
+struct TypedAfterHeaders;
+
+impl Greeter for TypedAfterHeaders {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one()))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one()))
+    }
+}
+
 #[tokio::test]
 async fn typed_google_rpc_status_on_every_call_shape() {
     let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
@@ -368,6 +425,27 @@ async fn typed_google_rpc_status_on_every_call_shape() {
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.close();
     assert_typed_fail(&call.await.expect_err("bidi"));
+}
+
+#[tokio::test]
+async fn typed_google_rpc_status_after_a_streamed_message() {
+    let (_addr, client, _guard) = spawn_greeter(TypedAfterHeaders).await.expect("spawn");
+
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.message().await.expect_err("status"));
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.message().await.expect_err("status"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

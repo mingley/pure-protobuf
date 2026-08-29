@@ -228,7 +228,9 @@ impl<T> Streaming<T> {
     /// DATA frame. Call it before [`Self::message`] when you only need
     /// trailers; call it after a drain and it is cheap. A non-OK trailing
     /// `grpc-status` is `Err`, with the custom trailers on
-    /// [`Status::metadata`](crate::Status::metadata).
+    /// [`Status::metadata`](crate::Status::metadata) and
+    /// `grpc-status-details-bin` on [`Status::error_details`](crate::Status::error_details)
+    /// when the peer sent one.
     ///
     /// Application-produced streams ([`Self::channel`]) have no HTTP/2
     /// trailers: this returns empty metadata without consuming remaining
@@ -416,6 +418,10 @@ impl<T> StreamSender<T> {
     }
 
     /// End the stream with an error status instead of a clean half-close.
+    ///
+    /// Trailing metadata on `status` and `grpc-status-details-bin` (see
+    /// [`crate::Status::with_error_details`]) both ship after any messages
+    /// already sent, the same as a handler `Err`.
     pub async fn fail(self, status: Status) {
         self.tx.send(Err(status)).await.ok();
     }

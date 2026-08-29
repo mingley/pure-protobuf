@@ -119,7 +119,8 @@ See `docs/upb.md`. Short list:
   wait-for-ready / compress, and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
   after `clear_*`. `Status::set_rpc` / `set_code` keep trailing
-  metadata. A `Call` is fused after `Ready`. Client-streaming and bidi
+  metadata. `StreamSender::fail` after headers ships those trailers and
+  a packed `google.rpc.Status` the same way a handler `Err` does. A `Call` is fused after `Ready`. Client-streaming and bidi
   `(StreamSender, Call)` pairs are `must_use`. `Health::watch` ends when the
   client leaves, without waiting for the next status change. A server-streaming
   drain waiting for the next message ends on client RST. Dropping a received

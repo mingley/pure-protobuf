@@ -137,7 +137,9 @@ Response-side interceptors are a documented omission.
 `BadRequest`, `RequestInfo`, `ResourceInfo`, `Help`, `LocalizedMessage`) as
 `google.rpc.Status`. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details`
-replace the protobuf without dropping trailing metadata. Received ASCII
+replace the protobuf without dropping trailing metadata. Handler `Err` and
+`StreamSender::fail` after headers both put that protobuf on trailing
+`grpc-status-details-bin`. Received ASCII
 `grpc-status` / `grpc-message` are independent of the packed protobuf;
 `rpc()` does not overwrite one from the other.
 
