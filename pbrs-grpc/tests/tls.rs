@@ -464,6 +464,34 @@ async fn tls_server_interceptor_rejects_with_typed_status() {
 }
 
 #[tokio::test]
+async fn mtls_client_interceptor_rejects_with_typed_status() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, _guard) = serve_tls(tls).await;
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = tls_client(addr, client_tls)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_blocked_every_shape(&client).await;
+}
+
+#[tokio::test]
+async fn mtls_server_interceptor_rejects_with_typed_status() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = tls_client(addr, client_tls).await;
+    assert_blocked_every_shape(&client).await;
+}
+
+#[tokio::test]
 async fn tls_handlers_see_https_scheme_and_authority() {
     struct SeesHttps;
 

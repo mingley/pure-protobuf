@@ -850,9 +850,9 @@ There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
 `send_compressed` gzips Check and Watch when the client advertises gzip,
 including over TLS, mTLS, Unix, and `from_io`. A client interceptor sees path,
 service, method, `:authority`, and `:scheme` on both methods, including over
-TLS, Unix, and `from_io`. An interceptor `Err(Status::with_error_details(...))`
+TLS, mTLS, Unix, and `from_io`. An interceptor `Err(Status::with_error_details(...))`
 unpacks as `Status::rpc` / `Status::error_details` on both methods, including
-over TLS, Unix, and `from_io`.
+over TLS, mTLS, Unix, and `from_io`.
 
 ## Reflection
 
@@ -882,9 +882,9 @@ decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
 OK end. Unix, TLS, and `from_io` serve that method. `send_compressed` gzips
 that bidi method when the client advertises gzip, including over TLS, mTLS, Unix,
 and `from_io`. A client interceptor sees path, service, method, `:authority`,
-and `:scheme` on that method, including over TLS, Unix, and `from_io`. An
+and `:scheme` on that method, including over TLS, mTLS, Unix, and `from_io`. An
 interceptor `Err(Status::with_error_details(...))` unpacks as `Status::rpc` /
-`Status::error_details` on that bidi method, including over TLS, Unix, and
+`Status::error_details` on that bidi method, including over TLS, mTLS, Unix, and
 `from_io`.
 
 ## Graceful shutdown
@@ -1572,8 +1572,8 @@ let _ = inbound.message().await?;
 This is not a second-class path. The in-tree `TestService` implementation and
 the hostile-peer tests both use it. A hand-written `Service` is first-class on
 every `Channel` call shape, including `send_compressed` gzip over TLS, mTLS,
-Unix, and `from_io`, and interceptor `with_error_details` over TLS, Unix, and
-`from_io`.
+Unix, and `from_io`, and interceptor `with_error_details` over TLS, mTLS, Unix,
+and `from_io`.
 
 ## What is not here
 

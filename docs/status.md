@@ -188,7 +188,7 @@ See `docs/upb.md`. Short list:
   `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape,
   including gzip over TLS, mTLS, and Unix. `from_io` / `serve_connection` gzip
   those Store shapes the same way. Greeter `send_compressed` gzips every
-  call shape over TLS, including over mTLS, Unix, and `from_io`. A TLS, Unix,
+  call shape over TLS, including over mTLS, Unix, and `from_io`. A TLS, mTLS, Unix,
   or `from_io` interceptor `Err(with_error_details)` unpacks on every Greeter
   shape. Official `TestService` `send_compressed` gzips EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
@@ -199,18 +199,18 @@ See `docs/upb.md`. Short list:
   method, including over TLS, mTLS, Unix, and `from_io`. A client interceptor
   sees Outgoing path / service / method / authority / scheme on Health
   Check/Watch, the reflection bidi method, and generated Store Get / Watch
-  / PutAll / Sync, including over TLS, Unix, and `from_io`. A packed `google.rpc.Status` from interceptor
+  / PutAll / Sync, including over TLS, mTLS, Unix, and `from_io`. A packed `google.rpc.Status` from interceptor
   `Err(with_error_details)` unpacks on those Store, Health, and reflection
-  methods the same way, including over TLS, Unix, and `from_io`. A generated Store handler `Err(with_error_details)`
+  methods the same way, including over TLS, mTLS, Unix, and `from_io`. A generated Store handler `Err(with_error_details)`
   unpacks on Get / Watch / PutAll / Sync too. A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written
-  Reverser Channel API, including over TLS, Unix, and `from_io`, and a client
+  Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`, and a client
   interceptor stamps Outgoing path facts on those APIs, including over TLS,
-  Unix, and `from_io`.
+  mTLS, Unix, and `from_io`.
   Official `TestService` interceptor `Err(with_error_details)` unpacks on EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
-  TLS, Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
-  on those methods, including over TLS, Unix, and `from_io`.
+  TLS, mTLS, Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
+  on those methods, including over TLS, mTLS, Unix, and `from_io`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
