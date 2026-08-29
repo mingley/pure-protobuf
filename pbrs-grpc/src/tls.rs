@@ -100,11 +100,23 @@ impl fmt::Debug for Identity {
 
 /// Server-side TLS: a rustls acceptor with ALPN `h2`.
 ///
-/// ```ignore
+/// ```no_run
+/// # use pbrs_grpc::{Identity, Rpc, Server, ServerTls, Service};
+/// # struct Echo;
+/// # impl Service for Echo {
+/// #     const NAME: &'static str = "demo.Echo";
+/// #     async fn call(&self, rpc: Rpc) { rpc.unimplemented() }
+/// # }
+/// # async fn example(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), pbrs_grpc::Status> {
 /// let identity = Identity::from_pem(cert_pem, key_pem)?;
-/// GreeterServer::new(MyGreeter)
-///     .serve_tls("0.0.0.0:443".parse()?, ServerTls::new(identity)?)
+/// Server::new(Echo)
+///     .serve_tls(
+///         "0.0.0.0:443".parse().expect("addr"),
+///         ServerTls::new(identity)?,
+///     )
 ///     .await?;
+/// # Ok(())
+/// # }
 /// ```
 #[derive(Clone)]
 pub struct ServerTls {

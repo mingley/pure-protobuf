@@ -4086,7 +4086,7 @@ fn emit_kernel_client(
     let _ = writeln!(src, "///");
     let _ = writeln!(
         src,
-        "/// Wraps a [`Channel`](../../pbrs_grpc/struct.Channel.html); cloning is cheap and shares connections."
+        "/// Wraps a [`{G}::Channel`]; cloning is cheap and shares connections."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
@@ -4123,6 +4123,7 @@ fn emit_kernel_client(
         src,
         "    /// Run `interceptor` on every outbound RPC before the stream opens."
     );
+    let _ = writeln!(src, "    /// The interceptor sees a [`{G}::Outgoing`].");
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");

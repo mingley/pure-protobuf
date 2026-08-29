@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "protobuf-tonic", "pbrs-grpc"]
+members = [".", "protobuf-tonic", "pbrs-grpc", "examples/greeter"]
 exclude = [
     "bench",
     "tonic-bench",

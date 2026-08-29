@@ -1,0 +1,26 @@
+[package]
+name = "pbrs-grpc-example-greeter"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+license = "MIT OR Apache-2.0"
+description = "Worked pbrs-grpc example: generated stubs, health, and reflection"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "greeter"
+path = "src/main.rs"
+
+[dependencies]
+pbrs = { path = "../.." }
+pbrs-grpc = { path = "../../pbrs-grpc" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
+
+[build-dependencies]
+pbrs = { path = "../.." }
+
+[lints]
+workspace = true

@@ -41,10 +41,9 @@
 //!
 //! then implement the generated trait and serve it:
 //!
-//! ```ignore
+//! ```no_run
+//! use pbrs_grpc::hello::{Greeter, GreeterServer, HelloReply, HelloRequest};
 //! use pbrs_grpc::{Request, Response, Status};
-//!
-//! include!(concat!(env!("OUT_DIR"), "/hello.rs"));
 //!
 //! struct MyGreeter;
 //!
@@ -57,19 +56,45 @@
 //!         reply.set_message(format!("hello {}", request.get_ref().name()));
 //!         Ok(Response::new(reply))
 //!     }
+//! #     async fn client_hello(
+//! #         &self,
+//! #         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+//! #     ) -> Result<Response<HelloReply>, Status> {
+//! #         let _ = request;
+//! #         Ok(Response::new(HelloReply::new()))
+//! #     }
+//! #     async fn server_hello(
+//! #         &self,
+//! #         request: Request<HelloRequest>,
+//! #     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+//! #         let _ = request;
+//! #         let (_, stream) = pbrs_grpc::Streaming::channel(1);
+//! #         Ok(Response::new(stream))
+//! #     }
+//! #     async fn stream_hello(
+//! #         &self,
+//! #         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+//! #     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+//! #         let _ = request;
+//! #         let (_, stream) = pbrs_grpc::Streaming::channel(1);
+//! #         Ok(Response::new(stream))
+//! #     }
 //! }
 //!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Status> {
-//!     GreeterServer::new(MyGreeter)
-//!         .serve("127.0.0.1:50051".parse().expect("addr"))
-//!         .await
-//! }
+//! # async fn example() -> Result<(), Status> {
+//! GreeterServer::new(MyGreeter)
+//!     .serve("127.0.0.1:50051".parse().expect("addr"))
+//!     .await
+//! # }
 //! ```
 //!
 //! The client side mirrors it:
 //!
-//! ```ignore
+//! ```no_run
+//! # async fn example() -> Result<(), pbrs_grpc::Status> {
+//! use pbrs_grpc::hello::{GreeterClient, HelloRequest};
+//! use pbrs_grpc::{Channel, Request};
+//!
 //! let channel = Channel::connect("127.0.0.1:50051").await?;
 //! let client = GreeterClient::new(channel);
 //!
@@ -77,7 +102,13 @@
 //! req.set_name("world");
 //! let reply = client.say_hello(Request::new(req)).await?;
 //! println!("{}", reply.get_ref().message());
+//! # Ok(())
+//! # }
 //! ```
+//!
+//! A complete crate that depends on this kernel from the outside — own proto,
+//! `build.rs`, health, and reflection — lives at `examples/greeter` in the
+//! repository.
 //!
 //! See [`docs/grpc.md`] in the repository for the full guide, and
 //! [`docs/benchmarks.md`] for measured numbers.
@@ -141,11 +172,12 @@
 //! ## `unsafe`
 //!
 //! Every hand-written module in this crate carries `#[forbid(unsafe_code)]`,
-//! which cannot be overridden from inside the module. The two exceptions are
-//! [`hello`] and [`testing`], which `include!` generated message code; `pbrs`
-//! gencode uses `unsafe` for zeroed-message construction, and that is a `pbrs`
-//! property rather than a gRPC one. No gRPC framing, dispatch, or transport
-//! code in this crate contains `unsafe`.
+//! which cannot be overridden from inside the module. The exceptions are the
+//! modules that `include!` generated message code ([`hello`], [`testing`],
+//! [`health`], [`reflection`], [`pb`]); `pbrs` gencode uses `unsafe` for
+//! zeroed-message construction, and that is a `pbrs` property rather than a
+//! gRPC one. No gRPC framing, dispatch, or transport code in this crate
+//! contains `unsafe`.
 //!
 //! ## Panics
 //!
@@ -192,8 +224,8 @@
 extern crate self as pbrs_grpc;
 
 // `forbid` on each hand-written module cannot be relaxed from inside it, so
-// the no-`unsafe` claim is machine-checked rather than a convention. `hello`
-// and `testing` are excluded because they include generated message code.
+// the no-`unsafe` claim is machine-checked rather than a convention. Modules
+// that `include!` generated message code are excluded from `forbid`.
 #[forbid(unsafe_code)]
 pub mod codec;
 #[forbid(unsafe_code)]

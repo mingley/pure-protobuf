@@ -99,6 +99,21 @@ impl<S: Service> ServiceExt for S {}
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
 /// runs first. The interceptor sees the method path and can set a deadline,
 /// wait-for-ready, compression, or typed extensions — not only metadata.
+///
+/// ```
+/// use pbrs_grpc::{Outgoing, Status};
+/// use std::time::Duration;
+///
+/// fn stamp(call: &mut Outgoing<'_>) -> Result<(), Status> {
+///     let path = call.path();
+///     call.metadata_mut().insert("x-rpc", path)?;
+///     if call.timeout().is_none() {
+///         call.set_timeout(Duration::from_secs(5));
+///     }
+///     Ok(())
+/// }
+/// # let _ = stamp;
+/// ```
 pub trait ClientInterceptor: Send + Sync + 'static {
     /// Inspect and mutate the outbound call. Called once per RPC, before the
     /// stream opens.

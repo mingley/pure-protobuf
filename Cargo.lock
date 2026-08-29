@@ -466,6 +466,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "pbrs-grpc-example-greeter"
+version = "0.1.0"
+dependencies = [
+ "pbrs",
+ "pbrs-grpc",
+ "tokio",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

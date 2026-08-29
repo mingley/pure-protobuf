@@ -25,7 +25,8 @@ against that path dep.
 on tonic. The tonic adapter does not depend on `pbrs-grpc`. Use one, the
 other, or neither. Generate kernel client and server stubs for any
 `.proto` service with `Config::emit_kernel_stubs(true)`; see the
-[gRPC guide](docs/grpc.md).
+[gRPC guide](docs/grpc.md). [`examples/greeter`](examples/greeter) is a
+complete user crate (own proto, `build.rs`, health, reflection).
 
 ```bash
 ./scripts/gen.sh -I proto -o gen proto/your.proto

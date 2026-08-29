@@ -105,8 +105,9 @@ boundaries, arbitrary bytes never panic and never exceed the cap, and a
 compressed frame never inflates past it.
 
 Every hand-written module carries `#[forbid(unsafe_code)]`, which cannot be
-relaxed from inside it. The two modules that `include!` generated messages are
-exempt, because pbrs gencode uses `unsafe` for zeroed-message construction.
+relaxed from inside it. The modules that `include!` generated messages
+(`hello`, `testing`, `health`, `reflection`, `pb`) are exempt, because pbrs
+gencode uses `unsafe` for zeroed-message construction.
 
 See [the threat model](../docs/grpc.md#limits-and-the-threat-model).
 
@@ -142,6 +143,8 @@ client nor its server, so they only run where both ends honour them.
 ./scripts/grpc-interop.sh --self-only  # skip the Go peer
 ```
 
-`pbrs-grpc-hello` is a worked example exercising all four call shapes over
-loopback, and `tests/codegen.rs` compiles a fresh `.proto` service the way a
-user's crate does, to keep the generated `::pbrs_grpc` paths honest.
+[`examples/greeter`](../examples/greeter) is a complete user crate: own proto,
+`build.rs`, generated stubs, health, and reflection. `pbrs-grpc-hello`
+exercises all four call shapes over loopback, and `tests/codegen.rs` compiles
+a fresh `.proto` service the way a user's crate does, to keep the generated
+`::pbrs_grpc` paths honest.

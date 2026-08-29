@@ -79,10 +79,10 @@
   large_unary). QPS is reported, not gated (empty/large at
   conc=1/conns=1 and conc=16/conns=4). Nonzero RPC errors still fail
   the process.   `Channel::connect_pool` opens independent h2 driver
-  tasks. `Channel`, `GreeterClient` / `TestServiceClient`, and
+  tasks.   `Channel`, `GreeterClient` / `TestServiceClient`, and
   `GreeterServer` / `TestServiceServer` expose
   `max_decoding_message_size` / `max_encoding_message_size`
-  (default unlimited). Oversize encode or decode is
+  (default 4 MiB inbound, unlimited outbound). Oversize encode or decode is
   `RESOURCE_EXHAUSTED` (`pbrs-grpc/tests/message_size.rs`). Not a
   latency or QPS win. `protobuf-tonic` stays the tonic adapter.
 
@@ -92,9 +92,11 @@ See `docs/upb.md`. Short list:
 
 - Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop
   (`empty_unary` … `timeout_on_sleeping_server`, plus the four gzip cases)
-  is implemented. TLS, health, reflection, GCP-auth, and ORCA stay out of
-  that crate; tonic adapter still covers health/gzip/reflection via tonic
-  crates.
+  is implemented. TLS (rustls + Graviola), `grpc.health.v1`, and
+  `grpc.reflection.v1` ship in the kernel. GCP-auth and ORCA stay out;
+  load balancing, retries, and hedging are documented omissions. The tonic
+  adapter still covers health/gzip/reflection via tonic crates for stacks
+  that stay on tonic.
 - There are no arena views.
 - Generated `google.protobuf.Timestamp`, `Duration`, `Empty`, and the
   proto3 wrappers (BoolValue, Int32Value, Int64Value, UInt32Value,

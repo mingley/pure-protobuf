@@ -1,13 +1,15 @@
 //! `grpc.health.v1.Health`: the standard health service, generated plus a reporter.
 //!
-//! ```ignore
+//! ```no_run
+//! # async fn example() -> Result<(), pbrs_grpc::Status> {
 //! let (health, reporter) = pbrs_grpc::health::service();
 //! reporter.set_serving("helloworld.Greeter");
-//! Router::new()
+//! pbrs_grpc::Router::new()
 //!     .add_service(health)
-//!     .add_service(GreeterServer::new(MyGreeter))
-//!     .serve(addr)
+//!     .serve("127.0.0.1:50051".parse().expect("addr"))
 //!     .await?;
+//! # Ok(())
+//! # }
 //! ```
 
 #![allow(missing_docs, reason = "messages come from the code generator")]

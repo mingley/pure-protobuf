@@ -3,16 +3,20 @@
 //! Register each service's generated `FILE_DESCRIPTOR_SET`, mount the result
 //! next to your handlers, and `grpcurl` can list and describe them.
 //!
-//! ```ignore
+//! ```no_run
+//! # async fn example() -> Result<(), pbrs_grpc::Status> {
 //! let reflection = pbrs_grpc::reflection::Builder::new()
-//!     .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)?
+//!     .register_encoded_file_descriptor_set(pbrs_grpc::hello::FILE_DESCRIPTOR_SET)
 //!     .build()?;
-//! Router::new()
+//! pbrs_grpc::Router::new()
 //!     .add_service(reflection)
-//!     .add_service(GreeterServer::new(MyGreeter))
-//!     .serve(addr)
+//!     .serve("127.0.0.1:50051".parse().expect("addr"))
 //!     .await?;
+//! # Ok(())
+//! # }
 //! ```
+//!
+//! [`service`] is the same registration as a one-liner.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
