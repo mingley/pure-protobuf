@@ -245,6 +245,19 @@ async fn assert_health_opt_out(client: &HealthClient) {
     assert_eq!(err.code(), Code::Unavailable, "{err}");
 }
 
+async fn assert_health_unavailable(client: &HealthClient) {
+    let err = client
+        .check(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect_err("check");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect_err("watch");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+}
+
 async fn assert_health_wait_deadline(client: &HealthClient) {
     let timeout = Duration::from_millis(80);
     let min = Duration::from_millis(50);
@@ -1269,6 +1282,100 @@ async fn a_health_unix_client_interceptor_can_set_wait_for_ready() {
         }))
     })
     .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client = HealthClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_unavailable(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_tls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_unavailable(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_mtls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_unavailable(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_unix_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let path = unix_sock("intercept-opt-out");
+    let client = HealthClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_unavailable(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
     let _ = std::fs::remove_file(&path);
 }
 

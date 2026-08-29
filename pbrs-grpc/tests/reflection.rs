@@ -230,6 +230,13 @@ async fn assert_reflection_opt_out(client: &ServerReflectionClient) {
     drop(tx);
 }
 
+async fn assert_reflection_unavailable(client: &ServerReflectionClient) {
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+}
+
 async fn assert_reflection_wait_deadline(client: &ServerReflectionClient) {
     let timeout = Duration::from_millis(80);
     let min = Duration::from_millis(50);
@@ -1154,6 +1161,112 @@ async fn a_reflection_unix_client_interceptor_can_set_wait_for_ready() {
         }))
     })
     .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client = ServerReflectionClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_reflection_unavailable(&client),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_tls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_reflection_unavailable(&client),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_mtls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_reflection_unavailable(&client),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_unix_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let path = unix_sock("intercept-opt-out");
+    let client = ServerReflectionClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready()
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_reflection_unavailable(&client),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
     let _ = std::fs::remove_file(&path);
 }
 

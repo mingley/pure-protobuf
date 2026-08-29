@@ -555,6 +555,8 @@ on those same dialers, on every call shape. `set_wait_for_ready(false)` in an
 interceptor opts out of a channel default on those dialers, on every call shape. Official TestService EmptyCall,
 StreamingOutputCall, StreamingInputCall, and FullDuplexCall, and hand-written
 Reverser `Channel` methods, retry the same interceptor fill on those dialers.
+`set_wait_for_ready(false)` in an interceptor opts out of a channel default on
+those TestService, Reverser, Store, Health, and reflection dialers too.
 Generated `FooClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
 retry the same way: Store Get, Watch, PutAll, and Sync wait until listen
 on those transports, from either `Request::set_wait_for_ready`,
