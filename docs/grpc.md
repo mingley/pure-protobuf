@@ -119,7 +119,7 @@ println!("{}", reply.get_ref().message());
 ```
 
 `GreeterClient::connect` (and `Channel::connect`) takes anything that converts into a
-[`Target`](https://docs.rs/pbrs-grpc): a `SocketAddr`, or a `host:port`
+`Target`: a `SocketAddr`, or a `host:port`
 string that goes through DNS. The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, so a server restart on the same address does not require
@@ -172,6 +172,10 @@ Received streams are decoded on the task that calls `message()` (or
 pump task and no queue in between, which means backpressure is exact: stop
 reading and you stop releasing HTTP/2 capacity, so the peer stalls at the
 window rather than filling a buffer you own.
+
+`Streaming::trailers().await` waits for end-of-stream, discarding unread
+messages, and returns the trailing metadata. You can call it without
+draining first. A non-OK trailing `grpc-status` is `Err`.
 
 A handler is free to ignore its request stream entirely and answer straight
 away; the RPC terminates normally.
@@ -263,6 +267,10 @@ let mut resp = Response::new(reply);
 resp.metadata_mut().insert("x-cache", "miss")?;
 resp.trailers_mut().insert("x-rows-scanned", "1742")?;
 ```
+
+On a unary response the client reads that map with `Response::trailers()`.
+On a stream, `Streaming::trailers().await` waits until the RPC ends, then
+returns the same map.
 
 To attach metadata to an *error*, put it on the `Status`; error responses have
 no separate trailers:
@@ -541,10 +549,10 @@ connections, or when you want a dead peer noticed before the next RPC:
 ```rust
 GreeterServer::new(MyGreeter)
     .keep_alive_interval(Duration::from_secs(30))
-    .keep_alive_timeout(Duration::from_secs(10))
+    .keep_alive_timeout(Duration::from_secs(10));
 ChannelConfig::new()
     .keep_alive_interval(Duration::from_secs(30))
-    .keep_alive_timeout(Duration::from_secs(10))
+    .keep_alive_timeout(Duration::from_secs(10));
 ```
 
 A PING that is not acknowledged within 20 s (configurable via
@@ -663,8 +671,11 @@ stream (`ErrorResponse`), not a broken RPC.
 
 ## Graceful shutdown
 
-`serve_with_shutdown` stops accepting, sends `GOAWAY` on every live
-connection, and waits for in-flight RPCs to finish before returning:
+`serve_until_shutdown` binds `addr`, then behaves like
+`serve_with_shutdown` on the resulting listener: it stops accepting, sends
+`GOAWAY` on every live connection, and waits for in-flight RPCs to finish
+before returning. Use `serve_with_shutdown` when you already have a
+`TcpListener`.
 
 ```rust
 let (tx, rx) = tokio::sync::oneshot::channel();
@@ -674,7 +685,7 @@ tokio::spawn(async move {
 });
 
 GreeterServer::new(MyGreeter)
-    .serve_with_shutdown(listener, async { rx.await.ok(); })
+    .serve_until_shutdown(addr, async { rx.await.ok(); })
     .await?;
 ```
 
@@ -694,10 +705,10 @@ idle.
 ```rust
 GreeterServer::new(MyGreeter)
     .max_connection_age(Duration::from_secs(30 * 60))
-    .max_connection_idle(Duration::from_secs(5 * 60))
+    .max_connection_idle(Duration::from_secs(5 * 60));
 
 ChannelConfig::new()
-    .max_connection_idle(Duration::from_secs(5 * 60))
+    .max_connection_idle(Duration::from_secs(5 * 60));
 ```
 
 `max_connection_age_grace` (default 10 s) still lives on `ServerConfig`

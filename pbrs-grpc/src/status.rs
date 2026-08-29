@@ -276,10 +276,24 @@ impl Status {
         self.detail.as_ref().map_or("", |d| d.message.as_str())
     }
 
-    /// Replace the `grpc-message` text. Empty clears it. Metadata and
-    /// `grpc-status-details-bin` are left alone.
+    /// Replace the `grpc-message` text. Empty clears it. Metadata is left
+    /// alone. When `grpc-status-details-bin` holds a `google.rpc.Status`
+    /// whose message matches this status, that protobuf is rewritten so the
+    /// ASCII trailer and the packed message stay the same. Opaque detail
+    /// bytes that are not a matching `google.rpc.Status` are left alone.
     pub fn set_message(&mut self, message: impl Into<String>) {
         let message = message.into();
+        if !self.details().is_empty() {
+            if let Ok(mut rpc) = pbrs::Parse::parse::<crate::pb::Status>(self.details()) {
+                let packed = rpc.message().to_str().unwrap_or("");
+                if packed == self.message() {
+                    rpc.set_message(message.clone());
+                    if let Ok(bytes) = pbrs::Serialize::serialize(&rpc) {
+                        self.set_details(bytes);
+                    }
+                }
+            }
+        }
         if message.is_empty() {
             if let Some(detail) = self.detail.as_mut() {
                 detail.message.clear();
@@ -685,6 +699,23 @@ mod tests {
         let status = status.with_message("");
         assert_eq!(status.message(), "");
         assert_eq!(status.details(), &[0x08, 0x05]);
+    }
+
+    #[test]
+    fn set_message_keeps_a_packed_google_rpc_status_in_sync() {
+        use crate::pb::{Any, ErrorInfo};
+
+        let mut info = ErrorInfo::new();
+        info.set_reason("STOCKOUT");
+        let mut status =
+            Status::with_error_details(Code::NotFound, "gone", [Any::pack(&info).expect("pack")])
+                .expect("encode");
+        status.set_message("still gone");
+        assert_eq!(status.message(), "still gone");
+        let rpc = status.rpc().expect("parse");
+        assert_eq!(rpc.message().to_str().unwrap_or(""), "still gone");
+        assert_eq!(rpc.code(), Code::NotFound.to_i32());
+        assert_eq!(rpc.details().len(), 1);
     }
 
     #[test]

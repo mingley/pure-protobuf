@@ -60,9 +60,28 @@ impl Greeter for TrailerEcho {
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("gaps"))
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let (tx, stream) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            let mut reply = HelloReply::new();
+            reply.set_message(name);
+            tx.send(reply).await.ok();
+        }));
+        let mut resp = Response::new(stream);
+        resp.metadata_mut()
+            .insert(HEADER_ASCII, "ok")
+            .expect("ascii");
+        resp.trailers_mut()
+            .insert_bin(TRAILER_BIN, [0x00, 0x01])
+            .expect("bin");
+        Ok(resp)
     }
 
     async fn stream_hello(
@@ -124,6 +143,88 @@ async fn ok_path_custom_bin_trailers_not_headers() {
         resp.trailers().get_bin(TRAILER_BIN).as_deref(),
         Some([0x00, 0x01].as_slice())
     );
+}
+
+#[tokio::test]
+async fn streaming_trailers_wait_for_end_of_stream() {
+    let (_addr, client, _guard) = spawn_greeter(TrailerEcho).await.expect("spawn");
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    // Do not drain messages first: trailers() must wait for EOS itself.
+    let trailers = stream.trailers().await.expect("wait");
+    assert_eq!(
+        trailers.get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice())
+    );
+}
+
+#[tokio::test]
+async fn streaming_trailers_after_a_drain_are_the_same() {
+    let (_addr, client, _guard) = spawn_greeter(TrailerEcho).await.expect("spawn");
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let msg = stream.message().await.expect("msg").expect("item");
+    assert_eq!(msg.message().to_str().unwrap_or(""), "ada");
+    assert!(stream.message().await.expect("end").is_none());
+    let trailers = stream.trailers().await.expect("wait");
+    assert_eq!(
+        trailers.get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice())
+    );
+}
+
+#[tokio::test]
+async fn streaming_trailers_surface_a_trailing_status() {
+    struct Boom;
+
+    impl Greeter for Boom {
+        async fn say_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("gaps"))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("gaps"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            let (tx, stream) = Streaming::channel(1);
+            drop(tokio::spawn(async move {
+                tx.fail(Status::not_found("gone")).await;
+            }));
+            Ok(Response::new(stream))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("gaps"))
+        }
+    }
+
+    let (_addr, client, _guard) = spawn_greeter(Boom).await.expect("spawn");
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let err = stream.trailers().await.expect_err("status");
+    assert_eq!(err.code(), Code::NotFound);
 }
 
 #[tokio::test]

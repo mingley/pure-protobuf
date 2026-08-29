@@ -4151,6 +4151,14 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Bind `addr` and serve until `shutdown` resolves, then drain."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_until_shutdown(self, addr: ::std::net::SocketAddr, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_until_shutdown(addr, shutdown).await }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Bind `path` and serve h2c over a Unix domain socket."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");

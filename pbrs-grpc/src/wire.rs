@@ -59,9 +59,10 @@ pub(crate) fn grpc_request(
     timeout: Option<Duration>,
     send_gzip: bool,
     user_agent: &HeaderValue,
+    https: bool,
 ) -> Result<Request<()>, Status> {
     let mut parts = http::uri::Parts::default();
-    parts.scheme = Some(Scheme::HTTP);
+    parts.scheme = Some(if https { Scheme::HTTPS } else { Scheme::HTTP });
     parts.authority = Some(authority.clone());
     parts.path_and_query = Some(PathAndQuery::from_static(path));
     let uri = http::Uri::from_parts(parts).map_err(|e| Status::internal(e.to_string()))?;
@@ -1021,14 +1022,32 @@ mod tests {
             None,
             false,
             &PBRS_GRPC_UA,
+            false,
         )
         .expect("request");
+        assert_eq!(req.uri().scheme_str(), Some("http"));
         assert_eq!(
             req.headers()
                 .get("user-agent")
                 .and_then(|v| v.to_str().ok()),
             Some(DEFAULT_UA)
         );
+    }
+
+    #[test]
+    fn outbound_tls_requests_use_the_https_scheme() {
+        let authority: Authority = "127.0.0.1:1".parse().expect("authority");
+        let req = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            false,
+            &PBRS_GRPC_UA,
+            true,
+        )
+        .expect("request");
+        assert_eq!(req.uri().scheme_str(), Some("https"));
     }
 
     #[test]

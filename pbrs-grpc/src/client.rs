@@ -599,6 +599,7 @@ impl Channel {
                     cancel_rx,
                     wire,
                     channel.user_agent.clone(),
+                    channel.inner.tls.is_some(),
                 )
                 .await
             }),
@@ -635,6 +636,7 @@ impl Channel {
                         cancel_rx,
                         wire,
                         channel.user_agent.clone(),
+                        channel.inner.tls.is_some(),
                     )
                     .await?,
                     lease,
@@ -699,6 +701,7 @@ impl Channel {
                     cancel_rx,
                     wire,
                     channel.user_agent.clone(),
+                    channel.inner.tls.is_some(),
                 )
                 .await
             }),
@@ -742,6 +745,7 @@ impl Channel {
                         cancel_rx,
                         wire,
                         channel.user_agent.clone(),
+                        channel.inner.tls.is_some(),
                     )
                     .await?,
                     lease,
@@ -1124,6 +1128,7 @@ async fn run_unary<Req, Resp>(
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
+    https: bool,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize,
@@ -1142,6 +1147,7 @@ where
         timeout,
         compress,
         &user_agent,
+        https,
     )
     .await?;
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
@@ -1171,6 +1177,7 @@ async fn run_server_stream<Req, Resp>(
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
+    https: bool,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize,
@@ -1189,6 +1196,7 @@ where
         timeout,
         compress,
         &user_agent,
+        https,
     )
     .await?;
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
@@ -1219,6 +1227,7 @@ async fn run_client_stream<Req, Resp>(
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
+    https: bool,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -1234,6 +1243,7 @@ where
         timeout,
         compress,
         &user_agent,
+        https,
     )
     .await?;
     drop(tokio::spawn(pump_outbound(
@@ -1269,6 +1279,7 @@ async fn run_bidi<Req, Resp>(
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
+    https: bool,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -1284,6 +1295,7 @@ where
         timeout,
         compress,
         &user_agent,
+        https,
     )
     .await?;
     drop(tokio::spawn(pump_outbound(
@@ -1314,12 +1326,13 @@ async fn open(
     timeout: Option<Duration>,
     send_gzip: bool,
     user_agent: &HeaderValue,
+    https: bool,
 ) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
     let mut send_req = send_req
         .ready()
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;
-    let http_req = grpc_request(authority, path, md, timeout, send_gzip, user_agent)?;
+    let http_req = grpc_request(authority, path, md, timeout, send_gzip, user_agent, https)?;
     send_req
         .send_request(http_req, false)
         .map_err(|e| Status::unavailable(e.to_string()))

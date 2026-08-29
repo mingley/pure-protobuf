@@ -83,6 +83,43 @@ async fn unary_over_tls() {
 }
 
 #[tokio::test]
+async fn tls_requests_use_the_https_scheme() {
+    use std::sync::atomic::{AtomicU8, Ordering};
+    use std::sync::Arc;
+
+    let seen = Arc::new(AtomicU8::new(0));
+    let flag = Arc::clone(&seen);
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut pbrs_grpc::Rpc| {
+                let n = match rpc.scheme() {
+                    Some("https") => 2,
+                    Some("http") => 1,
+                    _ => 3,
+                };
+                flag.store(n, Ordering::SeqCst);
+                Ok(())
+            })
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(
+        seen.load(Ordering::SeqCst),
+        2,
+        "TLS RPCs must send :scheme https"
+    );
+}
+
+#[tokio::test]
 async fn wrong_ca_is_unauthenticated() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, _guard) = serve_tls(tls).await;

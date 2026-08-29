@@ -202,6 +202,12 @@ impl Rpc {
             .map(http::uri::Authority::as_str)
     }
 
+    /// HTTP/2 `:scheme` the peer sent (`http` on h2c, `https` on TLS).
+    #[must_use]
+    pub fn scheme(&self) -> Option<&str> {
+        self.request.uri().scheme_str()
+    }
+
     /// Peer address, when the transport exposed one.
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
@@ -904,9 +910,9 @@ impl<S: Service> Server<S> {
     /// `server.intercept(|rpc| { ... })` is the usual form. The interceptor
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
     /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
-    /// [`Rpc::effective_timeout`] / [`Rpc::authority`], attach typed state on
-    /// [`Rpc::extensions_mut`], or return `Err` (including
-    /// [`Status::with_error_details`]) to reject.
+    /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`],
+    /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
+    /// (including [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
@@ -960,8 +966,10 @@ impl<S: Service> Server<S> {
 
     /// Serve until `shutdown` resolves, then drain.
     ///
-    /// Draining stops accepting, sends `GOAWAY` on every live connection, and
-    /// waits for in-flight RPCs to finish.
+    /// `listener` must already be bound. Draining stops accepting, sends
+    /// `GOAWAY` on every live connection, and waits for in-flight RPCs to
+    /// finish. To bind an address and then drain, use
+    /// [`Self::serve_until_shutdown`].
     pub async fn serve_with_shutdown(
         self,
         listener: TcpListener,
@@ -969,6 +977,17 @@ impl<S: Service> Server<S> {
     ) -> Result<(), Status> {
         let (dispatch, config) = self.into_single();
         accept_loop(Arc::new(dispatch), listener, config, shutdown, None).await
+    }
+
+    /// Bind `addr` and serve until `shutdown` resolves, then drain.
+    ///
+    /// This is the address form of [`Self::serve_with_shutdown`].
+    pub async fn serve_until_shutdown(
+        self,
+        addr: SocketAddr,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_with_shutdown(bind(addr).await?, shutdown).await
     }
 
     /// Bind `path` and serve h2c over a Unix domain socket until the listener
@@ -1299,6 +1318,16 @@ impl Router {
     ) -> Result<(), Status> {
         let config = self.config;
         accept_loop(Arc::new(self), listener, config, shutdown, None).await
+    }
+
+    /// Bind `addr` and serve until `shutdown` resolves, then drain. See
+    /// [`Server::serve_until_shutdown`].
+    pub async fn serve_until_shutdown(
+        self,
+        addr: SocketAddr,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_with_shutdown(bind(addr).await?, shutdown).await
     }
 
     /// Bind `path` and serve h2c over a Unix domain socket until the listener

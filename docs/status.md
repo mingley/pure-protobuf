@@ -49,10 +49,11 @@
   → `Code::Cancelled` / "Timeout expired", not `DeadlineExceeded`.
   `custom_metadata` (unary SayHello): client sends
   `x-grpc-test-echo-initial` and `x-grpc-test-echo-trailing-bin`; ascii
-  echo is `Response.metadata` (headers). tonic 0.14 has no first-class
-  OK-path custom trailers (`Response` has no `trailers()`);
-  `x-grpc-test-echo-trailing-bin` is absent on the OK path. That bag is
-  not trailers. `Status.metadata` on `Err` remains the trailer path.
+  echo is `Response.metadata` (headers). Kernel
+  `pbrs_grpc::Response::trailers()` carries OK-path custom trailers;
+  `Streaming::trailers()` waits for end-of-stream. `protobuf-tonic` uses
+  tonic's `Response`, which has no `trailers()`, so
+  `x-grpc-test-echo-trailing-bin` is absent on that adapter's OK path.
   Same-process tonic, not official interop, no Google peer. Gzip is covered
   (`tests/gzip.rs`). Generated stubs expose
   `with_interceptor` and `max_decoding_message_size` /

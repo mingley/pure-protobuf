@@ -282,7 +282,7 @@ async fn custom_metadata(client: &TestServiceClient) -> Result<(), Status> {
     }
     let mut inbound = resp.into_inner();
     while inbound.message().await?.is_some() {}
-    let trailers = inbound.trailers().await;
+    let trailers = inbound.trailers().await?;
     if trailers.get_bin(TRAILING_MD).as_deref() != Some(TRAILING_VAL) {
         return Err(Status::internal("missing trailing-bin trailers"));
     }

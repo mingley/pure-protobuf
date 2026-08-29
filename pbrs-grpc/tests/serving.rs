@@ -423,6 +423,35 @@ fn inject_bearer(call: &mut Outgoing<'_>) -> Result<(), Status> {
 }
 
 #[tokio::test]
+async fn h2c_requests_use_the_http_scheme() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let flag = Arc::clone(&seen);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                let n = match rpc.scheme() {
+                    Some("http") => 1,
+                    Some("https") => 2,
+                    _ => 3,
+                };
+                flag.store(n, Ordering::SeqCst);
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(seen.load(Ordering::SeqCst), 1);
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_generated_server_interceptor_rejects_before_the_handler() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {

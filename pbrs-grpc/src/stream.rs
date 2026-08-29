@@ -80,7 +80,7 @@ enum Source<T> {
 /// while let Some(reply) = stream.message().await? {
 ///     println!("{}", reply.message());
 /// }
-/// let trailers = stream.trailers().await;
+/// let trailers = stream.trailers().await?;
 /// # let _ = trailers;
 /// # Ok(())
 /// # }
@@ -183,15 +183,25 @@ impl<T> Streaming<T> {
         Ok(out)
     }
 
-    /// Trailing metadata.
+    /// Trailing metadata, after the stream has ended.
     ///
-    /// A received stream only has trailers once it has ended, because they
-    /// arrive after the last message; reading them earlier gives empty
-    /// metadata. Application-produced streams never carry any.
-    pub async fn trailers(&mut self) -> Metadata {
+    /// On a received stream this waits for end-of-stream, discarding any
+    /// unread messages, then returns the trailers that followed the last
+    /// DATA frame. Call it before [`Self::message`] when you only need
+    /// trailers; call it after a drain and it is cheap. A non-OK trailing
+    /// `grpc-status` is `Err`, with the custom trailers on
+    /// [`Status::metadata`](crate::Status::metadata).
+    ///
+    /// Application-produced streams ([`Self::channel`]) have no HTTP/2
+    /// trailers: this returns empty metadata without consuming remaining
+    /// messages.
+    pub async fn trailers(&mut self) -> Result<Metadata, Status> {
         match &mut self.source {
-            Source::Channel(_) => Metadata::new(),
-            Source::Wire(wire) => wire.trailers().clone(),
+            Source::Channel(_) => Ok(Metadata::new()),
+            Source::Wire(wire) => {
+                while wire.next().await?.is_some() {}
+                Ok(wire.trailers().clone())
+            }
         }
     }
 
@@ -425,7 +435,7 @@ mod tests {
     async fn empty_stream_ends_immediately() {
         let mut stream = Streaming::<HelloReply>::empty();
         assert!(stream.message().await.expect("end").is_none());
-        assert!(stream.trailers().await.is_empty());
+        assert!(stream.trailers().await.expect("trailers").is_empty());
     }
 
     #[tokio::test]
