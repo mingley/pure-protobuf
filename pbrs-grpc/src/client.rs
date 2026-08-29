@@ -946,9 +946,12 @@ impl Channel {
     /// Send on the returned [`StreamSender`] and await the [`Call`] for
     /// responses. Dropping the pair without awaiting resets the stream,
     /// the same as dropping a unary [`Call`]. A [`crate::CallHandle`] taken
-    /// before await still cancels that live stream after headers, including
-    /// after the sender is closed. Dropping the received [`Streaming`] before
-    /// the end does the same.
+    /// before await still cancels while waiting for headers, and still
+    /// cancels that live stream after headers, including after the sender is
+    /// closed. Dropping the received [`Streaming`] before the end does the
+    /// same. Letting the deadline fire RSTs the send half, so a [`Call`]
+    /// that is already Ready with [`crate::Code::DeadlineExceeded`] does not
+    /// leave the stream parked.
     ///
     /// [`crate::StreamSender::fail`] before headers resolves the [`Call`] with
     /// that status; after headers the reset surfaces on the received
@@ -1646,18 +1649,38 @@ where
     .await?;
     // A spawned pump can RST before headers; without this channel the Call
     // would see UNAVAILABLE from h2 instead of StreamSender::fail's status.
+    // The Call deadline does not set cancel_rx (`is_cancelled` is not
+    // deadline). Watch the same Instant here so a Ready DEADLINE_EXCEEDED
+    // Call does not leave SendStream parked on a watch that never fires.
     let (fail_tx, mut fail_rx) = tokio::sync::oneshot::channel();
     drop(tokio::spawn({
         let cancel_rx = cancel_rx.clone();
         async move {
             let mut send = send_stream;
-            match pump_outbound(&mut send, rx, cancel_rx.clone(), wire).await {
-                PumpEnd::Failed(status) => {
+            let end = {
+                let pump = pump_outbound(&mut send, rx, cancel_rx.clone(), wire);
+                tokio::pin!(pump);
+                let until_deadline = async {
+                    match deadline {
+                        Some(at) => tokio::time::sleep_until(at).await,
+                        None => std::future::pending().await,
+                    }
+                };
+                tokio::pin!(until_deadline);
+                tokio::select! {
+                    biased;
+                    () = &mut until_deadline => None,
+                    end = &mut pump => Some(end),
+                }
+            };
+            match end {
+                None => send.send_reset(Reason::CANCEL),
+                Some(PumpEnd::Failed(status)) => {
                     fail_tx.send(status).ok();
                     send.send_reset(Reason::CANCEL);
                 }
-                PumpEnd::HalfClosed => reset_on_cancel(send, cancel_rx),
-                PumpEnd::Reset => {}
+                Some(PumpEnd::HalfClosed) => reset_on_cancel(send, cancel_rx),
+                Some(PumpEnd::Reset) => {}
             }
         }
     }));

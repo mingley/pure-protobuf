@@ -4936,6 +4936,10 @@ fn emit_kernel_client(
         if m.client_streaming && m.server_streaming {
             let _ = writeln!(
                 src,
+                "    /// A [`{G}::CallHandle`] taken before await still cancels while waiting for headers."
+            );
+            let _ = writeln!(
+                src,
                 "    /// [`{G}::StreamSender::fail`] before headers resolves the [`{G}::Call`] with that status; after headers the reset surfaces on the received [`{G}::Streaming`]."
             );
         }

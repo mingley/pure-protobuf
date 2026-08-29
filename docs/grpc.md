@@ -500,6 +500,9 @@ beforehand still resets the live stream; dropping the received `Streaming`
 before the end does the same. After a client-streaming sender is closed, that
 handle still resets while the unary response is pending. Dropping that
 `Call` or letting its deadline fire after the half-close resets the same way.
+A handle still cancels a bidi call that is waiting for headers. A bidi
+deadline RSTs the send half the same way, so the `Call` becoming Ready with
+`DEADLINE_EXCEEDED` does not leave the stream parked.
 `StreamSender::fail` on a client request sender is the same RST with CANCEL:
 a client-streaming `Call`, or a bidi `Call` that has not yet seen headers,
 resolves with that status; after bidi headers the reset surfaces on the

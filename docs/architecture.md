@@ -95,8 +95,10 @@ A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
 after headers does not end the stream. Dropping the `Streaming` before the
 end does reset it, including bidi while the send half is still held. A
 `CallHandle` taken before await still cancels that live stream after
-headers, and still cancels a client-streaming call after the sender is
-closed. Spawned handler work awaiting `Request::cancelled` sees that RST. A [`Call`] is fused after it yields
+headers, still cancels a bidi call waiting for headers, and still cancels a
+client-streaming call after the sender is closed. A bidi deadline RSTs the
+send half so a Ready `Call` does not park `SendStream`. Spawned handler work
+awaiting `Request::cancelled` sees that RST. A [`Call`] is fused after it yields
 `Ready` (`futures_core::future::FusedFuture`). Client-streaming and bidi
 return a `(StreamSender, Call)` pair that is `must_use`: dropping it resets
 the stream.

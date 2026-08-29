@@ -5217,6 +5217,56 @@ async fn failing_a_bidi_stream_before_headers_is_that_status_not_unavailable() {
     task.abort();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_call_handle_cancels_a_bidi_stream_before_headers() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamFailAfterOne {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, mut call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("hang returned before cancel: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    call.handle().cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(&left).await;
+    drop(tx);
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_deadline_cancels_a_bidi_stream_before_headers() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamFailAfterOne {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_millis(80));
+    let (tx, call) = client.stream_hello(request);
+    tx.send(req("ada")).await.expect("send");
+    let err = call.await.expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    wait_flag(&left).await;
+    drop(tx);
+    drop(client);
+    task.abort();
+}
+
 /// Refuses a request that was not gzipped.
 struct GzipProbe;
 

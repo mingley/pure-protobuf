@@ -723,6 +723,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "bidi client methods must name StreamSender::fail before headers"
     );
     assert!(
+        src.contains("A [`::pbrs_grpc::CallHandle`] taken before await still cancels while waiting for headers."),
+        "bidi client methods must name CallHandle before headers"
+    );
+    assert!(
         src.contains("dropping a streaming Call resets the stream"),
         "client-streaming and bidi pairs must be must_use"
     );
