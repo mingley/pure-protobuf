@@ -26,7 +26,7 @@ use pbrs_grpc::{
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
 const CA: &str = include_str!("tls_data/ca.crt");
@@ -187,6 +187,56 @@ fn stamp_wait_ready<T>(
         request.set_timeout(timeout);
     }
     request
+}
+
+fn stamp_opt_out<T>(mut request: Request<T>) -> Request<T> {
+    request.set_wait_for_ready(false);
+    request.set_timeout(Duration::from_secs(5));
+    request
+}
+
+fn stamp_wait_deadline<T>(mut request: Request<T>, timeout: Duration) -> Request<T> {
+    request.set_wait_for_ready(true);
+    request.set_timeout(timeout);
+    request
+}
+
+async fn assert_deadline_in<F, T>(call: F, min_elapsed: Duration, max_elapsed: Duration)
+where
+    F: std::future::Future<Output = Result<T, Status>>,
+{
+    let started = Instant::now();
+    let err = match call.await {
+        Ok(_) => panic!("expected deadline"),
+        Err(status) => status,
+    };
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() >= min_elapsed,
+        "deadline returned too fast: {:?}",
+        started.elapsed()
+    );
+    assert!(
+        started.elapsed() < max_elapsed,
+        "deadline too slow: {:?}",
+        started.elapsed()
+    );
+}
+
+async fn assert_reflection_opt_out(client: &ServerReflectionClient) {
+    let (tx, call) = client.server_reflection_info(stamp_opt_out(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+}
+
+async fn assert_reflection_wait_deadline(client: &ServerReflectionClient) {
+    let timeout = Duration::from_millis(80);
+    let min = Duration::from_millis(50);
+    let max = Duration::from_secs(2);
+    let (tx, call) = client.server_reflection_info(stamp_wait_deadline(Request::new(()), timeout));
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
 }
 
 async fn wait_then_complete_reflection(
@@ -1014,6 +1064,122 @@ async fn reflection_unix_channel_wait_for_ready_completes_once_the_server_listen
         }))
     })
     .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client = ServerReflectionClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reflection_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client = ServerReflectionClient::connect_lazy(addr).expect("lazy");
+    assert_reflection_wait_deadline(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_tls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reflection_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_tls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_reflection_wait_deadline(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_mtls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reflection_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_mtls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_reflection_wait_deadline(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_unix_request_can_opt_out_of_channel_wait_for_ready() {
+    let path = unix_sock("opt-out");
+    let client = ServerReflectionClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reflection_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_unix_wait_for_ready_times_out_when_nothing_is_listening() {
+    let path = unix_sock("deadline");
+    let client = ServerReflectionClient::connect_unix_lazy(&path).expect("lazy");
+    assert_reflection_wait_deadline(&client).await;
     let _ = std::fs::remove_file(&path);
 }
 

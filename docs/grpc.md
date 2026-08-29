@@ -557,8 +557,10 @@ on those transports, from either `Request::set_wait_for_ready` or
 apply on those Store dialers too, including mTLS. Health Check and Watch retry until listen on
 the same dialers (`HealthClient::connect_lazy` / `connect_tls_lazy` /
 `connect_unix_lazy`); Health has no List and no client-streaming or bidi
-method. Reflection `ServerReflectionInfo` retries until listen on those
-dialers; reflection is one bidi method. Official TestService EmptyCall,
+method. Opt-out and a waiting Call's deadline apply on those Health dialers
+too, including mTLS. Reflection `ServerReflectionInfo` retries until listen on those
+dialers; reflection is one bidi method. Opt-out and a waiting Call's deadline
+apply on those reflection dialers too, including mTLS. Official TestService EmptyCall,
 StreamingOutputCall, StreamingInputCall, and FullDuplexCall retry until
 listen on the same dialers. A hand-written `Service` on `Channel::unary` /
 `server_streaming` / `client_streaming` / `bidi` (Reverser Reverse / Server /

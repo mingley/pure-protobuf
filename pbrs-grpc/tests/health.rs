@@ -22,7 +22,7 @@ use pbrs_grpc::{
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
 const CA: &str = include_str!("tls_data/ca.crt");
@@ -196,6 +196,77 @@ fn stamp_wait_ready<T>(
         request.set_timeout(timeout);
     }
     request
+}
+
+fn stamp_opt_out<T>(mut request: Request<T>) -> Request<T> {
+    request.set_wait_for_ready(false);
+    request.set_timeout(Duration::from_secs(5));
+    request
+}
+
+fn stamp_wait_deadline<T>(mut request: Request<T>, timeout: Duration) -> Request<T> {
+    request.set_wait_for_ready(true);
+    request.set_timeout(timeout);
+    request
+}
+
+async fn assert_deadline_in<F, T>(call: F, min_elapsed: Duration, max_elapsed: Duration)
+where
+    F: std::future::Future<Output = Result<T, Status>>,
+{
+    let started = Instant::now();
+    let err = match call.await {
+        Ok(_) => panic!("expected deadline"),
+        Err(status) => status,
+    };
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() >= min_elapsed,
+        "deadline returned too fast: {:?}",
+        started.elapsed()
+    );
+    assert!(
+        started.elapsed() < max_elapsed,
+        "deadline too slow: {:?}",
+        started.elapsed()
+    );
+}
+
+async fn assert_health_opt_out(client: &HealthClient) {
+    let err = client
+        .check(stamp_opt_out(Request::new(HealthCheckRequest::new())))
+        .await
+        .expect_err("check");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .watch(stamp_opt_out(Request::new(HealthCheckRequest::new())))
+        .await
+        .expect_err("watch");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+}
+
+async fn assert_health_wait_deadline(client: &HealthClient) {
+    let timeout = Duration::from_millis(80);
+    let min = Duration::from_millis(50);
+    let max = Duration::from_secs(2);
+    assert_deadline_in(
+        client.check(stamp_wait_deadline(
+            Request::new(HealthCheckRequest::new()),
+            timeout,
+        )),
+        min,
+        max,
+    )
+    .await;
+    assert_deadline_in(
+        client.watch(stamp_wait_deadline(
+            Request::new(HealthCheckRequest::new()),
+            timeout,
+        )),
+        min,
+        max,
+    )
+    .await;
 }
 
 async fn wait_then_complete_health(
@@ -1107,6 +1178,122 @@ async fn health_unix_channel_wait_for_ready_completes_once_the_server_listens() 
         }))
     })
     .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client = HealthClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client = HealthClient::connect_lazy(addr).expect("lazy");
+    assert_health_wait_deadline(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_tls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_tls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_health_wait_deadline(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_mtls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_mtls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_health_wait_deadline(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_unix_request_can_opt_out_of_channel_wait_for_ready() {
+    let path = unix_sock("opt-out");
+    let client = HealthClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_health_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_unix_wait_for_ready_times_out_when_nothing_is_listening() {
+    let path = unix_sock("deadline");
+    let client = HealthClient::connect_unix_lazy(&path).expect("lazy");
+    assert_health_wait_deadline(&client).await;
     let _ = std::fs::remove_file(&path);
 }
 

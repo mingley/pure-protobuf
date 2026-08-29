@@ -131,9 +131,12 @@ See `docs/upb.md`. Short list:
   retry Get / Watch / PutAll / Sync until listen on those transports, from either
   the request flag or `FooClient::wait_for_ready`; opt-out and a waiting Call's
   deadline apply on those Store dialers too. Health Check and Watch
-  retry until listen on the same dialers; Health has no List. Reflection
+  retry until listen on the same dialers; Health has no List. Opt-out and a
+  waiting Call's deadline apply on those Health dialers too, including mTLS.
+  Reflection
   `ServerReflectionInfo` retries until listen on those dialers; reflection
-  is one bidi method. Official TestService EmptyCall / StreamingOutputCall /
+  is one bidi method. Opt-out and a waiting Call's deadline apply on those
+  reflection dialers too, including mTLS. Official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall retry until listen on those dialers.
   Hand-written Reverser `Channel` methods retry until listen on those dialers. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
