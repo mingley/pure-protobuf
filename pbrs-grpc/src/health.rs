@@ -1,5 +1,8 @@
 //! `grpc.health.v1.Health`: the standard health service, generated plus a reporter.
 //!
+//! Check and Watch are the proto methods. There is no `List`. An inbound
+//! request over the decoding cap is `RESOURCE_EXHAUSTED` on both.
+//!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {
 //! let (health, reporter) = pbrs_grpc::health::service();

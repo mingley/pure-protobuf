@@ -308,3 +308,67 @@ async fn shutdown_is_visible_to_check_and_watch() {
         .expect_err("unknown still not found");
     assert_eq!(missing.code(), Code::NotFound, "{missing}");
 }
+
+#[tokio::test]
+async fn oversize_health_request_is_resource_exhausted() {
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        Router::new()
+            .max_decoding_message_size(16)
+            .add_service(svc)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = client(addr).await;
+    let mut fat = HealthCheckRequest::new();
+    fat.set_service("k".repeat(64));
+    let err = client
+        .check(Request::new(fat.clone()))
+        .await
+        .expect_err("check");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    match client.watch(Request::new(fat)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("oversize Watch must fail as trailers"),
+        },
+    }
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_interceptor_rejects_check_and_watch() {
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        svc.intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(Status::unauthenticated("nope")))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = client(addr).await;
+    let err = client
+        .check(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect_err("check");
+    assert_eq!(err.code(), Code::Unauthenticated, "{err}");
+    match client.watch(Request::new(HealthCheckRequest::new())).await {
+        Err(err) => assert_eq!(err.code(), Code::Unauthenticated, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::Unauthenticated, "{err}"),
+            Ok(_) => panic!("Watch interceptor reject must fail"),
+        },
+    }
+    handle.abort();
+}
