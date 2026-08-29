@@ -95,10 +95,9 @@
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {
 //! use pbrs_grpc::hello::{GreeterClient, HelloRequest};
-//! use pbrs_grpc::{Channel, Request};
+//! use pbrs_grpc::Request;
 //!
-//! let channel = Channel::connect("127.0.0.1:50051").await?;
-//! let client = GreeterClient::new(channel);
+//! let client = GreeterClient::connect("127.0.0.1:50051").await?;
 //!
 //! let mut req = HelloRequest::new();
 //! req.set_name("world");

@@ -19,7 +19,7 @@
 )]
 
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
-use pbrs_grpc::{Channel, Request, Response, ServerConfig, Status, Streaming};
+use pbrs_grpc::{Request, Response, ServerConfig, Status, Streaming};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -64,8 +64,8 @@ pub async fn spawn_greeter_server(config: ServerConfig) -> (SocketAddr, ServerGu
 pub async fn greeter_client(addr: SocketAddr) -> GreeterClient {
     let mut last = Status::unavailable("connect");
     for _ in 0..80 {
-        match Channel::connect(addr).await {
-            Ok(channel) => return GreeterClient::new(channel),
+        match GreeterClient::connect(addr).await {
+            Ok(client) => return client,
             Err(e) => {
                 last = e;
                 tokio::time::sleep(Duration::from_millis(5)).await;

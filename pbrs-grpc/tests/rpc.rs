@@ -19,8 +19,8 @@
 mod common;
 
 use common::{name_of, req, spawn_greeter};
-use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
-use pbrs_grpc::{Channel, Code, Request, Response, Status, Streaming};
+use pbrs_grpc::hello::{Greeter, GreeterClient, HelloReply, HelloRequest};
+use pbrs_grpc::{Code, Request, Response, Status, Streaming};
 
 struct Echo;
 
@@ -330,8 +330,7 @@ async fn failing_rpc_carries_typed_google_rpc_status() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_unary_on_connection_pool() {
     let (addr, _client, _guard) = spawn_greeter(Echo).await.expect("spawn");
-    let client =
-        pbrs_grpc::hello::GreeterClient::new(Channel::connect_pool(addr, 4).await.expect("pool"));
+    let client = GreeterClient::connect_pool(addr, 4).await.expect("pool");
     let mut hs = Vec::new();
     for i in 0..16u32 {
         let c = client.clone();

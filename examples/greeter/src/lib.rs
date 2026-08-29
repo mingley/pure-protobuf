@@ -27,7 +27,7 @@ mod proto {
 
 use pbrs_grpc::health::service as health_service;
 use pbrs_grpc::reflection::service as reflection_service;
-use pbrs_grpc::{Channel, Request, Response, Router, Status, Streaming};
+use pbrs_grpc::{Request, Response, Router, Status, Streaming};
 use proto::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest, FILE_DESCRIPTOR_SET};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -128,11 +128,11 @@ async fn serve() -> Result<Live, Status> {
     Ok(Live { addr, _server })
 }
 
-async fn channel(addr: SocketAddr) -> Result<Channel, Status> {
+async fn greeter(addr: SocketAddr) -> Result<GreeterClient, Status> {
     let mut last = Status::unavailable("connect");
     for _ in 0..80 {
-        match Channel::connect(addr).await {
-            Ok(ch) => return Ok(ch),
+        match GreeterClient::connect(addr).await {
+            Ok(client) => return Ok(client),
             Err(e) => {
                 last = e;
                 tokio::time::sleep(Duration::from_millis(5)).await;
@@ -142,12 +142,10 @@ async fn channel(addr: SocketAddr) -> Result<Channel, Status> {
     Err(last)
 }
 
-async fn greet(ch: &Channel, name: &str) -> Result<String, Status> {
+async fn greet(client: &GreeterClient, name: &str) -> Result<String, Status> {
     let mut req = HelloRequest::new();
     req.set_name(name);
-    let reply = GreeterClient::new(ch.clone())
-        .say_hello(Request::new(req))
-        .await?;
+    let reply = client.say_hello(Request::new(req)).await?;
     Ok(reply
         .get_ref()
         .message()
@@ -159,7 +157,7 @@ async fn greet(ch: &Channel, name: &str) -> Result<String, Status> {
 /// Bind loopback, serve, call `SayHello`, return the reply text.
 pub async fn run() -> Result<String, Status> {
     let live = serve().await?;
-    greet(&channel(live.addr).await?, "world").await
+    greet(&greeter(live.addr).await?, "world").await
 }
 
 #[cfg(test)]
@@ -184,7 +182,7 @@ mod tests {
     #[tokio::test]
     async fn generated_stubs_all_four_shapes() {
         let live = serve().await.unwrap();
-        let client = GreeterClient::new(channel(live.addr).await.unwrap());
+        let client = greeter(live.addr).await.unwrap();
 
         let unary = client
             .say_hello(Request::new(request("ada")))
@@ -228,7 +226,8 @@ mod tests {
         use pbrs_grpc::health::{HealthCheckRequest, HealthClient, ServingStatus};
 
         let live = serve().await.unwrap();
-        let client = HealthClient::new(channel(live.addr).await.unwrap());
+        let _ready = greeter(live.addr).await.unwrap();
+        let client = HealthClient::connect(live.addr).await.unwrap();
         let mut req = HealthCheckRequest::new();
         req.set_service(GreeterServer::<MyGreeter>::NAME);
         let status = client
@@ -245,7 +244,8 @@ mod tests {
         use pbrs_grpc::reflection::{ServerReflectionClient, ServerReflectionRequest};
 
         let live = serve().await.unwrap();
-        let client = ServerReflectionClient::new(channel(live.addr).await.unwrap());
+        let _ready = greeter(live.addr).await.unwrap();
+        let client = ServerReflectionClient::connect(live.addr).await.unwrap();
         let (tx, call) = client.server_reflection_info(Request::new(()));
         let mut inbound = call.await.unwrap().into_inner();
         let mut req = ServerReflectionRequest::new();

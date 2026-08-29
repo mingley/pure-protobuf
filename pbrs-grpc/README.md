@@ -42,7 +42,7 @@ GreeterServer::new(MyGreeter).serve(addr).await?;
 and call it:
 
 ```rust
-let client = GreeterClient::new(Channel::connect("127.0.0.1:50051").await?);
+let client = GreeterClient::connect("127.0.0.1:50051").await?;
 let reply = client.say_hello(Request::new(req)).await?;
 ```
 

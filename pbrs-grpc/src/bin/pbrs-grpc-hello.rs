@@ -9,7 +9,7 @@
 )]
 
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
-use pbrs_grpc::{Channel, Request, Response, Status, Streaming};
+use pbrs_grpc::{Request, Response, Status, Streaming};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
@@ -105,7 +105,7 @@ async fn run() -> Result<Vec<String>, Status> {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     }));
 
-    let client = GreeterClient::new(Channel::connect(addr).await?);
+    let client = GreeterClient::connect(addr).await?;
     let mut out = Vec::new();
 
     let unary = client.say_hello(Request::new(request("ada"))).await?;

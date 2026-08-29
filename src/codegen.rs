@@ -41,7 +41,9 @@ pub enum Stubs {
     #[default]
     Tonic,
     /// Native `pbrs-grpc` stubs. Requires the generating crate to depend on
-    /// `pbrs-grpc`.
+    /// `pbrs-grpc`. `FooClient` dials with `connect` / `connect_tls` /
+    /// `connect_unix` / `from_io`; `FooServer` serves with `serve` /
+    /// `serve_tls` / `serve_unix`.
     Kernel,
 }
 
@@ -275,8 +277,10 @@ impl Config {
 
     /// Emit native `pbrs-grpc` `FooClient`/`FooServer` stubs.
     ///
-    /// The generating crate must depend on `pbrs-grpc`. Mutually exclusive
-    /// with [`Self::emit_tonic_stubs`]; the last call wins.
+    /// The generating crate must depend on `pbrs-grpc`. `FooClient` gets the
+    /// same dialers as `Channel` (`connect`, `connect_tls`, `connect_unix`,
+    /// `from_io`, and the lazy/`_with` variants). Mutually exclusive with
+    /// [`Self::emit_tonic_stubs`]; the last call wins.
     ///
     /// ```no_run
     /// // build.rs
@@ -4199,6 +4203,217 @@ fn emit_kernel_server(
     let _ = writeln!(src, "}}");
 }
 
+fn emit_kernel_client_dialers(src: &mut String) {
+    let _ = writeln!(src, "    /// Dial `target`. See [`{G}::Channel::connect`].");
+    let _ = writeln!(
+        src,
+        "    pub async fn connect(target: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect(target).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect`] with [`{G}::ChannelConfig`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn connect_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_with(target, config).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Open `connections` slots. See [`{G}::Channel::connect_pool`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn connect_pool(target: impl Into<{G}::Target>, connections: usize) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_pool(target, connections).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Dial over TLS. See [`{G}::Channel::connect_tls`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn connect_tls(target: impl Into<{G}::Target>, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_tls(target, tls).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect_tls`] with [`{G}::ChannelConfig`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn connect_tls_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_tls_with(target, config, tls).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Dial on the first RPC. See [`{G}::Channel::connect_lazy`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn connect_lazy(target: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_lazy(target)?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect_lazy`] with [`{G}::ChannelConfig`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn connect_lazy_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_lazy_with(target, config)?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect_lazy`] over TLS. See [`{G}::Channel::connect_tls_lazy`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn connect_tls_lazy(target: impl Into<{G}::Target>, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_tls_lazy(target, tls)?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect_tls_lazy`] with [`{G}::ChannelConfig`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn connect_tls_lazy_with(target: impl Into<{G}::Target>, config: {G}::ChannelConfig, tls: {G}::ClientTls) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_tls_lazy_with(target, config, tls)?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Dial a Unix domain socket. See [`{G}::Channel::connect_unix`]."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn connect_unix(path: impl AsRef<::std::path::Path>) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_unix(path).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect_unix`] with [`{G}::ChannelConfig`]."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn connect_unix_with(path: impl AsRef<::std::path::Path>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_unix_with(path, config).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect_unix`] that dials on the first RPC."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub fn connect_unix_lazy(path: impl AsRef<::std::path::Path>) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_unix_lazy(path)?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::connect_unix_lazy`] with [`{G}::ChannelConfig`]."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub fn connect_unix_lazy_with(path: impl AsRef<::std::path::Path>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::connect_unix_lazy_with(path, config)?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Speak gRPC over an already-connected byte stream. See [`{G}::Channel::from_io`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn from_io<IO>(io: IO, authority: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status>"
+    );
+    let _ = writeln!(src, "    where");
+    let _ = writeln!(
+        src,
+        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + Unpin + Send + 'static,"
+    );
+    let _ = writeln!(src, "    {{");
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::from_io(io, authority).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// [`Self::from_io`] with [`{G}::ChannelConfig`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn from_io_with<IO>(io: IO, authority: impl Into<{G}::Target>, config: {G}::ChannelConfig) -> ::core::result::Result<Self, {G}::Status>"
+    );
+    let _ = writeln!(src, "    where");
+    let _ = writeln!(
+        src,
+        "        IO: {G}::codegen_support::AsyncRead + {G}::codegen_support::AsyncWrite + Unpin + Send + 'static,"
+    );
+    let _ = writeln!(src, "    {{");
+    let _ = writeln!(
+        src,
+        "        Ok(Self::new({G}::Channel::from_io_with(io, authority, config).await?))"
+    );
+    let _ = writeln!(src, "    }}");
+}
+
 fn emit_kernel_client(
     src: &mut String,
     trait_name: &str,
@@ -4211,6 +4426,14 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "/// Wraps a [`{G}::Channel`]; cloning is cheap and shares connections."
+    );
+    let _ = writeln!(
+        src,
+        "/// Dial with [`Self::connect`], [`Self::connect_tls`], or [`Self::from_io`]."
+    );
+    let _ = writeln!(
+        src,
+        "/// On Unix, `connect_unix` takes a filesystem path. Wrap an existing channel with [`Self::new`]."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
@@ -4242,6 +4465,7 @@ fn emit_kernel_client(
         src,
         "    pub fn into_inner(self) -> {G}::Channel {{ self.channel }}"
     );
+    emit_kernel_client_dialers(src);
     let _ = writeln!(
         src,
         "    /// Cap inbound messages at `limit` bytes. Default 4 MiB."

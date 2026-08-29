@@ -31,8 +31,9 @@ use tokio::sync::{watch, Mutex};
 
 /// Where a [`Channel`] should dial.
 ///
-/// Built with [`From`], so `Channel::connect` takes a `SocketAddr`, a
-/// `&str` of the form `host:port`, or a `String`.
+/// Built with [`From`], so [`Channel::connect`] (and generated
+/// `FooClient::connect`) takes a `SocketAddr`, a `&str` of the form
+/// `host:port`, or a `String`.
 ///
 /// ```
 /// use pbrs_grpc::Target;
@@ -188,6 +189,10 @@ impl Endpoint {
 /// [`Self::from_io`] speaks over an already-connected byte stream and cannot
 /// redial. Pair it with [`crate::Server::serve_connection`] for in-process
 /// tests.
+///
+/// Generated `FooClient` types wrap these constructors as `FooClient::connect`,
+/// `connect_tls`, `connect_unix`, and `from_io`, so a service crate rarely
+/// constructs a `Channel` by hand.
 ///
 /// [`Self::intercept`] runs on every outbound RPC before the stream opens,
 /// which is how a client injects auth metadata, a default deadline, or

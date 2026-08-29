@@ -59,8 +59,8 @@ async fn serve_tls(tls: ServerTls) -> (SocketAddr, ServerGuard) {
 async fn tls_client(addr: SocketAddr, tls: ClientTls) -> GreeterClient {
     let mut last = Status::unavailable("connect");
     for _ in 0..80 {
-        match Channel::connect_tls(addr, tls.clone()).await {
-            Ok(channel) => return GreeterClient::new(channel),
+        match GreeterClient::connect_tls(addr, tls.clone()).await {
+            Ok(client) => return client,
             Err(e) => {
                 last = e;
                 tokio::time::sleep(Duration::from_millis(5)).await;

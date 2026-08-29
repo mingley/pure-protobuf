@@ -25,7 +25,7 @@
     reason = "integration tests"
 )]
 
-use pbrs_grpc::{Channel, Code, Request, Response, Status, Streaming};
+use pbrs_grpc::{ChannelConfig, Code, Request, Response, Status, Streaming};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -152,8 +152,8 @@ async fn serve() -> (SocketAddr, tokio::task::JoinHandle<()>) {
 
 async fn client(addr: SocketAddr) -> StoreClient {
     for _ in 0..80 {
-        if let Ok(channel) = Channel::connect(addr).await {
-            return StoreClient::new(channel);
+        if let Ok(client) = StoreClient::connect(addr).await {
+            return client;
         }
         tokio::time::sleep(Duration::from_millis(5)).await;
     }
@@ -250,12 +250,12 @@ async fn generated_serve_unix_round_trips() {
         StoreServer::new(MemStore).serve_unix(sock).await.ok();
     });
     let mut last = None;
-    let channel = {
+    let client = {
         let mut found = None;
         for _ in 0..80 {
-            match Channel::connect_unix(&path).await {
-                Ok(channel) => {
-                    found = Some(channel);
+            match StoreClient::connect_unix(&path).await {
+                Ok(client) => {
+                    found = Some(client);
                     break;
                 }
                 Err(e) => {
@@ -266,7 +266,6 @@ async fn generated_serve_unix_round_trips() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
-    let client = StoreClient::new(channel);
     let mut get = GetRequest::new();
     get.set_key("alpha");
     let got = client.get(Request::new(get)).await.expect("unary");
@@ -296,12 +295,12 @@ async fn generated_serve_unix_unlink_replaces_a_leftover() {
             .ok();
     });
     let mut last = None;
-    let channel = {
+    let client = {
         let mut found = None;
         for _ in 0..80 {
-            match Channel::connect_unix(&path).await {
-                Ok(channel) => {
-                    found = Some(channel);
+            match StoreClient::connect_unix(&path).await {
+                Ok(client) => {
+                    found = Some(client);
                     break;
                 }
                 Err(e) => {
@@ -312,7 +311,6 @@ async fn generated_serve_unix_unlink_replaces_a_leftover() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
-    let client = StoreClient::new(channel);
     let mut get = GetRequest::new();
     get.set_key("alpha");
     assert!(client
@@ -388,8 +386,9 @@ async fn generated_servers_mount_on_a_router() {
         .get_ref()
         .found());
 
-    let channel = Channel::connect(addr).await.expect("connect");
-    let greeter = pbrs_grpc::GreeterClient::new(channel);
+    let greeter = pbrs_grpc::GreeterClient::connect(addr)
+        .await
+        .expect("connect");
     let mut hello = pbrs_grpc::HelloRequest::new();
     hello.set_name("ada");
     let reply = greeter
@@ -538,9 +537,47 @@ fn generated_server_into_router_keeps_the_name() {
 
 #[test]
 fn generated_client_debug_and_into_inner() {
-    let channel = Channel::connect_lazy("127.0.0.1:1").expect("lazy");
-    let client = StoreClient::new(channel).timeout(Duration::from_secs(5));
+    let client = StoreClient::connect_lazy_with(
+        "127.0.0.1:1",
+        ChannelConfig::default().timeout(Duration::from_secs(5)),
+    )
+    .expect("lazy");
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
+    let _ = client.into_inner();
+}
+
+#[tokio::test]
+async fn generated_client_connect_with_and_pool_round_trip() {
+    let (addr, server) = serve().await;
+    let mut get = GetRequest::new();
+    get.set_key("cfg");
+    let with = StoreClient::connect_with(
+        addr,
+        ChannelConfig::default().timeout(Duration::from_secs(5)),
+    )
+    .await
+    .expect("connect_with");
+    assert!(with
+        .get(Request::new(get.clone()))
+        .await
+        .expect("with")
+        .get_ref()
+        .found());
+    let pooled = StoreClient::connect_pool(addr, 2).await.expect("pool");
+    assert!(pooled
+        .get(Request::new(get))
+        .await
+        .expect("pool")
+        .get_ref()
+        .found());
+    server.abort();
+}
+
+#[cfg(unix)]
+#[test]
+fn generated_client_connect_unix_lazy() {
+    let client =
+        StoreClient::connect_unix_lazy("/tmp/pbrs-grpc-does-not-exist.sock").expect("unix lazy");
     let _ = client.into_inner();
 }
 
@@ -553,10 +590,9 @@ async fn generated_serve_connection_round_trips() {
             .await
             .ok();
     });
-    let channel = Channel::from_io(client_io, "localhost")
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
         .await
         .expect("from_io");
-    let client = StoreClient::new(channel);
     let mut get = GetRequest::new();
     get.set_key("alpha");
     let got = client.get(Request::new(get)).await.expect("unary");

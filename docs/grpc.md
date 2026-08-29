@@ -110,8 +110,7 @@ async fn main() -> Result<(), Status> {
 And call it:
 
 ```rust
-let channel = pbrs_grpc::Channel::connect("127.0.0.1:50051").await?;
-let client = GreeterClient::new(channel);
+let client = GreeterClient::connect("127.0.0.1:50051").await?;
 
 let mut req = HelloRequest::new();
 req.set_name("world");
@@ -119,12 +118,12 @@ let reply = client.say_hello(Request::new(req)).await?;
 println!("{}", reply.get_ref().message());
 ```
 
-`Channel::connect` takes anything that converts into a
+`GreeterClient::connect` (and `Channel::connect`) takes anything that converts into a
 [`Target`](https://docs.rs/pbrs-grpc): a `SocketAddr`, or a `host:port`
-string that goes through DNS. The resulting `Channel` is meant to be cloned
+string that goes through DNS. The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, so a server restart on the same address does not require
-a new client. `Channel::connect_lazy` skips the initial dial so the client
+a new client. `GreeterClient::connect_lazy` skips the initial dial so the client
 can exist before the server; pair it with `Request::set_wait_for_ready`.
 
 A complete crate that depends on `pbrs-grpc` from the outside — own proto,
@@ -399,8 +398,7 @@ A channel that is not yet connected fails an RPC immediately with
 when a restart should queue instead of bouncing.
 
 ```rust
-let channel = Channel::connect_lazy(addr)?;
-let client = GreeterClient::new(channel);
+let client = GreeterClient::connect_lazy(addr)?;
 
 let mut req = Request::new(payload);
 req.set_wait_for_ready(true);
@@ -486,7 +484,7 @@ verification is not optional; there is no insecure constructor. ALPN is `h2`,
 and a peer that does not negotiate it is dropped.
 
 ```rust
-use pbrs_grpc::{Channel, ClientTls, Identity, ServerTls};
+use pbrs_grpc::{ClientTls, Identity, ServerTls};
 
 let identity = Identity::from_pem(cert_pem, key_pem)?;
 GreeterServer::new(MyGreeter)
@@ -495,7 +493,7 @@ GreeterServer::new(MyGreeter)
 
 // Dial 127.0.0.1, verify the certificate as localhost.
 let tls = ClientTls::ca("localhost", ca_pem)?;
-let channel = Channel::connect_tls("127.0.0.1:443", tls).await?;
+let client = GreeterClient::connect_tls("127.0.0.1:443", tls).await?;
 ```
 
 `ClientTls::webpki("api.example.com")` trusts Mozilla's CA set. For private
@@ -553,7 +551,7 @@ Loopback without TCP: a filesystem socket. The protocol is the same h2c as
 
 ```rust
 GreeterServer::new(MyGreeter).serve_unix("/tmp/greeter.sock").await?;
-let channel = Channel::connect_unix("/tmp/greeter.sock").await?;
+let client = GreeterClient::connect_unix("/tmp/greeter.sock").await?;
 ```
 
 `connect_unix_lazy` and `Request::set_wait_for_ready` work the same as on
@@ -567,9 +565,10 @@ listening, the path is left alone and `serve_unix_unlink` fails with
 
 ## In-process connections
 
-Loopback without a port: already-connected byte streams. `Channel::from_io`
-and `Server::serve_connection` speak the same h2c protocol over
-`tokio::io::duplex`, `UnixStream::pair`, or any `AsyncRead + AsyncWrite`.
+Loopback without a port: already-connected byte streams. `GreeterClient::from_io`
+(and `Channel::from_io`) with `Server::serve_connection` speak the same h2c
+protocol over `tokio::io::duplex`, `UnixStream::pair`, or any
+`AsyncRead + AsyncWrite`.
 The channel has one slot and cannot redial; if the stream dies the next RPC
 fails with `UNAVAILABLE`. TCP keepalive and TLS do not apply — you already
 hold the bytes.
@@ -579,7 +578,7 @@ let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
 tokio::spawn(async move {
     GreeterServer::new(MyGreeter).serve_connection(server_io).await.ok();
 });
-let channel = Channel::from_io(client_io, "localhost").await?;
+let client = GreeterClient::from_io(client_io, "localhost").await?;
 ```
 
 A custom acceptor implements `Incoming` and is served with
@@ -937,7 +936,7 @@ runs before the stream opens. Closures take `Outgoing`: the method path,
 extensions. TCP `:authority` is `host:port`; Unix is `localhost`.
 
 ```rust
-let client = GreeterClient::new(channel).intercept(|call| {
+let client = GreeterClient::connect(addr).await?.intercept(|call| {
     call.metadata_mut().insert("authorization", "Bearer secret")?;
     let authority = call.authority();
     call.metadata_mut().insert("x-authority", authority)?;
@@ -974,7 +973,7 @@ async fn greets() {
         GreeterServer::new(MyGreeter).serve_listener(listener).await.ok();
     });
 
-    let client = GreeterClient::new(Channel::connect(addr).await.expect("connect"));
+    let client = GreeterClient::connect(addr).await.expect("connect");
     let mut req = HelloRequest::new();
     req.set_name("ada");
     let reply = client.say_hello(Request::new(req)).await.expect("rpc");
@@ -984,7 +983,7 @@ async fn greets() {
 }
 ```
 
-For tests that should not bind a port, pair `Channel::from_io` with
+For tests that should not bind a port, pair `GreeterClient::from_io` with
 `Server::serve_connection` over `tokio::io::duplex`.
 
 `Request`, `Response`, `Status`, `Streaming`, `Rpc`, `Channel`, `Outgoing`,
