@@ -101,7 +101,7 @@
 //! | Concern | Types |
 //! |---|---|
 //! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`Incoming`], [`IncomingAccept`], [`ConnectionInfo`], [`ServerConfig`], [`PeerCred`] |
-//! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`] |
+//! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`], [`FusedFuture`] |
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`], [`PeerIdentity`] |
 //! | Health | [`health`] |
 //! | Reflection | [`reflection`] |
@@ -281,6 +281,9 @@ pub use config::{
     DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
     DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
 };
+/// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by
+/// combinators that honour termination.
+pub use futures_core::future::FusedFuture;
 /// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
 pub use futures_core::Stream;
 /// Per-RPC typed bag: insert in an interceptor, read in the handler.

@@ -5,6 +5,7 @@ use crate::metadata::Metadata;
 use crate::server::{split_path, PeerCred};
 use crate::status::Status;
 use crate::tls::PeerIdentity;
+use futures_core::future::FusedFuture;
 use std::fmt;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -1484,6 +1485,11 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
 /// stream so the server drops the handler, the same as [`Self::cancel`].
 /// Cancel while you still hold the future if you need the await to resolve
 /// with [`Code::Cancelled`](crate::Code::Cancelled) rather than being dropped.
+///
+/// After this future yields `Ready`, it is terminated
+/// (`futures_core::future::FusedFuture`): combinators that skip terminated
+/// futures will not poll it again. [`Self::is_cancelled`] is a separate
+/// signal — a finished call is terminated even if it was never cancelled.
 #[must_use = "an RPC does nothing until awaited"]
 pub struct Call<T> {
     fut: Pin<Box<dyn Future<Output = Result<T, Status>> + Send>>,
@@ -1548,6 +1554,12 @@ impl<T> Future for Call<T> {
     }
 }
 
+impl<T> FusedFuture for Call<T> {
+    fn is_terminated(&self) -> bool {
+        self.done
+    }
+}
+
 impl<T> Drop for Call<T> {
     fn drop(&mut self) {
         if !self.done {
@@ -1562,6 +1574,7 @@ impl<T> fmt::Debug for Call<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Call")
             .field("cancelled", &*self.cancel.borrow())
+            .field("terminated", &self.done)
             .finish_non_exhaustive()
     }
 }
@@ -1894,5 +1907,29 @@ mod tests {
         handle.cancel();
         assert!(handle.is_cancelled());
         assert!(call.is_cancelled());
+    }
+
+    #[test]
+    fn call_is_fused_after_ready() {
+        use futures_core::future::FusedFuture;
+        use std::future::Future;
+        use std::pin::Pin;
+        use std::task::{Context, Poll};
+
+        let (tx, _rx) = tokio::sync::watch::channel(false);
+        let mut call = super::Call::new(tx, Box::pin(async { Ok::<u32, crate::Status>(1) }));
+        assert!(!call.is_terminated());
+        let shown = format!("{call:?}");
+        assert!(shown.contains("terminated: false"), "{shown}");
+        let waker = std::task::Waker::noop();
+        let mut cx = Context::from_waker(waker);
+        assert!(matches!(
+            Pin::new(&mut call).poll(&mut cx),
+            Poll::Ready(Ok(1))
+        ));
+        assert!(call.is_terminated());
+        assert!(!call.is_cancelled());
+        let shown = format!("{call:?}");
+        assert!(shown.contains("terminated: true"), "{shown}");
     }
 }

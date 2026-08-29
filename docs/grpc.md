@@ -1317,8 +1317,10 @@ streams use `https_scheme` on the client and `Incoming::peer` on a custom
 acceptor when the server must not trust the peer's `:scheme`.
 
 `Request`, `Response`, `Status`, `Streaming`, `Rpc`, `Channel`, `Outgoing`,
-and `Intercepted` all implement `Debug`, so `expect_err` and assertion
+`Call`, and `Intercepted` all implement `Debug`, so `expect_err` and assertion
 failures print something useful. Generated `FooServer` / `FooClient` do too.
+A `Call` is fused after it resolves (`FusedFuture`), distinct from
+`is_cancelled`.
 
 For interop against other implementations, the crate ships the official
 `grpc.testing.TestService` and its test cases. `scripts/grpc-interop.sh` runs

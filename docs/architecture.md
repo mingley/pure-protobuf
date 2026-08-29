@@ -85,7 +85,8 @@ the same overlays as the channel (the setter names cannot collide).
 `FooServer::rpc_timeout` and `compresses_outbound` (also `Server` / `Router`)
 read the same overlays as `server_config`.
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
-after headers does not end the stream.
+after headers does not end the stream. A [`Call`] is fused after it yields
+`Ready` (`futures_core::future::FusedFuture`).
 
 ### Interceptors
 

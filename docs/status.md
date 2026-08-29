@@ -114,7 +114,7 @@ See `docs/upb.md`. Short list:
   `identity` token). Client interceptors see the channel overlay
   on `Outgoing::limits` plus a deadline Instant and fill-if-unset
   wait-for-ready / compress. `Status::set_rpc` / `set_code` keep trailing
-  metadata. Methods omitted on generated traits answer `UNIMPLEMENTED`.
+  metadata. A `Call` is fused after `Ready`. Methods omitted on generated traits answer `UNIMPLEMENTED`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
