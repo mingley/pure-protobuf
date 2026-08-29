@@ -257,6 +257,20 @@ async fn tls_channel_with(addr: SocketAddr, tls: ClientTls) -> Channel {
     panic!("could not connect: {last:?}");
 }
 
+async fn tls_channel_cfg(addr: SocketAddr, tls: ClientTls, cfg: ChannelConfig) -> Channel {
+    let mut last = None;
+    for _ in 0..80 {
+        match Channel::connect_tls_with(addr, cfg, tls.clone()).await {
+            Ok(channel) => return channel,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}");
+}
+
 async fn tls_channel(addr: SocketAddr) -> Channel {
     tls_channel_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await
 }
@@ -4515,6 +4529,46 @@ async fn tls_channel_wait_for_ready_completes_once_the_server_listens() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    let client = GreeterClient::new(channel);
+    wait_then_complete_every_shape(&client, true, async {
+        serve_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let client = GreeterClient::new(channel);
+    wait_then_complete_every_shape(&client, false, async {
+        serve_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tls_request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind().await;
     drop(listener);
@@ -5144,6 +5198,21 @@ async fn unix_channel(path: &std::path::Path) -> Channel {
 }
 
 #[cfg(unix)]
+async fn unix_channel_with(path: &std::path::Path, cfg: ChannelConfig) -> Channel {
+    let mut last = None;
+    for _ in 0..80 {
+        match Channel::connect_unix_with(path, cfg).await {
+            Ok(channel) => return channel,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("connect unix {}: {last:?}", path.display());
+}
+
+#[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn serve_unix_until_shutdown_serves_then_drains() {
     let (path, _guard) = unix_test_path();
@@ -5549,6 +5618,73 @@ async fn tcp_keepalive_still_serves() {
         found.unwrap_or_else(|| panic!("connect with tcp keepalive: {last:?}"))
     };
     echo_every_shape(&GreeterClient::new(connected), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_keepalive_still_serves() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .keep_alive_interval(Duration::from_millis(50))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = tls_channel_cfg(
+        addr,
+        client_tls,
+        ChannelConfig::new().keep_alive_interval(Duration::from_millis(50)),
+    )
+    .await;
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_keepalive_still_serves() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .keep_alive_interval(Duration::from_millis(50))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let channel = unix_channel_with(
+        &path,
+        ChannelConfig::new().keep_alive_interval(Duration::from_millis(50)),
+    )
+    .await;
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_keepalive_still_serves() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .keep_alive_interval(Duration::from_millis(50))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io_with(
+        client_io,
+        "localhost",
+        ChannelConfig::new().keep_alive_interval(Duration::from_millis(50)),
+    )
+    .await
+    .expect("from_io");
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
     task.abort();
 }
 

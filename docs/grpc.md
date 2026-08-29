@@ -549,7 +549,7 @@ let reply = client.say_hello(req).await?;
 Per-RPC `Request::set_wait_for_ready(false)` opts out of a channel default.
 `set_wait_for_ready(true)` on a request that did not inherit still works.
 That opt-out, and a waiting Call's deadline, apply on h2c, TLS
-(`connect_tls_lazy`), and Unix (`connect_unix_lazy`), on every call shape.
+(`connect_tls_lazy`, including mTLS), and Unix (`connect_unix_lazy`), on every call shape.
 
 `Channel::waits_for_ready` / `FooClient::waits_for_ready` read the overlay
 (`wait_for_ready` sets it).
@@ -666,7 +666,7 @@ and `FooServer::serve_tls` apply to every call shape of that service.
 `FooClient::connect_lazy_with` / `connect_unix_lazy_with` do the same on
 h2c and Unix. `Channel::connect_tls_with` is the hand-written equivalent.
 `connect_tls_lazy` and `Request::set_wait_for_ready` / `Channel::wait_for_ready`
-work the same as on h2c, on every call shape.
+work the same as on h2c, on every call shape, including mTLS.
 `send_compressed` gzips every call shape over TLS the same way it does on
 h2c, including over mTLS. The same overlay gzips every call shape on Unix.
 
@@ -708,7 +708,7 @@ older or more exotic targets stay on h2c.
 Two independent knobs. They are both off by default.
 
 **HTTP/2 PING.** An application-level ping on the HTTP/2 connection, including
-Unix sockets and TLS. Turn it on when a NAT or load balancer will drop idle
+Unix sockets, TLS, and `from_io`. Turn it on when a NAT or load balancer will drop idle
 connections, or when you want a dead peer noticed before the next RPC:
 
 ```rust

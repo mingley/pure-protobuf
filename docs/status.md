@@ -121,8 +121,8 @@ See `docs/upb.md`. Short list:
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress, and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
-  after `clear_*`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`),
-  and Unix (`connect_unix_lazy`) on every call shape, including the channel
+  after `clear_*`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
+  including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
   overlay, per-RPC opt-out, and a waiting Call's deadline. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
