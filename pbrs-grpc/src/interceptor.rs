@@ -10,19 +10,20 @@ use std::sync::Arc;
 ///
 /// Return `Err` to reject without reading the body; `Ok` to proceed.
 /// Closures with this signature implement the trait, so most interceptors
-/// are one function.
+/// are one function. Insert typed values with [`Rpc::extensions_mut`] for
+/// the handler to read from [`crate::Request::extensions`].
 ///
 /// ```
 /// use pbrs_grpc::{Rpc, Service, ServiceExt, Status};
 ///
-/// fn require_token(rpc: &Rpc) -> Result<(), Status> {
+/// fn require_token(rpc: &mut Rpc) -> Result<(), Status> {
 ///     if rpc.metadata().get("authorization") != Some("Bearer secret") {
 ///         return Err(Status::unauthenticated("bad or missing token"));
 ///     }
 ///     Ok(())
 /// }
 ///
-/// fn _mount<S: Service>(inner: S) -> pbrs_grpc::Intercepted<S, fn(&Rpc) -> Result<(), Status>> {
+/// fn _mount<S: Service>(inner: S) -> pbrs_grpc::Intercepted<S, fn(&mut Rpc) -> Result<(), Status>> {
 ///     inner.intercept(require_token)
 /// }
 /// ```
@@ -33,14 +34,14 @@ use std::sync::Arc;
 /// [`crate::Router::intercept`] or wrap one service with [`Intercepted`].
 pub trait Interceptor: Send + Sync + 'static {
     /// Inspect `rpc`. The body has not been read yet.
-    fn intercept(&self, rpc: &Rpc) -> Result<(), Status>;
+    fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status>;
 }
 
 impl<F> Interceptor for F
 where
-    F: Fn(&Rpc) -> Result<(), Status> + Send + Sync + 'static,
+    F: Fn(&mut Rpc) -> Result<(), Status> + Send + Sync + 'static,
 {
-    fn intercept(&self, rpc: &Rpc) -> Result<(), Status> {
+    fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status> {
         self(rpc)
     }
 }
@@ -74,8 +75,8 @@ impl<S, I> Intercepted<S, I> {
 impl<S: Service, I: Interceptor> Service for Intercepted<S, I> {
     const NAME: &'static str = S::NAME;
 
-    async fn call(&self, rpc: Rpc) {
-        if let Err(status) = self.interceptor.intercept(&rpc) {
+    async fn call(&self, mut rpc: Rpc) {
+        if let Err(status) = self.interceptor.intercept(&mut rpc) {
             return rpc.reject(status);
         }
         self.inner.call(rpc).await;
@@ -129,7 +130,7 @@ impl<I> Then<I> {
 }
 
 impl<I: Interceptor> Interceptor for Then<I> {
-    fn intercept(&self, rpc: &Rpc) -> Result<(), Status> {
+    fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status> {
         self.prev.intercept(rpc)?;
         self.next.intercept(rpc)
     }

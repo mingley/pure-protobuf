@@ -408,7 +408,7 @@ async fn a_wrapping_service_can_reject_before_the_body_is_read() {
     task.abort();
 }
 
-fn require_bearer(rpc: &Rpc) -> Result<(), Status> {
+fn require_bearer(rpc: &mut Rpc) -> Result<(), Status> {
     if rpc.metadata().get("authorization") != Some("Bearer letmein") {
         return Err(Status::unauthenticated("bad or missing token"));
     }
@@ -481,12 +481,72 @@ async fn service_ext_intercept_wraps_a_hand_written_service() {
 }
 
 #[tokio::test]
+async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
+    struct TenantEcho;
+
+    impl Service for TenantEcho {
+        const NAME: &'static str = "demo.TenantEcho";
+
+        async fn call(&self, rpc: Rpc) {
+            rpc.unary(|request: Request<HelloRequest>| async move {
+                let tenant = request
+                    .extensions()
+                    .get::<String>()
+                    .cloned()
+                    .unwrap_or_default();
+                let mut reply = HelloReply::new();
+                reply.set_message(tenant);
+                Ok(Response::new(reply))
+            })
+            .await;
+        }
+    }
+
+    fn with_tenant(rpc: &mut Rpc) -> Result<(), Status> {
+        let Some(tenant) = rpc.metadata().get("x-tenant").map(str::to_owned) else {
+            return Err(Status::unauthenticated("missing x-tenant"));
+        };
+        rpc.extensions_mut().insert(tenant);
+        Ok(())
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TenantEcho.intercept(with_tenant))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let ch = channel(addr).await;
+    let denied = ch
+        .unary::<HelloRequest, HelloReply>("/demo.TenantEcho/Ping", Request::new(req("ignored")))
+        .await
+        .expect_err("no tenant");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+
+    let mut tagged = Request::new(req("ignored"));
+    tagged
+        .metadata_mut()
+        .insert("x-tenant", "acme")
+        .expect("metadata");
+    let reply = ch
+        .unary::<HelloRequest, HelloReply>("/demo.TenantEcho/Ping", tagged)
+        .await
+        .expect("with tenant")
+        .into_inner();
+    assert_eq!(name_of(&reply), "acme");
+
+    task.abort();
+}
+
+#[tokio::test]
 async fn router_interceptors_stack_in_declaration_order() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         Router::new()
             .add_service(GreeterServer::new(Echo))
-            .intercept(|rpc: &Rpc| {
+            .intercept(|rpc: &mut Rpc| {
                 if rpc.metadata().get("x-trace").is_none() {
                     return Err(Status::invalid_argument("missing x-trace"));
                 }
@@ -553,7 +613,7 @@ async fn outbound_rpcs_send_a_kernel_user_agent() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &Rpc| {
+            .intercept(|rpc: &mut Rpc| {
                 let md = rpc.metadata();
                 let ua = md.get("user-agent").unwrap_or("");
                 if !ua.starts_with("pbrs-grpc/") {

@@ -750,7 +750,7 @@ Auth, tracing, and tenant checks run before the handler. Closures implement
 `Interceptor`, so most interceptors are one function:
 
 ```rust
-fn require_token(rpc: &Rpc) -> Result<(), Status> {
+fn require_token(rpc: &mut Rpc) -> Result<(), Status> {
     if rpc.metadata().get("authorization") != Some("Bearer secret") {
         return Err(Status::unauthenticated("bad or missing token"));
     }
@@ -761,6 +761,22 @@ GreeterServer::new(MyGreeter)
     .intercept(require_token)
     .serve(addr)
     .await?;
+```
+
+To pass typed state into the handler (a parsed identity, a tenant, a trace
+id), insert it on the `Rpc` and read it from the `Request`:
+
+```rust
+fn with_tenant(rpc: &mut Rpc) -> Result<(), Status> {
+    let Some(tenant) = rpc.metadata().get("x-tenant").map(str::to_owned) else {
+        return Err(Status::unauthenticated("missing x-tenant"));
+    };
+    rpc.extensions_mut().insert(tenant);
+    Ok(())
+}
+
+// in the handler:
+let tenant = request.extensions().get::<String>().cloned();
 ```
 
 `Router::intercept` runs before every mounted service. Calling it twice stacks:

@@ -13,7 +13,9 @@ use tokio::sync::watch;
 /// A message plus the metadata, deadline, and compression choice around it.
 ///
 /// The same type is used to build an outbound request and to read an inbound
-/// one, so a proxy can forward what it received.
+/// one, so a proxy can forward what it received. Server interceptors attach
+/// typed values through [`Self::extensions_mut`]; the handler reads them
+/// with [`Self::extensions`].
 ///
 /// ```
 /// use pbrs_grpc::Request;
@@ -33,6 +35,7 @@ pub struct Request<T> {
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     wait_for_ready: bool,
+    extensions: http::Extensions,
 }
 
 impl<T> Request<T> {
@@ -47,6 +50,7 @@ impl<T> Request<T> {
             compressed: false,
             remote_addr: None,
             wait_for_ready: false,
+            extensions: http::Extensions::new(),
         }
     }
 
@@ -78,6 +82,7 @@ impl<T> Request<T> {
                 compressed: self.compressed,
                 remote_addr: self.remote_addr,
                 wait_for_ready: self.wait_for_ready,
+                extensions: self.extensions,
             },
         )
     }
@@ -96,6 +101,7 @@ impl<T> Request<T> {
             compressed: parts.compressed,
             remote_addr: parts.remote_addr,
             wait_for_ready: parts.wait_for_ready,
+            extensions: parts.extensions,
         }
     }
 
@@ -138,6 +144,22 @@ impl<T> Request<T> {
         self.wait_for_ready
     }
 
+    /// Typed values an interceptor attached to this RPC.
+    ///
+    /// Empty on a request you built yourself until something inserts into
+    /// [`Self::extensions_mut`]. On the server, this is the map an
+    /// [`crate::Interceptor`] filled on the [`crate::Rpc`] before the
+    /// handler ran.
+    #[must_use]
+    pub fn extensions(&self) -> &http::Extensions {
+        &self.extensions
+    }
+
+    /// Insert typed values for later handlers or interceptors.
+    pub fn extensions_mut(&mut self) -> &mut http::Extensions {
+        &mut self.extensions
+    }
+
     /// gzip this request's payload and set the Compressed-Flag.
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = compress;
@@ -173,11 +195,17 @@ impl<T> Request<T> {
             compressed: false,
             remote_addr,
             wait_for_ready: false,
+            extensions: http::Extensions::new(),
         }
     }
 
     pub(crate) fn set_compressed(&mut self, compressed: bool) {
         self.compressed = compressed;
+    }
+
+    pub(crate) fn with_extensions(mut self, extensions: http::Extensions) -> Self {
+        self.extensions = extensions;
+        self
     }
 }
 
@@ -190,7 +218,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("compressed", &self.compressed)
             .field("remote_addr", &self.remote_addr)
             .field("wait_for_ready", &self.wait_for_ready)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -203,6 +231,7 @@ pub struct Parts {
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     wait_for_ready: bool,
+    extensions: http::Extensions,
 }
 
 impl Parts {
@@ -227,6 +256,17 @@ impl Parts {
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
         self.wait_for_ready
+    }
+
+    /// Typed values an interceptor attached to this RPC.
+    #[must_use]
+    pub fn extensions(&self) -> &http::Extensions {
+        &self.extensions
+    }
+
+    /// Insert typed values for later handlers or interceptors.
+    pub fn extensions_mut(&mut self) -> &mut http::Extensions {
+        &mut self.extensions
     }
 
     /// Peer address, when the transport exposed one.
@@ -451,14 +491,17 @@ mod tests {
         let mut req = Request::new(1u32);
         req.set_timeout(Duration::from_millis(7));
         req.set_wait_for_ready(true);
+        req.extensions_mut().insert(7u8);
         req.metadata_mut().insert("k", "v").expect("insert");
         let (message, parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
         assert!(parts.wait_for_ready());
+        assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
         assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
         assert!(rebuilt.wait_for_ready());
+        assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
         assert_eq!(rebuilt.into_inner(), "swapped");
     }
 

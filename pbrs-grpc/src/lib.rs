@@ -94,7 +94,7 @@
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`] |
 //! | Health | [`health`] |
 //! | Reflection | [`reflection`] |
-//! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`] |
+//! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
 //! | Limits | [`MessageLimits`] |
@@ -251,6 +251,8 @@ pub use config::{
     DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
     DEFAULT_WINDOW_SIZE,
 };
+/// Per-RPC typed bag: insert in an interceptor, read in the handler.
+pub use http::Extensions;
 pub use interceptor::{ClientInterceptor, Intercepted, Interceptor, ServiceExt};
 pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;

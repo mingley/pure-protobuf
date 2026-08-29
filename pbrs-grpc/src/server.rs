@@ -106,6 +106,7 @@ pub struct Rpc {
     respond: h2::server::SendResponse<Bytes>,
     config: ServerConfig,
     remote_addr: Option<SocketAddr>,
+    extensions: http::Extensions,
 }
 
 impl std::fmt::Debug for Rpc {
@@ -152,6 +153,21 @@ impl Rpc {
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
         self.config.limits()
+    }
+
+    /// Typed values an interceptor may attach for the handler.
+    ///
+    /// Empty until an [`crate::Interceptor`] (or wrapping [`Service`]) inserts
+    /// into [`Self::extensions_mut`]. Survives onto the [`Request`] the
+    /// handler receives.
+    #[must_use]
+    pub fn extensions(&self) -> &http::Extensions {
+        &self.extensions
+    }
+
+    /// Insert typed values the handler will see on [`Request::extensions`].
+    pub fn extensions_mut(&mut self) -> &mut http::Extensions {
+        &mut self.extensions
     }
 
     /// Answer with `UNIMPLEMENTED`, naming the path.
@@ -315,6 +331,7 @@ impl Rpc {
             mut respond,
             config,
             remote_addr,
+            extensions,
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
@@ -326,7 +343,8 @@ impl Rpc {
         let (parts, mut recv) = request.into_parts();
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
-            let mut req = Request::from_wire(framed.message, parts.headers, remote_addr);
+            let mut req = Request::from_wire(framed.message, parts.headers, remote_addr)
+                .with_extensions(extensions);
             req.set_compressed(framed.compressed);
             if let Some(d) = timeout {
                 req.set_timeout(d);
@@ -356,6 +374,7 @@ impl Rpc {
             mut respond,
             config,
             remote_addr,
+            extensions,
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
@@ -368,7 +387,8 @@ impl Rpc {
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
         let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits, deadline));
-        let mut req = Request::from_wire(stream, parts.headers, remote_addr);
+        let mut req =
+            Request::from_wire(stream, parts.headers, remote_addr).with_extensions(extensions);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -863,9 +883,9 @@ impl Router {
 }
 
 impl Dispatch for Router {
-    async fn dispatch(&self, rpc: Rpc) {
+    async fn dispatch(&self, mut rpc: Rpc) {
         if let Some(interceptor) = &self.interceptor {
-            if let Err(status) = interceptor.intercept(&rpc) {
+            if let Err(status) = interceptor.intercept(&mut rpc) {
                 return rpc.reject(status);
             }
         }
@@ -1063,6 +1083,7 @@ async fn serve_io<D, IO>(
                             respond,
                             config,
                             remote_addr: peer,
+                            extensions: http::Extensions::new(),
                         })
                         .await;
                 }));

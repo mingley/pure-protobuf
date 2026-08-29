@@ -355,7 +355,7 @@ async fn generated_servers_and_clients_expose_intercept() {
     let addr = listener.local_addr().expect("addr");
     let server = tokio::spawn(async move {
         StoreServer::new(MemStore)
-            .intercept(|rpc: &pbrs_grpc::Rpc| {
+            .intercept(|rpc: &mut pbrs_grpc::Rpc| {
                 if rpc.metadata().get("x-token") != Some("ok") {
                     return Err(Status::unauthenticated("nope"));
                 }
