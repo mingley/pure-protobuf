@@ -4306,7 +4306,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `path` and serve h2c over a Unix domain socket."
+        "    /// Bind `path` and serve h2c over a Unix domain socket. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4315,7 +4315,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `path` after unlinking a crash leftover. A live listener is left alone and this fails with UNAVAILABLE."
+        "    /// Bind `path` after unlinking a crash leftover. A live listener is left alone and this fails with UNAVAILABLE. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4381,7 +4381,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve a single already-accepted byte stream until it closes."
+        "    /// Serve a single already-accepted byte stream until it closes. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4460,7 +4460,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect`] with [`{G}::ChannelConfig`]."
+        "    /// [`Self::connect`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4473,7 +4473,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Open `connections` slots. See [`{G}::Channel::connect_pool`]."
+        "    /// Open `connections` slots. See [`{G}::Channel::connect_pool`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4564,7 +4564,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Dial a Unix domain socket. See [`{G}::Channel::connect_unix`]."
+        "    /// Dial a Unix domain socket. See [`{G}::Channel::connect_unix`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4620,7 +4620,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Speak gRPC over an already-connected byte stream. See [`{G}::Channel::from_io`]."
+        "    /// Speak gRPC over an already-connected byte stream. See [`{G}::Channel::from_io`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4639,7 +4639,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::from_io`] with [`{G}::ChannelConfig`]."
+        "    /// [`Self::from_io`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,

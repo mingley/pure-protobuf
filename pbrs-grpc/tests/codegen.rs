@@ -245,6 +245,46 @@ async fn assert_store_err_every_shape(client: &StoreClient, want: Code) {
     drop(tx);
 }
 
+fn fat_store_key() -> String {
+    "k".repeat(64)
+}
+
+async fn assert_store_oversize_every_shape(client: &StoreClient) {
+    let mut get = GetRequest::new();
+    get.set_key(fat_store_key());
+    let err = client.get(Request::new(get)).await.expect_err("unary");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let mut watch = WatchRequest::new();
+    watch
+        .prefixes_mut()
+        .push(pbrs::ProtoString::from(fat_store_key()));
+    match client.watch(Request::new(watch)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream over the server cap must fail"),
+        },
+    }
+
+    let (tx, call) = client.put_all(Request::new(()));
+    tx.send(entry(&fat_store_key(), b"v")).await.expect("send");
+    tx.close();
+    let err = call.await.expect_err("client-stream over the server cap");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let (tx, call) = client.sync(Request::new(()));
+    tx.send(entry(&fat_store_key(), b"v")).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi over the server cap must fail"),
+        },
+    }
+}
+
 #[tokio::test]
 async fn generated_stubs_serve_all_four_shapes() {
     let (addr, server) = serve().await;
@@ -297,10 +337,7 @@ async fn generated_serve_unix_round_trips() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
-    let mut get = GetRequest::new();
-    get.set_key("alpha");
-    let got = client.get(Request::new(get)).await.expect("unary");
-    assert!(got.get_ref().found());
+    echo_store_every_shape(&client).await;
     server.abort();
     let _ = std::fs::remove_file(&path);
 }
@@ -342,14 +379,7 @@ async fn generated_serve_unix_unlink_replaces_a_leftover() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
-    let mut get = GetRequest::new();
-    get.set_key("alpha");
-    assert!(client
-        .get(Request::new(get))
-        .await
-        .expect("unary")
-        .get_ref()
-        .found());
+    echo_store_every_shape(&client).await;
     server.abort();
     let _ = std::fs::remove_file(&path);
 }
@@ -397,10 +427,7 @@ async fn generated_servers_accept_configuration() {
     });
 
     let client = client(addr).await;
-    let mut get = GetRequest::new();
-    get.set_key("k".repeat(64));
-    let err = client.get(Request::new(get)).await.expect_err("over cap");
-    assert_eq!(err.code(), Code::ResourceExhausted);
+    assert_store_oversize_every_shape(&client).await;
     server.abort();
 }
 
@@ -500,14 +527,7 @@ async fn generated_client_user_agent_is_prefixed() {
         .await
         .user_agent("kv-test")
         .expect("user-agent");
-    let mut get = GetRequest::new();
-    get.set_key("ua");
-    assert!(client
-        .get(Request::new(get))
-        .await
-        .expect("get")
-        .get_ref()
-        .found());
+    echo_store_every_shape(&client).await;
 
     server.abort();
 }
@@ -632,27 +652,15 @@ fn generated_server_config_is_readable_after_overlays() {
 #[tokio::test]
 async fn generated_client_connect_with_and_pool_round_trip() {
     let (addr, server) = serve().await;
-    let mut get = GetRequest::new();
-    get.set_key("cfg");
     let with = StoreClient::connect_with(
         addr,
         ChannelConfig::default().timeout(Duration::from_secs(5)),
     )
     .await
     .expect("connect_with");
-    assert!(with
-        .get(Request::new(get.clone()))
-        .await
-        .expect("with")
-        .get_ref()
-        .found());
+    echo_store_every_shape(&with).await;
     let pooled = StoreClient::connect_pool(addr, 2).await.expect("pool");
-    assert!(pooled
-        .get(Request::new(get))
-        .await
-        .expect("pool")
-        .get_ref()
-        .found());
+    echo_store_every_shape(&pooled).await;
     server.abort();
 }
 
@@ -676,10 +684,7 @@ async fn generated_serve_connection_round_trips() {
     let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
         .await
         .expect("from_io");
-    let mut get = GetRequest::new();
-    get.set_key("alpha");
-    let got = client.get(Request::new(get)).await.expect("unary");
-    assert!(got.get_ref().found());
+    echo_store_every_shape(&client).await;
     server.abort();
 }
 
@@ -861,5 +866,53 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Default per-RPC deadline when the request omits one. See [`::pbrs_grpc::Channel::timeout`]. Applies to every call shape."
         ),
         "generated timeout rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
+        ),
+        "generated connect_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Open `connections` slots. See [`::pbrs_grpc::Channel::connect_pool`]. Applies to every call shape."
+        ),
+        "generated connect_pool rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Dial a Unix domain socket. See [`::pbrs_grpc::Channel::connect_unix`]. Applies to every call shape."
+        ),
+        "generated connect_unix rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Speak gRPC over an already-connected byte stream. See [`::pbrs_grpc::Channel::from_io`]. Applies to every call shape."
+        ),
+        "generated from_io rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::from_io`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
+        ),
+        "generated from_io_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Bind `path` and serve h2c over a Unix domain socket. Applies to every call shape."
+        ),
+        "generated serve_unix rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Bind `path` after unlinking a crash leftover. A live listener is left alone and this fails with UNAVAILABLE. Applies to every call shape."
+        ),
+        "generated serve_unix_unlink rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Serve a single already-accepted byte stream until it closes. Applies to every call shape."
+        ),
+        "generated serve_connection rustdoc must name every call shape"
     );
 }
