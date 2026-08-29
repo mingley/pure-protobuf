@@ -1120,6 +1120,10 @@ fn attach_lease<T>(
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one transport handle plus request, cancel, limits, and scheme"
+)]
 async fn run_unary<Req, Resp>(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
@@ -1318,6 +1322,10 @@ where
     .await
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "one HTTP/2 stream open plus headers, timeout, encoding, and scheme"
+)]
 async fn open(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
