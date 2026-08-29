@@ -661,7 +661,7 @@ and `FooServer::serve_tls` apply to every call shape of that service.
 `FooClient::connect_lazy_with` / `connect_unix_lazy_with` do the same on
 h2c and Unix. `Channel::connect_tls_with` is the hand-written equivalent.
 `send_compressed` gzips every call shape over TLS the same way it does on
-h2c, including over mTLS.
+h2c, including over mTLS. The same overlay gzips every call shape on Unix.
 
 To drain a TLS listener the same way as h2c, use
 `serve_tls_until_shutdown(addr, shutdown, tls)` (or

@@ -1063,6 +1063,82 @@ async fn test_service_tls_client_interceptor_sees_every_shape_context() {
     task.abort();
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_send_compressed_gzips_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::connect_unix(&path)
+            .await
+            .expect("connect")
+            .send_compressed(),
+    );
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_interceptor_rejects_with_typed_status() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()))
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_blocked_every_shape(&TestServiceClient::new(
+        Channel::connect_unix(&path).await.expect("connect"),
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_client_interceptor_rejects_with_typed_status() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(Channel::connect_unix(&path).await.expect("connect"))
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_test_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_client_interceptor_sees_every_shape_context() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_context)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(Channel::connect_unix(&path).await.expect("connect"))
+        .intercept(stamp_outgoing_context);
+    echo_test_every_shape(&client).await;
+    task.abort();
+}
+
 #[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
@@ -2130,6 +2206,28 @@ fn assert_interceptor_blocked(err: &Status) {
         .expect("ErrorInfo");
     assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
     assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+async fn assert_greeter_blocked_every_shape(client: &GreeterClient) {
+    assert_interceptor_blocked(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    match client.server_hello(Request::new(req("ada"))).await {
+        Err(err) => assert_interceptor_blocked(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_interceptor_blocked(&err),
+            Ok(_) => panic!("server-stream interceptor reject must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
 }
 
 fn stamp_outgoing_context(call: &mut Outgoing<'_>) -> Result<(), Status> {
@@ -3948,6 +4046,78 @@ async fn unix_socket_serves() {
     });
     let channel = Channel::connect_unix(&path).await.expect("connect");
     echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_send_compressed_gzips_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .send_compressed()
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = Channel::connect_unix(&path)
+        .await
+        .expect("connect")
+        .send_compressed();
+    gzip_every_shape(&GreeterClient::new(channel)).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_interceptor_rejects_with_typed_status() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()))
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(Channel::connect_unix(&path).await.expect("connect"));
+    assert_greeter_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_client_interceptor_rejects_with_typed_status() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(Channel::connect_unix(&path).await.expect("connect"))
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_greeter_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_client_interceptor_sees_every_shape_context() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_context)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(Channel::connect_unix(&path).await.expect("connect"))
+        .intercept(stamp_outgoing_context);
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
