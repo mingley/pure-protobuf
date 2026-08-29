@@ -1462,6 +1462,50 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated max_concurrent_streams rustdoc must name every call shape"
     );
     assert!(
+        src.contains("HTTP/2 per-stream receive window. Applies to every call shape."),
+        "generated initial_stream_window_size rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("HTTP/2 per-connection receive window. Applies to every call shape."),
+        "generated initial_connection_window_size rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape."),
+        "generated max_frame_size rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape."),
+        "generated max_header_list_size rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("Per-connection HTTP/2 send buffer. Applies to every call shape."),
+        "generated max_send_buffer_size rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Cap remotely-reset HTTP/2 streams waiting in the accept queue. Applies to every call shape."
+        ),
+        "generated max_pending_accept_reset_streams rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Serve a single already-accepted byte stream until it closes. Applies to every call shape."
+        ),
+        "generated serve_connection rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Serve connections from `incoming` until it is exhausted. Applies to every call shape."
+        ),
+        "generated serve_with_incoming rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Serve from `incoming` until `shutdown` resolves, then drain. Applies to every call shape."
+        ),
+        "generated serve_with_incoming_shutdown rustdoc must name every call shape"
+    );
+    assert!(
         src.contains("`Err` fails that Call on poll, including [`::pbrs_grpc::Status::with_error_details`]; nothing is sent."),
         "generated client intercept rustdoc must name typed Err"
     );

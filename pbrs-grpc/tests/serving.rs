@@ -455,6 +455,70 @@ fn server_and_router_config_document_every_call_shape() {
         2,
         "Server::max_concurrent_streams and Router::max_concurrent_streams must name every call shape"
     );
+    assert_eq!(
+        src.matches("HTTP/2 per-stream receive window. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::initial_stream_window_size and Router::initial_stream_window_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches("HTTP/2 per-connection receive window. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::initial_connection_window_size and Router::initial_connection_window_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches("HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::max_frame_size and Router::max_frame_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches("HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::max_header_list_size and Router::max_header_list_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches("Per-connection HTTP/2 send buffer. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::max_send_buffer_size and Router::max_send_buffer_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Cap remotely-reset HTTP/2 streams waiting in the accept queue.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::max_pending_accept_reset_streams and Router::max_pending_accept_reset_streams must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Serve a single already-accepted byte stream until it closes.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::serve_connection and Router::serve_connection must name every call shape"
+    );
+    assert!(
+        src.contains("listener-side work fails. Applies to every call shape."),
+        "Server::serve_with_incoming must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Serve connections from `incoming` until it is exhausted.\n    /// Applies to every call shape. See [`Server::serve_with_incoming`]."
+        ),
+        "Router::serve_with_incoming must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "[`Self::serve_with_incoming`] until `shutdown` resolves, then drain.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::serve_with_incoming_shutdown and Router::serve_with_incoming_shutdown must name every call shape"
+    );
 }
 
 #[tokio::test]

@@ -1345,46 +1345,48 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// HTTP/2 per-stream receive window. See
-    /// [`ServerConfig::initial_stream_window_size`].
+    /// HTTP/2 per-stream receive window. Applies to every call shape.
+    /// See [`ServerConfig::initial_stream_window_size`].
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_stream_window_size(bytes);
         self
     }
 
-    /// HTTP/2 per-connection receive window. See
-    /// [`ServerConfig::initial_connection_window_size`].
+    /// HTTP/2 per-connection receive window. Applies to every call shape.
+    /// See [`ServerConfig::initial_connection_window_size`].
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_connection_window_size(bytes);
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`ServerConfig::max_frame_size`].
+    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape.
+    /// See [`ServerConfig::max_frame_size`].
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_frame_size(bytes);
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See
-    /// [`ServerConfig::max_header_list_size`].
+    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape.
+    /// See [`ServerConfig::max_header_list_size`].
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_header_list_size(bytes);
         self
     }
 
-    /// Per-connection HTTP/2 send buffer. See
-    /// [`ServerConfig::max_send_buffer_size`].
+    /// Per-connection HTTP/2 send buffer. Applies to every call shape.
+    /// See [`ServerConfig::max_send_buffer_size`].
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
         self
     }
 
-    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. See
+    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
+    /// Applies to every call shape. See
     /// [`ServerConfig::max_pending_accept_reset_streams`].
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
@@ -1691,6 +1693,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve a single already-accepted byte stream until it closes.
+    /// Applies to every call shape.
     ///
     /// No accept loop, no TLS, no TCP options. Pair with [`crate::Channel::from_io`].
     /// [`Rpc::remote_addr`], [`Rpc::local_addr`], [`Rpc::peer_identity`],
@@ -1721,7 +1724,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve connections from `incoming` until it is exhausted or the
-    /// listener-side work fails. See [`Incoming`].
+    /// listener-side work fails. Applies to every call shape.
+    /// See [`Incoming`].
     ///
     /// Override [`Incoming::peer`] to fill [`Rpc::local_addr`],
     /// [`Rpc::peer_identity`], [`Rpc::peer_cred`], or a transport
@@ -1732,6 +1736,7 @@ impl<S: Service> Server<S> {
     }
 
     /// [`Self::serve_with_incoming`] until `shutdown` resolves, then drain.
+    /// Applies to every call shape.
     pub async fn serve_with_incoming_shutdown<I: Incoming>(
         self,
         incoming: I,
@@ -1879,46 +1884,48 @@ impl Router {
         self
     }
 
-    /// HTTP/2 per-stream receive window. See
-    /// [`ServerConfig::initial_stream_window_size`].
+    /// HTTP/2 per-stream receive window. Applies to every call shape.
+    /// See [`ServerConfig::initial_stream_window_size`].
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_stream_window_size(bytes);
         self
     }
 
-    /// HTTP/2 per-connection receive window. See
-    /// [`ServerConfig::initial_connection_window_size`].
+    /// HTTP/2 per-connection receive window. Applies to every call shape.
+    /// See [`ServerConfig::initial_connection_window_size`].
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_connection_window_size(bytes);
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`ServerConfig::max_frame_size`].
+    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape.
+    /// See [`ServerConfig::max_frame_size`].
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_frame_size(bytes);
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See
-    /// [`ServerConfig::max_header_list_size`].
+    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape.
+    /// See [`ServerConfig::max_header_list_size`].
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_header_list_size(bytes);
         self
     }
 
-    /// Per-connection HTTP/2 send buffer. See
-    /// [`ServerConfig::max_send_buffer_size`].
+    /// Per-connection HTTP/2 send buffer. Applies to every call shape.
+    /// See [`ServerConfig::max_send_buffer_size`].
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
         self
     }
 
-    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. See
+    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
+    /// Applies to every call shape. See
     /// [`ServerConfig::max_pending_accept_reset_streams`].
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
@@ -2173,6 +2180,7 @@ impl Router {
     }
 
     /// Serve a single already-accepted byte stream until it closes.
+    /// Applies to every call shape.
     /// See [`Server::serve_connection`].
     pub async fn serve_connection<IO>(self, io: IO) -> Result<(), Status>
     where
@@ -2183,13 +2191,14 @@ impl Router {
     }
 
     /// Serve connections from `incoming` until it is exhausted.
-    /// See [`Server::serve_with_incoming`].
+    /// Applies to every call shape. See [`Server::serve_with_incoming`].
     pub async fn serve_with_incoming<I: Incoming>(self, incoming: I) -> Result<(), Status> {
         self.serve_with_incoming_shutdown(incoming, std::future::pending())
             .await
     }
 
     /// [`Self::serve_with_incoming`] until `shutdown` resolves, then drain.
+    /// Applies to every call shape.
     pub async fn serve_with_incoming_shutdown<I: Incoming>(
         self,
         incoming: I,

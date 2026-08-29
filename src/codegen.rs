@@ -4098,7 +4098,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// HTTP/2 per-stream receive window. See [`{G}::ServerConfig::initial_stream_window_size`]."
+        "    /// HTTP/2 per-stream receive window. Applies to every call shape. See [`{G}::ServerConfig::initial_stream_window_size`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4107,7 +4107,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// HTTP/2 per-connection receive window. See [`{G}::ServerConfig::initial_connection_window_size`]."
+        "    /// HTTP/2 per-connection receive window. Applies to every call shape. See [`{G}::ServerConfig::initial_connection_window_size`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4116,7 +4116,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`{G}::ServerConfig::max_frame_size`]."
+        "    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape. See [`{G}::ServerConfig::max_frame_size`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4125,7 +4125,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`{G}::ServerConfig::max_header_list_size`]."
+        "    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape. See [`{G}::ServerConfig::max_header_list_size`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4134,7 +4134,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Per-connection HTTP/2 send buffer. See [`{G}::ServerConfig::max_send_buffer_size`]."
+        "    /// Per-connection HTTP/2 send buffer. Applies to every call shape. See [`{G}::ServerConfig::max_send_buffer_size`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4143,7 +4143,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. See [`{G}::ServerConfig::max_pending_accept_reset_streams`]."
+        "    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. Applies to every call shape. See [`{G}::ServerConfig::max_pending_accept_reset_streams`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4406,7 +4406,7 @@ fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Serve connections from `incoming` until it is exhausted."
+        "    /// Serve connections from `incoming` until it is exhausted. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4414,7 +4414,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve from `incoming` until `shutdown` resolves, then drain."
+        "    /// Serve from `incoming` until `shutdown` resolves, then drain. Applies to every call shape."
     );
     let _ = writeln!(
         src,

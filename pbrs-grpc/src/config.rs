@@ -157,6 +157,7 @@ impl ServerConfig {
     }
 
     /// HTTP/2 per-stream receive window. Default 16 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.initial_stream_window_size = bytes;
@@ -164,6 +165,7 @@ impl ServerConfig {
     }
 
     /// HTTP/2 per-connection receive window. Default 16 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;
@@ -171,6 +173,7 @@ impl ServerConfig {
     }
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.max_frame_size = bytes;
@@ -185,7 +188,7 @@ impl ServerConfig {
     }
 
     /// Bytes buffered per connection before writes apply backpressure.
-    /// Default 1 MiB.
+    /// Default 1 MiB. Applies to every call shape.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;
@@ -193,7 +196,7 @@ impl ServerConfig {
     }
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`, i.e. the metadata cap.
-    /// Default 16 KiB.
+    /// Default 16 KiB. Applies to every call shape.
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.max_header_list_size = bytes;
@@ -201,6 +204,7 @@ impl ServerConfig {
     }
 
     /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
+    /// Applies to every call shape.
     ///
     /// Default 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`]). A peer that
     /// opens streams and immediately `RST_STREAM`s them sits in that queue
@@ -649,6 +653,7 @@ impl ChannelConfig {
     }
 
     /// HTTP/2 per-stream receive window. Default 16 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.initial_stream_window_size = bytes;
@@ -656,6 +661,7 @@ impl ChannelConfig {
     }
 
     /// HTTP/2 per-connection receive window. Default 16 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;
@@ -663,6 +669,7 @@ impl ChannelConfig {
     }
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.max_frame_size = bytes;
@@ -677,7 +684,7 @@ impl ChannelConfig {
     }
 
     /// Bytes buffered per connection before writes apply backpressure.
-    /// Default 1 MiB.
+    /// Default 1 MiB. Applies to every call shape.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;
@@ -685,7 +692,7 @@ impl ChannelConfig {
     }
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`, i.e. the metadata cap.
-    /// Default 16 KiB.
+    /// Default 16 KiB. Applies to every call shape.
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.max_header_list_size = bytes;
@@ -693,6 +700,7 @@ impl ChannelConfig {
     }
 
     /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
+    /// Applies to every call shape.
     ///
     /// Default 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`]). A peer that
     /// opens streams and immediately `RST_STREAM`s them sits in that queue
