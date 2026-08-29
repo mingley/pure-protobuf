@@ -38,6 +38,9 @@ pub struct Request<T> {
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
+    authority: Option<String>,
+    scheme: Option<String>,
+    deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     extensions: http::Extensions,
 }
@@ -55,6 +58,9 @@ impl<T> Request<T> {
             remote_addr: None,
             local_addr: None,
             peer_identity: None,
+            authority: None,
+            scheme: None,
+            deadline: None,
             wait_for_ready: None,
             extensions: http::Extensions::new(),
         }
@@ -91,6 +97,9 @@ impl<T> Request<T> {
                 remote_addr: self.remote_addr,
                 local_addr: self.local_addr,
                 peer_identity: self.peer_identity,
+                authority: self.authority,
+                scheme: self.scheme,
+                deadline: self.deadline,
                 wait_for_ready: self.wait_for_ready,
                 extensions: self.extensions,
             },
@@ -112,6 +121,9 @@ impl<T> Request<T> {
             remote_addr: parts.remote_addr,
             local_addr: parts.local_addr,
             peer_identity: parts.peer_identity,
+            authority: parts.authority,
+            scheme: parts.scheme,
+            deadline: parts.deadline,
             wait_for_ready: parts.wait_for_ready,
             extensions: parts.extensions,
         }
@@ -136,21 +148,37 @@ impl<T> Request<T> {
         &mut self.metadata
     }
 
-    /// Set the deadline. Outbound this becomes `grpc-timeout`; inbound it
-    /// reports the effective deadline (client, server cap, interceptor).
+    /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
+    ///
+    /// Inbound, the kernel stamps the effective remaining duration at
+    /// dispatch (client, server cap, interceptor). That value does not
+    /// shrink as the handler runs; see [`Self::deadline`] for the absolute
+    /// Instant a downstream RPC should inherit.
     pub fn set_timeout(&mut self, timeout: Duration) {
         self.timeout = Some(timeout);
     }
 
-    /// Clear a deadline previously set on this request.
+    /// Clear a timeout previously set on this request.
     pub fn clear_timeout(&mut self) {
         self.timeout = None;
     }
 
-    /// The deadline, if any.
+    /// Relative timeout stamped at dispatch, if any. See [`Self::set_timeout`].
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+
+    /// Absolute deadline the server is enforcing, if any.
+    ///
+    /// Present only on inbound RPCs that have a timeout. Unlike
+    /// [`Self::timeout`], this Instant does not depend on how long the
+    /// handler has already run, so forwarding
+    /// `deadline.saturating_duration_since(tokio::time::Instant::now())`
+    /// onto a downstream call preserves the remaining budget.
+    #[must_use]
+    pub fn deadline(&self) -> Option<tokio::time::Instant> {
+        self.deadline
     }
 
     /// Queue this RPC until the channel is connected instead of failing
@@ -241,6 +269,27 @@ impl<T> Request<T> {
         self.peer_identity.as_ref()
     }
 
+    /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051`.
+    ///
+    /// Same value as [`crate::Rpc::authority`]. Outbound requests you build
+    /// yourself have `None` until the channel stamps its authority on the
+    /// wire; this is a server-side field.
+    #[must_use]
+    pub fn authority(&self) -> Option<&str> {
+        self.authority.as_deref()
+    }
+
+    /// HTTP/2 `:scheme` for this RPC (`http` on h2c, `https` on TLS).
+    ///
+    /// On TCP and Unix the kernel reports the transport, so a peer cannot
+    /// claim `https` on cleartext. [`crate::Incoming`] and
+    /// [`crate::Server::serve_connection`] keep whatever the peer sent.
+    /// Same value as [`crate::Rpc::scheme`].
+    #[must_use]
+    pub fn scheme(&self) -> Option<&str> {
+        self.scheme.as_deref()
+    }
+
     pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>, bool) {
         (self.message, self.metadata, self.timeout, self.compress)
     }
@@ -261,9 +310,22 @@ impl<T> Request<T> {
             remote_addr,
             local_addr,
             peer_identity,
+            authority: None,
+            scheme: None,
+            deadline: None,
             wait_for_ready: None,
             extensions: http::Extensions::new(),
         }
+    }
+
+    pub(crate) fn with_http(mut self, authority: Option<String>, scheme: Option<String>) -> Self {
+        self.authority = authority;
+        self.scheme = scheme;
+        self
+    }
+
+    pub(crate) fn set_deadline(&mut self, at: tokio::time::Instant) {
+        self.deadline = Some(at);
     }
 
     pub(crate) fn set_compressed(&mut self, compressed: bool) {
@@ -439,6 +501,8 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)
+            .field("authority", &self.authority)
+            .field("scheme", &self.scheme)
             .field("wait_for_ready", &self.wait_for_ready)
             .finish_non_exhaustive()
     }
@@ -455,6 +519,9 @@ pub struct Parts {
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
+    authority: Option<String>,
+    scheme: Option<String>,
+    deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     extensions: http::Extensions,
 }
@@ -471,10 +538,16 @@ impl Parts {
         &mut self.metadata
     }
 
-    /// The deadline, if any.
+    /// Relative timeout stamped at dispatch, if any. See [`Request::timeout`].
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+
+    /// Absolute deadline the server is enforcing, if any. See [`Request::deadline`].
+    #[must_use]
+    pub fn deadline(&self) -> Option<tokio::time::Instant> {
+        self.deadline
     }
 
     /// Whether the payload will be gzipped. Outbound only.
@@ -518,6 +591,18 @@ impl Parts {
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.peer_identity.as_ref()
+    }
+
+    /// HTTP/2 `:authority` the peer sent. See [`Request::authority`].
+    #[must_use]
+    pub fn authority(&self) -> Option<&str> {
+        self.authority.as_deref()
+    }
+
+    /// HTTP/2 `:scheme` for this RPC. See [`Request::scheme`].
+    #[must_use]
+    pub fn scheme(&self) -> Option<&str> {
+        self.scheme.as_deref()
     }
 }
 
@@ -765,16 +850,25 @@ mod tests {
         req.set_compress(true);
         req.extensions_mut().insert(7u8);
         req.metadata_mut().insert("k", "v").expect("insert");
+        req = req.with_http(Some("127.0.0.1:9".into()), Some("http".into()));
+        let at = tokio::time::Instant::now() + Duration::from_millis(50);
+        req.set_deadline(at);
         let (message, parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
         assert!(parts.wait_for_ready());
         assert!(parts.compress());
+        assert_eq!(parts.authority(), Some("127.0.0.1:9"));
+        assert_eq!(parts.scheme(), Some("http"));
+        assert_eq!(parts.deadline(), Some(at));
         assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
         assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
         assert!(rebuilt.wait_for_ready());
         assert!(rebuilt.compress());
+        assert_eq!(rebuilt.authority(), Some("127.0.0.1:9"));
+        assert_eq!(rebuilt.scheme(), Some("http"));
+        assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
         assert_eq!(rebuilt.into_inner(), "swapped");
         let mut cleared = Request::new(0u32);
@@ -794,10 +888,14 @@ mod tests {
         req.set_timeout(Duration::from_millis(7));
         req.set_compress(true);
         req.metadata_mut().insert("k", "v").expect("insert");
-        let mapped = req.map(|n| n + 1);
+        let mapped = req
+            .with_http(Some("svc".into()), Some("https".into()))
+            .map(|n| n + 1);
         assert_eq!(mapped.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(mapped.metadata().get("k"), Some("v"));
         assert!(mapped.compress());
+        assert_eq!(mapped.authority(), Some("svc"));
+        assert_eq!(mapped.scheme(), Some("https"));
         assert_eq!(mapped.into_inner(), 2);
     }
 

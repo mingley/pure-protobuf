@@ -24,11 +24,12 @@
 mod common;
 
 use bytes::{BufMut, Bytes, BytesMut};
-use common::spawn_greeter_server;
+use common::{serve, spawn_greeter_server};
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use http::{HeaderValue, Method, Request as HttpRequest, StatusCode};
-use pbrs_grpc::{Code, ServerConfig};
+use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
+use pbrs_grpc::{Code, Request, Response, ServerConfig, Status, Streaming};
 use std::io::Write;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -463,4 +464,58 @@ async fn metadata_beyond_the_header_list_cap_is_refused() {
     .expect("no hang")
     .expect("server still healthy");
     assert_eq!(common::name_of(reply.get_ref()), "ada");
+}
+
+#[tokio::test]
+async fn h2c_ignores_a_peer_https_scheme() {
+    struct MustBeHttp;
+
+    impl Greeter for MustBeHttp {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            if request.scheme() != Some("http") {
+                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(
+                request.get_ref(),
+            ))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("must-be-http"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("must-be-http"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("must-be-http"))
+        }
+    }
+
+    let (addr, _guard) = serve(MustBeHttp, ServerConfig::new()).await.expect("spawn");
+    let mut peer = RawPeer::connect(addr).await;
+    let uri = format!("https://{}{SAY_HELLO}", peer.authority);
+    let request = HttpRequest::builder()
+        .method(Method::POST)
+        .uri(uri)
+        .header(http::header::CONTENT_TYPE, "application/grpc")
+        .header(http::header::TE, "trailers")
+        .body(())
+        .expect("request");
+    peer.call_with(request, frame(&hello_request()))
+        .await
+        .expect_code(Code::Ok);
 }

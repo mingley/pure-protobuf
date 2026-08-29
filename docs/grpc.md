@@ -255,6 +255,8 @@ On the server, request metadata is on the `Request`:
 let tenant = request.metadata().get("x-tenant").unwrap_or("default");
 let peer = request.remote_addr();
 let local = request.local_addr();
+let authority = request.authority();
+let scheme = request.scheme();
 ```
 
 `get` / `get_bin` return the first value. `insert` / `insert_bin` append, so a
@@ -399,14 +401,18 @@ match client.say_hello(req).await {
 }
 ```
 
-On the server, `request.timeout()` reports the effective deadline: the soonest
-of the client's `grpc-timeout`, a server cap (`ServerConfig::timeout`, also
-`Server::timeout` / `Router::timeout` / generated `FooServer::timeout`), and
-[`Rpc::set_timeout`] from an interceptor. An interceptor reads the client
-value with `Rpc::peer_timeout` and the combined value with
-`Rpc::effective_timeout`. A client that omits `grpc-timeout` can otherwise pin
-a handler forever; the server cap closes that hole. An interceptor can only
-tighten that deadline, not extend it.
+On the server, `request.timeout()` is the relative duration stamped at
+dispatch: the soonest of the client's `grpc-timeout`, a server cap
+(`ServerConfig::timeout`, also `Server::timeout` / `Router::timeout` /
+generated `FooServer::timeout`), and [`Rpc::set_timeout`] from an interceptor.
+That value does not shrink as the handler runs. `request.deadline()` is the
+same instant the kernel is actually racing — forward
+`deadline.saturating_duration_since(Instant::now())` onto a downstream RPC
+instead of copying `timeout()`. An interceptor reads the client value with
+`Rpc::peer_timeout` and the combined value with `Rpc::effective_timeout`.
+A client that omits `grpc-timeout` can otherwise pin a handler forever; the
+server cap closes that hole. An interceptor can only tighten that deadline,
+not extend it.
 
 To cancel from elsewhere, take a handle before awaiting:
 
@@ -999,7 +1005,10 @@ injected keys and without stripped ones. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
 cap, and `set_timeout`. An interceptor can only tighten the deadline, not
 extend it. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
-`Rpc::scheme` is `http` on h2c and `https` on TLS.
+`Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
+the transport so a peer cannot claim TLS on cleartext. `Incoming` and
+`serve_connection` keep the peer's `:scheme`.
+Generated handlers see the same values on `Request::authority` / `Request::scheme`.
 `Rpc::local_addr` is the TCP interface that accepted the socket; Unix,
 `Incoming`, and `serve_connection` leave it `None`.
 `Rpc::peer_identity` is the mTLS client certificate chain when the handshake

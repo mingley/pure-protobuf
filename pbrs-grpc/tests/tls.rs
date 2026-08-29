@@ -156,6 +156,74 @@ async fn tls_requests_use_the_https_scheme() {
 }
 
 #[tokio::test]
+async fn tls_handlers_see_https_scheme_and_authority() {
+    struct SeesHttps;
+
+    impl Greeter for SeesHttps {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            if request.scheme() != Some("https") {
+                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+            }
+            let Some(auth) = request.authority() else {
+                return Err(Status::internal("missing authority"));
+            };
+            if !auth.starts_with("127.0.0.1:") {
+                return Err(Status::internal(format!("authority {auth}")));
+            }
+            if request.local_addr().is_none() {
+                return Err(Status::internal("missing local_addr"));
+            }
+            if request.peer_identity().is_some() {
+                return Err(Status::internal("anonymous TLS has no client cert"));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(
+                request.get_ref(),
+            ))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("unary only"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("unary only"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("unary only"))
+        }
+    }
+
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(SeesHttps)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+}
+
+#[tokio::test]
 async fn mtls_exposes_the_client_certificate() {
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::sync::Arc;

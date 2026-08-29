@@ -160,6 +160,7 @@ pub struct Rpc {
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
+    transport_scheme: Option<&'static str>,
     extensions: http::Extensions,
     metadata: Metadata,
     timeout: Option<Duration>,
@@ -173,6 +174,7 @@ impl std::fmt::Debug for Rpc {
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)
+            .field("scheme", &self.scheme())
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("peer_timeout", &self.peer_timeout())
@@ -209,10 +211,16 @@ impl Rpc {
             .map(http::uri::Authority::as_str)
     }
 
-    /// HTTP/2 `:scheme` the peer sent (`http` on h2c, `https` on TLS).
+    /// HTTP/2 `:scheme` for this RPC (`http` on h2c, `https` on TLS).
+    ///
+    /// On TCP and Unix this is the transport, not whatever the peer wrote:
+    /// a cleartext connection reports `http` even if the preface claimed
+    /// `https`. [`Incoming`] and [`Server::serve_connection`] keep the
+    /// peer's `:scheme`.
     #[must_use]
     pub fn scheme(&self) -> Option<&str> {
-        self.request.uri().scheme_str()
+        self.transport_scheme
+            .or_else(|| self.request.uri().scheme_str())
     }
 
     /// Peer address, when the transport exposed one. TCP only; Unix and
@@ -515,6 +523,8 @@ impl Rpc {
         Fut: Future<Output = Result<T, Status>>,
     {
         let timeout = self.effective_timeout();
+        let authority = self.authority().map(str::to_owned);
+        let scheme = self.scheme().map(str::to_owned);
         let Self {
             request,
             mut respond,
@@ -522,6 +532,7 @@ impl Rpc {
             remote_addr,
             local_addr,
             peer_identity,
+            transport_scheme: _,
             extensions,
             metadata,
             timeout: _,
@@ -540,10 +551,14 @@ impl Rpc {
                 local_addr,
                 peer_identity,
             )
-            .with_extensions(extensions);
+            .with_extensions(extensions)
+            .with_http(authority, scheme);
             req.set_compressed(framed.compressed);
             if let Some(d) = timeout {
                 req.set_timeout(d);
+            }
+            if let Some(at) = deadline {
+                req.set_deadline(at);
             }
             tokio::select! {
                 biased;
@@ -572,6 +587,8 @@ impl Rpc {
         Fut: Future<Output = Result<T, Status>>,
     {
         let timeout = self.effective_timeout();
+        let authority = self.authority().map(str::to_owned);
+        let scheme = self.scheme().map(str::to_owned);
         let Self {
             request,
             mut respond,
@@ -579,6 +596,7 @@ impl Rpc {
             remote_addr,
             local_addr,
             peer_identity,
+            transport_scheme: _,
             extensions,
             metadata,
             timeout: _,
@@ -593,9 +611,13 @@ impl Rpc {
         let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits, deadline));
         let mut req =
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
-                .with_extensions(extensions);
+                .with_extensions(extensions)
+                .with_http(authority, scheme);
         if let Some(d) = timeout {
             req.set_timeout(d);
+        }
+        if let Some(at) = deadline {
+            req.set_deadline(at);
         }
         let outcome = wrap_timeout(timeout, async {
             tokio::select! {
@@ -1898,10 +1920,7 @@ async fn accept_unix_loop<D: Dispatch>(
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    drop(
-                        serve_io(dispatch, io, ConnPeer::incoming(None), config, goaway, rpcs)
-                            .await,
-                    );
+                    drop(serve_io(dispatch, io, ConnPeer::unix(), config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -2022,6 +2041,9 @@ struct ConnPeer {
     remote: Option<SocketAddr>,
     local: Option<SocketAddr>,
     identity: Option<PeerIdentity>,
+    /// Transport `:scheme` when the accept loop knows it. `None` keeps the
+    /// peer's `:scheme` ([`Incoming`] / [`Server::serve_connection`]).
+    scheme: Option<&'static str>,
 }
 
 impl ConnPeer {
@@ -2030,6 +2052,7 @@ impl ConnPeer {
             remote: Some(remote),
             local,
             identity: None,
+            scheme: Some("http"),
         }
     }
 
@@ -2038,6 +2061,16 @@ impl ConnPeer {
             remote: Some(remote),
             local,
             identity,
+            scheme: Some("https"),
+        }
+    }
+
+    fn unix() -> Self {
+        Self {
+            remote: None,
+            local: None,
+            identity: None,
+            scheme: Some("http"),
         }
     }
 
@@ -2046,6 +2079,7 @@ impl ConnPeer {
             remote,
             local: None,
             identity: None,
+            scheme: None,
         }
     }
 }
@@ -2064,6 +2098,7 @@ fn incoming_rpc(
         remote_addr: peer.remote,
         local_addr: peer.local,
         peer_identity: peer.identity,
+        transport_scheme: peer.scheme,
         extensions: http::Extensions::new(),
         metadata,
         timeout: None,

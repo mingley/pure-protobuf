@@ -23,7 +23,7 @@
 mod common;
 
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
-use pbrs_grpc::hello::{GreeterClient, GreeterServer, HelloReply, HelloRequest};
+use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Channel, ChannelConfig, Code, Empty, Incoming, InteropTestService, Outgoing, Request, Response,
     Router, Rpc, Server, ServerConfig, Service, ServiceExt, Status, TestServiceClient,
@@ -490,6 +490,150 @@ async fn tcp_rpcs_expose_local_and_remote_addr() {
         .expect("rpc");
     assert_eq!(name_of(reply.get_ref()), "ada");
     assert_eq!(seen.load(Ordering::SeqCst), 1);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_generated_handler_sees_authority_scheme_and_parts() {
+    struct SeesHttp;
+
+    impl Greeter for SeesHttp {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            let want_auth = format!(
+                "127.0.0.1:{}",
+                request
+                    .local_addr()
+                    .ok_or_else(|| Status::internal("missing local_addr"))?
+                    .port()
+            );
+            if request.authority() != Some(want_auth.as_str()) {
+                return Err(Status::internal(format!(
+                    "authority {:?}",
+                    request.authority()
+                )));
+            }
+            if request.scheme() != Some("http") {
+                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+            }
+            if request.deadline().is_some() {
+                return Err(Status::internal("no timeout, so no deadline Instant"));
+            }
+            let (msg, parts) = request.into_message_and_parts();
+            if parts.authority() != Some(want_auth.as_str()) || parts.scheme() != Some("http") {
+                return Err(Status::internal("parts dropped http identity"));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("sees-http"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-http"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-http"))
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesHttp)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_handler_deadline_is_an_instant_that_elapses() {
+    struct SeesDeadline;
+
+    impl Greeter for SeesDeadline {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            let timeout = request
+                .timeout()
+                .ok_or_else(|| Status::internal("missing timeout duration"))?;
+            if timeout < Duration::from_millis(150) || timeout > Duration::from_millis(250) {
+                return Err(Status::internal(format!("timeout {timeout:?}")));
+            }
+            let deadline = request
+                .deadline()
+                .ok_or_else(|| Status::internal("missing deadline Instant"))?;
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if left >= timeout {
+                return Err(Status::internal(format!(
+                    "remaining {left:?} not less than stamped {timeout:?}"
+                )));
+            }
+            if request.timeout() != Some(timeout) {
+                return Err(Status::internal("timeout duration must not shrink"));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(
+                request.get_ref(),
+            ))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("sees-deadline"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-deadline"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-deadline"))
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesDeadline)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_millis(200));
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(request)
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
     task.abort();
 }
 
@@ -2209,6 +2353,9 @@ async fn unix_socket_unary() {
                 if rpc.peer_identity().is_some() {
                     return Err(Status::internal("unix has no TLS client certificate"));
                 }
+                if rpc.scheme() != Some("http") {
+                    return Err(Status::internal(format!("unix scheme {:?}", rpc.scheme())));
+                }
                 Ok(())
             })
             .serve_unix_listener(listener)
@@ -2680,6 +2827,12 @@ async fn from_io_authority_is_visible_to_interceptors() {
                 }
                 if rpc.peer_identity().is_some() {
                     return Err(Status::internal("from_io must not invent a TLS identity"));
+                }
+                if rpc.scheme() != Some("http") {
+                    return Err(Status::internal(format!(
+                        "from_io scheme {:?}",
+                        rpc.scheme()
+                    )));
                 }
                 Ok(())
             })
