@@ -857,7 +857,9 @@ including over TLS, mTLS, Unix, and `from_io`. A client interceptor sees path,
 service, method, `:authority`, and `:scheme` on both methods, including over
 TLS, mTLS, Unix, and `from_io`. An interceptor `Err(Status::with_error_details(...))`
 unpacks as `Status::rpc` / `Status::error_details` on both methods, including
-over TLS, mTLS, Unix, and `from_io`.
+over TLS, mTLS, Unix, and `from_io`. A handler `Err(Status::with_error_details(...))`
+unpacks the same way on both methods, including over TLS, mTLS, Unix, and
+`from_io`.
 
 ## Reflection
 

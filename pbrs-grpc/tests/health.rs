@@ -12,8 +12,13 @@
     reason = "integration tests"
 )]
 
-use pbrs_grpc::health::{service, HealthCheckRequest, HealthClient, ServingStatus};
-use pbrs_grpc::{Channel, ClientTls, Code, Identity, Outgoing, Request, Router, ServerTls, Status};
+use pbrs_grpc::health::{
+    service, Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthServer,
+    ServingStatus,
+};
+use pbrs_grpc::{
+    Channel, ClientTls, Code, Identity, Outgoing, Request, Response, Router, ServerTls, Status,
+};
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -364,6 +369,24 @@ fn assert_interceptor_blocked(err: &Status) {
         .expect("ErrorInfo");
     assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
     assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+struct FailHealth;
+
+impl Health for FailHealth {
+    async fn check(
+        &self,
+        _: Request<HealthCheckRequest>,
+    ) -> Result<Response<HealthCheckResponse>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn watch(
+        &self,
+        _: Request<HealthCheckRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HealthCheckResponse>>, Status> {
+        Err(interceptor_blocked())
+    }
 }
 
 #[tokio::test]
@@ -1039,5 +1062,87 @@ async fn health_mtls_client_interceptor_sees_check_and_watch_context() {
         .await
         .intercept(stamp_outgoing_context);
     echo_health_check_and_watch(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_handlers_return_typed_status_on_check_and_watch() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        HealthServer::new(FailHealth)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_health_blocked(&client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_tls_handlers_return_typed_status_on_check_and_watch() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        HealthServer::new(FailHealth)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_health_blocked(&tls_client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_mtls_handlers_return_typed_status_on_check_and_watch() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::mtls(identity, CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        HealthServer::new(FailHealth)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_blocked(&tls_client_with(addr, client_tls).await).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_handlers_return_typed_status_on_check_and_watch() {
+    let path = unix_sock("typed-handler");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        HealthServer::new(FailHealth).serve_unix(sock).await.ok();
+    });
+    assert_health_blocked(&unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn health_from_io_handlers_return_typed_status_on_check_and_watch() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        HealthServer::new(FailHealth)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_health_blocked(&client).await;
     handle.abort();
 }
