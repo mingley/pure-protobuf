@@ -661,7 +661,7 @@ and `FooServer::serve_tls` apply to every call shape of that service.
 `FooClient::connect_lazy_with` / `connect_unix_lazy_with` do the same on
 h2c and Unix. `Channel::connect_tls_with` is the hand-written equivalent.
 `send_compressed` gzips every call shape over TLS the same way it does on
-h2c.
+h2c, including over mTLS.
 
 To drain a TLS listener the same way as h2c, use
 `serve_tls_until_shutdown(addr, shutdown, tls)` (or
@@ -847,10 +847,11 @@ unknown names.
 
 There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
 `RESOURCE_EXHAUSTED`. An interceptor `Err(Status::with_error_details(...))`
-unpacks as `Status::rpc` / `Status::error_details` on both methods. Unix, TLS,
-and `from_io` serve both methods. `send_compressed` gzips Check and Watch
-when the client advertises gzip, including over TLS. A client interceptor sees path, service,
-method, `:authority`, and `:scheme` on both methods.
+unpacks as `Status::rpc` / `Status::error_details` on both methods, including
+over TLS. Unix, TLS, and `from_io` serve both methods. `send_compressed` gzips
+Check and Watch when the client advertises gzip, including over TLS. A client
+interceptor sees path, service, method, `:authority`, and `:scheme` on both
+methods, including over TLS.
 
 ## Reflection
 
@@ -878,10 +879,11 @@ is a `NOT_FOUND` on the stream, and extension-number listing is best-effort
 stream (`ErrorResponse`), not a broken RPC. An inbound message over the
 decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
 OK end. An interceptor `Err(Status::with_error_details(...))` unpacks as
-`Status::rpc` / `Status::error_details` on that bidi method. Unix, TLS, and
-`from_io` serve that method. `send_compressed` gzips that bidi method when
-the client advertises gzip, including over TLS. A client interceptor sees path, service, method,
-`:authority`, and `:scheme` on that method.
+`Status::rpc` / `Status::error_details` on that bidi method, including over
+TLS. Unix, TLS, and `from_io` serve that method. `send_compressed` gzips that
+bidi method when the client advertises gzip, including over TLS. A client
+interceptor sees path, service, method, `:authority`, and `:scheme` on that
+method, including over TLS.
 
 ## Graceful shutdown
 

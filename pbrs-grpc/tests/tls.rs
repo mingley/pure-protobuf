@@ -661,6 +661,23 @@ async fn mtls_unary() {
 }
 
 #[tokio::test]
+async fn mtls_send_compressed_gzips_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = tls_client(addr, client_tls).await.send_compressed();
+    gzip_every_shape(&client).await;
+}
+
+#[tokio::test]
 async fn keepalive_still_serves() {
     let (addr, _guard) = {
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))

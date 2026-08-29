@@ -199,6 +199,27 @@ async fn client(addr: SocketAddr) -> StoreClient {
     panic!("could not connect to {addr}");
 }
 
+async fn tls_client(addr: SocketAddr) -> StoreClient {
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let mut last = None;
+    for _ in 0..80 {
+        match StoreClient::connect_tls_with(
+            addr,
+            ChannelConfig::default().timeout(Duration::from_secs(5)),
+            client_tls.clone(),
+        )
+        .await
+        {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
 async fn echo_store_every_shape(client: &StoreClient) {
     let mut get = GetRequest::new();
     get.set_key("alpha");
@@ -1074,6 +1095,66 @@ async fn generated_tls_send_compressed_gzips_every_shape() {
     }
     .send_compressed();
     gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_server_interceptor_rejects_with_typed_status() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_blocked_every_shape(&tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_client_interceptor_rejects_with_typed_status() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = tls_client(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_store_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_client_interceptor_sees_every_shape_context() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_context)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = tls_client(addr).await.intercept(stamp_outgoing_context);
+    echo_store_every_shape(&client).await;
     server.abort();
 }
 
