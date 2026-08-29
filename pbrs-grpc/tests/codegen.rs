@@ -774,4 +774,16 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         src.contains("Applies to every call shape; `Err` rejects before the body is read."),
         "generated server intercept rustdoc must name reject-before-body on every call shape"
     );
+    assert!(
+        src.contains(
+            "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
+        ),
+        "generated serve_tls rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Dial over TLS. See [`::pbrs_grpc::Channel::connect_tls`]. Applies to every call shape."
+        ),
+        "generated connect_tls rustdoc must name every call shape"
+    );
 }

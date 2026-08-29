@@ -662,10 +662,11 @@ PKI and tests, pin a CA with `ClientTls::ca`. Mutual TLS is
 `ServerTls::mtls(identity, client_ca_pem)` plus `ClientTls::ca_mtls` (or
 `webpki_mtls`) with a client `Identity`. On mTLS,
 `Rpc::peer_identity` / `Request::peer_identity` is the verified client
-certificate chain (DER, leaf first). TLS without a client certificate, h2c,
+certificate chain (DER, leaf first) on every call shape. TLS without a client certificate, h2c,
 Unix, `serve_connection`, and the default `Incoming` yield `None`.
 `Incoming::peer` can supply a chain the acceptor already verified
-(`PeerIdentity::from_der_certs`). The kernel does not parse X.509;
+(`PeerIdentity::from_der_certs`). `:scheme` is `https` on every call shape.
+The kernel does not parse X.509;
 an interceptor that needs a CN or SAN decodes the leaf:
 
 ```rust

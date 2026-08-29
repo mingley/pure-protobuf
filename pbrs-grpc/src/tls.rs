@@ -102,7 +102,8 @@ impl Identity {
 /// TLS without client authentication, h2c, Unix, the default
 /// [`crate::Incoming`], and [`crate::Server::serve_connection`] yield `None`
 /// from [`crate::Rpc::peer_identity`]. The kernel does not parse X.509; an
-/// interceptor that needs a CN or SAN decodes the leaf itself.
+/// interceptor that needs a CN or SAN decodes the leaf itself. Applies to
+/// every call shape.
 ///
 /// ```
 /// # use pbrs_grpc::PeerIdentity;

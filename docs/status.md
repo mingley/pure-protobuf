@@ -100,7 +100,8 @@ See `docs/upb.md`. Short list:
   retry). Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
-  `ConnectionInfo`. `Channel::https_scheme` sends `:scheme https` on a
+  `ConnectionInfo`. TLS `:scheme https` and mTLS `peer_identity` apply to
+  every call shape. `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible

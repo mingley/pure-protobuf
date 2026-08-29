@@ -73,16 +73,133 @@ async fn tls_client(addr: SocketAddr, tls: ClientTls) -> GreeterClient {
     panic!("could not connect to {addr}: {last}");
 }
 
+async fn echo_every_shape(client: &GreeterClient, name: &str) {
+    let reply = client
+        .say_hello(Request::new(req(name)))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), name);
+
+    let mut stream = client
+        .server_hello(Request::new(req(name)))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), name);
+    assert!(stream.message().await.expect("end").is_none());
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req(name)).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), name);
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req(name)).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), name);
+    assert!(inbound.message().await.expect("end").is_none());
+}
+
+fn echo_named_stream(name: String) -> Response<Streaming<HelloReply>> {
+    let (tx, stream) = Streaming::channel(4);
+    drop(tokio::spawn(async move {
+        for part in name.split(',') {
+            if tx.send(common::reply(part.to_string())).await.is_err() {
+                break;
+            }
+        }
+    }));
+    Response::new(stream)
+}
+
+fn echo_bidi(mut inbound: Streaming<HelloRequest>) -> Response<Streaming<HelloReply>> {
+    let (tx, stream) = Streaming::channel(4);
+    drop(tokio::spawn(async move {
+        while let Ok(Some(msg)) = inbound.message().await {
+            if tx
+                .send(common::reply(common::name_of_request(&msg)))
+                .await
+                .is_err()
+            {
+                break;
+            }
+        }
+    }));
+    Response::new(stream)
+}
+
+async fn echo_client_stream(
+    mut inbound: Streaming<HelloRequest>,
+) -> Result<Response<HelloReply>, Status> {
+    let mut names = Vec::new();
+    while let Some(msg) = inbound.message().await? {
+        names.push(common::name_of_request(&msg));
+    }
+    Ok(Response::new(common::reply(names.join(","))))
+}
+
+fn sees_https<T>(request: Request<T>) -> Result<T, Status> {
+    if request.scheme() != Some("https") {
+        return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+    }
+    let Some(auth) = request.authority() else {
+        return Err(Status::internal("missing authority"));
+    };
+    if !auth.starts_with("127.0.0.1:") {
+        return Err(Status::internal(format!("authority {auth}")));
+    }
+    if request.local_addr().is_none() {
+        return Err(Status::internal("missing local_addr"));
+    }
+    if request.peer_identity().is_some() {
+        return Err(Status::internal("anonymous TLS has no client cert"));
+    }
+    if request.peer_cred().is_some() {
+        return Err(Status::internal("tls has no unix credentials"));
+    }
+    let want_auth = auth.to_owned();
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.scheme() != Some("https") || parts.authority() != Some(want_auth.as_str()) {
+        return Err(Status::internal("parts dropped tls identity"));
+    }
+    if parts.peer_identity().is_some() || parts.peer_cred().is_some() {
+        return Err(Status::internal("parts invented credentials"));
+    }
+    Ok(msg)
+}
+
+fn sees_mtls<T>(request: Request<T>, want: &[u8]) -> Result<T, Status> {
+    match request.peer_identity().and_then(|id| id.leaf()) {
+        Some(leaf) if leaf == want => {}
+        Some(_) => return Err(Status::internal("wrong leaf")),
+        None => return Err(Status::internal("missing peer identity")),
+    }
+    let (msg, parts) = request.into_message_and_parts();
+    match parts.peer_identity().and_then(|id| id.leaf()) {
+        Some(leaf) if leaf == want => {}
+        _ => return Err(Status::internal("parts dropped peer identity")),
+    }
+    Ok(msg)
+}
+
 #[tokio::test]
 async fn unary_over_tls() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, _guard) = serve_tls(tls).await;
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, "ada").await;
 }
 
 #[tokio::test]
@@ -148,10 +265,7 @@ async fn tls_requests_use_the_https_scheme() {
     });
     let _guard = ServerGuard(handle);
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
-    client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
+    echo_every_shape(&client, "ada").await;
     assert_eq!(
         seen.load(Ordering::SeqCst),
         2,
@@ -196,11 +310,7 @@ async fn a_tls_client_interceptor_sees_https_scheme() {
         call.metadata_mut().set("x-scheme", scheme)?;
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, "ada").await;
 }
 
 #[tokio::test]
@@ -212,48 +322,30 @@ async fn tls_handlers_see_https_scheme_and_authority() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            if request.scheme() != Some("https") {
-                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
-            }
-            let Some(auth) = request.authority() else {
-                return Err(Status::internal("missing authority"));
-            };
-            if !auth.starts_with("127.0.0.1:") {
-                return Err(Status::internal(format!("authority {auth}")));
-            }
-            if request.local_addr().is_none() {
-                return Err(Status::internal("missing local_addr"));
-            }
-            if request.peer_identity().is_some() {
-                return Err(Status::internal("anonymous TLS has no client cert"));
-            }
-            if request.peer_cred().is_some() {
-                return Err(Status::internal("tls has no unix credentials"));
-            }
-            Ok(Response::new(common::reply(common::name_of_request(
-                request.get_ref(),
-            ))))
+            let msg = sees_https(request)?;
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
         async fn client_hello(
             &self,
-            _request: Request<Streaming<HelloRequest>>,
+            request: Request<Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("unary only"))
+            echo_client_stream(sees_https(request)?).await
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("unary only"))
+            let msg = sees_https(request)?;
+            Ok(echo_named_stream(common::name_of_request(&msg)))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<Streaming<HelloRequest>>,
+            request: Request<Streaming<HelloRequest>>,
         ) -> Result<Response<Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("unary only"))
+            Ok(echo_bidi(sees_https(request)?))
         }
     }
 
@@ -267,11 +359,7 @@ async fn tls_handlers_see_https_scheme_and_authority() {
     });
     let _guard = ServerGuard(handle);
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, "ada").await;
 }
 
 #[tokio::test]
@@ -288,35 +376,30 @@ async fn mtls_exposes_the_client_certificate() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            match request.peer_identity().and_then(|id| id.leaf()) {
-                Some(leaf) if leaf == self.want.as_slice() => {}
-                Some(_) => return Err(Status::internal("wrong leaf")),
-                None => return Err(Status::internal("missing peer identity")),
-            }
-            Ok(Response::new(common::reply(common::name_of_request(
-                request.get_ref(),
-            ))))
+            let msg = sees_mtls(request, &self.want)?;
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
         async fn client_hello(
             &self,
-            _request: Request<Streaming<HelloRequest>>,
+            request: Request<Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("unary only"))
+            echo_client_stream(sees_mtls(request, &self.want)?).await
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("unary only"))
+            let msg = sees_mtls(request, &self.want)?;
+            Ok(echo_named_stream(common::name_of_request(&msg)))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<Streaming<HelloRequest>>,
+            request: Request<Streaming<HelloRequest>>,
         ) -> Result<Response<Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("unary only"))
+            Ok(echo_bidi(sees_mtls(request, &self.want)?))
         }
     }
 
@@ -348,11 +431,7 @@ async fn mtls_exposes_the_client_certificate() {
     let _guard = ServerGuard(handle);
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = tls_client(addr, client_tls).await;
-    let reply = client
-        .say_hello(Request::new(req("grace")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "grace");
+    echo_every_shape(&client, "grace").await;
     assert_eq!(
         seen.load(Ordering::SeqCst),
         1,
@@ -428,11 +507,7 @@ async fn mtls_unary() {
     let (addr, _guard) = serve_tls(tls).await;
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = tls_client(addr, client_tls).await;
-    let reply = client
-        .say_hello(Request::new(req("grace")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "grace");
+    echo_every_shape(&client, "grace").await;
 }
 
 #[tokio::test]

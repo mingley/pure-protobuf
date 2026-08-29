@@ -317,7 +317,7 @@ impl Channel {
     ///
     /// `target` is the TCP address; [`ClientTls`] carries the name verified
     /// against the certificate, which can be different (dial `127.0.0.1`,
-    /// verify `localhost`).
+    /// verify `localhost`). Applies to every call shape.
     pub async fn connect_tls(target: impl Into<Target>, tls: ClientTls) -> Result<Self, Status> {
         Self::connect_tls_with(target, ChannelConfig::default(), tls).await
     }
@@ -677,7 +677,8 @@ impl Channel {
     /// HTTP/2 `:scheme` this clone sends.
     ///
     /// `https` after [`Self::connect_tls`] or [`Self::https_scheme`], otherwise
-    /// `http`. Same string as [`crate::Outgoing::scheme`].
+    /// `http`. Same string as [`crate::Outgoing::scheme`]. Applies to every
+    /// call shape.
     #[must_use]
     pub fn scheme(&self) -> &'static str {
         if self.https {

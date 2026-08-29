@@ -34,7 +34,8 @@ reports `:scheme` `http`. `Incoming::accept` still yields
 `(Io, Option<SocketAddr>)`. Other connection facts go on
 `Incoming::peer` as a `ConnectionInfo` (local address, identity,
 credentials, transport scheme). Those facts are copied onto every call
-shape on that connection. The default copies the accept address
+shape on that connection. TLS reports `:scheme` `https` and, on mTLS, the
+verified client chain on every call shape. The default copies the accept address
 and does not probe `Io`. `serve_connection` leaves those fields unset.
 
 ### Dispatch

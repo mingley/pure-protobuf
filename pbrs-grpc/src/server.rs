@@ -322,6 +322,7 @@ impl Rpc {
     /// a cleartext connection reports `http` even if the preface claimed
     /// `https`. The default [`Incoming`] and [`Server::serve_connection`] keep
     /// the peer's `:scheme`. [`Incoming::peer`] can set a transport scheme.
+    /// Applies to every call shape.
     #[must_use]
     pub fn scheme(&self) -> Option<&str> {
         self.transport_scheme
@@ -1621,6 +1622,8 @@ impl<S: Service> Server<S> {
     /// Bind `addr` and serve over TLS until the listener fails.
     ///
     /// To bind and then drain on a signal, use [`Self::serve_tls_until_shutdown`].
+    /// `:scheme` is `https` on every call shape. mTLS fills
+    /// [`Rpc::peer_identity`] on every call shape.
     pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
         self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
             .await
@@ -2087,6 +2090,8 @@ impl Router {
     /// Bind `addr` and serve over TLS until the listener fails.
     ///
     /// To bind and then drain on a signal, use [`Self::serve_tls_until_shutdown`].
+    /// `:scheme` is `https` on every call shape. mTLS fills
+    /// [`Rpc::peer_identity`] on every call shape.
     pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
         self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
             .await

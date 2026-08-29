@@ -4357,7 +4357,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `addr` and serve over TLS until the listener fails."
+        "    /// Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4486,7 +4486,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Dial over TLS. See [`{G}::Channel::connect_tls`]."
+        "    /// Dial over TLS. See [`{G}::Channel::connect_tls`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
