@@ -225,7 +225,8 @@ after any messages already sent — the same as a handler `Err`. On a client
 request sender, gRPC has no request-side `grpc-status`: the stream is reset
 with CANCEL. A client-streaming `Call`, or a bidi `Call` that has not yet seen
 headers, resolves with that status — not `UNAVAILABLE` from that reset. A bidi
-call that already has headers surfaces the reset on the received `Streaming`.
+call that already has headers surfaces the reset on the received `Streaming`
+as `CANCELLED`, not that status.
 
 A producer that waits on a timer or a status map, rather than on `send`,
 should select on `tx.closed()` or `request.cancelled()`. The wire drain
@@ -508,7 +509,7 @@ leave the stream parked.
 `StreamSender::fail` on a client request sender is the same RST with CANCEL:
 a client-streaming `Call`, or a bidi `Call` that has not yet seen headers,
 resolves with that status, not `UNAVAILABLE` from the reset; after bidi
-headers the reset surfaces on the received `Streaming`.
+headers the received `Streaming` sees `CANCELLED`, not that status.
 
 A handler that `tokio::spawn`s work should await `request.cancelled()` in
 the child (or poll `request.is_cancelled()`). On RST the kernel signals

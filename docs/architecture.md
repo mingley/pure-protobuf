@@ -151,7 +151,8 @@ replace the protobuf without dropping trailing metadata. Handler `Err` and
 `grpc-status-details-bin` for a server response stream. A client request
 `fail` resets CANCEL; a client-streaming `Call`, or a bidi `Call` that has
 not yet seen headers, resolves with the status, not `UNAVAILABLE` from the
-reset. After bidi headers the reset surfaces on the received `Streaming`.
+reset. After bidi headers the received `Streaming` sees `CANCELLED`, not
+that status.
 Received ASCII
 `grpc-status` / `grpc-message` are independent of the packed protobuf;
 `rpc()` does not overwrite one from the other.

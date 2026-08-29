@@ -128,8 +128,8 @@ See `docs/upb.md`. Short list:
   server response stream. On a client request sender it resets CANCEL
   (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
   `Call` that has not yet seen headers, resolves with that status, not
-  `UNAVAILABLE` from the reset. After bidi headers the reset surfaces on
-  the received `Streaming`. A `Call`
+  `UNAVAILABLE` from the reset. After bidi headers the received `Streaming`
+  sees `CANCELLED`, not that status. A `Call`
   is fused after `Ready`. Client-streaming and bidi
   `(StreamSender, Call)` pairs are `must_use`. `Health::watch` ends when the
   client leaves, without waiting for the next status change. A server-streaming

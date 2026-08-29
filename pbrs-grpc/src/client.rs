@@ -958,8 +958,8 @@ impl Channel {
     /// parked.
     ///
     /// [`crate::StreamSender::fail`] before headers resolves the [`Call`] with
-    /// that status, not `UNAVAILABLE` from the reset; after headers the reset
-    /// surfaces on the received [`Streaming`].
+    /// that status, not `UNAVAILABLE` from the reset; after headers the
+    /// received [`Streaming`] sees [`crate::Code::Cancelled`], not that status.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};

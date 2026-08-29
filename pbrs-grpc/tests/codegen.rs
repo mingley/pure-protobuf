@@ -723,8 +723,8 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "client-streaming client methods must name StreamSender::fail"
     );
     assert!(
-        src.contains("[`::pbrs_grpc::StreamSender::fail`] before headers resolves the [`::pbrs_grpc::Call`] with that status, not `UNAVAILABLE` from the reset; after headers the reset surfaces on the received [`::pbrs_grpc::Streaming`]."),
-        "bidi client methods must name StreamSender::fail before headers, not UNAVAILABLE"
+        src.contains("[`::pbrs_grpc::StreamSender::fail`] before headers resolves the [`::pbrs_grpc::Call`] with that status, not `UNAVAILABLE` from the reset; after headers the received [`::pbrs_grpc::Streaming`] sees [`::pbrs_grpc::Code::Cancelled`], not that status."),
+        "bidi client methods must name StreamSender::fail before headers, not UNAVAILABLE, and CANCELLED after headers"
     );
     assert!(
         src.contains(

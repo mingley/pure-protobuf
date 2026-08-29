@@ -4940,7 +4940,7 @@ fn emit_kernel_client(
         if m.client_streaming && m.server_streaming {
             let _ = writeln!(
                 src,
-                "    /// [`{G}::StreamSender::fail`] before headers resolves the [`{G}::Call`] with that status, not `UNAVAILABLE` from the reset; after headers the reset surfaces on the received [`{G}::Streaming`]."
+                "    /// [`{G}::StreamSender::fail`] before headers resolves the [`{G}::Call`] with that status, not `UNAVAILABLE` from the reset; after headers the received [`{G}::Streaming`] sees [`{G}::Code::Cancelled`], not that status."
             );
         }
         if shape.client_return.starts_with('(') {

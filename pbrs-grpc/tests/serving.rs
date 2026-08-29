@@ -5512,7 +5512,7 @@ async fn failing_a_bidi_stream_before_headers_is_that_status_not_unavailable() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn failing_a_bidi_stream_after_headers_is_unavailable_not_that_status() {
+async fn failing_a_bidi_stream_after_headers_is_cancelled_not_that_status() {
     let left = Arc::new(AtomicUsize::new(0));
     let (addr, listener) = bind().await;
     let svc = BidiWaitAfterFirst {
@@ -5533,7 +5533,7 @@ async fn failing_a_bidi_stream_after_headers_is_unavailable_not_that_status() {
     assert_eq!(name_of(&first), "ada");
     tx.fail(stream_abort_status()).await;
     let err = stream.message().await.expect_err("reset after fail");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
     assert_ne!(
         err.message(),
         "gone",

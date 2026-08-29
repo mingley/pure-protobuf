@@ -430,7 +430,7 @@ impl<T> StreamSender<T> {
     /// [`crate::Call`], or a bidi [`crate::Call`] that has not yet seen
     /// headers, resolves with `status` — not `UNAVAILABLE` from that reset.
     /// A bidi call that already has headers surfaces the reset on the
-    /// received [`Streaming`].
+    /// received [`Streaming`] as [`crate::Code::Cancelled`], not `status`.
     pub async fn fail(self, status: Status) {
         self.tx.send(Err(status)).await.ok();
     }
