@@ -127,6 +127,13 @@ See `docs/upb.md`. Short list:
   into metadata cannot override it. Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape.
   `Outgoing::set_timeout` is that Call's deadline on every call shape. A
+  wrapping `Service`, generated `FooServer::intercept`, and
+  `Router::intercept` reject before the body is read and stack in
+  declaration order on every call shape. Generated handlers see
+  `:authority` / `:scheme` / `Request` parts, a deadline Instant that
+  elapses, TCP local/remote, Unix `peer_cred`, and `Incoming::peer`
+  stamps on every call shape. Handler `Err` (nonzero `grpc-status` and
+  custom details) is that status on every call shape. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

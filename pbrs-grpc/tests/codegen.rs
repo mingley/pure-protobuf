@@ -770,4 +770,8 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         src.contains("`Err` may carry [`::pbrs_grpc::Status::with_error_details`]; those trailers reach the client."),
         "generated server intercept rustdoc must name typed Err trailers"
     );
+    assert!(
+        src.contains("Applies to every call shape; `Err` rejects before the body is read."),
+        "generated server intercept rustdoc must name reject-before-body on every call shape"
+    );
 }

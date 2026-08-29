@@ -159,7 +159,8 @@ pub trait Incoming: Send {
     /// probe `Io`. [`IncomingAccept`] is unchanged. Override this when you
     /// already know a local address, mTLS identity, Unix credentials, or a
     /// transport `:scheme` (a vsock, a TLS stack you drove, a Unix socket
-    /// you accepted yourself).
+    /// you accepted yourself). Applies to every call shape on that
+    /// connection.
     fn peer(&self, io: &Self::Io, remote: Option<SocketAddr>) -> ConnectionInfo {
         let _ = (self, io);
         ConnectionInfo::from_accept(remote)
@@ -1465,13 +1466,15 @@ impl<S: Service> Server<S> {
     /// [`Rpc::peer_cred`] / [`Rpc::limits`] / [`Rpc::accepts_gzip`] /
     /// [`Rpc::encoding`] / [`Rpc::compresses_outbound`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
-    /// (including [`Status::with_error_details`]) to reject. Generated
-    /// handlers see the same path, peer, caps, client timeout, server timeout
-    /// overlay, gzip facts, and response-gzip overlay on [`Request`].
+    /// (including [`Status::with_error_details`]) to reject before the body
+    /// is read. Generated handlers see the same path, peer, caps, client
+    /// timeout, server timeout overlay, gzip facts, and response-gzip overlay
+    /// on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
-    /// [`Router::intercept`] and [`crate::Channel::intercept`].
+    /// [`Router::intercept`] and [`crate::Channel::intercept`]. Applies to
+    /// every call shape.
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
     /// service, or wrap one service with [`crate::Intercepted`].
     #[must_use]
@@ -1972,7 +1975,7 @@ impl Router {
 
     /// Run `interceptor` before every mounted service. Calling this twice
     /// stacks: the first interceptor runs first. Same inspect/reject surface
-    /// as [`Server::intercept`].
+    /// as [`Server::intercept`]. Applies to every call shape.
     #[must_use]
     pub fn intercept<I: crate::Interceptor>(mut self, interceptor: I) -> Self {
         self.interceptor = Some(match self.interceptor {
@@ -2529,6 +2532,7 @@ where
 /// mTLS identity, Unix credentials, or a transport `:scheme`. The default
 /// keeps the `SocketAddr` from [`IncomingAccept`] and does not override
 /// `:scheme`. [`Server::serve_connection`] leaves every field unset.
+/// Applies to every call shape on that connection.
 #[derive(Clone, Debug, Default)]
 pub struct ConnectionInfo {
     remote: Option<SocketAddr>,

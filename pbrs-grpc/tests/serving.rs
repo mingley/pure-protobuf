@@ -416,19 +416,10 @@ async fn a_wrapping_service_can_reject_before_the_body_is_read() {
 
     let client = GreeterClient::new(channel(addr).await);
 
-    let denied = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("no token");
-    assert_eq!(denied.code(), Code::Unauthenticated);
+    assert_err_on_every_shape(&client, Code::Unauthenticated).await;
 
-    let mut authorized = Request::new(req("ada"));
-    authorized
-        .metadata_mut()
-        .insert("authorization", "Bearer letmein")
-        .expect("metadata");
-    let allowed = client.say_hello(authorized).await.expect("with token");
-    assert_eq!(name_of(allowed.get_ref()), "ada");
+    let allowed = GreeterClient::new(channel(addr).await).intercept(inject_bearer);
+    echo_every_shape(&allowed, None).await;
 
     task.abort();
 }
@@ -467,10 +458,8 @@ async fn h2c_requests_use_the_http_scheme() {
             .ok();
     });
 
-    GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
+    let client = GreeterClient::new(channel(addr).await);
+    echo_every_shape(&client, None).await;
     assert_eq!(seen.load(Ordering::SeqCst), 1);
     task.abort();
 }
@@ -505,11 +494,8 @@ async fn tcp_rpcs_expose_local_and_remote_addr() {
             .ok();
     });
 
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    echo_every_shape(&client, None).await;
     assert_eq!(seen.load(Ordering::SeqCst), 1);
     task.abort();
 }
@@ -523,57 +509,32 @@ async fn a_generated_handler_sees_authority_scheme_and_parts() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            let want_auth = format!(
-                "127.0.0.1:{}",
-                request
-                    .local_addr()
-                    .ok_or_else(|| Status::internal("missing local_addr"))?
-                    .port()
-            );
-            if request.authority() != Some(want_auth.as_str()) {
-                return Err(Status::internal(format!(
-                    "authority {:?}",
-                    request.authority()
-                )));
-            }
-            if request.scheme() != Some("http") {
-                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
-            }
-            if request.deadline().is_some() {
-                return Err(Status::internal("no timeout, so no deadline Instant"));
-            }
-            if request.peer_cred().is_some() {
-                return Err(Status::internal("tcp has no unix credentials"));
-            }
-            let (msg, parts) = request.into_message_and_parts();
-            if parts.authority() != Some(want_auth.as_str()) || parts.scheme() != Some("http") {
-                return Err(Status::internal("parts dropped http identity"));
-            }
-            if parts.peer_cred().is_some() {
-                return Err(Status::internal("parts invented unix credentials"));
-            }
+            let msg = sees_http(request)?;
             Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
         async fn client_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("sees-http"))
+            let _ = sees_http(request)?;
+            Ok(Response::new(common::reply("ada")))
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-http"))
+            let msg = sees_http(request)?;
+            Ok(echo_named_stream(common::name_of_request(&msg)))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-http"))
+            let _ = sees_http(request)?;
+            Ok(echo_named_stream("ada".into()))
         }
     }
 
@@ -584,11 +545,8 @@ async fn a_generated_handler_sees_authority_scheme_and_parts() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -601,25 +559,7 @@ async fn a_handler_deadline_is_an_instant_that_elapses() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            let timeout = request
-                .timeout()
-                .ok_or_else(|| Status::internal("missing timeout duration"))?;
-            if timeout < Duration::from_millis(150) || timeout > Duration::from_millis(250) {
-                return Err(Status::internal(format!("timeout {timeout:?}")));
-            }
-            let deadline = request
-                .deadline()
-                .ok_or_else(|| Status::internal("missing deadline Instant"))?;
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            let left = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if left >= timeout {
-                return Err(Status::internal(format!(
-                    "remaining {left:?} not less than stamped {timeout:?}"
-                )));
-            }
-            if request.timeout() != Some(timeout) {
-                return Err(Status::internal("timeout duration must not shrink"));
-            }
+            sees_deadline(&request).await?;
             Ok(Response::new(common::reply(common::name_of_request(
                 request.get_ref(),
             ))))
@@ -627,23 +567,28 @@ async fn a_handler_deadline_is_an_instant_that_elapses() {
 
         async fn client_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("sees-deadline"))
+            sees_deadline(&request).await?;
+            Ok(Response::new(common::reply("ada")))
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-deadline"))
+            sees_deadline(&request).await?;
+            Ok(echo_named_stream(common::name_of_request(
+                request.get_ref(),
+            )))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-deadline"))
+            sees_deadline(&request).await?;
+            Ok(echo_named_stream("ada".into()))
         }
     }
 
@@ -654,13 +599,8 @@ async fn a_handler_deadline_is_an_instant_that_elapses() {
             .await
             .ok();
     });
-    let mut request = Request::new(req("ada"));
-    request.set_timeout(Duration::from_millis(200));
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(request)
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    echo_every_shape(&client, Some(Duration::from_millis(200))).await;
     task.abort();
 }
 
@@ -676,18 +616,10 @@ async fn a_generated_server_interceptor_rejects_before_the_handler() {
     });
 
     let client = GreeterClient::new(channel(addr).await);
-    let denied = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("no token");
-    assert_eq!(denied.code(), Code::Unauthenticated);
+    assert_err_on_every_shape(&client, Code::Unauthenticated).await;
 
-    let allowed = GreeterClient::new(channel(addr).await)
-        .intercept(inject_bearer)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("with token");
-    assert_eq!(name_of(allowed.get_ref()), "ada");
+    let allowed = GreeterClient::new(channel(addr).await).intercept(inject_bearer);
+    echo_every_shape(&allowed, None).await;
 
     task.abort();
 }
@@ -710,22 +642,33 @@ async fn generated_server_interceptors_stack_in_declaration_order() {
     });
 
     let client = GreeterClient::new(channel(addr).await);
-    let missing_trace = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("neither header");
-    assert_eq!(missing_trace.code(), Code::InvalidArgument);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
 
-    let mut only_auth = Request::new(req("ada"));
-    only_auth
-        .metadata_mut()
-        .insert("authorization", "Bearer letmein")
-        .expect("metadata");
-    let still_trace = client
-        .say_hello(only_auth)
+    fn only_auth<T>(mut request: Request<T>) -> Request<T> {
+        request
+            .metadata_mut()
+            .insert("authorization", "Bearer letmein")
+            .expect("metadata");
+        request
+    }
+    let err = client
+        .say_hello(only_auth(Request::new(req("ada"))))
         .await
-        .expect_err("auth without trace");
-    assert_eq!(still_trace.code(), Code::InvalidArgument);
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let err = client
+        .server_hello(only_auth(Request::new(req("ada"))))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let (tx, call) = client.client_hello(only_auth(Request::new(())));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    drop(tx);
+    let (tx, call) = client.stream_hello(only_auth(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    drop(tx);
 
     let authed = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
         call.metadata_mut().insert("x-trace", "1")?;
@@ -733,11 +676,7 @@ async fn generated_server_interceptors_stack_in_declaration_order() {
             .insert("authorization", "Bearer letmein")?;
         Ok(())
     });
-    let allowed = authed
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("both headers");
-    assert_eq!(name_of(allowed.get_ref()), "ada");
+    echo_every_shape(&authed, None).await;
 
     task.abort();
 }
@@ -755,18 +694,10 @@ async fn intercept_on_a_generated_server_survives_add_service() {
     });
 
     let client = GreeterClient::new(channel(addr).await);
-    let denied = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("no token");
-    assert_eq!(denied.code(), Code::Unauthenticated);
+    assert_err_on_every_shape(&client, Code::Unauthenticated).await;
 
-    let allowed = GreeterClient::new(channel(addr).await)
-        .intercept(inject_bearer)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("with token");
-    assert_eq!(name_of(allowed.get_ref()), "ada");
+    let allowed = GreeterClient::new(channel(addr).await).intercept(inject_bearer);
+    echo_every_shape(&allowed, None).await;
 
     let denied_empty = TestServiceClient::new(channel(addr).await)
         .empty_call(Request::new(Empty::new()))
@@ -945,22 +876,33 @@ async fn router_interceptors_stack_in_declaration_order() {
     });
 
     let client = GreeterClient::new(channel(addr).await);
-    let missing_trace = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("neither header");
-    assert_eq!(missing_trace.code(), Code::InvalidArgument);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
 
-    let mut only_auth = Request::new(req("ada"));
-    only_auth
-        .metadata_mut()
-        .insert("authorization", "Bearer letmein")
-        .expect("metadata");
-    let still_trace = client
-        .say_hello(only_auth)
+    fn only_auth<T>(mut request: Request<T>) -> Request<T> {
+        request
+            .metadata_mut()
+            .insert("authorization", "Bearer letmein")
+            .expect("metadata");
+        request
+    }
+    let err = client
+        .say_hello(only_auth(Request::new(req("ada"))))
         .await
-        .expect_err("auth without trace");
-    assert_eq!(still_trace.code(), Code::InvalidArgument);
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let err = client
+        .server_hello(only_auth(Request::new(req("ada"))))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let (tx, call) = client.client_hello(only_auth(Request::new(())));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    drop(tx);
+    let (tx, call) = client.stream_hello(only_auth(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    drop(tx);
 
     let authed = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
         call.metadata_mut().insert("x-trace", "1")?;
@@ -968,11 +910,7 @@ async fn router_interceptors_stack_in_declaration_order() {
             .insert("authorization", "Bearer letmein")?;
         Ok(())
     });
-    let allowed = authed
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("both headers");
-    assert_eq!(name_of(allowed.get_ref()), "ada");
+    echo_every_shape(&authed, None).await;
 
     task.abort();
 }
@@ -3500,57 +3438,32 @@ async fn a_generated_handler_sees_unix_peer_cred() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            if request.remote_addr().is_some() || request.local_addr().is_some() {
-                return Err(Status::internal("unix has no std::net::SocketAddr"));
-            }
-            if request.peer_identity().is_some() {
-                return Err(Status::internal("unix has no TLS client certificate"));
-            }
-            if request.scheme() != Some("http") {
-                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
-            }
-            if request.authority() != Some("localhost") {
-                return Err(Status::internal(format!(
-                    "authority {:?}",
-                    request.authority()
-                )));
-            }
-            let Some(cred) = request.peer_cred() else {
-                return Err(Status::internal("missing peer_cred"));
-            };
-            if cred.pid() != Some(std::process::id()) {
-                return Err(Status::internal(format!(
-                    "pid {:?} want {}",
-                    cred.pid(),
-                    std::process::id()
-                )));
-            }
-            let (msg, parts) = request.into_message_and_parts();
-            if parts.peer_cred() != Some(cred) {
-                return Err(Status::internal("parts dropped peer_cred"));
-            }
+            let msg = sees_unix(request)?;
             Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
         async fn client_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("sees-unix"))
+            let _ = sees_unix(request)?;
+            Ok(Response::new(common::reply("ada")))
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-unix"))
+            let msg = sees_unix(request)?;
+            Ok(echo_named_stream(common::name_of_request(&msg)))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-unix"))
+            let _ = sees_unix(request)?;
+            Ok(echo_named_stream("ada".into()))
         }
     }
 
@@ -3562,11 +3475,8 @@ async fn a_generated_handler_sees_unix_peer_cred() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(unix_channel(&path).await)
-        .say_hello(Request::new(req("uds")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "uds");
+    let client = GreeterClient::new(unix_channel(&path).await);
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -4353,61 +4263,32 @@ async fn incoming_peer_stamps_connection_facts() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            let want_remote: SocketAddr = "192.0.2.1:8".parse().expect("remote");
-            let want_local: SocketAddr = "127.0.0.1:9".parse().expect("local");
-            let want_cred = PeerCred::new(42, 43, Some(44));
-            if request.remote_addr() != Some(want_remote) {
-                return Err(Status::internal(format!(
-                    "remote {:?}",
-                    request.remote_addr()
-                )));
-            }
-            if request.local_addr() != Some(want_local) {
-                return Err(Status::internal(format!(
-                    "local {:?}",
-                    request.local_addr()
-                )));
-            }
-            if request.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf") {
-                return Err(Status::internal("missing stamped identity"));
-            }
-            if request.peer_cred() != Some(want_cred) {
-                return Err(Status::internal(format!("cred {:?}", request.peer_cred())));
-            }
-            if request.scheme() != Some("https") {
-                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
-            }
-            let (msg, parts) = request.into_message_and_parts();
-            if parts.remote_addr() != Some(want_remote)
-                || parts.local_addr() != Some(want_local)
-                || parts.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf")
-                || parts.peer_cred() != Some(want_cred)
-                || parts.scheme() != Some("https")
-            {
-                return Err(Status::internal("parts dropped Incoming::peer facts"));
-            }
+            let msg = sees_incoming(request)?;
             Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
         async fn client_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("sees-incoming"))
+            let _ = sees_incoming(request)?;
+            Ok(Response::new(common::reply("ada")))
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-incoming"))
+            let msg = sees_incoming(request)?;
+            Ok(echo_named_stream(common::name_of_request(&msg)))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-incoming"))
+            let _ = sees_incoming(request)?;
+            Ok(echo_named_stream("ada".into()))
         }
     }
 
@@ -4452,15 +4333,12 @@ async fn incoming_peer_stamps_connection_facts() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(
+    let client = GreeterClient::new(
         Channel::from_io(client_io, "localhost")
             .await
             .expect("from_io"),
-    )
-    .say_hello(Request::new(req("ada")))
-    .await
-    .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    );
+    echo_every_shape(&client, None).await;
     server.abort();
 }
 
@@ -4877,6 +4755,141 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
     assert!(inbound.message().await.expect("end").is_none());
+}
+
+fn echo_named_stream(name: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        tx.send(common::reply(name)).await.ok();
+    }));
+    Response::new(stream)
+}
+
+fn sees_http<T>(request: Request<T>) -> Result<T, Status> {
+    let want_auth = format!(
+        "127.0.0.1:{}",
+        request
+            .local_addr()
+            .ok_or_else(|| Status::internal("missing local_addr"))?
+            .port()
+    );
+    if request.authority() != Some(want_auth.as_str()) {
+        return Err(Status::internal(format!(
+            "authority {:?}",
+            request.authority()
+        )));
+    }
+    if request.scheme() != Some("http") {
+        return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+    }
+    if request.deadline().is_some() {
+        return Err(Status::internal("no timeout, so no deadline Instant"));
+    }
+    if request.peer_cred().is_some() {
+        return Err(Status::internal("tcp has no unix credentials"));
+    }
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.authority() != Some(want_auth.as_str()) || parts.scheme() != Some("http") {
+        return Err(Status::internal("parts dropped http identity"));
+    }
+    if parts.peer_cred().is_some() {
+        return Err(Status::internal("parts invented unix credentials"));
+    }
+    Ok(msg)
+}
+
+async fn sees_deadline<T>(request: &Request<T>) -> Result<(), Status> {
+    let timeout = request
+        .timeout()
+        .ok_or_else(|| Status::internal("missing timeout duration"))?;
+    if timeout < Duration::from_millis(150) || timeout > Duration::from_millis(250) {
+        return Err(Status::internal(format!("timeout {timeout:?}")));
+    }
+    let deadline = request
+        .deadline()
+        .ok_or_else(|| Status::internal("missing deadline Instant"))?;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+    if left >= timeout {
+        return Err(Status::internal(format!(
+            "remaining {left:?} not less than stamped {timeout:?}"
+        )));
+    }
+    if request.timeout() != Some(timeout) {
+        return Err(Status::internal("timeout duration must not shrink"));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn sees_unix<T>(request: Request<T>) -> Result<T, Status> {
+    if request.remote_addr().is_some() || request.local_addr().is_some() {
+        return Err(Status::internal("unix has no std::net::SocketAddr"));
+    }
+    if request.peer_identity().is_some() {
+        return Err(Status::internal("unix has no TLS client certificate"));
+    }
+    if request.scheme() != Some("http") {
+        return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+    }
+    if request.authority() != Some("localhost") {
+        return Err(Status::internal(format!(
+            "authority {:?}",
+            request.authority()
+        )));
+    }
+    let Some(cred) = request.peer_cred() else {
+        return Err(Status::internal("missing peer_cred"));
+    };
+    if cred.pid() != Some(std::process::id()) {
+        return Err(Status::internal(format!(
+            "pid {:?} want {}",
+            cred.pid(),
+            std::process::id()
+        )));
+    }
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.peer_cred() != Some(cred) {
+        return Err(Status::internal("parts dropped peer_cred"));
+    }
+    Ok(msg)
+}
+
+fn sees_incoming<T>(request: Request<T>) -> Result<T, Status> {
+    let want_remote: SocketAddr = "192.0.2.1:8".parse().expect("remote");
+    let want_local: SocketAddr = "127.0.0.1:9".parse().expect("local");
+    let want_cred = PeerCred::new(42, 43, Some(44));
+    if request.remote_addr() != Some(want_remote) {
+        return Err(Status::internal(format!(
+            "remote {:?}",
+            request.remote_addr()
+        )));
+    }
+    if request.local_addr() != Some(want_local) {
+        return Err(Status::internal(format!(
+            "local {:?}",
+            request.local_addr()
+        )));
+    }
+    if request.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf") {
+        return Err(Status::internal("missing stamped identity"));
+    }
+    if request.peer_cred() != Some(want_cred) {
+        return Err(Status::internal(format!("cred {:?}", request.peer_cred())));
+    }
+    if request.scheme() != Some("https") {
+        return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+    }
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.remote_addr() != Some(want_remote)
+        || parts.local_addr() != Some(want_local)
+        || parts.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf")
+        || parts.peer_cred() != Some(want_cred)
+        || parts.scheme() != Some("https")
+    {
+        return Err(Status::internal("parts dropped Incoming::peer facts"));
+    }
+    Ok(msg)
 }
 
 async fn gzip_every_shape(client: &GreeterClient) {

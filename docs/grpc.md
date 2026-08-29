@@ -1217,7 +1217,8 @@ generated method. A proxy that maps the payload keeps the method name on
 `Request::into_message_and_parts`.
 `Rpc::local_addr` is the TCP interface that accepted the socket; Unix,
 the default `Incoming`, and `serve_connection` leave it `None`.
-`Incoming::peer` fills it for a custom acceptor.
+`Incoming::peer` fills it for a custom acceptor. Those connection facts
+are on every call shape on that socket.
 `Rpc::peer_identity` is the mTLS client certificate chain when the handshake
 included one, or when `Incoming::peer` supplies `PeerIdentity::from_der_certs`.
 `Rpc::peer_cred` is the Unix `SO_PEERCRED` uid/gid/pid after
@@ -1257,13 +1258,15 @@ let tenant = request.extensions().get::<String>().cloned();
 ```
 
 `Router::intercept` and `Server::intercept` (and the generated
-`FooServer::intercept`) run before every RPC on that server. Calling any of
+`FooServer::intercept`) run before every RPC on that server, on every call
+shape, and `Err` rejects before the body is read. Calling any of
 them twice stacks: the first interceptor runs first. Per-service wrapping is
 `Intercepted::new` or `ServiceExt::intercept` when you do not want the
 generated server's `.serve()` chain. Chaining `ServiceExt::intercept` is
 first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
 `Intercepted::intercept` is an inherent method, so it does not wrap
-onion-style.
+onion-style. That reject-and-stack contract is the same on every call
+shape.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs when the RPC method is invoked — before the stream opens and before the
@@ -1344,6 +1347,7 @@ For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, `:authority` / `:scheme`, the
 method path (`Request::path` / `Request::service` / `Request::method`), the
 peer address, mTLS identity, Unix `peer_cred`, and `Request::limits` there.
+Those handler-visible facts apply to every call shape.
 
 ## Testing
 

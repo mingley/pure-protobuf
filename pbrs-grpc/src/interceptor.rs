@@ -8,7 +8,8 @@ use std::sync::Arc;
 
 /// Inspect an inbound RPC before the handler runs.
 ///
-/// Return `Err` to reject without reading the body; `Ok` to proceed.
+/// Return `Err` to reject without reading the body on every call shape;
+/// `Ok` to proceed.
 /// Closures with this signature implement the trait, so most interceptors
 /// are one function. Mutate inbound metadata with [`Rpc::metadata_mut`]
 /// (strip with [`crate::Metadata::remove`] or [`crate::Metadata::retain`],
@@ -55,6 +56,7 @@ use std::sync::Arc;
 /// stacks the same way: [`Intercepted::intercept`] is inherent, so
 /// `svc.intercept(a).intercept(b)` runs `a` then `b`. On a [`crate::Router`],
 /// call [`crate::Router::intercept`] or wrap one service with [`Intercepted`].
+/// Applies to every call shape.
 pub trait Interceptor: Send + Sync + 'static {
     /// Inspect `rpc`. The body has not been read yet.
     fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status>;
@@ -142,7 +144,8 @@ pub trait ServiceExt: Service + Sized {
     /// Run `interceptor` before this service sees the RPC.
     ///
     /// Calling this on an [`Intercepted`] uses [`Intercepted::intercept`]
-    /// instead, which stacks first-interceptor-first.
+    /// instead, which stacks first-interceptor-first. Applies to every call
+    /// shape.
     #[must_use]
     fn intercept<I: Interceptor>(self, interceptor: I) -> Intercepted<Self, I> {
         Intercepted::new(self, interceptor)

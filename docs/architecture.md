@@ -33,7 +33,8 @@ a single already-accepted stream (`serve_connection`), or a custom
 reports `:scheme` `http`. `Incoming::accept` still yields
 `(Io, Option<SocketAddr>)`. Other connection facts go on
 `Incoming::peer` as a `ConnectionInfo` (local address, identity,
-credentials, transport scheme). The default copies the accept address
+credentials, transport scheme). Those facts are copied onto every call
+shape on that connection. The default copies the accept address
 and does not probe `Io`. `serve_connection` leaves those fields unset.
 
 ### Dispatch

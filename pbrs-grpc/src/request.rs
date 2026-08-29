@@ -325,6 +325,7 @@ impl<T> Request<T> {
     }
 
     /// Peer address, when the transport exposed one. Server side only.
+    /// Applies to every call shape.
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote_addr
@@ -334,7 +335,8 @@ impl<T> Request<T> {
     ///
     /// TCP fills this from the accepted socket. Unix, in-process, and the
     /// default [`crate::Incoming`] yield `None`. [`crate::Incoming::peer`]
-    /// can fill it. See [`crate::Rpc::local_addr`].
+    /// can fill it. See [`crate::Rpc::local_addr`]. Applies to every call
+    /// shape.
     #[must_use]
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.local_addr
@@ -345,7 +347,8 @@ impl<T> Request<T> {
     /// Same value as [`crate::Rpc::peer_identity`]. TLS without a client
     /// certificate, h2c, Unix, in-process connections, and the default
     /// [`crate::Incoming`] yield `None`. [`crate::Incoming::peer`] can supply
-    /// a chain via [`crate::PeerIdentity::from_der_certs`].
+    /// a chain via [`crate::PeerIdentity::from_der_certs`]. Applies to every
+    /// call shape.
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.peer_identity.as_ref()
@@ -358,7 +361,7 @@ impl<T> Request<T> {
     /// process's uid/gid/`pid`. TCP, TLS, the default [`crate::Incoming`],
     /// and [`crate::Server::serve_connection`] yield `None`.
     /// [`crate::Incoming::peer`] can supply credentials the acceptor already
-    /// probed.
+    /// probed. Applies to every call shape.
     #[must_use]
     pub fn peer_cred(&self) -> Option<PeerCred> {
         self.peer_cred
@@ -475,7 +478,7 @@ impl<T> Request<T> {
     ///
     /// Same value as [`crate::Rpc::authority`]. Outbound requests you build
     /// yourself have `None` until the channel stamps its authority on the
-    /// wire; this is a server-side field.
+    /// wire; this is a server-side field. Applies to every call shape.
     #[must_use]
     pub fn authority(&self) -> Option<&str> {
         self.authority.as_deref()
@@ -487,7 +490,7 @@ impl<T> Request<T> {
     /// claim `https` on cleartext. The default [`crate::Incoming`] and
     /// [`crate::Server::serve_connection`] keep whatever the peer sent.
     /// [`crate::Incoming::peer`] can set a transport scheme. Same value as
-    /// [`crate::Rpc::scheme`].
+    /// [`crate::Rpc::scheme`]. Applies to every call shape.
     #[must_use]
     pub fn scheme(&self) -> Option<&str> {
         self.scheme.as_deref()

@@ -110,59 +110,63 @@ impl Greeter for Fail {
         &self,
         _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(Status::not_found("missing"))
     }
 
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(Status::not_found("missing"))
     }
 
     async fn stream_hello(
         &self,
         _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(Status::not_found("missing"))
     }
 }
 
 struct RichFail;
+
+fn rich_fail() -> Status {
+    let mut status = Status::failed_precondition("quota");
+    status.set_details(vec![0x08, 0x09]);
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
 
 impl Greeter for RichFail {
     async fn say_hello(
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        let mut status = Status::failed_precondition("quota");
-        status.set_details(vec![0x08, 0x09]);
-        status
-            .metadata_mut()
-            .insert("x-retry-after", "30")
-            .expect("md");
-        Err(status)
+        Err(rich_fail())
     }
 
     async fn client_hello(
         &self,
         _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(rich_fail())
     }
 
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(rich_fail())
     }
 
     async fn stream_hello(
         &self,
         _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(rich_fail())
     }
 }
 
@@ -288,27 +292,24 @@ async fn bidi_round_trip() {
 #[tokio::test]
 async fn failing_rpc_nonzero_grpc_status() {
     let (_addr, client, _guard) = spawn_greeter(Fail).await.expect("spawn");
-    match client.say_hello(Request::new(req("ada"))).await {
-        Err(err) => {
-            assert_ne!(err.code(), Code::Ok);
-            assert_eq!(err.code(), Code::NotFound);
-        }
-        Ok(_) => panic!("expected nonzero grpc-status"),
-    }
+    each_shape_err(&client, |err| {
+        assert_ne!(err.code(), Code::Ok);
+        assert_eq!(err.code(), Code::NotFound);
+    })
+    .await;
 }
 
 #[tokio::test]
 async fn failing_rpc_carries_status_details() {
     let (_addr, client, _guard) = spawn_greeter(RichFail).await.expect("spawn");
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("details");
-    assert_eq!(err.code(), Code::FailedPrecondition);
-    assert_eq!(err.message(), "quota");
-    assert_eq!(err.details(), &[0x08, 0x09]);
-    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
-    assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+    each_shape_err(&client, |err| {
+        assert_eq!(err.code(), Code::FailedPrecondition);
+        assert_eq!(err.message(), "quota");
+        assert_eq!(err.details(), &[0x08, 0x09]);
+        assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+        assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+    })
+    .await;
 }
 
 #[tokio::test]
@@ -341,6 +342,27 @@ fn assert_typed_fail(err: &Status) {
         .error_info
         .expect("ErrorInfo");
     assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+}
+
+async fn each_shape_err(client: &GreeterClient, check: impl Fn(&Status)) {
+    check(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    check(&call.await.expect_err("client-stream"));
+    check(
+        &client
+            .server_hello(Request::new(req("ada")))
+            .await
+            .expect_err("server-stream"),
+    );
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    check(&call.await.expect_err("bidi"));
 }
 
 fn typed_stream_status() -> Status {

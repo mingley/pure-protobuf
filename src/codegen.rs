@@ -4251,7 +4251,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline (`set_timeout` / `deadline` Instant), inspect path / service / method, `:authority` / `:scheme` / `peer_timeout` / `rpc_timeout` / `effective_timeout` / `local_addr` / `remote_addr` / `peer_identity` / `peer_cred` / message caps / gzip accept and encoding / `compresses_outbound`, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first. `Err` may carry [`{G}::Status::with_error_details`]; those trailers reach the client."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline (`set_timeout` / `deadline` Instant), inspect path / service / method, `:authority` / `:scheme` / `peer_timeout` / `rpc_timeout` / `effective_timeout` / `local_addr` / `remote_addr` / `peer_identity` / `peer_cred` / message caps / gzip accept and encoding / `compresses_outbound`, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first. Applies to every call shape; `Err` rejects before the body is read. `Err` may carry [`{G}::Status::with_error_details`]; those trailers reach the client."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
