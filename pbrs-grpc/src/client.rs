@@ -584,8 +584,10 @@ impl Channel {
     /// How many messages sit between a client-streaming caller and the wire.
     /// See [`ChannelConfig::stream_buffer`].
     ///
-    /// Overlay: applies to streams opened from this clone. Does not change
-    /// already-open streams or how a dead slot is redialed.
+    /// Applies to client-streaming and bidi request streams opened from this
+    /// clone. Unary and server-streaming have no request stream to queue.
+    /// Overlay: does not change already-open streams or how a dead slot is
+    /// redialed.
     #[must_use]
     pub fn stream_buffer(mut self, messages: usize) -> Self {
         self.config = self.config.stream_buffer(messages);

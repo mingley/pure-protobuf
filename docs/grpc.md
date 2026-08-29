@@ -548,6 +548,8 @@ let reply = client.say_hello(req).await?;
 
 Per-RPC `Request::set_wait_for_ready(false)` opts out of a channel default.
 `set_wait_for_ready(true)` on a request that did not inherit still works.
+That opt-out, and a waiting Call's deadline, apply on h2c, TLS
+(`connect_tls_lazy`), and Unix (`connect_unix_lazy`), on every call shape.
 
 `Channel::waits_for_ready` / `FooClient::waits_for_ready` read the overlay
 (`wait_for_ready` sets it).
@@ -776,7 +778,8 @@ let client = GreeterClient::connect_unix("/tmp/greeter.sock").await?;
 ```
 
 `connect_unix_lazy` and `Request::set_wait_for_ready` / `Channel::wait_for_ready`
-work the same as on TCP, on every call shape. The path is a filesystem
+work the same as on TCP, on every call shape, including opt-out and a
+waiting Call's deadline. The path is a filesystem
 path, not a `unix://` URI.
 `serve_unix` fails if the path already exists. After a crash,
 `serve_unix_unlink` unlinks a leftover socket inode that is not accepting.

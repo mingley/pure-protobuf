@@ -1862,4 +1862,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         ),
         "generated connect_unix_lazy_with rustdoc must name every call shape"
     );
+    assert!(
+        src.contains(
+            "How many messages sit between a client-streaming caller and the wire. See [`::pbrs_grpc::Channel::stream_buffer`]. Applies to client-streaming and bidi request streams."
+        ),
+        "generated stream_buffer rustdoc must name the streaming shapes it queues"
+    );
 }

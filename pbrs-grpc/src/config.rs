@@ -720,7 +720,7 @@ impl ChannelConfig {
     }
 
     /// Messages queued between a client-streaming caller and the wire.
-    /// Default 16.
+    /// Default 16. Applies to client-streaming and bidi request streams.
     ///
     /// The wire layer sends whatever is queued as one batch, so deeper means
     /// fewer and larger writes at the cost of memory. Received streams are

@@ -4889,7 +4889,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// How many messages sit between a client-streaming caller and the wire. See [`{G}::Channel::stream_buffer`]."
+        "    /// How many messages sit between a client-streaming caller and the wire. See [`{G}::Channel::stream_buffer`]. Applies to client-streaming and bidi request streams."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

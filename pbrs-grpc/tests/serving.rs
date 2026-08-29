@@ -383,6 +383,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Channel::intercept must name every call shape"
     );
+    assert!(
+        src.contains(
+            "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
+        ),
+        "Channel::stream_buffer must name the streaming shapes it queues"
+    );
 }
 
 #[test]
@@ -399,6 +405,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape."
         ),
         "ChannelConfig::connections must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Messages queued between a client-streaming caller and the wire.\n    /// Default 16. Applies to client-streaming and bidi request streams."
+        ),
+        "ChannelConfig::stream_buffer must name the streaming shapes it queues"
     );
 }
 
