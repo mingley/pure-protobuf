@@ -1514,64 +1514,12 @@ async fn a_client_interceptor_can_set_wait_for_ready() {
         call.set_wait_for_ready(true);
         Ok(())
     });
-    let timeout = Some(Duration::from_secs(5));
-    let mut unary = client.say_hello(stamp_timeout(Request::new(req("late")), timeout));
-    let mut server_stream = client.server_hello(stamp_timeout(Request::new(req("late")), timeout));
-    let (tx_c, mut client_stream) = client.client_hello(stamp_timeout(Request::new(()), timeout));
-    let (tx_b, mut bidi) = client.stream_hello(stamp_timeout(Request::new(()), timeout));
-
-    tokio::select! {
-        biased;
-        result = &mut unary => panic!("unary finished before the server listened: {result:?}"),
-        result = &mut server_stream => panic!("server-stream finished before the server listened: {result:?}"),
-        result = &mut client_stream => panic!("client-stream finished before the server listened: {result:?}"),
-        result = &mut bidi => panic!("bidi finished before the server listened: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(80)) => {}
-    }
-
-    let _guard = serve_at(addr, Echo, ServerConfig::default())
-        .await
-        .expect("serve");
-
-    let reply = tokio::time::timeout(Duration::from_secs(2), unary)
-        .await
-        .expect("unary hung after listen")
-        .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "late");
-
-    let mut stream = tokio::time::timeout(Duration::from_secs(2), server_stream)
-        .await
-        .expect("server-stream hung after listen")
-        .expect("server-stream")
-        .into_inner();
-    let first = stream
-        .message()
-        .await
-        .expect("item")
-        .expect("first message");
-    assert_eq!(name_of(&first), "late");
-
-    tx_c.send(req("late")).await.expect("send");
-    tx_c.close();
-    let reply = tokio::time::timeout(Duration::from_secs(2), client_stream)
-        .await
-        .expect("client-stream hung after listen")
-        .expect("client-stream");
-    assert_eq!(name_of(reply.get_ref()), "late");
-
-    tx_b.send(req("late")).await.expect("send");
-    tx_b.close();
-    let mut inbound = tokio::time::timeout(Duration::from_secs(2), bidi)
-        .await
-        .expect("bidi hung after listen")
-        .expect("bidi")
-        .into_inner();
-    let first = inbound
-        .message()
-        .await
-        .expect("item")
-        .expect("first message");
-    assert_eq!(name_of(&first), "late");
+    wait_then_complete_every_shape(&client, false, async {
+        serve_at(addr, Echo, ServerConfig::default())
+            .await
+            .expect("serve")
+    })
+    .await;
 }
 
 fn interceptor_blocked() -> Status {
@@ -2917,14 +2865,12 @@ async fn connect_lazy_fails_fast_when_nothing_is_listening() {
     let channel = Channel::connect_lazy(addr).expect("lazy");
     let client = GreeterClient::new(channel);
     let started = Instant::now();
-    let err = tokio::time::timeout(
+    tokio::time::timeout(
         Duration::from_secs(2),
-        client.say_hello(Request::new(req("x"))),
+        assert_err_on_every_shape(&client, Code::Unavailable),
     )
     .await
-    .expect("fail-fast hung")
-    .expect_err("rpc succeeded with no server");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    .expect("fail-fast hung");
     assert!(
         started.elapsed() < Duration::from_secs(1),
         "fail-fast took {:?}",
@@ -2939,28 +2885,14 @@ async fn wait_for_ready_completes_once_the_server_listens() {
 
     let channel = Channel::connect_lazy(addr).expect("lazy");
     let client = GreeterClient::new(channel);
-    let mut request = Request::new(req("late"));
-    request.set_wait_for_ready(true);
-    request.set_timeout(Duration::from_secs(5));
-    let mut call = client.say_hello(request);
-
-    // Creating a Call does not start the RPC; first poll does. Drive it
-    // long enough to prove it is retrying, then bind the server.
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(80)) => {}
-    }
-
-    let _guard = serve_at(addr, Echo, ServerConfig::default())
-        .await
-        .expect("serve");
-
-    let reply = tokio::time::timeout(Duration::from_secs(2), call)
-        .await
-        .expect("wait-for-ready hung after listen")
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "late");
+    // Creating a Call does not start the RPC; first poll does. Drive all
+    // four shapes long enough to prove they are retrying, then bind.
+    wait_then_complete_every_shape(&client, true, async {
+        serve_at(addr, Echo, ServerConfig::default())
+            .await
+            .expect("serve")
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2970,25 +2902,12 @@ async fn channel_wait_for_ready_completes_once_the_server_listens() {
 
     let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
     let client = GreeterClient::new(channel);
-    let mut request = Request::new(req("late"));
-    request.set_timeout(Duration::from_secs(5));
-    let mut call = client.say_hello(request);
-
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(80)) => {}
-    }
-
-    let _guard = serve_at(addr, Echo, ServerConfig::default())
-        .await
-        .expect("serve");
-
-    let reply = tokio::time::timeout(Duration::from_secs(2), call)
-        .await
-        .expect("channel wait-for-ready hung after listen")
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "late");
+    wait_then_complete_every_shape(&client, false, async {
+        serve_at(addr, Echo, ServerConfig::default())
+            .await
+            .expect("serve")
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -2998,15 +2917,10 @@ async fn request_can_opt_out_of_channel_wait_for_ready() {
 
     let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
     let client = GreeterClient::new(channel);
-    let mut request = Request::new(req("nope"));
-    request.set_wait_for_ready(false);
-    request.set_timeout(Duration::from_secs(5));
     let started = Instant::now();
-    let err = tokio::time::timeout(Duration::from_secs(2), client.say_hello(request))
+    tokio::time::timeout(Duration::from_secs(2), assert_opt_out_every_shape(&client))
         .await
-        .expect("opt-out hung")
-        .expect_err("rpc succeeded with no server");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
+        .expect("opt-out hung");
     assert!(
         started.elapsed() < Duration::from_secs(1),
         "opt-out fail-fast took {:?}",
@@ -3021,20 +2935,27 @@ async fn wait_for_ready_times_out_when_nothing_is_listening() {
 
     let channel = Channel::connect_lazy(addr).expect("lazy");
     let client = GreeterClient::new(channel);
-    let mut request = Request::new(req("x"));
-    request.set_wait_for_ready(true);
-    request.set_timeout(Duration::from_millis(80));
-    let started = Instant::now();
-    let err = client
-        .say_hello(request)
-        .await
-        .expect_err("should time out");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    assert!(
-        started.elapsed() >= Duration::from_millis(50),
-        "deadline returned too fast: {:?}",
-        started.elapsed()
-    );
+    let timeout = Duration::from_millis(80);
+    let min = Duration::from_millis(50);
+    let max = Duration::from_secs(2);
+    assert_deadline_in(
+        client.say_hello(stamp_wait_deadline(Request::new(req("x")), timeout)),
+        min,
+        max,
+    )
+    .await;
+    assert_deadline_in(
+        client.server_hello(stamp_wait_deadline(Request::new(req("x")), timeout)),
+        min,
+        max,
+    )
+    .await;
+    let (tx, call) = client.client_hello(stamp_wait_deadline(Request::new(()), timeout));
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(stamp_wait_deadline(Request::new(()), timeout));
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3099,11 +3020,7 @@ async fn a_mute_tcp_peer_does_not_stop_the_server_serving() {
         .expect("mute connect");
     tokio::time::sleep(Duration::from_millis(150)).await;
     let client = GreeterClient::new(channel(addr).await);
-    let reply = client
-        .say_hello(Request::new(req("after-mute")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "after-mute");
+    echo_every_shape(&client, None).await;
     drop(mute);
     task.abort();
 }
@@ -3120,21 +3037,15 @@ async fn max_connection_age_goaway_then_the_channel_redials() {
             .ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let first = client
-        .say_hello(Request::new(req("before")))
-        .await
-        .expect("before");
-    assert_eq!(name_of(first.get_ref()), "before");
+    echo_every_shape(&client, None).await;
 
     tokio::time::sleep(Duration::from_millis(200)).await;
-    let after = tokio::time::timeout(
+    tokio::time::timeout(
         Duration::from_secs(5),
-        client.say_hello(Request::new(req("after"))),
+        echo_every_shape(&client, Some(Duration::from_secs(5))),
     )
     .await
-    .expect("redial hung")
-    .expect("after");
-    assert_eq!(name_of(after.get_ref()), "after");
+    .expect("redial hung");
     task.abort();
 }
 
@@ -3151,22 +3062,16 @@ async fn max_connection_idle_goaway_then_the_channel_redials() {
             .ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let first = client
-        .say_hello(Request::new(req("before")))
-        .await
-        .expect("before");
-    assert_eq!(name_of(first.get_ref()), "before");
+    echo_every_shape(&client, None).await;
 
     // Keepalive PINGs must not reset idle. Wait well past the idle cap.
     tokio::time::sleep(Duration::from_millis(250)).await;
-    let after = tokio::time::timeout(
+    tokio::time::timeout(
         Duration::from_secs(5),
-        client.say_hello(Request::new(req("after"))),
+        echo_every_shape(&client, Some(Duration::from_secs(5))),
     )
     .await
-    .expect("redial hung")
-    .expect("after");
-    assert_eq!(name_of(after.get_ref()), "after");
+    .expect("redial hung");
     task.abort();
 }
 
@@ -3615,11 +3520,7 @@ async fn a_client_interceptor_sees_unix_localhost_authority() {
         }
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("uds")))
-        .await
-        .expect("unix authority");
-    assert_eq!(name_of(reply.get_ref()), "uds");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -3629,14 +3530,12 @@ async fn unix_lazy_fails_fast_when_nothing_is_listening() {
     let (path, _guard) = unix_test_path();
     let channel = Channel::connect_unix_lazy(&path).expect("lazy");
     let client = GreeterClient::new(channel);
-    let err = tokio::time::timeout(
+    tokio::time::timeout(
         Duration::from_secs(2),
-        client.say_hello(Request::new(req("x"))),
+        assert_err_on_every_shape(&client, Code::Unavailable),
     )
     .await
-    .expect("fail-fast hung")
-    .expect_err("rpc succeeded with no socket");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    .expect("fail-fast hung");
 }
 
 #[cfg(unix)]
@@ -3645,28 +3544,13 @@ async fn unix_wait_for_ready_completes_once_the_server_listens() {
     let (path, _guard) = unix_test_path();
     let channel = Channel::connect_unix_lazy(&path).expect("lazy");
     let client = GreeterClient::new(channel);
-    let mut request = Request::new(req("late"));
-    request.set_wait_for_ready(true);
-    request.set_timeout(Duration::from_secs(5));
-    let mut call = client.say_hello(request);
-
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(80)) => {}
-    }
-
-    let sock = path.clone();
-    let task = tokio::spawn(async move {
-        GreeterServer::new(Echo).serve_unix(sock).await.ok();
-    });
-
-    let reply = tokio::time::timeout(Duration::from_secs(2), call)
-        .await
-        .expect("wait-for-ready hung after listen")
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "late");
-    task.abort();
+    wait_then_complete_every_shape(&client, true, async {
+        let sock = path.clone();
+        tokio::spawn(async move {
+            GreeterServer::new(Echo).serve_unix(sock).await.ok();
+        })
+    })
+    .await;
 }
 
 #[cfg(unix)]
@@ -3871,7 +3755,7 @@ async fn extra_connections_are_refused_when_the_cap_is_hit() {
 }
 
 #[tokio::test]
-async fn tcp_keepalive_still_serves_a_unary() {
+async fn tcp_keepalive_still_serves() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
@@ -3898,11 +3782,7 @@ async fn tcp_keepalive_still_serves_a_unary() {
         }
         found.unwrap_or_else(|| panic!("connect with tcp keepalive: {last:?}"))
     };
-    let reply = GreeterClient::new(connected)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&GreeterClient::new(connected), None).await;
     task.abort();
 }
 
@@ -3948,11 +3828,7 @@ async fn from_io_round_trips_without_tcp() {
         .await
         .expect("from_io");
     assert!(format!("{channel:?}").contains("once"), "{channel:?}");
-    let reply = GreeterClient::new(channel)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&GreeterClient::new(channel), None).await;
     server.abort();
 }
 
@@ -4001,11 +3877,7 @@ async fn from_io_authority_is_visible_to_interceptors() {
         }
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("from_io authority");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     server.abort();
 }
 
@@ -4054,11 +3926,7 @@ async fn from_io_https_scheme_is_visible_to_interceptors() {
         call.metadata_mut().set("x-scheme", scheme)?;
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("from_io https");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     server.abort();
 }
 
@@ -4094,11 +3962,7 @@ async fn https_scheme_is_a_noop_on_tcp() {
         }
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -4119,20 +3983,14 @@ async fn from_io_idle_close_cannot_redial() {
     .await
     .expect("from_io");
     let client = GreeterClient::new(channel);
-    let first = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("unary");
-    assert_eq!(name_of(first.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     tokio::time::sleep(Duration::from_millis(250)).await;
-    let err = tokio::time::timeout(
+    tokio::time::timeout(
         Duration::from_secs(2),
-        client.say_hello(Request::new(req("late"))),
+        assert_err_on_every_shape(&client, Code::Unavailable),
     )
     .await
-    .expect("idle close hung")
-    .expect_err("once channel cannot redial after idle close");
-    assert_eq!(err.code(), Code::Unavailable);
+    .expect("idle close hung");
     server.abort();
 }
 
@@ -4149,10 +4007,7 @@ async fn from_io_cannot_redial() {
         .await
         .expect("from_io");
     let client = GreeterClient::new(channel);
-    client
-        .say_hello(Request::new(req("a")))
-        .await
-        .expect("first");
+    echo_every_shape(&client, None).await;
     server.abort();
     let err = tokio::time::timeout(Duration::from_secs(2), async {
         loop {
@@ -4165,6 +4020,12 @@ async fn from_io_cannot_redial() {
     .await
     .expect("should become unavailable");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_every_shape(&client, Code::Unavailable),
+    )
+    .await
+    .expect("once channel cannot redial");
 }
 
 #[tokio::test]
@@ -4182,11 +4043,7 @@ async fn serve_with_incoming_accepts_a_duplex() {
     let channel = Channel::from_io(client_io, "localhost")
         .await
         .expect("from_io");
-    let reply = GreeterClient::new(channel)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&GreeterClient::new(channel), None).await;
     server.abort();
 }
 
@@ -4233,15 +4090,15 @@ async fn incoming_default_peer_copies_the_accept_addr() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(
-        Channel::from_io(client_io, "localhost")
-            .await
-            .expect("from_io"),
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
     )
-    .say_hello(Request::new(req("ada")))
-    .await
-    .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    .await;
     server.abort();
 }
 
@@ -4744,6 +4601,29 @@ fn stamp_timeout<T>(mut request: Request<T>, timeout: Option<Duration>) -> Reque
     request
 }
 
+fn stamp_wait_ready<T>(
+    mut request: Request<T>,
+    wait_on_request: bool,
+    timeout: Option<Duration>,
+) -> Request<T> {
+    if wait_on_request {
+        request.set_wait_for_ready(true);
+    }
+    stamp_timeout(request, timeout)
+}
+
+fn stamp_opt_out<T>(mut request: Request<T>) -> Request<T> {
+    request.set_wait_for_ready(false);
+    request.set_timeout(Duration::from_secs(5));
+    request
+}
+
+fn stamp_wait_deadline<T>(mut request: Request<T>, timeout: Duration) -> Request<T> {
+    request.set_wait_for_ready(true);
+    request.set_timeout(timeout);
+    request
+}
+
 async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
     let reply = client
         .say_hello(stamp_timeout(Request::new(req("ada")), timeout))
@@ -4781,6 +4661,79 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
     assert!(inbound.message().await.expect("end").is_none());
+}
+
+async fn wait_then_complete_every_shape(
+    client: &GreeterClient,
+    wait_on_request: bool,
+    start: impl std::future::Future,
+) {
+    let timeout = Some(Duration::from_secs(5));
+    let mut unary = client.say_hello(stamp_wait_ready(
+        Request::new(req("late")),
+        wait_on_request,
+        timeout,
+    ));
+    let mut server_stream = client.server_hello(stamp_wait_ready(
+        Request::new(req("late")),
+        wait_on_request,
+        timeout,
+    ));
+    let (tx_c, mut client_stream) =
+        client.client_hello(stamp_wait_ready(Request::new(()), wait_on_request, timeout));
+    let (tx_b, mut bidi) =
+        client.stream_hello(stamp_wait_ready(Request::new(()), wait_on_request, timeout));
+
+    tokio::select! {
+        biased;
+        result = &mut unary => panic!("unary finished before the server listened: {result:?}"),
+        result = &mut server_stream => panic!("server-stream finished before the server listened: {result:?}"),
+        result = &mut client_stream => panic!("client-stream finished before the server listened: {result:?}"),
+        result = &mut bidi => panic!("bidi finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = start.await;
+
+    let reply = tokio::time::timeout(Duration::from_secs(2), unary)
+        .await
+        .expect("unary hung after listen")
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "late");
+
+    let mut stream = tokio::time::timeout(Duration::from_secs(2), server_stream)
+        .await
+        .expect("server-stream hung after listen")
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "late");
+
+    tx_c.send(req("late")).await.expect("send");
+    tx_c.close();
+    let reply = tokio::time::timeout(Duration::from_secs(2), client_stream)
+        .await
+        .expect("client-stream hung after listen")
+        .expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "late");
+
+    tx_b.send(req("late")).await.expect("send");
+    tx_b.close();
+    let mut inbound = tokio::time::timeout(Duration::from_secs(2), bidi)
+        .await
+        .expect("bidi hung after listen")
+        .expect("bidi")
+        .into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "late");
 }
 
 fn echo_named_stream(name: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
@@ -5074,12 +5027,21 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
 }
 
 async fn assert_deadline_quickly<T>(call: Call<T>, max_elapsed: Duration) {
+    assert_deadline_in(call, Duration::ZERO, max_elapsed).await;
+}
+
+async fn assert_deadline_in<T>(call: Call<T>, min_elapsed: Duration, max_elapsed: Duration) {
     let started = Instant::now();
     let err = match call.await {
         Ok(_) => panic!("expected deadline"),
         Err(status) => status,
     };
     assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() >= min_elapsed,
+        "deadline returned too fast: {:?}",
+        started.elapsed()
+    );
     assert!(
         started.elapsed() < max_elapsed,
         "deadline too slow: {:?}",
@@ -5153,6 +5115,27 @@ async fn assert_err_on_every_shape(client: &GreeterClient, want: Code) {
     let (tx, call) = client.stream_hello(Request::new(()));
     let err = call.await.expect_err("bidi");
     assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+}
+
+async fn assert_opt_out_every_shape(client: &GreeterClient) {
+    let err = client
+        .say_hello(stamp_opt_out(Request::new(req("nope"))))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .server_hello(stamp_opt_out(Request::new(req("nope"))))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let (tx, call) = client.client_hello(stamp_opt_out(Request::new(())));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+    let (tx, call) = client.stream_hello(stamp_opt_out(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
     drop(tx);
 }
 

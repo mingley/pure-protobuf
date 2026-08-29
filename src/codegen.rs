@@ -4658,7 +4658,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Send `:scheme https` from a [`Self::from_io`] channel. See [`{G}::Channel::https_scheme`]."
+        "    /// Send `:scheme https` from a [`Self::from_io`] channel. See [`{G}::Channel::https_scheme`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4868,7 +4868,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Wait for a connection instead of failing fast. See [`{G}::Channel::wait_for_ready`]."
+        "    /// Wait for a connection instead of failing fast. See [`{G}::Channel::wait_for_ready`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

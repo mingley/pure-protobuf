@@ -1422,6 +1422,7 @@ impl<S: Service> Server<S> {
     }
 
     /// TCP `SO_KEEPALIVE`. See [`ServerConfig::tcp_keepalive`].
+    /// Every call shape still serves on a keepalive TCP socket.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.config = self.config.tcp_keepalive(time);
@@ -1939,6 +1940,7 @@ impl Router {
     }
 
     /// TCP `SO_KEEPALIVE`. See [`ServerConfig::tcp_keepalive`].
+    /// Every call shape still serves on a keepalive TCP socket.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.config = self.config.tcp_keepalive(time);

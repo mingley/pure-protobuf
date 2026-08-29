@@ -532,7 +532,7 @@ A channel that is not yet connected fails an RPC immediately with
 `UNAVAILABLE`. That is gRPC fail-fast, and it is the default. Set
 `wait_for_ready` on the request, the channel, or a generated client when
 the client is allowed to start before its server, or when a restart should
-queue instead of bouncing.
+queue instead of bouncing. The flag applies to every call shape.
 
 ```rust
 let client = GreeterClient::connect_lazy(addr)?.wait_for_ready();
@@ -712,7 +712,7 @@ connecting) instead of hanging on a dead socket. PINGs do not reset
 **TCP `SO_KEEPALIVE`.** An OS-level probe on the TCP socket, with this idle
 time before the first probe. Probe interval and retry count stay at the kernel
 default. Only TCP is affected; Unix sockets and `Channel::from_io` streams
-are not:
+are not. Every call shape still serves on a keepalive socket:
 
 ```rust
 GreeterServer::new(MyGreeter).tcp_keepalive(Duration::from_secs(30))
@@ -760,7 +760,8 @@ let client = GreeterClient::connect_unix("/tmp/greeter.sock").await?;
 ```
 
 `connect_unix_lazy` and `Request::set_wait_for_ready` / `Channel::wait_for_ready`
-work the same as on TCP. The path is a filesystem path, not a `unix://` URI.
+work the same as on TCP, on every call shape. The path is a filesystem
+path, not a `unix://` URI.
 `serve_unix` fails if the path already exists. After a crash,
 `serve_unix_unlink` unlinks a leftover socket inode that is not accepting.
 If another process is actually listening, the path is left alone and
@@ -775,7 +776,7 @@ path forms of graceful drain.
 Loopback without a port: already-connected byte streams. `GreeterClient::from_io`
 (and `Channel::from_io`) with `Server::serve_connection` speak the same h2c
 protocol over `tokio::io::duplex`, `UnixStream::pair`, or any
-`AsyncRead + AsyncWrite`.
+`AsyncRead + AsyncWrite`. One HTTP/2 connection multiplexes every call shape.
 The channel has one slot and cannot redial; if the stream dies the next RPC
 fails with `UNAVAILABLE`. TCP keepalive and TLS do not apply — you already
 hold the bytes. `Outgoing::scheme` is `http`. If you already encrypted the
@@ -924,8 +925,9 @@ lockstep. Idle only arms while no RPC is in flight, so grace is for a race
 with a request that arrives as GOAWAY is written.
 
 On the client, idle actually stops the HTTP/2 driver so the socket goes away.
-The next RPC redials that slot. `Channel::from_io` cannot redial: an idle
-close there makes later RPCs fail with `UNAVAILABLE`.
+The next RPC of every call shape redials that slot. `Channel::from_io`
+cannot redial: an idle close there makes later RPCs fail with
+`UNAVAILABLE`.
 
 ## Compression
 

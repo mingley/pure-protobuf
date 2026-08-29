@@ -442,7 +442,7 @@ impl Channel {
     ///
     /// No-op on TCP and Unix channels: those take `:scheme` from whether
     /// the channel was built with [`crate::ClientTls`]. Read the result with
-    /// [`Self::scheme`].
+    /// [`Self::scheme`]. Applies to every call shape on this clone.
     #[must_use]
     pub fn https_scheme(mut self) -> Self {
         if matches!(self.inner.endpoint, Endpoint::Once) {

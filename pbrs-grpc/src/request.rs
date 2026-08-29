@@ -235,7 +235,8 @@ impl<T> Request<T> {
     /// peer never comes up waits until cancellation. The usual source
     /// of a not-yet-connected channel is [`crate::Channel::connect_lazy`].
     /// [`crate::Channel::wait_for_ready`] fills this in when the request
-    /// omits it; passing `false` here opts out of that default.
+    /// omits it; passing `false` here opts out of that default. Applies to
+    /// every call shape.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
         self.wait_for_ready = Some(wait);
     }

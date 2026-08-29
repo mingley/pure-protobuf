@@ -798,4 +798,16 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         ),
         "generated max_encoding rustdoc must name every call shape"
     );
+    assert!(
+        src.contains(
+            "Wait for a connection instead of failing fast. See [`::pbrs_grpc::Channel::wait_for_ready`]. Applies to every call shape."
+        ),
+        "generated wait_for_ready rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Send `:scheme https` from a [`Self::from_io`] channel. See [`::pbrs_grpc::Channel::https_scheme`]. Applies to every call shape."
+        ),
+        "generated https_scheme rustdoc must name every call shape"
+    );
 }

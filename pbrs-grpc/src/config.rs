@@ -246,6 +246,7 @@ impl ServerConfig {
     /// default.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    /// Every call shape still serves on a keepalive TCP socket.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
@@ -271,7 +272,9 @@ impl ServerConfig {
     /// The actual lifetime is jittered by ±10% so a process with many
     /// connections does not reconnect in lockstep. In-flight RPCs get
     /// [`Self::max_connection_age_grace`] to finish; a [`crate::Channel`] on
-    /// the other end redials the next RPC.
+    /// the other end redials the next RPC of every call shape. Transparent
+    /// retry of the same in-flight RPC after GOAWAY is unary and
+    /// server-streaming only.
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.max_connection_age = Some(age.max(Duration::from_millis(1)));
@@ -283,7 +286,8 @@ impl ServerConfig {
     ///
     /// Idle is measured from accept until the first RPC, and from the moment
     /// the last in-flight RPC finishes thereafter. A long-running stream does
-    /// not look idle. Keepalive PINGs do not count as activity.
+    /// not look idle. Keepalive PINGs do not count as activity. The next RPC
+    /// of every call shape redials.
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));
@@ -743,6 +747,7 @@ impl ChannelConfig {
     /// default.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    /// Every call shape still serves on a keepalive TCP socket.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
@@ -771,9 +776,9 @@ impl ChannelConfig {
     ///
     /// The socket is actually torn down (the HTTP/2 driver stops), not merely
     /// skipped on the next RPC. A long-running stream does not look idle.
-    /// Keepalive PINGs do not count as activity. The next RPC redials, except
-    /// on [`crate::Channel::from_io`], which cannot redial and fails with
-    /// [`crate::Code::Unavailable`].
+    /// Keepalive PINGs do not count as activity. The next RPC of every call
+    /// shape redials, except on [`crate::Channel::from_io`], which cannot
+    /// redial and fails with [`crate::Code::Unavailable`].
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));
