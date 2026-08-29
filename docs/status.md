@@ -193,7 +193,7 @@ See `docs/upb.md`. Short list:
   shape. Official `TestService` `send_compressed` gzips EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
   TLS, Unix, and `from_io`. A wrapping `Service` `send_compressed` gzips every
-  hand-written Reverser Channel API, including over TLS. Health
+  hand-written Reverser Channel API, including over TLS, Unix, and `from_io`. Health
   `send_compressed` gzips Check and Watch, including over TLS, Unix, and
   `from_io`; reflection `send_compressed` gzips the bidi `list_services`
   method, including over TLS, Unix, and `from_io`. A client interceptor
@@ -204,9 +204,10 @@ See `docs/upb.md`. Short list:
   methods the same way, including over TLS, Unix, and `from_io`. A generated Store handler `Err(with_error_details)`
   unpacks on Get / Watch / PutAll / Sync too. A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written
-  Reverser Channel API, including over TLS, and a client interceptor stamps
-  Outgoing path facts on those APIs, including over TLS. Official
-  `TestService` interceptor `Err(with_error_details)` unpacks on EmptyCall /
+  Reverser Channel API, including over TLS, Unix, and `from_io`, and a client
+  interceptor stamps Outgoing path facts on those APIs, including over TLS,
+  Unix, and `from_io`.
+  Official `TestService` interceptor `Err(with_error_details)` unpacks on EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
   TLS, Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
   on those methods, including over TLS, Unix, and `from_io`.

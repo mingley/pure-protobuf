@@ -66,23 +66,43 @@ fn reversed_stream(name: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
     Response::new(stream)
 }
 
-fn check_h2c_peer<T>(
+fn check_peer<T>(
     request: &Request<T>,
     peer: Option<SocketAddr>,
     local: Option<SocketAddr>,
     tls_id: Option<&PeerIdentity>,
 ) -> Result<(), Status> {
+    if tls_id.is_some() || request.peer_identity().is_some() {
+        return Err(Status::internal("expected no TLS client certificate"));
+    }
+    if let Some(cred) = request.peer_cred() {
+        if peer.is_some()
+            || local.is_some()
+            || request.local_addr().is_some()
+            || request.remote_addr().is_some()
+        {
+            return Err(Status::internal("unix has no std::net::SocketAddr"));
+        }
+        if cred.pid() != Some(std::process::id()) {
+            return Err(Status::internal(format!(
+                "unix pid {:?} want {}",
+                cred.pid(),
+                std::process::id()
+            )));
+        }
+        return Ok(());
+    }
+    if peer.is_none() && local.is_none() {
+        if request.local_addr().is_some() || request.remote_addr().is_some() {
+            return Err(Status::internal("from_io must not invent TCP addrs"));
+        }
+        return Ok(());
+    }
     if peer.is_none() {
         return Err(Status::internal("expected a peer address"));
     }
     if local.is_none() || request.local_addr() != local {
         return Err(Status::internal("expected a local address"));
-    }
-    if tls_id.is_some() || request.peer_identity().is_some() {
-        return Err(Status::internal("h2c has no TLS client certificate"));
-    }
-    if request.peer_cred().is_some() {
-        return Err(Status::internal("tcp has no unix credentials"));
     }
     Ok(())
 }
@@ -99,7 +119,7 @@ impl Service for Reverser {
             "Reverse" => {
                 rpc.unary(move |request: Request<HelloRequest>| async move {
                     seen.fetch_add(1, Ordering::Relaxed);
-                    check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                    check_peer(&request, peer, local, tls_id.as_ref())?;
                     Ok(Response::new(reversed_hello(&name_of_request(
                         request.get_ref(),
                     ))))
@@ -109,7 +129,7 @@ impl Service for Reverser {
             "Server" => {
                 rpc.server_streaming(move |request: Request<HelloRequest>| async move {
                     seen.fetch_add(1, Ordering::Relaxed);
-                    check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                    check_peer(&request, peer, local, tls_id.as_ref())?;
                     Ok(reversed_stream(name_of_request(request.get_ref())))
                 })
                 .await;
@@ -118,7 +138,7 @@ impl Service for Reverser {
                 rpc.client_streaming(
                     move |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
                         seen.fetch_add(1, Ordering::Relaxed);
-                        check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                        check_peer(&request, peer, local, tls_id.as_ref())?;
                         let mut inbound = request.into_inner();
                         let msg = inbound
                             .message()
@@ -133,7 +153,7 @@ impl Service for Reverser {
                 rpc.bidi_streaming(
                     move |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
                         seen.fetch_add(1, Ordering::Relaxed);
-                        check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                        check_peer(&request, peer, local, tls_id.as_ref())?;
                         let mut inbound = request.into_inner();
                         let (tx, stream) = pbrs_grpc::Streaming::channel(1);
                         drop(tokio::spawn(async move {
@@ -1392,6 +1412,193 @@ async fn reverser_tls_client_interceptor_sees_every_shape_context() {
             .ok();
     });
     echo_reverser_every_shape(&tls_channel(addr).await.intercept(stamp_outgoing_context)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reverser_unix_send_compressed_gzips_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    gzip_reverser_every_shape(
+        &Channel::connect_unix(&path)
+            .await
+            .expect("connect")
+            .send_compressed(),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reverser_unix_interceptor_rejects_with_typed_status() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_blocked_every_shape(&Channel::connect_unix(&path).await.expect("connect"))
+        .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reverser_unix_client_interceptor_rejects_with_typed_status() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let ch = Channel::connect_unix(&path)
+        .await
+        .expect("connect")
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_reverser_blocked_every_shape(&ch).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reverser_unix_client_interceptor_sees_every_shape_context() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(require_stamped_context);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    echo_reverser_every_shape(
+        &Channel::connect_unix(&path)
+            .await
+            .expect("connect")
+            .intercept(stamp_outgoing_context),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_from_io_send_compressed_gzips_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    gzip_reverser_every_shape(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .send_compressed(),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_from_io_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    assert_reverser_blocked_every_shape(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_from_io_client_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_reverser_blocked_every_shape(&ch).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_from_io_client_interceptor_sees_every_shape_context() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(require_stamped_context);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    echo_reverser_every_shape(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .intercept(stamp_outgoing_context),
+    )
+    .await;
     assert_eq!(seen.load(Ordering::Relaxed), 4);
     task.abort();
 }
