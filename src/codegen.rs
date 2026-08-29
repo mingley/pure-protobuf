@@ -4621,6 +4621,15 @@ fn emit_kernel_client(
         src,
         "    pub fn timeout(mut self, timeout: ::std::time::Duration) -> Self {{ self.channel = self.channel.timeout(timeout); self }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Wait for a connection instead of failing fast. See [`{G}::Channel::wait_for_ready`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn wait_for_ready(mut self) -> Self {{ self.channel = self.channel.wait_for_ready(); self }}"
+    );
     let _ = writeln!(src, "    /// The channel this client sends on.");
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

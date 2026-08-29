@@ -124,7 +124,8 @@ string that goes through DNS. The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, so a server restart on the same address does not require
 a new client. `GreeterClient::connect_lazy` skips the initial dial so the client
-can exist before the server; pair it with `Request::set_wait_for_ready`.
+can exist before the server; pair it with `wait_for_ready` on the client
+or `Request::set_wait_for_ready` on the call.
 
 A complete crate that depends on `pbrs-grpc` from the outside — own proto,
 `build.rs`, health, and reflection — is
@@ -424,17 +425,20 @@ you still hold the future and want the await to resolve with `Cancelled`.
 
 A channel that is not yet connected fails an RPC immediately with
 `UNAVAILABLE`. That is gRPC fail-fast, and it is the default. Set
-`wait_for_ready` when the client is allowed to start before its server, or
-when a restart should queue instead of bouncing.
+`wait_for_ready` on the request, the channel, or a generated client when
+the client is allowed to start before its server, or when a restart should
+queue instead of bouncing.
 
 ```rust
-let client = GreeterClient::connect_lazy(addr)?;
+let client = GreeterClient::connect_lazy(addr)?.wait_for_ready();
 
 let mut req = Request::new(payload);
-req.set_wait_for_ready(true);
 req.set_timeout(Duration::from_secs(5));
 let reply = client.say_hello(req).await?;
 ```
+
+Per-RPC `Request::set_wait_for_ready(false)` opts out of a channel default.
+`set_wait_for_ready(true)` on a request that did not inherit still works.
 
 `connect_lazy` does not dial. Invalid authority still fails at construction.
 A closed port, a name that does not resolve, or a refused TLS handshake

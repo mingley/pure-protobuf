@@ -547,9 +547,12 @@ fn generated_server_into_router_keeps_the_name() {
 fn generated_client_debug_and_into_inner() {
     let client = StoreClient::connect_lazy_with(
         "127.0.0.1:1",
-        ChannelConfig::default().timeout(Duration::from_secs(5)),
+        ChannelConfig::default()
+            .timeout(Duration::from_secs(5))
+            .wait_for_ready(true),
     )
-    .expect("lazy");
+    .expect("lazy")
+    .wait_for_ready();
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
     let _ = client.into_inner();
 }

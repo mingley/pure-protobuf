@@ -1573,7 +1573,7 @@ async fn config_flows_from_the_generated_server_to_the_router() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .config(ServerConfig::new().max_decoding_message_size(16))
+            .max_decoding_message_size(16)
             .add_service(TestServiceServer::new(InteropTestService))
             .serve_listener(listener)
             .await
@@ -1717,6 +1717,57 @@ async fn wait_for_ready_completes_once_the_server_listens() {
         .expect("wait-for-ready hung after listen")
         .expect("rpc");
     assert_eq!(name_of(reply.get_ref()), "late");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
+    let client = GreeterClient::new(channel);
+    let mut request = Request::new(req("late"));
+    request.set_timeout(Duration::from_secs(5));
+    let mut call = client.say_hello(request);
+
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = serve_at(addr, Echo, ServerConfig::default())
+        .await
+        .expect("serve");
+
+    let reply = tokio::time::timeout(Duration::from_secs(2), call)
+        .await
+        .expect("channel wait-for-ready hung after listen")
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "late");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
+    let client = GreeterClient::new(channel);
+    let mut request = Request::new(req("nope"));
+    request.set_wait_for_ready(false);
+    request.set_timeout(Duration::from_secs(5));
+    let started = Instant::now();
+    let err = tokio::time::timeout(Duration::from_secs(2), client.say_hello(request))
+        .await
+        .expect("opt-out hung")
+        .expect_err("rpc succeeded with no server");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

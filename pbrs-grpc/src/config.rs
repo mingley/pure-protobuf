@@ -529,6 +529,7 @@ pub struct ChannelConfig {
     max_connection_idle: Option<Duration>,
     send_compressed: bool,
     timeout: Option<Duration>,
+    wait_for_ready: bool,
 }
 
 impl Default for ChannelConfig {
@@ -550,6 +551,7 @@ impl Default for ChannelConfig {
             max_connection_idle: None,
             send_compressed: false,
             timeout: None,
+            wait_for_ready: false,
         }
     }
 }
@@ -745,6 +747,20 @@ impl ChannelConfig {
         self
     }
 
+    /// Default wait-for-ready when the request omits it.
+    ///
+    /// Off by default (gRPC fail-fast). A request that already called
+    /// [`crate::Request::set_wait_for_ready`] is left alone; a later interceptor
+    /// can still set or clear it.
+    ///
+    /// [`crate::Channel::wait_for_ready`] and generated `FooClient::wait_for_ready`
+    /// set this without building a [`ChannelConfig`].
+    #[must_use]
+    pub fn wait_for_ready(mut self, wait: bool) -> Self {
+        self.wait_for_ready = wait;
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -842,6 +858,12 @@ impl ChannelConfig {
         self.timeout
     }
 
+    /// Configured default wait-for-ready. See [`Self::wait_for_ready`].
+    #[must_use]
+    pub fn waits_for_ready(self) -> bool {
+        self.wait_for_ready
+    }
+
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
@@ -912,6 +934,8 @@ mod tests {
         assert!(!config.compresses_outbound());
         assert_eq!(ChannelConfig::new().connection_idle(), None);
         assert_eq!(ChannelConfig::new().rpc_timeout(), None);
+        assert!(!ChannelConfig::new().waits_for_ready());
+        assert!(ChannelConfig::new().wait_for_ready(true).waits_for_ready());
     }
 
     #[test]

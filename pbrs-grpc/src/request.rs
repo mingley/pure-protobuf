@@ -36,7 +36,7 @@ pub struct Request<T> {
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
-    wait_for_ready: bool,
+    wait_for_ready: Option<bool>,
     extensions: http::Extensions,
 }
 
@@ -52,7 +52,7 @@ impl<T> Request<T> {
             compressed: false,
             remote_addr: None,
             local_addr: None,
-            wait_for_ready: false,
+            wait_for_ready: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -154,14 +154,29 @@ impl<T> Request<T> {
     /// Pair this with a deadline. Without one, a lazy channel whose
     /// peer never comes up waits until cancellation. The usual source
     /// of a not-yet-connected channel is [`crate::Channel::connect_lazy`].
+    /// [`crate::Channel::wait_for_ready`] fills this in when the request
+    /// omits it; passing `false` here opts out of that default.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
-        self.wait_for_ready = wait;
+        self.wait_for_ready = Some(wait);
+    }
+
+    /// Drop a wait-for-ready choice so a later [`crate::Channel::wait_for_ready`]
+    /// or interceptor can fill it in. See [`Self::clear_timeout`].
+    pub fn clear_wait_for_ready(&mut self) {
+        self.wait_for_ready = None;
     }
 
     /// Whether this RPC waits for a connection instead of failing fast.
+    ///
+    /// `false` when unset; the channel default is applied in
+    /// [`crate::Channel`] before interceptors run.
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
-        self.wait_for_ready
+        self.wait_for_ready.unwrap_or(false)
+    }
+
+    pub(crate) fn wait_for_ready_is_set(&self) -> bool {
+        self.wait_for_ready.is_some()
     }
 
     /// Typed values an interceptor attached to this RPC.
@@ -230,7 +245,7 @@ impl<T> Request<T> {
             compressed: false,
             remote_addr,
             local_addr,
-            wait_for_ready: false,
+            wait_for_ready: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -291,7 +306,7 @@ pub struct Outgoing<'a> {
     authority: &'a str,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
-    wait_for_ready: &'a mut bool,
+    wait_for_ready: &'a mut Option<bool>,
     compress: &'a mut bool,
     extensions: &'a mut http::Extensions,
 }
@@ -341,12 +356,18 @@ impl<'a> Outgoing<'a> {
     /// Whether this RPC waits for a connection instead of failing fast.
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
-        *self.wait_for_ready
+        self.wait_for_ready.unwrap_or(false)
     }
 
     /// Queue this RPC until the channel is connected.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
-        *self.wait_for_ready = wait;
+        *self.wait_for_ready = Some(wait);
+    }
+
+    /// Drop a wait-for-ready choice so a later interceptor or channel
+    /// default can fill it in.
+    pub fn clear_wait_for_ready(&mut self) {
+        *self.wait_for_ready = None;
     }
 
     /// Whether the request payload will be gzipped.
@@ -416,7 +437,7 @@ pub struct Parts {
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
-    wait_for_ready: bool,
+    wait_for_ready: Option<bool>,
     extensions: http::Extensions,
 }
 
@@ -447,7 +468,7 @@ impl Parts {
     /// Whether this RPC waits for a connection instead of failing fast.
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
-        self.wait_for_ready
+        self.wait_for_ready.unwrap_or(false)
     }
 
     /// Typed values an interceptor attached to this RPC.
@@ -735,6 +756,11 @@ mod tests {
         cleared.set_timeout(Duration::from_secs(1));
         cleared.clear_timeout();
         assert_eq!(cleared.timeout(), None);
+        let mut inherit = Request::new(0u32);
+        inherit.set_wait_for_ready(false);
+        inherit.clear_wait_for_ready();
+        assert!(!inherit.wait_for_ready());
+        assert!(!inherit.wait_for_ready_is_set());
     }
 
     #[test]

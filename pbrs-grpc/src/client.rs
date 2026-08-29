@@ -174,8 +174,9 @@ impl Endpoint {
 ///
 /// [`Self::connect_lazy`] skips the initial dial so a client can exist
 /// before its server. The first RPC fails fast with [`Code::Unavailable`]
-/// unless that request set [`Request::set_wait_for_ready`], in which case
-/// it retries until connected, cancelled, or the deadline fires.
+/// unless that request set [`Request::set_wait_for_ready`] or the channel
+/// was built with [`Self::wait_for_ready`] / [`ChannelConfig::wait_for_ready`],
+/// in which case it retries until connected, cancelled, or the deadline fires.
 ///
 /// A dial is bounded by [`ChannelConfig::connect_timeout`] (default 20 s),
 /// covering TCP or Unix connect, optional TLS, and the peer's HTTP/2
@@ -215,7 +216,8 @@ impl Endpoint {
 /// )
 /// .await?;
 ///
-/// // No dial until the first RPC. Pair with `Request::set_wait_for_ready`.
+/// // No dial until the first RPC. Pair with `Channel::wait_for_ready`
+/// // or `Request::set_wait_for_ready`.
 /// let late = Channel::connect_lazy("127.0.0.1:50051")?;
 /// # let _ = (channel, pooled, late);
 /// # Ok(())
@@ -297,7 +299,8 @@ impl Channel {
     /// Invalid `target` still fails immediately. A closed port, a name that
     /// does not resolve, or a TLS handshake the peer refuses surfaces on the
     /// RPC as [`Code::Unavailable`], or waits until the deadline if that RPC
-    /// set [`Request::set_wait_for_ready`].
+    /// set [`Request::set_wait_for_ready`] or this channel used
+    /// [`Self::wait_for_ready`].
     pub fn connect_lazy(target: impl Into<Target>) -> Result<Self, Status> {
         Self::connect_lazy_with(target, ChannelConfig::default())
     }
@@ -460,6 +463,18 @@ impl Channel {
         self
     }
 
+    /// Wait for a connection instead of failing fast. See
+    /// [`ChannelConfig::wait_for_ready`].
+    ///
+    /// A request that already called [`crate::Request::set_wait_for_ready`]
+    /// is left alone. Interceptors run after this fill and can still set
+    /// or clear it.
+    #[must_use]
+    pub fn wait_for_ready(mut self) -> Self {
+        self.config = self.config.wait_for_ready(true);
+        self
+    }
+
     /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
     ///
     /// `user_agent("my-app/1.0")` sends `my-app/1.0 pbrs-grpc/<version>`.
@@ -506,6 +521,9 @@ impl Channel {
             if let Some(timeout) = self.config.rpc_timeout() {
                 req.set_timeout(timeout);
             }
+        }
+        if !req.wait_for_ready_is_set() && self.config.waits_for_ready() {
+            req.set_wait_for_ready(true);
         }
         if self.config.compresses_outbound() {
             req.set_compress(true);

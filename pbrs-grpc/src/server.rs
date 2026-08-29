@@ -757,7 +757,7 @@ fn split_path(path: &str) -> (&str, &str) {
 /// Serves exactly one [`Service`], with no per-RPC dynamic dispatch.
 ///
 /// ```no_run
-/// use pbrs_grpc::{Server, ServerConfig};
+/// use pbrs_grpc::Server;
 /// # use pbrs_grpc::{Rpc, Service};
 /// # struct Echo;
 /// # impl Service for Echo {
@@ -766,7 +766,7 @@ fn split_path(path: &str) -> (&str, &str) {
 /// # }
 /// # async fn run() -> Result<(), pbrs_grpc::Status> {
 /// Server::new(Echo)
-///     .config(ServerConfig::new().max_concurrent_streams(1024))
+///     .max_concurrent_streams(1024)
 ///     .serve("127.0.0.1:50051".parse().expect("addr"))
 ///     .await
 /// # }
