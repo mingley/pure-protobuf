@@ -492,6 +492,81 @@ async fn reflection_from_io_lists_the_registered_greeter() {
     echo_reflection_list(&client).await;
 }
 
+#[tokio::test]
+async fn reflection_from_io_send_compressed_gzips_list_services() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .send_compressed();
+    gzip_reflection_list(&client).await;
+}
+
+#[tokio::test]
+async fn reflection_from_io_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+#[tokio::test]
+async fn reflection_from_io_client_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection.serve_connection(server_io).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+#[tokio::test]
+async fn reflection_from_io_client_interceptor_sees_list_services_context() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_context)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .intercept(stamp_outgoing_context);
+    echo_reflection_list(&client).await;
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn reflection_unix_lists_the_registered_greeter() {

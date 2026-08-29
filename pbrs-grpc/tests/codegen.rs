@@ -1065,6 +1065,76 @@ async fn generated_serve_connection_round_trips() {
 }
 
 #[tokio::test]
+async fn generated_from_io_send_compressed_gzips_every_shape() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io")
+        .send_compressed();
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_from_io_server_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io");
+    assert_store_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_from_io_client_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io")
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_store_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_from_io_client_interceptor_sees_every_shape_context() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_context)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io")
+        .intercept(stamp_outgoing_context);
+    echo_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn generated_serve_tls_round_trips_every_shape() {
     let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
     let tls = ServerTls::new(identity).expect("server tls");

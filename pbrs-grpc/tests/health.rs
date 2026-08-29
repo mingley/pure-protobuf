@@ -608,6 +608,75 @@ async fn health_from_io_round_trips_check_and_watch() {
     handle.abort();
 }
 
+#[tokio::test]
+async fn health_from_io_send_compressed_gzips_check_and_watch() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.send_compressed().serve_connection(server_io).await.ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .send_compressed();
+    gzip_health_check_and_watch(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_from_io_interceptor_rejects_check_and_watch() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    let handle = tokio::spawn(async move {
+        svc.intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_health_blocked(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_from_io_client_interceptor_rejects_check_and_watch() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.serve_connection(server_io).await.ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_health_blocked(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_from_io_client_interceptor_sees_check_and_watch_context() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.intercept(require_stamped_context)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .intercept(stamp_outgoing_context);
+    echo_health_check_and_watch(&client).await;
+    handle.abort();
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn health_unix_round_trips_check_and_watch() {

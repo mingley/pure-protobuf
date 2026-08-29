@@ -4579,6 +4579,82 @@ async fn from_io_round_trips_without_tcp() {
 }
 
 #[tokio::test]
+async fn from_io_send_compressed_gzips_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .send_compressed();
+    gzip_every_shape(&GreeterClient::new(channel)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn from_io_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_greeter_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_greeter_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_interceptor_sees_every_shape_context() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_context)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(stamp_outgoing_context);
+    echo_every_shape(&client, None).await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn from_io_authority_is_visible_to_interceptors() {
     let (client_io, server_io) = duplex_pair();
     let server = tokio::spawn(async move {
