@@ -74,6 +74,27 @@ fn reporter_status_round_trips_without_an_rpc() {
     assert_eq!(reporter.status(""), None);
 }
 
+#[test]
+fn shutdown_marks_known_names_not_serving() {
+    let (_, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    reporter.shutdown();
+    assert_eq!(reporter.status(""), Some(ServingStatus::NotServing));
+    assert_eq!(
+        reporter.status("helloworld.Greeter"),
+        Some(ServingStatus::NotServing)
+    );
+    assert_eq!(reporter.status("no.Such"), None);
+    reporter.clear("helloworld.Greeter");
+    reporter.shutdown();
+    assert_eq!(reporter.status("helloworld.Greeter"), None);
+    reporter.set_serving("helloworld.Greeter");
+    assert_eq!(
+        reporter.status("helloworld.Greeter"),
+        Some(ServingStatus::Serving)
+    );
+}
+
 fn req(name: &str) -> HealthCheckRequest {
     let mut r = HealthCheckRequest::new();
     r.set_service(name);
@@ -138,4 +159,43 @@ async fn watch_unknown_is_service_unknown() {
         .into_inner();
     let first = stream.message().await.expect("first").expect("msg");
     assert_eq!(first.status(), ServingStatus::ServiceUnknown);
+}
+
+#[tokio::test]
+async fn shutdown_is_visible_to_check_and_watch() {
+    let (addr, reporter, _handle) = serve().await;
+    let client = client(addr).await;
+    let mut stream = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("watch")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::Serving);
+
+    reporter.shutdown();
+    let second = tokio::time::timeout(Duration::from_secs(2), stream.message())
+        .await
+        .expect("timeout")
+        .expect("second")
+        .expect("msg");
+    assert_eq!(second.status(), ServingStatus::NotServing);
+
+    let overall = client
+        .check(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("overall")
+        .into_inner();
+    assert_eq!(overall.status(), ServingStatus::NotServing);
+    let named = client
+        .check(Request::new(req("helloworld.Greeter")))
+        .await
+        .expect("named")
+        .into_inner();
+    assert_eq!(named.status(), ServingStatus::NotServing);
+    let missing = client
+        .check(Request::new(req("no.Such")))
+        .await
+        .expect_err("unknown stays not found");
+    assert_eq!(missing.code(), Code::NotFound, "{missing}");
 }

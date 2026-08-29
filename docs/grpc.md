@@ -688,6 +688,8 @@ Router::new()
 set returns `NOT_FOUND`. `Watch` streams status changes, and an unknown name
 yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
 `HealthReporter::status` reads the same map without an RPC.
+`HealthReporter::shutdown` marks every known name `NOT_SERVING` so a load
+balancer can drain before `serve_*_until_shutdown`.
 
 ## Reflection
 
@@ -741,6 +743,17 @@ An RPC already running when the signal arrives completes and its response is
 delivered. New connections are refused as soon as the signal fires. Process-wide
 drain waits for those RPCs with no force-close; to cap how long a *peer* can
 hold a socket, see [Connection age and idle](#connection-age-and-idle).
+
+If you mount `grpc.health.v1`, flip the reporter first so probes stop seeing
+`SERVING` while in-flight RPCs finish:
+
+```rust
+reporter.shutdown();
+// wait for the load balancer to notice, then:
+GreeterServer::new(MyGreeter)
+    .serve_until_shutdown(addr, shutdown)
+    .await?;
+```
 
 ## Connection age and idle
 

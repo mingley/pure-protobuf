@@ -86,6 +86,23 @@ impl HealthReporter {
         self.snapshot().get(name.as_ref()).copied()
     }
 
+    /// Mark every known name, including the process (`""`), as
+    /// [`ServingStatus::NotServing`].
+    ///
+    /// Load balancers that probe `Check` then stop sending traffic before
+    /// you [`crate::Server::serve_until_shutdown`]. Names you never set stay
+    /// unknown (`NOT_FOUND` on `Check`, `SERVICE_UNKNOWN` on `Watch`).
+    /// [`Self::set_serving`] after this is allowed and brings a name back.
+    pub fn shutdown(&self) {
+        self.tx.send_modify(|snap| {
+            let mut map = HashMap::clone(snap);
+            for status in map.values_mut() {
+                *status = ServingStatus::NotServing;
+            }
+            *snap = Arc::new(map);
+        });
+    }
+
     fn set(&self, name: &str, status: ServingStatus) {
         self.tx.send_modify(|snap| {
             let mut map = HashMap::clone(snap);
