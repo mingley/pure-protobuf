@@ -930,7 +930,9 @@ overlay. That overlay fills compress only when the request omitted a choice, so
 after overlays and interceptors run, so `Outgoing::set_compress` on that
 RPC is the same flag `send()` consults.
 `Server::compresses_outbound` / `Router` / `FooServer` read the
-response-side overlay; `Rpc::compresses_outbound` is that same bit.
+response-side overlay; `Rpc::compresses_outbound` is that same bit, stamped
+onto `Request::compresses_outbound` at dispatch so a handler that never
+sees `Rpc` can still read it.
 `Response::set_compress(false)` opts out of `Server::send_compressed` the
 same way. Unset follows the overlay. `Response::compress` /
 `compressed()` is the effective outbound intent (and the unary wire flag
@@ -1174,8 +1176,10 @@ you built to send has `None` — the channel's `message_limits` applies at
 send time. A client interceptor reads that overlay with `Outgoing::limits`.
 `Rpc::accepts_gzip` / `Rpc::encoding` are the peer's `grpc-accept-encoding`
 and `grpc-encoding`; generated handlers see the same values on
-`Request::accepts_gzip` / `Request::encoding`. `grpc-*` keys stay off
-`Metadata`.
+`Request::accepts_gzip` / `Request::encoding`. `Rpc::compresses_outbound`
+is the server's `send_compressed` overlay; generated handlers see it on
+`Request::compresses_outbound` / `Parts::compresses_outbound` (`false` on a
+request you built). `grpc-*` keys stay off `Metadata`.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
 id), insert it on the `Rpc` and read it from the `Request`:
@@ -1203,7 +1207,8 @@ first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
 onion-style.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
-runs before the stream opens. Closures take `Outgoing`: the method path,
+runs when the RPC method is invoked — before the stream opens and before the
+`Call` is polled, for all four call shapes. Closures take `Outgoing`: the method path,
 service and method halves (`Outgoing::service` / `Outgoing::method`, same
 split as `Rpc`), `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https`
 when the channel was built with `ClientTls` or when a `from_io` channel called

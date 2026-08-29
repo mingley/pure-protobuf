@@ -217,7 +217,8 @@ impl Endpoint {
 /// and `FooClient::grpc_user_agent` read the same values interceptors see on
 /// [`Outgoing`](crate::Outgoing).
 ///
-/// [`Self::intercept`] runs on every outbound RPC before the stream opens,
+/// [`Self::intercept`] runs on every outbound RPC when the method is
+/// called — before the stream opens and before the [`Call`] is polled —
 /// which is how a client injects auth metadata, a default deadline, or
 /// wait-for-ready without touching each call.
 ///
@@ -609,6 +610,11 @@ impl Channel {
     /// extensions.
     /// Values the caller put on [`crate::Request::extensions_mut`] are
     /// visible; stacked interceptors share that map.
+    ///
+    /// Interceptors run when [`Self::unary`] / [`Self::server_streaming`] /
+    /// [`Self::client_streaming`] / [`Self::bidi`] (and generated methods)
+    /// return, not when the [`crate::Call`] is first polled. `Err` fails that
+    /// Call on poll.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
@@ -714,14 +720,15 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
+        let mut req = req;
+        let prepared = self.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let wire = self.config.wire();
         Call::new(
             cancel,
             Box::pin(async move {
-                let mut req = req;
-                channel.prepare_outbound(path, &mut req)?;
+                prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let (msg, md, timeout, compress) = req.into_parts();
@@ -774,14 +781,15 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
+        let mut req = req;
+        let prepared = self.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let wire = self.config.wire();
         Call::new(
             cancel,
             Box::pin(async move {
-                let mut req = req;
-                channel.prepare_outbound(path, &mut req)?;
+                prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let (msg, md, timeout, compress) = req.into_parts();

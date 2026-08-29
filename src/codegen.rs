@@ -4791,7 +4791,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` on every outbound RPC before the stream opens."
+        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll."
     );
     let _ = writeln!(
         src,

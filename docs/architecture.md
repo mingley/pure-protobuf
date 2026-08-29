@@ -92,14 +92,16 @@ metadata, both timeout views, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`.
 Generated handlers read the same facts on `Request` / `Parts`, including
-the method path, the client's `grpc-timeout`, and gzip.
+the method path, the client's `grpc-timeout`, gzip, and the
+`compresses_outbound` overlay.
 
 Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 `Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,
 limits, metadata, timeout / deadline Instant, wait-for-ready
 (`wait_for_ready_is_set`), compression (`compress_is_set`), extensions).
 Overlays (timeout, wait-for-ready, send_compressed, message caps,
-`https_scheme`) fill in before interceptors run. Bind borrowed getters
+`https_scheme`) fill in before interceptors run. Interceptors run when the
+RPC method is invoked, not when the `Call` is first polled. Bind borrowed getters
 before `metadata_mut`.
 
 Response-side interceptors are a documented omission.

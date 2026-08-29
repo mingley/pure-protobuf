@@ -468,7 +468,8 @@ impl Rpc {
     ///
     /// Same overlay as [`crate::Server::compresses_outbound`]. A handler
     /// [`crate::Response::set_compress`]`(false)` opts out; unset follows
-    /// this default.
+    /// this default. Generated handlers see the same value on
+    /// [`Request::compresses_outbound`].
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
@@ -749,6 +750,7 @@ impl Rpc {
             req.set_limits(limits);
             req.set_peer_timeout(peer_timeout);
             req.set_accepts_gzip(peer_accepts_gzip);
+            req.set_compresses_outbound(prefer_gzip);
             req.set_encoding(encoding);
             req.set_cancel(cancel_rx);
             if let Some(d) = timeout {
@@ -815,6 +817,7 @@ impl Rpc {
         req.set_limits(limits);
         req.set_peer_timeout(peer_timeout);
         req.set_accepts_gzip(peer_accepts_gzip);
+        req.set_compresses_outbound(prefer_gzip);
         req.set_encoding(encoding);
         if let Some(d) = timeout {
             req.set_timeout(d);
@@ -1361,11 +1364,11 @@ impl<S: Service> Server<S> {
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
     /// [`Rpc::peer_cred`] / [`Rpc::limits`] / [`Rpc::accepts_gzip`] /
-    /// [`Rpc::encoding`],
+    /// [`Rpc::encoding`] / [`Rpc::compresses_outbound`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject. Generated
-    /// handlers see the same path, peer, caps, client timeout, and gzip
-    /// facts on [`Request`].
+    /// handlers see the same path, peer, caps, client timeout, gzip facts,
+    /// and response-gzip overlay on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching

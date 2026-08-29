@@ -25,7 +25,7 @@ use std::sync::Arc;
 /// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`]. Generated handlers see the same path,
-/// service, method, client timeout, gzip facts, peer, and caps on
+/// service, method, client timeout, gzip facts, response-gzip overlay, peer, and caps on
 /// [`crate::Request`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
 ///
@@ -200,8 +200,9 @@ impl<S: Service> ServiceExt for S {}
 /// # let _ = stamp;
 /// ```
 pub trait ClientInterceptor: Send + Sync + 'static {
-    /// Inspect and mutate the outbound call. Called once per RPC, before the
-    /// stream opens.
+    /// Inspect and mutate the outbound call. Called once per RPC when the
+    /// call is created, before the stream opens. `Err` fails the
+    /// [`crate::Call`] on poll.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 

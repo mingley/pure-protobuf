@@ -52,6 +52,7 @@ pub struct Request<T> {
     limits: Option<MessageLimits>,
     peer_timeout: Option<Duration>,
     accepts_gzip: bool,
+    compresses_outbound: bool,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -79,6 +80,7 @@ impl<T> Request<T> {
             limits: None,
             peer_timeout: None,
             accepts_gzip: false,
+            compresses_outbound: false,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -125,6 +127,7 @@ impl<T> Request<T> {
                 limits: self.limits,
                 peer_timeout: self.peer_timeout,
                 accepts_gzip: self.accepts_gzip,
+                compresses_outbound: self.compresses_outbound,
                 encoding: self.encoding,
                 cancel: self.cancel,
                 extensions: self.extensions,
@@ -156,6 +159,7 @@ impl<T> Request<T> {
             limits: parts.limits,
             peer_timeout: parts.peer_timeout,
             accepts_gzip: parts.accepts_gzip,
+            compresses_outbound: parts.compresses_outbound,
             encoding: parts.encoding,
             cancel: parts.cancel,
             extensions: parts.extensions,
@@ -379,6 +383,19 @@ impl<T> Request<T> {
         self.accepts_gzip
     }
 
+    /// Whether this server gzips responses when the peer advertised gzip.
+    ///
+    /// Same overlay as [`crate::Rpc::compresses_outbound`] /
+    /// [`crate::Server::compresses_outbound`]. `true` after inbound dispatch
+    /// when the server called [`crate::Server::send_compressed`]. `false` on
+    /// a request you built to send. [`crate::Response::set_compress`]`(false)`
+    /// opts out; unset follows this default. Distinct from [`Self::compress`],
+    /// which is the outbound request-payload flag.
+    #[must_use]
+    pub fn compresses_outbound(&self) -> bool {
+        self.compresses_outbound
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
@@ -513,6 +530,7 @@ impl<T> Request<T> {
             limits: None,
             peer_timeout: None,
             accepts_gzip: false,
+            compresses_outbound: false,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -553,6 +571,10 @@ impl<T> Request<T> {
 
     pub(crate) fn set_accepts_gzip(&mut self, accepts: bool) {
         self.accepts_gzip = accepts;
+    }
+
+    pub(crate) fn set_compresses_outbound(&mut self, gzip: bool) {
+        self.compresses_outbound = gzip;
     }
 
     pub(crate) fn set_encoding(&mut self, encoding: Option<String>) {
@@ -877,6 +899,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("limits", &self.limits)
             .field("peer_timeout", &self.peer_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
+            .field("compresses_outbound", &self.compresses_outbound)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -904,6 +927,7 @@ pub struct Parts {
     limits: Option<MessageLimits>,
     peer_timeout: Option<Duration>,
     accepts_gzip: bool,
+    compresses_outbound: bool,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -1059,6 +1083,13 @@ impl Parts {
         self.accepts_gzip
     }
 
+    /// Whether this server gzips responses when the peer advertised gzip.
+    /// See [`Request::compresses_outbound`].
+    #[must_use]
+    pub fn compresses_outbound(&self) -> bool {
+        self.compresses_outbound
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     /// See [`Request::encoding`].
     #[must_use]
@@ -1138,6 +1169,7 @@ impl fmt::Debug for Parts {
             .field("limits", &self.limits)
             .field("peer_timeout", &self.peer_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
+            .field("compresses_outbound", &self.compresses_outbound)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -1551,6 +1583,7 @@ mod tests {
         req.set_deadline(at);
         req.set_peer_timeout(Some(Duration::from_secs(5)));
         req.set_accepts_gzip(true);
+        req.set_compresses_outbound(true);
         req.set_encoding(Some("gzip".into()));
         let (message, mut parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
@@ -1560,6 +1593,7 @@ mod tests {
         assert!(parts.compressed());
         assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(5)));
         assert!(parts.accepts_gzip());
+        assert!(parts.compresses_outbound());
         assert_eq!(parts.encoding(), Some("gzip"));
         assert!(parts.peer_cred().is_none());
         assert!(parts.limits().is_none());
@@ -1583,6 +1617,10 @@ mod tests {
         assert!(shown_parts.contains("SayHello"), "{shown_parts}");
         assert!(shown_parts.contains("peer_timeout: Some("), "{shown_parts}");
         assert!(shown_parts.contains("accepts_gzip: true"), "{shown_parts}");
+        assert!(
+            shown_parts.contains("compresses_outbound: true"),
+            "{shown_parts}"
+        );
         assert!(shown_parts.contains("encoding: Some("), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
         assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(3)));
@@ -1593,6 +1631,7 @@ mod tests {
         assert!(rebuilt.compressed());
         assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(5)));
         assert!(rebuilt.accepts_gzip());
+        assert!(rebuilt.compresses_outbound());
         assert_eq!(rebuilt.encoding(), Some("gzip"));
         assert!(rebuilt.peer_cred().is_none());
         assert!(rebuilt.limits().is_none());
@@ -1609,6 +1648,7 @@ mod tests {
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
+        assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
         assert!(shown.contains("SayHello"), "{shown}");
@@ -1621,6 +1661,7 @@ mod tests {
         assert!(Request::new(0u32).method().is_none());
         assert!(Request::new(0u32).peer_timeout().is_none());
         assert!(!Request::new(0u32).accepts_gzip());
+        assert!(!Request::new(0u32).compresses_outbound());
         assert!(Request::new(0u32).encoding().is_none());
         let garbage = Request::new(0u32).with_http(None, None, Some("/nomethod".into()));
         assert_eq!(garbage.path(), Some("/nomethod"));

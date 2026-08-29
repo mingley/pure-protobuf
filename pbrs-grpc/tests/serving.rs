@@ -1076,6 +1076,37 @@ async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
 }
 
 #[tokio::test]
+async fn unary_and_server_streaming_interceptors_run_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let flag = ran.clone();
+    let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy")).intercept(
+        move |_: &mut Outgoing<'_>| {
+            flag.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        },
+    );
+
+    let unary = client.say_hello(Request::new(req("ada")));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        1,
+        "unary interceptor must run when the method returns"
+    );
+    drop(unary);
+
+    let streaming = client.server_hello(Request::new(req("ada")));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        2,
+        "server-streaming interceptor must run when the method returns"
+    );
+    drop(streaming);
+}
+
+#[tokio::test]
 async fn a_client_interceptor_sees_the_method_path() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -4637,6 +4668,9 @@ impl pbrs_grpc::Greeter for OptOutGzip {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
+        if !request.compresses_outbound() {
+            return Err(Status::internal("request overlay should gzip"));
+        }
         let mut resp = Response::new(common::reply(common::name_of_request(request.get_ref())));
         resp.set_compress(false);
         Ok(resp)
@@ -4702,11 +4736,17 @@ impl pbrs_grpc::Greeter for SeesGzip {
         if !request.accepts_gzip() {
             return Err(Status::internal("kernel client advertises gzip"));
         }
+        if request.compresses_outbound() {
+            return Err(Status::internal("default server does not gzip"));
+        }
         let encoding = request.encoding().map(str::to_owned);
         let compressed = request.compressed();
         let (msg, parts) = request.into_message_and_parts();
         if !parts.accepts_gzip() {
             return Err(Status::internal("parts dropped accepts_gzip"));
+        }
+        if parts.compresses_outbound() {
+            return Err(Status::internal("parts invented compresses_outbound"));
         }
         if parts.encoding() != encoding.as_deref() {
             return Err(Status::internal(format!(
@@ -4737,6 +4777,9 @@ impl pbrs_grpc::Greeter for SeesGzip {
         }
         if !request.accepts_gzip() {
             return Err(Status::internal("kernel client advertises gzip"));
+        }
+        if request.compresses_outbound() {
+            return Err(Status::internal("default server does not gzip"));
         }
         let encoding = request.encoding().map(str::to_owned);
         let mut stream = request.into_inner();
