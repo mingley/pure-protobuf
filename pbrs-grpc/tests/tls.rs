@@ -221,11 +221,7 @@ async fn serve_tls_until_shutdown_serves_then_drains() {
             .ok();
     });
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, "ada").await;
     shutdown_tx.send(()).expect("signal");
     tokio::time::timeout(Duration::from_secs(5), served)
         .await
@@ -551,22 +547,14 @@ async fn keepalive_still_serves() {
         c.unwrap_or_else(|| panic!("connect: {last}"))
     };
     tokio::time::sleep(Duration::from_millis(120)).await;
-    let reply = client
-        .say_hello(Request::new(req("ping")))
-        .await
-        .expect("rpc after ping");
-    assert_eq!(name_of(reply.get_ref()), "ping");
+    echo_every_shape(&client, "ping").await;
 }
 
 #[tokio::test]
 async fn cleartext_still_works() {
     let (addr, _guard) = common::spawn_greeter_server(pbrs_grpc::ServerConfig::default()).await;
     let client = greeter_client(addr).await;
-    let reply = client
-        .say_hello(Request::new(req("h2c")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "h2c");
+    echo_every_shape(&client, "h2c").await;
 }
 
 async fn serve_tls_at(addr: SocketAddr, tls: ServerTls) -> ServerGuard {
@@ -596,19 +584,7 @@ async fn a_dead_tls_channel_redials() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, guard) = serve_tls(tls).await;
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
-    let before = client
-        .say_hello(Request::new(req("before")))
-        .await
-        .expect("before");
-    assert_eq!(name_of(before.get_ref()), "before");
-    let mut before_stream = client
-        .server_hello(Request::new(req("before")))
-        .await
-        .expect("before stream")
-        .into_inner();
-    let first = before_stream.message().await.expect("item").expect("first");
-    assert_eq!(name_of(&first), "before");
-    assert!(before_stream.message().await.expect("end").is_none());
+    echo_every_shape(&client, "before").await;
 
     drop(guard);
     let _guard = serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls")).await;
@@ -621,12 +597,5 @@ async fn a_dead_tls_channel_redials() {
     })
     .await;
     assert_eq!(name_of(after.get_ref()), "after");
-    let mut after_stream = until_ok("tls server-stream after", || {
-        client.server_hello(Request::new(req("after")))
-    })
-    .await
-    .into_inner();
-    let first = after_stream.message().await.expect("item").expect("first");
-    assert_eq!(name_of(&first), "after");
-    assert!(after_stream.message().await.expect("end").is_none());
+    echo_every_shape(&client, "after").await;
 }

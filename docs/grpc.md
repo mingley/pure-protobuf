@@ -707,7 +707,7 @@ A PING that is not acknowledged within 20 s (configurable via
 next RPC redials that slot; if the peer is still gone, the call fails with
 `UNAVAILABLE` (or `DEADLINE_EXCEEDED` if the request deadline elapses while
 connecting) instead of hanging on a dead socket. PINGs do not reset
-`max_connection_idle`.
+`max_connection_idle`. Every call shape still serves after PINGs.
 
 **TCP `SO_KEEPALIVE`.** An OS-level probe on the TCP socket, with this idle
 time before the first probe. Probe interval and retry count stay at the kernel

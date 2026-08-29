@@ -1407,6 +1407,7 @@ impl<S: Service> Server<S> {
     }
 
     /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].
+    /// Every call shape still serves after PINGs.
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.config = self.config.keep_alive_interval(interval);
@@ -1925,6 +1926,7 @@ impl Router {
     }
 
     /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].
+    /// Every call shape still serves after PINGs.
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.config = self.config.keep_alive_interval(interval);

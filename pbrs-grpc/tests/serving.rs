@@ -277,10 +277,7 @@ async fn graceful_shutdown_stops_accepting_new_connections() {
 
     // Prove the server is up, then shut it down and let the drain complete.
     let client = GreeterClient::new(channel(addr).await);
-    client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("before shutdown");
+    echo_every_shape(&client, None).await;
     drop(client);
     shutdown_tx.send(()).expect("signal");
     tokio::time::timeout(Duration::from_secs(5), served)
