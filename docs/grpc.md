@@ -19,6 +19,7 @@ numbers, see [benchmarks](benchmarks.md).
 - [Unix domain sockets](#unix-domain-sockets)
 - [In-process connections](#in-process-connections)
 - [Health checks](#health-checks)
+- [Reflection](#reflection)
 - [Graceful shutdown](#graceful-shutdown)
 - [Connection age and idle](#connection-age-and-idle)
 - [Compression](#compression)
@@ -368,7 +369,9 @@ match client.say_hello(request).await {
 `Status` is two machine words. Its message, metadata, and
 `grpc-status-details-bin` live behind a pointer that is only allocated when
 one of them is set, so `Result<T, Status>` stays cheap on paths where nothing
-goes wrong.
+goes wrong. `set_message` / `with_message` rewrite a packed
+`google.rpc.Status` whose message still matches, so the ASCII trailer and
+the protobuf stay in sync; opaque detail bytes are left alone.
 
 Codes the kernel produces on your behalf:
 
@@ -872,7 +875,6 @@ let channel = Channel::connect(addr).await?.user_agent("inventory/2.1")?;
 ```
 
 `user-agent` in request metadata cannot replace that value. A client
-interceptor reads the value the kernel will send with `Outgoing::user_agent`. A client
 interceptor reads the value the kernel will send with `Outgoing::user_agent`.
 
 ## Limits and the threat model
@@ -891,6 +893,8 @@ guards is committed.
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
 | Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata | always |
+| Impersonation | WebPKI roots or a CA you pin; mTLS; verified client chain on `Rpc::peer_identity` | opt-in |
+| Unauthenticated Unix peer | Connecting process uid/gid/pid on `Rpc::peer_cred` from `SO_PEERCRED` | Unix accept loop |
 | Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
@@ -1274,7 +1278,7 @@ Deliberate omissions, with what to do instead.
 | Missing | Instead |
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
-| Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
+| Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry). Client-streaming, bidi, and `from_io` do not. Hedging is not implemented. |
 | Response interceptors | Interceptors run before the handler. Inspect or rewrite the result in the method. |
 | Channel connectivity state | A failed RPC is `UNAVAILABLE`. There is no `GetState` / `WaitForStateChange`. |
 | Client `max_connection_age` | Age is a server `GOAWAY`. Clients close unused sockets with `ChannelConfig::max_connection_idle`. |
