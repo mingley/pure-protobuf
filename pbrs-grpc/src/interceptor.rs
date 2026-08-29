@@ -169,7 +169,9 @@ impl<S: Service> ServiceExt for S {}
 /// `Err` fails the [`crate::Call`] on poll for every call shape, including
 /// [`crate::Status::with_error_details`]; nothing is sent.
 /// [`crate::Outgoing::set_timeout`] is that Call's deadline on every call
-/// shape.
+/// shape. [`crate::Outgoing::clear_compress`] then
+/// [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`]
+/// reapplies channel gzip on every call shape.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};

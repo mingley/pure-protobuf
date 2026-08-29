@@ -1060,12 +1060,7 @@ async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
 
     let client = GreeterClient::new(channel(addr).await)
         .intercept(|_: &mut Outgoing<'_>| Err(Status::failed_precondition("blocked locally")));
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("interceptor");
-    assert_eq!(err.code(), Code::FailedPrecondition);
-
+    assert_err_on_every_shape(&client, Code::FailedPrecondition).await;
     task.abort();
 }
 
@@ -1380,11 +1375,7 @@ async fn a_client_interceptor_can_reapply_channel_gzip_after_clear() {
             Ok(())
         },
     );
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("re-applied gzip");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    gzip_every_shape(&client).await;
     task.abort();
 }
 
@@ -1700,46 +1691,103 @@ async fn a_client_interceptor_can_reject_with_typed_status_details() {
 async fn a_server_interceptor_injects_metadata_the_handler_sees() {
     struct ActorEcho;
 
-    impl Service for ActorEcho {
-        const NAME: &'static str = "demo.ActorEcho";
+    fn actor_is_kernel<T>(request: &Request<T>) -> Result<(), Status> {
+        let actors: Vec<_> = request.metadata().get_all("x-actor").collect();
+        if actors != ["kernel"] {
+            return Err(Status::internal(format!("x-actor {actors:?}")));
+        }
+        Ok(())
+    }
 
-        async fn call(&self, rpc: Rpc) {
-            rpc.unary(|request: Request<HelloRequest>| async move {
-                let actors: Vec<_> = request.metadata().get_all("x-actor").collect();
-                if actors != ["kernel"] {
-                    return Err(Status::internal(format!("x-actor {actors:?}")));
-                }
-                let mut reply = HelloReply::new();
-                reply.set_message(actors[0]);
-                Ok(Response::new(reply))
-            })
-            .await;
+    fn kernel_stream() -> Response<pbrs_grpc::Streaming<HelloReply>> {
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply("kernel")).await.ok();
+        }));
+        Response::new(stream)
+    }
+
+    impl pbrs_grpc::Greeter for ActorEcho {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            actor_is_kernel(&request)?;
+            Ok(Response::new(common::reply("kernel")))
+        }
+
+        async fn client_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            actor_is_kernel(&request)?;
+            Ok(Response::new(common::reply("kernel")))
+        }
+
+        async fn server_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            actor_is_kernel(&request)?;
+            Ok(kernel_stream())
+        }
+
+        async fn stream_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            actor_is_kernel(&request)?;
+            Ok(kernel_stream())
         }
     }
 
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        Server::new(ActorEcho.intercept(|rpc: &mut Rpc| {
-            rpc.metadata_mut().set("x-actor", "kernel")?;
-            Ok(())
-        }))
-        .serve_listener(listener)
-        .await
-        .ok();
+        GreeterServer::new(ActorEcho)
+            .intercept(|rpc: &mut Rpc| {
+                rpc.metadata_mut().set("x-actor", "kernel")?;
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
     });
 
-    let mut tagged = Request::new(req("ignored"));
-    tagged
-        .metadata_mut()
-        .insert("x-actor", "smuggled")
-        .expect("metadata");
-    let reply = channel(addr)
+    let client = GreeterClient::new(channel(addr).await);
+    fn smuggled<T>(mut request: Request<T>) -> Request<T> {
+        request
+            .metadata_mut()
+            .insert("x-actor", "smuggled")
+            .expect("metadata");
+        request
+    }
+    let reply = client
+        .say_hello(smuggled(Request::new(req("ignored"))))
         .await
-        .unary::<HelloRequest, HelloReply>("/demo.ActorEcho/Ping", tagged)
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "kernel");
+    let mut stream = client
+        .server_hello(smuggled(Request::new(req("ignored"))))
         .await
-        .expect("injected")
+        .expect("server-stream")
         .into_inner();
-    assert_eq!(name_of(&reply), "kernel");
+    assert_eq!(
+        name_of(&stream.message().await.expect("item").expect("first")),
+        "kernel"
+    );
+    let (tx, call) = client.client_hello(smuggled(Request::new(())));
+    tx.send(req("ignored")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "kernel");
+    let (tx, call) = client.stream_hello(smuggled(Request::new(())));
+    tx.send(req("ignored")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    assert_eq!(
+        name_of(&inbound.message().await.expect("item").expect("first")),
+        "kernel"
+    );
 
     task.abort();
 }
@@ -1748,46 +1796,105 @@ async fn a_server_interceptor_injects_metadata_the_handler_sees() {
 async fn a_server_interceptor_strips_metadata_before_the_handler() {
     struct SeesAuth;
 
-    impl Service for SeesAuth {
-        const NAME: &'static str = "demo.SeesAuth";
+    fn auth_stripped<T>(request: &Request<T>) -> Result<(), Status> {
+        if request.metadata().get("authorization").is_some() {
+            return Err(Status::internal("authorization leaked to handler"));
+        }
+        Ok(())
+    }
 
-        async fn call(&self, rpc: Rpc) {
-            rpc.unary(|request: Request<HelloRequest>| async move {
-                if request.metadata().get("authorization").is_some() {
-                    return Err(Status::internal("authorization leaked to handler"));
-                }
-                let mut reply = HelloReply::new();
-                reply.set_message(request.get_ref().name());
-                Ok(Response::new(reply))
-            })
-            .await;
+    impl pbrs_grpc::Greeter for SeesAuth {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            auth_stripped(&request)?;
+            Ok(Response::new(common::reply(common::name_of_request(
+                request.get_ref(),
+            ))))
+        }
+
+        async fn client_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            auth_stripped(&request)?;
+            Ok(Response::new(common::reply("ada")))
+        }
+
+        async fn server_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            auth_stripped(&request)?;
+            let name = common::name_of_request(request.get_ref());
+            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+            drop(tokio::spawn(async move {
+                tx.send(common::reply(name)).await.ok();
+            }));
+            Ok(Response::new(stream))
+        }
+
+        async fn stream_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            auth_stripped(&request)?;
+            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+            drop(tokio::spawn(async move {
+                tx.send(common::reply("ada")).await.ok();
+            }));
+            Ok(Response::new(stream))
         }
     }
 
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        Server::new(SeesAuth.intercept(|rpc: &mut Rpc| {
-            rpc.metadata_mut().remove("authorization");
-            Ok(())
-        }))
-        .serve_listener(listener)
-        .await
-        .ok();
+        GreeterServer::new(SeesAuth)
+            .intercept(|rpc: &mut Rpc| {
+                rpc.metadata_mut().remove("authorization");
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
     });
 
-    let mut tagged = Request::new(req("ada"));
-    tagged
-        .metadata_mut()
-        .insert("authorization", "Bearer secret")
-        .expect("metadata");
-    let reply = channel(addr)
+    let client = GreeterClient::new(channel(addr).await);
+    fn bearer<T>(mut request: Request<T>) -> Request<T> {
+        request
+            .metadata_mut()
+            .insert("authorization", "Bearer secret")
+            .expect("metadata");
+        request
+    }
+    let reply = client
+        .say_hello(bearer(Request::new(req("ada"))))
         .await
-        .unary::<HelloRequest, HelloReply>("/demo.SeesAuth/Ping", tagged)
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream = client
+        .server_hello(bearer(Request::new(req("ada"))))
         .await
-        .expect("stripped")
+        .expect("server-stream")
         .into_inner();
-    assert_eq!(name_of(&reply), "ada");
-
+    assert_eq!(
+        name_of(&stream.message().await.expect("item").expect("first")),
+        "ada"
+    );
+    let (tx, call) = client.client_hello(bearer(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let (tx, call) = client.stream_hello(bearer(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    assert_eq!(
+        name_of(&inbound.message().await.expect("item").expect("first")),
+        "ada"
+    );
     task.abort();
 }
 
@@ -1795,57 +1902,119 @@ async fn a_server_interceptor_strips_metadata_before_the_handler() {
 async fn a_server_interceptor_retains_a_subset_of_metadata() {
     struct SeesHops;
 
-    impl Service for SeesHops {
-        const NAME: &'static str = "demo.SeesHops";
+    fn hops_ok<T>(request: &Request<T>) -> Result<(), Status> {
+        if request.metadata().get("y-drop").is_some() {
+            return Err(Status::internal("y-drop leaked to handler"));
+        }
+        if request.metadata().get("x-keep") != Some("v") {
+            return Err(Status::internal(format!(
+                "x-keep {:?}",
+                request.metadata().get("x-keep")
+            )));
+        }
+        if request.metadata().get_bin("x-trace-bin").as_deref() != Some(&[1u8][..]) {
+            return Err(Status::internal("x-trace-bin missing"));
+        }
+        Ok(())
+    }
 
-        async fn call(&self, rpc: Rpc) {
-            rpc.unary(|request: Request<HelloRequest>| async move {
-                if request.metadata().get("y-drop").is_some() {
-                    return Err(Status::internal("y-drop leaked to handler"));
-                }
-                let keep = request.metadata().get("x-keep").unwrap_or("").to_owned();
-                if keep != "v" {
-                    return Err(Status::internal(format!("x-keep {keep:?}")));
-                }
-                if request.metadata().get_bin("x-trace-bin").as_deref() != Some(&[1u8][..]) {
-                    return Err(Status::internal("x-trace-bin missing"));
-                }
-                let mut reply = HelloReply::new();
-                reply.set_message(request.get_ref().name());
-                Ok(Response::new(reply))
-            })
-            .await;
+    impl pbrs_grpc::Greeter for SeesHops {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            hops_ok(&request)?;
+            Ok(Response::new(common::reply(common::name_of_request(
+                request.get_ref(),
+            ))))
+        }
+
+        async fn client_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            hops_ok(&request)?;
+            Ok(Response::new(common::reply("ada")))
+        }
+
+        async fn server_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            hops_ok(&request)?;
+            let name = common::name_of_request(request.get_ref());
+            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+            drop(tokio::spawn(async move {
+                tx.send(common::reply(name)).await.ok();
+            }));
+            Ok(Response::new(stream))
+        }
+
+        async fn stream_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            hops_ok(&request)?;
+            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+            drop(tokio::spawn(async move {
+                tx.send(common::reply("ada")).await.ok();
+            }));
+            Ok(Response::new(stream))
         }
     }
 
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        Server::new(SeesHops.intercept(|rpc: &mut Rpc| {
-            rpc.metadata_mut().retain(|k| k.starts_with("x-"));
-            Ok(())
-        }))
-        .serve_listener(listener)
-        .await
-        .ok();
+        GreeterServer::new(SeesHops)
+            .intercept(|rpc: &mut Rpc| {
+                rpc.metadata_mut().retain(|k| k.starts_with("x-"));
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
     });
 
-    let mut tagged = Request::new(req("ada"));
-    tagged.metadata_mut().insert("x-keep", "v").expect("keep");
-    tagged
-        .metadata_mut()
-        .insert("y-drop", "secret")
-        .expect("drop");
-    tagged
-        .metadata_mut()
-        .insert_bin("x-trace-bin", [1u8])
-        .expect("bin");
-    let reply = channel(addr)
+    let client = GreeterClient::new(channel(addr).await);
+    fn hops<T>(mut request: Request<T>) -> Request<T> {
+        request.metadata_mut().insert("x-keep", "v").expect("keep");
+        request
+            .metadata_mut()
+            .insert("y-drop", "secret")
+            .expect("drop");
+        request
+            .metadata_mut()
+            .insert_bin("x-trace-bin", [1u8])
+            .expect("bin");
+        request
+    }
+    let reply = client
+        .say_hello(hops(Request::new(req("ada"))))
         .await
-        .unary::<HelloRequest, HelloReply>("/demo.SeesHops/Ping", tagged)
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream = client
+        .server_hello(hops(Request::new(req("ada"))))
         .await
-        .expect("retained")
+        .expect("server-stream")
         .into_inner();
-    assert_eq!(name_of(&reply), "ada");
+    assert_eq!(
+        name_of(&stream.message().await.expect("item").expect("first")),
+        "ada"
+    );
+    let (tx, call) = client.client_hello(hops(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let (tx, call) = client.stream_hello(hops(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    assert_eq!(
+        name_of(&inbound.message().await.expect("item").expect("first")),
+        "ada"
+    );
 
     task.abort();
 }
@@ -2532,6 +2701,20 @@ async fn extra_rpcs_are_refused_when_the_process_cap_is_hit() {
         "one Ok and one RESOURCE_EXHAUSTED, got {codes:?}"
     );
 
+    let (c, d) = tokio::join!(client.server_hello(Request::new(req("c"))), async {
+        let (tx, call) = client.stream_hello(Request::new(()));
+        drop(tx);
+        call.await
+    });
+    let codes = [
+        c.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+        d.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+    ];
+    assert!(
+        codes.contains(&Code::Ok) && codes.contains(&Code::ResourceExhausted),
+        "streaming cap: one Ok and one RESOURCE_EXHAUSTED, got {codes:?}"
+    );
+
     task.abort();
 }
 
@@ -2552,11 +2735,8 @@ async fn outbound_rpcs_send_a_kernel_user_agent() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("user-agent");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -2593,7 +2773,7 @@ impl pbrs_grpc::Greeter for Deaf {
         &self,
         _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("deaf"))
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
     }
 }
 
@@ -2622,6 +2802,25 @@ async fn a_handler_that_ignores_its_request_stream_still_answers() {
         .expect("must not hang")
         .expect("must answer");
     assert_eq!(name_of(reply.get_ref()), "ignored your stream");
+    sender.abort();
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    let sender = tokio::spawn(async move {
+        for i in 0..512 {
+            if tx.send(req(&format!("n{i}"))).await.is_err() {
+                break;
+            }
+        }
+    });
+    let mut inbound = tokio::time::timeout(Duration::from_secs(10), call)
+        .await
+        .expect("bidi must not hang")
+        .expect("bidi must answer")
+        .into_inner();
+    assert!(
+        inbound.message().await.expect("end").is_none(),
+        "Deaf bidi returns an empty stream without reading inbound"
+    );
     sender.abort();
     task.abort();
 }
@@ -4344,27 +4543,24 @@ async fn a_client_reset_drops_the_handler() {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let call = client.say_hello(Request::new(req("ada")));
-    let handle = call.handle();
-    let mut call = call;
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("Hang returned before cancel: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(40)) => {}
-    }
-    assert!(
-        started.load(Ordering::Relaxed) >= 1,
-        "handler should have started"
-    );
-    handle.cancel();
-    let err = call.await.expect_err("cancelled");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    tokio::time::sleep(Duration::from_millis(250)).await;
-    assert_eq!(
-        finished.load(Ordering::Relaxed),
-        0,
-        "handler should have been dropped, not run to completion"
-    );
+    assert_reset_drops_handler(
+        client.say_hello(Request::new(req("ada"))),
+        &started,
+        &finished,
+    )
+    .await;
+    assert_reset_drops_handler(
+        client.server_hello(Request::new(req("ada"))),
+        &started,
+        &finished,
+    )
+    .await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_reset_drops_handler(call, &started, &finished).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_reset_drops_handler(call, &started, &finished).await;
+    drop(tx);
     task.abort();
 }
 
@@ -4423,6 +4619,36 @@ async fn assert_drop_call_drops_handler<T>(
         finished.load(Ordering::Relaxed),
         0,
         "dropping the Call should RST the stream and drop the handler"
+    );
+}
+
+async fn assert_reset_drops_handler<T>(
+    mut call: Call<T>,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+) {
+    started.store(0, Ordering::Relaxed);
+    let handle = call.handle();
+    tokio::select! {
+        biased;
+        _ = &mut call => panic!("Hang returned before cancel"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    handle.cancel();
+    let err = match call.await {
+        Ok(_) => panic!("cancelled Call resolved Ok"),
+        Err(status) => status,
+    };
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "CallHandle cancel should RST the stream and drop the handler"
     );
 }
 
@@ -4651,6 +4877,45 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
     assert!(inbound.message().await.expect("end").is_none());
+}
+
+async fn gzip_every_shape(client: &GreeterClient) {
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert!(tx.compress(), "StreamSender must gzip");
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert!(tx.compress(), "bidi StreamSender must gzip");
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
 }
 
 async fn assert_deadline_quickly<T>(call: Call<T>, max_elapsed: Duration) {
@@ -5828,38 +6093,71 @@ async fn a_deadline_cancels_a_bidi_stream_before_headers() {
 /// Refuses a request that was not gzipped.
 struct GzipProbe;
 
+fn require_gzip_unary(request: Request<HelloRequest>) -> Result<HelloRequest, Status> {
+    if !request.compressed() {
+        return Err(Status::invalid_argument("expected gzip"));
+    }
+    let encoding = request.encoding().map(str::to_owned);
+    let (msg, parts) = request.into_message_and_parts();
+    if !parts.compressed() {
+        return Err(Status::internal("parts dropped Compressed-Flag"));
+    }
+    if encoding.as_deref() != Some("gzip") || parts.encoding() != Some("gzip") {
+        return Err(Status::internal(format!(
+            "gzip encoding {:?} parts {:?}",
+            encoding,
+            parts.encoding()
+        )));
+    }
+    Ok(msg)
+}
+
+async fn require_gzip_inbound(
+    request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+) -> Result<HelloReply, Status> {
+    if request.compressed() {
+        return Err(Status::internal(
+            "streaming Request.compressed is the unary first-frame flag",
+        ));
+    }
+    if request.encoding() != Some("gzip") {
+        return Err(Status::invalid_argument("expected gzip"));
+    }
+    let mut stream = request.into_inner();
+    let framed = stream
+        .next_framed()
+        .await?
+        .ok_or_else(|| Status::internal("empty gzip stream"))?;
+    if !framed.compressed {
+        return Err(Status::internal(
+            "gzip frame missing per-message Compressed-Flag",
+        ));
+    }
+    Ok(common::reply(common::name_of_request(&framed.message)))
+}
+
 impl pbrs_grpc::Greeter for GzipProbe {
     async fn say_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        if !request.compressed() {
-            return Err(Status::invalid_argument("expected gzip"));
-        }
-        let (msg, parts) = request.into_message_and_parts();
-        if !parts.compressed() {
-            return Err(Status::internal("parts dropped Compressed-Flag"));
-        }
-        let mut reply = HelloReply::new();
-        reply.set_message(msg.name());
-        Ok(Response::new(reply))
+        let msg = require_gzip_unary(request)?;
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
     }
 
     async fn client_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("gzip-probe"))
+        Ok(Response::new(require_gzip_inbound(request).await?))
     }
 
     async fn server_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        if !request.compressed() {
-            return Err(Status::invalid_argument("expected gzip"));
-        }
-        let name = common::name_of_request(request.get_ref());
+        let msg = require_gzip_unary(request)?;
+        let name = common::name_of_request(&msg);
         let (tx, stream) = pbrs_grpc::Streaming::channel(1);
         drop(tokio::spawn(async move {
             tx.send(common::reply(name)).await.ok();
@@ -5869,9 +6167,14 @@ impl pbrs_grpc::Greeter for GzipProbe {
 
     async fn stream_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("gzip-probe"))
+        let reply = require_gzip_inbound(request).await?;
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(reply).await.ok();
+        }));
+        Ok(Response::new(stream))
     }
 }
 
@@ -5896,11 +6199,8 @@ async fn a_prefixed_user_agent_is_sent() {
         .await
         .user_agent("inventory/2.1")
         .expect("user-agent");
-    let reply = GreeterClient::new(channel)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("prefixed user-agent");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel);
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -5925,11 +6225,7 @@ async fn metadata_cannot_override_the_kernel_user_agent() {
         call.metadata_mut().insert("user-agent", "evil-agent")?;
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("kernel user-agent wins");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -6025,18 +6321,7 @@ async fn the_client_gzips_when_configured() {
     });
     let channel = channel(addr).await.send_compressed();
     let client = GreeterClient::new(channel);
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("gzip request");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-    let mut stream = client
-        .server_hello(Request::new(req("ada")))
-        .await
-        .expect("gzip server-stream")
-        .into_inner();
-    let reply = stream.message().await.expect("msg").expect("item");
-    assert_eq!(name_of(&reply), "ada");
+    gzip_every_shape(&client).await;
     task.abort();
 }
 
@@ -6053,18 +6338,7 @@ async fn a_client_interceptor_can_set_compress() {
         call.set_compress(true);
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("gzip request");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-    let mut stream = client
-        .server_hello(Request::new(req("ada")))
-        .await
-        .expect("gzip server-stream")
-        .into_inner();
-    let reply = stream.message().await.expect("msg").expect("item");
-    assert_eq!(name_of(&reply), "ada");
+    gzip_every_shape(&client).await;
     task.abort();
 }
 

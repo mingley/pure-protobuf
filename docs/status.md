@@ -118,8 +118,13 @@ See `docs/upb.md`. Short list:
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress, and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
-  after `clear_*`.   A client interceptor `Err` fails the `Call` on poll for
-  every call shape, including `with_error_details`; nothing is sent.
+  after `clear_*`. `clear_compress` then `set_compress(compresses_outbound())`
+  reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
+  every call shape, including `with_error_details` and a local fail-before-open
+  without details; nothing is sent. Kernel `user-agent` (and a
+  `Channel::user_agent` prefix) is sent on every shape; inserting `user-agent`
+  into metadata cannot override it. Server interceptor `set` / `remove` /
+  `retain` reach the handler on every shape.
   `Outgoing::set_timeout` is that Call's deadline on every call shape. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
@@ -140,6 +145,11 @@ See `docs/upb.md`. Short list:
   waiting for headers, and a client-streaming handle still cancels
   after the sender is closed while the unary response is pending (dropping
   the `Call` or hitting the deadline after that half-close does the same).
+  `CallHandle` cancel also drops a hanging handler on every call shape
+  before it runs to completion. A handler that ignores its inbound request
+  stream still answers on client-streaming and bidi rather than stalling the
+  window. `max_concurrent_rpcs` refuses extra RPCs on streaming the same as
+  unary.
   A server-streaming or bidi deadline RSTs the send half before headers and
   after a half-close;
   after those headers that deadline still RSTs the parked

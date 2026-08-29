@@ -777,13 +777,16 @@ impl ChannelConfig {
     }
 
     /// gzip request payloads (and [`crate::StreamSender::send`] on a stream).
+    /// Applies to every call shape.
     ///
     /// Off by default. The kernel always advertises `identity,gzip`, so a
     /// server that implements gzip will accept these frames. Per-RPC
     /// [`crate::Request::set_compress`] still works when this is off. A
     /// request that already called [`crate::Request::set_compress`] is left
     /// alone, including `set_compress(false)` to opt out of this overlay.
-    /// A later interceptor can still set or clear it.
+    /// A later interceptor can still set or clear it, including
+    /// `clear_compress` then `set_compress(compresses_outbound())` to
+    /// reapply.
     #[must_use]
     pub fn send_compressed(mut self, enable: bool) -> Self {
         self.send_compressed = enable;
@@ -806,7 +809,8 @@ impl ChannelConfig {
         self
     }
 
-    /// Default wait-for-ready when the request omits it.
+    /// Default wait-for-ready when the request omits it. Applies to every
+    /// call shape.
     ///
     /// Off by default (gRPC fail-fast). A request that already called
     /// [`crate::Request::set_wait_for_ready`] is left alone; a later interceptor

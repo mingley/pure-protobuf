@@ -965,8 +965,8 @@ GreeterServer::new(svc).send_compressed()
 // or Server::new(svc) / Router::new().add_service(svc), same method
 ```
 
-To gzip every request from a channel (and `StreamSender::send` on streams
-it opens):
+To gzip every request from a channel — unary and server-streaming payloads,
+and `StreamSender::send` on client- and bidi-streams (every call shape):
 
 ```rust
 ChannelConfig::new().send_compressed(true)
@@ -978,7 +978,9 @@ channel.send_compressed()
 overlay. That overlay fills compress only when the request omitted a choice, so
 `Request::set_compress(false)` opts out of a channel that called
 `send_compressed`. An interceptor can still `Outgoing::set_compress(false)`
-(or `true`). Client- and bidi-streaming `StreamSender::send` is stamped
+(or `true`). `Outgoing::clear_compress` then
+`set_compress(compresses_outbound())` reapplies the channel overlay on every
+call shape. Client- and bidi-streaming `StreamSender::send` is stamped
 after overlays and interceptors run, so `Outgoing::set_compress` on that
 RPC is the same flag `send()` consults.
 `Server::compresses_outbound` / `Router` / `FooServer` read the
@@ -1285,10 +1287,10 @@ are those channel overlays and stay visible after `clear_*` opts out of the
 already-applied default), compression (`Outgoing::compress` is
 `false` when unset; `compress_is_set` is the same fill-if-unset pattern, and
 `Request::set_compress(false)` opts out of `Channel::send_compressed`), and typed extensions. TCP `:authority` is `host:port`; Unix is
-`localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata succeeds — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win.
-Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
-for every call shape; nothing is sent. `Outgoing::set_timeout` is that Call's
-deadline on every call shape.
+`localhost` (`FooClient::authority` is the same string). Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
+for every call shape; nothing is sent. A local `Err` before the stream opens
+is that status on every shape, including without details. `Outgoing::set_timeout` is that Call's
+deadline on every call shape. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor. Calling `intercept` twice stacks — the first interceptor runs

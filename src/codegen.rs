@@ -4815,7 +4815,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent. [`{G}::Outgoing::set_timeout`] is that Call's deadline on every call shape."
+        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent. [`{G}::Outgoing::set_timeout`] is that Call's deadline on every call shape. `clear_compress` then `set_compress(compresses_outbound())` reapplies channel gzip on every call shape."
     );
     let _ = writeln!(
         src,
@@ -4850,7 +4850,7 @@ fn emit_kernel_client(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// gzip unary payloads and [`{G}::StreamSender::send`]. See [`{G}::Channel::send_compressed`]."
+        "    /// gzip unary and server-streaming request payloads and [`{G}::StreamSender::send`]. Applies to every call shape. See [`{G}::Channel::send_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

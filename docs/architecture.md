@@ -116,6 +116,8 @@ metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).
+`metadata_mut().set` / `remove` / `retain` reach the handler on every call
+shape.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
 gzip, and the
@@ -128,7 +130,9 @@ limits, metadata, timeout / deadline Instant, wait-for-ready
 (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`), extensions).
 Overlays (timeout, wait-for-ready, send_compressed, message caps,
 `https_scheme`) fill in before interceptors run; `clear_*` opts out of that
-already-applied default while the overlay getters stay. Interceptors run when the
+already-applied default while the overlay getters stay. `clear_compress` then
+`set_compress(compresses_outbound())` reapplies channel gzip on every call
+shape. Interceptors run when the
 RPC method is invoked, not when the `Call` is first polled. `Err` fails that
 `Call` on poll for every call shape, including `with_error_details`; nothing
 is sent. `Outgoing::set_timeout` is that Call's deadline on every call shape.

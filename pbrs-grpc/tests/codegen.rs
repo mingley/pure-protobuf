@@ -733,6 +733,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client intercept rustdoc must name set_timeout as the Call deadline"
     );
     assert!(
+        src.contains(
+            "`clear_compress` then `set_compress(compresses_outbound())` reapplies channel gzip on every call shape."
+        ),
+        "generated client intercept rustdoc must name gzip reapply after clear"
+    );
+    assert!(
         src.contains("dropping a streaming Call resets the stream"),
         "client-streaming and bidi pairs must be must_use"
     );

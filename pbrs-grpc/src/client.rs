@@ -511,15 +511,18 @@ impl Channel {
         self
     }
 
-    /// gzip every unary request payload, and every
+    /// gzip every unary and server-streaming request payload, and every
     /// [`crate::StreamSender::send`] on a client- or bidi-stream opened from
-    /// this channel.
+    /// this channel. Applies to every call shape.
     ///
     /// Off by default. Equivalent to [`ChannelConfig::send_compressed`].
     /// A request that already called [`crate::Request::set_compress`] is
     /// left alone, including `set_compress(false)` to opt out. Interceptors
     /// run before a client- or bidi-stream [`crate::StreamSender`] is
     /// returned, so [`crate::Outgoing::set_compress`] stamps that sender too.
+    /// [`crate::Outgoing::clear_compress`] then
+    /// [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`]
+    /// reapplies this overlay.
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);
@@ -579,6 +582,7 @@ impl Channel {
     }
 
     /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
+    /// Applies to every call shape.
     ///
     /// `user_agent("my-app/1.0")` sends `my-app/1.0 pbrs-grpc/<version>`.
     /// The kernel suffix is always present so a peer can identify the stack.
@@ -619,7 +623,9 @@ impl Channel {
     /// return, not when the [`crate::Call`] is first polled. `Err` fails that
     /// Call on poll, including [`crate::Status::with_error_details`]; nothing
     /// is sent. [`crate::Outgoing::set_timeout`] is that Call's deadline on
-    /// every call shape.
+    /// every call shape. [`crate::Outgoing::clear_compress`] then
+    /// [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`]
+    /// reapplies channel gzip on every call shape.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
