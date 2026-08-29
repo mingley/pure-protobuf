@@ -3,7 +3,8 @@
 //! `proto/hello.proto` is compiled by `build.rs` with
 //! [`pbrs::codegen::Config::emit_kernel_stubs`]. The binary serves the greeter
 //! together with `grpc.health.v1` and `grpc.reflection.v1` on loopback, then
-//! calls `SayHello`.
+//! calls `SayHello`. Tests cover all four RPC shapes, health `Check`, and
+//! reflection `list_services`.
 
 #![allow(
     missing_docs,
@@ -26,7 +27,7 @@ mod proto {
 
 use pbrs_grpc::health::service as health_service;
 use pbrs_grpc::reflection::service as reflection_service;
-use pbrs_grpc::{Channel, Request, Response, Router, Status};
+use pbrs_grpc::{Channel, Request, Response, Router, Status, Streaming};
 use proto::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest, FILE_DESCRIPTOR_SET};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -39,14 +40,73 @@ struct Live {
 
 struct MyGreeter;
 
+fn name_of(req: &HelloRequest) -> String {
+    req.name().to_str().unwrap_or_default().to_owned()
+}
+
+fn reply(message: impl Into<String>) -> HelloReply {
+    let mut reply = HelloReply::new();
+    reply.set_message(message.into());
+    reply
+}
+
 impl Greeter for MyGreeter {
     async fn say_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        let mut reply = HelloReply::new();
-        reply.set_message(format!("hello {}", request.get_ref().name()));
-        Ok(Response::new(reply))
+        Ok(Response::new(reply(format!(
+            "hello {}",
+            name_of(request.get_ref())
+        ))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut stream = request.into_inner();
+        let mut names = Vec::new();
+        while let Some(req) = stream.message().await? {
+            names.push(name_of(&req));
+        }
+        Ok(Response::new(reply(format!("hello {}", names.join(", ")))))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let name = name_of(request.get_ref());
+        let (tx, stream) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            for i in 1..=3 {
+                if tx.send(reply(format!("hello {name} #{i}"))).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            while let Ok(Some(req)) = inbound.message().await {
+                if tx
+                    .send(reply(format!("hello {}", name_of(&req))))
+                    .await
+                    .is_err()
+                {
+                    break;
+                }
+            }
+        }));
+        Ok(Response::new(stream))
     }
 }
 
@@ -105,8 +165,16 @@ pub async fn run() -> Result<String, Status> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pbrs_grpc::health::{HealthCheckRequest, HealthClient, ServingStatus};
-    use pbrs_grpc::reflection::{ServerReflectionClient, ServerReflectionRequest};
+
+    fn text(reply: &HelloReply) -> String {
+        reply.message().to_str().unwrap_or_default().to_owned()
+    }
+
+    fn request(name: &str) -> HelloRequest {
+        let mut req = HelloRequest::new();
+        req.set_name(name);
+        req
+    }
 
     #[tokio::test]
     async fn generated_stubs_say_hello() {
@@ -114,7 +182,51 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn generated_stubs_all_four_shapes() {
+        let live = serve().await.unwrap();
+        let client = GreeterClient::new(channel(live.addr).await.unwrap());
+
+        let unary = client
+            .say_hello(Request::new(request("ada")))
+            .await
+            .unwrap();
+        assert_eq!(text(unary.get_ref()), "hello ada");
+
+        let (tx, call) = client.client_hello(Request::new(()));
+        tx.send(request("grace")).await.unwrap();
+        tx.send(request("alan")).await.unwrap();
+        tx.close();
+        assert_eq!(text(call.await.unwrap().get_ref()), "hello grace, alan");
+
+        let mut server_stream = client
+            .server_hello(Request::new(request("edsger")))
+            .await
+            .unwrap()
+            .into_inner();
+        let mut streamed = Vec::new();
+        while let Some(msg) = server_stream.message().await.unwrap() {
+            streamed.push(text(&msg));
+        }
+        assert_eq!(
+            streamed,
+            ["hello edsger #1", "hello edsger #2", "hello edsger #3"]
+        );
+
+        let (tx, call) = client.stream_hello(Request::new(()));
+        let mut bidi = call.await.unwrap().into_inner();
+        tx.send(request("barbara")).await.unwrap();
+        assert_eq!(
+            text(&bidi.message().await.unwrap().unwrap()),
+            "hello barbara"
+        );
+        tx.close();
+        assert!(bidi.message().await.unwrap().is_none());
+    }
+
+    #[tokio::test]
     async fn health_reports_the_greeter() {
+        use pbrs_grpc::health::{HealthCheckRequest, HealthClient, ServingStatus};
+
         let live = serve().await.unwrap();
         let client = HealthClient::new(channel(live.addr).await.unwrap());
         let mut req = HealthCheckRequest::new();
@@ -130,6 +242,8 @@ mod tests {
 
     #[tokio::test]
     async fn reflection_lists_the_greeter() {
+        use pbrs_grpc::reflection::{ServerReflectionClient, ServerReflectionRequest};
+
         let live = serve().await.unwrap();
         let client = ServerReflectionClient::new(channel(live.addr).await.unwrap());
         let (tx, call) = client.server_reflection_info(Request::new(()));

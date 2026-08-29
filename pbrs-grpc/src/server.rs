@@ -29,7 +29,7 @@ use std::sync::Arc;
 use std::task::Poll;
 use tokio::net::TcpListener;
 #[cfg(unix)]
-use tokio::net::UnixListener;
+use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{mpsc, watch, Semaphore};
 
 /// A gRPC service that can be served.
@@ -809,10 +809,13 @@ impl<S: Service> Server<S> {
     /// [`Self::serve_unix`], removing a leftover socket file first if bind
     /// fails with address-in-use.
     ///
-    /// If another process is actually listening on `path`, this steals it.
+    /// A crash leaves a socket inode that is not accepting. This unlinks that
+    /// leftover and binds. If another process is actually listening on `path`,
+    /// the file is left alone and this returns [`Code::Unavailable`].
     #[cfg(unix)]
     pub async fn serve_unix_unlink(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
-        self.serve_unix_listener(bind_unix_unlink(path)?).await
+        self.serve_unix_listener(bind_unix_unlink(path).await?)
+            .await
     }
 
     /// Serve h2c on an existing Unix listener until it fails.
@@ -1041,7 +1044,8 @@ impl Router {
     /// fails with address-in-use. See [`Server::serve_unix_unlink`].
     #[cfg(unix)]
     pub async fn serve_unix_unlink(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
-        self.serve_unix_listener(bind_unix_unlink(path)?).await
+        self.serve_unix_listener(bind_unix_unlink(path).await?)
+            .await
     }
 
     /// Serve h2c on an existing Unix listener until it fails.
@@ -1133,8 +1137,9 @@ fn bind_unix(path: impl AsRef<std::path::Path>) -> Result<UnixListener, Status> 
     UnixListener::bind(path.as_ref()).map_err(|e| Status::unavailable(e.to_string()))
 }
 
+/// Bind `path`, unlinking a crash leftover. A live listener is left alone.
 #[cfg(unix)]
-fn bind_unix_unlink(path: impl AsRef<std::path::Path>) -> Result<UnixListener, Status> {
+async fn bind_unix_unlink(path: impl AsRef<std::path::Path>) -> Result<UnixListener, Status> {
     let path = path.as_ref();
     match UnixListener::bind(path) {
         Ok(listener) => Ok(listener),
@@ -1142,11 +1147,31 @@ fn bind_unix_unlink(path: impl AsRef<std::path::Path>) -> Result<UnixListener, S
             if e.kind() == std::io::ErrorKind::AddrInUse
                 || e.kind() == std::io::ErrorKind::AlreadyExists =>
         {
+            if unix_path_has_listener(path).await {
+                return Err(Status::unavailable(format!(
+                    "unix socket {} is already in use",
+                    path.display()
+                )));
+            }
             std::fs::remove_file(path).map_err(|e| Status::unavailable(e.to_string()))?;
             UnixListener::bind(path).map_err(|e| Status::unavailable(e.to_string()))
         }
         Err(e) => Err(Status::unavailable(e.to_string())),
     }
+}
+
+/// `true` if `connect` succeeds, meaning some process is accepting. A stale
+/// inode fails immediately. Treat a hang as live so we do not steal.
+#[cfg(unix)]
+async fn unix_path_has_listener(path: &std::path::Path) -> bool {
+    matches!(
+        tokio::time::timeout(
+            std::time::Duration::from_millis(50),
+            UnixStream::connect(path)
+        )
+        .await,
+        Ok(Ok(_stream))
+    )
 }
 
 fn connection_slots(config: ServerConfig) -> Option<Arc<Semaphore>> {

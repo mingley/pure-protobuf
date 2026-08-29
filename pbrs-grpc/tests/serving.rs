@@ -1429,6 +1429,44 @@ async fn serve_unix_unlink_replaces_a_leftover_socket() {
 
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn serve_unix_unlink_does_not_steal_a_live_socket() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let live = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    let channel = {
+        let mut last = None;
+        let mut found = None;
+        for _ in 0..80 {
+            match Channel::connect_unix(&path).await {
+                Ok(channel) => {
+                    found = Some(channel);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("live listener never came up: {last:?}"))
+    };
+    let err = GreeterServer::new(Echo)
+        .serve_unix_unlink(&path)
+        .await
+        .expect_err("must not steal a live socket");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let reply = GreeterClient::new(channel)
+        .say_hello(Request::new(req("still")))
+        .await
+        .expect("original listener must keep serving");
+    assert_eq!(name_of(reply.get_ref()), "still");
+    live.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");

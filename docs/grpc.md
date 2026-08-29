@@ -552,8 +552,9 @@ let channel = Channel::connect_unix("/tmp/greeter.sock").await?;
 `connect_unix_lazy` and `Request::set_wait_for_ready` work the same as on
 TCP. The path is a filesystem path, not a `unix://` URI. `serve_unix` fails
 if the path already exists. After a crash, `serve_unix_unlink` removes a
-leftover socket file when bind returns address-in-use; if another process is
-actually listening, that steals the path.
+leftover socket file when bind returns address-in-use. If another process is
+actually listening, the path is left alone and `serve_unix_unlink` fails with
+`UNAVAILABLE` instead of stealing it.
 
 `:authority` on Unix RPCs is `localhost`.
 
