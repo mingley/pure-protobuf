@@ -687,6 +687,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "server-streaming client methods must name stream drop"
     );
     assert!(
+        src.contains("A [`::pbrs_grpc::CallHandle`] taken before await cancels the RPC."),
+        "unary client methods must name CallHandle"
+    );
+    assert!(
         src.contains("A [`::pbrs_grpc::CallHandle`] taken before await still cancels that live stream after headers."),
         "server-streaming client methods must name CallHandle after headers"
     );

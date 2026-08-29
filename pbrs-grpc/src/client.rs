@@ -705,6 +705,9 @@ impl Channel {
     /// `path` is the full gRPC path, `/<package>.<Service>/<Method>`.
     /// Generated clients call this for you.
     ///
+    /// Dropping the [`Call`] without awaiting resets the stream. A
+    /// [`crate::CallHandle`] taken before await still cancels it.
+    ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
     /// # async fn run(channel: Channel) -> Result<(), pbrs_grpc::Status> {

@@ -4889,6 +4889,12 @@ fn emit_kernel_client(
             src,
             "    /// The reply's [`{G}::Response::encoding`] is the peer's `grpc-encoding` (`None` for identity). The [`{G}::Call`] is fused after it resolves."
         );
+        if !m.client_streaming && !m.server_streaming {
+            let _ = writeln!(
+                src,
+                "    /// A [`{G}::CallHandle`] taken before await cancels the RPC."
+            );
+        }
         if m.server_streaming {
             let _ = writeln!(
                 src,
