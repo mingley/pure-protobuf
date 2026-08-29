@@ -718,12 +718,12 @@ A PING that is not acknowledged within 20 s (configurable via
 next RPC redials that slot; if the peer is still gone, the call fails with
 `UNAVAILABLE` (or `DEADLINE_EXCEEDED` if the request deadline elapses while
 connecting) instead of hanging on a dead socket. PINGs do not reset
-`max_connection_idle`. Every call shape still serves after PINGs.
+`max_connection_idle`. Applies to every call shape.
 
 **TCP `SO_KEEPALIVE`.** An OS-level probe on the TCP socket, with this idle
 time before the first probe. Probe interval and retry count stay at the kernel
 default. Only TCP is affected; Unix sockets and `Channel::from_io` streams
-are not. Every call shape still serves on a keepalive socket:
+are not. Applies to every call shape:
 
 ```rust
 GreeterServer::new(MyGreeter).tcp_keepalive(Duration::from_secs(30))

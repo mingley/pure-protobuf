@@ -317,6 +317,45 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Server::serve_with_shutdown must name every call shape"
     );
+    assert_eq!(
+        src.matches("HTTP/2 PING keepalive. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::keep_alive_interval and Router::keep_alive_interval must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "How long to wait for a PING acknowledgement. Applies to every call\n    /// shape."
+        )
+        .count(),
+        2,
+        "Server::keep_alive_timeout and Router::keep_alive_timeout must name every call shape"
+    );
+    assert_eq!(
+        src.matches("TCP `SO_KEEPALIVE`. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::tcp_keepalive and Router::tcp_keepalive must name every call shape"
+    );
+    assert_eq!(
+        src.matches("Send GOAWAY this long after accept. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::max_connection_age and Router::max_connection_age must name every call shape"
+    );
+    assert_eq!(
+        src.matches("fails. Applies to every call shape.").count(),
+        2,
+        "Server::serve_unix and Router::serve_unix must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Serve over TLS until `shutdown` resolves, then drain.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::serve_tls_with_shutdown and Router::serve_tls_with_shutdown must name every call shape"
+    );
 }
 
 #[tokio::test]

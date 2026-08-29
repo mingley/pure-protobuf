@@ -4188,7 +4188,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// HTTP/2 PING keepalive. See [`{G}::ServerConfig::keep_alive_interval`]."
+        "    /// HTTP/2 PING keepalive. Applies to every call shape. See [`{G}::ServerConfig::keep_alive_interval`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4197,7 +4197,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// How long to wait for a PING acknowledgement. See [`{G}::ServerConfig::keep_alive_timeout`]."
+        "    /// How long to wait for a PING acknowledgement. Applies to every call shape. See [`{G}::ServerConfig::keep_alive_timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4206,7 +4206,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// TCP `SO_KEEPALIVE`. See [`{G}::ServerConfig::tcp_keepalive`]."
+        "    /// TCP `SO_KEEPALIVE`. Applies to every call shape. See [`{G}::ServerConfig::tcp_keepalive`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4215,7 +4215,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Send GOAWAY this long after accept. See [`{G}::ServerConfig::max_connection_age`]."
+        "    /// Send GOAWAY this long after accept. Applies to every call shape. See [`{G}::ServerConfig::max_connection_age`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4224,7 +4224,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Send GOAWAY after this long with no outstanding RPCs. See [`{G}::ServerConfig::max_connection_idle`]."
+        "    /// Send GOAWAY after this long with no outstanding RPCs. Applies to every call shape. See [`{G}::ServerConfig::max_connection_idle`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4233,7 +4233,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// After age or idle fires, wait this long for in-flight RPCs. See [`{G}::ServerConfig::max_connection_age_grace`]."
+        "    /// After age or idle fires, wait this long for in-flight RPCs. Applies to every call shape. See [`{G}::ServerConfig::max_connection_age_grace`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4242,7 +4242,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Drop a client that never finishes TLS or the HTTP/2 preface. See [`{G}::ServerConfig::handshake_timeout`]."
+        "    /// Drop a client that never finishes TLS or the HTTP/2 preface. Applies to every call shape. See [`{G}::ServerConfig::handshake_timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4294,14 +4294,17 @@ fn emit_kernel_server(
         src,
         "    pub async fn serve_listener(self, listener: {G}::codegen_support::TcpListener) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_listener(listener).await }}"
     );
-    let _ = writeln!(src, "    /// Serve until `shutdown` resolves, then drain.");
+    let _ = writeln!(
+        src,
+        "    /// Serve until `shutdown` resolves, then drain. Applies to every call shape."
+    );
     let _ = writeln!(
         src,
         "    pub async fn serve_with_shutdown(self, listener: {G}::codegen_support::TcpListener, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_with_shutdown(listener, shutdown).await }}"
     );
     let _ = writeln!(
         src,
-        "    /// Bind `addr` and serve until `shutdown` resolves, then drain."
+        "    /// Bind `addr` and serve until `shutdown` resolves, then drain. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4325,7 +4328,10 @@ fn emit_kernel_server(
         src,
         "    pub async fn serve_unix_unlink(self, path: impl AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_unlink(path).await }}"
     );
-    let _ = writeln!(src, "    /// Serve h2c on an existing Unix listener.");
+    let _ = writeln!(
+        src,
+        "    /// Serve h2c on an existing Unix listener. Applies to every call shape."
+    );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
@@ -4333,7 +4339,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve h2c on a Unix listener until `shutdown` resolves, then drain."
+        "    /// Serve h2c on a Unix listener until `shutdown` resolves, then drain. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4342,7 +4348,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `path` and serve h2c until `shutdown` resolves, then drain."
+        "    /// Bind `path` and serve h2c until `shutdown` resolves, then drain. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4351,7 +4357,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `path` until `shutdown` after unlinking a crash leftover. A live listener is left alone."
+        "    /// Bind `path` until `shutdown` after unlinking a crash leftover. A live listener is left alone. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4368,7 +4374,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve over TLS until `shutdown` resolves, then drain."
+        "    /// Serve over TLS until `shutdown` resolves, then drain. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4376,7 +4382,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain."
+        "    /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain. Applies to every call shape."
     );
     let _ = writeln!(
         src,

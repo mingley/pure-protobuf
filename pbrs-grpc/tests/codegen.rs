@@ -1380,6 +1380,28 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated serve_unix_unlink rustdoc must name every call shape"
     );
     assert!(
+        src.contains("HTTP/2 PING keepalive. Applies to every call shape."),
+        "generated keep_alive_interval rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("Send GOAWAY this long after accept. Applies to every call shape."),
+        "generated max_connection_age rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("Serve h2c on an existing Unix listener. Applies to every call shape."),
+        "generated serve_unix_listener rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("Serve until `shutdown` resolves, then drain. Applies to every call shape."),
+        "generated serve_with_shutdown rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Serve over TLS until `shutdown` resolves, then drain. Applies to every call shape."
+        ),
+        "generated serve_tls_with_shutdown rustdoc must name every call shape"
+    );
+    assert!(
         src.contains(
             "Serve a single already-accepted byte stream until it closes. Applies to every call shape."
         ),

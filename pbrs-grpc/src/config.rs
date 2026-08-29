@@ -223,7 +223,7 @@ impl ServerConfig {
     /// This is not TCP keepalive. PINGs run on Unix sockets and on TLS; they
     /// do not reset [`Self::max_connection_idle`] (idle is outstanding RPCs,
     /// not bytes on the wire). For `SO_KEEPALIVE` on TCP sockets, see
-    /// [`Self::tcp_keepalive`]. Every call shape still serves after PINGs.
+    /// [`Self::tcp_keepalive`]. Applies to every call shape.
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);
@@ -246,7 +246,7 @@ impl ServerConfig {
     /// default.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// Every call shape still serves on a keepalive TCP socket.
+    /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));
@@ -724,7 +724,7 @@ impl ChannelConfig {
     /// [`Self::max_connection_idle`].
     ///
     /// This is not TCP keepalive. For `SO_KEEPALIVE` on TCP sockets, see
-    /// [`Self::tcp_keepalive`]. Every call shape still serves after PINGs.
+    /// [`Self::tcp_keepalive`]. Applies to every call shape.
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);
@@ -747,7 +747,7 @@ impl ChannelConfig {
     /// default.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
-    /// Every call shape still serves on a keepalive TCP socket.
+    /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.tcp_keepalive = Some(time.max(Duration::from_millis(1)));

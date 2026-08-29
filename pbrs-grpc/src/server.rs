@@ -1425,55 +1425,56 @@ impl<S: Service> Server<S> {
         self.config.compresses_outbound()
     }
 
-    /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].
-    /// Every call shape still serves after PINGs.
+    /// HTTP/2 PING keepalive. Applies to every call shape.
+    /// See [`ServerConfig::keep_alive_interval`].
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.config = self.config.keep_alive_interval(interval);
         self
     }
 
-    /// How long to wait for a PING acknowledgement. See
-    /// [`ServerConfig::keep_alive_timeout`].
+    /// How long to wait for a PING acknowledgement. Applies to every call
+    /// shape. See [`ServerConfig::keep_alive_timeout`].
     #[must_use]
     pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.keep_alive_timeout(timeout);
         self
     }
 
-    /// TCP `SO_KEEPALIVE`. See [`ServerConfig::tcp_keepalive`].
-    /// Every call shape still serves on a keepalive TCP socket.
+    /// TCP `SO_KEEPALIVE`. Applies to every call shape.
+    /// See [`ServerConfig::tcp_keepalive`].
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.config = self.config.tcp_keepalive(time);
         self
     }
 
-    /// Send GOAWAY this long after accept. See [`ServerConfig::max_connection_age`].
+    /// Send GOAWAY this long after accept. Applies to every call shape.
+    /// See [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.config = self.config.max_connection_age(age);
         self
     }
 
-    /// Send GOAWAY after this long with no outstanding RPCs. See
-    /// [`ServerConfig::max_connection_idle`].
+    /// Send GOAWAY after this long with no outstanding RPCs. Applies to
+    /// every call shape. See [`ServerConfig::max_connection_idle`].
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.config = self.config.max_connection_idle(idle);
         self
     }
 
-    /// After age or idle fires, wait this long for in-flight RPCs. See
-    /// [`ServerConfig::max_connection_age_grace`].
+    /// After age or idle fires, wait this long for in-flight RPCs.
+    /// Applies to every call shape. See [`ServerConfig::max_connection_age_grace`].
     #[must_use]
     pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
         self.config = self.config.max_connection_age_grace(grace);
         self
     }
 
-    /// Drop a client that never finishes TLS or the HTTP/2 preface. See
-    /// [`ServerConfig::handshake_timeout`].
+    /// Drop a client that never finishes TLS or the HTTP/2 preface.
+    /// Applies to every call shape. See [`ServerConfig::handshake_timeout`].
     #[must_use]
     pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.handshake_timeout(timeout);
@@ -1567,6 +1568,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Bind `addr` and serve until `shutdown` resolves, then drain.
+    /// Applies to every call shape.
     ///
     /// This is the address form of [`Self::serve_with_shutdown`].
     pub async fn serve_until_shutdown(
@@ -1578,7 +1580,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Bind `path` and serve h2c over a Unix domain socket until the listener
-    /// fails.
+    /// fails. Applies to every call shape.
     ///
     /// `path` must not already be bound. This does not unlink a leftover
     /// socket file; use [`Self::serve_unix_unlink`] after a crash. TLS over a
@@ -1591,6 +1593,7 @@ impl<S: Service> Server<S> {
     }
 
     /// [`Self::serve_unix`], after unlinking a crash leftover.
+    /// Applies to every call shape.
     ///
     /// A crash leaves a socket inode that is not accepting. This unlinks that
     /// leftover and binds. If another process is actually listening on `path`,
@@ -1604,6 +1607,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve h2c on an existing Unix listener until it fails.
+    /// Applies to every call shape.
     #[cfg(unix)]
     pub async fn serve_unix_listener(self, listener: UnixListener) -> Result<(), Status> {
         self.serve_unix_with_shutdown(listener, std::future::pending())
@@ -1611,7 +1615,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve h2c on a Unix listener until `shutdown` resolves, then drain.
-    /// See [`Self::serve_with_shutdown`].
+    /// Applies to every call shape. See [`Self::serve_with_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix_with_shutdown(
         self,
@@ -1623,6 +1627,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Bind `path` and serve h2c until `shutdown` resolves, then drain.
+    /// Applies to every call shape.
     ///
     /// This is the path form of [`Self::serve_unix_with_shutdown`].
     #[cfg(unix)]
@@ -1636,7 +1641,8 @@ impl<S: Service> Server<S> {
     }
 
     /// [`Self::serve_unix_until_shutdown`], after unlinking a crash leftover.
-    /// A live listener is left alone. See [`Self::serve_unix_unlink`].
+    /// Applies to every call shape. A live listener is left alone. See
+    /// [`Self::serve_unix_unlink`].
     #[cfg(unix)]
     pub async fn serve_unix_unlink_until_shutdown(
         self,
@@ -1658,6 +1664,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve over TLS until `shutdown` resolves, then drain.
+    /// Applies to every call shape.
     pub async fn serve_tls_with_shutdown(
         self,
         listener: TcpListener,
@@ -1669,6 +1676,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain.
+    /// Applies to every call shape.
     ///
     /// This is the address form of [`Self::serve_tls_with_shutdown`].
     pub async fn serve_tls_until_shutdown(
@@ -1950,55 +1958,56 @@ impl Router {
         self.config.compresses_outbound()
     }
 
-    /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].
-    /// Every call shape still serves after PINGs.
+    /// HTTP/2 PING keepalive. Applies to every call shape.
+    /// See [`ServerConfig::keep_alive_interval`].
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.config = self.config.keep_alive_interval(interval);
         self
     }
 
-    /// How long to wait for a PING acknowledgement. See
-    /// [`ServerConfig::keep_alive_timeout`].
+    /// How long to wait for a PING acknowledgement. Applies to every call
+    /// shape. See [`ServerConfig::keep_alive_timeout`].
     #[must_use]
     pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.keep_alive_timeout(timeout);
         self
     }
 
-    /// TCP `SO_KEEPALIVE`. See [`ServerConfig::tcp_keepalive`].
-    /// Every call shape still serves on a keepalive TCP socket.
+    /// TCP `SO_KEEPALIVE`. Applies to every call shape.
+    /// See [`ServerConfig::tcp_keepalive`].
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
         self.config = self.config.tcp_keepalive(time);
         self
     }
 
-    /// Send GOAWAY this long after accept. See [`ServerConfig::max_connection_age`].
+    /// Send GOAWAY this long after accept. Applies to every call shape.
+    /// See [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.config = self.config.max_connection_age(age);
         self
     }
 
-    /// Send GOAWAY after this long with no outstanding RPCs. See
-    /// [`ServerConfig::max_connection_idle`].
+    /// Send GOAWAY after this long with no outstanding RPCs. Applies to
+    /// every call shape. See [`ServerConfig::max_connection_idle`].
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.config = self.config.max_connection_idle(idle);
         self
     }
 
-    /// After age or idle fires, wait this long for in-flight RPCs. See
-    /// [`ServerConfig::max_connection_age_grace`].
+    /// After age or idle fires, wait this long for in-flight RPCs.
+    /// Applies to every call shape. See [`ServerConfig::max_connection_age_grace`].
     #[must_use]
     pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
         self.config = self.config.max_connection_age_grace(grace);
         self
     }
 
-    /// Drop a client that never finishes TLS or the HTTP/2 preface. See
-    /// [`ServerConfig::handshake_timeout`].
+    /// Drop a client that never finishes TLS or the HTTP/2 preface.
+    /// Applies to every call shape. See [`ServerConfig::handshake_timeout`].
     #[must_use]
     pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.handshake_timeout(timeout);
@@ -2057,8 +2066,8 @@ impl Router {
         accept_loop(Arc::new(self), listener, config, shutdown, None).await
     }
 
-    /// Bind `addr` and serve until `shutdown` resolves, then drain. See
-    /// [`Server::serve_until_shutdown`].
+    /// Bind `addr` and serve until `shutdown` resolves, then drain.
+    /// Applies to every call shape. See [`Server::serve_until_shutdown`].
     pub async fn serve_until_shutdown(
         self,
         addr: SocketAddr,
@@ -2068,14 +2077,15 @@ impl Router {
     }
 
     /// Bind `path` and serve h2c over a Unix domain socket until the listener
-    /// fails. See [`Server::serve_unix`].
+    /// fails. Applies to every call shape. See [`Server::serve_unix`].
     #[cfg(unix)]
     pub async fn serve_unix(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
         self.serve_unix_listener(bind_unix(path)?).await
     }
 
-    /// [`Self::serve_unix`], after unlinking a crash leftover. A live listener
-    /// is left alone. See [`Server::serve_unix_unlink`].
+    /// [`Self::serve_unix`], after unlinking a crash leftover.
+    /// Applies to every call shape. A live listener is left alone. See
+    /// [`Server::serve_unix_unlink`].
     #[cfg(unix)]
     pub async fn serve_unix_unlink(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
         self.serve_unix_listener(bind_unix_unlink(path).await?)
@@ -2083,6 +2093,7 @@ impl Router {
     }
 
     /// Serve h2c on an existing Unix listener until it fails.
+    /// Applies to every call shape.
     #[cfg(unix)]
     pub async fn serve_unix_listener(self, listener: UnixListener) -> Result<(), Status> {
         self.serve_unix_with_shutdown(listener, std::future::pending())
@@ -2090,6 +2101,7 @@ impl Router {
     }
 
     /// Serve h2c on a Unix listener until `shutdown` resolves, then drain.
+    /// Applies to every call shape.
     #[cfg(unix)]
     pub async fn serve_unix_with_shutdown(
         self,
@@ -2101,7 +2113,7 @@ impl Router {
     }
 
     /// Bind `path` and serve h2c until `shutdown` resolves, then drain.
-    /// See [`Server::serve_unix_until_shutdown`].
+    /// Applies to every call shape. See [`Server::serve_unix_until_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix_until_shutdown(
         self,
@@ -2113,7 +2125,7 @@ impl Router {
     }
 
     /// [`Self::serve_unix_until_shutdown`], after unlinking a crash leftover.
-    /// See [`Server::serve_unix_unlink_until_shutdown`].
+    /// Applies to every call shape. See [`Server::serve_unix_unlink_until_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix_unlink_until_shutdown(
         self,
@@ -2134,8 +2146,8 @@ impl Router {
             .await
     }
 
-    /// Serve over TLS until `shutdown` resolves, then drain. See
-    /// [`Server::serve_with_shutdown`].
+    /// Serve over TLS until `shutdown` resolves, then drain.
+    /// Applies to every call shape. See [`Server::serve_with_shutdown`].
     pub async fn serve_tls_with_shutdown(
         self,
         listener: TcpListener,
@@ -2147,7 +2159,7 @@ impl Router {
     }
 
     /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain.
-    /// See [`Server::serve_tls_until_shutdown`].
+    /// Applies to every call shape. See [`Server::serve_tls_until_shutdown`].
     pub async fn serve_tls_until_shutdown(
         self,
         addr: SocketAddr,
