@@ -133,7 +133,8 @@ See `docs/upb.md`. Short list:
   `Outgoing::set_timeout` is that Call's deadline on every call shape. A
   wrapping `Service`, generated `FooServer::intercept`, and
   `Router::intercept` reject before the body is read and stack in
-  declaration order on every call shape. `FooServer::intercept` then
+  declaration order on every call shape. Interceptor extensions on a
+  wrapping `Service` reach the handler `Request` on every call shape. `FooServer::intercept` then
   `add_service` keeps that reject on every mount and every call shape.
   The same `add_service` keeps `max_decoding_message_size` on every mount
   and every call shape. Generated handlers see

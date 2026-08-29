@@ -575,6 +575,9 @@ impl Rpc {
 
     /// Serve a unary method: one request message, one response message.
     ///
+    /// Interceptor extensions inserted on this [`Rpc`] are visible on the
+    /// handler [`Request`].
+    ///
     /// ```
     /// # use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Status};
     /// # async fn dispatch(rpc: Rpc) {
@@ -619,6 +622,9 @@ impl Rpc {
 
     /// Serve a client-streaming method: many request messages, one response.
     ///
+    /// Interceptor extensions inserted on this [`Rpc`] are visible on the
+    /// handler [`Request`].
+    ///
     /// ```
     /// # use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Status, Streaming};
     /// # async fn dispatch(rpc: Rpc) {
@@ -662,6 +668,9 @@ impl Rpc {
     }
 
     /// Serve a server-streaming method: one request message, many responses.
+    ///
+    /// Interceptor extensions inserted on this [`Rpc`] are visible on the
+    /// handler [`Request`].
     ///
     /// Spawn the producer before returning the stream. A client RST while
     /// drain waits for the next message aborts the drain so
@@ -720,6 +729,9 @@ impl Rpc {
     }
 
     /// Serve a bidirectional-streaming method.
+    ///
+    /// Interceptor extensions inserted on this [`Rpc`] are visible on the
+    /// handler [`Request`].
     ///
     /// ```
     /// # use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Status, Streaming};

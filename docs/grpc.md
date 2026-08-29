@@ -317,7 +317,9 @@ resp.trailers_mut().insert("x-rows-scanned", "1742")?;
 
 On a unary response the client reads that map with `Response::trailers()`.
 On a stream, `Streaming::trailers().await` waits until the RPC ends, then
-returns the same map.
+returns the same map. Initial headers (`Response::metadata`) and OK-path
+custom trailers apply to every call shape; a `-bin` trailer must not appear
+as a header.
 
 A reply you want to rewrite without losing headers splits the same way as a
 request: `Response::into_message_and_parts` yields `ResponseParts` (initial
@@ -1355,10 +1357,12 @@ A wrapping `Service` is still valid when the interceptor needs state the
 closure form does not hold easily — `Rpc::reject` is the same turn-away path
 either way (trailing metadata and `grpc-status-details-bin` both ship), and
 `NAME` is inherited so the wrapper mounts where the inner service would.
-There is no `tower` layer; use `protobuf-tonic` if you need tonic's
-middleware stack. Interceptors run before the handler (or before the stream
-opens on the client). They cannot see or rewrite the final `Status`; do that
-in the method.
+Interceptor extensions inserted on `Rpc` are visible on the handler
+`Request` for every call shape (`Rpc::unary` / `client_streaming` /
+`server_streaming` / `bidi_streaming`). There is no `tower` layer; use
+`protobuf-tonic` if you need tonic's middleware stack. Interceptors run
+before the handler (or before the stream opens on the client). They cannot
+see or rewrite the final `Status`; do that in the method.
 
 For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, `:authority` / `:scheme`, the

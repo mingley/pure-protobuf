@@ -787,21 +787,61 @@ async fn service_ext_interceptors_stack_in_declaration_order() {
 async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
     struct TenantEcho;
 
+    fn tenant_of<T>(request: &Request<T>) -> Result<String, Status> {
+        request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .ok_or_else(|| Status::internal("missing tenant extension"))
+    }
+
+    fn tenant_reply(tenant: String) -> Response<HelloReply> {
+        Response::new(common::reply(&tenant))
+    }
+
+    fn tenant_stream(tenant: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply(&tenant)).await.ok();
+        }));
+        Response::new(stream)
+    }
+
     impl Service for TenantEcho {
         const NAME: &'static str = "demo.TenantEcho";
 
         async fn call(&self, rpc: Rpc) {
-            rpc.unary(|request: Request<HelloRequest>| async move {
-                let tenant = request
-                    .extensions()
-                    .get::<String>()
-                    .cloned()
-                    .unwrap_or_default();
-                let mut reply = HelloReply::new();
-                reply.set_message(tenant);
-                Ok(Response::new(reply))
-            })
-            .await;
+            match rpc.method() {
+                "Unary" => {
+                    rpc.unary(|request: Request<HelloRequest>| async move {
+                        Ok(tenant_reply(tenant_of(&request)?))
+                    })
+                    .await;
+                }
+                "Server" => {
+                    rpc.server_streaming(|request: Request<HelloRequest>| async move {
+                        Ok(tenant_stream(tenant_of(&request)?))
+                    })
+                    .await;
+                }
+                "Client" => {
+                    rpc.client_streaming(
+                        |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
+                            Ok(tenant_reply(tenant_of(&request)?))
+                        },
+                    )
+                    .await;
+                }
+                "Bidi" => {
+                    rpc.bidi_streaming(
+                        |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
+                            Ok(tenant_stream(tenant_of(&request)?))
+                        },
+                    )
+                    .await;
+                }
+                _ => rpc.unimplemented(),
+            }
         }
     }
 
@@ -811,6 +851,14 @@ async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
         };
         rpc.extensions_mut().insert(tenant);
         Ok(())
+    }
+
+    fn stamp_tenant<T>(mut request: Request<T>) -> Request<T> {
+        request
+            .metadata_mut()
+            .insert("x-tenant", "acme")
+            .expect("metadata");
+        request
     }
 
     let (addr, listener) = bind().await;
@@ -823,22 +871,65 @@ async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
 
     let ch = channel(addr).await;
     let denied = ch
-        .unary::<HelloRequest, HelloReply>("/demo.TenantEcho/Ping", Request::new(req("ignored")))
+        .unary::<HelloRequest, HelloReply>("/demo.TenantEcho/Unary", Request::new(req("ignored")))
         .await
-        .expect_err("no tenant");
+        .expect_err("unary");
     assert_eq!(denied.code(), Code::Unauthenticated);
-
-    let mut tagged = Request::new(req("ignored"));
-    tagged
-        .metadata_mut()
-        .insert("x-tenant", "acme")
-        .expect("metadata");
-    let reply = ch
-        .unary::<HelloRequest, HelloReply>("/demo.TenantEcho/Ping", tagged)
+    let denied = ch
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.TenantEcho/Server",
+            Request::new(req("ignored")),
+        )
         .await
-        .expect("with tenant")
+        .expect_err("server-stream");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+    let (tx, call) = ch
+        .client_streaming::<HelloRequest, HelloReply>("/demo.TenantEcho/Client", Request::new(()));
+    let denied = call.await.expect_err("client-stream");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+    drop(tx);
+    let (tx, call) = ch.bidi::<HelloRequest, HelloReply>("/demo.TenantEcho/Bidi", Request::new(()));
+    let denied = call.await.expect_err("bidi");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+    drop(tx);
+
+    let reply = ch
+        .unary::<HelloRequest, HelloReply>(
+            "/demo.TenantEcho/Unary",
+            stamp_tenant(Request::new(req("ignored"))),
+        )
+        .await
+        .expect("unary")
         .into_inner();
     assert_eq!(name_of(&reply), "acme");
+
+    let mut stream = ch
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.TenantEcho/Server",
+            stamp_tenant(Request::new(req("ignored"))),
+        )
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream.message().await.expect("item").expect("first");
+    assert_eq!(name_of(&first), "acme");
+    assert!(stream.message().await.expect("end").is_none());
+
+    let (tx, call) = ch.client_streaming::<HelloRequest, HelloReply>(
+        "/demo.TenantEcho/Client",
+        stamp_tenant(Request::new(())),
+    );
+    tx.close();
+    let reply = call.await.expect("client-stream").into_inner();
+    assert_eq!(name_of(&reply), "acme");
+
+    let (tx, call) = ch
+        .bidi::<HelloRequest, HelloReply>("/demo.TenantEcho/Bidi", stamp_tenant(Request::new(())));
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound.message().await.expect("item").expect("first");
+    assert_eq!(name_of(&first), "acme");
+    assert!(inbound.message().await.expect("end").is_none());
 
     task.abort();
 }

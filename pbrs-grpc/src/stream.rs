@@ -233,7 +233,8 @@ impl<T> Streaming<T> {
     /// `grpc-status` is `Err`, with the custom trailers on
     /// [`Status::metadata`](crate::Status::metadata) and
     /// `grpc-status-details-bin` on [`Status::error_details`](crate::Status::error_details)
-    /// when the peer sent one.
+    /// when the peer sent one. Applies to server-streaming and bidi; unary
+    /// and client-streaming use [`crate::Response::trailers`].
     ///
     /// Application-produced streams ([`Self::channel`]) have no HTTP/2
     /// trailers: this returns empty metadata without consuming remaining

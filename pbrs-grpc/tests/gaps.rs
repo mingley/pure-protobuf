@@ -164,6 +164,46 @@ async fn ok_path_custom_bin_trailers_not_headers() {
         resp.trailers().get_bin(TRAILER_BIN).as_deref(),
         Some([0x00, 0x01].as_slice())
     );
+
+    let resp = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert_eq!(resp.metadata().get(HEADER_ASCII), Some("ok"));
+    assert!(
+        resp.metadata().get_bin(TRAILER_BIN).is_none(),
+        "server-stream -bin trailer must not appear as headers"
+    );
+    let mut stream = resp.into_inner();
+    assert_eq!(
+        stream
+            .trailers()
+            .await
+            .expect("wait")
+            .get_bin(TRAILER_BIN)
+            .as_deref(),
+        Some([0x00, 0x01].as_slice())
+    );
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("bidi");
+    assert_eq!(resp.metadata().get(HEADER_ASCII), Some("ok"));
+    assert!(
+        resp.metadata().get_bin(TRAILER_BIN).is_none(),
+        "bidi -bin trailer must not appear as headers"
+    );
+    let mut inbound = resp.into_inner();
+    assert_eq!(
+        inbound
+            .trailers()
+            .await
+            .expect("bidi wait")
+            .get_bin(TRAILER_BIN)
+            .as_deref(),
+        Some([0x00, 0x01].as_slice())
+    );
 }
 
 #[tokio::test]

@@ -1403,7 +1403,9 @@ impl<T> Response<T> {
         Response::from_message_and_parts(f(message), parts)
     }
 
-    /// Initial headers, sent before the first message.
+    /// Initial headers, sent before the first message. Applies to every call
+    /// shape: a streaming [`crate::Call`] exposes these on the [`Response`]
+    /// before [`crate::Streaming`] messages.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
@@ -1415,6 +1417,11 @@ impl<T> Response<T> {
     }
 
     /// Trailing metadata, sent alongside `grpc-status`.
+    ///
+    /// On unary and client-streaming [`crate::Call`] results this is the
+    /// OK-path custom trailer map. Server-streaming and bidi clients read
+    /// the same map with [`crate::Streaming::trailers`] after end-of-stream.
+    /// A `-bin` trailer must not appear as a header.
     #[must_use]
     pub fn trailers(&self) -> &Metadata {
         &self.trailers
