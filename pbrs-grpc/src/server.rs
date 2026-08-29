@@ -814,6 +814,7 @@ impl Rpc {
             run_handler(&mut respond, on_reset, handler(req)).await
         })
         .await;
+        notify_deadline(&outcome, &cancel_tx);
         Some(Prepared {
             respond,
             wire: config.wire(),
@@ -884,6 +885,7 @@ impl Rpc {
             run_handler(&mut respond, on_reset, handler(req)).await
         })
         .await;
+        notify_deadline(&outcome, &cancel_tx);
         Some(Prepared {
             respond,
             wire: config.wire(),
@@ -893,6 +895,13 @@ impl Rpc {
             peer_accepts_gzip,
             cancel: CancelOnDrop(cancel_tx),
         })
+    }
+}
+
+/// Wake spawned work as soon as the server deadline wins, not after trailers.
+fn notify_deadline<T>(outcome: &Result<T, Status>, cancel: &watch::Sender<bool>) {
+    if matches!(outcome, Err(s) if s.code() == Code::DeadlineExceeded) {
+        cancel.send(true).ok();
     }
 }
 

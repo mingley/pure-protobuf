@@ -430,8 +430,9 @@ impl<T> Request<T> {
     ///
     /// On client RST and on deadline the kernel signals this, then drops a
     /// handler that is still `Pending`. A handler awaiting this can finish
-    /// that await and return. Work the handler `tokio::spawn`ed keeps running
-    /// unless it awaits this.
+    /// that await and return. A server timeout fires this when the deadline
+    /// wins, not after trailers are written. Work the handler `tokio::spawn`ed
+    /// keeps running unless it awaits this.
     ///
     /// Resolves when the RPC ends: after the response is written (unary) or
     /// the stream drains (streaming), not when the handler function returns.

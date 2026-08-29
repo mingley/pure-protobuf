@@ -496,7 +496,8 @@ A handler that `tokio::spawn`s work should await `request.cancelled()` in
 the child (or poll `request.is_cancelled()`). On RST the kernel signals
 that future, then drops a handler that is still pending; it cannot drop
 tasks the handler created. A handler awaiting `cancelled()` in the body
-can finish that await and return. The future resolves when
+can finish that await and return. A server timeout fires `cancelled` when
+the deadline wins, not after trailers are written. The future resolves when
 the RPC ends — after the response is written, or after a stream drains —
 not when the handler function returns. A server-streaming producer spawned
 before `return Ok(Response::new(stream))` stays live until that drain. A
