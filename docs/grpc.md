@@ -124,7 +124,9 @@ println!("{}", reply.get_ref().message());
 string that goes through DNS. The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, so a server restart on the same address does not require
-a new client. Unary and server-streaming RPCs that race a `GOAWAY` after
+a new client. A received `Streaming` holds the HTTP/2 driver, so
+`call.await?.into_inner()` does not require keeping the client around to
+finish the stream. Unary and server-streaming RPCs that race a `GOAWAY` after
 the slot still looked live retry that redial once on the same call.
 `GreeterClient::connect_lazy` skips the initial dial so the client
 can exist before the server; pair it with `wait_for_ready` on the client

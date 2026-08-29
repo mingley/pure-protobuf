@@ -120,6 +120,10 @@ struct Dialed {
 struct LiveConn {
     send: h2::client::SendRequest<Bytes>,
     lease: Option<crate::keepalive::Lease>,
+    /// Clone of the slot's driver-stop sender. Held on a received
+    /// [`Streaming`] so dropping the last [`Channel`] does not stop the
+    /// connection under an in-flight stream.
+    driver: Option<watch::Sender<bool>>,
     slot: usize,
     gen: u64,
 }
@@ -169,7 +173,9 @@ impl Endpoint {
 /// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
 ///
 /// Cloning is cheap and shares the underlying connections, so a `Channel` is
-/// meant to be cloned into every task that needs it.
+/// meant to be cloned into every task that needs it. A received
+/// [`Streaming`] also holds the HTTP/2 driver, so dropping the last `Channel`
+/// clone after headers still lets you read the stream to the end.
 ///
 /// If a connection dies — peer `GOAWAY`, TCP reset, keepalive timeout — the
 /// next RPC on that slot dials again. Unary and server-streaming calls that
@@ -761,7 +767,7 @@ impl Channel {
                 let mut retried = false;
                 loop {
                     let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                    let (slot, gen, lease) = (live.slot, live.gen, live.lease);
+                    let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
                     match run_server_stream(
                         live.send,
                         &channel.inner.authority,
@@ -777,7 +783,7 @@ impl Channel {
                     )
                     .await
                     {
-                        Ok(response) => return Ok(attach_lease(response, lease)),
+                        Ok(response) => return Ok(attach_conn(response, lease, driver)),
                         Err(status)
                             if !retried
                                 && status.is_transport()
@@ -883,7 +889,7 @@ impl Channel {
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                Ok(attach_lease(
+                Ok(attach_conn(
                     run_bidi(
                         live.send,
                         &channel.inner.authority,
@@ -897,6 +903,7 @@ impl Channel {
                     )
                     .await?,
                     live.lease,
+                    live.driver,
                 ))
             }),
         );
@@ -1049,16 +1056,17 @@ impl ChannelInner {
         let i = self.pick()?;
         let mut attempt = 0usize;
         loop {
-            let (handle, lease, gen) = {
+            let (handle, lease, gen, driver) = {
                 let slot = self.slot(i)?.lock().await;
                 let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
-                (slot.send.clone(), lease, slot.gen)
+                (slot.send.clone(), lease, slot.gen, slot.stop.clone())
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
                     return Ok(LiveConn {
                         send: ready,
                         lease,
+                        driver,
                         slot: i,
                         gen,
                     });
@@ -1071,12 +1079,14 @@ impl ChannelInner {
                     if slot.gen == gen {
                         let send = store_dialed(&mut slot, dialed);
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let driver = slot.stop.clone();
                         let gen = slot.gen;
                         drop(slot);
                         spawn_idle_watch(Arc::clone(self), i);
                         return Ok(LiveConn {
                             send,
                             lease,
+                            driver,
                             slot: i,
                             gen,
                         });
@@ -1285,14 +1295,12 @@ where
     })
 }
 
-fn attach_lease<T>(
+fn attach_conn<T>(
     response: crate::request::Response<Streaming<T>>,
     lease: Option<crate::keepalive::Lease>,
+    driver: Option<watch::Sender<bool>>,
 ) -> crate::request::Response<Streaming<T>> {
-    match lease {
-        Some(lease) => response.map(|stream| stream.bind_lease(lease)),
-        None => response,
-    }
+    response.map(|stream| stream.bind_conn(lease, driver))
 }
 
 #[allow(

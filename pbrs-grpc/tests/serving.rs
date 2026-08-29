@@ -4275,7 +4275,9 @@ async fn a_streaming_producer_is_not_cancelled_when_the_handler_returns() {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
     // The HTTP/2 driver lives on the Channel. Dropping the client after
-    // headers closes the connection under a stream that is still draining.
+    // headers used to close the connection under a stream that is still
+    // draining; the stream now holds the driver. Keep the client here so
+    // this test stays about cancellation, not connection lifetime.
     let client = GreeterClient::new(channel(addr).await);
     let mut stream = client
         .server_hello(Request::new(req("ada")))
@@ -4302,6 +4304,41 @@ async fn a_streaming_producer_is_not_cancelled_when_the_handler_returns() {
     assert_eq!(n, 3, "producer must outlive handler return");
     wait_flag(&cancelled).await;
     drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_the_client_does_not_kill_a_live_stream() {
+    let cancelled = Arc::new(AtomicUsize::new(0));
+    let (go, go_rx) = tokio::sync::watch::channel(false);
+    let (addr, listener) = bind().await;
+    let svc = SpawnStream {
+        cancelled: Arc::clone(&cancelled),
+        go: go_rx,
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "0");
+    drop(client);
+    go.send(true).expect("producer is waiting");
+    let mut n = 1;
+    while let Some(msg) = stream.message().await.expect("item") {
+        assert_eq!(name_of(&msg), format!("{n}"));
+        n += 1;
+    }
+    assert_eq!(n, 3, "stream must outlive dropping the client");
     task.abort();
 }
 

@@ -578,7 +578,7 @@ fn h2_error(e: h2::Error) -> Status {
     if e.is_reset() {
         Status::cancelled()
     } else {
-        Status::internal(e.to_string())
+        Status::from_h2(e)
     }
 }
 

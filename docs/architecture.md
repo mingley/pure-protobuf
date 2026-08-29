@@ -72,6 +72,8 @@ a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on
 `Outgoing::scheme`. `FooClient::authority` and `FooClient::grpc_user_agent`
 are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
+A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
+after headers does not end the stream.
 
 ### Interceptors
 

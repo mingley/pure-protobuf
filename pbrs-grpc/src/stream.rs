@@ -12,7 +12,7 @@ use futures_core::Stream;
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, watch};
 
 /// A message plus the gRPC Compressed-Flag its frame carried.
 ///
@@ -74,6 +74,9 @@ enum Source<T> {
 /// (`Item = Result<T, Status>`). Both paths are the same poll: there is no
 /// extra buffer and no extra task.
 ///
+/// A stream received from a [`crate::Channel`] holds the HTTP/2 driver, so
+/// dropping the client after headers still lets you read to the end.
+///
 /// ```no_run
 /// # use pbrs_grpc::{HelloReply, Status, Streaming};
 /// # async fn demo(mut stream: Streaming<HelloReply>) -> Result<(), Status> {
@@ -90,6 +93,9 @@ pub struct Streaming<T> {
     /// Client connection lease. `None` on server-produced streams and on
     /// channels that do not idle-close.
     lease: Option<crate::keepalive::Lease>,
+    /// Keeps the client HTTP/2 driver alive after [`crate::Channel`] is
+    /// dropped. `None` on server-produced streams.
+    driver: Option<watch::Sender<bool>>,
 }
 
 impl<T> Streaming<T> {
@@ -128,6 +134,7 @@ impl<T> Streaming<T> {
             Self {
                 source: Source::Channel(rx),
                 lease: None,
+                driver: None,
             },
         )
     }
@@ -143,12 +150,19 @@ impl<T> Streaming<T> {
         Self {
             source: Source::Wire(Box::new(inner)),
             lease: None,
+            driver: None,
         }
     }
 
-    /// Keep a client connection from looking idle while this stream is read.
-    pub(crate) fn bind_lease(mut self, lease: crate::keepalive::Lease) -> Self {
-        self.lease = Some(lease);
+    /// Keep the client HTTP/2 driver (and idle lease) alive while this stream
+    /// is read, so dropping the [`crate::Channel`] after headers is safe.
+    pub(crate) fn bind_conn(
+        mut self,
+        lease: Option<crate::keepalive::Lease>,
+        driver: Option<watch::Sender<bool>>,
+    ) -> Self {
+        self.lease = lease;
+        self.driver = driver;
         self
     }
 
@@ -254,6 +268,7 @@ impl<T> std::fmt::Debug for Streaming<T> {
         f.debug_struct("Streaming")
             .field("source", &source)
             .field("busy", &self.lease.is_some())
+            .field("driver", &self.driver.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -389,6 +404,8 @@ mod tests {
     #[tokio::test]
     async fn channel_round_trips_messages() {
         let (tx, mut stream) = Streaming::<HelloReply>::channel(4);
+        let shown_stream = format!("{stream:?}");
+        assert!(shown_stream.contains("driver: false"), "{shown_stream}");
         tx.send(reply("one")).await.expect("send");
         tx.send_compressed(reply("two")).await.expect("send");
         let shown = format!("{tx:?}");
