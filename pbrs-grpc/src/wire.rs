@@ -883,9 +883,11 @@ pub(crate) enum PumpEnd {
     HalfClosed,
     /// Already `RST_STREAM` (Call cancel, or a write failed). Do not park.
     Reset,
-    /// [`crate::StreamSender::fail`]: already `RST_STREAM` CANCEL. A
-    /// client-streaming [`crate::Call`], or a bidi [`crate::Call`] that has
-    /// not yet seen headers, resolves with this status.
+    /// [`crate::StreamSender::fail`]: the caller `RST_STREAM`s CANCEL after
+    /// delivering this status (so a bidi [`crate::Call`] can see it before
+    /// h2 surfaces the reset). A client-streaming [`crate::Call`], or a bidi
+    /// [`crate::Call`] that has not yet seen headers, resolves with this
+    /// status.
     Failed(Status),
 }
 
@@ -894,7 +896,7 @@ pub(crate) enum PumpEnd {
 /// The caller keeps `send` so a client-streaming [`crate::CallHandle`] can
 /// still `RST_STREAM` after a clean half-close. [`PumpEnd::HalfClosed`]
 /// means this pump half-closed; [`PumpEnd::Reset`] means it already reset;
-/// [`PumpEnd::Failed`] is [`crate::StreamSender::fail`] (reset with CANCEL).
+/// [`PumpEnd::Failed`] is [`crate::StreamSender::fail`] (caller RSTs CANCEL).
 pub(crate) async fn pump_outbound<T: Serialize>(
     send: &mut SendStream<Bytes>,
     mut rx: Streaming<T>,
@@ -941,7 +943,9 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             let item = match item {
                 Ok(item) => item,
                 Err(status) => {
-                    send.send_reset(Reason::CANCEL);
+                    // Do not RST here: the caller delivers this status first
+                    // (in-task on client-streaming, oneshot on bidi) so the
+                    // Call does not lose it to h2 UNAVAILABLE from the reset.
                     return PumpEnd::Failed(status);
                 }
             };

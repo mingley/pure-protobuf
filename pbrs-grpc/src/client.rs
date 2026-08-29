@@ -1568,7 +1568,10 @@ where
                 _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
                 end = &mut pump, if !half_closed => {
                     match end {
-                        PumpEnd::Failed(status) => break Err(status),
+                        PumpEnd::Failed(status) => {
+                            send.stream.send_reset(Reason::CANCEL);
+                            break Err(status);
+                        }
                         PumpEnd::HalfClosed | PumpEnd::Reset => half_closed = true,
                     }
                 }
@@ -1643,6 +1646,7 @@ where
             match pump_outbound(&mut send, rx, cancel_rx.clone(), wire).await {
                 PumpEnd::Failed(status) => {
                     fail_tx.send(status).ok();
+                    send.send_reset(Reason::CANCEL);
                 }
                 PumpEnd::HalfClosed => reset_on_cancel(send, cancel_rx),
                 PumpEnd::Reset => {}
