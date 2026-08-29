@@ -2768,6 +2768,35 @@ async fn assert_greeter_blocked_every_shape(client: &GreeterClient) {
     drop(tx);
 }
 
+struct FailGreeter;
+
+impl Greeter for FailGreeter {
+    async fn say_hello(&self, _: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn client_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn server_hello(
+        &self,
+        _: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn stream_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(interceptor_blocked())
+    }
+}
+
 fn stamp_outgoing_context(call: &mut Outgoing<'_>) -> Result<(), Status> {
     let path = call.path();
     call.metadata_mut().insert("x-path", path)?;
@@ -5224,6 +5253,74 @@ async fn mtls_client_interceptor_sees_every_shape_context() {
         .intercept(stamp_outgoing_context);
     echo_every_shape(&client, None).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_handlers_return_typed_status_on_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(FailGreeter)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_greeter_blocked_every_shape(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_handlers_return_typed_status_on_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(FailGreeter)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_greeter_blocked_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_handlers_return_typed_status_on_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(FailGreeter)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    assert_greeter_blocked_every_shape(&GreeterClient::new(
+        Channel::connect_unix(&path).await.expect("connect"),
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_handlers_return_typed_status_on_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(FailGreeter)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_greeter_blocked_every_shape(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

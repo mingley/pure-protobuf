@@ -191,7 +191,9 @@ See `docs/upb.md`. Short list:
   call shape over TLS, including over mTLS, Unix, and `from_io`. A TLS, mTLS, Unix,
   or `from_io` interceptor `Err(with_error_details)` unpacks on every Greeter
   shape. A client interceptor sees Outgoing path / service / method / authority /
-  scheme on every Greeter shape, including over TLS, mTLS, Unix, and `from_io`. Official `TestService` `send_compressed` gzips EmptyCall /
+  scheme on every Greeter shape, including over TLS, mTLS, Unix, and `from_io`.
+  A generated Greeter handler `Err(with_error_details)` unpacks on every call
+  shape, including over TLS, mTLS, Unix, and `from_io`. Official `TestService` `send_compressed` gzips EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
   TLS, mTLS, Unix, and `from_io`. A wrapping `Service` `send_compressed` gzips every
   hand-written Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`. Health
