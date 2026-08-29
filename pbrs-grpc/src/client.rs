@@ -526,8 +526,8 @@ impl Channel {
         self
     }
 
-    /// Default per-RPC deadline when the request omits one. See
-    /// [`ChannelConfig::timeout`].
+    /// Default per-RPC deadline when the request omits one. Applies to every
+    /// call shape. See [`ChannelConfig::timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.timeout(timeout);
@@ -546,8 +546,8 @@ impl Channel {
         self
     }
 
-    /// Default per-RPC deadline when the request omits one.
-    /// Distinct from [`Self::timeout`], which sets it.
+    /// Default per-RPC deadline when the request omits one. Applies to every
+    /// call shape. Distinct from [`Self::timeout`], which sets it.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.config.rpc_timeout()

@@ -302,6 +302,7 @@ impl ServerConfig {
     }
 
     /// Cap every RPC to this duration even when the client omits `grpc-timeout`.
+    /// Applies to every call shape.
     ///
     /// The effective deadline is the soonest of this, the client's, and any
     /// [`crate::Rpc::set_timeout`] from an interceptor. Disabled by default.
@@ -790,6 +791,7 @@ impl ChannelConfig {
     }
 
     /// Default per-RPC deadline when the request omits `grpc-timeout`.
+    /// Applies to every call shape.
     ///
     /// Distinct from [`Self::connect_timeout`], which bounds the dial. Disabled
     /// by default. Values below 1 ms are raised to 1 ms. A request that already

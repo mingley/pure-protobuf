@@ -193,12 +193,18 @@ async fn mounting_the_same_service_twice_keeps_the_last() {
 /// A handler slow enough that the drain has to wait for it.
 struct Slow;
 
+impl Slow {
+    async fn hang(&self) {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+}
+
 impl pbrs_grpc::Greeter for Slow {
     async fn say_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        self.hang().await;
         let mut reply = HelloReply::new();
         reply.set_message(request.get_ref().name());
         Ok(Response::new(reply))
@@ -208,21 +214,24 @@ impl pbrs_grpc::Greeter for Slow {
         &self,
         _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("slow"))
+        self.hang().await;
+        Ok(Response::new(common::reply("ok")))
     }
 
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("slow"))
+        self.hang().await;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
     }
 
     async fn stream_hello(
         &self,
         _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("slow"))
+        self.hang().await;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
     }
 }
 
@@ -1219,17 +1228,7 @@ async fn a_channel_timeout_expires_when_the_request_omits_one() {
         GreeterServer::new(Slow).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await).timeout(Duration::from_millis(40));
-    let started = Instant::now();
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    assert!(
-        started.elapsed() < Duration::from_millis(150),
-        "channel default should fire before Slow returns: {:?}",
-        started.elapsed()
-    );
+    assert_deadline_quickly_on_every_shape(&client, None, Duration::from_millis(150)).await;
     task.abort();
 }
 
@@ -1261,17 +1260,12 @@ async fn a_channel_config_timeout_is_the_default_rpc_deadline() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
-    let started = Instant::now();
-    let err = GreeterClient::new(channel)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    assert!(
-        started.elapsed() < Duration::from_millis(150),
-        "ChannelConfig::timeout should fire: {:?}",
-        started.elapsed()
-    );
+    assert_deadline_quickly_on_every_shape(
+        &GreeterClient::new(channel),
+        None,
+        Duration::from_millis(150),
+    )
+    .await;
     task.abort();
 }
 
@@ -1282,10 +1276,7 @@ async fn a_request_timeout_wins_over_the_channel_default() {
         GreeterServer::new(Slow).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await).timeout(Duration::from_millis(40));
-    let mut request = Request::new(req("ada"));
-    request.set_timeout(Duration::from_secs(5));
-    let reply = client.say_hello(request).await.expect("request deadline");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    slow_every_shape(&client, Some(Duration::from_secs(5))).await;
     task.abort();
 }
 
@@ -1301,11 +1292,7 @@ async fn a_client_interceptor_can_clear_the_channel_timeout() {
             call.clear_timeout();
             Ok(())
         });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("cleared");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    slow_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -1818,17 +1805,12 @@ async fn a_server_interceptor_can_tighten_the_deadline() {
     });
 
     let client = GreeterClient::new(channel(addr).await);
-    let mut request = Request::new(req("ada"));
-    request.set_timeout(Duration::from_secs(5));
-    let started = Instant::now();
-    let err = client.say_hello(request).await.expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    assert!(
-        started.elapsed() < Duration::from_millis(500),
-        "interceptor cap should win: {:?}",
-        started.elapsed()
-    );
-
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_secs(5)),
+        Duration::from_millis(500),
+    )
+    .await;
     task.abort();
 }
 
@@ -2180,16 +2162,12 @@ async fn a_server_interceptor_cannot_extend_the_client_deadline() {
             .ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let mut request = Request::new(req("ada"));
-    request.set_timeout(Duration::from_millis(50));
-    let started = Instant::now();
-    let err = client.say_hello(request).await.expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    assert!(
-        started.elapsed() < Duration::from_millis(150),
-        "interceptor must not extend the client deadline: {:?}",
-        started.elapsed()
-    );
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_millis(50)),
+        Duration::from_millis(150),
+    )
+    .await;
     task.abort();
 }
 
@@ -3645,11 +3623,7 @@ async fn a_server_timeout_expires_when_the_client_sends_none() {
             .ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert_deadline_quickly_on_every_shape(&client, None, Duration::from_millis(150)).await;
     task.abort();
 }
 
@@ -3665,16 +3639,12 @@ async fn a_server_timeout_caps_a_longer_client_deadline() {
             .ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let mut request = Request::new(req("ada"));
-    request.set_timeout(Duration::from_secs(5));
-    let started = Instant::now();
-    let err = client.say_hello(request).await.expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    assert!(
-        started.elapsed() < Duration::from_millis(500),
-        "server cap should win: {:?}",
-        started.elapsed()
-    );
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_secs(5)),
+        Duration::from_millis(500),
+    )
+    .await;
     task.abort();
 }
 
@@ -4616,6 +4586,68 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
         .expect("item")
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
+    assert!(inbound.message().await.expect("end").is_none());
+}
+
+async fn assert_deadline_quickly<T>(call: Call<T>, max_elapsed: Duration) {
+    let started = Instant::now();
+    let err = match call.await {
+        Ok(_) => panic!("expected deadline"),
+        Err(status) => status,
+    };
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() < max_elapsed,
+        "deadline too slow: {:?}",
+        started.elapsed()
+    );
+}
+
+async fn assert_deadline_quickly_on_every_shape(
+    client: &GreeterClient,
+    timeout: Option<Duration>,
+    max_elapsed: Duration,
+) {
+    assert_deadline_quickly(
+        client.say_hello(stamp_timeout(Request::new(req("ada")), timeout)),
+        max_elapsed,
+    )
+    .await;
+    assert_deadline_quickly(
+        client.server_hello(stamp_timeout(Request::new(req("ada")), timeout)),
+        max_elapsed,
+    )
+    .await;
+    let (tx, call) = client.client_hello(stamp_timeout(Request::new(()), timeout));
+    assert_deadline_quickly(call, max_elapsed).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(stamp_timeout(Request::new(()), timeout));
+    assert_deadline_quickly(call, max_elapsed).await;
+    drop(tx);
+}
+
+async fn slow_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
+    let reply = client
+        .say_hello(stamp_timeout(Request::new(req("ada")), timeout))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let mut stream = client
+        .server_hello(stamp_timeout(Request::new(req("ada")), timeout))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    assert!(stream.message().await.expect("end").is_none());
+
+    let (tx, call) = client.client_hello(stamp_timeout(Request::new(()), timeout));
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ok");
+
+    let (tx, call) = client.stream_hello(stamp_timeout(Request::new(()), timeout));
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
     assert!(inbound.message().await.expect("end").is_none());
 }
 

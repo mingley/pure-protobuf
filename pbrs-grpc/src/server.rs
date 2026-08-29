@@ -1368,8 +1368,8 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// Cap every RPC even when the client omits `grpc-timeout`. See
-    /// [`ServerConfig::timeout`].
+    /// Cap every RPC even when the client omits `grpc-timeout`. Applies to
+    /// every call shape. See [`ServerConfig::timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.timeout(timeout);
@@ -1879,8 +1879,8 @@ impl Router {
         self
     }
 
-    /// Cap every RPC even when the client omits `grpc-timeout`. See
-    /// [`ServerConfig::timeout`].
+    /// Cap every RPC even when the client omits `grpc-timeout`. Applies to
+    /// every call shape. See [`ServerConfig::timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.timeout(timeout);
