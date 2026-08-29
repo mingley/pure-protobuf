@@ -909,3 +909,93 @@ async fn max_connection_age_lets_in_flight_rpcs_finish() {
     assert_eq!(name_of(reply.get_ref()), "ada");
     task.abort();
 }
+
+#[cfg(unix)]
+struct UnixSockGuard(std::path::PathBuf);
+
+#[cfg(unix)]
+impl Drop for UnixSockGuard {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+#[cfg(unix)]
+fn unix_test_path() -> (std::path::PathBuf, UnixSockGuard) {
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "pbrs-grpc-{}-{}.sock",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    (path.clone(), UnixSockGuard(path))
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_socket_unary() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = Channel::connect_unix(&path).await.expect("connect");
+    let client = GreeterClient::new(channel);
+    let reply = client
+        .say_hello(Request::new(req("uds")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "uds");
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_lazy_fails_fast_when_nothing_is_listening() {
+    let (path, _guard) = unix_test_path();
+    let channel = Channel::connect_unix_lazy(&path).expect("lazy");
+    let client = GreeterClient::new(channel);
+    let err = tokio::time::timeout(
+        Duration::from_secs(2),
+        client.say_hello(Request::new(req("x"))),
+    )
+    .await
+    .expect("fail-fast hung")
+    .expect_err("rpc succeeded with no socket");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_wait_for_ready_completes_once_the_server_listens() {
+    let (path, _guard) = unix_test_path();
+    let channel = Channel::connect_unix_lazy(&path).expect("lazy");
+    let client = GreeterClient::new(channel);
+    let mut request = Request::new(req("late"));
+    request.set_wait_for_ready(true);
+    request.set_timeout(Duration::from_secs(5));
+    let mut call = client.say_hello(request);
+
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+
+    let reply = tokio::time::timeout(Duration::from_secs(2), call)
+        .await
+        .expect("wait-for-ready hung after listen")
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "late");
+    task.abort();
+}

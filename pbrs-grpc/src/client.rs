@@ -14,10 +14,14 @@ use h2::Reason;
 use http::uri::Authority;
 use pbrs::{Parse, Serialize};
 use std::net::SocketAddr;
+#[cfg(unix)]
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
+#[cfg(unix)]
+use tokio::net::UnixStream;
 use tokio::sync::{watch, Mutex};
 
 /// Where a [`Channel`] should dial.
@@ -100,12 +104,30 @@ struct ChannelInner {
     slots: Vec<Mutex<ConnSlot>>,
     next: AtomicUsize,
     authority: Authority,
-    /// `host:port` passed to [`TcpStream::connect`].
-    target: String,
+    endpoint: Endpoint,
     tls: Option<ClientTls>,
     /// Settings used to dial. Per-clone message-size overlays on [`Channel`]
     /// do not change how a dead slot is redialed.
     dial: ChannelConfig,
+}
+
+/// Where a handshake should connect. TCP is `host:port`; Unix is a filesystem
+/// path. HTTP/2 `:authority` for a Unix socket is `localhost`.
+#[derive(Clone)]
+enum Endpoint {
+    Tcp(String),
+    #[cfg(unix)]
+    Unix(PathBuf),
+}
+
+impl Endpoint {
+    fn describe(&self) -> String {
+        match self {
+            Self::Tcp(host) => host.clone(),
+            #[cfg(unix)]
+            Self::Unix(path) => path.display().to_string(),
+        }
+    }
 }
 
 /// A prior-knowledge HTTP/2 connection (or small pool) to a gRPC server.
@@ -124,6 +146,9 @@ struct ChannelInner {
 /// before its server. The first RPC fails fast with [`Code::Unavailable`]
 /// unless that request set [`Request::set_wait_for_ready`], in which case
 /// it retries until connected, cancelled, or the deadline fires.
+///
+/// On Unix, [`Self::connect_unix`] / [`Self::connect_unix_lazy`] speak the
+/// same protocol over a domain socket. TLS is TCP-only.
 ///
 /// [`Self::intercept`] runs on every outbound RPC before the stream opens,
 /// which is how a client injects auth metadata without touching each call.
@@ -164,7 +189,7 @@ impl Channel {
 
     /// Dial `target` with `config`.
     ///
-    /// Opens [`ChannelConfig::connections`] TCP connections up front; RPCs are
+    /// Opens [`ChannelConfig::connections`] connections up front; RPCs are
     /// spread over them round-robin. All of them must succeed. A slot that
     /// later dies is redialed on the next RPC that lands on it.
     pub async fn connect_with(
@@ -234,6 +259,45 @@ impl Channel {
         tls: ClientTls,
     ) -> Result<Self, Status> {
         connect_lazy_inner(target.into(), config, Some(tls))
+    }
+
+    /// Dial a Unix domain socket with default configuration.
+    ///
+    /// h2c only; TLS over a Unix socket is not supported. `:authority` is
+    /// `localhost`. `path` is a filesystem path, not a `unix://` URI.
+    #[cfg(unix)]
+    pub async fn connect_unix(path: impl AsRef<Path>) -> Result<Self, Status> {
+        Self::connect_unix_with(path, ChannelConfig::default()).await
+    }
+
+    /// [`Self::connect_unix`] with `config`.
+    #[cfg(unix)]
+    pub async fn connect_unix_with(
+        path: impl AsRef<Path>,
+        config: ChannelConfig,
+    ) -> Result<Self, Status> {
+        connect_unix_inner(path.as_ref(), config).await
+    }
+
+    /// [`Self::connect_unix`] that dials on the first RPC instead of now.
+    #[cfg(unix)]
+    pub fn connect_unix_lazy(path: impl AsRef<Path>) -> Result<Self, Status> {
+        Self::connect_unix_lazy_with(path, ChannelConfig::default())
+    }
+
+    /// [`Self::connect_unix_lazy`] with `config`.
+    #[cfg(unix)]
+    pub fn connect_unix_lazy_with(
+        path: impl AsRef<Path>,
+        config: ChannelConfig,
+    ) -> Result<Self, Status> {
+        Ok(finish_channel(
+            Endpoint::Unix(path.as_ref().to_owned()),
+            unix_authority(),
+            config,
+            None,
+            empty_slots(config.connection_count()),
+        ))
     }
 
     /// The configuration in effect.
@@ -472,33 +536,20 @@ async fn connect_inner(
     config: ChannelConfig,
     tls: Option<ClientTls>,
 ) -> Result<Channel, Status> {
-    let host = target.authority().to_owned();
+    let endpoint = Endpoint::Tcp(target.authority().to_owned());
     let authority = target.parse()?;
     let n = config.connection_count();
     let mut sends = Vec::with_capacity(n);
     for _ in 0..n {
-        sends.push(handshake(&host, config, tls.as_ref()).await?);
+        sends.push(handshake(&endpoint, config, tls.as_ref()).await?);
     }
-    Ok(Channel {
-        inner: Arc::new(ChannelInner {
-            slots: sends
-                .into_iter()
-                .map(|send| {
-                    Mutex::new(ConnSlot {
-                        gen: 0,
-                        send: Some(send),
-                    })
-                })
-                .collect(),
-            next: AtomicUsize::new(0),
-            authority,
-            target: host,
-            tls,
-            dial: config,
-        }),
+    Ok(finish_channel(
+        endpoint,
+        authority,
         config,
-        interceptors: Arc::from([]),
-    })
+        tls,
+        live_slots(sends),
+    ))
 }
 
 fn connect_lazy_inner(
@@ -506,23 +557,76 @@ fn connect_lazy_inner(
     config: ChannelConfig,
     tls: Option<ClientTls>,
 ) -> Result<Channel, Status> {
-    let host = target.authority().to_owned();
+    let endpoint = Endpoint::Tcp(target.authority().to_owned());
     let authority = target.parse()?;
+    Ok(finish_channel(
+        endpoint,
+        authority,
+        config,
+        tls,
+        empty_slots(config.connection_count()),
+    ))
+}
+
+#[cfg(unix)]
+async fn connect_unix_inner(path: &Path, config: ChannelConfig) -> Result<Channel, Status> {
+    let endpoint = Endpoint::Unix(path.to_owned());
     let n = config.connection_count();
-    Ok(Channel {
+    let mut sends = Vec::with_capacity(n);
+    for _ in 0..n {
+        sends.push(handshake(&endpoint, config, None).await?);
+    }
+    Ok(finish_channel(
+        endpoint,
+        unix_authority(),
+        config,
+        None,
+        live_slots(sends),
+    ))
+}
+
+fn finish_channel(
+    endpoint: Endpoint,
+    authority: Authority,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+    slots: Vec<Mutex<ConnSlot>>,
+) -> Channel {
+    Channel {
         inner: Arc::new(ChannelInner {
-            slots: (0..n)
-                .map(|_| Mutex::new(ConnSlot { gen: 0, send: None }))
-                .collect(),
+            slots,
             next: AtomicUsize::new(0),
             authority,
-            target: host,
+            endpoint,
             tls,
             dial: config,
         }),
         config,
         interceptors: Arc::from([]),
-    })
+    }
+}
+
+fn live_slots(sends: Vec<h2::client::SendRequest<Bytes>>) -> Vec<Mutex<ConnSlot>> {
+    sends
+        .into_iter()
+        .map(|send| {
+            Mutex::new(ConnSlot {
+                gen: 0,
+                send: Some(send),
+            })
+        })
+        .collect()
+}
+
+fn empty_slots(n: usize) -> Vec<Mutex<ConnSlot>> {
+    (0..n)
+        .map(|_| Mutex::new(ConnSlot { gen: 0, send: None }))
+        .collect()
+}
+
+#[cfg(unix)]
+fn unix_authority() -> Authority {
+    Authority::from_static("localhost")
 }
 
 impl ChannelInner {
@@ -566,7 +670,7 @@ impl ChannelInner {
                     return Ok(ready);
                 }
             }
-            match handshake(&self.target, self.dial, self.tls.as_ref()).await {
+            match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
                 Ok(send) => {
                     let mut slot = self.slot(i)?.lock().await;
                     if slot.gen == gen {
@@ -590,18 +694,34 @@ impl ChannelInner {
 }
 
 async fn handshake(
-    authority: &str,
+    endpoint: &Endpoint,
     config: ChannelConfig,
     tls: Option<&ClientTls>,
 ) -> Result<h2::client::SendRequest<Bytes>, Status> {
-    let tcp = TcpStream::connect(authority)
-        .await
-        .map_err(|e| Status::unavailable(format!("connect {authority}: {e}")))?;
-    tcp.set_nodelay(true)
-        .map_err(|e| Status::unavailable(e.to_string()))?;
-    match tls {
-        None => finish_h2(config, tcp).await,
-        Some(tls) => finish_h2(config, tls.connect(tcp).await?).await,
+    match endpoint {
+        Endpoint::Tcp(host) => {
+            let tcp = TcpStream::connect(host)
+                .await
+                .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
+            tcp.set_nodelay(true)
+                .map_err(|e| Status::unavailable(e.to_string()))?;
+            match tls {
+                None => finish_h2(config, tcp).await,
+                Some(tls) => finish_h2(config, tls.connect(tcp).await?).await,
+            }
+        }
+        #[cfg(unix)]
+        Endpoint::Unix(path) => {
+            if tls.is_some() {
+                return Err(Status::invalid_argument(
+                    "TLS over a Unix socket is not supported",
+                ));
+            }
+            let io = UnixStream::connect(path).await.map_err(|e| {
+                Status::unavailable(format!("connect {}: {e}", endpoint.describe()))
+            })?;
+            finish_h2(config, io).await
+        }
     }
 }
 

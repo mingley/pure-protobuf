@@ -239,6 +239,8 @@ mod wire;
 #[forbid(unsafe_code)]
 pub mod codegen_support {
     pub use tokio::net::TcpListener;
+    #[cfg(unix)]
+    pub use tokio::net::UnixListener;
 }
 
 pub use client::{Channel, Target};

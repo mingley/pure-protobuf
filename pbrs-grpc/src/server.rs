@@ -28,6 +28,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use tokio::net::TcpListener;
+#[cfg(unix)]
+use tokio::net::UnixListener;
 use tokio::sync::{mpsc, watch};
 
 /// A gRPC service that can be served.
@@ -638,6 +640,41 @@ impl<S: Service> Server<S> {
         .await
     }
 
+    /// Bind `path` and serve h2c over a Unix domain socket until the listener
+    /// fails.
+    ///
+    /// `path` must not already be bound. This does not unlink a stale socket.
+    /// TLS over a Unix socket is not supported; use
+    /// [`Self::serve_tls`] on TCP.
+    #[cfg(unix)]
+    pub async fn serve_unix(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
+        self.serve_unix_listener(bind_unix(path)?).await
+    }
+
+    /// Serve h2c on an existing Unix listener until it fails.
+    #[cfg(unix)]
+    pub async fn serve_unix_listener(self, listener: UnixListener) -> Result<(), Status> {
+        self.serve_unix_with_shutdown(listener, std::future::pending())
+            .await
+    }
+
+    /// Serve h2c on a Unix listener until `shutdown` resolves, then drain.
+    /// See [`Self::serve_with_shutdown`].
+    #[cfg(unix)]
+    pub async fn serve_unix_with_shutdown(
+        self,
+        listener: UnixListener,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        accept_unix_loop(
+            Arc::new(Single(self.service)),
+            listener,
+            self.config,
+            shutdown,
+        )
+        .await
+    }
+
     /// Bind `addr` and serve over TLS until the listener fails.
     pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
         self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
@@ -781,6 +818,31 @@ impl Router {
         accept_loop(Arc::new(self), listener, config, shutdown, None).await
     }
 
+    /// Bind `path` and serve h2c over a Unix domain socket until the listener
+    /// fails. See [`Server::serve_unix`].
+    #[cfg(unix)]
+    pub async fn serve_unix(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
+        self.serve_unix_listener(bind_unix(path)?).await
+    }
+
+    /// Serve h2c on an existing Unix listener until it fails.
+    #[cfg(unix)]
+    pub async fn serve_unix_listener(self, listener: UnixListener) -> Result<(), Status> {
+        self.serve_unix_with_shutdown(listener, std::future::pending())
+            .await
+    }
+
+    /// Serve h2c on a Unix listener until `shutdown` resolves, then drain.
+    #[cfg(unix)]
+    pub async fn serve_unix_with_shutdown(
+        self,
+        listener: UnixListener,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        let config = self.config;
+        accept_unix_loop(Arc::new(self), listener, config, shutdown).await
+    }
+
     /// Bind `addr` and serve over TLS until the listener fails.
     pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
         self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
@@ -818,6 +880,11 @@ async fn bind(addr: SocketAddr) -> Result<TcpListener, Status> {
     TcpListener::bind(addr)
         .await
         .map_err(|e| Status::unavailable(e.to_string()))
+}
+
+#[cfg(unix)]
+fn bind_unix(path: impl AsRef<std::path::Path>) -> Result<UnixListener, Status> {
+    UnixListener::bind(path.as_ref()).map_err(|e| Status::unavailable(e.to_string()))
 }
 
 /// Accept connections until `shutdown` resolves, then drain in-flight work.
@@ -886,6 +953,65 @@ async fn accept_loop<D: Dispatch>(
     drop(goaway_tx);
     drop(drain_tx);
     // Resolves once every connection task has dropped its `drain` clone.
+    while drain_rx.recv().await.is_some() {}
+    result
+}
+
+/// Unix-domain accept loop. Same drain/GOAWAY contract as the TCP accept
+/// loop, without TLS or `TCP_NODELAY` (neither applies).
+#[cfg(unix)]
+async fn accept_unix_loop<D: Dispatch>(
+    dispatch: Arc<D>,
+    listener: UnixListener,
+    config: ServerConfig,
+    shutdown: impl Future<Output = ()> + Send,
+) -> Result<(), Status> {
+    let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
+    let (goaway_tx, goaway_rx) = watch::channel(false);
+    let shutdown = std::pin::pin!(shutdown);
+    let mut shutdown = Some(shutdown);
+    let mut result = Ok(());
+    loop {
+        let accepted = {
+            let accept = std::pin::pin!(listener.accept());
+            let mut accept = Some(accept);
+            std::future::poll_fn(|cx| {
+                if let Some(fut) = accept.as_mut() {
+                    if let Poll::Ready(res) = fut.as_mut().poll(cx) {
+                        return Poll::Ready(Some(res));
+                    }
+                }
+                if let Some(fut) = shutdown.as_mut() {
+                    if fut.as_mut().poll(cx).is_ready() {
+                        return Poll::Ready(None);
+                    }
+                }
+                Poll::Pending
+            })
+            .await
+        };
+        let Some(accepted) = accepted else {
+            break;
+        };
+        match accepted {
+            Ok((io, _peer)) => {
+                let dispatch = Arc::clone(&dispatch);
+                let goaway = goaway_rx.clone();
+                let drain = drain_tx.clone();
+                drop(tokio::spawn(async move {
+                    serve_io(dispatch, io, None, config, goaway).await;
+                    drop(drain);
+                }));
+            }
+            Err(e) => {
+                result = Err(Status::unavailable(e.to_string()));
+                break;
+            }
+        }
+    }
+    goaway_tx.send(true).ok();
+    drop(goaway_tx);
+    drop(drain_tx);
     while drain_rx.recv().await.is_some() {}
     result
 }

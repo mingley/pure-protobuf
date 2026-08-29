@@ -4001,6 +4001,30 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Bind `path` and serve h2c over a Unix domain socket."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_unix(self, path: impl AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix(path).await }}"
+    );
+    let _ = writeln!(src, "    /// Serve h2c on an existing Unix listener.");
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_unix_listener(self, listener: {G}::codegen_support::UnixListener) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_listener(listener).await }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Serve h2c on a Unix listener until `shutdown` resolves, then drain."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_unix_with_shutdown(self, listener: {G}::codegen_support::UnixListener, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_with_shutdown(listener, shutdown).await }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Bind `addr` and serve over TLS until the listener fails."
     );
     let _ = writeln!(

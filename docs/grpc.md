@@ -14,6 +14,7 @@ numbers, see [benchmarks](benchmarks.md).
 - [Wait-for-ready and lazy connect](#wait-for-ready-and-lazy-connect)
 - [Serving several services](#serving-several-services)
 - [TLS](#tls)
+- [Unix domain sockets](#unix-domain-sockets)
 - [Health checks](#health-checks)
 - [Graceful shutdown](#graceful-shutdown)
 - [Connection age and idle](#connection-age-and-idle)
@@ -461,6 +462,23 @@ A `Channel` also redials after a peer `GOAWAY` or a TCP reset, so restarting
 the server on the same address does not require constructing a new client.
 Healthy connections waiting only on `SETTINGS_MAX_CONCURRENT_STREAMS` are
 left alone.
+
+## Unix domain sockets
+
+Loopback without TCP: a filesystem socket. The protocol is the same h2c as
+`127.0.0.1`. TLS is TCP-only. `request.remote_addr()` is `None`; there is no
+`std::net::SocketAddr` for a Unix peer.
+
+```rust
+GreeterServer::new(MyGreeter).serve_unix("/tmp/greeter.sock").await?;
+let channel = Channel::connect_unix("/tmp/greeter.sock").await?;
+```
+
+`connect_unix_lazy` and `Request::set_wait_for_ready` work the same as on
+TCP. The path is a filesystem path, not a `unix://` URI. Bind fails if the
+path already exists; this crate does not unlink a stale socket.
+
+`:authority` on Unix RPCs is `localhost`.
 
 ## Health checks
 
