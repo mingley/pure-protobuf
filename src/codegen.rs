@@ -3894,6 +3894,10 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
             src,
             "    /// The default answers [`{G}::Status::unimplemented`]."
         );
+        let _ = writeln!(
+            src,
+            "    /// Inbound `grpc-encoding` is [`{G}::Request::encoding`] (`None` for identity)."
+        );
         let _ = writeln!(src, "    fn {fn_name}(");
         let _ = writeln!(src, "        &self,");
         let _ = writeln!(
@@ -4874,6 +4878,10 @@ fn emit_kernel_client(
         let _ = writeln!(
             src,
             "    /// Interceptors run when this method is called, not on first poll of the [`{G}::Call`]."
+        );
+        let _ = writeln!(
+            src,
+            "    /// The reply's [`{G}::Response::encoding`] is the peer's `grpc-encoding` (`None` for identity). The [`{G}::Call`] is fused after it resolves."
         );
         let _ = writeln!(
             src,
