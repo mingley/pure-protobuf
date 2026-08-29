@@ -168,7 +168,8 @@ async fn client_hello(
 }
 ```
 
-Received streams are decoded on the task that calls `message()`. There is no
+Received streams are decoded on the task that calls `message()` (or
+`Stream::poll_next` — both are the same poll). There is no
 pump task and no queue in between, which means backpressure is exact: stop
 reading and you stop releasing HTTP/2 capacity, so the peer stalls at the
 window rather than filling a buffer you own.

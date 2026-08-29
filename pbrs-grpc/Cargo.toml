@@ -13,6 +13,9 @@ pbrs = { path = ".." }
 [dependencies]
 base64 = "0.22"
 bytes = "1"
+# Already in the graph via h2. Direct so `Streaming` can be a `Stream` without
+# a per-message allocation. No C.
+futures-core = { version = "0.3", default-features = false }
 # `rust_backend` is miniz_oxide: pure Rust, no C in the compression path.
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 h2 = "0.4"

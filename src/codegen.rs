@@ -4001,6 +4001,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// gzip responses when the client advertises gzip. See [`{G}::ServerConfig::send_compressed`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn send_compressed(mut self) -> Self {{ self.config = self.config.send_compressed(true); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Run `interceptor` before `{trait_name}` methods."
     );
     let _ = writeln!(src, "    #[must_use]");

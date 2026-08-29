@@ -130,7 +130,7 @@
 //! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`], [`Any`] |
 //! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`] |
-//! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
+//! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`] |
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
 //!
@@ -296,6 +296,8 @@ pub use config::{
     DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
     DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
 };
+/// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
+pub use futures_core::Stream;
 /// Per-RPC typed bag: insert in an interceptor, read in the handler.
 pub use http::Extensions;
 pub use interceptor::{ClientInterceptor, Intercepted, Interceptor, ServiceExt};

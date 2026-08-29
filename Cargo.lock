@@ -454,6 +454,7 @@ dependencies = [
  "base64",
  "bytes",
  "flate2",
+ "futures-core",
  "h2",
  "http",
  "pbrs",

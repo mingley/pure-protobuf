@@ -15,6 +15,9 @@ use h2::{Reason, RecvStream, SendStream};
 use http::uri::{Authority, PathAndQuery, Scheme};
 use http::{HeaderMap, HeaderName, HeaderValue, Request, Response, StatusCode};
 use pbrs::{Parse, Serialize};
+use std::future::{poll_fn, Future};
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 const GRPC_STATUS: HeaderName = HeaderName::from_static("grpc-status");
@@ -467,12 +470,17 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
 /// Next HTTP/2 DATA chunk. Flow-control capacity is *not* released; the caller
 /// releases it once the chunk has been handed on, which is what turns a slow
 /// reader into peer backpressure.
-async fn next_data(recv: &mut RecvStream) -> Result<Option<Bytes>, Status> {
-    match recv.data().await {
-        None => Ok(None),
-        Some(Ok(bytes)) => Ok(Some(bytes)),
-        Some(Err(e)) => Err(h2_error(e)),
+fn poll_data(recv: &mut RecvStream, cx: &mut Context<'_>) -> Poll<Result<Option<Bytes>, Status>> {
+    match recv.poll_data(cx) {
+        Poll::Pending => Poll::Pending,
+        Poll::Ready(None) => Poll::Ready(Ok(None)),
+        Poll::Ready(Some(Ok(bytes))) => Poll::Ready(Ok(Some(bytes))),
+        Poll::Ready(Some(Err(e))) => Poll::Ready(Err(h2_error(e))),
     }
+}
+
+async fn next_data(recv: &mut RecvStream) -> Result<Option<Bytes>, Status> {
+    poll_fn(|cx| poll_data(recv, cx)).await
 }
 
 fn release(recv: &mut RecvStream, n: usize) -> Result<(), Status> {
@@ -608,7 +616,9 @@ pub(crate) struct WireStream<T> {
     /// just the call setup: a server that answers with headers and then goes
     /// quiet would otherwise hang the reader forever.
     deadline: Option<tokio::time::Instant>,
+    sleep: Option<Pin<Box<tokio::time::Sleep>>>,
     ended: bool,
+    trailers_done: bool,
     trailers: Metadata,
 }
 
@@ -624,7 +634,9 @@ impl<T: Parse + Default> WireStream<T> {
             limits,
             decode: decode_frame::<T>,
             deadline,
+            sleep: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
             ended: false,
+            trailers_done: false,
             trailers: Metadata::new(),
         }
     }
@@ -636,57 +648,95 @@ impl<T> WireStream<T> {
     /// A non-OK `grpc-status` in the trailers surfaces here as `Err`, and so
     /// does an expired deadline.
     pub(crate) async fn next(&mut self) -> Result<Option<Framed<T>>, Status> {
-        let Some(at) = self.deadline else {
-            return self.next_inner().await;
-        };
-        match tokio::time::timeout_at(at, self.next_inner()).await {
-            Err(_) => Err(Status::deadline_exceeded()),
-            // A peer enforcing the same deadline resets the stream at it, and
-            // that reset can arrive before our timer. Report the deadline
-            // rather than a transport failure.
-            Ok(Err(status))
-                if matches!(status.code(), Code::Unavailable | Code::Cancelled)
-                    && tokio::time::Instant::now() >= at =>
-            {
-                Err(Status::deadline_exceeded())
+        poll_fn(|cx| self.poll_next(cx)).await
+    }
+
+    pub(crate) fn poll_next(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<Option<Framed<T>>, Status>> {
+        if let Some(at) = self.deadline {
+            if tokio::time::Instant::now() >= at {
+                return Poll::Ready(Err(Status::deadline_exceeded()));
             }
-            Ok(result) => result,
+            if let Some(sleep) = &mut self.sleep {
+                if sleep.as_mut().poll(cx).is_ready() {
+                    return Poll::Ready(Err(Status::deadline_exceeded()));
+                }
+            }
+        }
+        match self.poll_next_inner(cx) {
+            Poll::Ready(Err(status))
+                if matches!(status.code(), Code::Unavailable | Code::Cancelled)
+                    && self
+                        .deadline
+                        .is_some_and(|at| tokio::time::Instant::now() >= at) =>
+            {
+                Poll::Ready(Err(Status::deadline_exceeded()))
+            }
+            other => other,
         }
     }
 
-    async fn next_inner(&mut self) -> Result<Option<Framed<T>>, Status> {
+    fn poll_next_inner(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
         loop {
-            if let Some(frame) = self.reader.next_frame()? {
-                return (self.decode)(frame, self.limits).map(Some);
+            match self.reader.next_frame() {
+                Err(e) => return Poll::Ready(Err(e)),
+                Ok(Some(frame)) => {
+                    return Poll::Ready((self.decode)(frame, self.limits).map(Some));
+                }
+                Ok(None) => {}
             }
             if self.ended {
-                return Ok(None);
+                if self.trailers_done {
+                    return Poll::Ready(Ok(None));
+                }
+                return match self.poll_finish_trailers(cx) {
+                    Poll::Pending => Poll::Pending,
+                    Poll::Ready(Ok(())) => {
+                        self.trailers_done = true;
+                        Poll::Ready(Ok(None))
+                    }
+                    Poll::Ready(Err(e)) => {
+                        self.trailers_done = true;
+                        Poll::Ready(Err(e))
+                    }
+                };
             }
-            match next_data(&mut self.recv).await? {
-                Some(chunk) => {
+            match poll_data(&mut self.recv, cx) {
+                Poll::Pending => return Poll::Pending,
+                Poll::Ready(Err(e)) => return Poll::Ready(Err(e)),
+                Poll::Ready(Ok(Some(chunk))) => {
                     let n = chunk.len();
                     self.reader.push(chunk);
-                    release(&mut self.recv, n)?;
+                    if let Err(e) = release(&mut self.recv, n) {
+                        return Poll::Ready(Err(e));
+                    }
                 }
-                None => {
+                Poll::Ready(Ok(None)) => {
                     self.ended = true;
-                    self.reader.finish()?;
-                    return self.finish_trailers().await.map(|()| None);
+                    if let Err(e) = self.reader.finish() {
+                        return Poll::Ready(Err(e));
+                    }
                 }
             }
         }
     }
 
-    async fn finish_trailers(&mut self) -> Result<(), Status> {
-        let Some(map) = read_trailers(&mut self.recv).await? else {
-            return Ok(());
-        };
-        let status = status_from(&map, Some(&map));
-        self.trailers = Metadata::from_owned_headers(map);
-        if status.code() == Code::Ok {
-            Ok(())
-        } else {
-            Err(status)
+    fn poll_finish_trailers(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Status>> {
+        match self.recv.poll_trailers(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Err(e)) => Poll::Ready(Err(h2_error(e))),
+            Poll::Ready(Ok(None)) => Poll::Ready(Ok(())),
+            Poll::Ready(Ok(Some(map))) => {
+                let status = status_from(&map, Some(&map));
+                self.trailers = Metadata::from_owned_headers(map);
+                if status.code() == Code::Ok {
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Ready(Err(status))
+                }
+            }
         }
     }
 

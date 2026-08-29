@@ -246,6 +246,25 @@ async fn server_stream_splits_name() {
 }
 
 #[tokio::test]
+async fn server_stream_is_a_futures_stream() {
+    use pbrs_grpc::Stream;
+    use std::future::poll_fn;
+    use std::pin::Pin;
+
+    let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
+    let resp = client
+        .server_hello(Request::new(req("ada,bob")))
+        .await
+        .expect("server-stream");
+    let mut inbound = resp.into_inner();
+    let mut got = Vec::new();
+    while let Some(item) = poll_fn(|cx| Pin::new(&mut inbound).poll_next(cx)).await {
+        got.push(name_of(&item.expect("ok")));
+    }
+    assert_eq!(got, ["ada", "bob"]);
+}
+
+#[tokio::test]
 async fn bidi_round_trip() {
     let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
     let (tx, call) = client.stream_hello(Request::new(()));

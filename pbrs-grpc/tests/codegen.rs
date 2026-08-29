@@ -343,6 +343,7 @@ async fn generated_servers_accept_configuration() {
     let addr = listener.local_addr().expect("addr");
     let server = tokio::spawn(async move {
         StoreServer::new(MemStore)
+            .send_compressed()
             .max_decoding_message_size(16)
             .serve_listener(listener)
             .await

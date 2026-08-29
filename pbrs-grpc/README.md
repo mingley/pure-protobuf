@@ -55,7 +55,8 @@ redial of a dead connection, lazy connect with wait-for-ready, in-process
 `Channel::from_io` / `Server::serve_connection`, Unix domain
 sockets (h2c; `serve_unix_unlink` after a crash), graceful drain with `GOAWAY`, per-message gzip, deadlines,
 cancellation (dropping a `Call` resets the stream), ASCII and `-bin` metadata, OK-path custom trailers. Outbound
-RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`.
+RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`. `Streaming` implements
+`futures_core::Stream`.
 
 **[Guide](../docs/grpc.md)** — building services, streaming, metadata, errors,
 deadlines, lazy connect, compression, interceptors, limits, tuning, testing,

@@ -8,6 +8,10 @@
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::status::Status;
+use futures_core::Stream;
+use std::future::poll_fn;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use tokio::sync::mpsc;
 
 /// A message plus the gRPC Compressed-Flag its frame carried.
@@ -65,6 +69,10 @@ enum Source<T> {
 /// literal: the bytes are decoded on the reading task, so a handler that stops
 /// reading stops releasing HTTP/2 capacity and the peer stalls at the window.
 /// There is no pump task and no queue in between.
+///
+/// Pull with [`Self::message`], or as a `futures_core::Stream`
+/// (`Item = Result<T, Status>`). Both paths are the same poll: there is no
+/// extra buffer and no extra task.
 ///
 /// ```no_run
 /// # use pbrs_grpc::{HelloReply, Status, Streaming};
@@ -140,12 +148,18 @@ impl<T> Streaming<T> {
 
     /// [`Self::message`] keeping the Compressed-Flag.
     pub async fn next_framed(&mut self) -> Result<Option<Framed<T>>, Status> {
+        poll_fn(|cx| self.poll_framed(cx)).await
+    }
+
+    fn poll_framed(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
         match &mut self.source {
-            Source::Channel(rx) => match rx.recv().await {
-                None => Ok(None),
-                Some(item) => item.map(Some),
+            Source::Channel(rx) => match rx.poll_recv(cx) {
+                Poll::Pending => Poll::Pending,
+                Poll::Ready(None) => Poll::Ready(Ok(None)),
+                Poll::Ready(Some(Ok(framed))) => Poll::Ready(Ok(Some(framed))),
+                Poll::Ready(Some(Err(status))) => Poll::Ready(Err(status)),
             },
-            Source::Wire(wire) => wire.next().await,
+            Source::Wire(wire) => wire.poll_next(cx),
         }
     }
 
@@ -219,6 +233,19 @@ impl<T> std::fmt::Debug for Streaming<T> {
         f.debug_struct("Streaming")
             .field("source", &source)
             .finish_non_exhaustive()
+    }
+}
+
+impl<T> Stream for Streaming<T> {
+    type Item = Result<T, Status>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        match self.get_mut().poll_framed(cx) {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Ok(None)) => Poll::Ready(None),
+            Poll::Ready(Ok(Some(framed))) => Poll::Ready(Some(Ok(framed.message))),
+            Poll::Ready(Err(status)) => Poll::Ready(Some(Err(status))),
+        }
     }
 }
 
@@ -344,6 +371,25 @@ mod tests {
         assert!(second.compressed);
         assert_eq!(text(&second.message), "two");
         assert!(stream.message().await.expect("end").is_none());
+    }
+
+    #[tokio::test]
+    async fn streaming_is_a_futures_stream() {
+        use futures_core::Stream;
+        use std::future::poll_fn;
+        use std::pin::Pin;
+
+        let (tx, mut stream) = Streaming::<HelloReply>::channel(4);
+        tx.send(reply("one")).await.expect("send");
+        tx.close();
+        let first = poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
+            .await
+            .expect("item")
+            .expect("ok");
+        assert_eq!(text(&first), "one");
+        assert!(poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
+            .await
+            .is_none());
     }
 
     #[tokio::test]
