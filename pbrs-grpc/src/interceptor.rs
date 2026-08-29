@@ -113,8 +113,9 @@ impl<S: Service> ServiceExt for S {}
 ///
 /// Attach one with [`crate::Channel::intercept`] or the generated
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
-/// runs first. The interceptor sees the method path and can set a deadline,
-/// wait-for-ready, compression, or typed extensions — not only metadata.
+/// runs first. The interceptor sees the method path and `:authority`, and can
+/// set a deadline, wait-for-ready, compression, or typed extensions — not
+/// only metadata.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -123,6 +124,8 @@ impl<S: Service> ServiceExt for S {}
 /// fn stamp(call: &mut Outgoing<'_>) -> Result<(), Status> {
 ///     let path = call.path();
 ///     call.metadata_mut().insert("x-rpc", path)?;
+///     let authority = call.authority();
+///     call.metadata_mut().insert("x-authority", authority)?;
 ///     if call.timeout().is_none() {
 ///         call.set_timeout(Duration::from_secs(5));
 ///     }

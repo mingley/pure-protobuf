@@ -215,9 +215,14 @@ impl<T> Request<T> {
         self
     }
 
-    pub(crate) fn outgoing(&mut self, path: &'static str) -> Outgoing<'_> {
+    pub(crate) fn outgoing<'a>(
+        &'a mut self,
+        path: &'static str,
+        authority: &'a str,
+    ) -> Outgoing<'a> {
         Outgoing {
             path,
+            authority,
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -232,7 +237,8 @@ impl<T> Request<T> {
 /// The request message is not here: interceptors run after the caller has
 /// already built it, and object-safe interceptors cannot be generic over it.
 /// Everything else an interceptor typically stamps — metadata, deadline,
-/// wait-for-ready, compression, typed extensions — is.
+/// wait-for-ready, compression, typed extensions — is. So is the channel's
+/// `:authority`, which the interceptor cannot otherwise see.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -241,6 +247,8 @@ impl<T> Request<T> {
 /// fn stamp(call: &mut Outgoing<'_>) -> Result<(), Status> {
 ///     let path = call.path();
 ///     call.metadata_mut().insert("x-path", path)?;
+///     let authority = call.authority();
+///     call.metadata_mut().insert("x-authority", authority)?;
 ///     if call.timeout().is_none() {
 ///         call.set_timeout(Duration::from_secs(5));
 ///     }
@@ -250,6 +258,7 @@ impl<T> Request<T> {
 /// ```
 pub struct Outgoing<'a> {
     path: &'static str,
+    authority: &'a str,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut bool,
@@ -258,6 +267,13 @@ pub struct Outgoing<'a> {
 }
 
 impl<'a> Outgoing<'a> {
+    /// The HTTP/2 `:authority` this channel sends, e.g. `127.0.0.1:50051`
+    /// or `localhost` on a Unix socket.
+    #[must_use]
+    pub fn authority(&self) -> &'a str {
+        self.authority
+    }
+
     /// The full gRPC path, `/<package>.<Service>/<Method>`.
     #[must_use]
     pub fn path(&self) -> &'static str {
@@ -330,6 +346,7 @@ impl fmt::Debug for Outgoing<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Outgoing")
             .field("path", &self.path)
+            .field("authority", &self.authority)
             .field("timeout", &self.timeout)
             .field("wait_for_ready", &self.wait_for_ready)
             .field("compress", &self.compress)

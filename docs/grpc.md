@@ -363,9 +363,10 @@ match client.say_hello(req).await {
 ```
 
 On the server, `request.timeout()` reports the effective deadline: the soonest
-of the client's `grpc-timeout`, [`ServerConfig::timeout`] when the server sets
-one, and [`Rpc::set_timeout`] from an interceptor. An interceptor reads the
-client value with `Rpc::peer_timeout` and the combined value with
+of the client's `grpc-timeout`, a server cap (`ServerConfig::timeout`, also
+`Server::timeout` / `Router::timeout` / generated `FooServer::timeout`), and
+[`Rpc::set_timeout`] from an interceptor. An interceptor reads the client
+value with `Rpc::peer_timeout` and the combined value with
 `Rpc::effective_timeout`. A client that omits `grpc-timeout` can otherwise pin
 a handler forever; the server cap closes that hole. An interceptor can only
 tighten that deadline, not extend it.
@@ -554,9 +555,9 @@ let channel = Channel::connect_unix("/tmp/greeter.sock").await?;
 
 `connect_unix_lazy` and `Request::set_wait_for_ready` work the same as on
 TCP. The path is a filesystem path, not a `unix://` URI. `serve_unix` fails
-if the path already exists. After a crash, `serve_unix_unlink` removes a
-leftover socket file when bind returns address-in-use. If another process is
-actually listening, the path is left alone and `serve_unix_unlink` fails with
+if the path already exists. After a crash, `serve_unix_unlink` unlinks a
+leftover socket inode that is not accepting. If another process is actually
+listening, the path is left alone and `serve_unix_unlink` fails with
 `UNAVAILABLE` instead of stealing it.
 
 `:authority` on Unix RPCs is `localhost`.
@@ -927,11 +928,14 @@ or `ServiceExt::intercept` when you do not want the generated server's
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs before the stream opens. Closures take `Outgoing`: the method path,
-metadata, deadline, wait-for-ready, compression, and typed extensions.
+`:authority`, metadata, deadline, wait-for-ready, compression, and typed
+extensions. TCP `:authority` is `host:port`; Unix is `localhost`.
 
 ```rust
 let client = GreeterClient::new(channel).intercept(|call| {
     call.metadata_mut().insert("authorization", "Bearer secret")?;
+    let authority = call.authority();
+    call.metadata_mut().insert("x-authority", authority)?;
     if call.timeout().is_none() {
         call.set_timeout(Duration::from_secs(5));
     }

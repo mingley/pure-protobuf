@@ -4010,6 +4010,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Cap every RPC even when the client omits `grpc-timeout`. See [`{G}::ServerConfig::timeout`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn timeout(mut self, timeout: ::std::time::Duration) -> Self {{ self.config = self.config.timeout(timeout); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// gzip responses when the client advertises gzip. See [`{G}::ServerConfig::send_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4246,7 +4255,10 @@ fn emit_kernel_client(
         src,
         "    /// Run `interceptor` on every outbound RPC before the stream opens."
     );
-    let _ = writeln!(src, "    /// The interceptor sees a [`{G}::Outgoing`].");
+    let _ = writeln!(
+        src,
+        "    /// The interceptor sees a [`{G}::Outgoing`]: path, `:authority`, metadata, deadline, wait-for-ready, compression, extensions."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");

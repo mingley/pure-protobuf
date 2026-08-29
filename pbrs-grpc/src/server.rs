@@ -308,10 +308,11 @@ impl Rpc {
     /// impl<S: Service> Service for RequireAuth<S> {
     ///     const NAME: &'static str = S::NAME;
     ///
-    ///     async fn call(&self, rpc: Rpc) {
+    ///     async fn call(&self, mut rpc: Rpc) {
     ///         if rpc.metadata().get("authorization") != Some(self.token.as_str()) {
     ///             return rpc.reject(Status::unauthenticated("bad or missing token"));
     ///         }
+    ///         rpc.metadata_mut().remove("authorization");
     ///         self.inner.call(rpc).await;
     ///     }
     /// }
@@ -810,6 +811,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Cap every RPC even when the client omits `grpc-timeout`. See
+    /// [`ServerConfig::timeout`].
+    #[must_use]
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.config = self.config.timeout(timeout);
+        self
+    }
+
     /// Run `interceptor` before this service sees any RPC.
     ///
     /// Closures implement [`crate::Interceptor`], so
@@ -1069,6 +1078,14 @@ impl Router {
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);
+        self
+    }
+
+    /// Cap every RPC even when the client omits `grpc-timeout`. See
+    /// [`ServerConfig::timeout`].
+    #[must_use]
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.config = self.config.timeout(timeout);
         self
     }
 

@@ -278,6 +278,9 @@ impl ServerConfig {
     /// The effective deadline is the soonest of this, the client's, and any
     /// [`crate::Rpc::set_timeout`] from an interceptor. Disabled by default.
     /// Values below 1 ms are raised to 1 ms.
+    ///
+    /// [`crate::Server::timeout`], [`crate::Router::timeout`], and generated
+    /// `FooServer::timeout` set this without building a [`ServerConfig`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout.max(Duration::from_millis(1)));

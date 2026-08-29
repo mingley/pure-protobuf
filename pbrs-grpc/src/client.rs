@@ -474,8 +474,8 @@ impl Channel {
 
     /// Run `interceptor` on every outbound RPC before the stream opens.
     /// Calling this twice stacks: the first interceptor runs first. The
-    /// interceptor sees the method path and can set metadata, a deadline,
-    /// wait-for-ready, compression, or typed extensions.
+    /// interceptor sees the method path and `:authority`, and can set metadata,
+    /// a deadline, wait-for-ready, compression, or typed extensions.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
@@ -499,7 +499,7 @@ impl Channel {
         req: &mut Request<T>,
     ) -> Result<(), Status> {
         for hook in self.interceptors.iter() {
-            hook.intercept(&mut req.outgoing(path))?;
+            hook.intercept(&mut req.outgoing(path, self.authority()))?;
         }
         Ok(())
     }

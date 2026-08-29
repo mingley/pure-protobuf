@@ -594,6 +594,31 @@ async fn router_interceptors_stack_in_declaration_order() {
 }
 
 #[tokio::test]
+async fn a_client_interceptor_sees_the_authority() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let channel = channel(addr).await;
+    let want = channel.authority().to_owned();
+    let client = GreeterClient::new(channel).intercept(move |call: &mut Outgoing<'_>| {
+        if call.authority() != want.as_str() {
+            return Err(Status::internal(format!(
+                "authority {} want {want}",
+                call.authority()
+            )));
+        }
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("authority");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -1588,6 +1613,36 @@ async fn unix_socket_unary() {
 
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_client_interceptor_sees_unix_localhost_authority() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = Channel::connect_unix(&path).await.expect("connect");
+    assert_eq!(channel.authority(), "localhost");
+    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+        if call.authority() != "localhost" {
+            return Err(Status::internal(format!(
+                "authority {} want localhost",
+                call.authority()
+            )));
+        }
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("uds")))
+        .await
+        .expect("unix authority");
+    assert_eq!(name_of(reply.get_ref()), "uds");
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_lazy_fails_fast_when_nothing_is_listening() {
     let (path, _guard) = unix_test_path();
     let channel = Channel::connect_unix_lazy(&path).expect("lazy");
@@ -1748,7 +1803,7 @@ async fn a_server_timeout_expires_when_the_client_sends_none() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
-            .config(ServerConfig::new().timeout(Duration::from_millis(50)))
+            .timeout(Duration::from_millis(50))
             .serve_listener(listener)
             .await
             .ok();
@@ -1766,8 +1821,9 @@ async fn a_server_timeout_expires_when_the_client_sends_none() {
 async fn a_server_timeout_caps_a_longer_client_deadline() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        GreeterServer::new(Slow)
-            .config(ServerConfig::new().timeout(Duration::from_millis(50)))
+        Router::new()
+            .add_service(GreeterServer::new(Slow))
+            .timeout(Duration::from_millis(50))
             .serve_listener(listener)
             .await
             .ok();
