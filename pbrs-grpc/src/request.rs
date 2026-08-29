@@ -53,6 +53,7 @@ pub struct Request<T> {
     peer_timeout: Option<Duration>,
     accepts_gzip: bool,
     encoding: Option<String>,
+    cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
 }
 
@@ -79,6 +80,7 @@ impl<T> Request<T> {
             peer_timeout: None,
             accepts_gzip: false,
             encoding: None,
+            cancel: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -124,6 +126,7 @@ impl<T> Request<T> {
                 peer_timeout: self.peer_timeout,
                 accepts_gzip: self.accepts_gzip,
                 encoding: self.encoding,
+                cancel: self.cancel,
                 extensions: self.extensions,
             },
         )
@@ -154,6 +157,7 @@ impl<T> Request<T> {
             peer_timeout: parts.peer_timeout,
             accepts_gzip: parts.accepts_gzip,
             encoding: parts.encoding,
+            cancel: parts.cancel,
             extensions: parts.extensions,
         }
     }
@@ -361,6 +365,32 @@ impl<T> Request<T> {
         self.encoding.as_deref()
     }
 
+    /// Whether this inbound RPC has been cancelled.
+    ///
+    /// True after the client resets the stream, the deadline fires, or the
+    /// handler has returned. Always `false` on a request you built to send.
+    /// Spawned work should await [`Self::cancelled`] rather than polling this.
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel.as_ref().is_some_and(|rx| *rx.borrow())
+    }
+
+    /// Resolves when this inbound RPC is cancelled.
+    ///
+    /// The kernel drops the handler future on client RST and on deadline;
+    /// work the handler `tokio::spawn`ed keeps running unless it awaits this.
+    /// Also resolves when the handler returns, matching a gRPC context that
+    /// is done when the RPC ends. On a request you built to send this never
+    /// resolves.
+    #[must_use = "cancelled does nothing unless awaited"]
+    pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static {
+        when_cancelled(self.cancel.clone())
+    }
+
+    pub(crate) fn set_cancel(&mut self, rx: watch::Receiver<bool>) {
+        self.cancel = Some(rx);
+    }
+
     /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051`.
     ///
     /// Same value as [`crate::Rpc::authority`]. Outbound requests you build
@@ -453,6 +483,7 @@ impl<T> Request<T> {
             peer_timeout: None,
             accepts_gzip: false,
             encoding: None,
+            cancel: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -758,6 +789,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("peer_timeout", &self.peer_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
             .field("encoding", &self.encoding)
+            .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
     }
@@ -784,6 +816,7 @@ pub struct Parts {
     peer_timeout: Option<Duration>,
     accepts_gzip: bool,
     encoding: Option<String>,
+    cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
 }
 
@@ -922,6 +955,20 @@ impl Parts {
         self.encoding.as_deref()
     }
 
+    /// Whether this inbound RPC has been cancelled.
+    /// See [`Request::is_cancelled`].
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel.as_ref().is_some_and(|rx| *rx.borrow())
+    }
+
+    /// Resolves when this inbound RPC is cancelled.
+    /// See [`Request::cancelled`].
+    #[must_use = "cancelled does nothing unless awaited"]
+    pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static {
+        when_cancelled(self.cancel.clone())
+    }
+
     /// HTTP/2 `:authority` the peer sent. See [`Request::authority`].
     #[must_use]
     pub fn authority(&self) -> Option<&str> {
@@ -981,6 +1028,7 @@ impl fmt::Debug for Parts {
             .field("peer_timeout", &self.peer_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
             .field("encoding", &self.encoding)
+            .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
     }
@@ -1218,6 +1266,21 @@ impl CallHandle {
     }
 }
 
+async fn when_cancelled(rx: Option<watch::Receiver<bool>>) {
+    let Some(mut rx) = rx else {
+        std::future::pending::<()>().await;
+        return;
+    };
+    loop {
+        if *rx.borrow() {
+            return;
+        }
+        if rx.changed().await.is_err() {
+            return;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Request, Response};
@@ -1322,6 +1385,19 @@ mod tests {
         inherit.clear_wait_for_ready();
         assert!(!inherit.wait_for_ready());
         assert!(!inherit.wait_for_ready_is_set());
+        assert!(!Request::new(0u32).is_cancelled());
+        let (tx, rx) = tokio::sync::watch::channel(false);
+        let mut flagged = Request::new(0u32);
+        flagged.set_cancel(rx);
+        assert!(!flagged.is_cancelled());
+        tx.send(true).expect("signal");
+        assert!(flagged.is_cancelled());
+        let shown = format!("{flagged:?}");
+        assert!(shown.contains("cancelled: true"), "{shown}");
+        let (_, parts) = flagged.into_message_and_parts();
+        assert!(parts.is_cancelled());
+        let rebuilt = Request::<u32>::from_message_and_parts(1u32, parts);
+        assert!(rebuilt.is_cancelled());
     }
 
     #[test]

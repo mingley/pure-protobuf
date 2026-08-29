@@ -3960,6 +3960,241 @@ async fn dropping_a_call_drops_the_handler() {
     task.abort();
 }
 
+/// Spawns a child that waits on [`Request::cancelled`], then hangs.
+struct SpawnHang {
+    started: Arc<AtomicUsize>,
+    finished: Arc<AtomicUsize>,
+    child_done: Arc<AtomicUsize>,
+}
+
+impl SpawnHang {
+    fn spawn_child<T>(&self, request: &Request<T>) {
+        self.started.fetch_add(1, Ordering::Relaxed);
+        let child_done = Arc::clone(&self.child_done);
+        let cancelled = request.cancelled();
+        drop(tokio::spawn(async move {
+            cancelled.await;
+            child_done.fetch_add(1, Ordering::Relaxed);
+        }));
+    }
+}
+
+impl pbrs_grpc::Greeter for SpawnHang {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        if request.is_cancelled() {
+            return Err(Status::internal("cancelled before the handler ran"));
+        }
+        self.spawn_child(&request);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        self.finished.fetch_add(1, Ordering::Relaxed);
+        Err(Status::internal("handler should have been dropped"))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        if request.is_cancelled() {
+            return Err(Status::internal("cancelled before the handler ran"));
+        }
+        self.spawn_child(&request);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        self.finished.fetch_add(1, Ordering::Relaxed);
+        Err(Status::internal("handler should have been dropped"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("spawn-hang"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("spawn-hang"))
+    }
+}
+
+struct SpawnOk {
+    child_done: Arc<AtomicUsize>,
+}
+
+impl pbrs_grpc::Greeter for SpawnOk {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let child_done = Arc::clone(&self.child_done);
+        let cancelled = request.cancelled();
+        drop(tokio::spawn(async move {
+            cancelled.await;
+            child_done.fetch_add(1, Ordering::Relaxed);
+        }));
+        Ok(Response::new(common::reply(common::name_of_request(
+            request.get_ref(),
+        ))))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("spawn-ok"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("spawn-ok"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("spawn-ok"))
+    }
+}
+
+async fn wait_flag(flag: &AtomicUsize) {
+    for _ in 0..80 {
+        if flag.load(Ordering::Relaxed) >= 1 {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    panic!("spawned work never observed Request::cancelled");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawned_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut call = client.say_hello(Request::new(req("ada")));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    call.handle().cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(&child_done).await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "handler should have been dropped"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawned_streaming_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, mut call) = client.client_hello(Request::new(()));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    call.handle().cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(&child_done).await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    drop(tx);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawned_work_stops_when_the_deadline_fires() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .intercept(|rpc: &mut Rpc| {
+                rpc.set_timeout(Duration::from_millis(20));
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let err = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    wait_flag(&child_done).await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    assert!(started.load(Ordering::Relaxed) >= 1);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawned_work_stops_when_the_handler_returns() {
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = SpawnOk {
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("ok");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    wait_flag(&child_done).await;
+    task.abort();
+}
+
 /// Refuses a request that was not gzipped.
 struct GzipProbe;
 

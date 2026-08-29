@@ -48,6 +48,8 @@ Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, and gzip accept/encoding. Dumping
 `Rpc` prints service/method, both timeout views, gzip facts, and `limits`.
 Dumping `Request` prints path / service / method, `peer_timeout`, and gzip.
+Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
+return).
 
 ### Wire
 

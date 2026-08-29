@@ -442,6 +442,12 @@ than finishing into a void. Dropping the `Call` without awaiting does the
 same: the stream is reset and the handler is dropped. `cancel()` is for when
 you still hold the future and want the await to resolve with `Cancelled`.
 
+A handler that `tokio::spawn`s work should await `request.cancelled()` in
+the child (or poll `request.is_cancelled()`). The kernel drops the handler
+future; it cannot drop tasks the handler created. The future also resolves
+when the handler returns, so work meant to outlive the RPC needs its own
+lifetime. The same signal is on `Parts` after `into_message_and_parts`.
+
 ## Wait-for-ready and lazy connect
 
 A channel that is not yet connected fails an RPC immediately with

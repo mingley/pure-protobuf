@@ -690,6 +690,9 @@ impl Rpc {
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let prefer_gzip = config.compresses_outbound();
         let mut recv = request.into_body();
+        let (cancel_tx, cancel_rx) = watch::channel(false);
+        let on_reset = cancel_tx.clone();
+        let _cancel = CancelOnDrop(cancel_tx);
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
             let mut req = Request::from_metadata(
@@ -707,17 +710,14 @@ impl Rpc {
             req.set_peer_timeout(peer_timeout);
             req.set_accepts_gzip(peer_accepts_gzip);
             req.set_encoding(encoding);
+            req.set_cancel(cancel_rx);
             if let Some(d) = timeout {
                 req.set_timeout(d);
             }
             if let Some(at) = deadline {
                 req.set_deadline(at);
             }
-            tokio::select! {
-                biased;
-                result = handler(req) => result,
-                gone = wait_client_reset(&mut respond) => Err(gone),
-            }
+            run_handler(&mut respond, on_reset, handler(req)).await
         })
         .await;
         Some(Prepared {
@@ -781,12 +781,12 @@ impl Rpc {
         if let Some(at) = deadline {
             req.set_deadline(at);
         }
+        let (cancel_tx, cancel_rx) = watch::channel(false);
+        let on_reset = cancel_tx.clone();
+        let _cancel = CancelOnDrop(cancel_tx);
+        req.set_cancel(cancel_rx);
         let outcome = wrap_timeout(timeout, async {
-            tokio::select! {
-                biased;
-                result = handler(req) => result,
-                gone = wait_client_reset(&mut respond) => Err(gone),
-            }
+            run_handler(&mut respond, on_reset, handler(req)).await
         })
         .await;
         Some(Prepared {
@@ -809,6 +809,31 @@ impl Rpc {
 async fn wait_client_reset(respond: &mut h2::server::SendResponse<Bytes>) -> Status {
     drop(std::future::poll_fn(|cx| respond.poll_reset(cx)).await);
     Status::cancelled()
+}
+
+/// Race the handler against a client reset, signalling spawned work on RST.
+async fn run_handler<T>(
+    respond: &mut h2::server::SendResponse<Bytes>,
+    on_reset: watch::Sender<bool>,
+    handler: impl Future<Output = Result<T, Status>>,
+) -> Result<T, Status> {
+    tokio::select! {
+        biased;
+        result = handler => result,
+        gone = wait_client_reset(respond) => {
+            on_reset.send(true).ok();
+            Err(gone)
+        }
+    }
+}
+
+/// Marks [`Request::cancelled`] when the RPC ends (RST, deadline, or return).
+struct CancelOnDrop(watch::Sender<bool>);
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.send(true).ok();
+    }
 }
 
 /// A handler result plus the response channel it still has to be written to.
