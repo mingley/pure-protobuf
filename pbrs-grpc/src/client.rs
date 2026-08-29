@@ -617,7 +617,8 @@ impl Channel {
     /// Interceptors run when [`Self::unary`] / [`Self::server_streaming`] /
     /// [`Self::client_streaming`] / [`Self::bidi`] (and generated methods)
     /// return, not when the [`crate::Call`] is first polled. `Err` fails that
-    /// Call on poll.
+    /// Call on poll, including [`crate::Status::with_error_details`]; nothing
+    /// is sent.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();

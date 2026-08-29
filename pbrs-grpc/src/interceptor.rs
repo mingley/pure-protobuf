@@ -166,6 +166,8 @@ impl<S: Service> ServiceExt for S {}
 /// visible here, so an interceptor can stamp metadata from a trace id or
 /// tenant without the call site knowing the header names. An earlier
 /// interceptor can insert values for a later one the same way.
+/// `Err` fails the [`crate::Call`] on poll for every call shape, including
+/// [`crate::Status::with_error_details`]; nothing is sent.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -211,7 +213,8 @@ impl<S: Service> ServiceExt for S {}
 pub trait ClientInterceptor: Send + Sync + 'static {
     /// Inspect and mutate the outbound call. Called once per RPC when the
     /// call is created, before the stream opens. `Err` fails the
-    /// [`crate::Call`] on poll.
+    /// [`crate::Call`] on poll, including [`crate::Status::with_error_details`];
+    /// nothing is sent.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 

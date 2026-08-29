@@ -1284,6 +1284,8 @@ already-applied default), compression (`Outgoing::compress` is
 `false` when unset; `compress_is_set` is the same fill-if-unset pattern, and
 `Request::set_compress(false)` opts out of `Channel::send_compressed`), and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata succeeds — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win.
+Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
+for every call shape; nothing is sent.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor. Calling `intercept` twice stacks — the first interceptor runs

@@ -112,7 +112,8 @@ The first registered runs first. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
-They may only tighten the deadline. `Err(Status)` is `rpc.reject`.
+They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
+including `with_error_details` (those trailers reach the client).
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
 gzip, and the
@@ -126,7 +127,9 @@ limits, metadata, timeout / deadline Instant, wait-for-ready
 Overlays (timeout, wait-for-ready, send_compressed, message caps,
 `https_scheme`) fill in before interceptors run; `clear_*` opts out of that
 already-applied default while the overlay getters stay. Interceptors run when the
-RPC method is invoked, not when the `Call` is first polled. Bind borrowed getters
+RPC method is invoked, not when the `Call` is first polled. `Err` fails that
+`Call` on poll for every call shape, including `with_error_details`; nothing
+is sent. Bind borrowed getters
 before `metadata_mut`.
 
 Response-side interceptors are a documented omission.

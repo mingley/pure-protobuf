@@ -118,7 +118,10 @@ See `docs/upb.md`. Short list:
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress, and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
-  after `clear_*`. `Status::set_rpc` / `set_code` keep trailing
+  after `clear_*`. A client interceptor `Err` fails the `Call` on poll for
+  every call shape, including `with_error_details`; nothing is sent. A
+  server interceptor `Err` ships those trailers the same way a handler
+  `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream. On a client request sender it resets CANCEL

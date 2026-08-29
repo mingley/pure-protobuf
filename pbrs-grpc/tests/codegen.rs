@@ -748,4 +748,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),
         "generated server intercept rustdoc must name the server timeout overlay"
     );
+    assert!(
+        src.contains("`Err` fails that Call on poll, including [`::pbrs_grpc::Status::with_error_details`]; nothing is sent."),
+        "generated client intercept rustdoc must name typed Err"
+    );
+    assert!(
+        src.contains("`Err` may carry [`::pbrs_grpc::Status::with_error_details`]; those trailers reach the client."),
+        "generated server intercept rustdoc must name typed Err trailers"
+    );
 }

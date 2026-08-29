@@ -1614,33 +1614,55 @@ async fn a_client_interceptor_can_set_wait_for_ready() {
     assert_eq!(name_of(reply.get_ref()), "late");
 }
 
-#[tokio::test]
-async fn a_client_interceptor_can_reject_with_typed_status_details() {
-    let (addr, listener) = bind().await;
-    drop(listener);
-    let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy")).intercept(
-        |_: &mut Outgoing<'_>| {
-            let mut info = pbrs_grpc::pb::ErrorInfo::new();
-            info.set_reason("BLOCKED");
-            info.set_domain("example.com");
-            Err(Status::with_error_details(
-                Code::FailedPrecondition,
-                "blocked locally",
-                [pbrs_grpc::pb::Any::pack(&info)?],
-            )?)
-        },
-    );
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("interceptor");
-    assert_eq!(err.code(), Code::FailedPrecondition);
+fn interceptor_blocked() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("BLOCKED");
+    info.set_domain("example.com");
+    Status::with_error_details(
+        Code::FailedPrecondition,
+        "blocked locally",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("details")
+}
+
+fn assert_interceptor_blocked(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "blocked locally");
     let info = err
         .error_details()
         .expect("details")
         .error_info
         .expect("ErrorInfo");
     assert_eq!(info.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_reject_with_typed_status_details() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy"))
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+
+    assert_interceptor_blocked(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    assert_interceptor_blocked(
+        &client
+            .server_hello(Request::new(req("ada")))
+            .await
+            .expect_err("server-stream"),
+    );
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
 }
 
 #[tokio::test]
@@ -2353,11 +2375,30 @@ async fn a_server_interceptor_can_reject_with_typed_status_details() {
             .ok();
     });
 
-    let err = GreeterClient::new(channel(addr).await)
+    let client = GreeterClient::new(channel(addr).await);
+    let unary = client
         .say_hello(Request::new(req("ada")))
         .await
-        .expect_err("details");
-    assert_eq!(err.code(), Code::FailedPrecondition);
+        .expect_err("unary");
+    assert_api_disabled(&unary);
+    assert_api_disabled(
+        &client
+            .server_hello(Request::new(req("ada")))
+            .await
+            .expect_err("server-stream"),
+    );
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    assert_api_disabled(&call.await.expect_err("client-stream"));
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    assert_api_disabled(&call.await.expect_err("bidi"));
+
+    task.abort();
+}
+
+fn assert_api_disabled(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "api disabled");
     let info = err
         .rpc()
@@ -2379,8 +2420,6 @@ async fn a_server_interceptor_can_reject_with_typed_status_details() {
             .unwrap_or(""),
         "API_DISABLED"
     );
-
-    task.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -5365,9 +5404,17 @@ impl pbrs_grpc::Greeter for GzipProbe {
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("gzip-probe"))
+        if !request.compressed() {
+            return Err(Status::invalid_argument("expected gzip"));
+        }
+        let name = common::name_of_request(request.get_ref());
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply(name)).await.ok();
+        }));
+        Ok(Response::new(stream))
     }
 
     async fn stream_hello(
@@ -5527,11 +5574,19 @@ async fn the_client_gzips_when_configured() {
             .ok();
     });
     let channel = channel(addr).await.send_compressed();
-    let reply = GreeterClient::new(channel)
+    let client = GreeterClient::new(channel);
+    let reply = client
         .say_hello(Request::new(req("ada")))
         .await
         .expect("gzip request");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("gzip server-stream")
+        .into_inner();
+    let reply = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "ada");
     task.abort();
 }
 
@@ -5553,6 +5608,13 @@ async fn a_client_interceptor_can_set_compress() {
         .await
         .expect("gzip request");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("gzip server-stream")
+        .into_inner();
+    let reply = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "ada");
     task.abort();
 }
 
@@ -5578,6 +5640,26 @@ async fn a_request_can_opt_out_of_channel_send_compressed() {
     tx.close();
     let reply = call.await.expect("opt-out stream");
     assert_eq!(name_of(reply.get_ref()), "gzip");
+
+    let mut server_req = Request::new(req("ada"));
+    server_req.set_compress(false);
+    let mut stream = client
+        .server_hello(server_req)
+        .await
+        .expect("opt-out server-stream")
+        .into_inner();
+    let reply = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "ada");
+
+    let mut bidi_req = Request::new(());
+    bidi_req.set_compress(false);
+    let (tx, call) = client.stream_hello(bidi_req);
+    assert!(!tx.compress(), "opt-out must stamp StreamSender");
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("opt-out bidi").into_inner();
+    let reply = inbound.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "gzip");
     task.abort();
 }
 
@@ -5607,11 +5689,30 @@ async fn a_client_interceptor_can_opt_out_of_channel_send_compressed() {
     tx.close();
     let reply = call.await.expect("opt-out stream");
     assert_eq!(name_of(reply.get_ref()), "gzip");
+
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("opt-out server-stream")
+        .into_inner();
+    let reply = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "ada");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert!(
+        !tx.compress(),
+        "interceptor opt-out must stamp StreamSender"
+    );
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("opt-out bidi").into_inner();
+    let reply = inbound.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "gzip");
     task.abort();
 }
 
 #[tokio::test]
-async fn a_client_interceptor_can_gzip_a_client_stream() {
+async fn a_client_interceptor_can_gzip_request_streams() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(SeesGzip)
@@ -5629,6 +5730,14 @@ async fn a_client_interceptor_can_gzip_a_client_stream() {
     tx.close();
     let reply = call.await.expect("gzip stream");
     assert_eq!(name_of(reply.get_ref()), "gzip");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert!(tx.compress(), "interceptor must stamp bidi StreamSender");
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("gzip bidi").into_inner();
+    let reply = inbound.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "gzip");
     task.abort();
 }
 
@@ -5703,41 +5812,90 @@ async fn a_handler_can_opt_out_of_server_send_compressed() {
 
 struct SeesGzip;
 
+fn sees_gzip_unary(request: Request<HelloRequest>) -> Result<HelloRequest, Status> {
+    if !request.accepts_gzip() {
+        return Err(Status::internal("kernel client advertises gzip"));
+    }
+    if request.compresses_outbound() {
+        return Err(Status::internal("default server does not gzip"));
+    }
+    let encoding = request.encoding().map(str::to_owned);
+    let compressed = request.compressed();
+    let (msg, parts) = request.into_message_and_parts();
+    if !parts.accepts_gzip() {
+        return Err(Status::internal("parts dropped accepts_gzip"));
+    }
+    if parts.compresses_outbound() {
+        return Err(Status::internal("parts invented compresses_outbound"));
+    }
+    if parts.encoding() != encoding.as_deref() {
+        return Err(Status::internal(format!(
+            "parts encoding {:?}",
+            parts.encoding()
+        )));
+    }
+    if parts.compressed() != compressed {
+        return Err(Status::internal("parts dropped Compressed-Flag"));
+    }
+    match (encoding.as_deref(), compressed) {
+        (None, false) | (Some("gzip"), true) => {}
+        other => {
+            return Err(Status::internal(format!("unary gzip facts {other:?}")));
+        }
+    }
+    Ok(msg)
+}
+
+async fn sees_gzip_inbound(
+    request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+) -> Result<HelloReply, Status> {
+    if request.compressed() {
+        return Err(Status::internal(
+            "streaming Request.compressed is the unary first-frame flag",
+        ));
+    }
+    if !request.accepts_gzip() {
+        return Err(Status::internal("kernel client advertises gzip"));
+    }
+    if request.compresses_outbound() {
+        return Err(Status::internal("default server does not gzip"));
+    }
+    let encoding = request.encoding().map(str::to_owned);
+    let mut stream = request.into_inner();
+    match encoding.as_deref() {
+        None => {
+            if let Some(framed) = stream.next_framed().await? {
+                if framed.compressed {
+                    return Err(Status::internal("identity frame was gzipped"));
+                }
+            }
+        }
+        Some("gzip") => {
+            let framed = stream
+                .next_framed()
+                .await?
+                .ok_or_else(|| Status::internal("empty gzip stream"))?;
+            if !framed.compressed {
+                return Err(Status::internal(
+                    "gzip frame missing per-message Compressed-Flag",
+                ));
+            }
+        }
+        other => {
+            return Err(Status::internal(format!("stream encoding {other:?}")));
+        }
+    }
+    let mut reply = HelloReply::new();
+    reply.set_message("gzip");
+    Ok(reply)
+}
+
 impl pbrs_grpc::Greeter for SeesGzip {
     async fn say_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        if !request.accepts_gzip() {
-            return Err(Status::internal("kernel client advertises gzip"));
-        }
-        if request.compresses_outbound() {
-            return Err(Status::internal("default server does not gzip"));
-        }
-        let encoding = request.encoding().map(str::to_owned);
-        let compressed = request.compressed();
-        let (msg, parts) = request.into_message_and_parts();
-        if !parts.accepts_gzip() {
-            return Err(Status::internal("parts dropped accepts_gzip"));
-        }
-        if parts.compresses_outbound() {
-            return Err(Status::internal("parts invented compresses_outbound"));
-        }
-        if parts.encoding() != encoding.as_deref() {
-            return Err(Status::internal(format!(
-                "parts encoding {:?}",
-                parts.encoding()
-            )));
-        }
-        if parts.compressed() != compressed {
-            return Err(Status::internal("parts dropped Compressed-Flag"));
-        }
-        match (encoding.as_deref(), compressed) {
-            (None, false) | (Some("gzip"), true) => {}
-            other => {
-                return Err(Status::internal(format!("unary gzip facts {other:?}")));
-            }
-        }
+        let msg = sees_gzip_unary(request)?;
         Ok(Response::new(common::reply(common::name_of_request(&msg))))
     }
 
@@ -5745,59 +5903,32 @@ impl pbrs_grpc::Greeter for SeesGzip {
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        if request.compressed() {
-            return Err(Status::internal(
-                "streaming Request.compressed is the unary first-frame flag",
-            ));
-        }
-        if !request.accepts_gzip() {
-            return Err(Status::internal("kernel client advertises gzip"));
-        }
-        if request.compresses_outbound() {
-            return Err(Status::internal("default server does not gzip"));
-        }
-        let encoding = request.encoding().map(str::to_owned);
-        let mut stream = request.into_inner();
-        match encoding.as_deref() {
-            None => {
-                if let Some(framed) = stream.next_framed().await? {
-                    if framed.compressed {
-                        return Err(Status::internal("identity frame was gzipped"));
-                    }
-                }
-            }
-            Some("gzip") => {
-                let framed = stream
-                    .next_framed()
-                    .await?
-                    .ok_or_else(|| Status::internal("empty gzip stream"))?;
-                if !framed.compressed {
-                    return Err(Status::internal(
-                        "gzip frame missing per-message Compressed-Flag",
-                    ));
-                }
-            }
-            other => {
-                return Err(Status::internal(format!("stream encoding {other:?}")));
-            }
-        }
-        let mut reply = HelloReply::new();
-        reply.set_message("gzip");
-        Ok(Response::new(reply))
+        Ok(Response::new(sees_gzip_inbound(request).await?))
     }
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("sees-gzip"))
+        let msg = sees_gzip_unary(request)?;
+        let name = common::name_of_request(&msg);
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply(name)).await.ok();
+        }));
+        Ok(Response::new(stream))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("sees-gzip"))
+        let reply = sees_gzip_inbound(request).await?;
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(reply).await.ok();
+        }));
+        Ok(Response::new(stream))
     }
 }
 
@@ -5856,6 +5987,38 @@ async fn a_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
     tx.close();
     let reply = call.await.expect("gzip stream");
     assert_eq!(name_of(reply.get_ref()), "gzip");
+
+    let mut stream = identity
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("identity server-stream")
+        .into_inner();
+    let reply = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "ada");
+
+    let mut stream = gzip
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("gzip server-stream")
+        .into_inner();
+    let reply = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "ada");
+
+    let (tx, call) = identity.stream_hello(Request::new(()));
+    assert!(!tx.compress());
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("identity bidi").into_inner();
+    let reply = inbound.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "gzip");
+
+    let (tx, call) = gzip.stream_hello(Request::new(()));
+    assert!(tx.compress(), "channel overlay must stamp StreamSender");
+    tx.send(req("ada")).await.expect("send gzip");
+    tx.close();
+    let mut inbound = call.await.expect("gzip bidi").into_inner();
+    let reply = inbound.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&reply), "gzip");
     task.abort();
 }
 
