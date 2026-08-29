@@ -393,7 +393,11 @@ impl Rpc {
             if let Some(d) = timeout {
                 req.set_timeout(d);
             }
-            handler(req).await
+            tokio::select! {
+                biased;
+                result = handler(req) => result,
+                gone = wait_client_reset(&mut respond) => Err(gone),
+            }
         })
         .await;
         Some(Prepared {
@@ -436,7 +440,14 @@ impl Rpc {
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
-        let outcome = wrap_timeout(timeout, handler(req)).await;
+        let outcome = wrap_timeout(timeout, async {
+            tokio::select! {
+                biased;
+                result = handler(req) => result,
+                gone = wait_client_reset(&mut respond) => Err(gone),
+            }
+        })
+        .await;
         Some(Prepared {
             respond,
             wire: config.wire(),
@@ -444,6 +455,17 @@ impl Rpc {
             outcome,
         })
     }
+}
+
+/// Resolve when the client `RST_STREAM`s this RPC.
+///
+/// Unary handlers that have already read the request (and streaming handlers
+/// that are not currently reading) would otherwise run to completion after
+/// the caller has gone. `SendResponse::poll_reset` sees the reset without
+/// needing the request body.
+async fn wait_client_reset(respond: &mut h2::server::SendResponse<Bytes>) -> Status {
+    drop(std::future::poll_fn(|cx| respond.poll_reset(cx)).await);
+    Status::cancelled()
 }
 
 /// A handler result plus the response channel it still has to be written to.

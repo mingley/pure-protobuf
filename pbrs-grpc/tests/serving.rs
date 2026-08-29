@@ -1459,3 +1459,81 @@ async fn serve_with_incoming_accepts_a_duplex() {
     assert_eq!(name_of(reply.get_ref()), "ada");
     server.abort();
 }
+
+/// Sleeps long enough that a cancelled caller would otherwise leave it running.
+struct Hang {
+    started: Arc<AtomicUsize>,
+    finished: Arc<AtomicUsize>,
+}
+
+impl pbrs_grpc::Greeter for Hang {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.started.fetch_add(1, Ordering::Relaxed);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        self.finished.fetch_add(1, Ordering::Relaxed);
+        let mut reply = HelloReply::new();
+        reply.set_message(request.get_ref().name());
+        Ok(Response::new(reply))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("hang"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("hang"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("hang"))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_client_reset_drops_the_handler() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = Hang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let call = client.say_hello(Request::new(req("ada")));
+    let handle = call.handle();
+    let mut call = call;
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("Hang returned before cancel: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    handle.cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "handler should have been dropped, not run to completion"
+    );
+    task.abort();
+}

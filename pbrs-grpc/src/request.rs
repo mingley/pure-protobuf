@@ -540,7 +540,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
 ///
 /// Await it for the result. Dropping it without awaiting abandons the RPC;
 /// dropping it after [`Self::cancel`] resets the HTTP/2 stream so the server
-/// stops working on it.
+/// drops the handler instead of running it to completion.
 #[must_use = "an RPC does nothing until awaited"]
 pub struct Call<T> {
     fut: Pin<Box<dyn Future<Output = Result<T, Status>> + Send>>,
