@@ -43,15 +43,17 @@ and does not probe `Io`. `serve_connection` leaves those fields unset.
 `unary` / `client_streaming` / `server_streaming` / `bidi_streaming` /
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
-/ cred, and `Rpc::limits`. `Router` splits on the service half of the path.
+/ cred, `Rpc::limits`, gzip accept/encoding, and `compresses_outbound`.
+`Router` splits on the service half of the path.
 Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
-path / service / method, `peer_timeout`, and gzip accept/encoding. Dumping
+path / service / method, `peer_timeout`, gzip accept/encoding, and the
+`compresses_outbound` overlay. Dumping
 `Rpc` prints service/method, both timeout views, `deadline`, gzip facts, and
 `limits`.
 Dumping `Request` prints path / service / method, both timeout views,
-`deadline`, gzip intent vs wire flag, peer, `:authority` / `:scheme`,
-wait-for-ready, `limits`, and cancel.
+`deadline`, gzip intent vs wire flag, `compresses_outbound`, peer,
+`:authority` / `:scheme`, wait-for-ready, `limits`, and cancel.
 Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
 after the response is written / the stream drains).
 

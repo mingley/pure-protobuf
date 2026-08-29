@@ -4547,6 +4547,30 @@ async fn the_server_gzips_when_configured_and_the_client_accepts() {
 }
 
 #[tokio::test]
+async fn server_send_compressed_gzips_streaming_send() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("stream");
+    let mut stream = reply.into_inner();
+    let framed = stream.next_framed().await.expect("frame").expect("message");
+    assert!(
+        framed.compressed,
+        "Server::send_compressed must gzip identity StreamSender::send frames"
+    );
+    assert_eq!(name_of(&framed.message), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn the_client_gzips_when_configured() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {

@@ -92,8 +92,9 @@
 See `docs/upb.md`. Short list:
 
 - Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop
-  (`empty_unary` … `timeout_on_sleeping_server`, plus the four gzip cases)
-  is implemented. TLS (rustls + Graviola), `grpc.health.v1`, and
+  (`empty_unary` … `timeout_on_sleeping_server`, plus the four gzip cases,
+  including mixed `server_compressed_streaming`) is implemented. TLS
+  (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
   retry). Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
@@ -103,10 +104,16 @@ See `docs/upb.md`. Short list:
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible
-  channel facts. Interceptors and generated handlers see
-  `MessageLimits` on `Rpc::limits` / `Request::limits` and the method path on
-  `Rpc::path` / `Request::path`; client interceptors
-  see the channel overlay on `Outgoing::limits`. GCP-auth and ORCA stay out; load balancing, application retries, and
+  channel facts. Interceptors run when the RPC method is invoked (all four
+  shapes), not on first poll of the `Call`. Interceptors and generated
+  handlers see `MessageLimits` on `Rpc::limits` / `Request::limits`, the
+  method path on `Rpc::path` / `Request::path`, gzip accept/encoding, and
+  the server `send_compressed` overlay on `Rpc::compresses_outbound` /
+  `Request::compresses_outbound`; client interceptors see the channel overlay
+  on `Outgoing::limits` plus a deadline Instant and fill-if-unset
+  wait-for-ready / compress. `Status::set_rpc` / `set_code` keep trailing
+  metadata. Methods omitted on generated traits answer `UNIMPLEMENTED`.
+  GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
 - There are no arena views.

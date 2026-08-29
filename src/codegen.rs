@@ -4873,6 +4873,10 @@ fn emit_kernel_client(
         let _ = writeln!(src, "    /// {} `{}`.", shape.description, m.name);
         let _ = writeln!(
             src,
+            "    /// Interceptors run when this method is called, not on first poll of the [`{G}::Call`]."
+        );
+        let _ = writeln!(
+            src,
             "    pub fn {fn_name}(&self, request: {}) -> {} {{",
             shape.client_arg, shape.client_return
         );
