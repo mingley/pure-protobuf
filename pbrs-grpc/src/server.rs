@@ -592,6 +592,18 @@ impl Rpc {
     }
 
     /// Serve a client-streaming method: many request messages, one response.
+    ///
+    /// ```
+    /// # use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Status, Streaming};
+    /// # async fn dispatch(rpc: Rpc) {
+    /// rpc.client_streaming(|req: Request<Streaming<HelloRequest>>| async move {
+    ///     let mut inbound = req.into_inner();
+    ///     while inbound.message().await?.is_some() {}
+    ///     Ok::<_, Status>(Response::new(HelloReply::new()))
+    /// })
+    /// .await;
+    /// # }
+    /// ```
     pub async fn client_streaming<Req, Resp, F, Fut>(self, handler: F)
     where
         Req: Parse + Default + Send + 'static,
@@ -624,6 +636,25 @@ impl Rpc {
     }
 
     /// Serve a server-streaming method: one request message, many responses.
+    ///
+    /// Spawn the producer before returning the stream. A client RST while
+    /// drain waits for the next message aborts the drain so
+    /// [`Request::cancelled`] and [`crate::StreamSender::closed`] resolve
+    /// without another send.
+    ///
+    /// ```
+    /// # use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Status, Streaming};
+    /// # async fn dispatch(rpc: Rpc) {
+    /// rpc.server_streaming(|req: Request<HelloRequest>| async move {
+    ///     let (tx, stream) = Streaming::channel(8);
+    ///     let mut reply = HelloReply::new();
+    ///     reply.set_message(req.get_ref().name());
+    ///     tx.send(reply).await.ok();
+    ///     Ok::<_, Status>(Response::new(stream))
+    /// })
+    /// .await;
+    /// # }
+    /// ```
     pub async fn server_streaming<Req, Resp, F, Fut>(self, handler: F)
     where
         Req: Parse + Default,
@@ -663,6 +694,25 @@ impl Rpc {
     }
 
     /// Serve a bidirectional-streaming method.
+    ///
+    /// ```
+    /// # use pbrs_grpc::{HelloReply, HelloRequest, Request, Response, Rpc, Status, Streaming};
+    /// # async fn dispatch(rpc: Rpc) {
+    /// rpc.bidi_streaming(|req: Request<Streaming<HelloRequest>>| async move {
+    ///     let (tx, outbound) = Streaming::channel(8);
+    ///     let mut inbound = req.into_inner();
+    ///     while let Some(msg) = inbound.message().await? {
+    ///         let mut reply = HelloReply::new();
+    ///         reply.set_message(msg.name());
+    ///         if tx.send(reply).await.is_err() {
+    ///             break;
+    ///         }
+    ///     }
+    ///     Ok::<_, Status>(Response::new(outbound))
+    /// })
+    /// .await;
+    /// # }
+    /// ```
     pub async fn bidi_streaming<Req, Resp, F, Fut>(self, handler: F)
     where
         Req: Parse + Default + Send + 'static,

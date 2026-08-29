@@ -1424,6 +1424,17 @@ let reply: HelloReply = channel
     .unary("/demo.Echo/Ping", Request::new(req))
     .await?
     .into_inner();
+
+let mut stream = channel
+    .server_streaming::<HelloRequest, HelloReply>(
+        "/demo.Echo/Subscribe",
+        Request::new(req),
+    )
+    .await?
+    .into_inner();
+while let Some(reply) = stream.message().await? {
+    let _ = reply;
+}
 ```
 
 This is not a second-class path. The in-tree `TestService` implementation and

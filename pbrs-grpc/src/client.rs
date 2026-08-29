@@ -772,6 +772,32 @@ impl Channel {
     }
 
     /// Issue a server-streaming RPC: one request message, many responses.
+    ///
+    /// `path` is the full gRPC path, `/<package>.<Service>/<Method>`.
+    /// Generated clients call this for you.
+    ///
+    /// Await the [`Call`] for headers and the response [`Streaming`]. Dropping
+    /// the [`Call`] without awaiting resets the stream, the same as dropping a
+    /// unary [`Call`].
+    ///
+    /// ```no_run
+    /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
+    /// # async fn run(channel: Channel) -> Result<(), pbrs_grpc::Status> {
+    /// let mut req = HelloRequest::new();
+    /// req.set_name("world");
+    /// let mut stream = channel
+    ///     .server_streaming::<HelloRequest, HelloReply>(
+    ///         "/helloworld.Greeter/ServerHello",
+    ///         Request::new(req),
+    ///     )
+    ///     .await?
+    ///     .into_inner();
+    /// while let Some(reply) = stream.message().await? {
+    ///     let _ = reply;
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn server_streaming<Req, Resp>(
         &self,
         path: &'static str,
@@ -903,6 +929,23 @@ impl Channel {
     /// Send on the returned [`StreamSender`] and await the [`Call`] for
     /// responses. Dropping the pair without awaiting resets the stream,
     /// the same as dropping a unary [`Call`].
+    ///
+    /// ```no_run
+    /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
+    /// # async fn run(channel: Channel) -> Result<(), pbrs_grpc::Status> {
+    /// let (tx, call) = channel.bidi::<HelloRequest, HelloReply>(
+    ///     "/helloworld.Greeter/StreamHello",
+    ///     Request::new(()),
+    /// );
+    /// let mut inbound = call.await?.into_inner();
+    /// let mut ping = HelloRequest::new();
+    /// ping.set_name("ping");
+    /// tx.send(ping).await?;
+    /// tx.close();
+    /// let _ = inbound.message().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
     #[must_use = "dropping a bidi Call resets the stream"]
     pub fn bidi<Req, Resp>(
         &self,
