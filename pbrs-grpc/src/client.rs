@@ -7,7 +7,8 @@ use crate::status::{Code, Status};
 use crate::stream::{StreamSender, Streaming};
 use crate::tls::ClientTls;
 use crate::wire::{
-    encode_msg, finish_stream, finish_unary, grpc_request, pump_outbound, send_bytes,
+    encode_msg, finish_stream, finish_unary, grpc_request, pump_outbound, reset_on_cancel,
+    send_bytes,
 };
 use bytes::Bytes;
 use h2::Reason;
@@ -1469,16 +1470,20 @@ where
     )
     .await?;
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
-    race(
+    let response = race(
         async {
             let response = resp_fut.await.map_err(Status::from_h2)?;
             finish_stream::<Resp>(response, wire.limits, deadline).await
         },
-        cancel_rx,
+        cancel_rx.clone(),
         deadline,
         Some(&mut send_stream),
     )
-    .await
+    .await?;
+    // Half-closed send would otherwise drop here, so RecvStream-last-ref
+    // was the only RST after headers and CallHandle was a no-op.
+    reset_on_cancel(send_stream, cancel_rx);
+    Ok(response)
 }
 
 #[allow(

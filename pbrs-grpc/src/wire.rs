@@ -937,6 +937,21 @@ pub(crate) async fn pump_outbound<T: Serialize>(
     }
 }
 
+/// After a server-streaming request is half-closed, keep `send` so a
+/// [`crate::CallHandle`] (or dropping the received [`Streaming`] before the
+/// end) can still `RST_STREAM`. RecvStream drop is not a last-ref reset
+/// while this handle lives.
+pub(crate) fn reset_on_cancel(
+    mut send: SendStream<Bytes>,
+    mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+) {
+    drop(tokio::spawn(async move {
+        if cancel_rx.wait_for(|v| *v).await.is_ok() {
+            send.send_reset(Reason::CANCEL);
+        }
+    }));
+}
+
 pub(crate) async fn wrap_timeout<T>(
     timeout: Option<Duration>,
     fut: impl std::future::Future<Output = Result<T, Status>>,

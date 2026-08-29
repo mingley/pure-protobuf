@@ -915,8 +915,8 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
     }
 }
 
-/// A [`Request`] envelope without its message. See
-/// [`Request::into_message_and_parts`].
+/// A [`Request`] envelope without its message, including [`Self::cancelled`].
+/// See [`Request::into_message_and_parts`].
 #[derive(Clone)]
 pub struct Parts {
     metadata: Metadata,
@@ -1530,6 +1530,9 @@ impl<T> Call<T> {
 
     /// A cancel handle that can be moved to another task.
     ///
+    /// Take it before awaiting. After this [`Call`] is Ready, the handle still
+    /// cancels a live server-streaming or bidi response.
+    ///
     /// ```no_run
     /// # async fn demo(call: pbrs_grpc::Call<u32>) {
     /// let handle = call.handle();
@@ -1586,6 +1589,10 @@ impl<T> fmt::Debug for Call<T> {
 }
 
 /// A cancel signal for an in-flight [`Call`], detached from the call itself.
+///
+/// Take it before awaiting. After a server-streaming or bidi [`Call`] has
+/// resolved, [`Self::cancel`] still resets the live response stream — the
+/// same as dropping the received [`crate::Streaming`] before the end.
 #[derive(Clone, Debug)]
 pub struct CallHandle {
     cancel: watch::Sender<bool>,
