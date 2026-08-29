@@ -121,7 +121,7 @@
 //! | Slow reader amplification | Capacity is released only after a chunk is handed on, so a slow handler throttles the peer | always on |
 //! | Deeply nested protobuf | Recursion limit in [`pbrs`] | always on |
 //! | Truncated or malformed frames | Rejected as a protocol error, never treated as an empty message | always on |
-//! | Reserved metadata injection | `grpc-status` and friends are never read from or written to user metadata | always on |
+//! | Reserved metadata injection | `grpc-status`, `grpc-status-details-bin`, and friends are never read from or written to user metadata | always on |
 //! | Cleartext interception | TLS 1.2/1.3, ALPN `h2` required, certificate verification is not optional | opt-in [`Server::serve_tls`] / [`Channel::connect_tls`] |
 //! | Impersonation | WebPKI roots or a CA you pin; mTLS via [`ServerTls::mtls`] | opt-in |
 //! | Long-lived connection hold | GOAWAY after age or idle, then force-close; keepalive PINGs do not reset idle | opt-in [`ServerConfig::max_connection_age`] / [`ServerConfig::max_connection_idle`] |

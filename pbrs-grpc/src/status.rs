@@ -1,6 +1,8 @@
-//! gRPC status: [`Code`], `grpc-message`, and trailing metadata.
+//! gRPC status: [`Code`], `grpc-message`, trailing metadata, and
+//! `grpc-status-details-bin`.
 
 use crate::metadata::Metadata;
+use bytes::Bytes;
 use std::fmt;
 use std::sync::OnceLock;
 
@@ -117,15 +119,16 @@ impl fmt::Display for Code {
 struct Detail {
     message: String,
     metadata: Metadata,
+    details: Bytes,
 }
 
-/// A gRPC status: a [`Code`], an optional message, and optional trailing
-/// metadata.
+/// A gRPC status: a [`Code`], an optional message, optional trailing
+/// metadata, and optional `grpc-status-details-bin`.
 ///
 /// `Status` is the error type of every fallible operation in this crate, so it
-/// is kept to two machine words. The message and metadata live behind a
-/// pointer that is only allocated when one of them is set, which means the
-/// common `Ok` and bare-code cases allocate nothing.
+/// is kept to two machine words. The message, metadata, and details live
+/// behind a pointer that is only allocated when one of them is set, which
+/// means the common `Ok` and bare-code cases allocate nothing.
 ///
 /// ```
 /// use pbrs_grpc::{Code, Status};
@@ -142,11 +145,14 @@ struct Detail {
 /// Attaching metadata to an error puts it in the response trailers:
 ///
 /// ```
-/// use pbrs_grpc::Status;
+/// use pbrs_grpc::{Code, Status};
 ///
 /// let mut status = Status::resource_exhausted("quota exceeded");
 /// status.metadata_mut().insert("x-retry-after", "30")?;
 /// assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+///
+/// let rich = Status::with_details(Code::NotFound, "gone", vec![0x08, 0x05]);
+/// assert_eq!(rich.details(), &[0x08, 0x05]);
 /// # Ok::<(), Status>(())
 /// ```
 #[derive(Clone, Debug)]
@@ -172,7 +178,7 @@ impl Status {
         } else {
             Some(Box::new(Detail {
                 message,
-                metadata: Metadata::new(),
+                ..Detail::default()
             }))
         };
         Self { code, detail }
@@ -208,6 +214,39 @@ impl Status {
     /// Trailing metadata, allocating the detail block on first use.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.detail.get_or_insert_with(Box::default).metadata
+    }
+
+    /// Serialized `google.rpc.Status` (or any protobuf the peer understands)
+    /// carried as `grpc-status-details-bin`. Empty when the trailer was absent.
+    #[must_use]
+    pub fn details(&self) -> &[u8] {
+        self.detail.as_ref().map_or(&[], |d| d.details.as_ref())
+    }
+
+    /// Attach `details` as `grpc-status-details-bin`.
+    ///
+    /// The gRPC spec puts a serialized `google.rpc.Status` here: the same
+    /// code and message as the ASCII trailers, plus a repeated
+    /// `google.protobuf.Any` payload. This method does not parse or generate
+    /// that message; it ships whatever bytes you give it. An empty slice
+    /// omits the trailer.
+    pub fn set_details(&mut self, details: impl Into<Bytes>) {
+        let details = details.into();
+        if details.is_empty() {
+            if let Some(detail) = self.detail.as_mut() {
+                detail.details = Bytes::new();
+            }
+            return;
+        }
+        self.detail.get_or_insert_with(Box::default).details = details;
+    }
+
+    /// [`Self::new`] plus [`Self::set_details`].
+    #[must_use]
+    pub fn with_details(code: Code, message: impl Into<String>, details: impl Into<Bytes>) -> Self {
+        let mut status = Self::new(code, message);
+        status.set_details(details);
+        status
     }
 
     /// Whether this status represents success.
@@ -342,6 +381,7 @@ mod tests {
         assert!(status.is_ok());
         assert_eq!(status.message(), "");
         assert!(status.metadata().is_empty());
+        assert!(status.details().is_empty());
         assert_eq!(status.to_string(), "OK");
     }
 
@@ -408,5 +448,20 @@ mod tests {
             "DEADLINE_EXCEEDED: deadline exceeded"
         );
         assert_eq!(Code::ResourceExhausted.name(), "RESOURCE_EXHAUSTED");
+    }
+
+    #[test]
+    fn details_are_independent_of_metadata() {
+        let mut status = Status::with_details(Code::NotFound, "gone", vec![0x08, 0x05]);
+        assert_eq!(status.details(), &[0x08, 0x05]);
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        assert_eq!(status.details(), &[0x08, 0x05]);
+        assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+        status.set_details(Vec::<u8>::new());
+        assert!(status.details().is_empty());
+        assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
     }
 }

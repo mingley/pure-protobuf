@@ -1,7 +1,7 @@
 //! gRPC metadata: ASCII headers and base64 `-bin` headers.
 
 use crate::status::Status;
-use base64::engine::general_purpose::STANDARD_NO_PAD;
+use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
 use base64::Engine;
 use http::{HeaderMap, HeaderName, HeaderValue};
 
@@ -25,9 +25,10 @@ use http::{HeaderMap, HeaderName, HeaderValue};
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
 ///
-/// Reserved keys (`content-type`, `grpc-status`, `grpc-timeout`, HTTP/2
-/// pseudo-headers, ...) are invisible here and are never written out, so
-/// echoing received metadata back cannot corrupt the protocol framing.
+/// Reserved keys (`content-type`, `grpc-status`, `grpc-status-details-bin`,
+/// `grpc-timeout`, HTTP/2 pseudo-headers, ...) are invisible here and are
+/// never written out, so echoing received metadata back cannot corrupt the
+/// protocol framing.
 ///
 /// The total size a peer can send is bounded by
 /// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
@@ -113,7 +114,7 @@ impl Metadata {
             return None;
         }
         let raw = self.map.get(key.to_ascii_lowercase())?.to_str().ok()?;
-        STANDARD_NO_PAD.decode(raw).ok()
+        decode_base64(raw)
     }
 
     /// Every ASCII entry, skipping reserved and `-bin` keys.
@@ -134,7 +135,7 @@ impl Metadata {
             if is_reserved(key) || !key.ends_with("-bin") {
                 return None;
             }
-            Some((key, STANDARD_NO_PAD.decode(value.to_str().ok()?).ok()?))
+            Some((key, decode_base64(value.to_str().ok()?)?))
         })
     }
 
@@ -173,9 +174,19 @@ fn is_reserved(key: &str) -> bool {
         || key.eq_ignore_ascii_case("te")
         || key.eq_ignore_ascii_case("grpc-status")
         || key.eq_ignore_ascii_case("grpc-message")
+        || key.eq_ignore_ascii_case("grpc-status-details-bin")
         || key.eq_ignore_ascii_case("grpc-timeout")
         || key.eq_ignore_ascii_case("grpc-encoding")
         || key.eq_ignore_ascii_case("grpc-accept-encoding")
+}
+
+/// Accept padded and unpadded standard base64. Peers disagree on padding;
+/// outbound `-bin` values are unpadded, inbound either form is accepted.
+pub(crate) fn decode_base64(raw: &str) -> Option<Vec<u8>> {
+    match STANDARD_NO_PAD.decode(raw) {
+        Ok(bytes) => Some(bytes),
+        Err(_) => STANDARD.decode(raw).ok(),
+    }
 }
 
 #[cfg(test)]
@@ -206,6 +217,10 @@ mod tests {
             HeaderValue::from_static("0"),
         );
         raw.insert(
+            HeaderName::from_static("grpc-status-details-bin"),
+            HeaderValue::from_static("CAU"),
+        );
+        raw.insert(
             HeaderName::from_static("x-real"),
             HeaderValue::from_static("v"),
         );
@@ -214,6 +229,7 @@ mod tests {
         assert_eq!(md.len(), 1);
         assert_eq!(md.get("content-type"), None);
         assert_eq!(md.get("grpc-status"), None);
+        assert_eq!(md.get_bin("grpc-status-details-bin"), None);
         assert_eq!(md.get("x-real"), Some("v"));
 
         let mut out = HeaderMap::new();
@@ -251,6 +267,22 @@ mod tests {
         assert_eq!(md.iter().collect::<Vec<_>>(), vec![("plain", "v")]);
         let bins: Vec<_> = md.iter_bin().collect();
         assert_eq!(bins, vec![("blob-bin", b"raw".to_vec())]);
+    }
+
+    #[test]
+    fn padded_and_unpadded_bin_values_decode() {
+        let mut raw = HeaderMap::new();
+        raw.insert(
+            HeaderName::from_static("a-bin"),
+            HeaderValue::from_static("AA"),
+        );
+        raw.insert(
+            HeaderName::from_static("b-bin"),
+            HeaderValue::from_static("AA=="),
+        );
+        let md = Metadata::from_headers(&raw);
+        assert_eq!(md.get_bin("a-bin").as_deref(), Some(&[0u8][..]));
+        assert_eq!(md.get_bin("b-bin").as_deref(), Some(&[0u8][..]));
     }
 
     #[test]

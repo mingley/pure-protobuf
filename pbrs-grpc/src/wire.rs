@@ -5,9 +5,11 @@ use crate::codec::{self, Frame};
 use crate::config::Wire;
 use crate::gzip;
 use crate::limits::MessageLimits;
-use crate::metadata::Metadata;
+use crate::metadata::{self, Metadata};
 use crate::status::{Code, Status};
 use crate::stream::{Framed, Streaming};
+use base64::engine::general_purpose::STANDARD_NO_PAD;
+use base64::Engine;
 use bytes::{BufMut, Bytes, BytesMut};
 use h2::{Reason, RecvStream, SendStream};
 use http::uri::{Authority, PathAndQuery, Scheme};
@@ -17,6 +19,7 @@ use std::time::Duration;
 
 const GRPC_STATUS: HeaderName = HeaderName::from_static("grpc-status");
 const GRPC_MESSAGE: HeaderName = HeaderName::from_static("grpc-message");
+const GRPC_STATUS_DETAILS_BIN: HeaderName = HeaderName::from_static("grpc-status-details-bin");
 const GRPC_TIMEOUT: HeaderName = HeaderName::from_static("grpc-timeout");
 const GRPC_ENCODING: HeaderName = HeaderName::from_static("grpc-encoding");
 const GRPC_ACCEPT_ENCODING: HeaderName = HeaderName::from_static("grpc-accept-encoding");
@@ -278,13 +281,17 @@ pub(crate) async fn send_bytes(
 }
 
 pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
-    if status.code() == Code::Ok && status.message().is_empty() && status.metadata().is_empty() {
+    if status.code() == Code::Ok
+        && status.message().is_empty()
+        && status.metadata().is_empty()
+        && status.details().is_empty()
+    {
         // The overwhelmingly common case: one static header, no formatting.
         let mut map = HeaderMap::with_capacity(1);
         map.insert(GRPC_STATUS, STATUS_OK);
         return Ok(map);
     }
-    let mut map = HeaderMap::with_capacity(4);
+    let mut map = HeaderMap::with_capacity(5);
     let code = HeaderValue::from_str(&status.code().to_i32().to_string())
         .map_err(|e| Status::internal(e.to_string()))?;
     map.insert(GRPC_STATUS, code);
@@ -292,6 +299,11 @@ pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
         let encoded = percent_encode(status.message());
         let val = HeaderValue::from_str(&encoded).map_err(|e| Status::internal(e.to_string()))?;
         map.insert(GRPC_MESSAGE, val);
+    }
+    if !status.details().is_empty() {
+        let encoded = STANDARD_NO_PAD.encode(status.details());
+        let val = HeaderValue::from_str(&encoded).map_err(|e| Status::internal(e.to_string()))?;
+        map.insert(GRPC_STATUS_DETAILS_BIN, val);
     }
     status.metadata().write_to(&mut map)?;
     Ok(map)
@@ -386,6 +398,14 @@ pub(crate) fn status_from(headers: &HeaderMap, trailers: Option<&HeaderMap>) -> 
             let mut status = Status::new(code, message);
             if code != Code::Ok {
                 *status.metadata_mut() = Metadata::from_headers(map);
+            }
+            if let Some(raw) = map
+                .get(GRPC_STATUS_DETAILS_BIN)
+                .and_then(|v| v.to_str().ok())
+            {
+                if let Some(details) = metadata::decode_base64(raw) {
+                    status.set_details(details);
+                }
             }
             status
         }
@@ -831,6 +851,50 @@ mod tests {
                 .and_then(|v| v.to_str().ok()),
             Some("pbrs-grpc/0.1.0")
         );
+    }
+
+    #[test]
+    fn status_details_round_trip_on_the_wire() {
+        use super::{grpc_trailers, status_from};
+        use crate::status::Status;
+        use http::HeaderMap;
+
+        let mut status = Status::not_found("gone");
+        status.set_details(vec![0x08, 0x05]);
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        let trailers = grpc_trailers(&status).expect("trailers");
+        assert!(trailers.get("grpc-status-details-bin").is_some());
+        let restored = status_from(&HeaderMap::new(), Some(&trailers));
+        assert_eq!(restored.code(), Code::NotFound);
+        assert_eq!(restored.message(), "gone");
+        assert_eq!(restored.details(), &[0x08, 0x05]);
+        assert_eq!(restored.metadata().get("x-retry-after"), Some("30"));
+        assert!(restored
+            .metadata()
+            .get_bin("grpc-status-details-bin")
+            .is_none());
+    }
+
+    #[test]
+    fn padded_details_bin_is_accepted() {
+        use super::status_from;
+        use http::{HeaderMap, HeaderName, HeaderValue};
+
+        let mut map = HeaderMap::new();
+        map.insert(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("5"),
+        );
+        map.insert(
+            HeaderName::from_static("grpc-status-details-bin"),
+            HeaderValue::from_static("CAU="),
+        );
+        let restored = status_from(&map, None);
+        assert_eq!(restored.code(), Code::NotFound);
+        assert_eq!(restored.details(), &[0x08, 0x05]);
     }
 
     #[test]

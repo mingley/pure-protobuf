@@ -266,9 +266,23 @@ status.metadata_mut().insert("x-retry-after", "30")?;
 return Err(status);
 ```
 
-Reserved keys (`grpc-status`, `grpc-timeout`, `content-type`, HTTP/2
-pseudo-headers, ...) are invisible through `Metadata` and are never written
-out, so forwarding received metadata cannot corrupt the protocol framing.
+Rich errors travel as `grpc-status-details-bin`. Attach a serialized
+`google.rpc.Status` (or any protobuf the peer understands); it is reserved
+wire state, not user metadata:
+
+```rust
+let mut status = Status::failed_precondition("quota");
+status.set_details(encoded_google_rpc_status);
+return Err(status);
+```
+
+On the client, `status.details()` is the decoded bytes. The key is invisible
+through `Metadata`, so forwarding received metadata cannot inject it.
+
+Reserved keys (`grpc-status`, `grpc-status-details-bin`, `grpc-timeout`,
+`content-type`, HTTP/2 pseudo-headers, ...) are invisible through `Metadata`
+and are never written out, so forwarding received metadata cannot corrupt
+the protocol framing.
 
 ## Errors and status codes
 
@@ -287,9 +301,10 @@ match client.say_hello(request).await {
 }
 ```
 
-`Status` is two machine words. Its message and metadata live behind a pointer
-that is only allocated when one of them is set, so `Result<T, Status>` stays
-cheap on paths where nothing goes wrong.
+`Status` is two machine words. Its message, metadata, and
+`grpc-status-details-bin` live behind a pointer that is only allocated when
+one of them is set, so `Result<T, Status>` stays cheap on paths where nothing
+goes wrong.
 
 Codes the kernel produces on your behalf:
 
@@ -573,7 +588,7 @@ guards is committed.
 | Slow-reader amplification | Capacity is released only after a chunk is handed on | always |
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
-| Reserved metadata injection | `grpc-status` and friends are never read from or written to user metadata | always |
+| Reserved metadata injection | `grpc-status`, `grpc-status-details-bin`, and friends are never read from or written to user metadata | always |
 | Long-lived connection hold | `GOAWAY` after age or idle, then force-close; PINGs do not reset idle | opt-in |
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound

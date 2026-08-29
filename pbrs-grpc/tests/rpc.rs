@@ -128,6 +128,44 @@ impl Greeter for Fail {
     }
 }
 
+struct RichFail;
+
+impl Greeter for RichFail {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut status = Status::failed_precondition("quota");
+        status.set_details(vec![0x08, 0x09]);
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        Err(status)
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("fail"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("fail"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("fail"))
+    }
+}
+
 #[tokio::test]
 async fn unary_echoes_name() {
     let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
@@ -194,6 +232,20 @@ async fn failing_rpc_nonzero_grpc_status() {
         }
         Ok(_) => panic!("expected nonzero grpc-status"),
     }
+}
+
+#[tokio::test]
+async fn failing_rpc_carries_status_details() {
+    let (_addr, client, _guard) = spawn_greeter(RichFail).await.expect("spawn");
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("details");
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "quota");
+    assert_eq!(err.details(), &[0x08, 0x09]);
+    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+    assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

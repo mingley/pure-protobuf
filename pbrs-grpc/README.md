@@ -50,8 +50,8 @@ no C compiler) and mTLS, `grpc.health.v1`, `grpc.reflection.v1`, interceptors,
 HTTP/2 PING keepalive, max connection age (jittered ±10%) and idle, automatic
 redial of a dead connection, lazy connect with wait-for-ready, graceful drain
 with `GOAWAY`, per-message gzip, deadlines, cancellation, ASCII and `-bin`
-metadata, and OK-path custom trailers. Outbound RPCs send
-`user-agent: pbrs-grpc/0.1.0`.
+metadata, `grpc-status-details-bin`, and OK-path custom trailers. Outbound
+RPCs send `user-agent: pbrs-grpc/0.1.0`.
 
 **[Guide](../docs/grpc.md)** — building services, streaming, metadata, errors,
 deadlines, lazy connect, compression, interceptors, limits, tuning, testing,
