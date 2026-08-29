@@ -269,6 +269,7 @@ impl std::fmt::Debug for Rpc {
             .field("deadline", &self.deadline())
             .field("limits", &self.limits())
             .field("accepts_gzip", &self.accepts_gzip())
+            .field("compresses_outbound", &self.compresses_outbound())
             .field("encoding", &self.encoding())
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
@@ -461,6 +462,16 @@ impl Rpc {
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
         crate::wire::accepts_gzip(self.request.headers())
+    }
+
+    /// Whether this server gzips responses when the peer advertised gzip.
+    ///
+    /// Same overlay as [`crate::Server::compresses_outbound`]. A handler
+    /// [`crate::Response::set_compress`]`(false)` opts out; unset follows
+    /// this default.
+    #[must_use]
+    pub fn compresses_outbound(&self) -> bool {
+        self.config.compresses_outbound()
     }
 
     /// The peer's `grpc-encoding` token, if it sent one.
@@ -965,10 +976,27 @@ async fn send_stream_response<Resp: Serialize + Send>(
     // future: a producer that stops early because *its* deadline expired must
     // not be reported as a clean end of stream.
     let drained = match deadline {
-        None => drain_to_wire(&mut stream, &mut send, wire, prefer_gzip, peer_accepts_gzip).await,
+        None => {
+            drain_to_wire(
+                &mut stream,
+                &mut send,
+                wire,
+                compress,
+                prefer_gzip,
+                peer_accepts_gzip,
+            )
+            .await
+        }
         Some(at) => tokio::time::timeout_at(
             at,
-            drain_to_wire(&mut stream, &mut send, wire, prefer_gzip, peer_accepts_gzip),
+            drain_to_wire(
+                &mut stream,
+                &mut send,
+                wire,
+                compress,
+                prefer_gzip,
+                peer_accepts_gzip,
+            ),
         )
         .await
         .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
@@ -1008,6 +1036,7 @@ async fn drain_to_wire<Resp: Serialize + Send>(
     stream: &mut Streaming<Resp>,
     send: &mut h2::SendStream<Bytes>,
     wire: Wire,
+    envelope: Option<bool>,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
 ) -> Result<(), DrainError> {
@@ -1030,7 +1059,15 @@ async fn drain_to_wire<Resp: Serialize + Send>(
         }
         for item in items.drain(..) {
             let mut item = item.map_err(DrainError::Producer)?;
-            item.compressed = gzip_outbound(item.compressed, prefer_gzip, peer_accepts_gzip);
+            item.compressed = gzip_outbound(
+                if item.compressed {
+                    Some(true)
+                } else {
+                    envelope
+                },
+                prefer_gzip,
+                peer_accepts_gzip,
+            );
             batch
                 .push(send, item)
                 .await

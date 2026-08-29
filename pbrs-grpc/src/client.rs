@@ -515,8 +515,9 @@ impl Channel {
     ///
     /// Off by default. Equivalent to [`ChannelConfig::send_compressed`].
     /// A request that already called [`crate::Request::set_compress`] is
-    /// left alone, including `set_compress(false)` to opt out. A later
-    /// interceptor can still call [`crate::Outgoing::set_compress`].
+    /// left alone, including `set_compress(false)` to opt out. Interceptors
+    /// run before a client- or bidi-stream [`crate::StreamSender`] is
+    /// returned, so [`crate::Outgoing::set_compress`] stamps that sender too.
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);
@@ -856,21 +857,17 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
+        let mut req = req;
+        let prepared = self.prepare_outbound(path, &mut req);
         let wire = self.config.wire();
         let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
-        let tx = tx
-            .with_limits(wire.limits)
-            .with_compress(stream_sender_compress(
-                &req,
-                self.config.compresses_outbound(),
-            ));
+        let tx = tx.with_limits(wire.limits).with_compress(req.compress());
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let call = Call::new(
             cancel,
             Box::pin(async move {
-                let mut req = req;
-                channel.prepare_outbound(path, &mut req)?;
+                prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -901,22 +898,18 @@ impl Channel {
         Req: Serialize + Send + 'static,
         Resp: Parse + Default + Send + 'static,
     {
+        let mut req = req;
+        let prepared = self.prepare_outbound(path, &mut req);
         let wire = self.config.wire();
         let buffer = self.config.stream_buffer_size();
         let (tx, rx) = Streaming::channel(buffer);
-        let tx = tx
-            .with_limits(wire.limits)
-            .with_compress(stream_sender_compress(
-                &req,
-                self.config.compresses_outbound(),
-            ));
+        let tx = tx.with_limits(wire.limits).with_compress(req.compress());
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let call = Call::new(
             cancel,
             Box::pin(async move {
-                let mut req = req;
-                channel.prepare_outbound(path, &mut req)?;
+                prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -939,18 +932,6 @@ impl Channel {
             }),
         );
         (tx, call)
-    }
-}
-
-/// [`StreamSender`] is returned before interceptors run, so gzip on
-/// [`StreamSender::send`] follows the request (if set) or the channel overlay.
-/// Interceptors still stamp `grpc-encoding` on the headers via
-/// [`Request::compress`].
-fn stream_sender_compress<T>(req: &Request<T>, overlay: bool) -> bool {
-    if req.compress_is_set() {
-        req.compress()
-    } else {
-        overlay
     }
 }
 

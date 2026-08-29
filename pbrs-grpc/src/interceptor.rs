@@ -13,14 +13,15 @@ use std::sync::Arc;
 /// are one function. Mutate inbound metadata with [`Rpc::metadata_mut`]
 /// (strip with [`crate::Metadata::remove`] or [`crate::Metadata::retain`],
 /// overwrite a hop with [`crate::Metadata::set`]), cap the deadline with
-/// [`Rpc::set_timeout`], read the client's deadline with [`Rpc::peer_timeout`]
-/// or the handler's with [`Rpc::effective_timeout`], read the path with
+/// [`Rpc::set_timeout`], read the client's `grpc-timeout` with [`Rpc::peer_timeout`]
+/// or the effective remaining budget with [`Rpc::effective_timeout`] /
+/// [`Rpc::deadline`], read the path with
 /// [`Rpc::path`] / [`Rpc::service`] / [`Rpc::method`], read `:authority` with
 /// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], read the mTLS
 /// client certificate with [`Rpc::peer_identity`], Unix credentials with
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
 /// message caps with [`Rpc::limits`], gzip accept/encoding with
-/// [`Rpc::accepts_gzip`] / [`Rpc::encoding`], the TCP interface with
+/// [`Rpc::accepts_gzip`] / [`Rpc::encoding`] / [`Rpc::compresses_outbound`], the TCP interface with
 /// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`]. Generated handlers see the same path,

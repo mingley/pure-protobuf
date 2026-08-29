@@ -322,8 +322,8 @@ impl<T> StreamSender<T> {
     ///
     /// Set by [`crate::Channel::send_compressed`] when this sender was opened
     /// from a channel, by [`crate::Request::set_compress`] on that RPC, or by
-    /// [`Self::set_compress`]. Interceptors run after the sender is returned,
-    /// so [`crate::Outgoing::set_compress`] does not stamp this flag.
+    /// a client interceptor's [`crate::Outgoing::set_compress`]. Overlays and
+    /// interceptors run before the sender is returned.
     #[must_use]
     pub fn compress(&self) -> bool {
         self.compress
@@ -340,8 +340,9 @@ impl<T> StreamSender<T> {
     /// Queue one message, waiting if the buffer is full.
     ///
     /// Uncompressed unless this sender was built with channel-wide gzip
-    /// ([`crate::ChannelConfig::send_compressed`]) or the request called
-    /// [`crate::Request::set_compress`]. `Err` means the peer is
+    /// ([`crate::ChannelConfig::send_compressed`]), the request called
+    /// [`crate::Request::set_compress`], or a client interceptor set
+    /// [`crate::Outgoing::set_compress`]. `Err` means the peer is
     /// gone or the message exceeds the outbound cap.
     pub async fn send(&self, message: T) -> Result<(), Status>
     where

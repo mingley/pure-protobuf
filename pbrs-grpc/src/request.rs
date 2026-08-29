@@ -1170,7 +1170,7 @@ pub struct Response<T> {
     message: T,
     metadata: Metadata,
     trailers: Metadata,
-    compress: bool,
+    compress: Option<bool>,
 }
 
 impl<T> Response<T> {
@@ -1181,7 +1181,7 @@ impl<T> Response<T> {
             message,
             metadata: Metadata::new(),
             trailers: Metadata::new(),
-            compress: false,
+            compress: None,
         }
     }
 
@@ -1260,28 +1260,46 @@ impl<T> Response<T> {
     }
 
     /// gzip this payload and set the Compressed-Flag.
+    ///
+    /// Passing `false` opts out of a later [`crate::Server::send_compressed`]
+    /// overlay. [`Self::clear_compress`] drops the choice so that overlay
+    /// can fill it in.
     pub fn set_compress(&mut self, compress: bool) {
-        self.compress = compress;
+        self.compress = Some(compress);
+    }
+
+    /// Drop a compression choice so a later server overlay can fill it in.
+    pub fn clear_compress(&mut self) {
+        self.compress = None;
     }
 
     /// Whether this payload will be gzipped. Outbound intent.
     ///
-    /// Same bit as [`Self::compressed`]: a [`Response`] has one gzip flag,
-    /// unlike [`Request`], which splits intent (`compress`) from the received
-    /// first-frame flag (`compressed`).
+    /// `false` when unset; [`crate::Server::send_compressed`] fills that in
+    /// when the peer advertised gzip. Same effective bit as
+    /// [`Self::compressed`] after that overlay.
     #[must_use]
     pub fn compress(&self) -> bool {
-        self.compress
+        self.compress.unwrap_or(false)
+    }
+
+    /// Whether [`Self::set_compress`] has been called.
+    ///
+    /// Distinct from [`Self::compress`], which is `false` when unset.
+    /// [`crate::Server::send_compressed`] fills only when this is `false`.
+    #[must_use]
+    pub fn compress_is_set(&self) -> bool {
+        self.compress.is_some()
     }
 
     /// Whether this payload is gzipped.
     ///
-    /// On a response you build, this is [`Self::set_compress`]. On a received
+    /// On a response you build, this is [`Self::compress`]. On a received
     /// unary response, it is the Compressed-Flag from the wire. Streaming
     /// payloads report the flag on each [`crate::Framed`] instead.
     #[must_use]
     pub fn compressed(&self) -> bool {
-        self.compress
+        self.compress.unwrap_or(false)
     }
 
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
@@ -1289,7 +1307,7 @@ impl<T> Response<T> {
             message,
             metadata,
             trailers,
-            compress: false,
+            compress: Some(false),
         }
     }
 
@@ -1303,11 +1321,11 @@ impl<T> Response<T> {
             message,
             metadata,
             trailers,
-            compress,
+            compress: Some(compress),
         }
     }
 
-    pub(crate) fn split(self) -> (T, Metadata, Metadata, bool) {
+    pub(crate) fn split(self) -> (T, Metadata, Metadata, Option<bool>) {
         let (message, parts) = self.into_message_and_parts();
         (message, parts.metadata, parts.trailers, parts.compress)
     }
@@ -1319,7 +1337,7 @@ impl<T> Response<T> {
 pub struct ResponseParts {
     metadata: Metadata,
     trailers: Metadata,
-    compress: bool,
+    compress: Option<bool>,
 }
 
 impl ResponseParts {
@@ -1348,19 +1366,32 @@ impl ResponseParts {
     /// gzip this payload and set the Compressed-Flag.
     /// See [`Response::set_compress`].
     pub fn set_compress(&mut self, compress: bool) {
-        self.compress = compress;
+        self.compress = Some(compress);
+    }
+
+    /// Drop a compression choice so a later server overlay can fill it in.
+    /// See [`Response::clear_compress`].
+    pub fn clear_compress(&mut self) {
+        self.compress = None;
     }
 
     /// Outbound gzip intent. See [`Response::compress`].
     #[must_use]
     pub fn compress(&self) -> bool {
-        self.compress
+        self.compress.unwrap_or(false)
+    }
+
+    /// Whether [`Self::set_compress`] has been called.
+    /// See [`Response::compress_is_set`].
+    #[must_use]
+    pub fn compress_is_set(&self) -> bool {
+        self.compress.is_some()
     }
 
     /// Whether this payload is gzipped. See [`Response::compressed`].
     #[must_use]
     pub fn compressed(&self) -> bool {
-        self.compress
+        self.compress.unwrap_or(false)
     }
 }
 
@@ -1663,9 +1694,11 @@ mod tests {
         assert!(parts.compress());
         parts.set_compress(false);
         assert!(!parts.compress());
+        assert!(parts.compress_is_set());
         let rebuilt = Response::from_message_and_parts(n, parts);
         assert!(!rebuilt.compressed());
         assert!(!rebuilt.compress());
+        assert!(rebuilt.compress_is_set());
         assert_eq!(rebuilt.metadata().get("h"), Some("v"));
         assert_eq!(rebuilt.into_inner(), 42);
     }

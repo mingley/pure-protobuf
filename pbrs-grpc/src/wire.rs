@@ -115,10 +115,13 @@ pub(crate) fn accepts_gzip(headers: &HeaderMap) -> bool {
         })
 }
 
-/// gzip this payload only if the handler or the config asked, and the peer
-/// advertised gzip.
-pub(crate) fn gzip_outbound(handler: bool, configured: bool, peer_accepts: bool) -> bool {
-    (handler || configured) && peer_accepts
+/// gzip this payload only if the handler (or config, when the handler
+/// omitted a choice) asked, and the peer advertised gzip.
+///
+/// `None` follows `configured` (fill-if-unset). `Some(false)` opts out of
+/// a [`crate::ServerConfig::send_compressed`] overlay.
+pub(crate) fn gzip_outbound(handler: Option<bool>, configured: bool, peer_accepts: bool) -> bool {
+    handler.unwrap_or(configured) && peer_accepts
 }
 
 /// How [`check_request`] turns a request away.
@@ -1138,10 +1141,11 @@ mod tests {
         assert_eq!(grpc_encoding(&headers), Some("gzip"));
         headers.insert("grpc-encoding", HeaderValue::from_static("GZIP"));
         assert_eq!(grpc_encoding(&headers), Some("GZIP"));
-        assert!(!gzip_outbound(true, true, false));
-        assert!(gzip_outbound(false, true, true));
-        assert!(gzip_outbound(true, false, true));
-        assert!(!gzip_outbound(false, false, true));
+        assert!(!gzip_outbound(Some(true), true, false));
+        assert!(gzip_outbound(None, true, true));
+        assert!(gzip_outbound(Some(true), false, true));
+        assert!(!gzip_outbound(None, false, true));
+        assert!(!gzip_outbound(Some(false), true, true));
     }
 
     #[test]

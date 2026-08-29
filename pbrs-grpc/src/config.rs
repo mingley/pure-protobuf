@@ -350,8 +350,10 @@ impl ServerConfig {
     ///
     /// Off by default: compression is CPU for bandwidth, and at LAN
     /// latencies identity framing usually wins. A handler can still gzip one
-    /// RPC with [`crate::Response::set_compress`]. Either way, a peer that
-    /// did not advertise gzip is never sent a compressed frame.
+    /// RPC with [`crate::Response::set_compress`]. A response that already
+    /// called [`crate::Response::set_compress`] is left alone, including
+    /// `set_compress(false)` to opt out of this overlay. A peer that did
+    /// not advertise gzip is never sent a compressed frame.
     ///
     /// [`crate::Server::send_compressed`], [`crate::Router::send_compressed`],
     /// and generated `FooServer::send_compressed` enable this without

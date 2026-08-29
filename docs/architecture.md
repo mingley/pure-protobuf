@@ -88,8 +88,8 @@ after headers does not end the stream.
 Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
 `Intercepted` is `Clone` when the interceptor is.
 The first registered runs first. Closures see `Rpc` (path, service/method,
-metadata, both timeout views, `deadline`, gzip accept/encoding, peer,
-`:authority` / `:scheme`, limits).
+metadata, both timeout views, `deadline`, gzip accept/encoding,
+`compresses_outbound`, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, and gzip.

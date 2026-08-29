@@ -4599,8 +4599,99 @@ async fn a_client_interceptor_can_opt_out_of_channel_send_compressed() {
         .await
         .expect("opt out");
     assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("opt-out stream");
+    assert_eq!(name_of(reply.get_ref()), "gzip");
     task.abort();
 }
+
+#[tokio::test]
+async fn a_client_interceptor_can_gzip_a_client_stream() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.set_compress(true);
+        Ok(())
+    });
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert!(tx.compress(), "interceptor must stamp StreamSender");
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("gzip stream");
+    assert_eq!(name_of(reply.get_ref()), "gzip");
+    task.abort();
+}
+
+struct OptOutGzip;
+
+impl pbrs_grpc::Greeter for OptOutGzip {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut resp = Response::new(common::reply(common::name_of_request(request.get_ref())));
+        resp.set_compress(false);
+        Ok(resp)
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("opt-out-gzip"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("opt-out-gzip"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("opt-out-gzip"))
+    }
+}
+
+#[tokio::test]
+async fn a_handler_can_opt_out_of_server_send_compressed() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(OptOutGzip)
+            .send_compressed()
+            .intercept(|rpc: &mut Rpc| {
+                if !rpc.compresses_outbound() {
+                    return Err(Status::internal("server overlay should gzip"));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("identity reply");
+    assert!(
+        !reply.compressed(),
+        "handler set_compress(false) must opt out of Server::send_compressed"
+    );
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
 struct SeesGzip;
 
 impl pbrs_grpc::Greeter for SeesGzip {

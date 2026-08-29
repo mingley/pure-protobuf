@@ -926,13 +926,16 @@ channel.send_compressed()
 overlay. That overlay fills compress only when the request omitted a choice, so
 `Request::set_compress(false)` opts out of a channel that called
 `send_compressed`. An interceptor can still `Outgoing::set_compress(false)`
-(or `true`). Client- and bidi-streaming `StreamSender::send` is stamped at
-open from the request or overlay — interceptors run after the sender is
-returned, so they do not change that flag; use `StreamSender::set_compress`.
+(or `true`). Client- and bidi-streaming `StreamSender::send` is stamped
+after overlays and interceptors run, so `Outgoing::set_compress` on that
+RPC is the same flag `send()` consults.
 `Server::compresses_outbound` / `Router` / `FooServer` read the
-response-side overlay. `Response::compress` is the outbound intent on a
-reply you build (same bit as `compressed()`). `StreamSender::compress` /
-`set_compress` is the same flag `send()` consults.
+response-side overlay; `Rpc::compresses_outbound` is that same bit.
+`Response::set_compress(false)` opts out of `Server::send_compressed` the
+same way. Unset follows the overlay. `Response::compress` /
+`compressed()` is the effective outbound intent (and the unary wire flag
+on a received reply). `StreamSender::compress` / `set_compress` is the
+same flag `send()` consults.
 
 A peer that omitted `gzip` from `grpc-accept-encoding` is never sent a
 compressed frame, even if the handler or the config asked. Successful
