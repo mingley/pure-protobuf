@@ -811,6 +811,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Cap how many TCP/Unix connections the accept loop will serve at once.
+    /// See [`ServerConfig::max_concurrent_connections`].
+    #[must_use]
+    pub fn max_concurrent_connections(mut self, n: usize) -> Self {
+        self.config = self.config.max_concurrent_connections(n);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. See
     /// [`ServerConfig::timeout`].
     #[must_use]
@@ -1100,6 +1108,14 @@ impl Router {
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);
+        self
+    }
+
+    /// Cap how many TCP/Unix connections the accept loop will serve at once.
+    /// See [`ServerConfig::max_concurrent_connections`].
+    #[must_use]
+    pub fn max_concurrent_connections(mut self, n: usize) -> Self {
+        self.config = self.config.max_concurrent_connections(n);
         self
     }
 

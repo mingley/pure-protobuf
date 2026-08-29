@@ -949,7 +949,9 @@ closure form does not hold easily — `Rpc::reject` is the same turn-away path
 either way (trailing metadata and `grpc-status-details-bin` both ship), and
 `NAME` is inherited so the wrapper mounts where the inner service would.
 There is no `tower` layer; use `protobuf-tonic` if you need tonic's
-middleware stack.
+middleware stack. Interceptors run before the handler (or before the stream
+opens on the client). They cannot see or rewrite the final `Status`; do that
+in the method.
 
 For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, and the peer address there.
@@ -1086,6 +1088,8 @@ Deliberate omissions, with what to do instead.
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
+| Response interceptors | Interceptors run before the handler. Inspect or rewrite the result in the method. |
+| Channel connectivity state | A failed RPC is `UNAVAILABLE`. There is no `GetState` / `WaitForStateChange`. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

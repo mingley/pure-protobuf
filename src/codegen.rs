@@ -4010,6 +4010,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Cap how many TCP/Unix connections the accept loop will serve at once. See [`{G}::ServerConfig::max_concurrent_connections`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_concurrent_connections(mut self, n: usize) -> Self {{ self.config = self.config.max_concurrent_connections(n); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");

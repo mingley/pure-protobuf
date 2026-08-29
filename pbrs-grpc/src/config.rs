@@ -292,6 +292,11 @@ impl ServerConfig {
     /// Further accepts are dropped immediately (the peer sees a reset), so an
     /// accept storm cannot pin an unbounded number of handshake tasks.
     /// Disabled by default.
+    ///
+    /// [`crate::Server::max_concurrent_connections`],
+    /// [`crate::Router::max_concurrent_connections`], and generated
+    /// `FooServer::max_concurrent_connections` set this without building a
+    /// [`ServerConfig`].
     #[must_use]
     pub fn max_concurrent_connections(mut self, n: usize) -> Self {
         self.max_concurrent_connections = Some(n);

@@ -346,6 +346,7 @@ async fn generated_servers_accept_configuration() {
             .send_compressed()
             .max_decoding_message_size(16)
             .max_concurrent_rpcs(32)
+            .max_concurrent_connections(8)
             .timeout(Duration::from_secs(5))
             .serve_listener(listener)
             .await

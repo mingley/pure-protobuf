@@ -1847,7 +1847,7 @@ async fn extra_connections_are_refused_when_the_cap_is_hit() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .config(ServerConfig::new().max_concurrent_connections(1))
+            .max_concurrent_connections(1)
             .serve_listener(listener)
             .await
             .ok();
