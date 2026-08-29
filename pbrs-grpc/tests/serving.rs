@@ -4198,14 +4198,20 @@ struct Hang {
     finished: Arc<AtomicUsize>,
 }
 
+impl Hang {
+    async fn hang(&self) {
+        self.started.fetch_add(1, Ordering::Relaxed);
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        self.finished.fetch_add(1, Ordering::Relaxed);
+    }
+}
+
 impl pbrs_grpc::Greeter for Hang {
     async fn say_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        self.started.fetch_add(1, Ordering::Relaxed);
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        self.finished.fetch_add(1, Ordering::Relaxed);
+        self.hang().await;
         let mut reply = HelloReply::new();
         reply.set_message(request.get_ref().name());
         Ok(Response::new(reply))
@@ -4215,21 +4221,24 @@ impl pbrs_grpc::Greeter for Hang {
         &self,
         _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("hang"))
+        self.hang().await;
+        Err(Status::internal("handler should have been dropped"))
     }
 
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("hang"))
+        self.hang().await;
+        Err(Status::internal("handler should have been dropped"))
     }
 
     async fn stream_hello(
         &self,
         _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("hang"))
+        self.hang().await;
+        Err(Status::internal("handler should have been dropped"))
     }
 }
 
@@ -4299,10 +4308,36 @@ async fn dropping_a_call_drops_the_handler() {
         GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let mut call = client.say_hello(Request::new(req("ada")));
+    assert_drop_call_drops_handler(
+        client.say_hello(Request::new(req("ada"))),
+        &started,
+        &finished,
+    )
+    .await;
+    assert_drop_call_drops_handler(
+        client.server_hello(Request::new(req("ada"))),
+        &started,
+        &finished,
+    )
+    .await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_drop_call_drops_handler(call, &started, &finished).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_drop_call_drops_handler(call, &started, &finished).await;
+    drop(tx);
+    task.abort();
+}
+
+async fn assert_drop_call_drops_handler<T>(
+    mut call: Call<T>,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+) {
+    started.store(0, Ordering::Relaxed);
     tokio::select! {
         biased;
-        result = &mut call => panic!("Hang returned before drop: {result:?}"),
+        _ = &mut call => panic!("Hang returned before drop"),
         () = tokio::time::sleep(Duration::from_millis(40)) => {}
     }
     assert!(
@@ -4316,7 +4351,6 @@ async fn dropping_a_call_drops_the_handler() {
         0,
         "dropping the Call should RST the stream and drop the handler"
     );
-    task.abort();
 }
 
 /// Spawns a child that waits on [`Request::cancelled`], then hangs.
