@@ -367,7 +367,7 @@ Codes the kernel produces on your behalf:
 | Code | When |
 |---|---|
 | `Unimplemented` | unknown service or method; unsupported `grpc-encoding` |
-| `ResourceExhausted` | a message exceeds an inbound or outbound cap |
+| `ResourceExhausted` | a message exceeds an inbound or outbound cap, or `max_concurrent_rpcs` is full |
 | `DeadlineExceeded` | `grpc-timeout` elapsed |
 | `Cancelled` | the peer reset the stream, or the caller cancelled |
 | `Unavailable` | the connection could not be established or was lost |
