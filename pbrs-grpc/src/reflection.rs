@@ -28,7 +28,7 @@
 //! method when the client advertises gzip. [`ServerReflectionClient::connect_lazy`],
 //! [`ServerReflectionClient::connect_tls_lazy`] (including mTLS), and
 //! [`ServerReflectionClient::connect_unix_lazy`] retry that method until listen
-//! when wait-for-ready is set on the request or the client. A client interceptor sees
+//! when wait-for-ready is set on the request, the client, or a client interceptor. A client interceptor sees
 //! [`crate::Outgoing`] path / service / method / `:authority` / `:scheme` on
 //! that method.
 

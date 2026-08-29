@@ -11,7 +11,7 @@
 //! the client advertises gzip. [`HealthClient::connect_lazy`],
 //! [`HealthClient::connect_tls_lazy`] (including mTLS), and
 //! [`HealthClient::connect_unix_lazy`] retry Check and Watch until listen when
-//! wait-for-ready is set on the request or the client. A client interceptor sees [`crate::Outgoing`]
+//! wait-for-ready is set on the request, the client, or a client interceptor. A client interceptor sees [`crate::Outgoing`]
 //! path / service / method / `:authority` / `:scheme` on both methods.
 //!
 //! ```no_run

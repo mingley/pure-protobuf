@@ -556,14 +556,14 @@ StreamingOutputCall, StreamingInputCall, and FullDuplexCall, and hand-written
 Reverser `Channel` methods, retry the same interceptor fill on those dialers.
 Generated `FooClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
 retry the same way: Store Get, Watch, PutAll, and Sync wait until listen
-on those transports, from either `Request::set_wait_for_ready` or
-`FooClient::wait_for_ready`. Per-RPC opt-out and a waiting Call's deadline
+on those transports, from either `Request::set_wait_for_ready`,
+`FooClient::wait_for_ready`, or a client interceptor `set_wait_for_ready(true)`. Per-RPC opt-out and a waiting Call's deadline
 apply on those Store dialers too, including mTLS. Health Check and Watch retry until listen on
 the same dialers (`HealthClient::connect_lazy` / `connect_tls_lazy` /
 `connect_unix_lazy`); Health has no List and no client-streaming or bidi
-method. Opt-out and a waiting Call's deadline apply on those Health dialers
+method. A client interceptor `set_wait_for_ready(true)` retries Check and Watch until listen on those dialers too. Opt-out and a waiting Call's deadline apply on those Health dialers
 too, including mTLS. Reflection `ServerReflectionInfo` retries until listen on those
-dialers; reflection is one bidi method. Opt-out and a waiting Call's deadline
+dialers; reflection is one bidi method. A client interceptor `set_wait_for_ready(true)` retries that method until listen on those dialers too. Opt-out and a waiting Call's deadline
 apply on those reflection dialers too, including mTLS. Official TestService EmptyCall,
 StreamingOutputCall, StreamingInputCall, and FullDuplexCall retry until
 listen on the same dialers. Opt-out and a waiting Call's deadline apply on

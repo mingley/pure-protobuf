@@ -319,6 +319,15 @@ fn service_names(resp: &ServerReflectionResponse) -> Vec<String> {
         .collect()
 }
 
+#[test]
+fn reflection_crate_docs_name_interceptor_wait_for_ready() {
+    let src = include_str!("../src/reflection.rs");
+    assert!(
+        src.contains("wait-for-ready is set on the request, the client, or a client interceptor."),
+        "reflection crate rustdoc must name interceptor-set wait-for-ready"
+    );
+}
+
 #[tokio::test]
 async fn list_services_includes_the_registered_greeter() {
     let (addr, _guard) = serve().await;
@@ -1056,6 +1065,87 @@ async fn reflection_unix_channel_wait_for_ready_completes_once_the_server_listen
     let client = ServerReflectionClient::connect_unix_lazy(&path)
         .expect("lazy")
         .wait_for_ready();
+    wait_then_complete_reflection(&client, false, async {
+        let sock = path.clone();
+        let reflection = reflection_server();
+        ServerGuard(tokio::spawn(async move {
+            reflection.serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client = ServerReflectionClient::connect_lazy(addr)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_reflection(&client, false, async {
+        serve_reflection_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_tls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_reflection(&client, false, async {
+        serve_reflection_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_mtls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_reflection(&client, false, async {
+        serve_reflection_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_reflection_unix_client_interceptor_can_set_wait_for_ready() {
+    let path = unix_sock("intercept-wait");
+    let client = ServerReflectionClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
     wait_then_complete_reflection(&client, false, async {
         let sock = path.clone();
         let reflection = reflection_server();

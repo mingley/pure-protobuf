@@ -473,6 +473,15 @@ fn resume_marks_known_names_serving() {
     assert_eq!(reporter.status(""), Some(ServingStatus::Serving));
 }
 
+#[test]
+fn health_crate_docs_name_interceptor_wait_for_ready() {
+    let src = include_str!("../src/health.rs");
+    assert!(
+        src.contains("wait-for-ready is set on the request, the client, or a client interceptor."),
+        "Health crate rustdoc must name interceptor-set wait-for-ready"
+    );
+}
+
 fn req(name: &str) -> HealthCheckRequest {
     let mut r = HealthCheckRequest::new();
     r.set_service(name);
@@ -1170,6 +1179,88 @@ async fn health_unix_channel_wait_for_ready_completes_once_the_server_listens() 
     let client = HealthClient::connect_unix_lazy(&path)
         .expect("lazy")
         .wait_for_ready();
+    wait_then_complete_health(&client, false, async {
+        let sock = path.clone();
+        let svc = health_server();
+        ServeGuard(tokio::spawn(async move {
+            svc.serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client =
+        HealthClient::connect_lazy(addr)
+            .expect("lazy")
+            .intercept(|call: &mut Outgoing<'_>| {
+                call.set_wait_for_ready(true);
+                Ok(())
+            });
+    wait_then_complete_health(&client, false, async {
+        serve_health_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_tls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_health(&client, false, async {
+        serve_health_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_mtls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_health(&client, false, async {
+        serve_health_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_health_unix_client_interceptor_can_set_wait_for_ready() {
+    let path = unix_sock("intercept-wait");
+    let client = HealthClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
     wait_then_complete_health(&client, false, async {
         let sock = path.clone();
         let svc = health_server();

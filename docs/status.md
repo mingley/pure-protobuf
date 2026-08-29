@@ -132,13 +132,15 @@ See `docs/upb.md`. Short list:
   methods retry that interceptor fill on those dialers too.
   Generated `StoreClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
   retry Get / Watch / PutAll / Sync until listen on those transports, from either
-  the request flag or `FooClient::wait_for_ready`; opt-out and a waiting Call's
+  the request flag, `FooClient::wait_for_ready`, or a client interceptor `set_wait_for_ready(true)`; opt-out and a waiting Call's
   deadline apply on those Store dialers too. Health Check and Watch
-  retry until listen on the same dialers; Health has no List. Opt-out and a
+  retry until listen on the same dialers; Health has no List. A client interceptor
+  `set_wait_for_ready(true)` retries Check and Watch until listen on those dialers too. Opt-out and a
   waiting Call's deadline apply on those Health dialers too, including mTLS.
   Reflection
   `ServerReflectionInfo` retries until listen on those dialers; reflection
-  is one bidi method. Opt-out and a waiting Call's deadline apply on those
+  is one bidi method. A client interceptor `set_wait_for_ready(true)` retries
+  that method until listen on those dialers too. Opt-out and a waiting Call's deadline apply on those
   reflection dialers too, including mTLS.   Official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall retry until listen on those dialers.
   Opt-out and a waiting Call's deadline apply on those TestService dialers

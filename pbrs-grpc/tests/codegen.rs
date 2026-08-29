@@ -1655,6 +1655,87 @@ async fn generated_unix_channel_wait_for_ready_completes_once_the_server_listens
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_generated_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client =
+        StoreClient::connect_lazy(addr)
+            .expect("lazy")
+            .intercept(|call: &mut Outgoing<'_>| {
+                call.set_wait_for_ready(true);
+                Ok(())
+            });
+    wait_then_complete_store(&client, false, async {
+        serve_store_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_generated_tls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = StoreClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_store(&client, false, async {
+        serve_store_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_generated_mtls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = StoreClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_store(&client, false, async {
+        serve_store_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_generated_unix_client_interceptor_can_set_wait_for_ready() {
+    let path = unix_sock("intercept-wait");
+    let client = StoreClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(true);
+            Ok(())
+        });
+    wait_then_complete_store(&client, false, async {
+        let sock = path.clone();
+        ServeGuard(tokio::spawn(async move {
+            StoreServer::new(MemStore).serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind_store().await;
     drop(listener);
