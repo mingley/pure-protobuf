@@ -74,6 +74,34 @@ async fn tls_client(addr: SocketAddr) -> HealthClient {
     panic!("could not connect: {last:?}")
 }
 
+#[cfg(unix)]
+async fn unix_client(path: &std::path::Path) -> HealthClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match HealthClient::connect_unix(path).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[cfg(unix)]
+fn unix_sock(prefix: &str) -> std::path::PathBuf {
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "pbrs-grpc-health-{prefix}-{}-{}.sock",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    path
+}
+
 async fn echo_health_check_and_watch(client: &HealthClient) {
     let overall = client
         .check(Request::new(HealthCheckRequest::new()))
@@ -614,6 +642,77 @@ async fn health_unix_round_trips_check_and_watch() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
+    echo_health_check_and_watch(&client).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_send_compressed_gzips_check_and_watch() {
+    let path = unix_sock("gzip");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        svc.send_compressed().serve_unix(sock).await.ok();
+    });
+    let client = unix_client(&path).await.send_compressed();
+    gzip_health_check_and_watch(&client).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_interceptor_rejects_check_and_watch() {
+    let path = unix_sock("reject");
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        svc.intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_health_blocked(&unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_client_interceptor_rejects_check_and_watch() {
+    let path = unix_sock("client-reject");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        svc.serve_unix(sock).await.ok();
+    });
+    let client = unix_client(&path)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_health_blocked(&client).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_client_interceptor_sees_check_and_watch_context() {
+    let path = unix_sock("context");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        svc.intercept(require_stamped_context)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = unix_client(&path).await.intercept(stamp_outgoing_context);
     echo_health_check_and_watch(&client).await;
     handle.abort();
     let _ = std::fs::remove_file(&path);

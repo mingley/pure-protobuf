@@ -220,6 +220,34 @@ async fn tls_client(addr: SocketAddr) -> StoreClient {
     panic!("could not connect: {last:?}")
 }
 
+#[cfg(unix)]
+async fn unix_client(path: &std::path::Path) -> StoreClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match StoreClient::connect_unix(path).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[cfg(unix)]
+fn unix_sock(prefix: &str) -> std::path::PathBuf {
+    static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "pbrs-grpc-kv-{prefix}-{}-{}.sock",
+        std::process::id(),
+        N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    path
+}
+
 async fn echo_store_every_shape(client: &StoreClient) {
     let mut get = GetRequest::new();
     get.set_key("alpha");
@@ -572,6 +600,74 @@ async fn generated_serve_unix_round_trips() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
+    echo_store_every_shape(&client).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_send_compressed_gzips_every_shape() {
+    let path = unix_sock("gzip");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    gzip_store_every_shape(&unix_client(&path).await.send_compressed()).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_server_interceptor_rejects_with_typed_status() {
+    let path = unix_sock("reject");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_store_blocked_every_shape(&unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_client_interceptor_rejects_with_typed_status() {
+    let path = unix_sock("client-reject");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    let client = unix_client(&path)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_store_blocked_every_shape(&client).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_client_interceptor_sees_every_shape_context() {
+    let path = unix_sock("context");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_context)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = unix_client(&path).await.intercept(stamp_outgoing_context);
     echo_store_every_shape(&client).await;
     server.abort();
     let _ = std::fs::remove_file(&path);

@@ -77,6 +77,34 @@ async fn tls_client(addr: SocketAddr) -> ServerReflectionClient {
     panic!("could not connect: {last:?}")
 }
 
+#[cfg(unix)]
+async fn unix_client(path: &std::path::Path) -> ServerReflectionClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match ServerReflectionClient::connect_unix(path).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[cfg(unix)]
+fn unix_sock(prefix: &str) -> std::path::PathBuf {
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "pbrs-grpc-reflection-{prefix}-{}-{}.sock",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    path
+}
+
 fn list_req() -> ServerReflectionRequest {
     let mut req = ServerReflectionRequest::new();
     req.set_list_services("");
@@ -498,6 +526,79 @@ async fn reflection_unix_lists_the_registered_greeter() {
         }
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
+    echo_reflection_list(&client).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_send_compressed_gzips_list_services() {
+    let path = unix_sock("gzip");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection.send_compressed().serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    gzip_reflection_list(&unix_client(&path).await.send_compressed()).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_interceptor_rejects_with_typed_status() {
+    let path = unix_sock("reject");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = unix_client(&path).await;
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_client_interceptor_rejects_with_typed_status() {
+    let path = unix_sock("client-reject");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection.serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = unix_client(&path)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_client_interceptor_sees_list_services_context() {
+    let path = unix_sock("context");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_context)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = unix_client(&path).await.intercept(stamp_outgoing_context);
     echo_reflection_list(&client).await;
     let _ = std::fs::remove_file(&path);
 }

@@ -186,20 +186,20 @@ See `docs/upb.md`. Short list:
   and `Channel::connect_tls_with` apply to every call shape. Generated
   Store TLS (`serve_tls_with_shutdown` / `connect_tls_with` /
   `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape,
-  including gzip over TLS. Greeter `send_compressed` gzips every call shape
+  including gzip over TLS and Unix. Greeter `send_compressed` gzips every call shape
   over TLS, including over mTLS. A TLS interceptor `Err(with_error_details)`
   unpacks on every Greeter shape. Official `TestService` `send_compressed`
   gzips EmptyCall / StreamingOutputCall / StreamingInputCall /
   FullDuplexCall, including over TLS. A wrapping `Service` `send_compressed`
   gzips every hand-written Reverser Channel API, including over TLS. Health
-  `send_compressed` gzips Check and Watch, including over TLS; reflection
-  `send_compressed` gzips the bidi `list_services` method, including over
-  TLS. A client interceptor sees Outgoing path / service / method /
-  authority / scheme on Health Check/Watch, the reflection bidi method,
-  and generated Store Get / Watch / PutAll / Sync, including over TLS. A
-  packed `google.rpc.Status` from interceptor `Err(with_error_details)`
-  unpacks on those Store, Health, and reflection methods the same way,
-  including over TLS. A generated Store handler `Err(with_error_details)`
+  `send_compressed` gzips Check and Watch, including over TLS and Unix;
+  reflection `send_compressed` gzips the bidi `list_services` method,
+  including over TLS and Unix. A client interceptor sees Outgoing path /
+  service / method / authority / scheme on Health Check/Watch, the
+  reflection bidi method, and generated Store Get / Watch / PutAll / Sync,
+  including over TLS and Unix. A packed `google.rpc.Status` from interceptor
+  `Err(with_error_details)` unpacks on those Store, Health, and reflection
+  methods the same way, including over TLS and Unix. A generated Store handler `Err(with_error_details)`
   unpacks on Get / Watch / PutAll / Sync too. A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written
   Reverser Channel API, including over TLS, and a client interceptor stamps
