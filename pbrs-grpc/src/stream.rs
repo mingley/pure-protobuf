@@ -76,10 +76,10 @@ enum Source<T> {
 ///
 /// A stream received from a [`crate::Channel`] holds the HTTP/2 driver, so
 /// dropping the client after headers still lets you read to the end.
-/// Dropping this `Streaming` before the end resets the HTTP/2 stream: that
-/// is how a client cancels a server-streaming RPC after it already has
-/// headers. A server-side producer waiting on [`crate::Request::cancelled`] or
-/// [`StreamSender::closed`] then wakes.
+/// Dropping this `Streaming` before the end resets the HTTP/2 stream, even
+/// if a bidi [`StreamSender`] is still held: that is how a client cancels a
+/// streaming RPC after it already has headers. A server-side producer waiting
+/// on [`crate::Request::cancelled`] or [`StreamSender::closed`] then wakes.
 ///
 /// ```no_run
 /// # use pbrs_grpc::{HelloReply, Status, Streaming};
@@ -100,6 +100,10 @@ pub struct Streaming<T> {
     /// Keeps the client HTTP/2 driver alive after [`crate::Channel`] is
     /// dropped. `None` on server-produced streams.
     driver: Option<watch::Sender<bool>>,
+    /// Client cancel sender. Dropping a received stream before the end
+    /// resets the RPC, including bidi while the send half is still held.
+    /// `None` on application channels and server-inbound streams.
+    reset: Option<watch::Sender<bool>>,
 }
 
 impl<T> Streaming<T> {
@@ -142,6 +146,7 @@ impl<T> Streaming<T> {
                 source: Source::Channel(rx),
                 lease: None,
                 driver: None,
+                reset: None,
             },
         )
     }
@@ -158,19 +163,31 @@ impl<T> Streaming<T> {
             source: Source::Wire(Box::new(inner)),
             lease: None,
             driver: None,
+            reset: None,
         }
     }
 
     /// Keep the client HTTP/2 driver (and idle lease) alive while this stream
     /// is read, so dropping the [`crate::Channel`] after headers is safe.
+    /// `reset` is the RPC cancel sender: drop before end-of-stream resets
+    /// the call, even if a bidi [`StreamSender`] is still held.
     pub(crate) fn bind_conn(
         mut self,
         lease: Option<crate::keepalive::Lease>,
         driver: Option<watch::Sender<bool>>,
+        reset: Option<watch::Sender<bool>>,
     ) -> Self {
         self.lease = lease;
         self.driver = driver;
+        self.reset = reset;
         self
+    }
+
+    fn finished(&self) -> bool {
+        match &self.source {
+            Source::Channel(_) => true,
+            Source::Wire(wire) => wire.finished(),
+        }
     }
 
     /// The next message, `Ok(None)` at end of stream, `Err` on status.
@@ -276,7 +293,18 @@ impl<T> std::fmt::Debug for Streaming<T> {
             .field("source", &source)
             .field("busy", &self.lease.is_some())
             .field("driver", &self.driver.is_some())
+            .field("reset", &self.reset.is_some())
             .finish_non_exhaustive()
+    }
+}
+
+impl<T> Drop for Streaming<T> {
+    fn drop(&mut self) {
+        if let Some(reset) = self.reset.take() {
+            if !self.finished() {
+                reset.send(true).ok();
+            }
+        }
     }
 }
 

@@ -810,6 +810,7 @@ impl Channel {
         let mut req = req;
         let prepared = self.prepare_outbound(path, &mut req);
         let (cancel, cancel_rx) = watch::channel(false);
+        let reset = cancel.clone();
         let channel = self.clone();
         let wire = self.config.wire();
         Call::new(
@@ -843,7 +844,9 @@ impl Channel {
                     )
                     .await
                     {
-                        Ok(response) => return Ok(attach_conn(response, lease, driver)),
+                        Ok(response) => {
+                            return Ok(attach_conn(response, lease, driver, Some(reset)))
+                        }
                         Err(status)
                             if !retried
                                 && status.is_transport()
@@ -963,6 +966,7 @@ impl Channel {
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx.with_limits(wire.limits).with_compress(req.compress());
         let (cancel, cancel_rx) = watch::channel(false);
+        let reset = cancel.clone();
         let channel = self.clone();
         let call = Call::new(
             cancel,
@@ -986,6 +990,7 @@ impl Channel {
                     .await?,
                     live.lease,
                     live.driver,
+                    Some(reset),
                 ))
             }),
         );
@@ -1381,8 +1386,9 @@ fn attach_conn<T>(
     response: crate::request::Response<Streaming<T>>,
     lease: Option<crate::keepalive::Lease>,
     driver: Option<watch::Sender<bool>>,
+    reset: Option<watch::Sender<bool>>,
 ) -> crate::request::Response<Streaming<T>> {
-    response.map(|stream| stream.bind_conn(lease, driver))
+    response.map(|stream| stream.bind_conn(lease, driver, reset))
 }
 
 #[allow(

@@ -768,6 +768,12 @@ impl<T: Parse + Default> WireStream<T> {
 }
 
 impl<T> WireStream<T> {
+    /// Whether DATA and trailers have both been consumed, so a Drop must
+    /// not RST a finished RPC.
+    pub(crate) fn finished(&self) -> bool {
+        self.trailers_done
+    }
+
     /// The next message, or `Ok(None)` once the stream has ended cleanly.
     ///
     /// A non-OK `grpc-status` in the trailers surfaces here as `Err`, and so
@@ -891,7 +897,8 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                     send.send_reset(Reason::CANCEL);
                     return;
                 }
-                // The call finished and dropped its sender; stop watching.
+                // The Call finished and dropped its sender, and no received
+                // stream is holding a clone. Stop watching.
                 watch_cancel = false;
                 continue;
             }
