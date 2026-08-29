@@ -11,7 +11,10 @@
 //! the client advertises gzip. [`HealthClient::connect_lazy`],
 //! [`HealthClient::connect_tls_lazy`] (including mTLS), and
 //! [`HealthClient::connect_unix_lazy`] retry Check and Watch until listen when
-//! wait-for-ready is set on the request, the client, or a client interceptor. A client interceptor sees [`crate::Outgoing`]
+//! wait-for-ready is set on the request, the client, or a client interceptor.
+//! `Request::set_wait_for_ready(false)` and a client interceptor
+//! `set_wait_for_ready(false)` opt out of a client default. A waiting Call's
+//! deadline applies on those dialers. A client interceptor sees [`crate::Outgoing`]
 //! path / service / method / `:authority` / `:scheme` on both methods.
 //!
 //! ```no_run

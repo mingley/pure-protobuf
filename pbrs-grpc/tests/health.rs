@@ -493,6 +493,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         src.contains("wait-for-ready is set on the request, the client, or a client interceptor."),
         "Health crate rustdoc must name interceptor-set wait-for-ready"
     );
+    assert!(
+        src.contains(
+            "`Request::set_wait_for_ready(false)` and a client interceptor\n//! `set_wait_for_ready(false)` opt out of a client default. A waiting Call's\n//! deadline applies on those dialers."
+        ),
+        "Health crate rustdoc must name wait-for-ready opt-out and deadline"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
