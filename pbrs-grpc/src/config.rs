@@ -184,8 +184,10 @@ impl ServerConfig {
     /// Send GOAWAY this long after the connection is accepted. Disabled by
     /// default. Values below 1 ms are raised to 1 ms.
     ///
-    /// In-flight RPCs get [`Self::max_connection_age_grace`] to finish; a
-    /// [`crate::Channel`] on the other end redials the next RPC.
+    /// The actual lifetime is jittered by ±10% so a process with many
+    /// connections does not reconnect in lockstep. In-flight RPCs get
+    /// [`Self::max_connection_age_grace`] to finish; a [`crate::Channel`] on
+    /// the other end redials the next RPC.
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.max_connection_age = Some(age.max(Duration::from_millis(1)));
@@ -251,6 +253,17 @@ impl ServerConfig {
             .max_header_list_size(self.max_header_list_size);
         builder
     }
+}
+
+/// Spread `age` by ±10% so a fleet does not GOAWAY in lockstep.
+///
+/// grpc-go hard-codes the same ratio on `MaxConnectionAge`.
+pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
+    const SPAN: u64 = 201; // 0..=200 thousandths added to 900
+    let thousandths = 900 + (seed % SPAN);
+    let nanos = age.as_nanos().saturating_mul(u128::from(thousandths)) / 1000;
+    let nanos = u64::try_from(nanos).unwrap_or(u64::MAX);
+    Duration::from_nanos(nanos).max(Duration::from_millis(1))
 }
 
 /// HTTP/2 and resource settings for a [`Channel`](crate::Channel).
@@ -511,5 +524,13 @@ mod tests {
         assert_eq!(age, Some(Duration::from_millis(1)));
         assert_eq!(idle, Some(Duration::from_millis(1)));
         assert_eq!(grace, Duration::from_millis(1));
+    }
+
+    #[test]
+    fn age_jitter_is_plus_or_minus_ten_percent() {
+        let age = Duration::from_secs(100);
+        assert_eq!(super::jitter_age(age, 0), Duration::from_secs(90));
+        assert_eq!(super::jitter_age(age, 200), Duration::from_secs(110));
+        assert_ne!(super::jitter_age(age, 1), super::jitter_age(age, 2));
     }
 }

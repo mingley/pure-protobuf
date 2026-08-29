@@ -456,8 +456,11 @@ Router::new()
 
 `list_services` reports every service in those sets. `file_containing_symbol`
 and `file_by_filename` return the serialized `FileDescriptorProto` plus
-whatever transitive imports were in the set. A missing symbol is a
-`NOT_FOUND` on the stream (`ErrorResponse`), not a broken RPC.
+whatever transitive imports were in the set. `file_containing_extension` and
+`all_extension_numbers_of_type` answer from the same sets; a missing extension
+is a `NOT_FOUND` on the stream, and extension-number listing is best-effort
+(empty when the type has none). A missing symbol is a `NOT_FOUND` on the
+stream (`ErrorResponse`), not a broken RPC.
 
 ## Graceful shutdown
 
@@ -495,8 +498,9 @@ ServerConfig::new()
 ```
 
 When either fires the kernel sends `GOAWAY`, waits the grace period (default
-10 s) for in-flight RPCs, then drops the socket. The next RPC on a `Channel`
-redials that slot.
+10 s) for in-flight RPCs, then drops the socket. Age is jittered by ±10% so a
+process with many connections does not reconnect in lockstep. The next RPC on a
+`Channel` redials that slot.
 
 ## Compression
 

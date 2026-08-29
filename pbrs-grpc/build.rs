@@ -40,6 +40,11 @@ fn main() {
 
     pbrs::codegen::Config::new()
         .emit_kernel_stubs(true)
+        .compile_protos(&[&kv_dir.join("extend.proto")], &[&kv_dir])
+        .expect("codegen demo.ext");
+
+    pbrs::codegen::Config::new()
+        .emit_kernel_stubs(true)
         .compile_protos(
             &[&proto_dir.join("grpc/health/v1/health.proto")],
             &[&proto_dir],

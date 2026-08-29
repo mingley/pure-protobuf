@@ -548,6 +548,31 @@ async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
     task.abort();
 }
 
+#[tokio::test]
+async fn outbound_rpcs_send_a_kernel_user_agent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &Rpc| {
+                let md = rpc.metadata();
+                let ua = md.get("user-agent").unwrap_or("");
+                if !ua.starts_with("pbrs-grpc/") {
+                    return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("user-agent");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
 /// Answers without ever reading the request stream. Inbound messages are
 /// decoded on the handler's task, so a handler that ignores them must still
 /// terminate the RPC rather than leaving the client blocked on the window.

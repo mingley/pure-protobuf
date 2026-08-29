@@ -20,15 +20,17 @@ const GRPC_MESSAGE: HeaderName = HeaderName::from_static("grpc-message");
 const GRPC_TIMEOUT: HeaderName = HeaderName::from_static("grpc-timeout");
 const GRPC_ENCODING: HeaderName = HeaderName::from_static("grpc-encoding");
 const GRPC_ACCEPT_ENCODING: HeaderName = HeaderName::from_static("grpc-accept-encoding");
+const USER_AGENT: HeaderName = HeaderName::from_static("user-agent");
 const APPLICATION_GRPC: HeaderValue = HeaderValue::from_static("application/grpc");
 const TRAILERS: HeaderValue = HeaderValue::from_static("trailers");
 const IDENTITY_GZIP: HeaderValue = HeaderValue::from_static("identity,gzip");
 const GZIP: HeaderValue = HeaderValue::from_static("gzip");
 const STATUS_OK: HeaderValue = HeaderValue::from_static("0");
+const PBRS_GRPC_UA: HeaderValue = HeaderValue::from_static("pbrs-grpc/0.1.0");
 
 /// Headers a gRPC request or response carries before user metadata, rounded to
 /// what `HeaderMap` will actually allocate. Sizing up front avoids a rehash.
-const HEADER_CAPACITY: usize = 8;
+const HEADER_CAPACITY: usize = 10;
 
 pub(crate) fn grpc_request(
     authority: &Authority,
@@ -51,6 +53,7 @@ pub(crate) fn grpc_request(
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(http::header::TE, TRAILERS);
     headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP);
+    headers.insert(USER_AGENT, PBRS_GRPC_UA);
     if send_gzip {
         headers.insert(GRPC_ENCODING, GZIP);
     }
@@ -808,12 +811,27 @@ fn percent_decode(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{percent_decode, percent_encode, FrameReader};
+    use super::{grpc_request, percent_decode, percent_encode, FrameReader};
     use crate::codec;
     use crate::gzip;
     use crate::limits::MessageLimits;
+    use crate::metadata::Metadata;
     use crate::status::Code;
     use bytes::{Bytes, BytesMut};
+    use http::uri::Authority;
+
+    #[test]
+    fn outbound_requests_identify_the_kernel() {
+        let authority: Authority = "127.0.0.1:1".parse().expect("authority");
+        let req = grpc_request(&authority, "/svc/Method", &Metadata::new(), None, false)
+            .expect("request");
+        assert_eq!(
+            req.headers()
+                .get("user-agent")
+                .and_then(|v| v.to_str().ok()),
+            Some("pbrs-grpc/0.1.0")
+        );
+    }
 
     #[test]
     fn message_encoding_matches_the_spec_set() {

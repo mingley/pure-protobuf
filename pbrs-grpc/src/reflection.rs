@@ -75,6 +75,7 @@ struct Registry {
     files: BTreeMap<String, FileEnt>,
     symbols: BTreeMap<String, String>,
     services: Vec<String>,
+    pool: DescriptorPool,
 }
 
 impl Reflection {
@@ -125,6 +126,7 @@ impl Reflection {
                 files,
                 symbols,
                 services,
+                pool,
             }),
         })
     }
@@ -146,14 +148,14 @@ impl Reflection {
                 Err(err) => resp.set_error_response(err),
             }
         } else if req.has_file_containing_extension() {
-            resp.set_error_response(error(
-                Code::NotFound,
-                "extension not in any registered descriptor set",
-            ));
+            match self.file_for_extension(req.file_containing_extension()) {
+                Ok(files) => resp.set_file_descriptor_response(files),
+                Err(err) => resp.set_error_response(err),
+            }
         } else if req.has_all_extension_numbers_of_type() {
-            let mut numbers = ExtensionNumberResponse::new();
-            numbers.set_base_type_name(req.all_extension_numbers_of_type());
-            resp.set_all_extension_numbers_response(numbers);
+            resp.set_all_extension_numbers_response(
+                self.extension_numbers(req.all_extension_numbers_of_type()),
+            );
         } else {
             resp.set_error_response(error(
                 Code::InvalidArgument,
@@ -190,6 +192,47 @@ impl Reflection {
             )
         })?;
         self.files_for(file)
+    }
+
+    fn file_for_extension(
+        &self,
+        req: &ExtensionRequest,
+    ) -> Result<FileDescriptorResponse, ErrorResponse> {
+        let ty = proto_str(req.containing_type());
+        let ty = ty.trim_start_matches('.');
+        let Ok(number) = u32::try_from(req.extension_number()) else {
+            return Err(error(
+                Code::NotFound,
+                format!(
+                    "extension {ty}/{} is not in any registered descriptor set",
+                    req.extension_number()
+                ),
+            ));
+        };
+        let file = self
+            .inner
+            .pool
+            .file_for_extension(ty, number)
+            .ok_or_else(|| {
+                error(
+                    Code::NotFound,
+                    format!("extension {ty}/{number} is not in any registered descriptor set"),
+                )
+            })?;
+        self.files_for(file)
+    }
+
+    fn extension_numbers(&self, type_name: &pbrs::ProtoStr) -> ExtensionNumberResponse {
+        let ty = proto_str(type_name);
+        let ty = ty.trim_start_matches('.');
+        let mut numbers = ExtensionNumberResponse::new();
+        numbers.set_base_type_name(ty);
+        for n in self.inner.pool.extension_numbers_of(ty) {
+            if let Ok(n) = i32::try_from(n) {
+                numbers.extension_number_mut().push(n);
+            }
+        }
+        numbers
     }
 
     fn files_for(&self, name: &str) -> Result<FileDescriptorResponse, ErrorResponse> {

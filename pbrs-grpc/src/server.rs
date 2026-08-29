@@ -24,6 +24,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use tokio::net::TcpListener;
@@ -904,6 +905,7 @@ async fn serve_io<D, IO>(
     };
     let (interval, timeout) = config.keepalive();
     let (age, idle, grace) = config.connection_lifetime();
+    let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer)));
     let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
     let born = tokio::time::Instant::now();
     let mut last_rpc = born;
@@ -959,6 +961,25 @@ async fn sleep_until_opt(at: Option<tokio::time::Instant>) {
     match at {
         Some(at) => tokio::time::sleep_until(at).await,
         None => std::future::pending().await,
+    }
+}
+
+fn connection_seed(peer: Option<SocketAddr>) -> u64 {
+    static N: AtomicU64 = AtomicU64::new(1);
+    let n = N.fetch_add(1, Ordering::Relaxed);
+    match peer {
+        Some(SocketAddr::V4(addr)) => u64::from(u32::from(*addr.ip()))
+            .wrapping_mul(0x9E37_79B9)
+            .wrapping_add(u64::from(addr.port()))
+            .wrapping_add(n),
+        Some(SocketAddr::V6(addr)) => {
+            let mut h = n;
+            for b in addr.ip().octets() {
+                h = h.wrapping_mul(16_777_619).wrapping_add(u64::from(b));
+            }
+            h.wrapping_add(u64::from(addr.port()))
+        }
+        None => n,
     }
 }
 

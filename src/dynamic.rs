@@ -350,7 +350,7 @@ impl FileDescriptor {
 pub struct DescriptorPool {
     messages: BTreeMap<String, Arc<MessageDescriptor>>,
     enums: BTreeMap<String, Arc<EnumDescriptor>>,
-    extensions_by_name: BTreeMap<String, (String, u32)>,
+    extensions_by_name: BTreeMap<String, (String, u32, String)>,
     services: BTreeMap<String, Arc<ServiceDescriptor>>,
     files: BTreeMap<String, Arc<FileDescriptor>>,
     /// file name -> public import file names
@@ -404,10 +404,34 @@ impl DescriptorPool {
         full_name: &str,
     ) -> Option<(Arc<MessageDescriptor>, FieldDescriptor)> {
         let key = full_name.trim_start_matches('.');
-        let (extendee, number) = self.extensions_by_name.get(key)?;
+        let (extendee, number, _) = self.extensions_by_name.get(key)?;
         let desc = self.get_message(extendee)?;
         let field = desc.field(*number)?.clone();
         Some((desc, field))
+    }
+
+    /// File that declares the extension of `containing_type` numbered `number`.
+    pub fn file_for_extension(&self, containing_type: &str, number: u32) -> Option<&str> {
+        let ty = containing_type.trim_start_matches('.');
+        self.extensions_by_name
+            .values()
+            .find(|(extendee, n, _)| extendee == ty && *n == number)
+            .map(|(_, _, file)| file.as_str())
+            .filter(|file| !file.is_empty())
+    }
+
+    /// Field numbers of known extensions of `containing_type`, sorted.
+    pub fn extension_numbers_of(&self, containing_type: &str) -> Vec<u32> {
+        let ty = containing_type.trim_start_matches('.');
+        let mut nums: Vec<u32> = self
+            .extensions_by_name
+            .values()
+            .filter(|(extendee, _, _)| extendee == ty)
+            .map(|(_, n, _)| *n)
+            .collect();
+        nums.sort_unstable();
+        nums.dedup();
+        nums
     }
 
     pub fn register_message(&mut self, desc: MessageDescriptor) -> Arc<MessageDescriptor> {
@@ -1817,6 +1841,7 @@ struct RawField {
     extendee: String,
     features: RawFeatures,
     full_ext_name: String,
+    file_name: String,
     options: Vec<DescriptorOption>,
 }
 
@@ -1939,6 +1964,7 @@ fn parse_file(bytes: &[u8]) -> Result<RawFile, ParseError> {
         } else {
             format!("{}.{}", file.package, ext.name)
         };
+        ext.file_name = file.name.clone();
     }
     stamp_file(&mut file.messages, &file.name);
     for svc in &mut file.services {
@@ -2002,6 +2028,7 @@ fn stamp_file(msgs: &mut [RawMessage], file_name: &str) {
         }
         for ext in &mut m.extensions {
             ext.full_ext_name = format!("{}.{}", m.full_name, ext.name);
+            ext.file_name = file_name.to_string();
         }
     }
 }
@@ -2404,7 +2431,7 @@ fn resolve_pool(
         }
         enum_arcs.insert(name.clone(), Arc::new(ed));
     }
-    let mut ext_index: BTreeMap<String, (String, u32)> = BTreeMap::new();
+    let mut ext_index: BTreeMap<String, (String, u32, String)> = BTreeMap::new();
     for (parent_feat, ext) in &extensions {
         let fd = raw_field_to_desc(ext, *parent_feat);
         let extendee = fd
@@ -2427,7 +2454,15 @@ fn resolve_pool(
             if !ext.full_ext_name.is_empty() {
                 desc.fields_by_name
                     .insert(ext.full_ext_name.clone(), fd.number);
-                ext_index.insert(ext.full_ext_name.clone(), (extendee.clone(), fd.number));
+                let file = if ext.file_name.is_empty() {
+                    desc.file_name.clone()
+                } else {
+                    ext.file_name.clone()
+                };
+                ext_index.insert(
+                    ext.full_ext_name.clone(),
+                    (extendee.clone(), fd.number, file),
+                );
             }
             desc.fields.insert(fd.number, fd);
         }

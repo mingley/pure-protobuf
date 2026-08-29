@@ -17,7 +17,8 @@ mod common;
 use common::{Echo, ServerGuard};
 use pbrs_grpc::hello::{GreeterServer, FILE_DESCRIPTOR_SET};
 use pbrs_grpc::reflection::{
-    service, ServerReflectionClient, ServerReflectionRequest, ServerReflectionResponse,
+    service, ExtensionRequest, ServerReflectionClient, ServerReflectionRequest,
+    ServerReflectionResponse,
 };
 use pbrs_grpc::{Channel, Code, Request, Router, Status};
 use std::net::SocketAddr;
@@ -168,4 +169,83 @@ async fn file_by_filename_round_trips_hello_proto() {
         .file_descriptor_proto()
         .is_empty());
     assert!(!first.as_bytes().is_empty());
+}
+
+mod ext {
+    #![allow(missing_docs, unused, reason = "generated descriptor set fixture")]
+    include!(concat!(env!("OUT_DIR"), "/extend.rs"));
+}
+
+fn ext_req(ty: &str, number: i32) -> ServerReflectionRequest {
+    let mut er = ExtensionRequest::new();
+    er.set_containing_type(ty);
+    er.set_extension_number(number);
+    let mut req = ServerReflectionRequest::new();
+    req.set_file_containing_extension(er);
+    req
+}
+
+fn ext_numbers_req(ty: &str) -> ServerReflectionRequest {
+    let mut req = ServerReflectionRequest::new();
+    req.set_all_extension_numbers_of_type(ty);
+    req
+}
+
+async fn serve_ext() -> (SocketAddr, ServerGuard) {
+    let reflection = service([ext::FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        Router::new()
+            .add_service(reflection)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    (addr, ServerGuard(handle))
+}
+
+#[tokio::test]
+async fn file_containing_extension_returns_the_declaring_file() {
+    let (addr, _guard) = serve_ext().await;
+    let client = client(addr).await;
+    let resp = ask(&client, ext_req("demo.ext.Host", 100)).await;
+    assert!(
+        resp.has_file_descriptor_response(),
+        "expected file, got error {:?}",
+        resp.error_response().error_message()
+    );
+    assert!(!resp
+        .file_descriptor_response()
+        .file_descriptor_proto()
+        .is_empty());
+}
+
+#[tokio::test]
+async fn unknown_extension_is_not_found_on_the_stream() {
+    let (addr, _guard) = serve_ext().await;
+    let client = client(addr).await;
+    let resp = ask(&client, ext_req("demo.ext.Host", 199)).await;
+    assert!(resp.has_error_response());
+    assert_eq!(resp.error_response().error_code(), Code::NotFound.to_i32());
+}
+
+#[tokio::test]
+async fn all_extension_numbers_of_type_lists_registered_tags() {
+    let (addr, _guard) = serve_ext().await;
+    let client = client(addr).await;
+    let resp = ask(&client, ext_numbers_req("demo.ext.Host")).await;
+    assert!(
+        resp.has_all_extension_numbers_response(),
+        "expected numbers, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let nums: Vec<i32> = resp
+        .all_extension_numbers_response()
+        .extension_number()
+        .iter()
+        .collect();
+    assert_eq!(nums, vec![100]);
 }
