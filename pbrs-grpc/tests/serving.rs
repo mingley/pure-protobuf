@@ -4515,6 +4515,99 @@ async fn dropping_a_server_stream_cancels_a_waiting_producer() {
     task.abort();
 }
 
+/// Echoes one bidi message, then waits until the client leaves.
+struct BidiWaitAfterFirst {
+    left: Arc<AtomicUsize>,
+}
+
+impl pbrs_grpc::Greeter for BidiWaitAfterFirst {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("bidi-wait-after-first"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("bidi-wait-after-first"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("bidi-wait-after-first"))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let left = Arc::clone(&self.left);
+        let cancelled = request.cancelled();
+        let mut inbound = request.into_inner();
+        let (tx, stream) = pbrs_grpc::Streaming::channel(8);
+        drop(tokio::spawn(async move {
+            match inbound.message().await {
+                Ok(Some(msg)) => {
+                    let mut reply = HelloReply::new();
+                    reply.set_message(msg.name());
+                    if tx.send(reply).await.is_err() {
+                        left.fetch_add(1, Ordering::Relaxed);
+                        return;
+                    }
+                }
+                Ok(None) | Err(_) => {
+                    left.fetch_add(1, Ordering::Relaxed);
+                    return;
+                }
+            }
+            tokio::select! {
+                biased;
+                () = cancelled => {}
+                () = tx.closed() => {}
+            }
+            left.fetch_add(1, Ordering::Relaxed);
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_a_bidi_stream_cancels_a_waiting_producer() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait for the client to leave"
+    );
+    drop(stream);
+    wait_flag(&left).await;
+    drop(tx);
+    drop(client);
+    task.abort();
+}
+
 /// Refuses a request that was not gzipped.
 struct GzipProbe;
 
