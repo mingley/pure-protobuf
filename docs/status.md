@@ -102,7 +102,8 @@ See `docs/upb.md`. Short list:
   `ConnectionInfo`. `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` reads that overlay. Interceptors and generated handlers see
-  `MessageLimits` on `Rpc::limits` / `Request::limits`; client interceptors
+  `MessageLimits` on `Rpc::limits` / `Request::limits` and the method path on
+  `Rpc::path` / `Request::path`; client interceptors
   see the channel overlay on `Outgoing::limits`. GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.

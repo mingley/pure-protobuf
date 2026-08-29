@@ -16,10 +16,12 @@ use tokio::sync::watch;
 /// A message plus the metadata, deadline, and compression choice around it.
 ///
 /// The same type is used to build an outbound request and to read an inbound
-/// one, so a proxy can forward what it received. Server interceptors mutate
-/// inbound metadata through [`crate::Rpc::metadata_mut`] and attach typed
+/// one, so a proxy can forward what it received — including the method path
+/// ([`Self::path`] / [`Self::service`] / [`Self::method`]). Server interceptors
+/// mutate inbound metadata through [`crate::Rpc::metadata_mut`] and attach typed
 /// values through [`crate::Rpc::extensions_mut`]; the handler reads both
-/// from this type.
+/// from this type. A request you build to send has no path: the channel
+/// stamps it from the generated method.
 ///
 /// ```
 /// use pbrs_grpc::Request;
@@ -43,6 +45,7 @@ pub struct Request<T> {
     peer_cred: Option<PeerCred>,
     authority: Option<String>,
     scheme: Option<String>,
+    path: Option<String>,
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
@@ -65,6 +68,7 @@ impl<T> Request<T> {
             peer_cred: None,
             authority: None,
             scheme: None,
+            path: None,
             deadline: None,
             wait_for_ready: None,
             limits: None,
@@ -89,8 +93,8 @@ impl<T> Request<T> {
         &mut self.message
     }
 
-    /// Split into message and envelope, keeping metadata, deadline, and
-    /// compression choice.
+    /// Split into message and envelope, keeping metadata, deadline,
+    /// compression choice, and method path.
     #[must_use]
     pub fn into_message_and_parts(self) -> (T, Parts) {
         (
@@ -106,6 +110,7 @@ impl<T> Request<T> {
                 peer_cred: self.peer_cred,
                 authority: self.authority,
                 scheme: self.scheme,
+                path: self.path,
                 deadline: self.deadline,
                 wait_for_ready: self.wait_for_ready,
                 limits: self.limits,
@@ -117,7 +122,7 @@ impl<T> Request<T> {
     /// Rebuild a request around a different message, keeping the envelope.
     ///
     /// This is how a proxy or interceptor rewrites a payload without losing
-    /// the caller's metadata, deadline, or gzip choice.
+    /// the caller's metadata, deadline, gzip choice, or method path.
     #[must_use]
     pub fn from_message_and_parts<U>(message: U, parts: Parts) -> Request<U> {
         Request {
@@ -132,6 +137,7 @@ impl<T> Request<T> {
             peer_cred: parts.peer_cred,
             authority: parts.authority,
             scheme: parts.scheme,
+            path: parts.path,
             deadline: parts.deadline,
             wait_for_ready: parts.wait_for_ready,
             limits: parts.limits,
@@ -317,6 +323,35 @@ impl<T> Request<T> {
         self.scheme.as_deref()
     }
 
+    /// Full gRPC path, e.g. `/helloworld.Greeter/SayHello`.
+    ///
+    /// Same value as [`crate::Rpc::path`] on an inbound server request.
+    /// `None` on a request you built to send: the channel stamps the path
+    /// on the wire from the generated method, not from this envelope. Bind it
+    /// before [`Self::metadata_mut`]: `let path = request.path();`.
+    #[must_use]
+    pub fn path(&self) -> Option<&str> {
+        self.path.as_deref()
+    }
+
+    /// Service half of the path, e.g. `helloworld.Greeter`.
+    ///
+    /// Same split as [`crate::Rpc::service`]. Unparseable paths yield
+    /// `Some("")`. `None` when [`Self::path`] is `None`.
+    #[must_use]
+    pub fn service(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).0)
+    }
+
+    /// Method half of the path, e.g. `SayHello`.
+    ///
+    /// Same split as [`crate::Rpc::method`]. Unparseable paths yield
+    /// `Some("")`. `None` when [`Self::path`] is `None`.
+    #[must_use]
+    pub fn method(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).1)
+    }
+
     /// Message caps the kernel is enforcing on this RPC.
     ///
     /// Same value as [`crate::Rpc::limits`] on an inbound server request.
@@ -351,6 +386,7 @@ impl<T> Request<T> {
             peer_cred: None,
             authority: None,
             scheme: None,
+            path: None,
             deadline: None,
             wait_for_ready: None,
             limits: None,
@@ -358,9 +394,15 @@ impl<T> Request<T> {
         }
     }
 
-    pub(crate) fn with_http(mut self, authority: Option<String>, scheme: Option<String>) -> Self {
+    pub(crate) fn with_http(
+        mut self,
+        authority: Option<String>,
+        scheme: Option<String>,
+        path: Option<String>,
+    ) -> Self {
         self.authority = authority;
         self.scheme = scheme;
+        self.path = path;
         self
     }
 
@@ -632,6 +674,9 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("peer_cred", &self.peer_cred)
             .field("authority", &self.authority)
             .field("scheme", &self.scheme)
+            .field("path", &self.path())
+            .field("service", &self.service())
+            .field("method", &self.method())
             .field("wait_for_ready", &self.wait_for_ready)
             .field("limits", &self.limits)
             .finish_non_exhaustive()
@@ -652,6 +697,7 @@ pub struct Parts {
     peer_cred: Option<PeerCred>,
     authority: Option<String>,
     scheme: Option<String>,
+    path: Option<String>,
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
@@ -749,6 +795,24 @@ impl Parts {
     #[must_use]
     pub fn scheme(&self) -> Option<&str> {
         self.scheme.as_deref()
+    }
+
+    /// Full gRPC path. See [`Request::path`].
+    #[must_use]
+    pub fn path(&self) -> Option<&str> {
+        self.path.as_deref()
+    }
+
+    /// Service half of the path. See [`Request::service`].
+    #[must_use]
+    pub fn service(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).0)
+    }
+
+    /// Method half of the path. See [`Request::method`].
+    #[must_use]
+    pub fn method(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).1)
     }
 
     /// Message caps the kernel is enforcing. See [`Request::limits`].
@@ -1003,7 +1067,11 @@ mod tests {
         req.set_compressed(true);
         req.extensions_mut().insert(7u8);
         req.metadata_mut().insert("k", "v").expect("insert");
-        req = req.with_http(Some("127.0.0.1:9".into()), Some("http".into()));
+        req = req.with_http(
+            Some("127.0.0.1:9".into()),
+            Some("http".into()),
+            Some("/helloworld.Greeter/SayHello".into()),
+        );
         let at = tokio::time::Instant::now() + Duration::from_millis(50);
         req.set_deadline(at);
         let (message, parts) = req.into_message_and_parts();
@@ -1015,6 +1083,9 @@ mod tests {
         assert!(parts.limits().is_none());
         assert_eq!(parts.authority(), Some("127.0.0.1:9"));
         assert_eq!(parts.scheme(), Some("http"));
+        assert_eq!(parts.path(), Some("/helloworld.Greeter/SayHello"));
+        assert_eq!(parts.service(), Some("helloworld.Greeter"));
+        assert_eq!(parts.method(), Some("SayHello"));
         assert_eq!(parts.deadline(), Some(at));
         assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
@@ -1027,13 +1098,26 @@ mod tests {
         assert!(rebuilt.limits().is_none());
         assert_eq!(rebuilt.authority(), Some("127.0.0.1:9"));
         assert_eq!(rebuilt.scheme(), Some("http"));
+        assert_eq!(rebuilt.path(), Some("/helloworld.Greeter/SayHello"));
+        assert_eq!(rebuilt.service(), Some("helloworld.Greeter"));
+        assert_eq!(rebuilt.method(), Some("SayHello"));
         assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
         let shown = format!("{rebuilt:?}");
         assert!(shown.contains("compress: true"), "{shown}");
         assert!(shown.contains("compressed: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
+        assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
+        assert!(shown.contains("helloworld.Greeter"), "{shown}");
+        assert!(shown.contains("SayHello"), "{shown}");
         assert_eq!(rebuilt.into_inner(), "swapped");
+        assert!(Request::new(0u32).path().is_none());
+        assert!(Request::new(0u32).service().is_none());
+        assert!(Request::new(0u32).method().is_none());
+        let garbage = Request::new(0u32).with_http(None, None, Some("/nomethod".into()));
+        assert_eq!(garbage.path(), Some("/nomethod"));
+        assert_eq!(garbage.service(), Some(""));
+        assert_eq!(garbage.method(), Some(""));
         let mut cleared = Request::new(0u32);
         cleared.set_timeout(Duration::from_secs(1));
         cleared.clear_timeout();
@@ -1052,13 +1136,20 @@ mod tests {
         req.set_compress(true);
         req.metadata_mut().insert("k", "v").expect("insert");
         let mapped = req
-            .with_http(Some("svc".into()), Some("https".into()))
+            .with_http(
+                Some("svc".into()),
+                Some("https".into()),
+                Some("/svc/Ping".into()),
+            )
             .map(|n| n + 1);
         assert_eq!(mapped.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(mapped.metadata().get("k"), Some("v"));
         assert!(mapped.compress());
         assert_eq!(mapped.authority(), Some("svc"));
         assert_eq!(mapped.scheme(), Some("https"));
+        assert_eq!(mapped.path(), Some("/svc/Ping"));
+        assert_eq!(mapped.service(), Some("svc"));
+        assert_eq!(mapped.method(), Some("Ping"));
         assert_eq!(mapped.into_inner(), 2);
     }
 

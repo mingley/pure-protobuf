@@ -273,18 +273,24 @@ impl std::fmt::Debug for Rpc {
 
 impl Rpc {
     /// Full request path, e.g. `/helloworld.Greeter/SayHello`.
+    ///
+    /// Generated handlers see the same value on [`Request::path`].
     #[must_use]
     pub fn path(&self) -> &str {
         self.request.uri().path()
     }
 
     /// Service half of the path, e.g. `helloworld.Greeter`.
+    ///
+    /// Generated handlers see the same value on [`Request::service`].
     #[must_use]
     pub fn service(&self) -> &str {
         split_path(self.path()).0
     }
 
     /// Method half of the path, e.g. `SayHello`.
+    ///
+    /// Generated handlers see the same value on [`Request::method`].
     #[must_use]
     pub fn method(&self) -> &str {
         split_path(self.path()).1
@@ -638,6 +644,7 @@ impl Rpc {
         let timeout = self.effective_timeout();
         let authority = self.authority().map(str::to_owned);
         let scheme = self.scheme().map(str::to_owned);
+        let path = Some(self.path().to_owned());
         let Self {
             request,
             mut respond,
@@ -666,7 +673,7 @@ impl Rpc {
                 peer_identity,
             )
             .with_extensions(extensions)
-            .with_http(authority, scheme);
+            .with_http(authority, scheme, path);
             req.set_compressed(framed.compressed);
             req.set_peer_cred(peer_cred);
             req.set_limits(limits);
@@ -705,6 +712,7 @@ impl Rpc {
         let timeout = self.effective_timeout();
         let authority = self.authority().map(str::to_owned);
         let scheme = self.scheme().map(str::to_owned);
+        let path = Some(self.path().to_owned());
         let Self {
             request,
             mut respond,
@@ -729,7 +737,7 @@ impl Rpc {
         let mut req =
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
                 .with_extensions(extensions)
-                .with_http(authority, scheme);
+                .with_http(authority, scheme, path);
         req.set_peer_cred(peer_cred);
         req.set_limits(limits);
         if let Some(d) = timeout {

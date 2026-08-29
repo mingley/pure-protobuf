@@ -42,10 +42,11 @@ and does not probe `Io`. `serve_connection` leaves those fields unset.
 `Service`; you implement `Foo`. Consume `Rpc` with exactly one of
 `unary` / `client_streaming` / `server_streaming` / `bidi_streaming` /
 `unimplemented`. Interceptors run first and may inspect metadata,
-deadline, `:authority` / `:scheme`, peer identity / cred, and
-`Rpc::limits`. `Router` splits on the service half of the path.
-Generated handlers see the same facts on `Request` / `Parts`. Dumping
-`Rpc` prints service/method, both timeout views, and `limits`.
+deadline, `:authority` / `:scheme`, path / service / method, peer identity
+/ cred, and `Rpc::limits`. `Router` splits on the service half of the path.
+Generated handlers see the same facts on `Request` / `Parts`, including
+path / service / method. Dumping `Rpc` prints service/method, both timeout
+views, and `limits`. Dumping `Request` prints path / service / method.
 
 ### Wire
 
@@ -73,7 +74,8 @@ Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
 The first registered runs first. Closures see `Rpc` (path, service/method,
 metadata, both timeout views, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`.
-Generated handlers read the same facts on `Request` / `Parts`.
+Generated handlers read the same facts on `Request` / `Parts`, including
+the method path.
 
 Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 `Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,

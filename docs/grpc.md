@@ -1080,6 +1080,12 @@ the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
 and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a
 transport scheme.
 Generated handlers see the same values on `Request::authority` / `Request::scheme`.
+`Rpc::path` is the full `/<service>/<method>`; `Rpc::service` / `Rpc::method`
+are the two halves (unparseable paths yield empty strings). Generated handlers
+see the same values on `Request::path` / `Request::service` / `Request::method`;
+a request you built to send has `None` — the channel stamps the path from the
+generated method. A proxy that maps the payload keeps the method name on
+`Request::into_message_and_parts`.
 `Rpc::local_addr` is the TCP interface that accepted the socket; Unix,
 the default `Incoming`, and `serve_connection` leave it `None`.
 `Incoming::peer` fills it for a custom acceptor.
@@ -1179,6 +1185,7 @@ in the method.
 
 For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, `:authority` / `:scheme`, the
+method path (`Request::path` / `Request::service` / `Request::method`), the
 peer address, mTLS identity, Unix `peer_cred`, and `Request::limits` there.
 
 ## Testing

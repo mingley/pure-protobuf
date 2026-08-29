@@ -20,7 +20,8 @@ use std::sync::Arc;
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
 /// message caps with [`Rpc::limits`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
-/// [`crate::Request::extensions`]. `Err` may
+/// [`crate::Request::extensions`]. Generated handlers see the same path,
+/// service, and method on [`crate::Request::path`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
 ///
 /// ```

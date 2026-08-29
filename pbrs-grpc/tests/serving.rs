@@ -1814,6 +1814,113 @@ async fn interceptors_and_handlers_see_message_limits() {
 }
 
 #[tokio::test]
+async fn interceptors_and_handlers_see_the_method_path() {
+    fn check_path<T>(
+        request: &Request<T>,
+        want_path: &str,
+        want_method: &str,
+    ) -> Result<(), Status> {
+        if request.path() != Some(want_path) {
+            return Err(Status::internal(format!("path {:?}", request.path())));
+        }
+        if request.service() != Some("helloworld.Greeter") {
+            return Err(Status::internal(format!("service {:?}", request.service())));
+        }
+        if request.method() != Some(want_method) {
+            return Err(Status::internal(format!("method {:?}", request.method())));
+        }
+        Ok(())
+    }
+
+    struct SeesPath;
+
+    impl Greeter for SeesPath {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            check_path(&request, "/helloworld.Greeter/SayHello", "SayHello")?;
+            let (msg, parts) = request.into_message_and_parts();
+            if parts.path() != Some("/helloworld.Greeter/SayHello") {
+                return Err(Status::internal(format!("parts path {:?}", parts.path())));
+            }
+            if parts.service() != Some("helloworld.Greeter") {
+                return Err(Status::internal(format!(
+                    "parts service {:?}",
+                    parts.service()
+                )));
+            }
+            if parts.method() != Some("SayHello") {
+                return Err(Status::internal(format!(
+                    "parts method {:?}",
+                    parts.method()
+                )));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
+        }
+
+        async fn client_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            check_path(&request, "/helloworld.Greeter/ClientHello", "ClientHello")?;
+            let mut reply = HelloReply::new();
+            reply.set_message("path");
+            Ok(Response::new(reply))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-path"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-path"))
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesPath)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.service() != "helloworld.Greeter" {
+                    return Err(Status::internal(format!("rpc service {}", rpc.service())));
+                }
+                let want = format!("/helloworld.Greeter/{}", rpc.method());
+                if rpc.path() != want {
+                    return Err(Status::internal(format!(
+                        "rpc path {} != {want}",
+                        rpc.path()
+                    )));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "path");
+    assert!(Request::new(req("ada")).path().is_none());
+    assert!(Request::new(req("ada")).service().is_none());
+    assert!(Request::new(req("ada")).method().is_none());
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_server_interceptor_cannot_extend_the_client_deadline() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
