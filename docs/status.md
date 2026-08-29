@@ -127,6 +127,9 @@ See `docs/upb.md`. Short list:
   after `clear_*`.   Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
   overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, and a waiting Call's deadline, including mTLS.
+  Official TestService EmptyCall / StreamingOutputCall /
+  StreamingInputCall / FullDuplexCall and hand-written Reverser `Channel`
+  methods retry that interceptor fill on those dialers too.
   Generated `StoreClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
   retry Get / Watch / PutAll / Sync until listen on those transports, from either
   the request flag or `FooClient::wait_for_ready`; opt-out and a waiting Call's
