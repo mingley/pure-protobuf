@@ -26,7 +26,7 @@ use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::task::Poll;
+use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::net::TcpListener;
 #[cfg(unix)]
@@ -547,17 +547,22 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            cancel,
             ..
         }) = self.run_unary_request(handler).await
         else {
             return;
         };
-        match outcome {
-            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => {
-                send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip).await
+        hold_cancel(cancel, async move {
+            match outcome {
+                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Ok(response) => {
+                    send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip)
+                        .await
+                }
             }
-        }
+        })
+        .await;
     }
 
     /// Serve a client-streaming method: many request messages, one response.
@@ -574,17 +579,22 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            cancel,
             ..
         }) = self.run_streaming_request(handler).await
         else {
             return;
         };
-        match outcome {
-            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => {
-                send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip).await
+        hold_cancel(cancel, async move {
+            match outcome {
+                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Ok(response) => {
+                    send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip)
+                        .await
+                }
             }
-        }
+        })
+        .await;
     }
 
     /// Serve a server-streaming method: one request message, many responses.
@@ -602,24 +612,28 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            cancel,
         }) = self.run_unary_request(handler).await
         else {
             return;
         };
-        match outcome {
-            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => {
-                send_stream_response(
-                    response,
-                    respond,
-                    wire,
-                    deadline,
-                    prefer_gzip,
-                    peer_accepts_gzip,
-                )
-                .await
+        hold_cancel(cancel, async move {
+            match outcome {
+                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Ok(response) => {
+                    send_stream_response(
+                        response,
+                        respond,
+                        wire,
+                        deadline,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                    )
+                    .await
+                }
             }
-        }
+        })
+        .await;
     }
 
     /// Serve a bidirectional-streaming method.
@@ -637,24 +651,28 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            cancel,
         }) = self.run_streaming_request(handler).await
         else {
             return;
         };
-        match outcome {
-            Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => {
-                send_stream_response(
-                    response,
-                    respond,
-                    wire,
-                    deadline,
-                    prefer_gzip,
-                    peer_accepts_gzip,
-                )
-                .await
+        hold_cancel(cancel, async move {
+            match outcome {
+                Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
+                Ok(response) => {
+                    send_stream_response(
+                        response,
+                        respond,
+                        wire,
+                        deadline,
+                        prefer_gzip,
+                        peer_accepts_gzip,
+                    )
+                    .await
+                }
             }
-        }
+        })
+        .await;
     }
 
     /// Read the single request message, then run `handler` under the deadline.
@@ -692,7 +710,6 @@ impl Rpc {
         let mut recv = request.into_body();
         let (cancel_tx, cancel_rx) = watch::channel(false);
         let on_reset = cancel_tx.clone();
-        let _cancel = CancelOnDrop(cancel_tx);
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
             let mut req = Request::from_metadata(
@@ -727,6 +744,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            cancel: CancelOnDrop(cancel_tx),
         })
     }
 
@@ -783,7 +801,6 @@ impl Rpc {
         }
         let (cancel_tx, cancel_rx) = watch::channel(false);
         let on_reset = cancel_tx.clone();
-        let _cancel = CancelOnDrop(cancel_tx);
         req.set_cancel(cancel_rx);
         let outcome = wrap_timeout(timeout, async {
             run_handler(&mut respond, on_reset, handler(req)).await
@@ -796,6 +813,7 @@ impl Rpc {
             outcome,
             prefer_gzip,
             peer_accepts_gzip,
+            cancel: CancelOnDrop(cancel_tx),
         })
     }
 }
@@ -827,12 +845,48 @@ async fn run_handler<T>(
     }
 }
 
-/// Marks [`Request::cancelled`] when the RPC ends (RST, deadline, or return).
+/// Marks [`Request::cancelled`] when this RPC is fully written or rejected.
+///
+/// Lives until the response is on the wire so a streaming producer spawned
+/// before the handler returns is not cancelled at return — only when the
+/// stream drains, the client resets, or the deadline fires.
 struct CancelOnDrop(watch::Sender<bool>);
 
 impl Drop for CancelOnDrop {
     fn drop(&mut self) {
         self.0.send(true).ok();
+    }
+}
+
+/// Keep [`CancelOnDrop`] alive across `write`.
+///
+/// Locals not named in the write future can be dropped at `.await` (NLL).
+/// A manual future holds the guard as a field so it cannot drop until `write`
+/// completes — `write.await; drop(cancel)` is not enough.
+fn hold_cancel<F: Future<Output = ()>>(cancel: CancelOnDrop, write: F) -> HoldCancel<F> {
+    HoldCancel {
+        write: Box::pin(write),
+        cancel: Some(cancel),
+    }
+}
+
+/// [`hold_cancel`]'s state: poll `write`, drop the guard only when it finishes.
+struct HoldCancel<F> {
+    cancel: Option<CancelOnDrop>,
+    write: Pin<Box<F>>,
+}
+
+impl<F: Future<Output = ()>> Future for HoldCancel<F> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+        match self.write.as_mut().poll(cx) {
+            Poll::Ready(()) => {
+                self.cancel.take();
+                Poll::Ready(())
+            }
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
@@ -846,6 +900,7 @@ struct Prepared<T> {
     outcome: Result<T, Status>,
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
+    cancel: CancelOnDrop,
 }
 
 async fn send_unary_response<Resp: Serialize>(

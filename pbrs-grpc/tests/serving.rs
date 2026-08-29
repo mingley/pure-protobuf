@@ -4177,7 +4177,7 @@ async fn spawned_work_stops_when_the_deadline_fires() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn spawned_work_stops_when_the_handler_returns() {
+async fn spawned_work_stops_when_the_rpc_completes() {
     let child_done = Arc::new(AtomicUsize::new(0));
     let (addr, listener) = bind().await;
     let svc = SpawnOk {
@@ -4192,6 +4192,116 @@ async fn spawned_work_stops_when_the_handler_returns() {
         .expect("ok");
     assert_eq!(name_of(reply.get_ref()), "ada");
     wait_flag(&child_done).await;
+    task.abort();
+}
+
+/// Watches [`Request::cancelled`] while a separate task produces the stream.
+///
+/// `go` stays false until the client has read the first message, so the
+/// producer cannot drain (and fire cancel) before that assertion.
+struct SpawnStream {
+    cancelled: Arc<AtomicUsize>,
+    go: tokio::sync::watch::Receiver<bool>,
+}
+
+impl pbrs_grpc::Greeter for SpawnStream {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("spawn-stream"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("spawn-stream"))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        if request.is_cancelled() {
+            return Err(Status::internal("cancelled before the handler ran"));
+        }
+        let fired = Arc::clone(&self.cancelled);
+        let cancelled = request.cancelled();
+        drop(tokio::spawn(async move {
+            cancelled.await;
+            fired.fetch_add(1, Ordering::Relaxed);
+        }));
+        let (tx, stream) = pbrs_grpc::Streaming::channel(8);
+        let mut go = self.go.clone();
+        drop(tokio::spawn(async move {
+            let mut first = HelloReply::new();
+            first.set_message("0");
+            if tx.send(first).await.is_err() {
+                return;
+            }
+            if go.wait_for(|open| *open).await.is_err() {
+                return;
+            }
+            for i in 1..3 {
+                let mut reply = HelloReply::new();
+                reply.set_message(format!("{i}"));
+                if tx.send(reply).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("spawn-stream"))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_streaming_producer_is_not_cancelled_when_the_handler_returns() {
+    let cancelled = Arc::new(AtomicUsize::new(0));
+    let (go, go_rx) = tokio::sync::watch::channel(false);
+    let (addr, listener) = bind().await;
+    let svc = SpawnStream {
+        cancelled: Arc::clone(&cancelled),
+        go: go_rx,
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    // The HTTP/2 driver lives on the Channel. Dropping the client after
+    // headers closes the connection under a stream that is still draining.
+    let client = GreeterClient::new(channel(addr).await);
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "0");
+    assert_eq!(
+        cancelled.load(Ordering::Relaxed),
+        0,
+        "Request::cancelled must wait until the stream drains"
+    );
+    go.send(true).expect("producer is waiting");
+    let mut n = 1;
+    while let Some(msg) = stream.message().await.expect("item") {
+        assert_eq!(name_of(&msg), format!("{n}"));
+        n += 1;
+    }
+    assert_eq!(n, 3, "producer must outlive handler return");
+    wait_flag(&cancelled).await;
+    drop(client);
     task.abort();
 }
 

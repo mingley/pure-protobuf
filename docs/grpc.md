@@ -444,9 +444,12 @@ you still hold the future and want the await to resolve with `Cancelled`.
 
 A handler that `tokio::spawn`s work should await `request.cancelled()` in
 the child (or poll `request.is_cancelled()`). The kernel drops the handler
-future; it cannot drop tasks the handler created. The future also resolves
-when the handler returns, so work meant to outlive the RPC needs its own
-lifetime. The same signal is on `Parts` after `into_message_and_parts`.
+future; it cannot drop tasks the handler created. The future resolves when
+the RPC ends — after the response is written, or after a stream drains —
+not when the handler function returns. A server-streaming producer spawned
+before `return Ok(Response::new(stream))` stays live until that drain. Work
+meant to outlive the RPC needs its own lifetime. The same signal is on
+`Parts` after `into_message_and_parts`.
 
 ## Wait-for-ready and lazy connect
 

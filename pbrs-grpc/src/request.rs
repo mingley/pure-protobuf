@@ -368,7 +368,8 @@ impl<T> Request<T> {
     /// Whether this inbound RPC has been cancelled.
     ///
     /// True after the client resets the stream, the deadline fires, or the
-    /// handler has returned. Always `false` on a request you built to send.
+    /// response has been written (the stream drained, for streaming RPCs).
+    /// Always `false` on a request you built to send.
     /// Spawned work should await [`Self::cancelled`] rather than polling this.
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
@@ -379,8 +380,10 @@ impl<T> Request<T> {
     ///
     /// The kernel drops the handler future on client RST and on deadline;
     /// work the handler `tokio::spawn`ed keeps running unless it awaits this.
-    /// Also resolves when the handler returns, matching a gRPC context that
-    /// is done when the RPC ends. On a request you built to send this never
+    /// Resolves when the RPC ends: after the response is written (unary) or
+    /// the stream drains (streaming), not when the handler function returns.
+    /// A server-streaming producer spawned before `Ok(Response::new(stream))`
+    /// stays live until that drain. On a request you built to send this never
     /// resolves.
     #[must_use = "cancelled does nothing unless awaited"]
     pub fn cancelled(&self) -> impl Future<Output = ()> + Send + 'static {
