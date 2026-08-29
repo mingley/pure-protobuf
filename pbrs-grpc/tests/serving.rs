@@ -261,6 +261,31 @@ async fn tls_channel(addr: SocketAddr) -> Channel {
     tls_channel_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await
 }
 
+async fn serve_tls_at(
+    addr: SocketAddr,
+    tls: ServerTls,
+) -> Result<tokio::task::JoinHandle<()>, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let handle = tokio::spawn(async move {
+                    GreeterServer::new(Echo)
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return Ok(handle);
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
 #[tokio::test]
 async fn a_hand_written_service_serves_without_generated_code() {
     let (addr, listener) = bind().await;
@@ -4420,6 +4445,40 @@ async fn channel_wait_for_ready_completes_once_the_server_listens() {
     let client = GreeterClient::new(channel);
     wait_then_complete_every_shape(&client, false, async {
         serve_at(addr, Echo, ServerConfig::default())
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    let client = GreeterClient::new(channel);
+    wait_then_complete_every_shape(&client, true, async {
+        serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = Channel::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let client = GreeterClient::new(channel);
+    wait_then_complete_every_shape(&client, false, async {
+        serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
             .await
             .expect("serve")
     })

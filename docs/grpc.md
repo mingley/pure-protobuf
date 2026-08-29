@@ -660,6 +660,8 @@ Generated `FooClient::connect_tls` / `connect_tls_with` / `connect_tls_lazy`
 and `FooServer::serve_tls` apply to every call shape of that service.
 `FooClient::connect_lazy_with` / `connect_unix_lazy_with` do the same on
 h2c and Unix. `Channel::connect_tls_with` is the hand-written equivalent.
+`connect_tls_lazy` and `Request::set_wait_for_ready` / `Channel::wait_for_ready`
+work the same as on h2c, on every call shape.
 `send_compressed` gzips every call shape over TLS the same way it does on
 h2c, including over mTLS. The same overlay gzips every call shape on Unix.
 
