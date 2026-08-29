@@ -180,6 +180,7 @@ async fn a_tls_client_interceptor_sees_https_scheme() {
     });
     let _guard = ServerGuard(handle);
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
+    assert_eq!(client.scheme(), "https");
     assert_eq!(client.channel().scheme(), "https");
     let client = client.intercept(|call: &mut Outgoing<'_>| {
         if call.scheme() != "https" {

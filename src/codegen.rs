@@ -280,7 +280,8 @@ impl Config {
     /// The generating crate must depend on `pbrs-grpc`. `FooClient` gets the
     /// same dialers as `Channel` (`connect`, `connect_tls`, `connect_unix`,
     /// `from_io`, and the lazy/`_with` variants) and the same overlays,
-    /// including `https_scheme` for already-encrypted `from_io` streams.
+    /// including `https_scheme` for already-encrypted `from_io` streams and
+    /// `scheme` to read the `:scheme` that overlay (or TLS) will send.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
     /// ```no_run
@@ -4177,7 +4178,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, inspect `:authority` / `:scheme` / `peer_identity` / `peer_cred` / message caps, attach extensions, or reject. Calling this twice stacks: the first interceptor runs first."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, inspect path / service / method, `:authority` / `:scheme` / `peer_identity` / `peer_cred` / message caps, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4590,6 +4591,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(
         src,
         "    pub fn https_scheme(self) -> Self {{ Self {{ channel: self.channel.https_scheme() }} }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// HTTP/2 `:scheme` this client sends. See [`{G}::Channel::scheme`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn scheme(&self) -> &'static str {{ self.channel.scheme() }}"
     );
 }
 

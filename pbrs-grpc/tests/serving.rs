@@ -3002,7 +3002,9 @@ async fn a_client_interceptor_sees_unix_localhost_authority() {
         .https_scheme();
     assert_eq!(channel.authority(), "localhost");
     assert_eq!(channel.scheme(), "http");
-    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+    let client = GreeterClient::new(channel);
+    assert_eq!(client.scheme(), "http");
+    let client = client.intercept(|call: &mut Outgoing<'_>| {
         if call.authority() != "localhost" {
             return Err(Status::internal(format!(
                 "authority {} want localhost",
@@ -3448,6 +3450,7 @@ async fn from_io_https_scheme_is_visible_to_interceptors() {
         .expect("from_io");
     assert_eq!(channel.scheme(), "http");
     let client = GreeterClient::new(channel).https_scheme();
+    assert_eq!(client.scheme(), "https");
     assert_eq!(client.channel().scheme(), "https");
     let client = client.intercept(|call: &mut Outgoing<'_>| {
         if call.scheme() != "https" {
@@ -3482,7 +3485,9 @@ async fn https_scheme_is_a_noop_on_tcp() {
     });
     let channel = channel(addr).await.https_scheme();
     assert_eq!(channel.scheme(), "http");
-    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+    let client = GreeterClient::new(channel);
+    assert_eq!(client.scheme(), "http");
+    let client = client.intercept(|call: &mut Outgoing<'_>| {
         if call.scheme() != "http" {
             return Err(Status::internal(format!("scheme {}", call.scheme())));
         }

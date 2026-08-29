@@ -690,7 +690,8 @@ The channel has one slot and cannot redial; if the stream dies the next RPC
 fails with `UNAVAILABLE`. TCP keepalive and TLS do not apply — you already
 hold the bytes. `Outgoing::scheme` is `http`. If you already encrypted the
 stream, `Channel::https_scheme` (and `FooClient::https_scheme`) sends
-`:scheme https`. `serve_connection` keeps the peer's `:scheme`; a custom
+`:scheme https`. `Channel::scheme` / `FooClient::scheme` read that overlay.
+`serve_connection` keeps the peer's `:scheme`; a custom
 acceptor that should not trust the preface uses `Incoming::peer`.
 
 ```rust
@@ -1133,7 +1134,7 @@ service and method halves (`Outgoing::service` / `Outgoing::method`, same
 split as `Rpc`), `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https`
 when the channel was built with `ClientTls` or when a `from_io` channel called
 `https_scheme`; no-op on TCP and Unix so a cleartext `connect()` cannot lie;
-`Channel::scheme` is that same string without an interceptor),
+`Channel::scheme` / `FooClient::scheme` is that same string without an interceptor),
 `user-agent` (including a
 `Channel::user_agent` prefix), message caps (`Outgoing::limits`, the
 channel overlay the kernel will enforce), metadata, deadline, wait-for-ready,
