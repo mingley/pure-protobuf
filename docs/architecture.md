@@ -57,7 +57,9 @@ Dumping `Request` prints path / service / method, both timeout views,
 Dumping `Response` prints metadata, trailers, compress intent, and received
 `encoding`.
 Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
-after the response is written / the stream drains).
+after the response is written / the stream drains). A drain waiting for the
+next message sees RST and ends, so a Watch-style producer wakes without
+another send.
 
 ### Wire
 

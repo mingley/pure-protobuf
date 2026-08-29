@@ -143,7 +143,7 @@
 //! | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in [`ServerConfig::timeout`] |
 //! | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in [`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`] |
 //! | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`], override [`ServerConfig::max_pending_accept_reset_streams`]) |
-//! | Client RST after the request is read | Drop the handler; do not run it to completion | always |
+//! | Client RST after the request is read | Drop the handler; abort a stream drain waiting for the next message | always |
 //! | Non-gRPC HTTP/2 (GET, grpc-web, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken | always |
 //!
 //! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is

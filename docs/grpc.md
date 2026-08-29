@@ -217,6 +217,12 @@ async fn server_hello(
 Dropping the sender half-closes the stream cleanly. To end it with an error
 instead, use `tx.fail(status).await`, which puts the status in the trailers.
 
+A producer that waits on a timer or a status map, rather than on `send`,
+should select on `tx.closed()` or `request.cancelled()`. The wire drain
+aborts on a client RST while it is waiting for the next message, so those
+futures resolve without another send. `send` returning `Err` is enough only
+when the producer is actually sending.
+
 `Streaming::channel(n)` sets how many messages sit between your producer and
 the wire. The wire layer takes whatever is ready in one go and writes it as a
 single batch, so a deeper channel means fewer, larger writes.
@@ -482,9 +488,11 @@ the child (or poll `request.is_cancelled()`). The kernel drops the handler
 future; it cannot drop tasks the handler created. The future resolves when
 the RPC ends — after the response is written, or after a stream drains —
 not when the handler function returns. A server-streaming producer spawned
-before `return Ok(Response::new(stream))` stays live until that drain. Work
-meant to outlive the RPC needs its own lifetime. The same signal is on
-`Parts` after `into_message_and_parts`.
+before `return Ok(Response::new(stream))` stays live until that drain. A
+client RST while drain is waiting for the next message aborts that wait,
+so `cancelled` and `StreamSender::closed` resolve without another send.
+Work meant to outlive the RPC needs its own lifetime. The same signal is
+on `Parts` after `into_message_and_parts`.
 
 ## Wait-for-ready and lazy connect
 
@@ -1002,7 +1010,7 @@ guards is committed.
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 (`ServerConfig::max_pending_accept_reset_streams`) |
-| Client RST after the request is read | Drop the handler; do not run it to completion | always |
+| Client RST after the request is read | Drop the handler; abort a stream drain waiting for the next message | always |
 | Non-gRPC HTTP/2 (GET, grpc-web, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken | always |
 
 `max_concurrent_rpcs` is a process-wide handler budget, distinct from HTTP/2
