@@ -786,9 +786,10 @@ impl Channel {
     /// Await the [`Call`] for headers and the response [`Streaming`]. Dropping
     /// the [`Call`] without awaiting resets the stream, the same as dropping a
     /// unary [`Call`]. A [`crate::CallHandle`] taken before await still cancels
-    /// that live stream after headers. Dropping the received [`Streaming`]
-    /// before the end does the same. Letting the deadline fire after headers
-    /// RSTs the send half, matching [`Self::bidi`].
+    /// while waiting for headers, and still cancels that live stream after
+    /// headers. Dropping the received [`Streaming`] before the end does the
+    /// same. Letting the deadline fire RSTs the send half before headers and
+    /// after headers, matching [`Self::bidi`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};

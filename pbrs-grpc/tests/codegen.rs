@@ -703,12 +703,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "unary client methods must name CallHandle"
     );
     assert!(
-        src.contains("A [`::pbrs_grpc::CallHandle`] taken before await still cancels that live stream after headers."),
-        "server-streaming client methods must name CallHandle after headers"
+        src.contains("A [`::pbrs_grpc::CallHandle`] taken before await still cancels while waiting for headers, and still cancels that live stream after headers."),
+        "server-streaming and bidi client methods must name CallHandle before and after headers"
     );
     assert!(
-        src.contains("Letting the deadline fire after headers RSTs the send half the same way."),
-        "server-streaming and bidi client methods must name deadline RST after headers"
+        src.contains("Letting the deadline fire RSTs the send half before headers and after headers the same way."),
+        "server-streaming and bidi client methods must name deadline RST before and after headers"
     );
     assert!(
         src.contains("A [`::pbrs_grpc::CallHandle`] taken before await still cancels after the sender is closed, while the unary response is pending."),
@@ -725,10 +725,6 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     assert!(
         src.contains("[`::pbrs_grpc::StreamSender::fail`] before headers resolves the [`::pbrs_grpc::Call`] with that status; after headers the reset surfaces on the received [`::pbrs_grpc::Streaming`]."),
         "bidi client methods must name StreamSender::fail before headers"
-    );
-    assert!(
-        src.contains("A [`::pbrs_grpc::CallHandle`] taken before await still cancels while waiting for headers."),
-        "bidi client methods must name CallHandle before headers"
     );
     assert!(
         src.contains("dropping a streaming Call resets the stream"),

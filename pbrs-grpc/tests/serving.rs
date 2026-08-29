@@ -4332,6 +4332,20 @@ impl SpawnHang {
             child_done.fetch_add(1, Ordering::Relaxed);
         }));
     }
+
+    fn start<T>(&self, request: &Request<T>) -> Result<(), Status> {
+        if request.is_cancelled() {
+            return Err(Status::internal("cancelled before the handler ran"));
+        }
+        self.spawn_child(request);
+        Ok(())
+    }
+
+    async fn hang_until_dropped(&self) -> Status {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        self.finished.fetch_add(1, Ordering::Relaxed);
+        Status::internal("handler should have been dropped")
+    }
 }
 
 impl pbrs_grpc::Greeter for SpawnHang {
@@ -4339,40 +4353,32 @@ impl pbrs_grpc::Greeter for SpawnHang {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        if request.is_cancelled() {
-            return Err(Status::internal("cancelled before the handler ran"));
-        }
-        self.spawn_child(&request);
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        self.finished.fetch_add(1, Ordering::Relaxed);
-        Err(Status::internal("handler should have been dropped"))
+        self.start(&request)?;
+        Err(self.hang_until_dropped().await)
     }
 
     async fn client_hello(
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        if request.is_cancelled() {
-            return Err(Status::internal("cancelled before the handler ran"));
-        }
-        self.spawn_child(&request);
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        self.finished.fetch_add(1, Ordering::Relaxed);
-        Err(Status::internal("handler should have been dropped"))
+        self.start(&request)?;
+        Err(self.hang_until_dropped().await)
     }
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("spawn-hang"))
+        self.start(&request)?;
+        Err(self.hang_until_dropped().await)
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("spawn-hang"))
+        self.start(&request)?;
+        Err(self.hang_until_dropped().await)
     }
 }
 
@@ -4512,6 +4518,98 @@ async fn spawned_streaming_work_stops_when_the_client_cancels() {
     wait_flag(&child_done).await;
     assert_eq!(finished.load(Ordering::Relaxed), 0);
     drop(tx);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawned_server_streaming_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut call = client.server_hello(Request::new(req("ada")));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    call.handle().cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(&child_done).await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn spawned_bidi_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, mut call) = client.stream_hello(Request::new(()));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    call.handle().cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(&child_done).await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    drop(tx);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_deadline_cancels_a_server_stream_before_headers() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_millis(80));
+    let err = client.server_hello(request).await.expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    wait_flag(&child_done).await;
+    assert_eq!(finished.load(Ordering::Relaxed), 0);
+    assert!(started.load(Ordering::Relaxed) >= 1);
     task.abort();
 }
 

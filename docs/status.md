@@ -134,19 +134,21 @@ See `docs/upb.md`. Short list:
   drain waiting for the next message ends on client RST. Dropping a received
   `Streaming` before the end resets that RPC, including bidi while the send
   half is still held. A `CallHandle` taken before await still cancels that
-  live stream after headers, still cancels a bidi call waiting for headers,
-  and a client-streaming handle still cancels
+  live stream after headers, still cancels a server-streaming or bidi call
+  waiting for headers, and a client-streaming handle still cancels
   after the sender is closed while the unary response is pending (dropping
   the `Call` or hitting the deadline after that half-close does the same).
-  A bidi deadline RSTs the send half before headers and after a half-close;
-  after server-streaming or bidi headers that deadline still RSTs the parked
+  A server-streaming or bidi deadline RSTs the send half before headers and
+  after a half-close;
+  after those headers that deadline still RSTs the parked
   send half. Spawned handler work awaiting `Request::cancelled` sees the RST, including
   when the server deadline wins (signalled before trailers). Generated trait
   rustdoc names `Request::cancelled` on every call shape (and
   `StreamSender::closed` on server-streaming); unary `Channel` / generated
   client methods name `CallHandle`. Generated client-streaming and bidi
-  methods name `StreamSender::fail`; bidi methods name `CallHandle` before
-  headers; server-streaming and bidi methods name deadline RST after headers.
+  methods name `StreamSender::fail`; server-streaming and bidi methods name
+  `CallHandle` before and after headers, and deadline RST before and after
+  headers.
   Generated method rustdoc names
   inbound/received `encoding` and interceptor timing. Methods omitted on generated traits answer `UNIMPLEMENTED`.
   GCP-auth and ORCA stay out; load balancing, application retries, and

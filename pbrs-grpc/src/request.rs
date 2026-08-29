@@ -1641,12 +1641,12 @@ impl<T> Call<T> {
     ///
     /// Take it before awaiting. After this [`Call`] is Ready, the handle still
     /// cancels a live server-streaming or bidi response. It also cancels a
-    /// bidi call that is still waiting for headers. After a client-streaming
-    /// sender is closed, it still cancels while the unary response is pending.
-    /// Dropping the [`Call`] or letting its deadline fire after that half-close
-    /// resets the same way. A bidi deadline RSTs the send half whether or not
-    /// headers have arrived. After server-streaming or bidi headers, that
-    /// deadline still RSTs the parked send half.
+    /// server-streaming or bidi call that is still waiting for headers. After a
+    /// client-streaming sender is closed, it still cancels while the unary
+    /// response is pending. Dropping the [`Call`] or letting its deadline fire
+    /// after that half-close resets the same way. A server-streaming or bidi
+    /// deadline RSTs the send half whether or not headers have arrived. After
+    /// those headers, that deadline still RSTs the parked send half.
     ///
     /// ```no_run
     /// # async fn demo(call: pbrs_grpc::Call<u32>) {
@@ -1708,12 +1708,13 @@ impl<T> fmt::Debug for Call<T> {
 /// Take it before awaiting. After a server-streaming or bidi [`Call`] has
 /// resolved, [`Self::cancel`] still resets the live response stream — the
 /// same as dropping the received [`crate::Streaming`] before the end. It
-/// also cancels a bidi call that is still waiting for headers. After a
-/// client-streaming sender is closed, it still resets while the unary
-/// response is pending. Dropping that [`Call`] or letting its deadline fire
-/// after the half-close resets the same way. A bidi deadline RSTs the send
-/// half whether or not headers have arrived. After server-streaming or bidi
-/// headers, that deadline still RSTs the parked send half.
+/// also cancels a server-streaming or bidi call that is still waiting for
+/// headers. After a client-streaming sender is closed, it still resets
+/// while the unary response is pending. Dropping that [`Call`] or letting
+/// its deadline fire after the half-close resets the same way. A
+/// server-streaming or bidi deadline RSTs the send half whether or not
+/// headers have arrived. After those headers, that deadline still RSTs the
+/// parked send half.
 #[derive(Clone, Debug)]
 pub struct CallHandle {
     cancel: watch::Sender<bool>,

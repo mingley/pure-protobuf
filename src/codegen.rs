@@ -4916,11 +4916,11 @@ fn emit_kernel_client(
             );
             let _ = writeln!(
                 src,
-                "    /// A [`{G}::CallHandle`] taken before await still cancels that live stream after headers."
+                "    /// A [`{G}::CallHandle`] taken before await still cancels while waiting for headers, and still cancels that live stream after headers."
             );
             let _ = writeln!(
                 src,
-                "    /// Letting the deadline fire after headers RSTs the send half the same way."
+                "    /// Letting the deadline fire RSTs the send half before headers and after headers the same way."
             );
         }
         if m.client_streaming && !m.server_streaming {
@@ -4938,10 +4938,6 @@ fn emit_kernel_client(
             );
         }
         if m.client_streaming && m.server_streaming {
-            let _ = writeln!(
-                src,
-                "    /// A [`{G}::CallHandle`] taken before await still cancels while waiting for headers."
-            );
             let _ = writeln!(
                 src,
                 "    /// [`{G}::StreamSender::fail`] before headers resolves the [`{G}::Call`] with that status; after headers the reset surfaces on the received [`{G}::Streaming`]."
