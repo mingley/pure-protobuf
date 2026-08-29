@@ -921,6 +921,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. See
+    /// [`ServerConfig::max_pending_accept_reset_streams`].
+    #[must_use]
+    pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
+        self.config = self.config.max_pending_accept_reset_streams(n);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. See
     /// [`ServerConfig::timeout`].
     #[must_use]
@@ -1377,6 +1385,14 @@ impl Router {
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
+        self
+    }
+
+    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. See
+    /// [`ServerConfig::max_pending_accept_reset_streams`].
+    #[must_use]
+    pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
+        self.config = self.config.max_pending_accept_reset_streams(n);
         self
     }
 

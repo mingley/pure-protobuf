@@ -843,7 +843,7 @@ guards is committed.
 | Unbounded handler concurrency | Refuse further RPCs with `RESOURCE_EXHAUSTED` before the handler runs | opt-in |
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
-| HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 |
+| HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 (`ServerConfig::max_pending_accept_reset_streams`) |
 | Client RST after the request is read | Drop the handler; do not run it to completion | always |
 | Non-gRPC HTTP/2 (GET, grpc-web, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken | always |
 
@@ -963,7 +963,8 @@ Received streams are decoded inline on the reading task, so they have no queue
 to size in either direction.
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
-`max_send_buffer_size`, `max_header_list_size` — is available on `Server` /
+`max_send_buffer_size`, `max_header_list_size`,
+`max_pending_accept_reset_streams` — is available on `Server` /
 `Router` / generated `FooServer` as well as `ServerConfig` and `ChannelConfig`,
 and is more likely to be a safety decision than a performance one.
 

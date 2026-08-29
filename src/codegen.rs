@@ -4077,6 +4077,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. See [`{G}::ServerConfig::max_pending_accept_reset_streams`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {{ self.config = self.config.max_pending_accept_reset_streams(n); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");

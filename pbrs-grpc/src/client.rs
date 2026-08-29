@@ -203,8 +203,8 @@ impl Endpoint {
 /// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
 /// [`Self::send_compressed`], the two message-size caps, and
 /// [`Self::stream_buffer`] overlay this clone. Keepalive, idle, TCP
-/// keepalive, connection count, and HTTP/2 windows are set at handshake
-/// ([`ChannelConfig`] / [`Self::connect_with`]).
+/// keepalive, connection count, HTTP/2 windows, and the rapid-reset cap are
+/// set at handshake ([`ChannelConfig`] / [`Self::connect_with`]).
 ///
 /// [`Debug`] prints the authority, pool size, and config. It does not dump
 /// live HTTP/2 state.

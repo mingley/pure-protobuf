@@ -1609,11 +1609,13 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
         .add_service(GreeterServer::new(Echo))
         .initial_connection_window_size(7 * 1024 * 1024)
         .max_header_list_size(4096)
-        .max_send_buffer_size(123_456);
+        .max_send_buffer_size(123_456)
+        .max_pending_accept_reset_streams(3);
     let dbg = format!("{router:?}");
     assert!(dbg.contains("7340032"), "{dbg}");
     assert!(dbg.contains("4096"), "{dbg}");
     assert!(dbg.contains("123456"), "{dbg}");
+    assert!(dbg.contains("max_pending_accept_reset_streams: 3"), "{dbg}");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

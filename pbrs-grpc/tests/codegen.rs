@@ -359,6 +359,7 @@ async fn generated_servers_accept_configuration() {
             .max_frame_size(32 * 1024)
             .max_header_list_size(8 * 1024)
             .max_send_buffer_size(512 * 1024)
+            .max_pending_accept_reset_streams(3)
             .serve_listener(listener)
             .await
             .ok();

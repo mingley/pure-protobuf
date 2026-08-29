@@ -82,6 +82,7 @@ pub struct ServerConfig {
     max_concurrent_streams: u32,
     max_send_buffer_size: usize,
     max_header_list_size: u32,
+    max_pending_accept_reset_streams: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
@@ -105,6 +106,7 @@ impl Default for ServerConfig {
             max_concurrent_streams: DEFAULT_MAX_CONCURRENT_STREAMS,
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
+            max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
@@ -189,6 +191,23 @@ impl ServerConfig {
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.max_header_list_size = bytes;
+        self
+    }
+
+    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
+    ///
+    /// Default 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`]). A peer that
+    /// opens streams and immediately `RST_STREAM`s them sits in that queue
+    /// until accepted; exceeding this is `ENHANCE_YOUR_CALM` and the
+    /// connection is dropped.
+    ///
+    /// [`crate::Server::max_pending_accept_reset_streams`],
+    /// [`crate::Router::max_pending_accept_reset_streams`], and generated
+    /// `FooServer::max_pending_accept_reset_streams` set this without building a
+    /// [`ServerConfig`].
+    #[must_use]
+    pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
+        self.max_pending_accept_reset_streams = n;
         self
     }
 
@@ -425,6 +444,13 @@ impl ServerConfig {
         self.max_header_list_size
     }
 
+    /// Remotely-reset HTTP/2 streams waiting in the accept queue.
+    /// See [`Self::max_pending_accept_reset_streams`].
+    #[must_use]
+    pub fn pending_accept_reset_streams(self) -> usize {
+        self.max_pending_accept_reset_streams
+    }
+
     /// TLS accept and HTTP/2 preface bound. See [`Self::handshake_timeout`].
     #[must_use]
     pub fn handshake_wait(self) -> Duration {
@@ -481,7 +507,7 @@ impl ServerConfig {
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
-            .max_pending_accept_reset_streams(DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS);
+            .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams);
         builder
     }
 }
@@ -521,6 +547,7 @@ pub struct ChannelConfig {
     max_concurrent_streams: u32,
     max_send_buffer_size: usize,
     max_header_list_size: u32,
+    max_pending_accept_reset_streams: usize,
     stream_buffer: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
@@ -543,6 +570,7 @@ impl Default for ChannelConfig {
             max_concurrent_streams: DEFAULT_MAX_CONCURRENT_STREAMS,
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
+            max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
             stream_buffer: DEFAULT_STREAM_BUFFER,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
@@ -639,6 +667,18 @@ impl ChannelConfig {
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.max_header_list_size = bytes;
+        self
+    }
+
+    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
+    ///
+    /// Default 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`]). A peer that
+    /// opens streams and immediately `RST_STREAM`s them sits in that queue
+    /// until accepted; exceeding this is `ENHANCE_YOUR_CALM` and the
+    /// connection is dropped. Applied at handshake, not as a live overlay.
+    #[must_use]
+    pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
+        self.max_pending_accept_reset_streams = n;
         self
     }
 
@@ -835,6 +875,13 @@ impl ChannelConfig {
         self.max_header_list_size
     }
 
+    /// Remotely-reset HTTP/2 streams waiting in the accept queue.
+    /// See [`Self::max_pending_accept_reset_streams`].
+    #[must_use]
+    pub fn pending_accept_reset_streams(self) -> usize {
+        self.max_pending_accept_reset_streams
+    }
+
     /// Dial bound: TCP/Unix connect, optional TLS, peer SETTINGS.
     /// See [`Self::connect_timeout`].
     #[must_use]
@@ -892,7 +939,7 @@ impl ChannelConfig {
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
-            .max_pending_accept_reset_streams(DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS)
+            .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
             .enable_push(false)
             // h2's handshake future returns after writing the client preface,
             // before the peer speaks. Starting send capacity at 0 lets
@@ -928,6 +975,32 @@ mod tests {
         assert_eq!(
             config.header_list_size(),
             super::DEFAULT_MAX_HEADER_LIST_SIZE
+        );
+        assert_eq!(
+            config.pending_accept_reset_streams(),
+            super::DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS
+        );
+        assert_eq!(
+            ChannelConfig::new().pending_accept_reset_streams(),
+            super::DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .max_pending_accept_reset_streams(5)
+                .pending_accept_reset_streams(),
+            5
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .max_pending_accept_reset_streams(5)
+                .pending_accept_reset_streams(),
+            5
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .max_pending_accept_reset_streams(0)
+                .pending_accept_reset_streams(),
+            0
         );
         assert_eq!(config.handshake_wait(), super::DEFAULT_CONNECT_TIMEOUT);
         assert_eq!(config.connection_age(), None);
@@ -1052,24 +1125,28 @@ mod tests {
             .initial_connection_window_size(2)
             .max_frame_size(16_384)
             .max_concurrent_streams(8)
-            .max_header_list_size(32);
+            .max_header_list_size(32)
+            .max_pending_accept_reset_streams(3);
         assert_eq!(server.stream_window(), 1);
         assert_eq!(server.connection_window(), 2);
         assert_eq!(server.frame_size(), 16_384);
         assert_eq!(server.concurrent_streams(), 8);
         assert_eq!(server.header_list_size(), 32);
+        assert_eq!(server.pending_accept_reset_streams(), 3);
 
         let channel = ChannelConfig::new()
             .initial_stream_window_size(3)
             .initial_connection_window_size(4)
             .max_frame_size(16_384)
             .max_concurrent_streams(9)
-            .max_header_list_size(64);
+            .max_header_list_size(64)
+            .max_pending_accept_reset_streams(11);
         assert_eq!(channel.stream_window(), 3);
         assert_eq!(channel.connection_window(), 4);
         assert_eq!(channel.frame_size(), 16_384);
         assert_eq!(channel.concurrent_streams(), 9);
         assert_eq!(channel.header_list_size(), 64);
+        assert_eq!(channel.pending_accept_reset_streams(), 11);
         assert!(!ChannelConfig::new().compresses_outbound());
         assert!(ChannelConfig::new()
             .send_compressed(true)
