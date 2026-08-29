@@ -185,13 +185,11 @@ impl Metadata {
     /// [`Self::get`] is the first of these. Reserved keys yield nothing.
     pub fn get_all(&self, key: &str) -> impl Iterator<Item = &str> + '_ {
         let skip = is_reserved(key);
-        self.map.get_all(key).iter().filter_map(move |value| {
-            if skip {
-                None
-            } else {
-                value.to_str().ok()
-            }
-        })
+        self.map
+            .get_all(key)
+            .iter()
+            .filter(move |_| !skip)
+            .filter_map(|value| value.to_str().ok())
     }
 
     /// Every `-bin` value for `key`, base64-decoded, in insertion order.
@@ -199,13 +197,11 @@ impl Metadata {
     /// [`Self::get_bin`] is the first of these. Reserved keys yield nothing.
     pub fn get_all_bin(&self, key: &str) -> impl Iterator<Item = Vec<u8>> + '_ {
         let skip = is_reserved(key);
-        self.map.get_all(key).iter().filter_map(move |value| {
-            if skip {
-                None
-            } else {
-                decode_base64(value.to_str().ok()?)
-            }
-        })
+        self.map
+            .get_all(key)
+            .iter()
+            .filter(move |_| !skip)
+            .filter_map(|value| decode_base64(value.to_str().ok()?))
     }
 
     /// Every ASCII entry, skipping reserved and `-bin` keys.
