@@ -14,14 +14,16 @@ use std::sync::Arc;
 /// (strip with [`crate::Metadata::remove`] or [`crate::Metadata::retain`],
 /// overwrite a hop with [`crate::Metadata::set`]), cap the deadline with
 /// [`Rpc::set_timeout`], read the client's deadline with [`Rpc::peer_timeout`]
-/// or the handler's with [`Rpc::effective_timeout`], read `:authority` with
+/// or the handler's with [`Rpc::effective_timeout`], read the path with
+/// [`Rpc::path`] / [`Rpc::service`] / [`Rpc::method`], read `:authority` with
 /// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], read the mTLS
 /// client certificate with [`Rpc::peer_identity`], Unix credentials with
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
 /// message caps with [`Rpc::limits`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`]. Generated handlers see the same path,
-/// service, and method on [`crate::Request::path`]. `Err` may
+/// service, and method on [`crate::Request::path`] /
+/// [`crate::Request::service`] / [`crate::Request::method`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
 ///
 /// ```

@@ -1159,12 +1159,14 @@ impl<S: Service> Server<S> {
     /// Closures implement [`crate::Interceptor`], so
     /// `server.intercept(|rpc| { ... })` is the usual form. The interceptor
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
-    /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
+    /// [`Rpc::set_timeout`], inspect [`Rpc::path`] / [`Rpc::service`] /
+    /// [`Rpc::method`] / [`Rpc::peer_timeout`] /
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
     /// [`Rpc::peer_cred`] / [`Rpc::limits`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
-    /// (including [`Status::with_error_details`]) to reject.
+    /// (including [`Status::with_error_details`]) to reject. Generated
+    /// handlers see the same path, peer, and caps on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
@@ -1643,7 +1645,8 @@ impl Router {
     }
 
     /// Run `interceptor` before every mounted service. Calling this twice
-    /// stacks: the first interceptor runs first.
+    /// stacks: the first interceptor runs first. Same inspect/reject surface
+    /// as [`Server::intercept`].
     #[must_use]
     pub fn intercept<I: crate::Interceptor>(mut self, interceptor: I) -> Self {
         self.interceptor = Some(match self.interceptor {
