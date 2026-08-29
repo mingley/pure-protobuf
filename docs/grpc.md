@@ -880,7 +880,7 @@ is a `NOT_FOUND` on the stream, and extension-number listing is best-effort
 stream (`ErrorResponse`), not a broken RPC. An inbound message over the
 decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
 OK end. Unix, TLS, and `from_io` serve that method. `send_compressed` gzips
-that bidi method when the client advertises gzip, including over TLS, Unix,
+that bidi method when the client advertises gzip, including over TLS, mTLS, Unix,
 and `from_io`. A client interceptor sees path, service, method, `:authority`,
 and `:scheme` on that method, including over TLS, Unix, and `from_io`. An
 interceptor `Err(Status::with_error_details(...))` unpacks as `Status::rpc` /

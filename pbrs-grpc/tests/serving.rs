@@ -42,9 +42,15 @@ use tokio::net::TcpListener;
 const CA: &str = include_str!("tls_data/ca.crt");
 const SERVER_CERT: &str = include_str!("tls_data/server.crt");
 const SERVER_KEY: &str = include_str!("tls_data/server.key");
+const CLIENT_CERT: &str = include_str!("tls_data/client.crt");
+const CLIENT_KEY: &str = include_str!("tls_data/client.key");
 
 fn server_identity() -> Identity {
     Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("server identity")
+}
+
+fn client_identity() -> Identity {
+    Identity::from_pem(CLIENT_CERT, CLIENT_KEY).expect("client identity")
 }
 
 /// A service written without any generated code, mounted on the public API.
@@ -208,8 +214,7 @@ async fn channel(addr: SocketAddr) -> Channel {
     panic!("could not connect: {last:?}");
 }
 
-async fn tls_channel(addr: SocketAddr) -> Channel {
-    let tls = ClientTls::ca("localhost", CA).expect("client tls");
+async fn tls_channel_with(addr: SocketAddr, tls: ClientTls) -> Channel {
     let mut last = None;
     for _ in 0..80 {
         match Channel::connect_tls(addr, tls.clone()).await {
@@ -221,6 +226,10 @@ async fn tls_channel(addr: SocketAddr) -> Channel {
         }
     }
     panic!("could not connect: {last:?}");
+}
+
+async fn tls_channel(addr: SocketAddr) -> Channel {
+    tls_channel_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await
 }
 
 #[tokio::test]
@@ -1052,6 +1061,23 @@ async fn test_service_tls_send_compressed_gzips_every_shape() {
             .ok();
     });
     let client = TestServiceClient::new(tls_channel(addr).await.send_compressed());
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_mtls_send_compressed_gzips_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::new(tls_channel_with(addr, client_tls).await.send_compressed());
     gzip_test_every_shape(&client).await;
     task.abort();
 }
