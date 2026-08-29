@@ -908,17 +908,25 @@ async fn wait_client_reset(respond: &mut h2::server::SendResponse<Bytes>) -> Sta
 }
 
 /// Race the handler against a client reset, signalling spawned work on RST.
+///
+/// After signalling, poll the handler once so a body awaiting
+/// [`Request::cancelled`] can finish. A handler that ignores cancel stays
+/// `Pending` and is dropped, the same as before.
 async fn run_handler<T>(
     respond: &mut h2::server::SendResponse<Bytes>,
     on_reset: watch::Sender<bool>,
     handler: impl Future<Output = Result<T, Status>>,
 ) -> Result<T, Status> {
+    tokio::pin!(handler);
     tokio::select! {
         biased;
-        result = handler => result,
+        result = &mut handler => result,
         gone = wait_client_reset(respond) => {
             on_reset.send(true).ok();
-            Err(gone)
+            match poll_fn(|cx| Poll::Ready(handler.as_mut().poll(cx))).await {
+                Poll::Ready(result) => result,
+                Poll::Pending => Err(gone),
+            }
         }
     }
 }

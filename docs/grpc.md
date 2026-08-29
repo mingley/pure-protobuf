@@ -492,8 +492,10 @@ before the end does the same. After a client-streaming sender is closed, that
 handle still resets while the unary response is pending.
 
 A handler that `tokio::spawn`s work should await `request.cancelled()` in
-the child (or poll `request.is_cancelled()`). The kernel drops the handler
-future; it cannot drop tasks the handler created. The future resolves when
+the child (or poll `request.is_cancelled()`). On RST the kernel signals
+that future, then drops a handler that is still pending; it cannot drop
+tasks the handler created. A handler awaiting `cancelled()` in the body
+can finish that await and return. The future resolves when
 the RPC ends — after the response is written, or after a stream drains —
 not when the handler function returns. A server-streaming producer spawned
 before `return Ok(Response::new(stream))` stays live until that drain. A

@@ -4774,15 +4774,15 @@ impl pbrs_grpc::Greeter for ClientStreamWaitAfterClose {
         let (mut stream, parts) = request.into_message_and_parts();
         while stream.message().await?.is_some() {}
         self.drained.fetch_add(1, Ordering::Relaxed);
-        tokio::select! {
-            biased;
-            () = parts.cancelled() => {}
-            () = tokio::time::sleep(Duration::from_secs(5)) => {
-                return Err(Status::internal("handler never saw cancel after half-close"));
-            }
-        }
-        self.left.fetch_add(1, Ordering::Relaxed);
-        Err(Status::cancelled())
+        // Spawned work, not the handler body: RST drops a pending handler.
+        let left = Arc::clone(&self.left);
+        let cancelled = parts.cancelled();
+        drop(tokio::spawn(async move {
+            cancelled.await;
+            left.fetch_add(1, Ordering::Relaxed);
+        }));
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        Err(Status::internal("handler should have been dropped"))
     }
 
     async fn server_hello(

@@ -428,8 +428,11 @@ impl<T> Request<T> {
 
     /// Resolves when this inbound RPC is cancelled.
     ///
-    /// The kernel drops the handler future on client RST and on deadline;
-    /// work the handler `tokio::spawn`ed keeps running unless it awaits this.
+    /// On client RST and on deadline the kernel signals this, then drops a
+    /// handler that is still `Pending`. A handler awaiting this can finish
+    /// that await and return. Work the handler `tokio::spawn`ed keeps running
+    /// unless it awaits this.
+    ///
     /// Resolves when the RPC ends: after the response is written (unary) or
     /// the stream drains (streaming), not when the handler function returns.
     /// A server-streaming producer spawned before `Ok(Response::new(stream))`
