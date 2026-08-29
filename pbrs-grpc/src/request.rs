@@ -1494,6 +1494,9 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
 /// stream so the server drops the handler, the same as [`Self::cancel`].
 /// Cancel while you still hold the future if you need the await to resolve
 /// with [`Code::Cancelled`](crate::Code::Cancelled) rather than being dropped.
+/// After a server-streaming or bidi call is Ready, a [`CallHandle`] taken
+/// beforehand still resets the live stream; dropping the received
+/// [`crate::Streaming`] before the end does the same.
 ///
 /// After this future yields `Ready`, it is terminated
 /// (`futures_core::future::FusedFuture`): combinators that skip terminated

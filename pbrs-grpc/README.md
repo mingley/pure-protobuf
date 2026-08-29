@@ -57,7 +57,7 @@ HTTP/2 PING keepalive, TCP `SO_KEEPALIVE`, max connection age (jittered ±10%) a
 redial of a dead connection, lazy connect with wait-for-ready, in-process
 `Channel::from_io` / `Server::serve_connection`, Unix domain
 sockets (h2c; `serve_unix_unlink` after a crash, without stealing a live listener), graceful drain with `GOAWAY`, per-message gzip, deadlines,
-cancellation (dropping a `Call` or a received `Streaming` resets the stream; `Request::cancelled` for spawned work), ASCII and `-bin` metadata, OK-path custom trailers,
+cancellation (dropping a `Call` or a received `Streaming` resets the stream; a `CallHandle` taken before await still cancels after streaming headers; `Request::cancelled` for spawned work), ASCII and `-bin` metadata, OK-path custom trailers,
 mTLS client certificates on `Rpc::peer_identity`, Unix `SO_PEERCRED` on `Rpc::peer_cred`,
 `Incoming::peer` / `ConnectionInfo` for custom acceptors, `Channel::https_scheme`
 for already-encrypted `from_io` streams. Outbound
