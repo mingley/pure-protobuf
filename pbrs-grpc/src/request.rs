@@ -614,6 +614,13 @@ impl Parts {
         self.compress
     }
 
+    /// Whether the received frame had the Compressed-Flag set.
+    /// See [`Request::compressed`].
+    #[must_use]
+    pub fn compressed(&self) -> bool {
+        self.compressed
+    }
+
     /// Whether this RPC waits for a connection instead of failing fast.
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
@@ -913,6 +920,7 @@ mod tests {
         req.set_timeout(Duration::from_millis(7));
         req.set_wait_for_ready(true);
         req.set_compress(true);
+        req.set_compressed(true);
         req.extensions_mut().insert(7u8);
         req.metadata_mut().insert("k", "v").expect("insert");
         req = req.with_http(Some("127.0.0.1:9".into()), Some("http".into()));
@@ -922,6 +930,8 @@ mod tests {
         assert_eq!(message, 1);
         assert!(parts.wait_for_ready());
         assert!(parts.compress());
+        assert!(parts.compressed());
+        assert!(parts.peer_cred().is_none());
         assert_eq!(parts.authority(), Some("127.0.0.1:9"));
         assert_eq!(parts.scheme(), Some("http"));
         assert_eq!(parts.deadline(), Some(at));
@@ -931,6 +941,8 @@ mod tests {
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
         assert!(rebuilt.wait_for_ready());
         assert!(rebuilt.compress());
+        assert!(rebuilt.compressed());
+        assert!(rebuilt.peer_cred().is_none());
         assert_eq!(rebuilt.authority(), Some("127.0.0.1:9"));
         assert_eq!(rebuilt.scheme(), Some("http"));
         assert_eq!(rebuilt.deadline(), Some(at));

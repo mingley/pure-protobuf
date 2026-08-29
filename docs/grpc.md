@@ -834,6 +834,7 @@ resp.set_compress(true);
 
 On a stream, choose per message with `send` or `send_compressed`.
 `request.compressed()` reports whether what arrived was compressed.
+`Parts::compressed` keeps that flag across `into_message_and_parts`.
 
 To gzip every response a client advertised `gzip` for:
 
@@ -1145,7 +1146,8 @@ opens on the client). They cannot see or rewrite the final `Status`; do that
 in the method.
 
 For work that belongs to one method rather than the whole service, do it in the
-handler; you have the metadata, the deadline, and the peer address there.
+handler; you have the metadata, the deadline, `:authority` / `:scheme`, the
+peer address, mTLS identity, and Unix `peer_cred` there.
 
 ## Testing
 

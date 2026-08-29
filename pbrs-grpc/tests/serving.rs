@@ -3394,8 +3394,12 @@ impl pbrs_grpc::Greeter for GzipProbe {
         if !request.compressed() {
             return Err(Status::invalid_argument("expected gzip"));
         }
+        let (msg, parts) = request.into_message_and_parts();
+        if !parts.compressed() {
+            return Err(Status::internal("parts dropped Compressed-Flag"));
+        }
         let mut reply = HelloReply::new();
-        reply.set_message(request.get_ref().name());
+        reply.set_message(msg.name());
         Ok(Response::new(reply))
     }
 

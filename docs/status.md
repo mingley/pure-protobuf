@@ -94,10 +94,12 @@ See `docs/upb.md`. Short list:
 - Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop
   (`empty_unary` … `timeout_on_sleeping_server`, plus the four gzip cases)
   is implemented. TLS (rustls + Graviola), `grpc.health.v1`, and
-  `grpc.reflection.v1` ship in the kernel. GCP-auth and ORCA stay out;
-  load balancing, retries, and hedging are documented omissions. The tonic
-  adapter still covers health/gzip/reflection via tonic crates for stacks
-  that stay on tonic.
+  `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
+  a connection death after the slot looked live redial once (transparent
+  retry). Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
+  GCP-auth and ORCA stay out; load balancing, application retries, and
+  hedging are documented omissions. The tonic adapter still covers
+  health/gzip/reflection via tonic crates for stacks that stay on tonic.
 - There are no arena views.
 - Generated `google.protobuf.Timestamp`, `Duration`, `Empty`, and the
   proto3 wrappers (BoolValue, Int32Value, Int64Value, UInt32Value,
