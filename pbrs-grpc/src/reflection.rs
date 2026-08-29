@@ -20,8 +20,9 @@
 //! over the decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers
 //! (`StreamSender::fail`), not a quiet OK end. An interceptor `Err` may carry
 //! [`crate::Status::with_error_details`]; those trailers reach the client.
-//! Unix (`serve_unix` / `connect_unix`) and [`crate::Server::serve_connection`]
-//! / [`crate::Channel::from_io`] serve the bidi method.
+//! Unix (`serve_unix` / `connect_unix`), TLS (`serve_tls` / `connect_tls`),
+//! and [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
+//! the bidi method.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

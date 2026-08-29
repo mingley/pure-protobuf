@@ -20,12 +20,16 @@ use pbrs_grpc::reflection::{
     service, ExtensionRequest, ServerReflectionClient, ServerReflectionRequest,
     ServerReflectionResponse,
 };
-use pbrs_grpc::{Channel, Code, Outgoing, Request, Router, Status};
+use pbrs_grpc::{Channel, ClientTls, Code, Identity, Outgoing, Request, Router, ServerTls, Status};
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::net::TcpListener;
+
+const CA: &str = include_str!("tls_data/ca.crt");
+const SERVER_CERT: &str = include_str!("tls_data/server.crt");
+const SERVER_KEY: &str = include_str!("tls_data/server.key");
 
 async fn serve() -> (SocketAddr, ServerGuard) {
     let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
@@ -413,4 +417,41 @@ async fn oversize_reflection_request_is_resource_exhausted() {
             Ok(_) => panic!("oversize reflection request must fail as trailers"),
         },
     }
+}
+
+#[tokio::test]
+async fn reflection_tls_lists_the_registered_greeter() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match ServerReflectionClient::connect_tls(addr, client_tls.clone()).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    };
+    echo_reflection_list(&client).await;
 }

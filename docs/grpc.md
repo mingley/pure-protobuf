@@ -840,8 +840,8 @@ unknown names.
 
 There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
 `RESOURCE_EXHAUSTED`. An interceptor `Err(Status::with_error_details(...))`
-unpacks as `Status::rpc` / `Status::error_details` on both methods. Unix and
-`from_io` serve both methods.
+unpacks as `Status::rpc` / `Status::error_details` on both methods. Unix, TLS,
+and `from_io` serve both methods.
 
 ## Reflection
 
@@ -869,7 +869,7 @@ is a `NOT_FOUND` on the stream, and extension-number listing is best-effort
 stream (`ErrorResponse`), not a broken RPC. An inbound message over the
 decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
 OK end. An interceptor `Err(Status::with_error_details(...))` unpacks as
-`Status::rpc` / `Status::error_details` on that bidi method. Unix and
+`Status::rpc` / `Status::error_details` on that bidi method. Unix, TLS, and
 `from_io` serve that method.
 
 ## Graceful shutdown
