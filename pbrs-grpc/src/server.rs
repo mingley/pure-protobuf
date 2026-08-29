@@ -136,7 +136,8 @@ pub trait Incoming: Send {
     /// Next connection, or `None` when the source is exhausted.
     ///
     /// `SocketAddr` is what [`Rpc::remote_addr`] reports; use `None` when the
-    /// transport has no TCP peer (Unix, in-process).
+    /// transport has no TCP peer (Unix, in-process). [`Rpc::local_addr`] is
+    /// `None` on this path; only the TCP accept loop fills it.
     fn accept(&mut self) -> impl Future<Output = IncomingAccept<Self::Io>> + Send;
 }
 
@@ -155,6 +156,7 @@ pub struct Rpc {
     respond: h2::server::SendResponse<Bytes>,
     config: ServerConfig,
     remote_addr: Option<SocketAddr>,
+    local_addr: Option<SocketAddr>,
     extensions: http::Extensions,
     metadata: Metadata,
     timeout: Option<Duration>,
@@ -166,6 +168,7 @@ impl std::fmt::Debug for Rpc {
             .field("authority", &self.authority())
             .field("path", &self.path())
             .field("remote_addr", &self.remote_addr)
+            .field("local_addr", &self.local_addr)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("peer_timeout", &self.peer_timeout())
@@ -208,10 +211,21 @@ impl Rpc {
         self.request.uri().scheme_str()
     }
 
-    /// Peer address, when the transport exposed one.
+    /// Peer address, when the transport exposed one. TCP only; Unix and
+    /// [`Server::serve_connection`] yield `None`.
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote_addr
+    }
+
+    /// Local address of this connection, when the transport exposed one.
+    ///
+    /// On TCP this is `TcpStream::local_addr` (the interface the peer hit),
+    /// not the listener bind address if that was `0.0.0.0`. Unix,
+    /// [`Incoming`], and [`Server::serve_connection`] yield `None`.
+    #[must_use]
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        self.local_addr
     }
 
     /// Request metadata the handler will see.
@@ -492,6 +506,7 @@ impl Rpc {
             mut respond,
             config,
             remote_addr,
+            local_addr,
             extensions,
             metadata,
             timeout: _,
@@ -503,7 +518,7 @@ impl Rpc {
         let mut recv = request.into_body();
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
-            let mut req = Request::from_metadata(framed.message, metadata, remote_addr)
+            let mut req = Request::from_metadata(framed.message, metadata, remote_addr, local_addr)
                 .with_extensions(extensions);
             req.set_compressed(framed.compressed);
             if let Some(d) = timeout {
@@ -541,6 +556,7 @@ impl Rpc {
             mut respond,
             config,
             remote_addr,
+            local_addr,
             extensions,
             metadata,
             timeout: _,
@@ -553,8 +569,8 @@ impl Rpc {
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
         let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits, deadline));
-        let mut req =
-            Request::from_metadata(stream, metadata, remote_addr).with_extensions(extensions);
+        let mut req = Request::from_metadata(stream, metadata, remote_addr, local_addr)
+            .with_extensions(extensions);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -918,7 +934,8 @@ impl<S: Service> Server<S> {
     /// `server.intercept(|rpc| { ... })` is the usual form. The interceptor
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
     /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
-    /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`],
+    /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
+    /// [`Rpc::remote_addr`] / [`Rpc::local_addr`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:
@@ -1074,7 +1091,7 @@ impl<S: Service> Server<S> {
     /// Serve a single already-accepted byte stream until it closes.
     ///
     /// No accept loop, no TLS, no TCP options. Pair with [`crate::Channel::from_io`].
-    /// [`Rpc::remote_addr`] is `None`.
+    /// [`Rpc::remote_addr`] and [`Rpc::local_addr`] are `None`.
     ///
     /// ```no_run
     /// # async fn run(
@@ -1608,9 +1625,13 @@ async fn accept_loop<D: Dispatch>(
                 let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
                     crate::tcp::tune(&tcp, config.tcp_keepalive_period()).ok();
+                    let local = tcp.local_addr().ok();
                     match tls {
                         None => {
-                            drop(serve_io(dispatch, tcp, Some(peer), config, goaway, rpcs).await);
+                            drop(
+                                serve_io(dispatch, tcp, Some(peer), local, config, goaway, rpcs)
+                                    .await,
+                            );
                         }
                         Some(tls) => {
                             let accept = tokio::time::timeout(
@@ -1619,7 +1640,8 @@ async fn accept_loop<D: Dispatch>(
                             );
                             if let Ok(Ok(io)) = accept.await {
                                 drop(
-                                    serve_io(dispatch, io, Some(peer), config, goaway, rpcs).await,
+                                    serve_io(dispatch, io, Some(peer), local, config, goaway, rpcs)
+                                        .await,
                                 );
                             }
                         }
@@ -1691,7 +1713,7 @@ async fn accept_unix_loop<D: Dispatch>(
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, None, config, goaway, rpcs).await);
+                    drop(serve_io(dispatch, io, None, None, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -1761,7 +1783,7 @@ async fn accept_incoming<D: Dispatch, I: Incoming>(
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, peer, config, goaway, rpcs).await);
+                    drop(serve_io(dispatch, io, peer, None, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -1790,7 +1812,16 @@ where
     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
     let (goaway_tx, goaway_rx) = watch::channel(false);
-    let result = serve_io(dispatch, io, peer, config, goaway_rx, rpc_slots(config)).await;
+    let result = serve_io(
+        dispatch,
+        io,
+        peer,
+        None,
+        config,
+        goaway_rx,
+        rpc_slots(config),
+    )
+    .await;
     drop(goaway_tx);
     result
 }
@@ -1800,6 +1831,7 @@ fn incoming_rpc(
     respond: h2::server::SendResponse<Bytes>,
     config: ServerConfig,
     remote_addr: Option<SocketAddr>,
+    local_addr: Option<SocketAddr>,
 ) -> Rpc {
     let metadata = Metadata::from_headers(request.headers());
     Rpc {
@@ -1807,6 +1839,7 @@ fn incoming_rpc(
         respond,
         config,
         remote_addr,
+        local_addr,
         extensions: http::Extensions::new(),
         metadata,
         timeout: None,
@@ -1817,6 +1850,7 @@ async fn serve_io<D, IO>(
     dispatch: Arc<D>,
     io: IO,
     peer: Option<SocketAddr>,
+    local: Option<SocketAddr>,
     config: ServerConfig,
     goaway: watch::Receiver<bool>,
     rpc_slots: Option<Arc<Semaphore>>,
@@ -1891,7 +1925,7 @@ where
                     let _lease = lease;
                     let _permit = permit;
                     dispatch
-                        .dispatch(incoming_rpc(request, respond, config, peer))
+                        .dispatch(incoming_rpc(request, respond, config, peer, local))
                         .await;
                 }));
             }

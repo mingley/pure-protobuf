@@ -253,6 +253,7 @@ On the server, request metadata is on the `Request`:
 ```rust
 let tenant = request.metadata().get("x-tenant").unwrap_or("default");
 let peer = request.remote_addr();
+let local = request.local_addr();
 ```
 
 `get` / `get_bin` return the first value. `insert` / `insert_bin` append, so a
@@ -594,8 +595,9 @@ left alone.
 ## Unix domain sockets
 
 Loopback without TCP: a filesystem socket. The protocol is the same h2c as
-`127.0.0.1`. TLS is TCP-only. `request.remote_addr()` is `None`; there is no
-`std::net::SocketAddr` for a Unix peer.
+`127.0.0.1`. TLS is TCP-only. `request.remote_addr()` and
+`request.local_addr()` are `None`; there is no `std::net::SocketAddr` for a
+Unix peer.
 
 ```rust
 GreeterServer::new(MyGreeter).serve_unix("/tmp/greeter.sock").await?;

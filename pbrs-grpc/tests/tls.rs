@@ -125,9 +125,10 @@ async fn tls_requests_use_the_https_scheme() {
     let handle = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .intercept(move |rpc: &mut pbrs_grpc::Rpc| {
-                let n = match rpc.scheme() {
-                    Some("https") => 2,
-                    Some("http") => 1,
+                let n = match (rpc.scheme(), rpc.local_addr()) {
+                    (Some("https"), Some(_)) => 2,
+                    (Some("https"), None) => 4,
+                    (Some("http"), _) => 1,
                     _ => 3,
                 };
                 flag.store(n, Ordering::SeqCst);
@@ -146,7 +147,7 @@ async fn tls_requests_use_the_https_scheme() {
     assert_eq!(
         seen.load(Ordering::SeqCst),
         2,
-        "TLS RPCs must send :scheme https"
+        "TLS RPCs must send :scheme https and expose a TCP local_addr"
     );
 }
 

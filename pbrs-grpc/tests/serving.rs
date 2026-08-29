@@ -48,10 +48,14 @@ impl Service for Reverser {
         match rpc.method() {
             "Reverse" => {
                 let peer = rpc.remote_addr();
+                let local = rpc.local_addr();
                 rpc.unary(move |request: Request<HelloRequest>| async move {
                     seen.fetch_add(1, Ordering::Relaxed);
                     if peer.is_none() {
                         return Err(Status::internal("expected a peer address"));
+                    }
+                    if local.is_none() || request.local_addr() != local {
+                        return Err(Status::internal("expected a local address"));
                     }
                     let name: String = request
                         .get_ref()
@@ -447,6 +451,38 @@ async fn h2c_requests_use_the_http_scheme() {
         .say_hello(Request::new(req("ada")))
         .await
         .expect("rpc");
+    assert_eq!(seen.load(Ordering::SeqCst), 1);
+    task.abort();
+}
+
+#[tokio::test]
+async fn tcp_rpcs_expose_local_and_remote_addr() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let flag = Arc::clone(&seen);
+    let listen = addr;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                let n = match (rpc.local_addr(), rpc.remote_addr()) {
+                    (Some(local), Some(remote)) if local == listen && remote.ip().is_loopback() => {
+                        1
+                    }
+                    _ => 2,
+                };
+                flag.store(n, Ordering::SeqCst);
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
     assert_eq!(seen.load(Ordering::SeqCst), 1);
     task.abort();
 }
@@ -2087,6 +2123,12 @@ async fn unix_socket_unary() {
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.remote_addr().is_some() || rpc.local_addr().is_some() {
+                    return Err(Status::internal("unix has no std::net::SocketAddr"));
+                }
+                Ok(())
+            })
             .serve_unix_listener(listener)
             .await
             .ok();
@@ -2481,6 +2523,9 @@ async fn from_io_authority_is_visible_to_interceptors() {
                         "server authority {:?}",
                         rpc.authority()
                     )));
+                }
+                if rpc.remote_addr().is_some() || rpc.local_addr().is_some() {
+                    return Err(Status::internal("from_io must not invent TCP addrs"));
                 }
                 Ok(())
             })

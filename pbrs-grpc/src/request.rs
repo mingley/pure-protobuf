@@ -35,6 +35,7 @@ pub struct Request<T> {
     compress: bool,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
+    local_addr: Option<SocketAddr>,
     wait_for_ready: bool,
     extensions: http::Extensions,
 }
@@ -50,6 +51,7 @@ impl<T> Request<T> {
             compress: false,
             compressed: false,
             remote_addr: None,
+            local_addr: None,
             wait_for_ready: false,
             extensions: http::Extensions::new(),
         }
@@ -84,6 +86,7 @@ impl<T> Request<T> {
                 compress: self.compress,
                 compressed: self.compressed,
                 remote_addr: self.remote_addr,
+                local_addr: self.local_addr,
                 wait_for_ready: self.wait_for_ready,
                 extensions: self.extensions,
             },
@@ -103,6 +106,7 @@ impl<T> Request<T> {
             compress: parts.compress,
             compressed: parts.compressed,
             remote_addr: parts.remote_addr,
+            local_addr: parts.local_addr,
             wait_for_ready: parts.wait_for_ready,
             extensions: parts.extensions,
         }
@@ -199,6 +203,15 @@ impl<T> Request<T> {
         self.remote_addr
     }
 
+    /// Local address of this connection, when the transport exposed one.
+    ///
+    /// TCP fills this from the accepted socket. Unix, in-process, and
+    /// [`crate::Incoming`] paths yield `None`. See [`crate::Rpc::local_addr`].
+    #[must_use]
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        self.local_addr
+    }
+
     pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>, bool) {
         (self.message, self.metadata, self.timeout, self.compress)
     }
@@ -207,6 +220,7 @@ impl<T> Request<T> {
         message: T,
         metadata: Metadata,
         remote_addr: Option<SocketAddr>,
+        local_addr: Option<SocketAddr>,
     ) -> Self {
         Self {
             message,
@@ -215,6 +229,7 @@ impl<T> Request<T> {
             compress: false,
             compressed: false,
             remote_addr,
+            local_addr,
             wait_for_ready: false,
             extensions: http::Extensions::new(),
         }
@@ -385,6 +400,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("timeout", &self.timeout)
             .field("compressed", &self.compressed)
             .field("remote_addr", &self.remote_addr)
+            .field("local_addr", &self.local_addr)
             .field("wait_for_ready", &self.wait_for_ready)
             .finish_non_exhaustive()
     }
@@ -399,6 +415,7 @@ pub struct Parts {
     compress: bool,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
+    local_addr: Option<SocketAddr>,
     wait_for_ready: bool,
     extensions: http::Extensions,
 }
@@ -448,6 +465,13 @@ impl Parts {
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote_addr
+    }
+
+    /// Local address of this connection, when the transport exposed one.
+    /// See [`Request::local_addr`].
+    #[must_use]
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        self.local_addr
     }
 }
 
