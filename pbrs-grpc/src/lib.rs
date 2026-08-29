@@ -157,7 +157,7 @@
 //! | Reserved metadata injection | `grpc-status`, `grpc-status-details-bin`, and friends are never read from or written to user metadata | always on |
 //! | Cleartext interception | TLS 1.2/1.3, ALPN `h2` required, certificate verification is not optional | opt-in [`Server::serve_tls`] / [`Channel::connect_tls`] |
 //! | Impersonation | WebPKI roots or a CA you pin; mTLS via [`ServerTls::mtls`] | opt-in |
-//! | Long-lived connection hold | GOAWAY after age or idle, then force-close; keepalive PINGs do not reset idle | opt-in [`ServerConfig::max_connection_age`] / [`ServerConfig::max_connection_idle`] |
+//! | Long-lived connection hold | GOAWAY (server) or close (client) after age or idle; keepalive PINGs do not reset idle | opt-in [`ServerConfig::max_connection_age`] / [`ServerConfig::max_connection_idle`] / [`ChannelConfig::max_connection_idle`] |
 //! | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s ([`ChannelConfig::connect_timeout`] / [`ServerConfig::handshake_timeout`]) |
 //! | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in [`ServerConfig::max_concurrent_connections`] |
 //! | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in [`ServerConfig::timeout`] |

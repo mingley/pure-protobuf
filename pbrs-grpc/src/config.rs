@@ -194,8 +194,9 @@ impl ServerConfig {
     /// the next RPC. Disabled by default.
     ///
     /// This is not TCP keepalive. PINGs run on Unix sockets and on TLS; they
-    /// do not reset [`Self::max_connection_idle`]. For `SO_KEEPALIVE` on TCP
-    /// sockets, see [`Self::tcp_keepalive`].
+    /// do not reset [`Self::max_connection_idle`] (idle is outstanding RPCs,
+    /// not bytes on the wire). For `SO_KEEPALIVE` on TCP sockets, see
+    /// [`Self::tcp_keepalive`].
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);
@@ -250,9 +251,12 @@ impl ServerConfig {
         self
     }
 
-    /// Send GOAWAY if no new RPC has arrived for this long. Disabled by
-    /// default. Values below 1 ms are raised to 1 ms. Keepalive PINGs do not
-    /// count as activity.
+    /// Send GOAWAY once the connection has had no outstanding RPCs for this
+    /// long. Disabled by default. Values below 1 ms are raised to 1 ms.
+    ///
+    /// Idle is measured from accept until the first RPC, and from the moment
+    /// the last in-flight RPC finishes thereafter. A long-running stream does
+    /// not look idle. Keepalive PINGs do not count as activity.
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));
@@ -461,9 +465,11 @@ pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
 ///
 /// let config = ChannelConfig::new()
 ///     .connections(4)
-///     .connect_timeout(Duration::from_secs(5));
+///     .connect_timeout(Duration::from_secs(5))
+///     .max_connection_idle(Duration::from_secs(5 * 60));
 /// assert_eq!(config.connection_count(), 4);
 /// assert_eq!(config.dial_timeout(), Duration::from_secs(5));
+/// assert_eq!(config.connection_idle(), Some(Duration::from_secs(5 * 60)));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChannelConfig {
@@ -480,6 +486,7 @@ pub struct ChannelConfig {
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
     connect_timeout: Duration,
+    max_connection_idle: Option<Duration>,
     send_compressed: bool,
 }
 
@@ -499,6 +506,7 @@ impl Default for ChannelConfig {
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
+            max_connection_idle: None,
             send_compressed: false,
         }
     }
@@ -604,7 +612,8 @@ impl ChannelConfig {
 
     /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
     /// the next RPC. Disabled by default. PINGs are sent while idle as well
-    /// as while RPCs are in flight.
+    /// as while RPCs are in flight. They do not reset
+    /// [`Self::max_connection_idle`].
     ///
     /// This is not TCP keepalive. For `SO_KEEPALIVE` on TCP sockets, see
     /// [`Self::tcp_keepalive`].
@@ -650,6 +659,20 @@ impl ChannelConfig {
     #[must_use]
     pub fn connect_timeout(mut self, timeout: Duration) -> Self {
         self.connect_timeout = timeout.max(Duration::from_millis(1));
+        self
+    }
+
+    /// Close a connection that has had no outstanding RPCs for this long.
+    /// Disabled by default. Values below 1 ms are raised to 1 ms.
+    ///
+    /// The socket is actually torn down (the HTTP/2 driver stops), not merely
+    /// skipped on the next RPC. A long-running stream does not look idle.
+    /// Keepalive PINGs do not count as activity. The next RPC redials, except
+    /// on [`crate::Channel::from_io`], which cannot redial and fails with
+    /// [`crate::Code::Unavailable`].
+    #[must_use]
+    pub fn max_connection_idle(mut self, idle: Duration) -> Self {
+        self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));
         self
     }
 
@@ -744,6 +767,12 @@ impl ChannelConfig {
         self.connect_timeout
     }
 
+    /// Configured max connection idle, if any. See [`Self::max_connection_idle`].
+    #[must_use]
+    pub fn connection_idle(self) -> Option<Duration> {
+        self.max_connection_idle
+    }
+
     /// Whether request payloads are gzipped. See [`Self::send_compressed`].
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
@@ -817,6 +846,7 @@ mod tests {
         assert_eq!(config.connection_idle(), None);
         assert_eq!(config.age_grace(), super::DEFAULT_MAX_CONNECTION_AGE_GRACE);
         assert!(!config.compresses_outbound());
+        assert_eq!(ChannelConfig::new().connection_idle(), None);
     }
 
     #[test]
@@ -904,6 +934,12 @@ mod tests {
         assert_eq!(config.connection_age(), Some(Duration::from_millis(1)));
         assert_eq!(config.connection_idle(), Some(Duration::from_millis(1)));
         assert_eq!(config.age_grace(), Duration::from_millis(1));
+        assert_eq!(
+            ChannelConfig::new()
+                .max_connection_idle(Duration::from_millis(0))
+                .connection_idle(),
+            Some(Duration::from_millis(1))
+        );
     }
 
     #[test]

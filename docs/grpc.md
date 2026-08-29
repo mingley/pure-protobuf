@@ -649,20 +649,30 @@ hold a socket, see [Connection age and idle](#connection-age-and-idle).
 ## Connection age and idle
 
 A connection lives until the peer goes away unless you cap it. Age is measured
-from accept. Idle is measured from the last RPC — keepalive PINGs do not count,
-so a peer that only answers PINGs still looks idle.
+from accept. Idle is measured from the moment outstanding RPCs became zero
+(or from accept, until the first RPC) — keepalive PINGs do not count, so a
+peer that only answers PINGs still looks idle. A long-running stream is not
+idle.
 
 ```rust
 ServerConfig::new()
     .max_connection_age(Duration::from_secs(30 * 60))
     .max_connection_idle(Duration::from_secs(5 * 60))
     .max_connection_age_grace(Duration::from_secs(10))
+
+ChannelConfig::new()
+    .max_connection_idle(Duration::from_secs(5 * 60))
 ```
 
-When either fires the kernel sends `GOAWAY`, waits the grace period (default
-10 s) for in-flight RPCs, then drops the socket. Age is jittered by ±10% so a
-process with many connections does not reconnect in lockstep. The next RPC on a
-`Channel` redials that slot.
+On the server, when either fires the kernel sends `GOAWAY`, waits the grace
+period (default 10 s) for in-flight RPCs, then drops the socket. Age is
+jittered by ±10% so a process with many connections does not reconnect in
+lockstep. Idle only arms while no RPC is in flight, so grace is for a race
+with a request that arrives as GOAWAY is written.
+
+On the client, idle actually stops the HTTP/2 driver so the socket goes away.
+The next RPC redials that slot. `Channel::from_io` cannot redial: an idle
+close there makes later RPCs fail with `UNAVAILABLE`.
 
 ## Compression
 
@@ -737,7 +747,7 @@ guards is committed.
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
 | Reserved metadata injection | `grpc-status`, `grpc-status-details-bin`, and friends are never read from or written to user metadata | always |
-| Long-lived connection hold | `GOAWAY` after age or idle, then force-close; PINGs do not reset idle | opt-in |
+| Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |

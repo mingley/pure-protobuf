@@ -87,6 +87,9 @@ enum Source<T> {
 /// ```
 pub struct Streaming<T> {
     source: Source<T>,
+    /// Client connection lease. `None` on server-produced streams and on
+    /// channels that do not idle-close.
+    lease: Option<crate::keepalive::Lease>,
 }
 
 impl<T> Streaming<T> {
@@ -124,6 +127,7 @@ impl<T> Streaming<T> {
             },
             Self {
                 source: Source::Channel(rx),
+                lease: None,
             },
         )
     }
@@ -138,7 +142,14 @@ impl<T> Streaming<T> {
     pub(crate) fn from_wire(inner: crate::wire::WireStream<T>) -> Self {
         Self {
             source: Source::Wire(Box::new(inner)),
+            lease: None,
         }
+    }
+
+    /// Keep a client connection from looking idle while this stream is read.
+    pub(crate) fn bind_lease(mut self, lease: crate::keepalive::Lease) -> Self {
+        self.lease = Some(lease);
+        self
     }
 
     /// The next message, `Ok(None)` at end of stream, `Err` on status.
@@ -232,6 +243,7 @@ impl<T> std::fmt::Debug for Streaming<T> {
         };
         f.debug_struct("Streaming")
             .field("source", &source)
+            .field("busy", &self.lease.is_some())
             .finish_non_exhaustive()
     }
 }

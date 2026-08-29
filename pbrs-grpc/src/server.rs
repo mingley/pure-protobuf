@@ -1423,21 +1423,38 @@ where
     let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer)));
     let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
     let born = tokio::time::Instant::now();
-    let mut last_rpc = born;
+    let busy = crate::keepalive::Busy::new();
+    let mut last_idle = born;
+    let mut occupied = false;
     let mut draining = false;
     let mut force_close: Option<tokio::time::Instant> = None;
     loop {
+        let in_flight = busy.count();
+        if in_flight == 0 {
+            if occupied {
+                last_idle = tokio::time::Instant::now();
+                occupied = false;
+            }
+        } else {
+            occupied = true;
+        }
         let age_at = age.map(|d| born + d);
-        let idle_at = idle.map(|d| last_rpc + d);
+        let idle_at = if in_flight == 0 {
+            idle.map(|d| last_idle + d)
+        } else {
+            None
+        };
         tokio::select! {
             biased;
             accepted = std::future::poll_fn(|cx| conn.poll_accept(cx)) => {
                 let Some(Ok((request, respond))) = accepted else {
                     break;
                 };
-                last_rpc = tokio::time::Instant::now();
+                occupied = true;
+                let lease = busy.start();
                 let dispatch = Arc::clone(&dispatch);
                 drop(tokio::spawn(async move {
+                    let _lease = lease;
                     dispatch
                         .dispatch(Rpc {
                             request,
@@ -1449,6 +1466,7 @@ where
                         .await;
                 }));
             }
+            _ = busy.notified() => {}
             _ = wait_for_drain(goaway.clone()), if !draining => {
                 draining = true;
                 conn.graceful_shutdown();
@@ -1466,7 +1484,7 @@ where
             _ = sleep_until_opt(force_close) => {
                 break;
             }
-            _ = wait_dead(dead.clone()) => {
+            _ = crate::keepalive::wait_opt(dead.clone()) => {
                 break;
             }
         }
@@ -1497,13 +1515,6 @@ fn connection_seed(peer: Option<SocketAddr>) -> u64 {
             h.wrapping_add(u64::from(addr.port()))
         }
         None => n,
-    }
-}
-
-async fn wait_dead(dead: Option<watch::Receiver<bool>>) {
-    match dead {
-        Some(dead) => crate::keepalive::wait(dead).await,
-        None => std::future::pending().await,
     }
 }
 

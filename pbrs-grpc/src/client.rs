@@ -95,10 +95,22 @@ impl From<&String> for Target {
 /// One pooled HTTP/2 client. `gen` changes whenever the slot is redialed, so a
 /// grabber that observed the previous generation die does not overwrite a
 /// reconnect that already landed. `send` is `None` until the first successful
-/// handshake on a lazy channel, and after a dead handle is discarded.
+/// handshake on a lazy channel, and after a dead handle is discarded or the
+/// slot idle-closes.
 struct ConnSlot {
     gen: u64,
     send: Option<h2::client::SendRequest<Bytes>>,
+    /// Stops the connection driver (idle close, lost-race handshake, drop).
+    stop: Option<watch::Sender<bool>>,
+    /// Outstanding RPCs; `None` when idle-close is not configured.
+    busy: Option<Arc<crate::keepalive::Busy>>,
+}
+
+/// A finished handshake: the sender plus the handles that stop its driver.
+struct Dialed {
+    send: h2::client::SendRequest<Bytes>,
+    stop: watch::Sender<bool>,
+    busy: Option<Arc<crate::keepalive::Busy>>,
 }
 
 /// Backoff between wait-for-ready handshake attempts, in milliseconds.
@@ -153,6 +165,11 @@ impl Endpoint {
 /// replaced. Redial is part of the RPC: it is cancelled if the [`Call`] is
 /// cancelled, and it fails with [`Code::DeadlineExceeded`] if the request
 /// deadline elapses while connecting.
+///
+/// A connection with no outstanding RPCs is closed after
+/// [`ChannelConfig::max_connection_idle`] when that is set. Keepalive PINGs
+/// do not keep it. The next RPC redials, except [`Self::from_io`], which
+/// cannot redial and fails with [`Code::Unavailable`].
 ///
 /// [`Self::connect_lazy`] skips the initial dial so a client can exist
 /// before its server. The first RPC fails fast with [`Code::Unavailable`]
@@ -502,16 +519,22 @@ impl Channel {
         cancel_rx: watch::Receiver<bool>,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
-    ) -> Result<h2::client::SendRequest<Bytes>, Status> {
+    ) -> Result<
+        (
+            h2::client::SendRequest<Bytes>,
+            Option<crate::keepalive::Lease>,
+        ),
+        Status,
+    > {
         let inner = Arc::clone(&self.inner);
-        let send = prefer_deadline(
+        let grabbed = prefer_deadline(
             first_of(inner.acquire(wait_for_ready), cancel_rx, deadline).await,
             deadline,
         )?;
         if deadline.is_some_and(|at| tokio::time::Instant::now() >= at) {
             return Err(Status::deadline_exceeded());
         }
-        Ok(send)
+        Ok(grabbed)
     }
 
     /// Issue a unary RPC: one request message, one response message.
@@ -547,7 +570,7 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                let (send, _lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 run_unary(
                     send,
                     &channel.inner.authority,
@@ -582,17 +605,20 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                run_server_stream(
-                    send,
-                    &channel.inner.authority,
-                    path,
-                    req,
-                    cancel_rx,
-                    wire,
-                    channel.user_agent.clone(),
-                )
-                .await
+                let (send, lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                Ok(attach_lease(
+                    run_server_stream(
+                        send,
+                        &channel.inner.authority,
+                        path,
+                        req,
+                        cancel_rx,
+                        wire,
+                        channel.user_agent.clone(),
+                    )
+                    .await?,
+                    lease,
+                ))
             }),
         )
     }
@@ -643,7 +669,7 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                let (send, _lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 run_client_stream(
                     send,
                     &channel.inner.authority,
@@ -685,18 +711,21 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                run_bidi(
-                    send,
-                    &channel.inner.authority,
-                    path,
-                    req,
-                    rx,
-                    cancel_rx,
-                    wire,
-                    channel.user_agent.clone(),
-                )
-                .await
+                let (send, lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                Ok(attach_lease(
+                    run_bidi(
+                        send,
+                        &channel.inner.authority,
+                        path,
+                        req,
+                        rx,
+                        cancel_rx,
+                        wire,
+                        channel.user_agent.clone(),
+                    )
+                    .await?,
+                    lease,
+                ))
             }),
         );
         (tx, call)
@@ -764,28 +793,34 @@ fn finish_channel(
     tls: Option<ClientTls>,
     slots: Vec<Mutex<ConnSlot>>,
 ) -> Channel {
+    let inner = Arc::new(ChannelInner {
+        slots,
+        next: AtomicUsize::new(0),
+        authority,
+        endpoint,
+        tls,
+        dial: config,
+    });
+    for i in 0..inner.slots.len() {
+        spawn_idle_watch(Arc::clone(&inner), i);
+    }
     Channel {
-        inner: Arc::new(ChannelInner {
-            slots,
-            next: AtomicUsize::new(0),
-            authority,
-            endpoint,
-            tls,
-            dial: config,
-        }),
+        inner,
         config,
         interceptors: Arc::from([]),
         user_agent: crate::wire::PBRS_GRPC_UA,
     }
 }
 
-fn live_slots(sends: Vec<h2::client::SendRequest<Bytes>>) -> Vec<Mutex<ConnSlot>> {
-    sends
+fn live_slots(dialed: Vec<Dialed>) -> Vec<Mutex<ConnSlot>> {
+    dialed
         .into_iter()
-        .map(|send| {
+        .map(|d| {
             Mutex::new(ConnSlot {
                 gen: 0,
-                send: Some(send),
+                send: Some(d.send),
+                stop: Some(d.stop),
+                busy: d.busy,
             })
         })
         .collect()
@@ -793,7 +828,14 @@ fn live_slots(sends: Vec<h2::client::SendRequest<Bytes>>) -> Vec<Mutex<ConnSlot>
 
 fn empty_slots(n: usize) -> Vec<Mutex<ConnSlot>> {
     (0..n)
-        .map(|_| Mutex::new(ConnSlot { gen: 0, send: None }))
+        .map(|_| {
+            Mutex::new(ConnSlot {
+                gen: 0,
+                send: None,
+                stop: None,
+                busy: None,
+            })
+        })
         .collect()
 }
 
@@ -828,29 +870,40 @@ impl ChannelInner {
     /// also run without the lock, so a down peer cannot stall other RPCs on
     /// the same slot.
     async fn acquire(
-        &self,
+        self: &Arc<Self>,
         wait_for_ready: bool,
-    ) -> Result<h2::client::SendRequest<Bytes>, Status> {
+    ) -> Result<
+        (
+            h2::client::SendRequest<Bytes>,
+            Option<crate::keepalive::Lease>,
+        ),
+        Status,
+    > {
         let i = self.pick()?;
         let mut attempt = 0usize;
         loop {
-            let (handle, gen) = {
+            let (handle, lease, gen) = {
                 let slot = self.slot(i)?.lock().await;
-                (slot.send.clone(), slot.gen)
+                let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                (slot.send.clone(), lease, slot.gen)
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
-                    return Ok(ready);
+                    return Ok((ready, lease));
                 }
             }
+            drop(lease);
             match handshake(&self.endpoint, self.dial, self.tls.as_ref()).await {
-                Ok(send) => {
+                Ok(dialed) => {
                     let mut slot = self.slot(i)?.lock().await;
                     if slot.gen == gen {
-                        slot.gen = slot.gen.wrapping_add(1);
-                        slot.send = Some(send.clone());
-                        return Ok(send);
+                        let send = store_dialed(&mut slot, dialed);
+                        let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        drop(slot);
+                        spawn_idle_watch(Arc::clone(self), i);
+                        return Ok((send, lease));
                     }
+                    dialed.stop.send(true).ok();
                 }
                 Err(_) if wait_for_ready && self.endpoint.can_redial() => {
                     let delay_ms = WAIT_FOR_READY_BACKOFF_MS
@@ -866,11 +919,75 @@ impl ChannelInner {
     }
 }
 
+fn store_dialed(slot: &mut ConnSlot, dialed: Dialed) -> h2::client::SendRequest<Bytes> {
+    if let Some(stop) = slot.stop.take() {
+        stop.send(true).ok();
+    }
+    slot.gen = slot.gen.wrapping_add(1);
+    slot.send = Some(dialed.send.clone());
+    slot.stop = Some(dialed.stop);
+    slot.busy = dialed.busy;
+    dialed.send
+}
+
+fn spawn_idle_watch(inner: Arc<ChannelInner>, i: usize) {
+    let Some(idle) = inner.dial.connection_idle() else {
+        return;
+    };
+    drop(tokio::spawn(async move {
+        let (gen, busy) = {
+            let Ok(slot) = inner.slot(i) else {
+                return;
+            };
+            let slot = slot.lock().await;
+            match slot.busy.as_ref() {
+                Some(busy) => (slot.gen, Arc::clone(busy)),
+                None => return,
+            }
+        };
+        idle_watch(inner, i, gen, busy, idle).await;
+    }));
+}
+
+async fn idle_watch(
+    inner: Arc<ChannelInner>,
+    i: usize,
+    gen: u64,
+    busy: Arc<crate::keepalive::Busy>,
+    idle: Duration,
+) {
+    loop {
+        busy.wait_idle().await;
+        tokio::select! {
+            () = tokio::time::sleep(idle) => {
+                let Ok(slot) = inner.slot(i) else {
+                    return;
+                };
+                let mut slot = slot.lock().await;
+                if slot.gen != gen {
+                    return;
+                }
+                if busy.count() != 0 {
+                    continue;
+                }
+                slot.send = None;
+                slot.busy = None;
+                if let Some(stop) = slot.stop.take() {
+                    stop.send(true).ok();
+                }
+                slot.gen = slot.gen.wrapping_add(1);
+                return;
+            }
+            () = busy.wait_busy() => {}
+        }
+    }
+}
+
 async fn handshake(
     endpoint: &Endpoint,
     config: ChannelConfig,
     tls: Option<&ClientTls>,
-) -> Result<h2::client::SendRequest<Bytes>, Status> {
+) -> Result<Dialed, Status> {
     let timeout = config.handshake_timeout();
     match tokio::time::timeout(timeout, handshake_io(endpoint, config, tls)).await {
         Ok(result) => result,
@@ -885,7 +1002,7 @@ async fn handshake_io(
     endpoint: &Endpoint,
     config: ChannelConfig,
     tls: Option<&ClientTls>,
-) -> Result<h2::client::SendRequest<Bytes>, Status> {
+) -> Result<Dialed, Status> {
     match endpoint {
         Endpoint::Tcp(host) => {
             let tcp = TcpStream::connect(host)
@@ -914,10 +1031,7 @@ async fn handshake_io(
     }
 }
 
-async fn finish_h2<IO>(
-    config: ChannelConfig,
-    io: IO,
-) -> Result<h2::client::SendRequest<Bytes>, Status>
+async fn finish_h2<IO>(config: ChannelConfig, io: IO) -> Result<Dialed, Status>
 where
     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
@@ -952,22 +1066,34 @@ where
         }
     })
     .await?;
+    let (stop_tx, stop_rx) = watch::channel(false);
+    let busy = config
+        .connection_idle()
+        .map(|_| crate::keepalive::Busy::new());
     drop(tokio::spawn(async move {
-        match dead {
-            Some(dead) => {
-                tokio::select! {
-                    r = conn => {
-                        drop(r);
-                    }
-                    _ = crate::keepalive::wait(dead) => {}
-                }
+        tokio::select! {
+            r = conn => {
+                drop(r);
             }
-            None => {
-                conn.await.ok();
-            }
+            _ = crate::keepalive::wait_opt(dead) => {}
+            _ = crate::keepalive::wait(stop_rx) => {}
         }
     }));
-    Ok(send)
+    Ok(Dialed {
+        send,
+        stop: stop_tx,
+        busy,
+    })
+}
+
+fn attach_lease<T>(
+    response: crate::request::Response<Streaming<T>>,
+    lease: Option<crate::keepalive::Lease>,
+) -> crate::request::Response<Streaming<T>> {
+    match lease {
+        Some(lease) => response.map(|stream| stream.bind_lease(lease)),
+        None => response,
+    }
 }
 
 async fn run_unary<Req, Resp>(

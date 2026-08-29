@@ -1094,6 +1094,201 @@ async fn max_connection_age_lets_in_flight_rpcs_finish() {
     task.abort();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn max_connection_idle_lets_in_flight_rpcs_finish() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .config(
+                ServerConfig::new()
+                    .max_connection_idle(Duration::from_millis(50))
+                    .max_connection_age_grace(Duration::from_millis(1)),
+            )
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut call = client.say_hello(Request::new(req("ada")));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("Slow returned before idle: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(30)) => {}
+    }
+    let reply = tokio::time::timeout(Duration::from_secs(5), call)
+        .await
+        .expect("in-flight RPC hung past idle")
+        .expect("in-flight RPC must complete");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+async fn channel_with(addr: SocketAddr, cfg: ChannelConfig) -> Channel {
+    let mut last = None;
+    for _ in 0..80 {
+        match Channel::connect_with(addr, cfg).await {
+            Ok(channel) => return channel,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}");
+}
+
+struct CountingIncoming {
+    listener: TcpListener,
+    n: Arc<AtomicUsize>,
+}
+
+impl Incoming for CountingIncoming {
+    type Io = tokio::net::TcpStream;
+
+    async fn accept(&mut self) -> pbrs_grpc::IncomingAccept<Self::Io> {
+        match self.listener.accept().await {
+            Ok((io, addr)) => {
+                self.n.fetch_add(1, Ordering::Relaxed);
+                Some(Ok((io, Some(addr))))
+            }
+            Err(e) => Some(Err(Status::unavailable(e.to_string()))),
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_max_connection_idle_closes_the_socket() {
+    let accepts = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let n = Arc::clone(&accepts);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_with_incoming(CountingIncoming { listener, n })
+            .await
+            .ok();
+    });
+    let cfg = ChannelConfig::new()
+        .max_connection_idle(Duration::from_millis(80))
+        .keep_alive_interval(Duration::from_millis(20));
+    let client = GreeterClient::new(channel_with(addr, cfg).await);
+    assert_eq!(accepts.load(Ordering::Relaxed), 1, "dial is one accept");
+    let first = client
+        .say_hello(Request::new(req("before")))
+        .await
+        .expect("before");
+    assert_eq!(name_of(first.get_ref()), "before");
+    assert_eq!(accepts.load(Ordering::Relaxed), 1, "unary reuses the dial");
+
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    let after = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(Request::new(req("after"))),
+    )
+    .await
+    .expect("redial hung")
+    .expect("after");
+    assert_eq!(name_of(after.get_ref()), "after");
+    assert_eq!(
+        accepts.load(Ordering::Relaxed),
+        2,
+        "idle must tear down the socket so the next RPC dials again"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_max_connection_idle_lets_in_flight_rpcs_finish() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    let client = GreeterClient::new(channel_with(addr, cfg).await);
+    let mut call = client.say_hello(Request::new(req("ada")));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("Slow returned before client idle: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(30)) => {}
+    }
+    let reply = tokio::time::timeout(Duration::from_secs(5), call)
+        .await
+        .expect("in-flight RPC hung past client idle")
+        .expect("in-flight RPC must complete");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+struct DelayedStream;
+
+impl pbrs_grpc::Greeter for DelayedStream {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("delayed-stream"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("delayed-stream"))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let name = request
+            .get_ref()
+            .name()
+            .to_str()
+            .unwrap_or_default()
+            .to_owned();
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            let mut reply = HelloReply::new();
+            reply.set_message(name);
+            tx.send(reply).await.ok();
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("delayed-stream"))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_idle_holds_a_server_stream() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(DelayedStream)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    let client = GreeterClient::new(channel_with(addr, cfg).await);
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    let reply = tokio::time::timeout(Duration::from_secs(5), stream.message())
+        .await
+        .expect("stream hung")
+        .expect("stream status")
+        .expect("one message");
+    assert_eq!(name_of(&reply), "ada");
+    task.abort();
+}
+
 #[cfg(unix)]
 struct UnixSockGuard(std::path::PathBuf);
 
@@ -1404,6 +1599,40 @@ async fn from_io_round_trips_without_tcp() {
         .await
         .expect("unary");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    server.abort();
+}
+
+#[tokio::test]
+async fn from_io_idle_close_cannot_redial() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io_with(
+        client_io,
+        "localhost",
+        ChannelConfig::new().max_connection_idle(Duration::from_millis(80)),
+    )
+    .await
+    .expect("from_io");
+    let client = GreeterClient::new(channel);
+    let first = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(first.get_ref()), "ada");
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    let err = tokio::time::timeout(
+        Duration::from_secs(2),
+        client.say_hello(Request::new(req("late"))),
+    )
+    .await
+    .expect("idle close hung")
+    .expect_err("once channel cannot redial after idle close");
+    assert_eq!(err.code(), Code::Unavailable);
     server.abort();
 }
 
