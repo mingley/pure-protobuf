@@ -31,7 +31,7 @@ use pbrs_grpc::{
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
 /// A service written without any generated code, mounted on the public API.
@@ -733,6 +733,83 @@ async fn a_dead_channel_fails_fast_when_nothing_is_listening() {
             Code::Unavailable | Code::DeadlineExceeded | Code::Cancelled
         ),
         "{err}"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn connect_lazy_fails_fast_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy");
+    let client = GreeterClient::new(channel);
+    let started = Instant::now();
+    let err = tokio::time::timeout(
+        Duration::from_secs(2),
+        client.say_hello(Request::new(req("x"))),
+    )
+    .await
+    .expect("fail-fast hung")
+    .expect_err("rpc succeeded with no server");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy");
+    let client = GreeterClient::new(channel);
+    let mut request = Request::new(req("late"));
+    request.set_wait_for_ready(true);
+    request.set_timeout(Duration::from_secs(5));
+    let mut call = client.say_hello(request);
+
+    // Creating a Call does not start the RPC; first poll does. Drive it
+    // long enough to prove it is retrying, then bind the server.
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = serve_at(addr, Echo, ServerConfig::default())
+        .await
+        .expect("serve");
+
+    let reply = tokio::time::timeout(Duration::from_secs(2), call)
+        .await
+        .expect("wait-for-ready hung after listen")
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "late");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy");
+    let client = GreeterClient::new(channel);
+    let mut request = Request::new(req("x"));
+    request.set_wait_for_ready(true);
+    request.set_timeout(Duration::from_millis(80));
+    let started = Instant::now();
+    let err = client
+        .say_hello(request)
+        .await
+        .expect_err("should time out");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() >= Duration::from_millis(50),
+        "deadline returned too fast: {:?}",
+        started.elapsed()
     );
 }
 

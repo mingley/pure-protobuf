@@ -11,6 +11,7 @@ numbers, see [benchmarks](benchmarks.md).
 - [Metadata](#metadata)
 - [Errors and status codes](#errors-and-status-codes)
 - [Deadlines and cancellation](#deadlines-and-cancellation)
+- [Wait-for-ready and lazy connect](#wait-for-ready-and-lazy-connect)
 - [Serving several services](#serving-several-services)
 - [TLS](#tls)
 - [Health checks](#health-checks)
@@ -118,7 +119,8 @@ println!("{}", reply.get_ref().message());
 string that goes through DNS. The resulting `Channel` is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, so a server restart on the same address does not require
-a new client.
+a new client. `Channel::connect_lazy` skips the initial dial so the client
+can exist before the server; pair it with `Request::set_wait_for_ready`.
 
 A complete worked example living in the repository is
 [`pbrs-grpc-hello`](../pbrs-grpc/src/bin/pbrs-grpc-hello.rs), which exercises
@@ -333,6 +335,33 @@ let result = call.await;   // Err(Cancelled) if the handle fired
 
 Cancelling resets the HTTP/2 stream, so the server stops working on it rather
 than finishing into a void.
+
+## Wait-for-ready and lazy connect
+
+A channel that is not yet connected fails an RPC immediately with
+`UNAVAILABLE`. That is gRPC fail-fast, and it is the default. Set
+`wait_for_ready` when the client is allowed to start before its server, or
+when a restart should queue instead of bouncing.
+
+```rust
+let channel = Channel::connect_lazy(addr)?;
+let client = GreeterClient::new(channel);
+
+let mut req = Request::new(payload);
+req.set_wait_for_ready(true);
+req.set_timeout(Duration::from_secs(5));
+let reply = client.say_hello(req).await?;
+```
+
+`connect_lazy` does not dial. Invalid authority still fails at construction.
+A closed port, a name that does not resolve, or a refused TLS handshake
+surfaces on the first RPC, which retries with backoff until the deadline or
+a cancel if `wait_for_ready` is set. Without a deadline, a peer that never
+comes up waits until cancellation.
+
+The same flag applies after a live connection dies: fail-fast redials once
+and returns `UNAVAILABLE` if nothing is listening; wait-for-ready keeps
+trying.
 
 ## Serving several services
 

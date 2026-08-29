@@ -4071,7 +4071,7 @@ fn emit_kernel_client(
     let _ = writeln!(src, "impl {client} {{");
     let _ = writeln!(src, "    /// Fully qualified proto service name.");
     let _ = writeln!(src, "    pub const NAME: &'static str = \"{full_name}\";");
-    let _ = writeln!(src, "    /// Wrap a connected channel.");
+    let _ = writeln!(src, "    /// Wrap a channel.");
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

@@ -85,11 +85,16 @@ impl From<&String> for Target {
 
 /// One pooled HTTP/2 client. `gen` changes whenever the slot is redialed, so a
 /// grabber that observed the previous generation die does not overwrite a
-/// reconnect that already landed.
+/// reconnect that already landed. `send` is `None` until the first successful
+/// handshake on a lazy channel, and after a dead handle is discarded.
 struct ConnSlot {
     gen: u64,
-    send: h2::client::SendRequest<Bytes>,
+    send: Option<h2::client::SendRequest<Bytes>>,
 }
+
+/// Backoff between wait-for-ready handshake attempts, in milliseconds.
+/// Caps at the last entry; see [`ChannelInner::acquire`].
+const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
 
 struct ChannelInner {
     slots: Vec<Mutex<ConnSlot>>,
@@ -115,6 +120,11 @@ struct ChannelInner {
 /// cancelled, and it fails with [`Code::DeadlineExceeded`] if the request
 /// deadline elapses while connecting.
 ///
+/// [`Self::connect_lazy`] skips the initial dial so a client can exist
+/// before its server. The first RPC fails fast with [`Code::Unavailable`]
+/// unless that request set [`Request::set_wait_for_ready`], in which case
+/// it retries until connected, cancelled, or the deadline fires.
+///
 /// [`Self::intercept`] runs on every outbound RPC before the stream opens,
 /// which is how a client injects auth metadata without touching each call.
 ///
@@ -131,7 +141,10 @@ struct ChannelInner {
 ///     ChannelConfig::new().connections(4),
 /// )
 /// .await?;
-/// # let _ = (channel, pooled);
+///
+/// // No dial until the first RPC. Pair with `Request::set_wait_for_ready`.
+/// let late = Channel::connect_lazy("127.0.0.1:50051")?;
+/// # let _ = (channel, pooled, late);
 /// # Ok(())
 /// # }
 /// ```
@@ -190,6 +203,39 @@ impl Channel {
         connect_inner(target.into(), config, Some(tls)).await
     }
 
+    /// Build a channel that dials on the first RPC instead of now.
+    ///
+    /// Invalid `target` still fails immediately. A closed port, a name that
+    /// does not resolve, or a TLS handshake the peer refuses surfaces on the
+    /// RPC as [`Code::Unavailable`], or waits until the deadline if that RPC
+    /// set [`Request::set_wait_for_ready`].
+    pub fn connect_lazy(target: impl Into<Target>) -> Result<Self, Status> {
+        Self::connect_lazy_with(target, ChannelConfig::default())
+    }
+
+    /// [`Self::connect_lazy`] with `config`. Each slot dials when an RPC first
+    /// lands on it, not all at once.
+    pub fn connect_lazy_with(
+        target: impl Into<Target>,
+        config: ChannelConfig,
+    ) -> Result<Self, Status> {
+        connect_lazy_inner(target.into(), config, None)
+    }
+
+    /// [`Self::connect_lazy`] over TLS.
+    pub fn connect_tls_lazy(target: impl Into<Target>, tls: ClientTls) -> Result<Self, Status> {
+        Self::connect_tls_lazy_with(target, ChannelConfig::default(), tls)
+    }
+
+    /// [`Self::connect_lazy_with`] over TLS.
+    pub fn connect_tls_lazy_with(
+        target: impl Into<Target>,
+        config: ChannelConfig,
+        tls: ClientTls,
+    ) -> Result<Self, Status> {
+        connect_lazy_inner(target.into(), config, Some(tls))
+    }
+
     /// The configuration in effect.
     #[must_use]
     pub fn config(&self) -> ChannelConfig {
@@ -237,15 +283,17 @@ impl Channel {
 
     /// Wait for a live HTTP/2 sender, redialing this slot if the current one
     /// is dead. Raced against the RPC's deadline and cancel signal so a
-    /// hanging reconnect cannot outlive the call.
+    /// hanging reconnect cannot outlive the call. `wait_for_ready` retries
+    /// a failed handshake until that race fires.
     async fn grab(
         &self,
         cancel_rx: watch::Receiver<bool>,
         deadline: Option<tokio::time::Instant>,
+        wait_for_ready: bool,
     ) -> Result<h2::client::SendRequest<Bytes>, Status> {
         let inner = Arc::clone(&self.inner);
         let send = prefer_deadline(
-            first_of(inner.acquire(), cancel_rx, deadline).await,
+            first_of(inner.acquire(wait_for_ready), cancel_rx, deadline).await,
             deadline,
         )?;
         if deadline.is_some_and(|at| tokio::time::Instant::now() >= at) {
@@ -285,8 +333,9 @@ impl Channel {
             Box::pin(async move {
                 let mut req = req;
                 channel.apply_interceptors(&mut req)?;
+                let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 run_unary(send, &channel.inner.authority, path, req, cancel_rx, wire).await
             }),
         )
@@ -310,8 +359,9 @@ impl Channel {
             Box::pin(async move {
                 let mut req = req;
                 channel.apply_interceptors(&mut req)?;
+                let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 run_server_stream(send, &channel.inner.authority, path, req, cancel_rx, wire).await
             }),
         )
@@ -359,8 +409,9 @@ impl Channel {
             Box::pin(async move {
                 let mut req = req;
                 channel.apply_interceptors(&mut req)?;
+                let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 run_client_stream(
                     send,
                     &channel.inner.authority,
@@ -397,8 +448,9 @@ impl Channel {
             Box::pin(async move {
                 let mut req = req;
                 channel.apply_interceptors(&mut req)?;
+                let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let send = channel.grab(cancel_rx.clone(), deadline).await?;
+                let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 run_bidi(
                     send,
                     &channel.inner.authority,
@@ -431,7 +483,36 @@ async fn connect_inner(
         inner: Arc::new(ChannelInner {
             slots: sends
                 .into_iter()
-                .map(|send| Mutex::new(ConnSlot { gen: 0, send }))
+                .map(|send| {
+                    Mutex::new(ConnSlot {
+                        gen: 0,
+                        send: Some(send),
+                    })
+                })
+                .collect(),
+            next: AtomicUsize::new(0),
+            authority,
+            target: host,
+            tls,
+            dial: config,
+        }),
+        config,
+        interceptors: Arc::from([]),
+    })
+}
+
+fn connect_lazy_inner(
+    target: Target,
+    config: ChannelConfig,
+    tls: Option<ClientTls>,
+) -> Result<Channel, Status> {
+    let host = target.authority().to_owned();
+    let authority = target.parse()?;
+    let n = config.connection_count();
+    Ok(Channel {
+        inner: Arc::new(ChannelInner {
+            slots: (0..n)
+                .map(|_| Mutex::new(ConnSlot { gen: 0, send: None }))
                 .collect(),
             next: AtomicUsize::new(0),
             authority,
@@ -464,27 +545,45 @@ impl ChannelInner {
     }
 
     /// Clone a live sender for this slot, redialing only when `ready` reports
-    /// the connection is gone. `ready` waiting on stream capacity is not
-    /// treated as death: that wait happens without holding the slot lock.
-    async fn acquire(&self) -> Result<h2::client::SendRequest<Bytes>, Status> {
+    /// the connection is gone or the slot has never been dialed. `ready`
+    /// waiting on stream capacity is not treated as death: that wait happens
+    /// without holding the slot lock. Handshake and wait-for-ready backoff
+    /// also run without the lock, so a down peer cannot stall other RPCs on
+    /// the same slot.
+    async fn acquire(
+        &self,
+        wait_for_ready: bool,
+    ) -> Result<h2::client::SendRequest<Bytes>, Status> {
         let i = self.pick()?;
+        let mut attempt = 0usize;
         loop {
             let (handle, gen) = {
                 let slot = self.slot(i)?.lock().await;
                 (slot.send.clone(), slot.gen)
             };
-            match handle.ready().await {
-                Ok(ready) => return Ok(ready),
-                Err(_) => {
-                    let mut slot = self.slot(i)?.lock().await;
-                    if slot.gen != gen {
-                        continue;
-                    }
-                    let send = handshake(&self.target, self.dial, self.tls.as_ref()).await?;
-                    slot.gen = slot.gen.wrapping_add(1);
-                    slot.send = send.clone();
-                    return Ok(send);
+            if let Some(handle) = handle {
+                if let Ok(ready) = handle.ready().await {
+                    return Ok(ready);
                 }
+            }
+            match handshake(&self.target, self.dial, self.tls.as_ref()).await {
+                Ok(send) => {
+                    let mut slot = self.slot(i)?.lock().await;
+                    if slot.gen == gen {
+                        slot.gen = slot.gen.wrapping_add(1);
+                        slot.send = Some(send.clone());
+                        return Ok(send);
+                    }
+                }
+                Err(_) if wait_for_ready => {
+                    let delay_ms = WAIT_FOR_READY_BACKOFF_MS
+                        .get(attempt)
+                        .copied()
+                        .unwrap_or(1000);
+                    attempt = attempt.saturating_add(1);
+                    tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+                }
+                Err(status) => return Err(status),
             }
         }
     }

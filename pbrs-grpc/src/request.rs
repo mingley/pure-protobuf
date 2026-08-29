@@ -32,6 +32,7 @@ pub struct Request<T> {
     compress: bool,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
+    wait_for_ready: bool,
 }
 
 impl<T> Request<T> {
@@ -45,6 +46,7 @@ impl<T> Request<T> {
             compress: false,
             compressed: false,
             remote_addr: None,
+            wait_for_ready: false,
         }
     }
 
@@ -75,6 +77,7 @@ impl<T> Request<T> {
                 timeout: self.timeout,
                 compressed: self.compressed,
                 remote_addr: self.remote_addr,
+                wait_for_ready: self.wait_for_ready,
             },
         )
     }
@@ -92,6 +95,7 @@ impl<T> Request<T> {
             compress: false,
             compressed: parts.compressed,
             remote_addr: parts.remote_addr,
+            wait_for_ready: parts.wait_for_ready,
         }
     }
 
@@ -116,6 +120,22 @@ impl<T> Request<T> {
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+
+    /// Queue this RPC until the channel is connected instead of failing
+    /// immediately with [`crate::Code::Unavailable`].
+    ///
+    /// Pair this with a deadline. Without one, a lazy channel whose
+    /// peer never comes up waits until cancellation. The usual source
+    /// of a not-yet-connected channel is [`crate::Channel::connect_lazy`].
+    pub fn set_wait_for_ready(&mut self, wait: bool) {
+        self.wait_for_ready = wait;
+    }
+
+    /// Whether this RPC waits for a connection instead of failing fast.
+    #[must_use]
+    pub fn wait_for_ready(&self) -> bool {
+        self.wait_for_ready
     }
 
     /// gzip this request's payload and set the Compressed-Flag.
@@ -152,6 +172,7 @@ impl<T> Request<T> {
             compress: false,
             compressed: false,
             remote_addr,
+            wait_for_ready: false,
         }
     }
 
@@ -168,6 +189,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("timeout", &self.timeout)
             .field("compressed", &self.compressed)
             .field("remote_addr", &self.remote_addr)
+            .field("wait_for_ready", &self.wait_for_ready)
             .finish()
     }
 }
@@ -180,6 +202,7 @@ pub struct Parts {
     timeout: Option<Duration>,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
+    wait_for_ready: bool,
 }
 
 impl Parts {
@@ -198,6 +221,12 @@ impl Parts {
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+
+    /// Whether this RPC waits for a connection instead of failing fast.
+    #[must_use]
+    pub fn wait_for_ready(&self) -> bool {
+        self.wait_for_ready
     }
 
     /// Peer address, when the transport exposed one.
@@ -421,12 +450,15 @@ mod tests {
     fn envelope_survives_a_message_swap() {
         let mut req = Request::new(1u32);
         req.set_timeout(Duration::from_millis(7));
+        req.set_wait_for_ready(true);
         req.metadata_mut().insert("k", "v").expect("insert");
         let (message, parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
+        assert!(parts.wait_for_ready());
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
         assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
+        assert!(rebuilt.wait_for_ready());
         assert_eq!(rebuilt.into_inner(), "swapped");
     }
 
