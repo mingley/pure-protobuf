@@ -252,7 +252,8 @@ impl<T> Request<T> {
 /// already built it, and object-safe interceptors cannot be generic over it.
 /// Everything else an interceptor typically stamps — metadata, deadline,
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
-/// `:authority`, which the interceptor cannot otherwise see.
+/// `:authority`, which the interceptor cannot otherwise see. Typed values the
+/// caller inserted on [`crate::Request::extensions_mut`] are on this map.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -344,13 +345,20 @@ impl<'a> Outgoing<'a> {
         *self.compress = compress;
     }
 
-    /// Typed values earlier interceptors attached to this RPC.
+    /// Typed values earlier interceptors or the caller attached to this RPC.
+    ///
+    /// The caller inserts on [`crate::Request::extensions_mut`] before the
+    /// call; stacked interceptors share the same map. These values are not
+    /// sent on the wire.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         self.extensions
     }
 
     /// Insert typed values for later interceptors.
+    ///
+    /// Use this to pass a parsed identity or span into the next interceptor
+    /// without a metadata round-trip.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         self.extensions
     }

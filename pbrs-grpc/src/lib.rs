@@ -128,7 +128,7 @@
 //! | Reflection | [`reflection`] |
 //! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`], [`Any`] |
-//! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`] |
+//! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`pb::bad_request`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`] |
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |

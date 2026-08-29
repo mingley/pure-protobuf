@@ -117,15 +117,26 @@ impl<S: Service> ServiceExt for S {}
 /// set a deadline, wait-for-ready, compression, or typed extensions — not
 /// only metadata.
 ///
+/// Typed context the caller put on [`crate::Request::extensions_mut`] is
+/// visible here, so an interceptor can stamp metadata from a trace id or
+/// tenant without the call site knowing the header names. An earlier
+/// interceptor can insert values for a later one the same way.
+///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
 /// use std::time::Duration;
+///
+/// #[derive(Clone, Copy)]
+/// struct Tenant(&'static str);
 ///
 /// fn stamp(call: &mut Outgoing<'_>) -> Result<(), Status> {
 ///     let path = call.path();
 ///     call.metadata_mut().insert("x-rpc", path)?;
 ///     let authority = call.authority();
 ///     call.metadata_mut().insert("x-authority", authority)?;
+///     if let Some(tenant) = call.extensions().get::<Tenant>().copied() {
+///         call.metadata_mut().insert("x-tenant", tenant.0)?;
+///     }
 ///     if call.timeout().is_none() {
 ///         call.set_timeout(Duration::from_secs(5));
 ///     }

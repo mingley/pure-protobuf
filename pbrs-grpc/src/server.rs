@@ -825,6 +825,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Concurrent RPCs allowed per HTTP/2 connection. See
+    /// [`ServerConfig::max_concurrent_streams`].
+    #[must_use]
+    pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
+        self.config = self.config.max_concurrent_streams(streams);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. See
     /// [`ServerConfig::timeout`].
     #[must_use]
@@ -845,6 +853,14 @@ impl<S: Service> Server<S> {
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.config = self.config.keep_alive_interval(interval);
+        self
+    }
+
+    /// How long to wait for a PING acknowledgement. See
+    /// [`ServerConfig::keep_alive_timeout`].
+    #[must_use]
+    pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
+        self.config = self.config.keep_alive_timeout(timeout);
         self
     }
 
@@ -1162,6 +1178,14 @@ impl Router {
         self
     }
 
+    /// Concurrent RPCs allowed per HTTP/2 connection. See
+    /// [`ServerConfig::max_concurrent_streams`].
+    #[must_use]
+    pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
+        self.config = self.config.max_concurrent_streams(streams);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. See
     /// [`ServerConfig::timeout`].
     #[must_use]
@@ -1182,6 +1206,14 @@ impl Router {
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.config = self.config.keep_alive_interval(interval);
+        self
+    }
+
+    /// How long to wait for a PING acknowledgement. See
+    /// [`ServerConfig::keep_alive_timeout`].
+    #[must_use]
+    pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
+        self.config = self.config.keep_alive_timeout(timeout);
         self
     }
 

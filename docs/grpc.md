@@ -302,7 +302,15 @@ let details = status.error_details()?;
 if let Some(info) = details.error_info {
     println!("{}", info.reason());
 }
+if let Some(retry) = details.retry_info {
+    let delay = retry.retry_delay().try_to_std()?;
+}
 ```
+
+Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
+`Help.Link` — live in modules named after the parent:
+`pb::bad_request::FieldViolation`, `pb::quota_failure::Violation`,
+`pb::help::Link`. `RetryInfo::with_retry_delay` takes a `std::time::Duration`.
 
 Raw bytes still work (`Status::set_details`) when you are forwarding a trailer
 you do not parse.
@@ -445,13 +453,22 @@ pin a connection task forever.
 
 ## Serving several services
 
-One service uses `Server`, which has no per-RPC dynamic dispatch:
+One service has no per-RPC dynamic dispatch. The generated server already
+implements `Service` and has `.serve()`, so the one-service form is:
 
 ```rust
-Server::new(GreeterServer::new(MyGreeter)).serve(addr).await?;
+GreeterServer::new(MyGreeter).serve(addr).await?;
 ```
 
-Several use `Router`, which looks up the service half of the request path:
+A hand-written `Service` uses `Server::new` the same way:
+
+```rust
+Server::new(Echo).serve(addr).await?;
+```
+
+Wrapping a generated server in `Server::new` works but adds nothing.
+
+Several services use `Router`, which looks up the service half of the request path:
 
 ```rust
 Router::new()
@@ -466,7 +483,7 @@ configuration:
 
 ```rust
 GreeterServer::new(MyGreeter)
-    .config(ServerConfig::new().max_concurrent_streams(1024))
+    .max_concurrent_streams(1024)
     .add_service(EchoServer::new(MyEcho))
     .serve(addr)
     .await?;
@@ -518,8 +535,12 @@ Unix sockets and TLS. Turn it on when a NAT or load balancer will drop idle
 connections, or when you want a dead peer noticed before the next RPC:
 
 ```rust
-GreeterServer::new(MyGreeter).keep_alive_interval(Duration::from_secs(30))
-ChannelConfig::new().keep_alive_interval(Duration::from_secs(30))
+GreeterServer::new(MyGreeter)
+    .keep_alive_interval(Duration::from_secs(30))
+    .keep_alive_timeout(Duration::from_secs(10))
+ChannelConfig::new()
+    .keep_alive_interval(Duration::from_secs(30))
+    .keep_alive_timeout(Duration::from_secs(10))
 ```
 
 A PING that is not acknowledged within 20 s (configurable via
@@ -783,6 +804,7 @@ produces.
 GreeterServer::new(MyGreeter)
     .max_decoding_message_size(64 * 1024)
     .max_encoding_message_size(1024 * 1024)
+    .max_concurrent_streams(1024)
 ```
 
 Lifting the inbound cap entirely is possible and is only appropriate when
@@ -942,16 +964,31 @@ runs before the stream opens. Closures take `Outgoing`: the method path,
 `:authority`, metadata, deadline, wait-for-ready, compression, and typed
 extensions. TCP `:authority` is `host:port`; Unix is `localhost`.
 
+Typed context the caller put on `Request::extensions_mut` is visible to every
+interceptor. Calling `intercept` twice stacks — the first interceptor runs
+first and can insert extensions for the next — the same contract as
+`Router::intercept`.
+
 ```rust
-let client = GreeterClient::connect(addr).await?.intercept(|call| {
-    call.metadata_mut().insert("authorization", "Bearer secret")?;
-    let authority = call.authority();
-    call.metadata_mut().insert("x-authority", authority)?;
-    if call.timeout().is_none() {
-        call.set_timeout(Duration::from_secs(5));
-    }
-    Ok(())
-});
+let mut req = Request::new(payload);
+req.extensions_mut().insert(Tenant("acme"));
+
+let client = GreeterClient::connect(addr).await?
+    .intercept(|call| {
+        if let Some(tenant) = call.extensions().get::<Tenant>() {
+            call.metadata_mut().insert("x-tenant", tenant.0.as_str())?;
+        }
+        Ok(())
+    })
+    .intercept(|call| {
+        call.metadata_mut().insert("authorization", "Bearer secret")?;
+        let authority = call.authority();
+        call.metadata_mut().insert("x-authority", authority)?;
+        if call.timeout().is_none() {
+            call.set_timeout(Duration::from_secs(5));
+        }
+        Ok(())
+    });
 ```
 
 A wrapping `Service` is still valid when the interceptor needs state the

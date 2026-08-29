@@ -852,6 +852,145 @@ async fn a_client_interceptor_can_clear_the_channel_timeout() {
 }
 
 #[tokio::test]
+async fn a_client_interceptor_reads_caller_extensions() {
+    #[derive(Clone)]
+    struct Tenant(String);
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.metadata().get("x-tenant") != Some("acme") {
+                    return Err(Status::unauthenticated("missing tenant"));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        let Some(tenant) = call.extensions().get::<Tenant>().cloned() else {
+            return Err(Status::internal("missing Tenant"));
+        };
+        call.metadata_mut().insert("x-tenant", tenant.0)?;
+        Ok(())
+    });
+    let mut request = Request::new(req("ada"));
+    request.extensions_mut().insert(Tenant("acme".into()));
+    let reply = client.say_hello(request).await.expect("stamped");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let missing = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("no tenant");
+    assert_eq!(missing.code(), Code::Internal);
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_interceptors_stack_and_share_extensions() {
+    #[derive(Clone, Copy)]
+    struct Trace(&'static str);
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.metadata().get("x-trace") != Some("abc") {
+                    return Err(Status::invalid_argument("missing trace"));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await)
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.extensions_mut().insert(Trace("abc"));
+            Ok(())
+        })
+        .intercept(|call: &mut Outgoing<'_>| {
+            let Some(trace) = call.extensions().get::<Trace>().copied() else {
+                return Err(Status::internal("first interceptor did not run"));
+            };
+            call.metadata_mut().insert("x-trace", trace.0)?;
+            Ok(())
+        });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("stacked");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy");
+    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+        call.set_wait_for_ready(true);
+        Ok(())
+    });
+    let mut request = Request::new(req("late"));
+    request.set_timeout(Duration::from_secs(5));
+    let mut call = client.say_hello(request);
+
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = serve_at(addr, Echo, ServerConfig::default())
+        .await
+        .expect("serve");
+
+    let reply = tokio::time::timeout(Duration::from_secs(2), call)
+        .await
+        .expect("wait-for-ready hung after listen")
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "late");
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_reject_with_typed_status_details() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy")).intercept(
+        |_: &mut Outgoing<'_>| {
+            let mut info = pbrs_grpc::pb::ErrorInfo::new();
+            info.set_reason("BLOCKED");
+            info.set_domain("example.com");
+            Err(Status::with_error_details(
+                Code::FailedPrecondition,
+                "blocked locally",
+                [pbrs_grpc::pb::Any::pack(&info)?],
+            )?)
+        },
+    );
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("interceptor");
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    let info = err
+        .error_details()
+        .expect("details")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "BLOCKED");
+}
+
+#[tokio::test]
 async fn a_server_interceptor_injects_metadata_the_handler_sees() {
     struct ActorEcho;
 

@@ -8,6 +8,12 @@
 //! [`Status`] here is `google.rpc.Status`, not [`crate::Status`]. The kernel
 //! type is the one on the wire as `grpc-status` / `grpc-message`; this type
 //! is the protobuf that rides in the reserved trailer.
+//!
+//! Nested payloads live in modules named after the parent message, matching
+//! the `.proto`: [`bad_request::FieldViolation`], [`quota_failure::Violation`],
+//! [`precondition_failure::Violation`], [`help::Link`]. [`Duration`] is
+//! `google.protobuf.Duration`; convert with [`Duration::from_std`] /
+//! [`Duration::try_to_std`].
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
@@ -19,6 +25,18 @@ mod details_pb {
     include!(concat!(env!("OUT_DIR"), "/error_details.rs"));
 }
 
+/// [`BadRequest`] nested types (`FieldViolation`).
+pub use details_pb::bad_request;
+/// [`Help`] nested types (`Link`).
+pub use details_pb::help;
+/// [`PreconditionFailure`] nested types (`Violation`).
+pub use details_pb::precondition_failure;
+/// [`QuotaFailure`] nested types (`Violation`).
+pub use details_pb::quota_failure;
+/// [`bad_request::FieldViolation`], also available at this module root.
+pub use details_pb::FieldViolation;
+/// [`help::Link`], also available at this module root.
+pub use details_pb::Link;
 pub use details_pb::{
     BadRequest, DebugInfo, Duration, ErrorInfo, Help, LocalizedMessage, PreconditionFailure,
     QuotaFailure, RequestInfo, ResourceInfo, RetryInfo,
@@ -100,6 +118,56 @@ impl Any {
         M::parse(self.value()).map_err(|_| {
             crate::Status::internal(format!("Any payload is not a valid {}", M::FULL_NAME))
         })
+    }
+}
+
+impl Duration {
+    /// `google.protobuf.Duration` for a non-negative `std` duration.
+    ///
+    /// Seconds saturate at [`i64::MAX`]. Nanos always fit the protobuf range.
+    #[must_use]
+    pub fn from_std(delay: std::time::Duration) -> Self {
+        let mut out = Self::new();
+        out.set_seconds(i64::try_from(delay.as_secs()).unwrap_or(i64::MAX));
+        out.set_nanos(i32::try_from(delay.subsec_nanos()).unwrap_or(0));
+        out
+    }
+
+    /// Convert to [`std::time::Duration`].
+    ///
+    /// Negative seconds or nanos, or nanos ≥ 1s, are
+    /// [`crate::Code::InvalidArgument`]. An overflow of `std`'s range is the
+    /// same code rather than a panic.
+    pub fn try_to_std(&self) -> Result<std::time::Duration, crate::Status> {
+        let seconds = self.seconds();
+        let nanos = self.nanos();
+        if seconds < 0 || nanos < 0 {
+            return Err(crate::Status::invalid_argument(
+                "google.protobuf.Duration is negative",
+            ));
+        }
+        let nanos = u32::try_from(nanos).unwrap_or(0);
+        if nanos >= 1_000_000_000 {
+            return Err(crate::Status::invalid_argument(
+                "google.protobuf.Duration nanos out of range",
+            ));
+        }
+        let seconds = u64::try_from(seconds).unwrap_or(u64::MAX);
+        std::time::Duration::from_secs(seconds)
+            .checked_add(std::time::Duration::from_nanos(u64::from(nanos)))
+            .ok_or_else(|| {
+                crate::Status::invalid_argument("google.protobuf.Duration overflows Duration")
+            })
+    }
+}
+
+impl RetryInfo {
+    /// `RetryInfo` whose `retry_delay` is `delay`.
+    #[must_use]
+    pub fn with_retry_delay(delay: std::time::Duration) -> Self {
+        let mut info = Self::new();
+        info.set_retry_delay(Duration::from_std(delay));
+        info
     }
 }
 
@@ -269,7 +337,11 @@ fn fill_standard(out: &mut ErrorDetails, any: &Any) -> Result<bool, crate::Statu
 
 #[cfg(test)]
 mod tests {
-    use super::{Any, ErrorInfo, Status, TYPE_URL_PREFIX};
+    use super::{
+        bad_request, help, precondition_failure, quota_failure, Any, BadRequest, Duration,
+        ErrorDetails, ErrorInfo, Help, PreconditionFailure, QuotaFailure, RetryInfo, Status,
+        TYPE_URL_PREFIX,
+    };
     use crate::Code;
 
     #[test]
@@ -370,7 +442,115 @@ mod tests {
             "API_DISABLED"
         );
         assert_eq!(got.unknown.len(), 1);
-        let hello = got.unknown[0].unpack::<HelloRequest>().expect("hello");
+        let hello = got
+            .unknown
+            .first()
+            .expect("custom Any")
+            .unpack::<HelloRequest>()
+            .expect("hello");
         assert_eq!(hello.name().to_str().unwrap_or(""), "custom");
+    }
+
+    #[test]
+    fn nested_detail_types_round_trip_through_error_details() {
+        let mut field = bad_request::FieldViolation::new();
+        field.set_field("name");
+        field.set_description("required");
+        let mut bad = BadRequest::new();
+        bad.set_field_violations([field]);
+
+        let mut quota_v = quota_failure::Violation::new();
+        quota_v.set_subject("project:1");
+        quota_v.set_description("tokens");
+        let mut quota = QuotaFailure::new();
+        quota.set_violations([quota_v]);
+
+        let mut pre_v = precondition_failure::Violation::new();
+        pre_v.set_subject("TOS");
+        pre_v.set_description("unsigned");
+        let mut pre = PreconditionFailure::new();
+        pre.set_violations([pre_v]);
+
+        let mut link = help::Link::new();
+        link.set_description("docs");
+        link.set_url("https://example.com/quota");
+        let mut help_msg = Help::new();
+        help_msg.set_links([link]);
+
+        let retry = RetryInfo::with_retry_delay(std::time::Duration::from_millis(1500));
+        assert_eq!(
+            retry.retry_delay().try_to_std().expect("delay"),
+            std::time::Duration::from_millis(1500)
+        );
+
+        let bag = ErrorDetails {
+            bad_request: Some(bad),
+            quota_failure: Some(quota),
+            precondition_failure: Some(pre),
+            help: Some(help_msg),
+            retry_info: Some(retry),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::InvalidArgument, "bad", &bag).expect("encode");
+        let got = status.error_details().expect("decode");
+
+        let field = got
+            .bad_request
+            .as_ref()
+            .expect("bad_request")
+            .field_violations()
+            .get(0)
+            .expect("field");
+        assert_eq!(field.field().to_str().unwrap_or(""), "name");
+        assert_eq!(field.description().to_str().unwrap_or(""), "required");
+
+        let quota_v = got
+            .quota_failure
+            .as_ref()
+            .expect("quota")
+            .violations()
+            .get(0)
+            .expect("qv");
+        assert_eq!(quota_v.subject().to_str().unwrap_or(""), "project:1");
+
+        let pre_v = got
+            .precondition_failure
+            .as_ref()
+            .expect("pre")
+            .violations()
+            .get(0)
+            .expect("pv");
+        assert_eq!(pre_v.subject().to_str().unwrap_or(""), "TOS");
+
+        let link = got
+            .help
+            .as_ref()
+            .expect("help")
+            .links()
+            .get(0)
+            .expect("link");
+        assert_eq!(
+            link.url().to_str().unwrap_or(""),
+            "https://example.com/quota"
+        );
+
+        assert_eq!(
+            got.retry_info
+                .as_ref()
+                .expect("retry")
+                .retry_delay()
+                .try_to_std()
+                .expect("delay"),
+            std::time::Duration::from_millis(1500)
+        );
+    }
+
+    #[test]
+    fn protobuf_duration_rejects_negative() {
+        let mut delay = Duration::new();
+        delay.set_seconds(-1);
+        let err = delay.try_to_std().expect_err("negative");
+        assert_eq!(err.code(), Code::InvalidArgument);
     }
 }

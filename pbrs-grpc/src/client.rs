@@ -489,6 +489,8 @@ impl Channel {
     /// Calling this twice stacks: the first interceptor runs first. The
     /// interceptor sees the method path and `:authority`, and can set metadata,
     /// a deadline, wait-for-ready, compression, or typed extensions.
+    /// Values the caller put on [`crate::Request::extensions_mut`] are
+    /// visible; stacked interceptors share that map.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();

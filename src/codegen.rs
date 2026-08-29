@@ -4023,6 +4023,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Concurrent RPCs allowed per HTTP/2 connection. See [`{G}::ServerConfig::max_concurrent_streams`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_concurrent_streams(mut self, streams: u32) -> Self {{ self.config = self.config.max_concurrent_streams(streams); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4047,6 +4056,15 @@ fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    pub fn keep_alive_interval(mut self, interval: ::std::time::Duration) -> Self {{ self.config = self.config.keep_alive_interval(interval); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// How long to wait for a PING acknowledgement. See [`{G}::ServerConfig::keep_alive_timeout`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn keep_alive_timeout(mut self, timeout: ::std::time::Duration) -> Self {{ self.config = self.config.keep_alive_timeout(timeout); self }}"
     );
     let _ = writeln!(
         src,
