@@ -261,7 +261,9 @@ let local = request.local_addr();
 peer that sends two `x-forwarded-for` entries (or an interceptor that adds a
 second) is visible with `get_all` / `get_all_bin`. `contains` / `contains_bin`
 match `get`. `keys` lists unique ASCII and `-bin` names in first-insertion
-order, still skipping reserved names. Reserved protocol keys (`grpc-*`,
+order, still skipping reserved names. `clear` drops every user entry;
+`merge` appends another map's user entries (repeats accumulate, reserved
+names are not copied). Reserved protocol keys (`grpc-*`,
 `content-type`, ...) are invisible on every read path.
 
 Reading it costs nothing until you read it: `Metadata` wraps the received

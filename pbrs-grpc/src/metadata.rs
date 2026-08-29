@@ -26,6 +26,10 @@ use std::fmt;
 /// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xde, 0xad][..]));
 /// assert!(md.contains_bin("x-trace-bin"));
 /// assert_eq!(md.keys().collect::<Vec<_>>(), vec!["x-request-id", "x-trace-bin"]);
+/// md.merge(&md.clone());
+/// assert_eq!(md.len(), 4);
+/// md.clear();
+/// assert!(md.is_empty());
 /// assert!(md.insert("bad-bin", "not base64").is_err());
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
@@ -233,6 +237,28 @@ impl Metadata {
                 Some(key)
             }
         })
+    }
+
+    /// Drop every entry.
+    ///
+    /// After this, [`Self::is_empty`] is true and nothing is written on the
+    /// wire. An interceptor that wants to forward none of the caller's
+    /// metadata can clear and then insert what it still needs.
+    pub fn clear(&mut self) {
+        self.map.clear();
+    }
+
+    /// Append every user entry from `other`.
+    ///
+    /// Reserved names in `other` are not copied. Repeats accumulate, same as
+    /// [`Self::insert`]. `other` is left unchanged.
+    pub fn merge(&mut self, other: &Self) {
+        for (name, value) in &other.map {
+            if is_reserved(name.as_str()) {
+                continue;
+            }
+            self.map.append(name.clone(), value.clone());
+        }
     }
 
     /// Every ASCII entry, skipping reserved and `-bin` keys.
@@ -496,6 +522,65 @@ mod tests {
         let md = Metadata::from_headers(&raw);
         assert_eq!(md.keys().collect::<Vec<_>>(), vec!["x-real"]);
         assert!(Metadata::new().keys().next().is_none());
+    }
+
+    #[test]
+    fn clear_drops_user_entries() {
+        let mut md = Metadata::new();
+        md.insert("x-tenant", "acme").expect("ascii");
+        md.insert_bin("x-trace-bin", [1u8]).expect("bin");
+        md.clear();
+        assert!(md.is_empty());
+        assert_eq!(md.len(), 0);
+        assert!(md.keys().next().is_none());
+
+        let mut raw = HeaderMap::new();
+        raw.insert(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("0"),
+        );
+        raw.insert(
+            HeaderName::from_static("x-real"),
+            HeaderValue::from_static("v"),
+        );
+        let mut md = Metadata::from_headers(&raw);
+        md.clear();
+        assert!(md.is_empty());
+        assert_eq!(md.get("x-real"), None);
+        assert_eq!(md.get("grpc-status"), None);
+    }
+
+    #[test]
+    fn merge_appends_user_entries_and_skips_reserved() {
+        let mut src = HeaderMap::new();
+        src.insert(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("5"),
+        );
+        src.insert(
+            HeaderName::from_static("x-from"),
+            HeaderValue::from_static("a"),
+        );
+        src.append(
+            HeaderName::from_static("x-from"),
+            HeaderValue::from_static("b"),
+        );
+        src.insert(
+            HeaderName::from_static("blob-bin"),
+            HeaderValue::from_static("AQ"),
+        );
+        let src = Metadata::from_headers(&src);
+
+        let mut dst = Metadata::new();
+        dst.insert("x-from", "keep").expect("existing");
+        dst.merge(&src);
+        assert_eq!(
+            dst.get_all("x-from").collect::<Vec<_>>(),
+            vec!["keep", "a", "b"]
+        );
+        assert_eq!(dst.get_bin("blob-bin").as_deref(), Some(&[1u8][..]));
+        assert_eq!(dst.get_all("grpc-status").count(), 0);
+        assert_eq!(src.get("x-from"), Some("a"));
     }
 
     #[test]
