@@ -830,6 +830,50 @@ async fn intercept_on_a_generated_server_survives_add_service() {
 }
 
 #[tokio::test]
+async fn test_service_interceptor_rejects_with_typed_status() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_blocked_every_shape(&TestServiceClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_client_interceptor_rejects_with_typed_status() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(channel(addr).await)
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_test_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_client_interceptor_sees_every_shape_context() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_context)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(channel(addr).await).intercept(stamp_outgoing_context);
+    echo_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
@@ -5499,6 +5543,31 @@ async fn assert_err_on_test_every_shape(client: &TestServiceClient, want: Code) 
     let (tx, call) = client.full_duplex_call(Request::new(()));
     let err = call.await.expect_err("bidi");
     assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+}
+
+async fn assert_test_blocked_every_shape(client: &TestServiceClient) {
+    assert_interceptor_blocked(
+        &client
+            .empty_call(Request::new(Empty::new()))
+            .await
+            .expect_err("unary"),
+    );
+    match client
+        .streaming_output_call(Request::new(StreamingOutputCallRequest::new()))
+        .await
+    {
+        Err(err) => assert_interceptor_blocked(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_interceptor_blocked(&err),
+            Ok(_) => panic!("server-stream interceptor reject must fail"),
+        },
+    }
+    let (tx, call) = client.streaming_input_call(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
     drop(tx);
 }
 

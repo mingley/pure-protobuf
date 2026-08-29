@@ -196,6 +196,9 @@ See `docs/upb.md`. Short list:
   Watch / PutAll / Sync too. A wrapping `Service` interceptor
   `Err(with_error_details)` unpacks on every hand-written Reverser Channel
   API, and a client interceptor stamps Outgoing path facts on those APIs.
+  Official `TestService` interceptor `Err(with_error_details)` unpacks on
+  EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall,
+  and a client interceptor stamps Outgoing path facts on those methods.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
