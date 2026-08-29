@@ -836,7 +836,8 @@ impl Channel {
     /// Issue a client-streaming RPC: many request messages, one response.
     ///
     /// Send on the returned [`StreamSender`], drop it to half-close, then
-    /// await the [`Call`].
+    /// await the [`Call`]. Dropping the pair without awaiting resets the
+    /// stream, the same as dropping a unary [`Call`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -856,6 +857,7 @@ impl Channel {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use = "dropping a client-streaming Call resets the stream"]
     pub fn client_streaming<Req, Resp>(
         &self,
         path: &'static str,
@@ -897,6 +899,11 @@ impl Channel {
     }
 
     /// Issue a bidirectional-streaming RPC.
+    ///
+    /// Send on the returned [`StreamSender`] and await the [`Call`] for
+    /// responses. Dropping the pair without awaiting resets the stream,
+    /// the same as dropping a unary [`Call`].
+    #[must_use = "dropping a bidi Call resets the stream"]
     pub fn bidi<Req, Resp>(
         &self,
         path: &'static str,

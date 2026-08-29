@@ -4883,6 +4883,16 @@ fn emit_kernel_client(
             src,
             "    /// The reply's [`{G}::Response::encoding`] is the peer's `grpc-encoding` (`None` for identity). The [`{G}::Call`] is fused after it resolves."
         );
+        if shape.client_return.starts_with('(') {
+            let _ = writeln!(
+                src,
+                "    /// Dropping the pair without awaiting the [`{G}::Call`] resets the stream."
+            );
+            let _ = writeln!(
+                src,
+                "    #[must_use = \"dropping a streaming Call resets the stream\"]"
+            );
+        }
         let _ = writeln!(
             src,
             "    pub fn {fn_name}(&self, request: {}) -> {} {{",

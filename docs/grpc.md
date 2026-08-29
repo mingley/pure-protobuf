@@ -234,6 +234,9 @@ tx.close();                       // half-close; `drop(tx)` is equivalent
 let reply = call.await?;
 ```
 
+The `(StreamSender, Call)` pair is `must_use`: dropping it without awaiting
+resets the stream, the same as dropping a unary `Call`.
+
 For bidirectional streaming, await the `Call` to get the response stream, then
 interleave freely:
 

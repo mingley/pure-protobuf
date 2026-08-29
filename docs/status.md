@@ -114,7 +114,8 @@ See `docs/upb.md`. Short list:
   `identity` token). Client interceptors see the channel overlay
   on `Outgoing::limits` plus a deadline Instant and fill-if-unset
   wait-for-ready / compress. `Status::set_rpc` / `set_code` keep trailing
-  metadata. A `Call` is fused after `Ready`. Generated method rustdoc names
+  metadata. A `Call` is fused after `Ready`. Client-streaming and bidi
+  `(StreamSender, Call)` pairs are `must_use`. Generated method rustdoc names
   inbound/received `encoding` and interceptor timing. Methods omitted on generated traits answer `UNIMPLEMENTED`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers

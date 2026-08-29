@@ -86,7 +86,9 @@ the same overlays as the channel (the setter names cannot collide).
 read the same overlays as `server_config`.
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
 after headers does not end the stream. A [`Call`] is fused after it yields
-`Ready` (`futures_core::future::FusedFuture`).
+`Ready` (`futures_core::future::FusedFuture`). Client-streaming and bidi
+return a `(StreamSender, Call)` pair that is `must_use`: dropping it resets
+the stream.
 
 ### Interceptors
 
