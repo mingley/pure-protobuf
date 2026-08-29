@@ -145,7 +145,7 @@ impl ServerConfig {
         self
     }
 
-    /// Replace both message caps at once.
+    /// Replace both message caps at once. Applies to every call shape.
     ///
     /// [`crate::Server::message_limits`], [`crate::Router::message_limits`],
     /// and generated `FooServer::message_limits` set this without building a
@@ -237,6 +237,7 @@ impl ServerConfig {
 
     /// How long to wait for a PING acknowledgement before dropping the
     /// connection. Default 20 s. Values below 1 ms are raised to 1 ms.
+    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
         self.keep_alive_timeout = timeout.max(Duration::from_millis(1));
@@ -260,6 +261,7 @@ impl ServerConfig {
 
     /// How long TLS accept (if any) and the HTTP/2 preface may each take.
     /// Default 20 s. Values below 1 ms are raised to 1 ms.
+    /// Applies to every call shape.
     ///
     /// A client that opens a socket and never speaks is dropped, so it cannot
     /// pin a connection task forever. A completed handshake is not subject to
@@ -301,6 +303,7 @@ impl ServerConfig {
 
     /// After age or idle fires, wait this long for in-flight RPCs before
     /// dropping the socket. Default 10 s. Values below 1 ms are raised to 1 ms.
+    /// Applies to every call shape.
     ///
     /// [`crate::Server::max_connection_age_grace`],
     /// [`crate::Router::max_connection_age_grace`], and generated
@@ -330,6 +333,7 @@ impl ServerConfig {
     }
 
     /// Cap how many TCP/Unix connections the accept loop will serve at once.
+    /// Applies to every call shape.
     ///
     /// Further accepts are dropped immediately (the peer sees a reset), so an
     /// accept storm cannot pin an unbounded number of handshake tasks.
@@ -346,7 +350,7 @@ impl ServerConfig {
     }
 
     /// Cap how many RPCs the process will run at once, across every
-    /// connection.
+    /// connection. Applies to every call shape.
     ///
     /// Further RPCs are refused with [`crate::Code::ResourceExhausted`]
     /// before the handler runs. Distinct from
@@ -643,7 +647,7 @@ impl ChannelConfig {
         self
     }
 
-    /// Replace both message caps at once.
+    /// Replace both message caps at once. Applies to every call shape.
     ///
     /// [`crate::Channel::message_limits`] and generated `FooClient::message_limits`
     /// set this without building a [`ChannelConfig`].
@@ -743,6 +747,7 @@ impl ChannelConfig {
 
     /// How long to wait for a PING acknowledgement before dropping the
     /// connection. Default 20 s. Values below 1 ms are raised to 1 ms.
+    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_timeout(mut self, timeout: Duration) -> Self {
         self.keep_alive_timeout = timeout.max(Duration::from_millis(1));
