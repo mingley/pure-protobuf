@@ -2894,6 +2894,7 @@ async fn a_client_interceptor_sees_unix_localhost_authority() {
         .expect("connect")
         .https_scheme();
     assert_eq!(channel.authority(), "localhost");
+    assert_eq!(channel.scheme(), "http");
     let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
         if call.authority() != "localhost" {
             return Err(Status::internal(format!(
@@ -3338,20 +3339,17 @@ async fn from_io_https_scheme_is_visible_to_interceptors() {
     let channel = Channel::from_io(client_io, "localhost")
         .await
         .expect("from_io");
-    assert!(
-        format!("{channel:?}").contains("https: false"),
-        "{channel:?}"
-    );
-    let client = GreeterClient::new(channel)
-        .https_scheme()
-        .intercept(|call: &mut Outgoing<'_>| {
-            if call.scheme() != "https" {
-                return Err(Status::internal(format!("scheme {}", call.scheme())));
-            }
-            let scheme = call.scheme();
-            call.metadata_mut().set("x-scheme", scheme)?;
-            Ok(())
-        });
+    assert_eq!(channel.scheme(), "http");
+    let client = GreeterClient::new(channel).https_scheme();
+    assert_eq!(client.channel().scheme(), "https");
+    let client = client.intercept(|call: &mut Outgoing<'_>| {
+        if call.scheme() != "https" {
+            return Err(Status::internal(format!("scheme {}", call.scheme())));
+        }
+        let scheme = call.scheme();
+        call.metadata_mut().set("x-scheme", scheme)?;
+        Ok(())
+    });
     let reply = client
         .say_hello(Request::new(req("ada")))
         .await
@@ -3376,10 +3374,7 @@ async fn https_scheme_is_a_noop_on_tcp() {
             .ok();
     });
     let channel = channel(addr).await.https_scheme();
-    assert!(
-        format!("{channel:?}").contains("https: false"),
-        "{channel:?}"
-    );
+    assert_eq!(channel.scheme(), "http");
     let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
         if call.scheme() != "http" {
             return Err(Status::internal(format!("scheme {}", call.scheme())));

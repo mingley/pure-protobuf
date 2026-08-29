@@ -430,7 +430,8 @@ impl Channel {
     /// when the accept loop should not trust the peer's preface.
     ///
     /// No-op on TCP and Unix channels: those take `:scheme` from whether
-    /// the channel was built with [`crate::ClientTls`].
+    /// the channel was built with [`crate::ClientTls`]. Read the result with
+    /// [`Self::scheme`].
     #[must_use]
     pub fn https_scheme(mut self) -> Self {
         if matches!(self.inner.endpoint, Endpoint::Once) {
@@ -620,6 +621,19 @@ impl Channel {
     #[must_use]
     pub fn authority(&self) -> &str {
         self.inner.authority.as_str()
+    }
+
+    /// HTTP/2 `:scheme` this clone sends.
+    ///
+    /// `https` after [`Self::connect_tls`] or [`Self::https_scheme`], otherwise
+    /// `http`. Same string as [`crate::Outgoing::scheme`].
+    #[must_use]
+    pub fn scheme(&self) -> &'static str {
+        if self.https {
+            "https"
+        } else {
+            "http"
+        }
     }
 
     /// Wait for a live HTTP/2 sender, redialing this slot if the current one

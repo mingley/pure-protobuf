@@ -100,7 +100,8 @@ See `docs/upb.md`. Short list:
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
   `ConnectionInfo`. `Channel::https_scheme` sends `:scheme https` on a
-  `from_io` clone (no TLS handshake; no-op on TCP/Unix). Interceptors and generated handlers see
+  `from_io` clone (no TLS handshake; no-op on TCP/Unix);
+  `Channel::scheme` reads that overlay. Interceptors and generated handlers see
   `MessageLimits` on `Rpc::limits` / `Request::limits`; client interceptors
   see the channel overlay on `Outgoing::limits`. GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
