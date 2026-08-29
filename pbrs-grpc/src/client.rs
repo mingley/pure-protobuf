@@ -13,11 +13,14 @@ use bytes::Bytes;
 use h2::Reason;
 use http::uri::Authority;
 use pbrs::{Parse, Serialize};
+use std::future::Future;
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::task::Poll;
 use std::time::Duration;
 use tokio::net::TcpStream;
 #[cfg(unix)]
@@ -761,19 +764,30 @@ where
         .map_err(|e| Status::unavailable(e.to_string()))?;
     let (interval, timeout) = config.keepalive();
     let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
-    // Drive the connection until the peer's SETTINGS arrives (send capacity
-    // starts at 0). Dropping this future on connect_timeout then drops `conn`
-    // instead of leaking a driver task.
-    let send = tokio::select! {
-        biased;
-        result = send.ready() => {
-            result.map_err(|e| Status::unavailable(e.to_string()))?
+    // `SendRequest::ready` does not wait for SETTINGS. Drive the connection
+    // until send capacity leaves 0, which is when the peer's preface has
+    // been applied. Dropping this future on connect_timeout drops `conn`.
+    std::future::poll_fn(|cx| {
+        if send.current_max_send_streams() > 0 {
+            return Poll::Ready(Ok(()));
         }
-        result = &mut conn => {
-            drop(result);
-            return Err(Status::unavailable("http/2 preface: connection closed"));
+        match Pin::new(&mut conn).poll(cx) {
+            Poll::Ready(result) => {
+                drop(result);
+                Poll::Ready(Err(Status::unavailable(
+                    "http/2 preface: connection closed",
+                )))
+            }
+            Poll::Pending => {
+                if send.current_max_send_streams() > 0 {
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                }
+            }
         }
-    };
+    })
+    .await?;
     drop(tokio::spawn(async move {
         match dead {
             Some(dead) => {

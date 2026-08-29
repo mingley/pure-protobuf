@@ -522,9 +522,9 @@ impl ChannelConfig {
             .max_header_list_size(self.max_header_list_size)
             .enable_push(false)
             // h2's handshake future returns after writing the client preface,
-            // before the peer speaks. Starting send capacity at 0 makes
-            // `SendRequest::ready` wait for the peer's SETTINGS, so a mute
-            // socket fails the dial instead of looking connected.
+            // before the peer speaks. Starting send capacity at 0 lets
+            // `finish_h2` wait until `current_max_send_streams` leaves 0,
+            // which is when the peer's SETTINGS has been applied.
             .initial_max_send_streams(0);
         builder
     }
