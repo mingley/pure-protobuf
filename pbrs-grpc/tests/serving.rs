@@ -817,12 +817,15 @@ async fn wait_for_ready_times_out_when_nothing_is_listening() {
 async fn connect_times_out_when_the_peer_never_speaks_http2() {
     let (addr, listener) = bind().await;
     let started = Instant::now();
-    let err = Channel::connect_with(
+    let err = match Channel::connect_with(
         addr,
         ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
     )
     .await
-    .expect_err("handshake should time out");
+    {
+        Ok(_) => panic!("handshake should time out"),
+        Err(status) => status,
+    };
     assert_eq!(err.code(), Code::Unavailable, "{err}");
     assert!(
         err.message().contains("timed out"),
@@ -846,12 +849,15 @@ async fn connect_to_a_closed_port_fails_fast() {
     let (addr, listener) = bind().await;
     drop(listener);
     let started = Instant::now();
-    let err = Channel::connect_with(
+    let err = match Channel::connect_with(
         addr,
         ChannelConfig::new().connect_timeout(Duration::from_secs(20)),
     )
     .await
-    .expect_err("closed port");
+    {
+        Ok(_) => panic!("closed port"),
+        Err(status) => status,
+    };
     assert_eq!(err.code(), Code::Unavailable, "{err}");
     assert!(
         started.elapsed() < Duration::from_secs(1),
@@ -1077,12 +1083,15 @@ async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let started = Instant::now();
-    let err = Channel::connect_unix_with(
+    let err = match Channel::connect_unix_with(
         &path,
         ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
     )
     .await
-    .expect_err("handshake should time out");
+    {
+        Ok(_) => panic!("handshake should time out"),
+        Err(status) => status,
+    };
     assert_eq!(err.code(), Code::Unavailable, "{err}");
     assert!(
         err.message().contains("timed out"),
