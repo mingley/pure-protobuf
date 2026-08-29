@@ -3898,10 +3898,20 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
             src,
             "    /// Inbound `grpc-encoding` is [`{G}::Request::encoding`] (`None` for identity)."
         );
+        let _ = writeln!(
+            src,
+            "    /// Spawned work should await [`{G}::Request::cancelled`]; the kernel drops a still-pending handler on client RST."
+        );
         if m.server_streaming {
             let _ = writeln!(
                 src,
                 "    /// Spawned producers should select on [`{G}::Request::cancelled`] and [`{G}::StreamSender::closed`]; drain aborts on client RST."
+            );
+        }
+        if m.client_streaming && !m.server_streaming {
+            let _ = writeln!(
+                src,
+                "    /// That signal still fires after the client half-closes the request stream."
             );
         }
         let _ = writeln!(src, "    fn {fn_name}(");
@@ -4809,7 +4819,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`), extensions."
+        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), extensions."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");

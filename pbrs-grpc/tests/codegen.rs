@@ -681,6 +681,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "server-streaming trait methods must name cancelled/closed"
     );
     assert!(
+        src.contains("Spawned work should await [`::pbrs_grpc::Request::cancelled`]"),
+        "trait methods must name spawned cancelled"
+    );
+    assert!(
+        src.contains("That signal still fires after the client half-closes the request stream."),
+        "client-streaming trait methods must name cancelled after half-close"
+    );
+    assert!(
         src.contains(
             "Dropping the received [`::pbrs_grpc::Streaming`] before the end resets the RPC."
         ),
@@ -712,8 +720,8 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`)"
+            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default)"
         ),
-        "generated intercept rustdoc must name channel overlays"
+        "generated intercept rustdoc must name channel overlays and clear_*"
     );
 }
