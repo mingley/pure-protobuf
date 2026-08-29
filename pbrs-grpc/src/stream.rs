@@ -394,6 +394,15 @@ impl<T> StreamSender<T> {
     pub fn is_closed(&self) -> bool {
         self.tx.is_closed()
     }
+
+    /// Resolves when the reader has gone away.
+    ///
+    /// Same condition as [`Self::is_closed`], as a future. A producer that
+    /// waits on something else (a status map, a timer) should select on this
+    /// so it does not sit after the client has cancelled or dropped the stream.
+    pub async fn closed(&self) {
+        self.tx.closed().await;
+    }
 }
 
 impl<T> std::fmt::Debug for StreamSender<T> {
@@ -511,6 +520,8 @@ mod tests {
         let (tx, stream) = Streaming::<HelloReply>::channel(1);
         assert!(!tx.is_closed());
         drop(stream);
+        assert!(tx.is_closed());
+        tx.closed().await;
         assert!(tx.send(reply("late")).await.is_err());
         assert!(tx.is_closed());
     }

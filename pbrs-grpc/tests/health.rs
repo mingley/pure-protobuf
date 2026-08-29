@@ -72,6 +72,7 @@ fn reporter_status_round_trips_without_an_rpc() {
     assert_eq!(reporter.status("helloworld.Greeter"), None);
     reporter.clear("");
     assert_eq!(reporter.status(""), None);
+    assert_eq!(reporter.watchers(), 0);
 }
 
 #[test]
@@ -212,6 +213,36 @@ async fn watch_unknown_is_service_unknown() {
         .into_inner();
     let first = stream.message().await.expect("first").expect("msg");
     assert_eq!(first.status(), ServingStatus::ServiceUnknown);
+}
+
+#[tokio::test]
+async fn dropping_a_watch_releases_the_subscription_without_a_status_change() {
+    let (addr, reporter, _handle) = serve().await;
+    let client = client(addr).await;
+    assert_eq!(reporter.watchers(), 0);
+    let mut stream = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("watch")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::Serving);
+    assert!(
+        reporter.watchers() >= 1,
+        "Watch must hold a subscription while the stream is live"
+    );
+    drop(stream);
+    for _ in 0..80 {
+        if reporter.watchers() == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(
+        reporter.watchers(),
+        0,
+        "Watch must not wait for the next status change after the client leaves"
+    );
 }
 
 #[tokio::test]

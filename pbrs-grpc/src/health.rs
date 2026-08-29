@@ -37,6 +37,7 @@ impl fmt::Debug for HealthReporter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HealthReporter")
             .field("services", &self.tx.borrow().len())
+            .field("watchers", &self.tx.receiver_count())
             .finish()
     }
 }
@@ -97,6 +98,15 @@ impl HealthReporter {
         let mut names: Vec<String> = self.snapshot().keys().cloned().collect();
         names.sort();
         names
+    }
+
+    /// In-flight [`Health::watch`] streams.
+    ///
+    /// Each Watch holds a subscription until the client cancels, the stream
+    /// ends, or this reporter is dropped. Zero when no one is watching.
+    #[must_use]
+    pub fn watchers(&self) -> usize {
+        self.tx.receiver_count()
     }
 
     /// Mark every known name, including the process (`""`), as
@@ -184,6 +194,7 @@ impl Health for HealthService {
         &self,
         request: Request<HealthCheckRequest>,
     ) -> Result<Response<Streaming<HealthCheckResponse>>, Status> {
+        let cancelled = request.cancelled();
         let name = request
             .get_ref()
             .service()
@@ -194,6 +205,7 @@ impl Health for HealthService {
         let (tx, stream) = Streaming::channel(4);
         drop(tokio::spawn(async move {
             let mut last = None;
+            tokio::pin!(cancelled);
             loop {
                 let status = rx
                     .borrow_and_update()
@@ -206,8 +218,15 @@ impl Health for HealthService {
                         break;
                     }
                 }
-                if rx.changed().await.is_err() {
-                    break;
+                tokio::select! {
+                    biased;
+                    () = cancelled.as_mut() => break,
+                    () = tx.closed() => break,
+                    result = rx.changed() => {
+                        if result.is_err() {
+                            break;
+                        }
+                    }
                 }
             }
         }));

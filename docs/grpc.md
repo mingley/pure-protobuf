@@ -781,6 +781,9 @@ Router::new()
 `Check` on the empty name is the process; `Check` on a name you have not
 set returns `NOT_FOUND`. `Watch` streams status changes, and an unknown name
 yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
+The Watch producer ends when the client cancels or drops the stream; it
+does not wait for the next status change. `HealthReporter::watchers` is
+the number of those live subscriptions.
 `HealthReporter::status` reads the same map without an RPC.
 `HealthReporter::names` lists every known name (the process `""` first).
 `HealthReporter::shutdown` marks every known name `NOT_SERVING` so a load
