@@ -1055,7 +1055,8 @@ guards is committed.
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
 produces. An interceptor reads those caps with `Rpc::limits`; a generated
-handler reads them with `Request::limits`.
+handler reads them with `Request::limits`. Oversize encode or decode is
+`RESOURCE_EXHAUSTED` on every call shape.
 
 ```rust
 GreeterServer::new(MyGreeter)

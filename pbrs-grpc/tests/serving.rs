@@ -2776,11 +2776,34 @@ async fn config_flows_from_the_generated_server_to_the_router() {
     });
 
     let client = greeter_client(addr).await;
+    let oversize = req(&"x".repeat(64));
     let err = client
-        .say_hello(Request::new(req(&"x".repeat(64))))
+        .say_hello(Request::new(oversize.clone()))
         .await
-        .expect_err("over the server cap");
+        .expect_err("unary over the server cap");
     assert_eq!(err.code(), Code::ResourceExhausted);
+    match client.server_hello(Request::new(oversize.clone())).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream over the server cap must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(oversize.clone()).await.expect("send");
+    tx.close();
+    let err = call.await.expect_err("client-stream over the server cap");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(oversize).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi over the server cap must fail"),
+        },
+    }
 
     task.abort();
 }

@@ -1279,6 +1279,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Cap inbound messages at `limit` bytes. Default 4 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_decoding_message_size(limit);
@@ -1286,6 +1287,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Cap outbound messages at `limit` bytes. Default unlimited.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_encoding_message_size(limit);
@@ -1794,6 +1796,7 @@ impl Router {
     }
 
     /// Cap inbound messages at `limit` bytes. Default 4 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_decoding_message_size(limit);
@@ -1801,6 +1804,7 @@ impl Router {
     }
 
     /// Cap outbound messages at `limit` bytes. Default unlimited.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_encoding_message_size(limit);

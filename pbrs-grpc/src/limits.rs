@@ -63,6 +63,7 @@ impl MessageLimits {
     }
 
     /// Cap inbound messages at `limit` uncompressed bytes.
+    /// Applies to every call shape.
     #[must_use]
     pub fn with_max_decoding(mut self, limit: usize) -> Self {
         self.max_decoding = Some(limit);
@@ -70,6 +71,7 @@ impl MessageLimits {
     }
 
     /// Cap outbound messages at `limit` uncompressed bytes.
+    /// Applies to every call shape.
     #[must_use]
     pub fn with_max_encoding(mut self, limit: usize) -> Self {
         self.max_encoding = Some(limit);

@@ -130,6 +130,7 @@ impl ServerConfig {
     }
 
     /// Cap inbound messages at `limit` uncompressed bytes. Default 4 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_decoding(limit);
@@ -137,6 +138,7 @@ impl ServerConfig {
     }
 
     /// Cap outbound messages at `limit` uncompressed bytes. Default unlimited.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_encoding(limit);
@@ -617,6 +619,7 @@ impl ChannelConfig {
     }
 
     /// Cap inbound messages at `limit` uncompressed bytes. Default 4 MiB.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_decoding(limit);
@@ -624,6 +627,7 @@ impl ChannelConfig {
     }
 
     /// Cap outbound messages at `limit` uncompressed bytes. Default unlimited.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_encoding(limit);

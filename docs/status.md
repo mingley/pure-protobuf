@@ -84,7 +84,8 @@
   `GreeterServer` / `TestServiceServer` expose
   `max_decoding_message_size` / `max_encoding_message_size`
   (default 4 MiB inbound, unlimited outbound). Oversize encode or decode is
-  `RESOURCE_EXHAUSTED` (`pbrs-grpc/tests/message_size.rs`). Not a
+  `RESOURCE_EXHAUSTED` on every call shape (`pbrs-grpc/tests/message_size.rs`).
+  Not a
   latency or QPS win. `protobuf-tonic` stays the tonic adapter.
 
 ## Remaining

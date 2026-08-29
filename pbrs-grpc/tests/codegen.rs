@@ -786,4 +786,16 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         ),
         "generated connect_tls rustdoc must name every call shape"
     );
+    assert!(
+        src.contains(
+            "Cap inbound messages at `limit` bytes. Default 4 MiB. Applies to every call shape."
+        ),
+        "generated max_decoding rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Cap outbound messages at `limit` bytes. Default unlimited. Applies to every call shape."
+        ),
+        "generated max_encoding rustdoc must name every call shape"
+    );
 }
