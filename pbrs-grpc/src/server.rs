@@ -21,7 +21,7 @@ use bytes::Bytes;
 use h2::RecvStream;
 use pbrs::{Parse, Serialize};
 use std::collections::HashMap;
-use std::future::Future;
+use std::future::{poll_fn, Future};
 use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -1049,7 +1049,18 @@ async fn drain_to_wire<Resp: Serialize + Send>(
     let mut items = Vec::with_capacity(OutBatch::BURST);
     loop {
         items.clear();
-        if stream.recv_many(&mut items, OutBatch::BURST).await == 0 {
+        // A client RST while we wait for the next message must abort: a
+        // producer that is itself waiting (Health Watch, a timer) will not
+        // send, so the write path would never see the reset.
+        let n = tokio::select! {
+            biased;
+            reset = poll_fn(|cx| send.poll_reset(cx)) => {
+                drop(reset);
+                return Err(DrainError::Transport);
+            }
+            n = stream.recv_many(&mut items, OutBatch::BURST) => n,
+        };
+        if n == 0 {
             break;
         }
         // More than one message queued means the producer is running ahead of
