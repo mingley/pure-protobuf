@@ -99,7 +99,8 @@ See `docs/upb.md`. Short list:
   retry). Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
-  `ConnectionInfo`. Interceptors and generated handlers see
+  `ConnectionInfo`. `Channel::https_scheme` sends `:scheme https` on a
+  `from_io` clone (no TLS handshake; no-op on TCP/Unix). Interceptors and generated handlers see
   `MessageLimits` on `Rpc::limits` / `Request::limits`; client interceptors
   see the channel overlay on `Outgoing::limits`. GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers

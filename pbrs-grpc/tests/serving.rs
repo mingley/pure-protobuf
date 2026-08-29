@@ -2889,13 +2889,22 @@ async fn a_client_interceptor_sees_unix_localhost_authority() {
             .await
             .ok();
     });
-    let channel = Channel::connect_unix(&path).await.expect("connect");
+    let channel = Channel::connect_unix(&path)
+        .await
+        .expect("connect")
+        .https_scheme();
     assert_eq!(channel.authority(), "localhost");
     let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
         if call.authority() != "localhost" {
             return Err(Status::internal(format!(
                 "authority {} want localhost",
                 call.authority()
+            )));
+        }
+        if call.scheme() != "http" {
+            return Err(Status::internal(format!(
+                "unix https_scheme must stay http, got {}",
+                call.scheme()
             )));
         }
         Ok(())
@@ -3300,6 +3309,89 @@ async fn from_io_authority_is_visible_to_interceptors() {
         .expect("from_io authority");
     assert_eq!(name_of(reply.get_ref()), "ada");
     server.abort();
+}
+
+#[tokio::test]
+async fn from_io_https_scheme_is_visible_to_interceptors() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.scheme() != Some("https") {
+                    return Err(Status::internal(format!(
+                        "from_io https scheme {:?}",
+                        rpc.scheme()
+                    )));
+                }
+                if rpc.metadata().get("x-scheme") != Some("https") {
+                    return Err(Status::internal(format!(
+                        "x-scheme {:?}",
+                        rpc.metadata().get("x-scheme")
+                    )));
+                }
+                Ok(())
+            })
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert!(
+        format!("{channel:?}").contains("https: false"),
+        "{channel:?}"
+    );
+    let client = GreeterClient::new(channel)
+        .https_scheme()
+        .intercept(|call: &mut Outgoing<'_>| {
+            if call.scheme() != "https" {
+                return Err(Status::internal(format!("scheme {}", call.scheme())));
+            }
+            let scheme = call.scheme();
+            call.metadata_mut().set("x-scheme", scheme)?;
+            Ok(())
+        });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("from_io https");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    server.abort();
+}
+
+#[tokio::test]
+async fn https_scheme_is_a_noop_on_tcp() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.scheme() != Some("http") {
+                    return Err(Status::internal(format!("tcp scheme {:?}", rpc.scheme())));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = channel(addr).await.https_scheme();
+    assert!(
+        format!("{channel:?}").contains("https: false"),
+        "{channel:?}"
+    );
+    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+        if call.scheme() != "http" {
+            return Err(Status::internal(format!("scheme {}", call.scheme())));
+        }
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
 }
 
 #[tokio::test]

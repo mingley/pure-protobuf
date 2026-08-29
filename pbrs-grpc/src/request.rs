@@ -465,10 +465,10 @@ impl<'a> Outgoing<'a> {
 
     /// HTTP/2 `:scheme` this channel sends.
     ///
-    /// `https` when the channel was built with [`crate::ClientTls`], otherwise
-    /// `http` (cleartext TCP, Unix, [`crate::Channel::from_io`]). Matches
-    /// what the kernel writes on the request. `from_io` has no TLS config, so
-    /// this is `http` even if the byte stream is already encrypted.
+    /// `https` when the channel was built with [`crate::ClientTls`], or when a
+    /// [`crate::Channel::from_io`] clone called [`crate::Channel::https_scheme`].
+    /// Otherwise `http` (cleartext TCP, Unix, and `from_io` without that overlay).
+    /// Matches what the kernel writes on the request.
     #[must_use]
     pub fn scheme(&self) -> &'static str {
         self.scheme

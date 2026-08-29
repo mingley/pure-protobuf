@@ -279,8 +279,9 @@ impl Config {
     ///
     /// The generating crate must depend on `pbrs-grpc`. `FooClient` gets the
     /// same dialers as `Channel` (`connect`, `connect_tls`, `connect_unix`,
-    /// `from_io`, and the lazy/`_with` variants). Mutually exclusive with
-    /// [`Self::emit_tonic_stubs`]; the last call wins.
+    /// `from_io`, and the lazy/`_with` variants) and the same overlays,
+    /// including `https_scheme` for already-encrypted `from_io` streams.
+    /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
     /// ```no_run
     /// // build.rs
@@ -4581,6 +4582,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
         "        Ok(Self::new({G}::Channel::from_io_with(io, authority, config).await?))"
     );
     let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Send `:scheme https` from a [`Self::from_io`] channel. See [`{G}::Channel::https_scheme`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn https_scheme(self) -> Self {{ Self {{ channel: self.channel.https_scheme() }} }}"
+    );
 }
 
 fn emit_kernel_client(

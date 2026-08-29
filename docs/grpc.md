@@ -688,7 +688,10 @@ protocol over `tokio::io::duplex`, `UnixStream::pair`, or any
 `AsyncRead + AsyncWrite`.
 The channel has one slot and cannot redial; if the stream dies the next RPC
 fails with `UNAVAILABLE`. TCP keepalive and TLS do not apply — you already
-hold the bytes.
+hold the bytes. `Outgoing::scheme` is `http`. If you already encrypted the
+stream, `Channel::https_scheme` (and `FooClient::https_scheme`) sends
+`:scheme https`. `serve_connection` keeps the peer's `:scheme`; a custom
+acceptor that should not trust the preface uses `Incoming::peer`.
 
 ```rust
 let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
@@ -1121,8 +1124,10 @@ onion-style.
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs before the stream opens. Closures take `Outgoing`: the method path,
 service and method halves (`Outgoing::service` / `Outgoing::method`, same
-split as `Rpc`), `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https` when the
-channel was built with `ClientTls`), `user-agent` (including a
+split as `Rpc`), `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https`
+when the channel was built with `ClientTls` or when a `from_io` channel called
+`https_scheme`; no-op on TCP and Unix so a cleartext `connect()` cannot lie),
+`user-agent` (including a
 `Channel::user_agent` prefix), message caps (`Outgoing::limits`, the
 channel overlay the kernel will enforce), metadata, deadline, wait-for-ready,
 compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
@@ -1200,7 +1205,9 @@ async fn greets() {
 ```
 
 For tests that should not bind a port, pair `GreeterClient::from_io` with
-`Server::serve_connection` over `tokio::io::duplex`.
+`Server::serve_connection` over `tokio::io::duplex`. Already-encrypted
+streams use `https_scheme` on the client and `Incoming::peer` on a custom
+acceptor when the server must not trust the peer's `:scheme`.
 
 `Request`, `Response`, `Status`, `Streaming`, `Rpc`, `Channel`, `Outgoing`,
 and `Intercepted` all implement `Debug`, so `expect_err` and assertion

@@ -62,6 +62,8 @@ sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 `user-agent`, message caps, metadata, deadline, wait-for-ready, compression,
 extensions). Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. `from_io` cannot redial.
+`Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
+a TLS handshake; TCP and Unix keep the transport.
 
 ## Parse / encode
 

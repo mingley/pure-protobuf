@@ -215,7 +215,8 @@ impl Endpoint {
 ///
 /// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
 /// [`Self::send_compressed`], the two message-size caps /
-/// [`Self::message_limits`], and [`Self::stream_buffer`] overlay this clone.
+/// [`Self::message_limits`], [`Self::stream_buffer`], and
+/// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
 /// Keepalive, idle, TCP keepalive, connection count, HTTP/2 windows, and
 /// the rapid-reset cap are set at handshake ([`ChannelConfig`] /
 /// [`Self::connect_with`]).
@@ -250,6 +251,9 @@ pub struct Channel {
     config: ChannelConfig,
     interceptors: Arc<[ClientHook]>,
     user_agent: HeaderValue,
+    /// `:scheme` this clone sends. TLS channels start `true`; [`Self::from_io`]
+    /// starts `false` until [`Self::https_scheme`].
+    https: bool,
 }
 
 impl fmt::Debug for Channel {
@@ -259,6 +263,7 @@ impl fmt::Debug for Channel {
             .field("endpoint", &self.inner.endpoint.describe())
             .field("connections", &self.inner.slots.len())
             .field("tls", &self.inner.tls.is_some())
+            .field("https", &self.https)
             .field("interceptors", &self.interceptors.len())
             .field("config", &self.config)
             .field("user_agent", &self.user_agent)
@@ -397,6 +402,8 @@ impl Channel {
     ///
     /// `authority` is the HTTP/2 `:authority` sent on every RPC.
     /// [`ChannelConfig::connections`] is ignored (always one slot).
+    /// [`Outgoing::scheme`](crate::Outgoing::scheme) is `http`. If the byte
+    /// stream is already encrypted, call [`Self::https_scheme`].
     ///
     /// ```no_run
     /// # async fn run(
@@ -412,6 +419,24 @@ impl Channel {
         IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
     {
         Self::from_io_with(io, authority, ChannelConfig::default()).await
+    }
+
+    /// Send `:scheme https` from a [`Self::from_io`] channel.
+    ///
+    /// [`Self::connect_tls`] already does. [`Self::from_io`] has no TLS
+    /// config, so it reports `http` even when you already encrypted the
+    /// stream. Call this when you drove TLS yourself. Pair the server with
+    /// [`crate::Incoming::peer`] / [`crate::ConnectionInfo::with_scheme`]
+    /// when the accept loop should not trust the peer's preface.
+    ///
+    /// No-op on TCP and Unix channels: those take `:scheme` from whether
+    /// the channel was built with [`crate::ClientTls`].
+    #[must_use]
+    pub fn https_scheme(mut self) -> Self {
+        if matches!(self.inner.endpoint, Endpoint::Once) {
+            self.https = true;
+        }
+        self
     }
 
     /// [`Self::from_io`] with `config`.
@@ -583,7 +608,7 @@ impl Channel {
             hook.intercept(&mut req.outgoing(
                 path,
                 self.authority(),
-                self.inner.tls.is_some(),
+                self.https,
                 self.grpc_user_agent(),
                 self.config.limits(),
             ))?;
@@ -655,7 +680,7 @@ impl Channel {
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
                 let frame = encode_msg(&msg, compress, wire.limits)?;
-                let https = channel.inner.tls.is_some();
+                let https = channel.https;
                 let ua = channel.user_agent.clone();
                 let mut retried = false;
                 loop {
@@ -715,7 +740,7 @@ impl Channel {
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
                 let frame = encode_msg(&msg, compress, wire.limits)?;
-                let https = channel.inner.tls.is_some();
+                let https = channel.https;
                 let ua = channel.user_agent.clone();
                 let mut retried = false;
                 loop {
@@ -808,7 +833,7 @@ impl Channel {
                     cancel_rx,
                     wire,
                     channel.user_agent.clone(),
-                    channel.inner.tls.is_some(),
+                    channel.https,
                 )
                 .await
             }),
@@ -852,7 +877,7 @@ impl Channel {
                         cancel_rx,
                         wire,
                         channel.user_agent.clone(),
-                        channel.inner.tls.is_some(),
+                        channel.https,
                     )
                     .await?,
                     live.lease,
@@ -924,6 +949,7 @@ fn finish_channel(
     tls: Option<ClientTls>,
     slots: Vec<Mutex<ConnSlot>>,
 ) -> Channel {
+    let https = tls.is_some();
     let inner = Arc::new(ChannelInner {
         slots,
         next: AtomicUsize::new(0),
@@ -940,6 +966,7 @@ fn finish_channel(
         config,
         interceptors: Arc::from([]),
         user_agent: crate::wire::PBRS_GRPC_UA,
+        https,
     }
 }
 
