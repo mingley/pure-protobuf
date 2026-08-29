@@ -4918,6 +4918,122 @@ async fn gzip_every_shape(client: &GreeterClient) {
     assert_eq!(name_of(&first), "ada");
 }
 
+async fn assert_server_gzip_every_shape(client: &GreeterClient) {
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert!(
+        reply.compressed(),
+        "server send_compressed plus client grpc-accept-encoding: gzip"
+    );
+    assert_eq!(
+        reply.encoding(),
+        Some("gzip"),
+        "received unary must surface grpc-encoding"
+    );
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let reply = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert_eq!(
+        reply.encoding(),
+        Some("gzip"),
+        "received server-stream must surface grpc-encoding"
+    );
+    let mut stream = reply.into_inner();
+    let framed = stream.next_framed().await.expect("frame").expect("message");
+    assert!(
+        framed.compressed,
+        "Server::send_compressed must gzip identity StreamSender::send frames"
+    );
+    assert_eq!(name_of(&framed.message), "ada");
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert!(
+        reply.compressed(),
+        "client-stream unary reply must be gzipped"
+    );
+    assert_eq!(reply.encoding(), Some("gzip"));
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("bidi");
+    assert_eq!(reply.encoding(), Some("gzip"), "bidi must surface gzip");
+    let mut inbound = reply.into_inner();
+    let framed = inbound
+        .next_framed()
+        .await
+        .expect("frame")
+        .expect("message");
+    assert!(
+        framed.compressed,
+        "bidi send_compressed frames must be gzip"
+    );
+    assert_eq!(name_of(&framed.message), "ada");
+}
+
+async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert!(
+        !reply.compressed(),
+        "identity unary must not set Compressed-Flag"
+    );
+    assert!(
+        reply.encoding().is_none(),
+        "identity unary must not invent grpc-encoding"
+    );
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let reply = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert!(
+        reply.encoding().is_none(),
+        "identity stream must not invent grpc-encoding"
+    );
+    let mut stream = reply.into_inner();
+    let framed = stream.next_framed().await.expect("frame").expect("message");
+    assert!(
+        !framed.compressed,
+        "default server must leave identity StreamSender::send uncompressed"
+    );
+    assert_eq!(name_of(&framed.message), "ada");
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert!(!reply.compressed());
+    assert!(reply.encoding().is_none());
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("bidi");
+    assert!(reply.encoding().is_none());
+    let mut inbound = reply.into_inner();
+    let framed = inbound
+        .next_framed()
+        .await
+        .expect("frame")
+        .expect("message");
+    assert!(!framed.compressed);
+    assert_eq!(name_of(&framed.message), "ada");
+}
+
 async fn assert_deadline_quickly<T>(call: Call<T>, max_elapsed: Duration) {
     let started = Instant::now();
     let err = match call.await {
@@ -6240,20 +6356,8 @@ async fn the_server_gzips_when_configured_and_the_client_accepts() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("gzip reply");
-    assert!(
-        reply.compressed(),
-        "server send_compressed plus client grpc-accept-encoding: gzip"
-    );
-    assert_eq!(
-        reply.encoding(),
-        Some("gzip"),
-        "received unary must surface grpc-encoding"
-    );
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    assert_server_gzip_every_shape(&client).await;
     task.abort();
 }
 
@@ -6292,21 +6396,8 @@ async fn identity_streaming_send_does_not_advertise_gzip() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
-        .server_hello(Request::new(req("ada")))
-        .await
-        .expect("stream");
-    assert!(
-        reply.encoding().is_none(),
-        "identity stream must not invent grpc-encoding"
-    );
-    let mut stream = reply.into_inner();
-    let framed = stream.next_framed().await.expect("frame").expect("message");
-    assert!(
-        !framed.compressed,
-        "default server must leave identity StreamSender::send uncompressed"
-    );
-    assert_eq!(name_of(&framed.message), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    assert_identity_encoding_every_shape(&client).await;
     task.abort();
 }
 
@@ -6467,38 +6558,60 @@ async fn a_client_interceptor_can_gzip_request_streams() {
 
 struct OptOutGzip;
 
+fn overlay_gzips<T>(request: &Request<T>) -> Result<(), Status> {
+    if !request.compresses_outbound() {
+        return Err(Status::internal("request overlay should gzip"));
+    }
+    Ok(())
+}
+
+fn identity_reply(name: &str) -> Response<HelloReply> {
+    let mut resp = Response::new(common::reply(name));
+    resp.set_compress(false);
+    resp
+}
+
+fn identity_stream(name: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        tx.send(common::reply(name)).await.ok();
+    }));
+    let mut resp = Response::new(stream);
+    resp.set_compress(false);
+    resp
+}
+
 impl pbrs_grpc::Greeter for OptOutGzip {
     async fn say_hello(
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        if !request.compresses_outbound() {
-            return Err(Status::internal("request overlay should gzip"));
-        }
-        let mut resp = Response::new(common::reply(common::name_of_request(request.get_ref())));
-        resp.set_compress(false);
-        Ok(resp)
+        overlay_gzips(&request)?;
+        Ok(identity_reply(&common::name_of_request(request.get_ref())))
     }
 
     async fn client_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("opt-out-gzip"))
+        overlay_gzips(&request)?;
+        Ok(identity_reply("ada"))
     }
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("opt-out-gzip"))
+        overlay_gzips(&request)?;
+        Ok(identity_stream(common::name_of_request(request.get_ref())))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("opt-out-gzip"))
+        overlay_gzips(&request)?;
+        Ok(identity_stream("ada".into()))
     }
 }
 
@@ -6518,19 +6631,8 @@ async fn a_handler_can_opt_out_of_server_send_compressed() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("identity reply");
-    assert!(
-        !reply.compressed(),
-        "handler set_compress(false) must opt out of Server::send_compressed"
-    );
-    assert!(
-        reply.encoding().is_none(),
-        "opt-out must not advertise grpc-encoding: gzip"
-    );
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    assert_identity_encoding_every_shape(&client).await;
     task.abort();
 }
 

@@ -1376,8 +1376,8 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// gzip responses when the client advertises gzip. See
-    /// [`ServerConfig::send_compressed`].
+    /// gzip responses when the client advertises gzip. Applies to every call
+    /// shape. See [`ServerConfig::send_compressed`].
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);
@@ -1887,8 +1887,8 @@ impl Router {
         self
     }
 
-    /// gzip responses when the client advertises gzip. See
-    /// [`ServerConfig::send_compressed`].
+    /// gzip responses when the client advertises gzip. Applies to every call
+    /// shape. See [`ServerConfig::send_compressed`].
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);

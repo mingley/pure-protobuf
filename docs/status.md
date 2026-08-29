@@ -114,7 +114,8 @@ See `docs/upb.md`. Short list:
   interceptor `set_timeout` and the client's `peer_timeout`); received replies
   surface `grpc-encoding` on
   `Response::encoding` (`None` for identity, including an explicit
-  `identity` token). Client interceptors see the channel overlay
+  `identity` token). `Server::send_compressed` / `Response::set_compress(false)`
+  opt-out apply to every call shape. Client interceptors see the channel overlay
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress, and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)

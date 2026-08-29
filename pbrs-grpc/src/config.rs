@@ -349,7 +349,7 @@ impl ServerConfig {
     }
 
     /// gzip responses when the client advertises `gzip` in
-    /// `grpc-accept-encoding`.
+    /// `grpc-accept-encoding`. Applies to every call shape.
     ///
     /// Off by default: compression is CPU for bandwidth, and at LAN
     /// latencies identity framing usually wins. A handler can still gzip one

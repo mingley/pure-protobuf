@@ -4161,7 +4161,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// gzip responses when the client advertises gzip. See [`{G}::ServerConfig::send_compressed`]."
+        "    /// gzip responses when the client advertises gzip. Applies to every call shape. See [`{G}::ServerConfig::send_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
