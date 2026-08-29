@@ -514,9 +514,9 @@ impl Channel {
     /// this channel.
     ///
     /// Off by default. Equivalent to [`ChannelConfig::send_compressed`].
-    /// This overlay always sets compress true before interceptors run, so
-    /// [`crate::Request::set_compress`]`(false)` cannot opt out. A later
-    /// interceptor can still call [`crate::Outgoing::set_compress`]`(false)`.
+    /// A request that already called [`crate::Request::set_compress`] is
+    /// left alone, including `set_compress(false)` to opt out. A later
+    /// interceptor can still call [`crate::Outgoing::set_compress`].
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);
@@ -627,7 +627,7 @@ impl Channel {
         if !req.wait_for_ready_is_set() && self.config.waits_for_ready() {
             req.set_wait_for_ready(true);
         }
-        if self.config.compresses_outbound() {
+        if !req.compress_is_set() && self.config.compresses_outbound() {
             req.set_compress(true);
         }
         self.apply_interceptors(path, req)
@@ -860,7 +860,10 @@ impl Channel {
         let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
         let tx = tx
             .with_limits(wire.limits)
-            .with_compress(self.config.compresses_outbound());
+            .with_compress(stream_sender_compress(
+                &req,
+                self.config.compresses_outbound(),
+            ));
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let call = Call::new(
@@ -903,7 +906,10 @@ impl Channel {
         let (tx, rx) = Streaming::channel(buffer);
         let tx = tx
             .with_limits(wire.limits)
-            .with_compress(self.config.compresses_outbound());
+            .with_compress(stream_sender_compress(
+                &req,
+                self.config.compresses_outbound(),
+            ));
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let call = Call::new(
@@ -933,6 +939,18 @@ impl Channel {
             }),
         );
         (tx, call)
+    }
+}
+
+/// [`StreamSender`] is returned before interceptors run, so gzip on
+/// [`StreamSender::send`] follows the request (if set) or the channel overlay.
+/// Interceptors still stamp `grpc-encoding` on the headers via
+/// [`Request::compress`].
+fn stream_sender_compress<T>(req: &Request<T>, overlay: bool) -> bool {
+    if req.compress_is_set() {
+        req.compress()
+    } else {
+        overlay
     }
 }
 

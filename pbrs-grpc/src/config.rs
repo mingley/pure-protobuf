@@ -773,10 +773,10 @@ impl ChannelConfig {
     ///
     /// Off by default. The kernel always advertises `identity,gzip`, so a
     /// server that implements gzip will accept these frames. Per-RPC
-    /// [`crate::Request::set_compress`] still works when this is off. When
-    /// this is on, the overlay forces compress true before interceptors;
-    /// [`crate::Request::set_compress`]`(false)` is overwritten.
-    /// [`crate::Outgoing::set_compress`]`(false)` in an interceptor opts out.
+    /// [`crate::Request::set_compress`] still works when this is off. A
+    /// request that already called [`crate::Request::set_compress`] is left
+    /// alone, including `set_compress(false)` to opt out of this overlay.
+    /// A later interceptor can still set or clear it.
     #[must_use]
     pub fn send_compressed(mut self, enable: bool) -> Self {
         self.send_compressed = enable;

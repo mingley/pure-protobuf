@@ -4554,7 +4554,53 @@ async fn a_client_interceptor_can_set_compress() {
     task.abort();
 }
 
-/// A handler that records gzip headers and the unary Compressed-Flag.
+#[tokio::test]
+async fn a_request_can_opt_out_of_channel_send_compressed() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await.send_compressed());
+    let mut request = Request::new(req("ada"));
+    request.set_compress(false);
+    let reply = client.say_hello(request).await.expect("opt out");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let mut stream_req = Request::new(());
+    stream_req.set_compress(false);
+    let (tx, call) = client.client_hello(stream_req);
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("opt-out stream");
+    assert_eq!(name_of(reply.get_ref()), "gzip");
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_opt_out_of_channel_send_compressed() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await.send_compressed()).intercept(
+        |call: &mut Outgoing<'_>| {
+            call.set_compress(false);
+            Ok(())
+        },
+    );
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("opt out");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
 struct SeesGzip;
 
 impl pbrs_grpc::Greeter for SeesGzip {

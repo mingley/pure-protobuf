@@ -191,6 +191,9 @@ impl<S: Service> ServiceExt for S {}
 ///     if !call.wait_for_ready_is_set() {
 ///         call.set_wait_for_ready(true);
 ///     }
+///     if !call.compress_is_set() {
+///         call.set_compress(true);
+///     }
 ///     Ok(())
 /// }
 /// # let _ = stamp;

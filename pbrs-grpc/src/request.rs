@@ -38,7 +38,7 @@ pub struct Request<T> {
     message: T,
     metadata: Metadata,
     timeout: Option<Duration>,
-    compress: bool,
+    compress: Option<bool>,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
@@ -65,7 +65,7 @@ impl<T> Request<T> {
             message,
             metadata: Metadata::new(),
             timeout: None,
-            compress: false,
+            compress: None,
             compressed: false,
             remote_addr: None,
             local_addr: None,
@@ -267,14 +267,36 @@ impl<T> Request<T> {
     }
 
     /// gzip this request's payload and set the Compressed-Flag.
+    ///
+    /// Passing `false` opts out of a later [`crate::Channel::send_compressed`]
+    /// overlay. [`Self::clear_compress`] drops the choice so that overlay
+    /// can fill it in.
     pub fn set_compress(&mut self, compress: bool) {
-        self.compress = compress;
+        self.compress = Some(compress);
+    }
+
+    /// Drop a compression choice so a later [`crate::Channel::send_compressed`]
+    /// or interceptor can fill it in. See [`Self::clear_wait_for_ready`].
+    pub fn clear_compress(&mut self) {
+        self.compress = None;
     }
 
     /// Whether this request's payload will be gzipped. Outbound only.
+    ///
+    /// `false` when unset; the channel default is applied in
+    /// [`crate::Channel`] before interceptors run.
     #[must_use]
     pub fn compress(&self) -> bool {
-        self.compress
+        self.compress.unwrap_or(false)
+    }
+
+    /// Whether [`Self::set_compress`] has been called.
+    ///
+    /// Distinct from [`Self::compress`], which is `false` when unset.
+    /// [`crate::Channel::send_compressed`] fills only when this is `false`.
+    #[must_use]
+    pub fn compress_is_set(&self) -> bool {
+        self.compress.is_some()
     }
 
     /// Whether the received unary first frame had the Compressed-Flag set.
@@ -462,7 +484,8 @@ impl<T> Request<T> {
     }
 
     pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>, bool) {
-        (self.message, self.metadata, self.timeout, self.compress)
+        let compress = self.compress.unwrap_or(false);
+        (self.message, self.metadata, self.timeout, compress)
     }
 
     pub(crate) fn from_metadata(
@@ -476,7 +499,7 @@ impl<T> Request<T> {
             message,
             metadata,
             timeout: None,
-            compress: false,
+            compress: None,
             compressed: false,
             remote_addr,
             local_addr,
@@ -597,6 +620,9 @@ impl<T> Request<T> {
 ///     if !call.wait_for_ready_is_set() {
 ///         call.set_wait_for_ready(true);
 ///     }
+///     if !call.compress_is_set() {
+///         call.set_compress(true);
+///     }
 ///     Ok(())
 /// }
 /// # let _ = stamp;
@@ -610,7 +636,7 @@ pub struct Outgoing<'a> {
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
-    compress: &'a mut bool,
+    compress: &'a mut Option<bool>,
     extensions: &'a mut http::Extensions,
 }
 
@@ -757,14 +783,37 @@ impl<'a> Outgoing<'a> {
     }
 
     /// Whether the request payload will be gzipped.
+    ///
+    /// `false` when unset. Use [`Self::compress_is_set`] to tell `None`
+    /// from an explicit `false`.
     #[must_use]
     pub fn compress(&self) -> bool {
-        *self.compress
+        self.compress.unwrap_or(false)
+    }
+
+    /// Whether [`Self::set_compress`] has been called, including a
+    /// channel overlay.
+    ///
+    /// Distinct from [`Self::compress`], which is `false` when unset.
+    /// Fill a default only when this is `false`, the same pattern as
+    /// [`Self::timeout`] being `None`.
+    #[must_use]
+    pub fn compress_is_set(&self) -> bool {
+        self.compress.is_some()
     }
 
     /// gzip this request's payload and set the Compressed-Flag.
+    ///
+    /// Passing `false` opts out of a channel [`crate::Channel::send_compressed`]
+    /// overlay.
     pub fn set_compress(&mut self, compress: bool) {
-        *self.compress = compress;
+        *self.compress = Some(compress);
+    }
+
+    /// Drop a compression choice so a later interceptor or channel
+    /// default can fill it in.
+    pub fn clear_compress(&mut self) {
+        *self.compress = None;
     }
 
     /// Typed values earlier interceptors or the caller attached to this RPC.
@@ -841,7 +890,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 pub struct Parts {
     metadata: Metadata,
     timeout: Option<Duration>,
-    compress: bool,
+    compress: Option<bool>,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
@@ -900,15 +949,29 @@ impl Parts {
     }
 
     /// Whether the payload will be gzipped. Outbound only.
+    /// See [`Request::compress`].
     #[must_use]
     pub fn compress(&self) -> bool {
-        self.compress
+        self.compress.unwrap_or(false)
+    }
+
+    /// Whether [`Self::set_compress`] has been called.
+    /// See [`Request::compress_is_set`].
+    #[must_use]
+    pub fn compress_is_set(&self) -> bool {
+        self.compress.is_some()
     }
 
     /// gzip this request's payload and set the Compressed-Flag.
     /// See [`Request::set_compress`].
     pub fn set_compress(&mut self, compress: bool) {
-        self.compress = compress;
+        self.compress = Some(compress);
+    }
+
+    /// Drop a compression choice so a later channel default can fill it in.
+    /// See [`Request::clear_compress`].
+    pub fn clear_compress(&mut self) {
+        self.compress = None;
     }
 
     /// Whether the received unary first frame had the Compressed-Flag set.
@@ -1495,6 +1558,7 @@ mod tests {
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
         assert!(!rebuilt.wait_for_ready());
         assert!(!rebuilt.compress());
+        assert!(rebuilt.compress_is_set());
         assert!(rebuilt.compressed());
         assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(5)));
         assert!(rebuilt.accepts_gzip());
@@ -1509,7 +1573,7 @@ mod tests {
         assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
         let shown = format!("{rebuilt:?}");
-        assert!(shown.contains("compress: false"), "{shown}");
+        assert!(shown.contains("compress: Some(false)"), "{shown}");
         assert!(shown.contains("compressed: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
@@ -1540,6 +1604,10 @@ mod tests {
         inherit.clear_wait_for_ready();
         assert!(!inherit.wait_for_ready());
         assert!(!inherit.wait_for_ready_is_set());
+        inherit.set_compress(false);
+        inherit.clear_compress();
+        assert!(!inherit.compress());
+        assert!(!inherit.compress_is_set());
         assert!(!Request::new(0u32).is_cancelled());
         let (tx, rx) = tokio::sync::watch::channel(false);
         let mut flagged = Request::new(0u32);
@@ -1658,6 +1726,8 @@ mod tests {
             assert!(call.deadline().is_none());
             assert!(!call.wait_for_ready_is_set());
             assert!(!call.wait_for_ready());
+            assert!(!call.compress_is_set());
+            assert!(!call.compress());
         }
         req.set_timeout(Duration::from_secs(5));
         req.set_wait_for_ready(false);
@@ -1677,6 +1747,11 @@ mod tests {
             assert!(!call.wait_for_ready());
             call.clear_wait_for_ready();
             assert!(!call.wait_for_ready_is_set());
+            call.set_compress(false);
+            assert!(call.compress_is_set());
+            assert!(!call.compress());
+            call.clear_compress();
+            assert!(!call.compress_is_set());
             call.set_timeout(Duration::from_millis(40));
             let tightened = call.deadline().expect("instant");
             let left = tightened.saturating_duration_since(tokio::time::Instant::now());
