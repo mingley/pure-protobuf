@@ -21,6 +21,7 @@ use std::fmt;
 /// md.insert_bin("x-trace-bin", [0xde, 0xad])?;
 ///
 /// assert_eq!(md.get("X-Request-Id"), Some("abc123"));
+/// assert_eq!(md.get_all("x-request-id").collect::<Vec<_>>(), vec!["abc123"]);
 /// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xde, 0xad][..]));
 /// assert!(md.insert("bad-bin", "not base64").is_err());
 /// # Ok::<(), pbrs_grpc::Status>(())
@@ -153,6 +154,9 @@ impl Metadata {
     }
 
     /// First ASCII value for `key`, matched case-insensitively.
+    ///
+    /// Repeats are kept; this is the first. Use [`Self::get_all`] for every
+    /// value in insertion order.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<&str> {
         if is_reserved(key) {
@@ -162,6 +166,9 @@ impl Metadata {
     }
 
     /// First `-bin` value for `key`, base64-decoded.
+    ///
+    /// Repeats are kept; this is the first. Use [`Self::get_all_bin`] for
+    /// every value in insertion order.
     #[must_use]
     pub fn get_bin(&self, key: &str) -> Option<Vec<u8>> {
         if is_reserved(key) {
@@ -169,6 +176,36 @@ impl Metadata {
         }
         let raw = self.map.get(key.to_ascii_lowercase())?.to_str().ok()?;
         decode_base64(raw)
+    }
+
+    /// Every ASCII value for `key`, in insertion order.
+    ///
+    /// [`Self::insert`] appends rather than replacing, so a peer (or an
+    /// interceptor that adds a second `x-forwarded-for`) is visible here.
+    /// [`Self::get`] is the first of these. Reserved keys yield nothing.
+    pub fn get_all(&self, key: &str) -> impl Iterator<Item = &str> + '_ {
+        let skip = is_reserved(key);
+        self.map.get_all(key).iter().filter_map(move |value| {
+            if skip {
+                None
+            } else {
+                value.to_str().ok()
+            }
+        })
+    }
+
+    /// Every `-bin` value for `key`, base64-decoded, in insertion order.
+    ///
+    /// [`Self::get_bin`] is the first of these. Reserved keys yield nothing.
+    pub fn get_all_bin(&self, key: &str) -> impl Iterator<Item = Vec<u8>> + '_ {
+        let skip = is_reserved(key);
+        self.map.get_all(key).iter().filter_map(move |value| {
+            if skip {
+                None
+            } else {
+                decode_base64(value.to_str().ok()?)
+            }
+        })
     }
 
     /// Every ASCII entry, skipping reserved and `-bin` keys.
@@ -324,6 +361,42 @@ mod tests {
         assert_eq!(md.get("k"), Some("1"));
         let values: Vec<_> = md.iter().collect();
         assert_eq!(values, vec![("k", "1"), ("k", "2")]);
+        assert_eq!(md.get_all("k").collect::<Vec<_>>(), vec!["1", "2"]);
+        assert_eq!(md.get_all("K").collect::<Vec<_>>(), vec!["1", "2"]);
+        assert_eq!(md.get_all("missing").count(), 0);
+    }
+
+    #[test]
+    fn get_all_bin_yields_repeated_values() {
+        let mut md = Metadata::new();
+        md.insert_bin("blob-bin", [1u8]).expect("first");
+        md.insert_bin("blob-bin", [2u8]).expect("second");
+        assert_eq!(md.get_bin("blob-bin").as_deref(), Some(&[1u8][..]));
+        assert_eq!(
+            md.get_all_bin("blob-bin").collect::<Vec<_>>(),
+            vec![vec![1u8], vec![2u8]]
+        );
+        assert_eq!(md.get_all_bin("missing-bin").count(), 0);
+    }
+
+    #[test]
+    fn get_all_hides_reserved_keys() {
+        let mut raw = HeaderMap::new();
+        raw.append(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("5"),
+        );
+        raw.append(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("14"),
+        );
+        raw.append(
+            HeaderName::from_static("grpc-status-details-bin"),
+            HeaderValue::from_static("CAU"),
+        );
+        let md = Metadata::from_headers(&raw);
+        assert_eq!(md.get_all("grpc-status").count(), 0);
+        assert_eq!(md.get_all_bin("grpc-status-details-bin").count(), 0);
     }
 
     #[test]

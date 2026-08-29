@@ -351,6 +351,7 @@ async fn generated_servers_accept_configuration() {
             .tcp_keepalive(Duration::from_secs(30))
             .max_connection_age(Duration::from_secs(1800))
             .max_connection_idle(Duration::from_secs(300))
+            .max_connection_age_grace(Duration::from_secs(30))
             .handshake_timeout(Duration::from_secs(5))
             .max_concurrent_streams(128)
             .serve_listener(listener)

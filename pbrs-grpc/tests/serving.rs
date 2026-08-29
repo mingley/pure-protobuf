@@ -1782,11 +1782,8 @@ async fn max_connection_age_goaway_then_the_channel_redials() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .config(
-                ServerConfig::new()
-                    .max_connection_age(Duration::from_millis(80))
-                    .max_connection_age_grace(Duration::from_secs(2)),
-            )
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
             .serve_listener(listener)
             .await
             .ok();
@@ -1815,7 +1812,7 @@ async fn max_connection_idle_goaway_then_the_channel_redials() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .config(ServerConfig::new().max_connection_age_grace(Duration::from_secs(2)))
+            .max_connection_age_grace(Duration::from_secs(2))
             .max_connection_idle(Duration::from_millis(80))
             .keep_alive_interval(Duration::from_millis(20))
             .serve_listener(listener)
@@ -1847,11 +1844,8 @@ async fn max_connection_age_lets_in_flight_rpcs_finish() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
-            .config(
-                ServerConfig::new()
-                    .max_connection_age(Duration::from_millis(80))
-                    .max_connection_age_grace(Duration::from_secs(2)),
-            )
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
             .serve_listener(listener)
             .await
             .ok();
@@ -1876,11 +1870,8 @@ async fn max_connection_idle_lets_in_flight_rpcs_finish() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
-            .config(
-                ServerConfig::new()
-                    .max_connection_idle(Duration::from_millis(50))
-                    .max_connection_age_grace(Duration::from_millis(1)),
-            )
+            .max_connection_idle(Duration::from_millis(50))
+            .max_connection_age_grace(Duration::from_millis(1))
             .serve_listener(listener)
             .await
             .ok();

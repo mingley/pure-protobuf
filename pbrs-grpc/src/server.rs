@@ -896,6 +896,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// After age or idle fires, wait this long for in-flight RPCs. See
+    /// [`ServerConfig::max_connection_age_grace`].
+    #[must_use]
+    pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
+        self.config = self.config.max_connection_age_grace(grace);
+        self
+    }
+
     /// Drop a client that never finishes TLS or the HTTP/2 preface. See
     /// [`ServerConfig::handshake_timeout`].
     #[must_use]
@@ -1032,6 +1040,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Bind `addr` and serve over TLS until the listener fails.
+    ///
+    /// To bind and then drain on a signal, use [`Self::serve_tls_until_shutdown`].
     pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
         self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
             .await
@@ -1046,6 +1056,19 @@ impl<S: Service> Server<S> {
     ) -> Result<(), Status> {
         let (dispatch, config) = self.into_single();
         accept_loop(Arc::new(dispatch), listener, config, shutdown, Some(tls)).await
+    }
+
+    /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain.
+    ///
+    /// This is the address form of [`Self::serve_tls_with_shutdown`].
+    pub async fn serve_tls_until_shutdown(
+        self,
+        addr: SocketAddr,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        self.serve_tls_with_shutdown(bind(addr).await?, shutdown, tls)
+            .await
     }
 
     /// Serve a single already-accepted byte stream until it closes.
@@ -1263,6 +1286,14 @@ impl Router {
         self
     }
 
+    /// After age or idle fires, wait this long for in-flight RPCs. See
+    /// [`ServerConfig::max_connection_age_grace`].
+    #[must_use]
+    pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
+        self.config = self.config.max_connection_age_grace(grace);
+        self
+    }
+
     /// Drop a client that never finishes TLS or the HTTP/2 preface. See
     /// [`ServerConfig::handshake_timeout`].
     #[must_use]
@@ -1364,6 +1395,8 @@ impl Router {
     }
 
     /// Bind `addr` and serve over TLS until the listener fails.
+    ///
+    /// To bind and then drain on a signal, use [`Self::serve_tls_until_shutdown`].
     pub async fn serve_tls(self, addr: SocketAddr, tls: ServerTls) -> Result<(), Status> {
         self.serve_tls_with_shutdown(bind(addr).await?, std::future::pending(), tls)
             .await
@@ -1379,6 +1412,18 @@ impl Router {
     ) -> Result<(), Status> {
         let config = self.config;
         accept_loop(Arc::new(self), listener, config, shutdown, Some(tls)).await
+    }
+
+    /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain.
+    /// See [`Server::serve_tls_until_shutdown`].
+    pub async fn serve_tls_until_shutdown(
+        self,
+        addr: SocketAddr,
+        shutdown: impl Future<Output = ()> + Send,
+        tls: ServerTls,
+    ) -> Result<(), Status> {
+        self.serve_tls_with_shutdown(bind(addr).await?, shutdown, tls)
+            .await
     }
 
     /// Serve a single already-accepted byte stream until it closes.

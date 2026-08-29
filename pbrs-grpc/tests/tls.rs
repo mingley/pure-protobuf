@@ -83,6 +83,37 @@ async fn unary_over_tls() {
 }
 
 #[tokio::test]
+async fn serve_tls_until_shutdown_serves_then_drains() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_until_shutdown(
+                addr,
+                async {
+                    shutdown_rx.await.ok();
+                },
+                tls,
+            )
+            .await
+            .ok();
+    });
+    let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("tls drain hung")
+        .expect("join");
+}
+
+#[tokio::test]
 async fn tls_requests_use_the_https_scheme() {
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::sync::Arc;

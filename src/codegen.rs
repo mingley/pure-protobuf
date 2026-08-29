@@ -4095,6 +4095,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// After age or idle fires, wait this long for in-flight RPCs. See [`{G}::ServerConfig::max_connection_age_grace`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_connection_age_grace(mut self, grace: ::std::time::Duration) -> Self {{ self.config = self.config.max_connection_age_grace(grace); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Drop a client that never finishes TLS or the HTTP/2 preface. See [`{G}::ServerConfig::handshake_timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4205,6 +4214,14 @@ fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    pub async fn serve_tls_with_shutdown(self, listener: {G}::codegen_support::TcpListener, shutdown: impl ::core::future::Future<Output = ()> + Send, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls_with_shutdown(listener, shutdown, tls).await }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Bind `addr` and serve over TLS until `shutdown` resolves, then drain."
+    );
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_tls_until_shutdown(self, addr: ::std::net::SocketAddr, shutdown: impl ::core::future::Future<Output = ()> + Send, tls: {G}::ServerTls) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_tls_until_shutdown(addr, shutdown, tls).await }}"
     );
     let _ = writeln!(
         src,

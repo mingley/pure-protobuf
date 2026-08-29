@@ -255,6 +255,11 @@ let tenant = request.metadata().get("x-tenant").unwrap_or("default");
 let peer = request.remote_addr();
 ```
 
+`get` / `get_bin` return the first value. `insert` / `insert_bin` append, so a
+peer that sends two `x-forwarded-for` entries (or an interceptor that adds a
+second) is visible with `get_all` / `get_all_bin`. Reserved protocol keys
+(`grpc-*`, `content-type`, ...) are invisible on every read path.
+
 Reading it costs nothing until you read it: `Metadata` wraps the received
 header map rather than copying every entry into owned strings.
 
@@ -529,6 +534,11 @@ let tls = ClientTls::ca("localhost", ca_pem)?;
 let client = GreeterClient::connect_tls("127.0.0.1:443", tls).await?;
 ```
 
+To drain a TLS listener the same way as h2c, use
+`serve_tls_until_shutdown(addr, shutdown, tls)` (or
+`serve_tls_with_shutdown` when you already have the `TcpListener`). See
+[Graceful shutdown](#graceful-shutdown).
+
 `ClientTls::webpki("api.example.com")` trusts Mozilla's CA set. For private
 PKI and tests, pin a CA with `ClientTls::ca`. Mutual TLS is
 `ServerTls::mtls(identity, client_ca_pem)` plus `ClientTls::ca_mtls` (or
@@ -675,7 +685,8 @@ stream (`ErrorResponse`), not a broken RPC.
 `serve_with_shutdown` on the resulting listener: it stops accepting, sends
 `GOAWAY` on every live connection, and waits for in-flight RPCs to finish
 before returning. Use `serve_with_shutdown` when you already have a
-`TcpListener`.
+`TcpListener`. The TLS forms are `serve_tls_until_shutdown(addr, shutdown, tls)`
+and `serve_tls_with_shutdown(listener, shutdown, tls)`.
 
 ```rust
 let (tx, rx) = tokio::sync::oneshot::channel();
@@ -705,17 +716,16 @@ idle.
 ```rust
 GreeterServer::new(MyGreeter)
     .max_connection_age(Duration::from_secs(30 * 60))
-    .max_connection_idle(Duration::from_secs(5 * 60));
+    .max_connection_idle(Duration::from_secs(5 * 60))
+    .max_connection_age_grace(Duration::from_secs(30));
 
 ChannelConfig::new()
     .max_connection_idle(Duration::from_secs(5 * 60));
 ```
 
-`max_connection_age_grace` (default 10 s) still lives on `ServerConfig`
-because it is rarely set without the other two.
-
 On the server, when either fires the kernel sends `GOAWAY`, waits the grace
-period (default 10 s) for in-flight RPCs, then drops the socket. Age is
+period (default 10 s, override with `max_connection_age_grace`) for in-flight
+RPCs, then drops the socket. Age is
 jittered by ±10% so a process with many connections does not reconnect in
 lockstep. Idle only arms while no RPC is in flight, so grace is for a race
 with a request that arrives as GOAWAY is written.

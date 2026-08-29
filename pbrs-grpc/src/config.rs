@@ -267,6 +267,11 @@ impl ServerConfig {
 
     /// After age or idle fires, wait this long for in-flight RPCs before
     /// dropping the socket. Default 10 s. Values below 1 ms are raised to 1 ms.
+    ///
+    /// [`crate::Server::max_connection_age_grace`],
+    /// [`crate::Router::max_connection_age_grace`], and generated
+    /// `FooServer::max_connection_age_grace` set this without building a
+    /// [`ServerConfig`].
     #[must_use]
     pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
         self.max_connection_age_grace = grace.max(Duration::from_millis(1));
