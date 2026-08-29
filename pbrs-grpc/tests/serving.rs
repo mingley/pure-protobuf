@@ -426,6 +426,50 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ChannelConfig::stream_buffer must name the streaming shapes it queues"
     );
+    assert!(
+        src.contains("Configured message caps. Applies to every call shape."),
+        "ServerConfig::limits and ChannelConfig::limits must name every call shape"
+    );
+    assert!(
+        src.contains("Configured per-connection send buffer. Applies to every call shape."),
+        "send_buffer_size getters must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].\n    /// Applies to every call shape."
+        ),
+        "stream_window getters must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "HTTP/2 per-connection receive window. See [`Self::initial_connection_window_size`].\n    /// Applies to every call shape."
+        ),
+        "connection_window getters must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].\n    /// Applies to every call shape."
+        ),
+        "frame_size getters must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Configured outbound streaming queue depth. Applies to client-streaming\n    /// and bidi request streams."
+        ),
+        "ChannelConfig::stream_buffer_size must not claim every call shape"
+    );
+    assert!(
+        src.contains(
+            "Configured max connection age, if any. The next RPC of every call\n    /// shape redials. See [`Self::max_connection_age`]."
+        ),
+        "ServerConfig::connection_age must name redial, not in-flight retry on every shape"
+    );
+    assert!(
+        src.contains(
+            "Dial bound: TCP/Unix connect, optional TLS, peer SETTINGS.\n    /// See [`Self::connect_timeout`]. Applies to every call shape once that\n    /// dial happens."
+        ),
+        "ChannelConfig::dial_timeout must name the dial bound"
+    );
 }
 
 #[test]
@@ -486,10 +530,12 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::tcp_keepalive and Router::tcp_keepalive must name every call shape"
     );
     assert_eq!(
-        src.matches("Send GOAWAY this long after accept. Applies to every call shape.")
-            .count(),
+        src.matches(
+            "Send GOAWAY this long after accept. The next RPC of every call shape\n    /// redials; transparent retry of the same in-flight RPC is unary and\n    /// server-streaming only."
+        )
+        .count(),
         2,
-        "Server::max_connection_age and Router::max_connection_age must name every call shape"
+        "Server::max_connection_age and Router::max_connection_age must name redial on every shape and in-flight retry only on unary and server-streaming"
     );
     assert_eq!(
         src.matches("fails. Applies to every call shape.").count(),

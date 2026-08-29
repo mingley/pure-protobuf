@@ -706,7 +706,7 @@ async fn mtls_send_compressed_gzips_every_shape() {
 }
 
 #[tokio::test]
-async fn keepalive_still_serves() {
+async fn h2c_keepalive_still_serves() {
     let (addr, _guard) = {
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
             .await

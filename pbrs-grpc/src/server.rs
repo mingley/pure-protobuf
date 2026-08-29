@@ -1452,8 +1452,9 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// Send GOAWAY this long after accept. Applies to every call shape.
-    /// See [`ServerConfig::max_connection_age`].
+    /// Send GOAWAY this long after accept. The next RPC of every call shape
+    /// redials; transparent retry of the same in-flight RPC is unary and
+    /// server-streaming only. See [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.config = self.config.max_connection_age(age);
@@ -1991,8 +1992,9 @@ impl Router {
         self
     }
 
-    /// Send GOAWAY this long after accept. Applies to every call shape.
-    /// See [`ServerConfig::max_connection_age`].
+    /// Send GOAWAY this long after accept. The next RPC of every call shape
+    /// redials; transparent retry of the same in-flight RPC is unary and
+    /// server-streaming only. See [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.config = self.config.max_connection_age(age);

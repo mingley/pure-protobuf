@@ -2062,8 +2062,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated keep_alive_interval rustdoc must name every call shape"
     );
     assert!(
-        src.contains("Send GOAWAY this long after accept. Applies to every call shape."),
-        "generated max_connection_age rustdoc must name every call shape"
+        src.contains(
+            "Send GOAWAY this long after accept. The next RPC of every call shape redials; transparent retry of the same in-flight RPC is unary and server-streaming only."
+        ),
+        "generated max_connection_age rustdoc must name redial on every shape and in-flight retry only on unary and server-streaming"
     );
     assert!(
         src.contains("Serve h2c on an existing Unix listener. Applies to every call shape."),

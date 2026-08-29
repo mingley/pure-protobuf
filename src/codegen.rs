@@ -4215,7 +4215,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Send GOAWAY this long after accept. Applies to every call shape. See [`{G}::ServerConfig::max_connection_age`]."
+        "    /// Send GOAWAY this long after accept. The next RPC of every call shape redials; transparent retry of the same in-flight RPC is unary and server-streaming only. See [`{G}::ServerConfig::max_connection_age`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

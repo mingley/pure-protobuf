@@ -382,19 +382,20 @@ impl ServerConfig {
         self
     }
 
-    /// Configured message caps.
+    /// Configured message caps. Applies to every call shape.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
         self.limits
     }
 
-    /// Configured per-connection send buffer.
+    /// Configured per-connection send buffer. Applies to every call shape.
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
     }
 
     /// Configured per-RPC timeout, if any. See [`Self::timeout`].
+    /// Applies to every call shape.
     /// Interceptors and handlers read this overlay on [`crate::Rpc::rpc_timeout`]
     /// / [`crate::Request::rpc_timeout`].
     #[must_use]
@@ -403,99 +404,112 @@ impl ServerConfig {
     }
 
     /// Configured accept-loop connection cap, if any.
-    /// See [`Self::max_concurrent_connections`].
+    /// See [`Self::max_concurrent_connections`]. Applies to every call shape.
     #[must_use]
     pub fn connection_limit(self) -> Option<usize> {
         self.max_concurrent_connections
     }
 
     /// Configured process-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn concurrent_rpc_limit(self) -> Option<usize> {
         self.max_concurrent_rpcs
     }
 
     /// Whether responses are gzipped when the client accepts gzip.
-    /// See [`Self::send_compressed`].
+    /// See [`Self::send_compressed`]. Applies to every call shape.
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed
     }
 
     /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ping_interval(self) -> Option<Duration> {
         self.keep_alive_interval
     }
 
     /// How long to wait for a PING acknowledgement. See [`Self::keep_alive_timeout`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ack_timeout(self) -> Duration {
         self.keep_alive_timeout
     }
 
     /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive_period(self) -> Option<Duration> {
         self.tcp_keepalive
     }
 
     /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn stream_window(self) -> u32 {
         self.initial_stream_window_size
     }
 
     /// HTTP/2 per-connection receive window. See [`Self::initial_connection_window_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn connection_window(self) -> u32 {
         self.initial_connection_window_size
     }
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn frame_size(self) -> u32 {
         self.max_frame_size
     }
 
     /// Concurrent RPCs allowed per connection. See [`Self::max_concurrent_streams`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn concurrent_streams(self) -> u32 {
         self.max_concurrent_streams
     }
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`Self::max_header_list_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn header_list_size(self) -> u32 {
         self.max_header_list_size
     }
 
     /// Remotely-reset HTTP/2 streams waiting in the accept queue.
-    /// See [`Self::max_pending_accept_reset_streams`].
+    /// See [`Self::max_pending_accept_reset_streams`]. Applies to every call shape.
     #[must_use]
     pub fn pending_accept_reset_streams(self) -> usize {
         self.max_pending_accept_reset_streams
     }
 
     /// TLS accept and HTTP/2 preface bound. See [`Self::handshake_timeout`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn handshake_wait(self) -> Duration {
         self.handshake_timeout
     }
 
-    /// Configured max connection age, if any. See [`Self::max_connection_age`].
+    /// Configured max connection age, if any. The next RPC of every call
+    /// shape redials. See [`Self::max_connection_age`].
     #[must_use]
     pub fn connection_age(self) -> Option<Duration> {
         self.max_connection_age
     }
 
     /// Configured max connection idle, if any. See [`Self::max_connection_idle`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn connection_idle(self) -> Option<Duration> {
         self.max_connection_idle
     }
 
     /// Grace after age or idle. See [`Self::max_connection_age_grace`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn age_grace(self) -> Duration {
         self.max_connection_age_grace
@@ -854,111 +868,125 @@ impl ChannelConfig {
         self
     }
 
-    /// Configured message caps.
+    /// Configured message caps. Applies to every call shape.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
         self.limits
     }
 
-    /// Configured connection count.
+    /// Configured connection count. Applies to every call shape.
     #[must_use]
     pub fn connection_count(self) -> usize {
         self.connections
     }
 
-    /// Configured outbound streaming queue depth.
+    /// Configured outbound streaming queue depth. Applies to client-streaming
+    /// and bidi request streams. See [`Self::stream_buffer`].
     #[must_use]
     pub fn stream_buffer_size(self) -> usize {
         self.stream_buffer
     }
 
-    /// Configured per-connection send buffer.
+    /// Configured per-connection send buffer. Applies to every call shape.
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
     }
 
     /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ping_interval(self) -> Option<Duration> {
         self.keep_alive_interval
     }
 
     /// How long to wait for a PING acknowledgement. See [`Self::keep_alive_timeout`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn keep_alive_ack_timeout(self) -> Duration {
         self.keep_alive_timeout
     }
 
     /// Configured TCP keepalive idle time, if any. See [`Self::tcp_keepalive`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive_period(self) -> Option<Duration> {
         self.tcp_keepalive
     }
 
     /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn stream_window(self) -> u32 {
         self.initial_stream_window_size
     }
 
     /// HTTP/2 per-connection receive window. See [`Self::initial_connection_window_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn connection_window(self) -> u32 {
         self.initial_connection_window_size
     }
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn frame_size(self) -> u32 {
         self.max_frame_size
     }
 
     /// Concurrent RPCs allowed per connection. See [`Self::max_concurrent_streams`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn concurrent_streams(self) -> u32 {
         self.max_concurrent_streams
     }
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`Self::max_header_list_size`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn header_list_size(self) -> u32 {
         self.max_header_list_size
     }
 
     /// Remotely-reset HTTP/2 streams waiting in the accept queue.
-    /// See [`Self::max_pending_accept_reset_streams`].
+    /// See [`Self::max_pending_accept_reset_streams`]. Applies to every call shape.
     #[must_use]
     pub fn pending_accept_reset_streams(self) -> usize {
         self.max_pending_accept_reset_streams
     }
 
     /// Dial bound: TCP/Unix connect, optional TLS, peer SETTINGS.
-    /// See [`Self::connect_timeout`].
+    /// See [`Self::connect_timeout`]. Applies to every call shape once that
+    /// dial happens.
     #[must_use]
     pub fn dial_timeout(self) -> Duration {
         self.connect_timeout
     }
 
     /// Configured max connection idle, if any. See [`Self::max_connection_idle`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn connection_idle(self) -> Option<Duration> {
         self.max_connection_idle
     }
 
     /// Whether request payloads are gzipped. See [`Self::send_compressed`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed
     }
 
     /// Configured default per-RPC deadline, if any. See [`Self::timeout`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn rpc_timeout(self) -> Option<Duration> {
         self.timeout
     }
 
     /// Configured default wait-for-ready. See [`Self::wait_for_ready`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn waits_for_ready(self) -> bool {
         self.wait_for_ready
