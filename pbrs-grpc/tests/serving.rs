@@ -568,6 +568,63 @@ async fn service_ext_intercept_wraps_a_hand_written_service() {
 }
 
 #[tokio::test]
+async fn service_ext_interceptors_stack_in_declaration_order() {
+    // Same contract as generated_server_interceptors_stack_in_declaration_order,
+    // but wrapping the Service itself. Intercepted::intercept is inherent, so
+    // svc.intercept(trace).intercept(require_bearer) runs trace first. Onion
+    // wrapping would run require_bearer first and return Unauthenticated.
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(|rpc: &mut Rpc| {
+        if rpc.metadata().get("x-trace").is_none() {
+            return Err(Status::invalid_argument("missing x-trace"));
+        }
+        Ok(())
+    })
+    .intercept(require_bearer);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+
+    let ch = channel(addr).await;
+    let missing_trace = ch
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect_err("neither header");
+    assert_eq!(missing_trace.code(), Code::InvalidArgument);
+
+    let mut only_auth = Request::new(req("stressed"));
+    only_auth
+        .metadata_mut()
+        .insert("authorization", "Bearer letmein")
+        .expect("metadata");
+    let still_trace = ch
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", only_auth)
+        .await
+        .expect_err("auth without trace");
+    assert_eq!(still_trace.code(), Code::InvalidArgument);
+
+    let allowed = ch
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.metadata_mut().insert("x-trace", "1")?;
+            call.metadata_mut()
+                .insert("authorization", "Bearer letmein")?;
+            Ok(())
+        })
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("both headers")
+        .into_inner();
+    assert_eq!(name_of(&allowed), "desserts");
+    assert_eq!(seen.load(Ordering::Relaxed), 1);
+
+    task.abort();
+}
+
+#[tokio::test]
 async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
     struct TenantEcho;
 

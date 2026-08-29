@@ -354,10 +354,13 @@ Codes the kernel produces on your behalf:
 | `Unavailable` | the connection could not be established or was lost |
 | `Internal` | a malformed frame, or a protobuf parse failure |
 
-A request that is not gRPC at all — GET, missing `content-type`,
-`application/json`, `application/grpc-web` — is HTTP 405 or 415 with no
-`grpc-status`, so a browser does not take HTTP 200 as success. That check
-runs before an RPC slot is taken.
+A request that is not protobuf gRPC at all — GET, missing `content-type`,
+`application/json`, `application/grpc+json`, `application/grpc-web` — is
+HTTP 405 or 415 with no `grpc-status`, so a browser does not take HTTP 200
+as success. That check runs before an RPC slot is taken. The accepted types
+are `application/grpc` and `application/grpc+proto` (optional `;parameters`,
+ASCII case-insensitive). This kernel only decodes protobuf, so a `+json` or
+`+thrift` subtype is 415 rather than a later parse `Internal`.
 
 ## Deadlines and cancellation
 
@@ -959,7 +962,10 @@ let tenant = request.extensions().get::<String>().cloned();
 `FooServer::intercept`) run before every RPC on that server. Calling any of
 them twice stacks: the first interceptor runs first. Per-service wrapping is
 `Intercepted::new` or `ServiceExt::intercept` when you do not want the
-generated server's `.serve()` chain.
+generated server's `.serve()` chain. Chaining `ServiceExt::intercept` is
+first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
+`Intercepted::intercept` is an inherent method, so it does not wrap
+onion-style.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs before the stream opens. Closures take `Outgoing`: the method path,
@@ -972,8 +978,10 @@ first and can insert extensions for the next — the same contract as
 `Router::intercept`.
 
 ```rust
+struct Tenant(String);
+
 let mut req = Request::new(payload);
-req.extensions_mut().insert(Tenant("acme"));
+req.extensions_mut().insert(Tenant("acme".into()));
 
 let client = GreeterClient::connect(addr).await?
     .intercept(|call| {

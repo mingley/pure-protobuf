@@ -121,21 +121,33 @@ pub(crate) enum RequestReject {
     Http(StatusCode),
 }
 
-/// `application/grpc`, `application/grpc+proto`, `application/grpc;charset=…`.
+/// `application/grpc` and `application/grpc+proto`, with optional parameters.
 ///
-/// `application/grpc-web` is not a match: the suffix is `-web`, not `+` / `;`.
+/// Type and subtype are matched case-insensitively. This kernel only
+/// decodes protobuf messages, so `application/grpc+json` and other `+`
+/// suffixes are not gRPC here: they are HTTP 415, like grpc-web.
+/// `application/grpc-web` is not a match either (`-web` is not `+` / `;`).
 pub(crate) fn grpc_content_type(ct: &str) -> bool {
-    let Some(subtype) = ct.strip_prefix("application/grpc") else {
+    let ct = ct.trim();
+    let Some((ty, rest)) = ct.split_once('/') else {
         return false;
     };
-    subtype.is_empty() || subtype.starts_with('+') || subtype.starts_with(';')
+    if !ty.eq_ignore_ascii_case("application") {
+        return false;
+    }
+    let subtype = match rest.split_once(';') {
+        Some((sub, _)) => sub.trim(),
+        None => rest.trim(),
+    };
+    subtype.eq_ignore_ascii_case("grpc") || subtype.eq_ignore_ascii_case("grpc+proto")
 }
 
 /// Reject anything that is not a gRPC request we can answer.
 ///
 /// Runs before a handler is spawned, so a malformed or unsupported request
 /// costs one response and no RPC slot. Non-POST is HTTP 405; a content-type
-/// that is not gRPC is HTTP 415, so a browser does not take HTTP 200 as
+/// that is not protobuf gRPC (`application/grpc+json`, grpc-web, JSON, a
+/// missing type) is HTTP 415, so a browser does not take HTTP 200 as
 /// success. Unsupported `grpc-encoding` stays a gRPC `UNIMPLEMENTED`.
 pub(crate) fn check_request(request: &Request<RecvStream>) -> Result<(), RequestReject> {
     if request.method() != http::Method::POST {
@@ -1009,13 +1021,20 @@ mod tests {
         for ok in [
             "application/grpc",
             "application/grpc+proto",
-            "application/grpc+json",
             "application/grpc;charset=utf-8",
+            "application/grpc+proto; charset=utf-8",
+            "Application/Grpc",
+            "APPLICATION/GRPC+PROTO",
+            " application/grpc ",
         ] {
             assert!(grpc_content_type(ok), "{ok}");
         }
         for no in [
             "application/json",
+            "application/grpc+json",
+            "application/grpc+json;charset=utf-8",
+            "APPLICATION/GRPC+JSON",
+            "application/grpc+thrift",
             "application/grpc-web",
             "application/grpc-web+proto",
             "application/grpcweb",

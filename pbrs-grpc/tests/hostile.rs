@@ -250,6 +250,8 @@ async fn a_non_grpc_content_type_is_http_415() {
     let mut peer = RawPeer::connect(addr).await;
     for content_type in [
         "application/json",
+        "application/grpc+json",
+        "application/grpc+thrift",
         "application/grpc-web",
         "application/grpc-web+proto",
     ] {
@@ -271,30 +273,42 @@ async fn a_non_grpc_content_type_on_an_unknown_method_is_still_415() {
 }
 
 #[tokio::test]
-async fn a_get_is_http_405() {
+async fn a_non_post_is_http_405() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let peer = RawPeer::connect(addr).await;
-    let mut request = peer.request(SAY_HELLO, "application/grpc");
-    *request.method_mut() = Method::GET;
-    let mut send = peer.send.clone().ready().await.expect("ready");
-    let (response, _stream) = send.send_request(request, true).expect("send_request");
-    let response = response.await.expect("response");
-    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
-    assert_eq!(
-        response
-            .headers()
-            .get(http::header::ALLOW)
-            .and_then(|v| v.to_str().ok()),
-        Some("POST")
-    );
-    assert!(grpc_status(response.headers()).is_none());
+    for method in [Method::GET, Method::PUT, Method::HEAD] {
+        let label = method.as_str();
+        let mut request = peer.request(SAY_HELLO, "application/grpc");
+        *request.method_mut() = method;
+        let mut send = peer.send.clone().ready().await.expect("ready");
+        let (response, _stream) = send.send_request(request, true).expect("send_request");
+        let response = response.await.expect("response");
+        assert_eq!(
+            response.status(),
+            StatusCode::METHOD_NOT_ALLOWED,
+            "{label} must be 405"
+        );
+        assert_eq!(
+            response
+                .headers()
+                .get(http::header::ALLOW)
+                .and_then(|v| v.to_str().ok()),
+            Some("POST")
+        );
+        assert!(grpc_status(response.headers()).is_none(), "{label}");
+    }
 }
 
 #[tokio::test]
 async fn grpc_proto_content_type_subtypes_are_accepted() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let mut peer = RawPeer::connect(addr).await;
-    for content_type in ["application/grpc", "application/grpc+proto"] {
+    for content_type in [
+        "application/grpc",
+        "application/grpc+proto",
+        "Application/Grpc",
+        "APPLICATION/GRPC+PROTO",
+    ] {
         let request = peer.request(SAY_HELLO, content_type);
         let answer = peer.call_with(request, frame(&hello_request())).await;
         answer.expect_code(Code::Ok);
