@@ -1367,7 +1367,8 @@ overlay set a choice — the same pattern as `timeout()` being `None`;
 are those channel overlays and stay visible after `clear_*` opts out of the
 already-applied default), compression (`Outgoing::compress` is
 `false` when unset; `compress_is_set` is the same fill-if-unset pattern, and
-`Request::set_compress(false)` opts out of `Channel::send_compressed`), and typed extensions. TCP `:authority` is `host:port`; Unix is
+`Request::set_compress(false)` opts out of `Channel::send_compressed`. A client interceptor
+`set_compress(true)` gzips on h2c, TLS (including mTLS), Unix, and `from_io`), and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
 for every call shape; nothing is sent. The Call's `Status::rpc` /
 `Status::error_details` unpack that packed protobuf, the same as a handler

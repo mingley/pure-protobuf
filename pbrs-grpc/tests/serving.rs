@@ -10576,6 +10576,75 @@ async fn a_client_interceptor_can_set_compress() {
     task.abort();
 }
 
+fn interceptor_set_compress(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.set_compress(true);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_can_set_compress() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await).intercept(interceptor_set_compress);
+    gzip_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_can_set_compress() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(interceptor_set_compress);
+    gzip_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_can_set_compress() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await).intercept(interceptor_set_compress);
+    gzip_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_can_set_compress() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_set_compress);
+    gzip_every_shape(&client).await;
+    server.abort();
+}
+
 #[tokio::test]
 async fn a_request_can_opt_out_of_channel_send_compressed() {
     let (addr, listener) = bind().await;
