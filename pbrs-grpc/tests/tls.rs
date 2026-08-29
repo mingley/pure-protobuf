@@ -516,12 +516,25 @@ async fn a_dead_tls_channel_redials() {
     drop(guard);
     let _guard = serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls")).await;
 
-    let after = tokio::time::timeout(
-        Duration::from_secs(5),
-        client.say_hello(Request::new(req("after"))),
-    )
-    .await
-    .expect("tls redial hung")
-    .expect("after");
+    // The first attempt can still land on the dying connection (`ready`
+    // succeeded, then GOAWAY). Unary retries that redial once; further
+    // attempts cover a rebound listener that is not yet accepting.
+    let mut last = None;
+    let after = 'done: {
+        for _ in 0..40 {
+            match tokio::time::timeout(
+                Duration::from_secs(2),
+                client.say_hello(Request::new(req("after"))),
+            )
+            .await
+            {
+                Ok(Ok(reply)) => break 'done reply,
+                Ok(Err(status)) => last = Some(status),
+                Err(_) => last = Some(Status::unavailable("tls redial attempt timed out")),
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        panic!("after: {last:?}");
+    };
     assert_eq!(name_of(after.get_ref()), "after");
 }

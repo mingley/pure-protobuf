@@ -190,6 +190,9 @@ struct Detail {
     message: String,
     metadata: Metadata,
     details: Bytes,
+    /// HTTP/2 connection died (GOAWAY, I/O, `REFUSED_STREAM`). Not a peer
+    /// `UNAVAILABLE` trailer. Unary/server-streaming redial once.
+    transport: bool,
 }
 
 /// A gRPC status: a [`Code`], an optional message, optional trailing
@@ -544,6 +547,55 @@ impl Status {
     pub fn unauthenticated(message: impl Into<String>) -> Self {
         Self::new(Code::Unauthenticated, message)
     }
+
+    /// Map an HTTP/2 error onto [`Code::Unavailable`].
+    ///
+    /// Connection death (`GOAWAY`, I/O, `REFUSED_STREAM`) is marked so a
+    /// unary or server-streaming RPC can redial this call once. Stream
+    /// resets and user errors stay plain `UNAVAILABLE` and are not retried.
+    pub(crate) fn from_h2(err: impl Into<h2::Error>) -> Self {
+        let err = err.into();
+        let mut status = Self::unavailable(err.to_string());
+        if h2_lost_connection(&err) {
+            status.mark_transport();
+        }
+        status
+    }
+
+    /// Like [`Self::from_h2`], but non-connection failures stay
+    /// [`Code::Internal`] so a flow-control `send_data` error is not
+    /// reported as a dead peer.
+    pub(crate) fn from_h2_send(err: impl Into<h2::Error>) -> Self {
+        let err = err.into();
+        if h2_lost_connection(&err) {
+            let mut status = Self::unavailable(err.to_string());
+            status.mark_transport();
+            status
+        } else {
+            Self::internal(err.to_string())
+        }
+    }
+
+    /// [`Code::Unavailable`] for a send stream that vanished under us.
+    pub(crate) fn stream_closed() -> Self {
+        let mut status = Self::unavailable("stream closed");
+        status.mark_transport();
+        status
+    }
+
+    fn mark_transport(&mut self) {
+        self.detail.get_or_insert_with(Box::default).transport = true;
+    }
+
+    /// The HTTP/2 connection died; this is not a peer status trailer.
+    #[must_use]
+    pub(crate) fn is_transport(&self) -> bool {
+        self.detail.as_ref().is_some_and(|d| d.transport)
+    }
+}
+
+fn h2_lost_connection(err: &h2::Error) -> bool {
+    err.is_io() || err.is_go_away() || err.reason() == Some(h2::Reason::REFUSED_STREAM)
 }
 
 impl fmt::Display for Status {
@@ -813,5 +865,19 @@ mod tests {
         let err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "refused");
         let status = Status::from(err);
         assert_eq!(status.code(), Code::Unavailable);
+        assert!(!status.is_transport());
+    }
+
+    #[test]
+    fn refused_stream_is_transport_lost() {
+        let status = Status::from_h2(h2::Reason::REFUSED_STREAM);
+        assert_eq!(status.code(), Code::Unavailable);
+        assert!(status.is_transport());
+    }
+
+    #[test]
+    fn peer_unavailable_message_is_not_transport_lost() {
+        let status = Status::unavailable("too many concurrent RPCs");
+        assert!(!status.is_transport());
     }
 }

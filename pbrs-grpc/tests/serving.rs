@@ -1954,7 +1954,8 @@ async fn a_dead_channel_redials_the_same_address() {
         .expect("rebind");
 
     // The first attempt can still land on the dying connection (`ready`
-    // succeeded, then GOAWAY). Subsequent RPCs redial the rebound listener.
+    // succeeded, then GOAWAY). Unary retries that redial once; this loop
+    // covers a rebound listener that is not yet accepting.
     let mut last = None;
     let after = 'done: {
         for _ in 0..40 {

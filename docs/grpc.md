@@ -123,7 +123,9 @@ println!("{}", reply.get_ref().message());
 string that goes through DNS. The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, so a server restart on the same address does not require
-a new client. `GreeterClient::connect_lazy` skips the initial dial so the client
+a new client. Unary and server-streaming RPCs that race a `GOAWAY` after
+the slot still looked live retry that redial once on the same call.
+`GreeterClient::connect_lazy` skips the initial dial so the client
 can exist before the server; pair it with `wait_for_ready` on the client
 or `Request::set_wait_for_ready` on the call.
 
@@ -459,9 +461,10 @@ surfaces on the first RPC, which retries with backoff until the deadline or
 a cancel if `wait_for_ready` is set. Without a deadline, a peer that never
 comes up waits until cancellation.
 
-The same flag applies after a live connection dies: fail-fast redials once
-and returns `UNAVAILABLE` if nothing is listening; wait-for-ready keeps
-trying.
+The same flag applies after a live connection dies: fail-fast redials the
+slot (unary and server-streaming also retry that redial once on the same
+call if `GOAWAY` raced `ready`) and returns `UNAVAILABLE` if nothing is
+listening; wait-for-ready keeps trying.
 
 ## Connect timeout
 
@@ -622,8 +625,9 @@ the path has a NAT.
 
 A `Channel` also redials after a peer `GOAWAY` or a TCP reset, so restarting
 the server on the same address does not require constructing a new client.
-Healthy connections waiting only on `SETTINGS_MAX_CONCURRENT_STREAMS` are
-left alone.
+Unary and server-streaming RPCs retry that redial once when the death
+races `SendRequest::ready`. Healthy connections waiting only on
+`SETTINGS_MAX_CONCURRENT_STREAMS` are left alone.
 
 ## Unix domain sockets
 

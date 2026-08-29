@@ -114,6 +114,16 @@ struct Dialed {
     busy: Option<Arc<crate::keepalive::Busy>>,
 }
 
+/// A sender taken from a pool slot, plus the generation so a raced `GOAWAY`
+/// can discard this slot instead of writing into a reconnect that already
+/// landed.
+struct LiveConn {
+    send: h2::client::SendRequest<Bytes>,
+    lease: Option<crate::keepalive::Lease>,
+    slot: usize,
+    gen: u64,
+}
+
 /// Backoff between wait-for-ready handshake attempts, in milliseconds.
 /// Caps at the last entry; see [`ChannelInner::acquire`].
 const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
@@ -162,11 +172,14 @@ impl Endpoint {
 /// meant to be cloned into every task that needs it.
 ///
 /// If a connection dies — peer `GOAWAY`, TCP reset, keepalive timeout — the
-/// next RPC on that slot dials again. A healthy connection that is only
-/// waiting for a free stream (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not
-/// replaced. Redial is part of the RPC: it is cancelled if the [`Call`] is
-/// cancelled, and it fails with [`Code::DeadlineExceeded`] if the request
-/// deadline elapses while connecting.
+/// next RPC on that slot dials again. Unary and server-streaming calls that
+/// observe the death after the slot still looked live (a raced `GOAWAY`)
+/// retry that redial once on the same RPC, matching gRPC transparent retry.
+/// Client-streaming and bidi do not: the caller already holds the send half.
+/// A healthy connection that is only waiting for a free stream
+/// (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not replaced. Redial is part of
+/// the RPC: it is cancelled if the [`Call`] is cancelled, and it fails with
+/// [`Code::DeadlineExceeded`] if the request deadline elapses while connecting.
 ///
 /// A connection with no outstanding RPCs is closed after
 /// [`ChannelConfig::max_connection_idle`] when that is set. Keepalive PINGs
@@ -587,13 +600,7 @@ impl Channel {
         cancel_rx: watch::Receiver<bool>,
         deadline: Option<tokio::time::Instant>,
         wait_for_ready: bool,
-    ) -> Result<
-        (
-            h2::client::SendRequest<Bytes>,
-            Option<crate::keepalive::Lease>,
-        ),
-        Status,
-    > {
+    ) -> Result<LiveConn, Status> {
         let inner = Arc::clone(&self.inner);
         let grabbed = prefer_deadline(
             first_of(inner.acquire(wait_for_ready), cancel_rx, deadline).await,
@@ -638,18 +645,42 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (send, _lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                run_unary(
-                    send,
-                    &channel.inner.authority,
-                    path,
-                    req,
-                    cancel_rx,
-                    wire,
-                    channel.user_agent.clone(),
-                    channel.inner.tls.is_some(),
-                )
-                .await
+                let (msg, md, timeout, compress) = req.into_parts();
+                // Encode before opening so an oversize message never occupies a
+                // stream slot, and a transparent retry does not re-serialize.
+                let frame = encode_msg(&msg, compress, wire.limits)?;
+                let https = channel.inner.tls.is_some();
+                let ua = channel.user_agent.clone();
+                let mut retried = false;
+                loop {
+                    let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                    let (slot, gen) = (live.slot, live.gen);
+                    match run_unary(
+                        live.send,
+                        &channel.inner.authority,
+                        path,
+                        &md,
+                        timeout,
+                        compress,
+                        frame.clone(),
+                        cancel_rx.clone(),
+                        wire,
+                        ua.clone(),
+                        https,
+                    )
+                    .await
+                    {
+                        Err(status)
+                            if !retried
+                                && status.is_transport()
+                                && channel.inner.endpoint.can_redial() =>
+                        {
+                            retried = true;
+                            channel.inner.discard(slot, gen).await;
+                        }
+                        result => return result,
+                    }
+                }
             }),
         )
     }
@@ -674,21 +705,43 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (send, lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                Ok(attach_lease(
-                    run_server_stream(
-                        send,
+                let (msg, md, timeout, compress) = req.into_parts();
+                // Encode before opening so an oversize message never occupies a
+                // stream slot, and a transparent retry does not re-serialize.
+                let frame = encode_msg(&msg, compress, wire.limits)?;
+                let https = channel.inner.tls.is_some();
+                let ua = channel.user_agent.clone();
+                let mut retried = false;
+                loop {
+                    let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                    let (slot, gen, lease) = (live.slot, live.gen, live.lease);
+                    match run_server_stream(
+                        live.send,
                         &channel.inner.authority,
                         path,
-                        req,
-                        cancel_rx,
+                        &md,
+                        timeout,
+                        compress,
+                        frame.clone(),
+                        cancel_rx.clone(),
                         wire,
-                        channel.user_agent.clone(),
-                        channel.inner.tls.is_some(),
+                        ua.clone(),
+                        https,
                     )
-                    .await?,
-                    lease,
-                ))
+                    .await
+                    {
+                        Ok(response) => return Ok(attach_lease(response, lease)),
+                        Err(status)
+                            if !retried
+                                && status.is_transport()
+                                && channel.inner.endpoint.can_redial() =>
+                        {
+                            retried = true;
+                            channel.inner.discard(slot, gen).await;
+                        }
+                        Err(status) => return Err(status),
+                    }
+                }
             }),
         )
     }
@@ -739,9 +792,9 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (send, _lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 run_client_stream(
-                    send,
+                    live.send,
                     &channel.inner.authority,
                     path,
                     req,
@@ -782,10 +835,10 @@ impl Channel {
                 channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (send, lease) = channel.grab(cancel_rx.clone(), deadline, wait).await?;
+                let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
                 Ok(attach_lease(
                     run_bidi(
-                        send,
+                        live.send,
                         &channel.inner.authority,
                         path,
                         req,
@@ -796,7 +849,7 @@ impl Channel {
                         channel.inner.tls.is_some(),
                     )
                     .await?,
-                    lease,
+                    live.lease,
                 ))
             }),
         );
@@ -940,17 +993,10 @@ impl ChannelInner {
     /// waiting on stream capacity is not treated as death: that wait happens
     /// without holding the slot lock. Handshake and wait-for-ready backoff
     /// also run without the lock, so a down peer cannot stall other RPCs on
-    /// the same slot.
-    async fn acquire(
-        self: &Arc<Self>,
-        wait_for_ready: bool,
-    ) -> Result<
-        (
-            h2::client::SendRequest<Bytes>,
-            Option<crate::keepalive::Lease>,
-        ),
-        Status,
-    > {
+    /// the same slot. A `GOAWAY` that races after `ready` is handled by
+    /// discarding that generation and retrying once on unary and
+    /// server-streaming.
+    async fn acquire(self: &Arc<Self>, wait_for_ready: bool) -> Result<LiveConn, Status> {
         let i = self.pick()?;
         let mut attempt = 0usize;
         loop {
@@ -961,7 +1007,12 @@ impl ChannelInner {
             };
             if let Some(handle) = handle {
                 if let Ok(ready) = handle.ready().await {
-                    return Ok((ready, lease));
+                    return Ok(LiveConn {
+                        send: ready,
+                        lease,
+                        slot: i,
+                        gen,
+                    });
                 }
             }
             drop(lease);
@@ -971,9 +1022,15 @@ impl ChannelInner {
                     if slot.gen == gen {
                         let send = store_dialed(&mut slot, dialed);
                         let lease = slot.busy.as_ref().map(crate::keepalive::Busy::start);
+                        let gen = slot.gen;
                         drop(slot);
                         spawn_idle_watch(Arc::clone(self), i);
-                        return Ok((send, lease));
+                        return Ok(LiveConn {
+                            send,
+                            lease,
+                            slot: i,
+                            gen,
+                        });
                     }
                     dialed.stop.send(true).ok();
                 }
@@ -988,6 +1045,27 @@ impl ChannelInner {
                 Err(status) => return Err(status),
             }
         }
+    }
+
+    /// Drop a dead generation so the next [`Self::acquire`] redials.
+    ///
+    /// A raced `GOAWAY` can land after `ready` succeeded. Without this, the
+    /// same dying sender would be handed out again. A reconnect that already
+    /// stored a newer `gen` is left alone.
+    async fn discard(&self, i: usize, gen: u64) {
+        let Ok(lock) = self.slot(i) else {
+            return;
+        };
+        let mut slot = lock.lock().await;
+        if slot.gen != gen {
+            return;
+        }
+        slot.send = None;
+        slot.busy = None;
+        if let Some(stop) = slot.stop.take() {
+            stop.send(true).ok();
+        }
+        slot.gen = slot.gen.wrapping_add(1);
     }
 }
 
@@ -1172,30 +1250,28 @@ fn attach_lease<T>(
     clippy::too_many_arguments,
     reason = "one transport handle plus request, cancel, limits, and scheme"
 )]
-async fn run_unary<Req, Resp>(
+async fn run_unary<Resp>(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
     path: &'static str,
-    req: Request<Req>,
+    md: &crate::metadata::Metadata,
+    timeout: Option<Duration>,
+    compress: bool,
+    frame: Bytes,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
 ) -> Result<Response<Resp>, Status>
 where
-    Req: Serialize,
     Resp: Parse + Default,
 {
-    let (msg, md, timeout, compress) = req.into_parts();
-    // Encode before opening the stream so an oversize message never reaches
-    // the wire and never occupies a stream slot.
-    let frame = encode_msg(&msg, compress, wire.limits)?;
     let deadline = deadline_from(timeout);
     let (resp_fut, mut send_stream) = open(
         send_req,
         authority,
         path,
-        &md,
+        md,
         timeout,
         compress,
         &user_agent,
@@ -1205,9 +1281,7 @@ where
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
     race(
         async {
-            let response = resp_fut
-                .await
-                .map_err(|e| Status::unavailable(e.to_string()))?;
+            let response = resp_fut.await.map_err(Status::from_h2)?;
             finish_unary::<Resp>(response, wire.limits).await
         },
         cancel_rx,
@@ -1221,30 +1295,28 @@ where
     clippy::too_many_arguments,
     reason = "one transport handle plus request, cancel, limits, and buffer"
 )]
-async fn run_server_stream<Req, Resp>(
+async fn run_server_stream<Resp>(
     send_req: h2::client::SendRequest<Bytes>,
     authority: &Authority,
     path: &'static str,
-    req: Request<Req>,
+    md: &crate::metadata::Metadata,
+    timeout: Option<Duration>,
+    compress: bool,
+    frame: Bytes,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
     user_agent: HeaderValue,
     https: bool,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
-    Req: Serialize,
     Resp: Parse + Default + Send + 'static,
 {
-    let (msg, md, timeout, compress) = req.into_parts();
-    let frame = encode_msg(&msg, compress, wire.limits)?;
-    // One deadline for the whole RPC: setup, and every read of the response
-    // stream that outlives it.
     let deadline = deadline_from(timeout);
     let (resp_fut, mut send_stream) = open(
         send_req,
         authority,
         path,
-        &md,
+        md,
         timeout,
         compress,
         &user_agent,
@@ -1254,9 +1326,7 @@ where
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
     race(
         async {
-            let response = resp_fut
-                .await
-                .map_err(|e| Status::unavailable(e.to_string()))?;
+            let response = resp_fut.await.map_err(Status::from_h2)?;
             finish_stream::<Resp>(response, wire.limits, deadline).await
         },
         cancel_rx,
@@ -1306,9 +1376,7 @@ where
     )));
     race(
         async {
-            let response = resp_fut
-                .await
-                .map_err(|e| Status::unavailable(e.to_string()))?;
+            let response = resp_fut.await.map_err(Status::from_h2)?;
             finish_unary::<Resp>(response, wire.limits).await
         },
         cancel_rx,
@@ -1358,9 +1426,7 @@ where
     )));
     race(
         async {
-            let response = resp_fut
-                .await
-                .map_err(|e| Status::unavailable(e.to_string()))?;
+            let response = resp_fut.await.map_err(Status::from_h2)?;
             finish_stream::<Resp>(response, wire.limits, deadline).await
         },
         cancel_rx,
@@ -1384,14 +1450,11 @@ async fn open(
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
-    let mut send_req = send_req
-        .ready()
-        .await
-        .map_err(|e| Status::unavailable(e.to_string()))?;
+    let mut send_req = send_req.ready().await.map_err(Status::from_h2)?;
     let http_req = grpc_request(authority, path, md, timeout, send_gzip, user_agent, https)?;
     send_req
         .send_request(http_req, false)
-        .map_err(|e| Status::unavailable(e.to_string()))
+        .map_err(Status::from_h2)
 }
 
 /// Race the RPC against its deadline and its cancel signal, resetting the

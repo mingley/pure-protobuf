@@ -351,8 +351,8 @@ async fn wait_capacity(send: &mut SendStream<Bytes>, n: usize) -> Result<(), Sta
     while send.capacity() < n {
         match std::future::poll_fn(|cx| send.poll_capacity(cx)).await {
             Some(Ok(_)) => {}
-            Some(Err(e)) => return Err(Status::internal(e.to_string())),
-            None => return Err(Status::internal("stream closed")),
+            Some(Err(e)) => return Err(Status::from_h2_send(e)),
+            None => return Err(Status::stream_closed()),
         }
     }
     Ok(())
@@ -371,12 +371,19 @@ pub(crate) async fn send_bytes(
     end: bool,
     send_buffer: usize,
 ) -> Result<(), Status> {
-    if frame.len() <= send_buffer && send.send_data(frame.clone(), end).is_ok() {
-        return Ok(());
+    if frame.len() <= send_buffer {
+        match send.send_data(frame.clone(), end) {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                let status = Status::from_h2_send(e);
+                if status.is_transport() {
+                    return Err(status);
+                }
+            }
+        }
     }
     wait_capacity(send, frame.len()).await?;
-    send.send_data(frame, end)
-        .map_err(|e| Status::internal(e.to_string()))
+    send.send_data(frame, end).map_err(Status::from_h2_send)
 }
 
 pub(crate) fn grpc_trailers(status: &Status) -> Result<HeaderMap, Status> {
