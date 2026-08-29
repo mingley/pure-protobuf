@@ -3172,6 +3172,115 @@ async fn a_unix_client_interceptor_can_set_wait_for_ready() {
     .await;
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy").wait_for_ready())
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.set_wait_for_ready(false);
+            Ok(())
+        });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_every_shape(&client, Code::Unavailable),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_tls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = GreeterClient::new(
+        Channel::connect_tls_lazy(addr, client_tls)
+            .expect("lazy")
+            .wait_for_ready(),
+    )
+    .intercept(|call: &mut Outgoing<'_>| {
+        call.set_wait_for_ready(false);
+        Ok(())
+    });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_every_shape(&client, Code::Unavailable),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_mtls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(
+        Channel::connect_tls_lazy(addr, client_tls)
+            .expect("lazy")
+            .wait_for_ready(),
+    )
+    .intercept(|call: &mut Outgoing<'_>| {
+        call.set_wait_for_ready(false);
+        Ok(())
+    });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_every_shape(&client, Code::Unavailable),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_unix_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
+    let (path, _guard) = unix_test_path();
+    let client = GreeterClient::new(
+        Channel::connect_unix_lazy(&path)
+            .expect("lazy")
+            .wait_for_ready(),
+    )
+    .intercept(|call: &mut Outgoing<'_>| {
+        call.set_wait_for_ready(false);
+        Ok(())
+    });
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_every_shape(&client, Code::Unavailable),
+    )
+    .await
+    .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
 fn interceptor_blocked() -> Status {
     let mut info = pbrs_grpc::pb::ErrorInfo::new();
     info.set_reason("BLOCKED");

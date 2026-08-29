@@ -126,7 +126,7 @@ See `docs/upb.md`. Short list:
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
   after `clear_*`.   Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
-  overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, and a waiting Call's deadline, including mTLS.
+  overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, a client interceptor `set_wait_for_ready(false)`, and a waiting Call's deadline, including mTLS.
   Official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall and hand-written Reverser `Channel`
   methods retry that interceptor fill on those dialers too.
