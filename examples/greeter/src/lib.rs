@@ -25,7 +25,7 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/hello.rs"));
 }
 
-use pbrs_grpc::health::service as health_service;
+use pbrs_grpc::health::{service as health_service, HealthReporter, ServingStatus};
 use pbrs_grpc::reflection::service as reflection_service;
 use pbrs_grpc::{Request, Response, Router, Status, Streaming};
 use proto::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest, FILE_DESCRIPTOR_SET};
@@ -35,6 +35,7 @@ use tokio::net::TcpListener;
 
 struct Live {
     addr: SocketAddr,
+    reporter: HealthReporter,
     _server: tokio::task::JoinHandle<()>,
 }
 
@@ -125,7 +126,11 @@ async fn serve() -> Result<Live, Status> {
             .await
             .ok();
     });
-    Ok(Live { addr, _server })
+    Ok(Live {
+        addr,
+        reporter,
+        _server,
+    })
 }
 
 async fn greeter(addr: SocketAddr) -> Result<GreeterClient, Status> {
@@ -157,6 +162,9 @@ async fn greet(client: &GreeterClient, name: &str) -> Result<String, Status> {
 /// Bind loopback, serve, call `SayHello`, return the reply text.
 pub async fn run() -> Result<String, Status> {
     let live = serve().await?;
+    if live.reporter.status(GreeterServer::<MyGreeter>::NAME) != Some(ServingStatus::Serving) {
+        return Err(Status::failed_precondition("greeter health not serving"));
+    }
     greet(&greeter(live.addr).await?, "world").await
 }
 
@@ -226,6 +234,10 @@ mod tests {
         use pbrs_grpc::health::{HealthCheckRequest, HealthClient, ServingStatus};
 
         let live = serve().await.unwrap();
+        assert_eq!(
+            live.reporter.status(GreeterServer::<MyGreeter>::NAME),
+            Some(ServingStatus::Serving)
+        );
         let _ready = greeter(live.addr).await.unwrap();
         let client = HealthClient::connect(live.addr).await.unwrap();
         let mut req = HealthCheckRequest::new();
