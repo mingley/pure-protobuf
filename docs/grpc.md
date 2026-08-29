@@ -270,8 +270,9 @@ and `-bin` names in first-insertion order, still skipping reserved names.
 `clear` drops every user entry; `merge` appends another map's user entries
 (repeats accumulate, reserved names are not copied). `retain` keeps the
 entries whose names pass a predicate (reserved names are always dropped).
-Reserved protocol keys (`grpc-*`, `content-type`, ...) are invisible on every
-read path.
+`iter` / `iter_bin` walk every ASCII or `-bin` entry the same way, still
+skipping reserved names. Reserved protocol keys (`grpc-*`, `content-type`,
+...) are invisible on every read path.
 
 Reading it costs nothing until you read it: `Metadata` wraps the received
 header map rather than copying every entry into owned strings.
@@ -635,6 +636,22 @@ Loopback without TCP: a filesystem socket. The protocol is the same h2c as
 `127.0.0.1`. TLS is TCP-only. `request.remote_addr()`,
 `request.local_addr()`, and `request.peer_identity()` are `None`; there is
 no `std::net::SocketAddr` for a Unix peer, and Unix is h2c.
+`Rpc::peer_cred` / `Request::peer_cred` is the connecting process's
+uid/gid/pid from `SO_PEERCRED` (Linux) or `LOCAL_PEERCRED` (macOS / *BSD).
+TCP, TLS, `Incoming`, and `serve_connection` leave it `None`, even when the
+byte stream is a Unix socket — those entry points do not probe `Io`.
+
+```rust
+fn require_local_user(rpc: &mut Rpc, expected_uid: u32) -> Result<(), Status> {
+    let Some(cred) = rpc.peer_cred() else {
+        return Err(Status::unauthenticated("unix credentials required"));
+    };
+    if cred.uid() != expected_uid {
+        return Err(Status::permission_denied("wrong user"));
+    }
+    Ok(())
+}
+```
 
 ```rust
 GreeterServer::new(MyGreeter).serve_unix("/tmp/greeter.sock").await?;
@@ -1042,7 +1059,9 @@ Generated handlers see the same values on `Request::authority` / `Request::schem
 `Rpc::local_addr` is the TCP interface that accepted the socket; Unix,
 `Incoming`, and `serve_connection` leave it `None`.
 `Rpc::peer_identity` is the mTLS client certificate chain when the handshake
-included one. Returning `Err(Status::with_error_details(...))` ships
+included one. `Rpc::peer_cred` is the Unix `SO_PEERCRED` uid/gid/pid after
+`serve_unix`; TCP, TLS, `Incoming`, and `serve_connection` leave it `None`.
+Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace

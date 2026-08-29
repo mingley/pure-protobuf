@@ -61,6 +61,9 @@ impl Service for Reverser {
                     if tls_id.is_some() || request.peer_identity().is_some() {
                         return Err(Status::internal("h2c has no TLS client certificate"));
                     }
+                    if request.peer_cred().is_some() {
+                        return Err(Status::internal("tcp has no unix credentials"));
+                    }
                     let name: String = request
                         .get_ref()
                         .name()
@@ -468,8 +471,13 @@ async fn tcp_rpcs_expose_local_and_remote_addr() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .intercept(move |rpc: &mut Rpc| {
-                let n = match (rpc.local_addr(), rpc.remote_addr(), rpc.peer_identity()) {
-                    (Some(local), Some(remote), None)
+                let n = match (
+                    rpc.local_addr(),
+                    rpc.remote_addr(),
+                    rpc.peer_identity(),
+                    rpc.peer_cred(),
+                ) {
+                    (Some(local), Some(remote), None, None)
                         if local == listen && remote.ip().is_loopback() =>
                     {
                         1
@@ -521,9 +529,15 @@ async fn a_generated_handler_sees_authority_scheme_and_parts() {
             if request.deadline().is_some() {
                 return Err(Status::internal("no timeout, so no deadline Instant"));
             }
+            if request.peer_cred().is_some() {
+                return Err(Status::internal("tcp has no unix credentials"));
+            }
             let (msg, parts) = request.into_message_and_parts();
             if parts.authority() != Some(want_auth.as_str()) || parts.scheme() != Some("http") {
                 return Err(Status::internal("parts dropped http identity"));
+            }
+            if parts.peer_cred().is_some() {
+                return Err(Status::internal("parts invented unix credentials"));
             }
             Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
@@ -2571,6 +2585,16 @@ async fn unix_socket_unary() {
                 if rpc.peer_identity().is_some() {
                     return Err(Status::internal("unix has no TLS client certificate"));
                 }
+                let Some(cred) = rpc.peer_cred() else {
+                    return Err(Status::internal("unix missing peer_cred"));
+                };
+                if cred.pid() != Some(std::process::id()) {
+                    return Err(Status::internal(format!(
+                        "unix pid {:?} want {}",
+                        cred.pid(),
+                        std::process::id()
+                    )));
+                }
                 if rpc.scheme() != Some("http") {
                     return Err(Status::internal(format!("unix scheme {:?}", rpc.scheme())));
                 }
@@ -2583,6 +2607,86 @@ async fn unix_socket_unary() {
     let channel = Channel::connect_unix(&path).await.expect("connect");
     let client = GreeterClient::new(channel);
     let reply = client
+        .say_hello(Request::new(req("uds")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "uds");
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_generated_handler_sees_unix_peer_cred() {
+    struct SeesUnix;
+
+    impl Greeter for SeesUnix {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            if request.remote_addr().is_some() || request.local_addr().is_some() {
+                return Err(Status::internal("unix has no std::net::SocketAddr"));
+            }
+            if request.peer_identity().is_some() {
+                return Err(Status::internal("unix has no TLS client certificate"));
+            }
+            if request.scheme() != Some("http") {
+                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+            }
+            if request.authority() != Some("localhost") {
+                return Err(Status::internal(format!(
+                    "authority {:?}",
+                    request.authority()
+                )));
+            }
+            let Some(cred) = request.peer_cred() else {
+                return Err(Status::internal("missing peer_cred"));
+            };
+            if cred.pid() != Some(std::process::id()) {
+                return Err(Status::internal(format!(
+                    "pid {:?} want {}",
+                    cred.pid(),
+                    std::process::id()
+                )));
+            }
+            let (msg, parts) = request.into_message_and_parts();
+            if parts.peer_cred() != Some(cred) {
+                return Err(Status::internal("parts dropped peer_cred"));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("sees-unix"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-unix"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-unix"))
+        }
+    }
+
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesUnix)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(unix_channel(&path).await)
         .say_hello(Request::new(req("uds")))
         .await
         .expect("rpc");
@@ -3045,6 +3149,9 @@ async fn from_io_authority_is_visible_to_interceptors() {
                 }
                 if rpc.peer_identity().is_some() {
                     return Err(Status::internal("from_io must not invent a TLS identity"));
+                }
+                if rpc.peer_cred().is_some() {
+                    return Err(Status::internal("from_io must not invent unix credentials"));
                 }
                 if rpc.scheme() != Some("http") {
                     return Err(Status::internal(format!(

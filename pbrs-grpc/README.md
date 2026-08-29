@@ -48,14 +48,14 @@ let reply = client.say_hello(Request::new(req)).await?;
 
 All four call shapes, `Router` for several services, TLS (rustls + Graviola,
 no C compiler) and mTLS, `grpc.health.v1`, `grpc.reflection.v1`, interceptors
-(server `Rpc`/`Request` metadata/timeout/deadline/`:authority`/`:scheme`/`local_addr`/`peer_identity`/extensions, client `Outgoing` with path, `:authority`, `:scheme`, `user-agent`, deadline, wait-for-ready, compression, caller and stacked-interceptor extensions),
+(server `Rpc`/`Request` metadata/timeout/deadline/`:authority`/`:scheme`/`local_addr`/`peer_identity`/`peer_cred`/extensions, client `Outgoing` with path, `:authority`, `:scheme`, `user-agent`, deadline, wait-for-ready, compression, caller and stacked-interceptor extensions),
 typed `google.rpc.Status` / `ErrorDetails` (nested `BadRequest` / `RetryInfo` / `QuotaFailure` payloads) on `grpc-status-details-bin`,
 HTTP/2 PING keepalive, TCP `SO_KEEPALIVE`, max connection age (jittered ±10%) and idle, automatic
 redial of a dead connection, lazy connect with wait-for-ready, in-process
 `Channel::from_io` / `Server::serve_connection`, Unix domain
 sockets (h2c; `serve_unix_unlink` after a crash, without stealing a live listener), graceful drain with `GOAWAY`, per-message gzip, deadlines,
 cancellation (dropping a `Call` resets the stream), ASCII and `-bin` metadata, OK-path custom trailers,
-mTLS client certificates on `Rpc::peer_identity`. Outbound
+mTLS client certificates on `Rpc::peer_identity`, Unix `SO_PEERCRED` on `Rpc::peer_cred`. Outbound
 RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`. `Streaming` implements
 `futures_core::Stream`.
 

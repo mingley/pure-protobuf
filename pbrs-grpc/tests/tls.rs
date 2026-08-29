@@ -128,6 +128,10 @@ async fn tls_requests_use_the_https_scheme() {
     let handle = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .intercept(move |rpc: &mut pbrs_grpc::Rpc| {
+                if rpc.peer_cred().is_some() {
+                    flag.store(7, Ordering::SeqCst);
+                    return Ok(());
+                }
                 let n = match (rpc.scheme(), rpc.local_addr(), rpc.peer_identity()) {
                     (Some("https"), Some(_), None) => 2,
                     (Some("https"), Some(_), Some(_)) => 5,
@@ -215,6 +219,9 @@ async fn tls_handlers_see_https_scheme_and_authority() {
             }
             if request.peer_identity().is_some() {
                 return Err(Status::internal("anonymous TLS has no client cert"));
+            }
+            if request.peer_cred().is_some() {
+                return Err(Status::internal("tls has no unix credentials"));
             }
             Ok(Response::new(common::reply(common::name_of_request(
                 request.get_ref(),

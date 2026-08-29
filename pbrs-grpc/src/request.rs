@@ -1,6 +1,7 @@
 //! RPC envelopes: [`Request`], [`Response`], and the cancellable [`Call`].
 
 use crate::metadata::Metadata;
+use crate::server::PeerCred;
 use crate::status::Status;
 use crate::tls::PeerIdentity;
 use std::fmt;
@@ -38,6 +39,7 @@ pub struct Request<T> {
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
+    peer_cred: Option<PeerCred>,
     authority: Option<String>,
     scheme: Option<String>,
     deadline: Option<tokio::time::Instant>,
@@ -58,6 +60,7 @@ impl<T> Request<T> {
             remote_addr: None,
             local_addr: None,
             peer_identity: None,
+            peer_cred: None,
             authority: None,
             scheme: None,
             deadline: None,
@@ -97,6 +100,7 @@ impl<T> Request<T> {
                 remote_addr: self.remote_addr,
                 local_addr: self.local_addr,
                 peer_identity: self.peer_identity,
+                peer_cred: self.peer_cred,
                 authority: self.authority,
                 scheme: self.scheme,
                 deadline: self.deadline,
@@ -121,6 +125,7 @@ impl<T> Request<T> {
             remote_addr: parts.remote_addr,
             local_addr: parts.local_addr,
             peer_identity: parts.peer_identity,
+            peer_cred: parts.peer_cred,
             authority: parts.authority,
             scheme: parts.scheme,
             deadline: parts.deadline,
@@ -269,6 +274,17 @@ impl<T> Request<T> {
         self.peer_identity.as_ref()
     }
 
+    /// Unix-socket peer credentials (`SO_PEERCRED`), when the accept loop
+    /// filled them.
+    ///
+    /// Same value as [`crate::Rpc::peer_cred`]. Same-process tests see this
+    /// process's uid/gid/`pid`. TCP, TLS, [`crate::Incoming`], and
+    /// [`crate::Server::serve_connection`] yield `None`.
+    #[must_use]
+    pub fn peer_cred(&self) -> Option<PeerCred> {
+        self.peer_cred
+    }
+
     /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051`.
     ///
     /// Same value as [`crate::Rpc::authority`]. Outbound requests you build
@@ -310,6 +326,7 @@ impl<T> Request<T> {
             remote_addr,
             local_addr,
             peer_identity,
+            peer_cred: None,
             authority: None,
             scheme: None,
             deadline: None,
@@ -326,6 +343,10 @@ impl<T> Request<T> {
 
     pub(crate) fn set_deadline(&mut self, at: tokio::time::Instant) {
         self.deadline = Some(at);
+    }
+
+    pub(crate) fn set_peer_cred(&mut self, cred: Option<PeerCred>) {
+        self.peer_cred = cred;
     }
 
     pub(crate) fn set_compressed(&mut self, compressed: bool) {
@@ -536,6 +557,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)
+            .field("peer_cred", &self.peer_cred)
             .field("authority", &self.authority)
             .field("scheme", &self.scheme)
             .field("wait_for_ready", &self.wait_for_ready)
@@ -554,6 +576,7 @@ pub struct Parts {
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
+    peer_cred: Option<PeerCred>,
     authority: Option<String>,
     scheme: Option<String>,
     deadline: Option<tokio::time::Instant>,
@@ -626,6 +649,13 @@ impl Parts {
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.peer_identity.as_ref()
+    }
+
+    /// Unix-socket peer credentials, when the accept loop filled them.
+    /// See [`Request::peer_cred`].
+    #[must_use]
+    pub fn peer_cred(&self) -> Option<PeerCred> {
+        self.peer_cred
     }
 
     /// HTTP/2 `:authority` the peer sent. See [`Request::authority`].

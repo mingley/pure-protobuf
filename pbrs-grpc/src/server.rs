@@ -139,8 +139,61 @@ pub trait Incoming: Send {
     /// transport has no TCP peer (Unix, in-process). [`Rpc::local_addr`] and
     /// [`Rpc::peer_identity`] are `None` on this path; only the TCP accept
     /// loop fills the local address, and only an mTLS handshake fills the
-    /// client certificate.
+    /// client certificate. Unix credentials ([`Rpc::peer_cred`]) are filled
+    /// only by the Unix accept loop.
     fn accept(&mut self) -> impl Future<Output = IncomingAccept<Self::Io>> + Send;
+}
+
+/// Unix-domain peer credentials from `SO_PEERCRED` (Linux) or
+/// `LOCAL_PEERCRED` (macOS / *BSD).
+///
+/// Present on [`Rpc::peer_cred`] / [`Request::peer_cred`] after
+/// [`Server::serve_unix`] / [`Server::serve_unix_until_shutdown`] (and the
+/// `*_unlink` / `serve_unix_listener` forms). TCP, TLS, [`Incoming`], and
+/// [`Server::serve_connection`] yield `None` even when the byte stream is a
+/// Unix socket — those entry points do not probe `Io`.
+///
+/// The kernel does not interpret uid/gid against `/etc/passwd`; an
+/// interceptor that authorizes by user does that itself. `pid` is `None` on
+/// platforms that only report uid/gid.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub struct PeerCred {
+    uid: u32,
+    gid: u32,
+    pid: Option<u32>,
+}
+
+impl PeerCred {
+    /// Effective user id of the connecting process.
+    #[must_use]
+    pub const fn uid(self) -> u32 {
+        self.uid
+    }
+
+    /// Effective group id of the connecting process.
+    #[must_use]
+    pub const fn gid(self) -> u32 {
+        self.gid
+    }
+
+    /// Process id of the connecting process, when the platform reports one.
+    ///
+    /// Linux, macOS, and *BSD typically set this. Treat `None` as "unknown",
+    /// not "pid 0".
+    #[must_use]
+    pub const fn pid(self) -> Option<u32> {
+        self.pid
+    }
+}
+
+#[cfg(unix)]
+fn peer_cred_of(io: &UnixStream) -> Option<PeerCred> {
+    let cred = io.peer_cred().ok()?;
+    Some(PeerCred {
+        uid: cred.uid(),
+        gid: cred.gid(),
+        pid: cred.pid().and_then(|pid| u32::try_from(pid).ok()),
+    })
 }
 
 /// One inbound RPC, before its call shape has been chosen.
@@ -160,6 +213,7 @@ pub struct Rpc {
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
     peer_identity: Option<PeerIdentity>,
+    peer_cred: Option<PeerCred>,
     transport_scheme: Option<&'static str>,
     extensions: http::Extensions,
     metadata: Metadata,
@@ -174,6 +228,7 @@ impl std::fmt::Debug for Rpc {
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)
+            .field("peer_cred", &self.peer_cred)
             .field("scheme", &self.scheme())
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
@@ -248,6 +303,16 @@ impl Rpc {
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.peer_identity.as_ref()
+    }
+
+    /// Unix-socket peer credentials (`SO_PEERCRED`), when the accept loop
+    /// filled them.
+    ///
+    /// Same-process tests see this process's uid/gid/`pid`. TCP, TLS,
+    /// [`Incoming`], and [`Server::serve_connection`] yield `None`.
+    #[must_use]
+    pub fn peer_cred(&self) -> Option<PeerCred> {
+        self.peer_cred
     }
 
     /// Request metadata the handler will see.
@@ -532,6 +597,7 @@ impl Rpc {
             remote_addr,
             local_addr,
             peer_identity,
+            peer_cred,
             transport_scheme: _,
             extensions,
             metadata,
@@ -554,6 +620,7 @@ impl Rpc {
             .with_extensions(extensions)
             .with_http(authority, scheme);
             req.set_compressed(framed.compressed);
+            req.set_peer_cred(peer_cred);
             if let Some(d) = timeout {
                 req.set_timeout(d);
             }
@@ -596,6 +663,7 @@ impl Rpc {
             remote_addr,
             local_addr,
             peer_identity,
+            peer_cred,
             transport_scheme: _,
             extensions,
             metadata,
@@ -613,6 +681,7 @@ impl Rpc {
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
                 .with_extensions(extensions)
                 .with_http(authority, scheme);
+        req.set_peer_cred(peer_cred);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -1034,7 +1103,8 @@ impl<S: Service> Server<S> {
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
     /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
-    /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`],
+    /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
+    /// [`Rpc::peer_cred`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:
@@ -1120,6 +1190,7 @@ impl<S: Service> Server<S> {
     /// `path` must not already be bound. This does not unlink a leftover
     /// socket file; use [`Self::serve_unix_unlink`] after a crash. TLS over a
     /// Unix socket is not supported; use [`Self::serve_tls`] on TCP.
+    /// Each RPC carries [`Rpc::peer_cred`] from `SO_PEERCRED` / `LOCAL_PEERCRED`.
     /// To bind and then drain on a signal, use [`Self::serve_unix_until_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
@@ -1218,8 +1289,8 @@ impl<S: Service> Server<S> {
     /// Serve a single already-accepted byte stream until it closes.
     ///
     /// No accept loop, no TLS, no TCP options. Pair with [`crate::Channel::from_io`].
-    /// [`Rpc::remote_addr`], [`Rpc::local_addr`], and [`Rpc::peer_identity`]
-    /// are `None`.
+    /// [`Rpc::remote_addr`], [`Rpc::local_addr`], [`Rpc::peer_identity`],
+    /// and [`Rpc::peer_cred`] are `None`.
     ///
     /// ```no_run
     /// # async fn run(
@@ -1933,8 +2004,9 @@ async fn accept_unix_loop<D: Dispatch>(
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
+                let cred = peer_cred_of(&io);
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, ConnPeer::unix(), config, goaway, rpcs).await);
+                    drop(serve_io(dispatch, io, ConnPeer::unix(cred), config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -2055,6 +2127,7 @@ struct ConnPeer {
     remote: Option<SocketAddr>,
     local: Option<SocketAddr>,
     identity: Option<PeerIdentity>,
+    cred: Option<PeerCred>,
     /// Transport `:scheme` when the accept loop knows it. `None` keeps the
     /// peer's `:scheme` ([`Incoming`] / [`Server::serve_connection`]).
     scheme: Option<&'static str>,
@@ -2066,6 +2139,7 @@ impl ConnPeer {
             remote: Some(remote),
             local,
             identity: None,
+            cred: None,
             scheme: Some("http"),
         }
     }
@@ -2075,15 +2149,17 @@ impl ConnPeer {
             remote: Some(remote),
             local,
             identity,
+            cred: None,
             scheme: Some("https"),
         }
     }
 
-    fn unix() -> Self {
+    fn unix(cred: Option<PeerCred>) -> Self {
         Self {
             remote: None,
             local: None,
             identity: None,
+            cred,
             scheme: Some("http"),
         }
     }
@@ -2093,6 +2169,7 @@ impl ConnPeer {
             remote,
             local: None,
             identity: None,
+            cred: None,
             scheme: None,
         }
     }
@@ -2112,6 +2189,7 @@ fn incoming_rpc(
         remote_addr: peer.remote,
         local_addr: peer.local,
         peer_identity: peer.identity,
+        peer_cred: peer.cred,
         transport_scheme: peer.scheme,
         extensions: http::Extensions::new(),
         metadata,
