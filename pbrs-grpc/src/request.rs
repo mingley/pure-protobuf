@@ -498,7 +498,8 @@ impl<T> Request<T> {
     /// Same value as [`crate::Rpc::path`] on an inbound server request.
     /// `None` on a request you built to send: the channel stamps the path
     /// on the wire from the generated method, not from this envelope. Bind it
-    /// before [`Self::metadata_mut`]: `let path = request.path();`.
+    /// before [`Self::metadata_mut`]: `let path = request.path();`. Stamped on
+    /// every call shape.
     #[must_use]
     pub fn path(&self) -> Option<&str> {
         self.path.as_deref()
@@ -527,7 +528,7 @@ impl<T> Request<T> {
     /// Same value as [`crate::Rpc::limits`] on an inbound server request.
     /// `None` on a request you built to send: the channel's
     /// [`crate::Channel::message_limits`] applies at send time and is not
-    /// stored here.
+    /// stored here. Stamped on every call shape.
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
         self.limits
@@ -793,7 +794,8 @@ impl<'a> Outgoing<'a> {
         self.compresses_outbound
     }
 
-    /// The full gRPC path, `/<package>.<Service>/<Method>`.
+    /// The full gRPC path, `/<package>.<Service>/<Method>`. Visible on every
+    /// call shape.
     #[must_use]
     pub fn path(&self) -> &'static str {
         self.path

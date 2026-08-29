@@ -282,7 +282,8 @@ impl Rpc {
     /// Full request path, e.g. `/helloworld.Greeter/SayHello`.
     ///
     /// Generated handlers see the same value on [`Request::path`]. Bind it
-    /// before [`Self::metadata_mut`]: `let path = rpc.path();`.
+    /// before [`Self::metadata_mut`]: `let path = rpc.path();`. Visible on
+    /// every call shape.
     #[must_use]
     pub fn path(&self) -> &str {
         self.request.uri().path()

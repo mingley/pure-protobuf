@@ -985,11 +985,7 @@ async fn a_client_interceptor_sees_the_authority() {
         }
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("authority");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -1012,11 +1008,8 @@ async fn a_server_interceptor_sees_the_authority() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("authority");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -1031,15 +1024,7 @@ async fn a_client_interceptor_cannot_insert_reserved_metadata() {
             .insert("grpc-previous-rpc-attempts", "1")?;
         Ok(())
     });
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("reserved");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    assert!(
-        err.message().contains("reserved"),
-        "expected reserved-key status, got {err}"
-    );
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
     task.abort();
 }
 
@@ -1053,11 +1038,7 @@ async fn a_client_interceptor_cannot_insert_hop_by_hop_headers() {
         call.metadata_mut().insert("connection", "close")?;
         Ok(())
     });
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("hop-by-hop");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
     task.abort();
 }
 
@@ -1134,19 +1115,25 @@ async fn a_client_interceptor_sees_the_method_path() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .intercept(|rpc: &mut Rpc| {
-                if rpc.metadata().get("x-path") != Some("/helloworld.Greeter/SayHello") {
-                    return Err(Status::invalid_argument("missing stamped path"));
-                }
-                if rpc.metadata().get("x-service") != Some("helloworld.Greeter") {
+                if rpc.metadata().get("x-path") != Some(rpc.path()) {
                     return Err(Status::invalid_argument(format!(
-                        "service {:?}",
-                        rpc.metadata().get("x-service")
+                        "x-path {:?} path {}",
+                        rpc.metadata().get("x-path"),
+                        rpc.path()
                     )));
                 }
-                if rpc.metadata().get("x-method") != Some("SayHello") {
+                if rpc.metadata().get("x-service") != Some(rpc.service()) {
                     return Err(Status::invalid_argument(format!(
-                        "method {:?}",
-                        rpc.metadata().get("x-method")
+                        "x-service {:?} service {}",
+                        rpc.metadata().get("x-service"),
+                        rpc.service()
+                    )));
+                }
+                if rpc.metadata().get("x-method") != Some(rpc.method()) {
+                    return Err(Status::invalid_argument(format!(
+                        "x-method {:?} method {}",
+                        rpc.metadata().get("x-method"),
+                        rpc.method()
                     )));
                 }
                 Ok(())
@@ -1165,11 +1152,7 @@ async fn a_client_interceptor_sees_the_method_path() {
         call.metadata_mut().set("x-method", method)?;
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("stamped");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
 
     task.abort();
 }
@@ -1376,6 +1359,19 @@ async fn a_client_interceptor_sees_channel_overlays_after_clear() {
         .await
         .expect_err("fail-fast after clearing wait-for-ready");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let (tx, call) = client.client_hello(Request::new(()));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
 }
 
 #[tokio::test]
@@ -1471,11 +1467,7 @@ async fn a_client_interceptor_sees_the_h2c_scheme() {
         call.metadata_mut().set("x-scheme", scheme)?;
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -1511,11 +1503,7 @@ async fn a_client_interceptor_sees_the_user_agent() {
         call.metadata_mut().set("x-ua", ua)?;
         Ok(())
     });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -1536,11 +1524,7 @@ async fn a_client_interceptor_sees_message_limits() {
                 }
                 Ok(())
             });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -1575,11 +1559,7 @@ async fn client_interceptors_stack_and_share_extensions() {
             call.metadata_mut().insert("x-trace", trace.0)?;
             Ok(())
         });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("stacked");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -1970,6 +1950,23 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
 
 #[tokio::test]
 async fn interceptors_and_handlers_see_message_limits() {
+    fn take_limits<T>(request: Request<T>) -> Result<T, Status> {
+        let want = MessageLimits::new()
+            .with_max_decoding(16)
+            .with_max_encoding(32);
+        if request.limits() != Some(want) {
+            return Err(Status::internal(format!("limits {:?}", request.limits())));
+        }
+        let (msg, parts) = request.into_message_and_parts();
+        if parts.limits() != Some(want) {
+            return Err(Status::internal(format!(
+                "parts limits {:?}",
+                parts.limits()
+            )));
+        }
+        Ok(msg)
+    }
+
     struct SeesLimits;
 
     impl Greeter for SeesLimits {
@@ -1977,41 +1974,32 @@ async fn interceptors_and_handlers_see_message_limits() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            let want = MessageLimits::new()
-                .with_max_decoding(16)
-                .with_max_encoding(32);
-            if request.limits() != Some(want) {
-                return Err(Status::internal(format!("limits {:?}", request.limits())));
-            }
-            let (msg, parts) = request.into_message_and_parts();
-            if parts.limits() != Some(want) {
-                return Err(Status::internal(format!(
-                    "parts limits {:?}",
-                    parts.limits()
-                )));
-            }
+            let msg = take_limits(request)?;
             Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
         async fn client_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("sees-limits"))
+            let _ = take_limits(request)?;
+            Ok(Response::new(common::reply("ok")))
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-limits"))
+            let _ = take_limits(request)?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-limits"))
+            let _ = take_limits(request)?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
     }
 
@@ -2033,11 +2021,22 @@ async fn interceptors_and_handlers_see_message_limits() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
+    let client = GreeterClient::new(channel(addr).await);
+    let reply = client
         .say_hello(Request::new(req("ada")))
         .await
-        .expect("rpc");
+        .expect("unary");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    let _ = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    let _ = call.await.expect("client-stream");
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let _ = call.await.expect("bidi");
     assert!(Request::new(req("ada")).limits().is_none());
     task.abort();
 }
@@ -2061,6 +2060,31 @@ async fn interceptors_and_handlers_see_the_method_path() {
         Ok(())
     }
 
+    fn take_path<T>(
+        request: Request<T>,
+        want_path: &'static str,
+        want_method: &'static str,
+    ) -> Result<T, Status> {
+        check_path(&request, want_path, want_method)?;
+        let (msg, parts) = request.into_message_and_parts();
+        if parts.path() != Some(want_path) {
+            return Err(Status::internal(format!("parts path {:?}", parts.path())));
+        }
+        if parts.service() != Some("helloworld.Greeter") {
+            return Err(Status::internal(format!(
+                "parts service {:?}",
+                parts.service()
+            )));
+        }
+        if parts.method() != Some(want_method) {
+            return Err(Status::internal(format!(
+                "parts method {:?}",
+                parts.method()
+            )));
+        }
+        Ok(msg)
+    }
+
     struct SeesPath;
 
     impl Greeter for SeesPath {
@@ -2068,23 +2092,7 @@ async fn interceptors_and_handlers_see_the_method_path() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            check_path(&request, "/helloworld.Greeter/SayHello", "SayHello")?;
-            let (msg, parts) = request.into_message_and_parts();
-            if parts.path() != Some("/helloworld.Greeter/SayHello") {
-                return Err(Status::internal(format!("parts path {:?}", parts.path())));
-            }
-            if parts.service() != Some("helloworld.Greeter") {
-                return Err(Status::internal(format!(
-                    "parts service {:?}",
-                    parts.service()
-                )));
-            }
-            if parts.method() != Some("SayHello") {
-                return Err(Status::internal(format!(
-                    "parts method {:?}",
-                    parts.method()
-                )));
-            }
+            let msg = take_path(request, "/helloworld.Greeter/SayHello", "SayHello")?;
             Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
@@ -2092,7 +2100,7 @@ async fn interceptors_and_handlers_see_the_method_path() {
             &self,
             request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            check_path(&request, "/helloworld.Greeter/ClientHello", "ClientHello")?;
+            let _ = take_path(request, "/helloworld.Greeter/ClientHello", "ClientHello")?;
             let mut reply = HelloReply::new();
             reply.set_message("path");
             Ok(Response::new(reply))
@@ -2100,16 +2108,18 @@ async fn interceptors_and_handlers_see_the_method_path() {
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-path"))
+            let _ = take_path(request, "/helloworld.Greeter/ServerHello", "ServerHello")?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-path"))
+            let _ = take_path(request, "/helloworld.Greeter/StreamHello", "StreamHello")?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
     }
 
@@ -2139,10 +2149,17 @@ async fn interceptors_and_handlers_see_the_method_path() {
         .await
         .expect("unary");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    let _ = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
     let (tx, call) = client.client_hello(Request::new(()));
     tx.close();
     let reply = call.await.expect("client-stream");
     assert_eq!(name_of(reply.get_ref()), "path");
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let _ = call.await.expect("bidi");
     assert!(Request::new(req("ada")).path().is_none());
     assert!(Request::new(req("ada")).service().is_none());
     assert!(Request::new(req("ada")).method().is_none());
@@ -2300,16 +2317,18 @@ async fn interceptors_and_handlers_see_the_server_timeout_overlay() {
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-overlay"))
+            check_overlay(&request)?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-overlay"))
+            check_overlay(&request)?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
     }
 
@@ -2367,6 +2386,14 @@ async fn interceptors_and_handlers_see_the_server_timeout_overlay() {
     tx.close();
     let reply = call.await.expect("client-stream");
     assert_eq!(name_of(reply.get_ref()), "overlay");
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(30));
+    let _ = client.server_hello(request).await.expect("server-stream");
+    let mut stream_req = Request::new(());
+    stream_req.set_timeout(Duration::from_secs(30));
+    let (tx, call) = client.stream_hello(stream_req);
+    tx.close();
+    let _ = call.await.expect("bidi");
     assert!(Request::new(req("ada")).rpc_timeout().is_none());
     task.abort();
 }
@@ -4590,6 +4617,27 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
     assert!(inbound.message().await.expect("end").is_none());
+}
+
+async fn assert_err_on_every_shape(client: &GreeterClient, want: Code) {
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), want, "{err}");
+    let err = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), want, "{err}");
+    let (tx, call) = client.client_hello(Request::new(()));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
 }
 
 async fn wait_half_close_drained<T: std::fmt::Debug>(call: &mut Call<T>, drained: &AtomicUsize) {
