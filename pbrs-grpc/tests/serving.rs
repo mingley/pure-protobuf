@@ -1505,12 +1505,9 @@ async fn max_connection_idle_goaway_then_the_channel_redials() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .config(
-                ServerConfig::new()
-                    .max_connection_idle(Duration::from_millis(80))
-                    .max_connection_age_grace(Duration::from_secs(2))
-                    .keep_alive_interval(Duration::from_millis(20)),
-            )
+            .config(ServerConfig::new().max_connection_age_grace(Duration::from_secs(2)))
+            .max_connection_idle(Duration::from_millis(80))
+            .keep_alive_interval(Duration::from_millis(20))
             .serve_listener(listener)
             .await
             .ok();
@@ -2093,7 +2090,7 @@ async fn tcp_keepalive_still_serves_a_unary() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .config(ServerConfig::new().tcp_keepalive(Duration::from_secs(15)))
+            .tcp_keepalive(Duration::from_secs(15))
             .serve_listener(listener)
             .await
             .ok();

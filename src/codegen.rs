@@ -4041,6 +4041,42 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// HTTP/2 PING keepalive. See [`{G}::ServerConfig::keep_alive_interval`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn keep_alive_interval(mut self, interval: ::std::time::Duration) -> Self {{ self.config = self.config.keep_alive_interval(interval); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// TCP `SO_KEEPALIVE`. See [`{G}::ServerConfig::tcp_keepalive`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn tcp_keepalive(mut self, time: ::std::time::Duration) -> Self {{ self.config = self.config.tcp_keepalive(time); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Send GOAWAY this long after accept. See [`{G}::ServerConfig::max_connection_age`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_connection_age(mut self, age: ::std::time::Duration) -> Self {{ self.config = self.config.max_connection_age(age); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Send GOAWAY after this long with no outstanding RPCs. See [`{G}::ServerConfig::max_connection_idle`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_connection_idle(mut self, idle: ::std::time::Duration) -> Self {{ self.config = self.config.max_connection_idle(idle); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, or reject."
     );
     let _ = writeln!(src, "    #[must_use]");

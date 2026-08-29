@@ -346,6 +346,10 @@ async fn generated_servers_accept_configuration() {
             .max_concurrent_rpcs(32)
             .max_concurrent_connections(8)
             .timeout(Duration::from_secs(5))
+            .keep_alive_interval(Duration::from_secs(30))
+            .tcp_keepalive(Duration::from_secs(30))
+            .max_connection_age(Duration::from_secs(1800))
+            .max_connection_idle(Duration::from_secs(300))
             .serve_listener(listener)
             .await
             .ok();

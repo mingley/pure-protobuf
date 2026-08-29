@@ -838,6 +838,35 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].
+    #[must_use]
+    pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
+        self.config = self.config.keep_alive_interval(interval);
+        self
+    }
+
+    /// TCP `SO_KEEPALIVE`. See [`ServerConfig::tcp_keepalive`].
+    #[must_use]
+    pub fn tcp_keepalive(mut self, time: Duration) -> Self {
+        self.config = self.config.tcp_keepalive(time);
+        self
+    }
+
+    /// Send GOAWAY this long after accept. See [`ServerConfig::max_connection_age`].
+    #[must_use]
+    pub fn max_connection_age(mut self, age: Duration) -> Self {
+        self.config = self.config.max_connection_age(age);
+        self
+    }
+
+    /// Send GOAWAY after this long with no outstanding RPCs. See
+    /// [`ServerConfig::max_connection_idle`].
+    #[must_use]
+    pub fn max_connection_idle(mut self, idle: Duration) -> Self {
+        self.config = self.config.max_connection_idle(idle);
+        self
+    }
+
     /// Run `interceptor` before this service sees any RPC.
     ///
     /// Closures implement [`crate::Interceptor`], so
@@ -1135,6 +1164,35 @@ impl Router {
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);
+        self
+    }
+
+    /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].
+    #[must_use]
+    pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
+        self.config = self.config.keep_alive_interval(interval);
+        self
+    }
+
+    /// TCP `SO_KEEPALIVE`. See [`ServerConfig::tcp_keepalive`].
+    #[must_use]
+    pub fn tcp_keepalive(mut self, time: Duration) -> Self {
+        self.config = self.config.tcp_keepalive(time);
+        self
+    }
+
+    /// Send GOAWAY this long after accept. See [`ServerConfig::max_connection_age`].
+    #[must_use]
+    pub fn max_connection_age(mut self, age: Duration) -> Self {
+        self.config = self.config.max_connection_age(age);
+        self
+    }
+
+    /// Send GOAWAY after this long with no outstanding RPCs. See
+    /// [`ServerConfig::max_connection_idle`].
+    #[must_use]
+    pub fn max_connection_idle(mut self, idle: Duration) -> Self {
+        self.config = self.config.max_connection_idle(idle);
         self
     }
 

@@ -518,11 +518,12 @@ Unix sockets and TLS. Turn it on when a NAT or load balancer will drop idle
 connections, or when you want a dead peer noticed before the next RPC:
 
 ```rust
+GreeterServer::new(MyGreeter).keep_alive_interval(Duration::from_secs(30))
 ChannelConfig::new().keep_alive_interval(Duration::from_secs(30))
 ```
 
-The same setter exists on `ServerConfig`. A PING that is not acknowledged
-within 20 s (configurable via `keep_alive_timeout`) drops the connection. The
+A PING that is not acknowledged within 20 s (configurable via
+`keep_alive_timeout`) drops the connection. The
 next RPC redials that slot; if the peer is still gone, the call fails with
 `UNAVAILABLE` (or `DEADLINE_EXCEEDED` if the request deadline elapses while
 connecting) instead of hanging on a dead socket. PINGs do not reset
@@ -534,7 +535,7 @@ default. Only TCP is affected; Unix sockets and `Channel::from_io` streams
 are not:
 
 ```rust
-ServerConfig::new().tcp_keepalive(Duration::from_secs(30))
+GreeterServer::new(MyGreeter).tcp_keepalive(Duration::from_secs(30))
 ChannelConfig::new().tcp_keepalive(Duration::from_secs(30))
 ```
 
@@ -666,14 +667,16 @@ peer that only answers PINGs still looks idle. A long-running stream is not
 idle.
 
 ```rust
-ServerConfig::new()
+GreeterServer::new(MyGreeter)
     .max_connection_age(Duration::from_secs(30 * 60))
     .max_connection_idle(Duration::from_secs(5 * 60))
-    .max_connection_age_grace(Duration::from_secs(10))
 
 ChannelConfig::new()
     .max_connection_idle(Duration::from_secs(5 * 60))
 ```
+
+`max_connection_age_grace` (default 10 s) still lives on `ServerConfig`
+because it is rarely set without the other two.
 
 On the server, when either fires the kernel sends `GOAWAY`, waits the grace
 period (default 10 s) for in-flight RPCs, then drops the socket. Age is
