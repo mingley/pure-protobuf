@@ -135,9 +135,9 @@ impl<S: Service> ServiceExt for S {}
 ///
 /// Attach one with [`crate::Channel::intercept`] or the generated
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
-/// runs first. The interceptor sees the method path and `:authority`, and can
-/// set a deadline, wait-for-ready, compression, or typed extensions — not
-/// only metadata.
+/// runs first. The interceptor sees the method path, `:authority`, and
+/// `:scheme`, and can set a deadline, wait-for-ready, compression, or typed
+/// extensions — not only metadata.
 ///
 /// Typed context the caller put on [`crate::Request::extensions_mut`] is
 /// visible here, so an interceptor can stamp metadata from a trace id or
@@ -156,6 +156,8 @@ impl<S: Service> ServiceExt for S {}
 ///     call.metadata_mut().insert("x-rpc", path)?;
 ///     let authority = call.authority();
 ///     call.metadata_mut().insert("x-authority", authority)?;
+///     let scheme = call.scheme();
+///     call.metadata_mut().set("x-scheme", scheme)?;
 ///     if let Some(tenant) = call.extensions().get::<Tenant>().copied() {
 ///         call.metadata_mut().insert("x-tenant", tenant.0)?;
 ///     }

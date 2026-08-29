@@ -341,10 +341,12 @@ impl<T> Request<T> {
         &'a mut self,
         path: &'static str,
         authority: &'a str,
+        https: bool,
     ) -> Outgoing<'a> {
         Outgoing {
             path,
             authority,
+            scheme: if https { "https" } else { "http" },
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -360,8 +362,9 @@ impl<T> Request<T> {
 /// already built it, and object-safe interceptors cannot be generic over it.
 /// Everything else an interceptor typically stamps — metadata, deadline,
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
-/// `:authority`, which the interceptor cannot otherwise see. Typed values the
-/// caller inserted on [`crate::Request::extensions_mut`] are on this map.
+/// `:authority` and `:scheme`, which the interceptor cannot otherwise see.
+/// Typed values the caller inserted on [`crate::Request::extensions_mut`]
+/// are on this map.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -372,6 +375,8 @@ impl<T> Request<T> {
 ///     call.metadata_mut().insert("x-path", path)?;
 ///     let authority = call.authority();
 ///     call.metadata_mut().insert("x-authority", authority)?;
+///     let scheme = call.scheme();
+///     call.metadata_mut().set("x-scheme", scheme)?;
 ///     if call.timeout().is_none() {
 ///         call.set_timeout(Duration::from_secs(5));
 ///     }
@@ -382,6 +387,7 @@ impl<T> Request<T> {
 pub struct Outgoing<'a> {
     path: &'static str,
     authority: &'a str,
+    scheme: &'static str,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -395,6 +401,17 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn authority(&self) -> &'a str {
         self.authority
+    }
+
+    /// HTTP/2 `:scheme` this channel sends.
+    ///
+    /// `https` when the channel was built with [`crate::ClientTls`], otherwise
+    /// `http` (cleartext TCP, Unix, [`crate::Channel::from_io`]). Matches
+    /// what the kernel writes on the request. `from_io` has no TLS config, so
+    /// this is `http` even if the byte stream is already encrypted.
+    #[must_use]
+    pub fn scheme(&self) -> &'static str {
+        self.scheme
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`.
@@ -483,6 +500,7 @@ impl fmt::Debug for Outgoing<'_> {
         f.debug_struct("Outgoing")
             .field("path", &self.path)
             .field("authority", &self.authority)
+            .field("scheme", &self.scheme)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("wait_for_ready", &self.wait_for_ready)
@@ -913,11 +931,16 @@ mod tests {
         let mut req = Request::new(());
         req.metadata_mut().insert("x-trace", "abc").expect("insert");
         req.set_timeout(Duration::from_secs(1));
-        let call = req.outgoing("/svc/Method", "127.0.0.1:1");
-        let shown = format!("{call:?}");
+        let shown = {
+            let call = req.outgoing("/svc/Method", "127.0.0.1:1", false);
+            format!("{call:?}")
+        };
         assert!(shown.contains("/svc/Method"), "{shown}");
         assert!(shown.contains("127.0.0.1:1"), "{shown}");
+        assert!(shown.contains("http"), "{shown}");
         assert!(shown.contains("x-trace"), "{shown}");
         assert!(shown.contains("abc"), "{shown}");
+        let https = req.outgoing("/svc/Method", "127.0.0.1:1", true);
+        assert!(format!("{https:?}").contains("https"));
     }
 }

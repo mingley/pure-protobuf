@@ -531,8 +531,9 @@ impl Channel {
 
     /// Run `interceptor` on every outbound RPC before the stream opens.
     /// Calling this twice stacks: the first interceptor runs first. The
-    /// interceptor sees the method path and `:authority`, and can set metadata,
-    /// a deadline, wait-for-ready, compression, or typed extensions.
+    /// interceptor sees the method path, `:authority`, and `:scheme`, and
+    /// can set metadata, a deadline, wait-for-ready, compression, or typed
+    /// extensions.
     /// Values the caller put on [`crate::Request::extensions_mut`] are
     /// visible; stacked interceptors share that map.
     #[must_use]
@@ -566,7 +567,7 @@ impl Channel {
         req: &mut Request<T>,
     ) -> Result<(), Status> {
         for hook in self.interceptors.iter() {
-            hook.intercept(&mut req.outgoing(path, self.authority()))?;
+            hook.intercept(&mut req.outgoing(path, self.authority(), self.inner.tls.is_some()))?;
         }
         Ok(())
     }

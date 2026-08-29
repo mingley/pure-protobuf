@@ -1066,8 +1066,10 @@ onion-style.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs before the stream opens. Closures take `Outgoing`: the method path,
-`:authority`, metadata, deadline, wait-for-ready, compression, and typed
-extensions. TCP `:authority` is `host:port`; Unix is `localhost`.
+`:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https` when the
+channel was built with `ClientTls`), metadata, deadline, wait-for-ready,
+compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
+`localhost`.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor. Calling `intercept` twice stacks — the first interceptor runs
@@ -1091,6 +1093,8 @@ let client = GreeterClient::connect(addr).await?
         call.metadata_mut().insert("authorization", "Bearer secret")?;
         let authority = call.authority();
         call.metadata_mut().insert("x-authority", authority)?;
+        let scheme = call.scheme();
+        call.metadata_mut().set("x-scheme", scheme)?;
         if call.timeout().is_none() {
             call.set_timeout(Duration::from_secs(5));
         }

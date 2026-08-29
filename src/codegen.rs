@@ -4668,7 +4668,11 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// The interceptor sees a [`{G}::Outgoing`]: path, `:authority`, metadata, deadline, wait-for-ready, compression, extensions."
+        "    /// The interceptor sees a [`{G}::Outgoing`]: path, `:authority`, `:scheme`,"
+    );
+    let _ = writeln!(
+        src,
+        "    /// metadata, deadline, wait-for-ready, compression, extensions."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");

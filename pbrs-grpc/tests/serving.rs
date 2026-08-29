@@ -1249,6 +1249,40 @@ async fn a_client_interceptor_reads_caller_extensions() {
 }
 
 #[tokio::test]
+async fn a_client_interceptor_sees_the_h2c_scheme() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.metadata().get("x-scheme") != Some("http") {
+                    return Err(Status::internal(format!(
+                        "x-scheme {:?}",
+                        rpc.metadata().get("x-scheme")
+                    )));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        if call.scheme() != "http" {
+            return Err(Status::internal(format!("scheme {}", call.scheme())));
+        }
+        let scheme = call.scheme();
+        call.metadata_mut().set("x-scheme", scheme)?;
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn client_interceptors_stack_and_share_extensions() {
     #[derive(Clone, Copy)]
     struct Trace(&'static str);
