@@ -4664,11 +4664,15 @@ fn server_and_router_config_is_readable_and_cloneable() {
         svc.server_config().rpc_timeout(),
         Some(Duration::from_secs(3))
     );
+    assert_eq!(svc.rpc_timeout(), Some(Duration::from_secs(3)));
+    assert!(!svc.compresses_outbound());
+    assert!(svc.clone().send_compressed().compresses_outbound());
     let server = Server::new(svc.clone()).timeout(Duration::from_secs(9));
     assert_eq!(
         server.server_config().rpc_timeout(),
         Some(Duration::from_secs(9))
     );
+    assert_eq!(server.rpc_timeout(), Some(Duration::from_secs(9)));
     assert_eq!(
         server.clone().server_config().rpc_timeout(),
         Some(Duration::from_secs(9))
@@ -4680,6 +4684,9 @@ fn server_and_router_config_is_readable_and_cloneable() {
         router.server_config().rpc_timeout(),
         Some(Duration::from_secs(2))
     );
+    assert_eq!(router.rpc_timeout(), Some(Duration::from_secs(2)));
+    assert!(!router.compresses_outbound());
+    assert!(router.clone().send_compressed().compresses_outbound());
     assert_eq!(
         router.clone().server_config().rpc_timeout(),
         Some(Duration::from_secs(2))

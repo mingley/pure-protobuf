@@ -318,6 +318,23 @@ impl<T> StreamSender<T> {
         self
     }
 
+    /// Whether [`Self::send`] will gzip.
+    ///
+    /// Set by [`crate::Channel::send_compressed`] when this sender was opened
+    /// from a channel, or by [`Self::set_compress`].
+    #[must_use]
+    pub fn compress(&self) -> bool {
+        self.compress
+    }
+
+    /// gzip subsequent [`Self::send`] payloads.
+    ///
+    /// Does not change already-queued messages. [`Self::send_compressed`]
+    /// still gzips a single message regardless of this flag.
+    pub fn set_compress(&mut self, compress: bool) {
+        self.compress = compress;
+    }
+
     /// Queue one message, waiting if the buffer is full.
     ///
     /// Uncompressed unless this sender was built with channel-wide gzip
@@ -408,6 +425,12 @@ mod tests {
         assert!(shown_stream.contains("driver: false"), "{shown_stream}");
         tx.send(reply("one")).await.expect("send");
         tx.send_compressed(reply("two")).await.expect("send");
+        assert!(!tx.compress());
+        let mut gzip = tx.clone();
+        gzip.set_compress(true);
+        assert!(gzip.compress());
+        assert!(!tx.compress());
+        drop(gzip);
         let shown = format!("{tx:?}");
         assert!(shown.contains("compress: false"), "{shown}");
         tx.close();

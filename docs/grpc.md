@@ -428,6 +428,8 @@ On the server, `request.timeout()` is the relative duration stamped at
 dispatch: the soonest of the client's `grpc-timeout`, a server cap
 (`ServerConfig::timeout`, also `Server::timeout` / `Router::timeout` /
 generated `FooServer::timeout`), and [`Rpc::set_timeout`] from an interceptor.
+`Server::rpc_timeout` / `FooServer::rpc_timeout` read that cap (`timeout` sets
+it).
 That value does not shrink as the handler runs. `request.deadline()` is the
 same instant the kernel is actually racing — forward
 `deadline.saturating_duration_since(Instant::now())` onto a downstream RPC
@@ -453,6 +455,9 @@ tokio::spawn(async move {
 });
 let result = call.await;   // Err(Cancelled) if the handle fired
 ```
+
+`CallHandle::is_cancelled` (and `Call::is_cancelled`) is true after
+`cancel()` fires.
 
 Cancelling resets the HTTP/2 stream, so the server stops working on it rather
 than finishing into a void. Dropping the `Call` without awaiting does the
@@ -908,7 +913,10 @@ channel.send_compressed()
 ```
 
 `Channel::compresses_outbound` / `FooClient::compresses_outbound` read that
-overlay.
+overlay. `Server::compresses_outbound` / `Router` / `FooServer` read the
+response-side overlay. `Response::compress` is the outbound intent on a
+reply you build (same bit as `compressed()`). `StreamSender::compress` /
+`set_compress` is the same flag `send()` consults.
 
 A peer that omitted `gzip` from `grpc-accept-encoding` is never sent a
 compressed frame, even if the handler or the config asked. Successful

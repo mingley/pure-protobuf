@@ -1156,6 +1156,16 @@ impl<T> Response<T> {
         self.compress = compress;
     }
 
+    /// Whether this payload will be gzipped. Outbound intent.
+    ///
+    /// Same bit as [`Self::compressed`]: a [`Response`] has one gzip flag,
+    /// unlike [`Request`], which splits intent (`compress`) from the received
+    /// first-frame flag (`compressed`).
+    #[must_use]
+    pub fn compress(&self) -> bool {
+        self.compress
+    }
+
     /// Whether this payload is gzipped.
     ///
     /// On a response you build, this is [`Self::set_compress`]. On a received
@@ -1233,6 +1243,12 @@ impl ResponseParts {
         self.compress = compress;
     }
 
+    /// Outbound gzip intent. See [`Response::compress`].
+    #[must_use]
+    pub fn compress(&self) -> bool {
+        self.compress
+    }
+
     /// Whether this payload is gzipped. See [`Response::compressed`].
     #[must_use]
     pub fn compressed(&self) -> bool {
@@ -1281,6 +1297,12 @@ impl<T> Call<T> {
     /// Reset the stream and resolve with [`Code::Cancelled`](crate::Code::Cancelled).
     pub fn cancel(&self) {
         self.cancel.send(true).ok();
+    }
+
+    /// Whether [`Self::cancel`] has already fired.
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        *self.cancel.borrow()
     }
 
     /// A cancel handle that can be moved to another task.
@@ -1343,6 +1365,12 @@ impl CallHandle {
     /// Same as [`Call::cancel`].
     pub fn cancel(&self) {
         self.cancel.send(true).ok();
+    }
+
+    /// Whether [`Self::cancel`] has already fired. See [`Call::is_cancelled`].
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        *self.cancel.borrow()
     }
 }
 
@@ -1514,11 +1542,15 @@ mod tests {
         assert_eq!(mapped.metadata().get("h"), Some("v"));
         assert_eq!(mapped.trailers().get("t"), Some("1"));
         assert!(mapped.compressed());
+        assert!(mapped.compress());
         let (n, mut parts) = mapped.into_message_and_parts();
         assert_eq!(n, 42);
+        assert!(parts.compress());
         parts.set_compress(false);
+        assert!(!parts.compress());
         let rebuilt = Response::from_message_and_parts(n, parts);
         assert!(!rebuilt.compressed());
+        assert!(!rebuilt.compress());
         assert_eq!(rebuilt.metadata().get("h"), Some("v"));
         assert_eq!(rebuilt.into_inner(), 42);
     }
@@ -1558,5 +1590,17 @@ mod tests {
             crate::MessageLimits::default(),
         );
         assert!(format!("{https:?}").contains("https"));
+    }
+
+    #[test]
+    fn call_handle_observes_cancel() {
+        let (tx, _rx) = tokio::sync::watch::channel(false);
+        let call = super::Call::<u32>::new(tx, Box::pin(std::future::pending()));
+        let handle = call.handle();
+        assert!(!handle.is_cancelled());
+        assert!(!call.is_cancelled());
+        handle.cancel();
+        assert!(handle.is_cancelled());
+        assert!(call.is_cancelled());
     }
 }

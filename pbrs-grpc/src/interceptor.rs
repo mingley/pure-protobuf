@@ -72,6 +72,7 @@ where
 /// would. Build one with [`ServiceExt::intercept`] or
 /// [`crate::Server::intercept`]. Calling [`Intercepted::intercept`] stacks
 /// another interceptor after this one (first registered runs first).
+/// Cloning is cheap when `I: Clone`: the inner service is shared.
 pub struct Intercepted<S, I> {
     inner: Arc<S>,
     interceptor: I,
@@ -84,6 +85,15 @@ impl<S, I> Intercepted<S, I> {
         Self {
             inner: Arc::new(inner),
             interceptor,
+        }
+    }
+}
+
+impl<S, I: Clone> Clone for Intercepted<S, I> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+            interceptor: self.interceptor.clone(),
         }
     }
 }
@@ -217,5 +227,32 @@ impl<I: Interceptor> Interceptor for Then<I> {
     fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status> {
         self.prev.intercept(rpc)?;
         self.next.intercept(rpc)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ServiceExt;
+    use crate::server::{Rpc, Service};
+
+    struct Dummy;
+
+    impl Service for Dummy {
+        const NAME: &'static str = "dummy.Dummy";
+
+        async fn call(&self, rpc: Rpc) {
+            rpc.unimplemented();
+        }
+    }
+
+    #[test]
+    fn intercepted_clones_when_the_interceptor_does() {
+        fn allow(_rpc: &mut Rpc) -> Result<(), crate::Status> {
+            Ok(())
+        }
+        let a = Dummy.intercept(allow);
+        let b = a.clone();
+        assert!(format!("{a:?}").contains("dummy.Dummy"));
+        assert!(format!("{b:?}").contains("dummy.Dummy"));
     }
 }

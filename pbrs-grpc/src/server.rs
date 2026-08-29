@@ -1247,6 +1247,20 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Cap every RPC even when the client omits `grpc-timeout`.
+    /// Distinct from [`Self::timeout`], which sets it.
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.config.rpc_timeout()
+    }
+
+    /// Whether responses are gzipped when the client accepts gzip.
+    /// Distinct from [`Self::send_compressed`], which enables it.
+    #[must_use]
+    pub fn compresses_outbound(&self) -> bool {
+        self.config.compresses_outbound()
+    }
+
     /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
@@ -1740,6 +1754,20 @@ impl Router {
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);
         self
+    }
+
+    /// Cap every RPC even when the client omits `grpc-timeout`.
+    /// Distinct from [`Self::timeout`], which sets it.
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.config.rpc_timeout()
+    }
+
+    /// Whether responses are gzipped when the client accepts gzip.
+    /// Distinct from [`Self::send_compressed`], which enables it.
+    #[must_use]
+    pub fn compresses_outbound(&self) -> bool {
+        self.config.compresses_outbound()
     }
 
     /// HTTP/2 PING keepalive. See [`ServerConfig::keep_alive_interval`].

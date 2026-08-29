@@ -604,11 +604,15 @@ fn generated_server_config_is_readable_after_overlays() {
         server.server_config().rpc_timeout(),
         Some(Duration::from_secs(5))
     );
+    assert_eq!(server.rpc_timeout(), Some(Duration::from_secs(5)));
+    assert!(!server.compresses_outbound());
+    assert!(server.clone().send_compressed().compresses_outbound());
     let router = server.clone().into_router();
     assert_eq!(
         router.server_config().rpc_timeout(),
         Some(Duration::from_secs(5))
     );
+    assert_eq!(router.rpc_timeout(), Some(Duration::from_secs(5)));
 }
 
 #[tokio::test]

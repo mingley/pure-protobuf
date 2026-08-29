@@ -76,12 +76,15 @@ a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
 `FooClient::rpc_timeout`, `waits_for_ready`, and `compresses_outbound` read
 the same overlays as the channel (the setter names cannot collide).
+`FooServer::rpc_timeout` and `compresses_outbound` (also `Server` / `Router`)
+read the same overlays as `server_config`.
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
 after headers does not end the stream.
 
 ### Interceptors
 
 Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
+`Intercepted` is `Clone` when the interceptor is.
 The first registered runs first. Closures see `Rpc` (path, service/method,
 metadata, both timeout views, `deadline`, gzip accept/encoding, peer,
 `:authority` / `:scheme`, limits).

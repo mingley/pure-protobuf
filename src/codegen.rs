@@ -4146,6 +4146,24 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Cap every RPC even when the client omits `grpc-timeout`. Distinct from [`Self::timeout`], which sets it. See [`{G}::Server::rpc_timeout`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn rpc_timeout(&self) -> ::core::option::Option<::std::time::Duration> {{ self.config.rpc_timeout() }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Whether responses are gzipped when the client accepts gzip. Distinct from [`Self::send_compressed`], which enables it. See [`{G}::Server::compresses_outbound`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn compresses_outbound(&self) -> bool {{ self.config.compresses_outbound() }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// HTTP/2 PING keepalive. See [`{G}::ServerConfig::keep_alive_interval`]."
     );
     let _ = writeln!(src, "    #[must_use]");
