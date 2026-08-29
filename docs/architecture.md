@@ -44,6 +44,7 @@ and does not probe `Io`. `serve_connection` leaves those fields unset.
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
 / cred, and `Rpc::limits`. `Router` splits on the service half of the path.
+Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, and gzip accept/encoding. Dumping
 `Rpc` prints service/method, both timeout views, `deadline`, gzip facts, and

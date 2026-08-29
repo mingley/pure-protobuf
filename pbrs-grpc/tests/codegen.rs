@@ -510,27 +510,50 @@ impl pbrs_grpc::Greeter for EchoGreeter {
         reply.set_message(request.get_ref().name());
         Ok(Response::new(reply))
     }
+}
 
-    async fn client_hello(
-        &self,
-        _request: Request<Streaming<pbrs_grpc::HelloRequest>>,
-    ) -> Result<Response<pbrs_grpc::HelloReply>, Status> {
-        Err(Status::unimplemented("codegen test"))
-    }
+#[tokio::test]
+async fn omitted_generated_methods_answer_unimplemented() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        pbrs_grpc::GreeterServer::new(EchoGreeter)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = pbrs_grpc::GreeterClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready()
+        .timeout(Duration::from_secs(2));
 
-    async fn server_hello(
-        &self,
-        _request: Request<pbrs_grpc::HelloRequest>,
-    ) -> Result<Response<Streaming<pbrs_grpc::HelloReply>>, Status> {
-        Err(Status::unimplemented("codegen test"))
-    }
+    let mut hello = pbrs_grpc::HelloRequest::new();
+    hello.set_name("ada");
+    let reply = client
+        .say_hello(Request::new(hello.clone()))
+        .await
+        .expect("unary");
+    assert_eq!(
+        reply.get_ref().message().to_str().unwrap_or_default(),
+        "ada"
+    );
 
-    async fn stream_hello(
-        &self,
-        _request: Request<Streaming<pbrs_grpc::HelloRequest>>,
-    ) -> Result<Response<Streaming<pbrs_grpc::HelloReply>>, Status> {
-        Err(Status::unimplemented("codegen test"))
-    }
+    let err = client
+        .server_hello(Request::new(hello))
+        .await
+        .expect_err("server");
+    assert_eq!(err.code(), Code::Unimplemented);
+    assert!(err.message().contains("ServerHello"), "{}", err.message());
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    let err = call.await.expect_err("client");
+    assert_eq!(err.code(), Code::Unimplemented);
+    assert!(err.message().contains("ClientHello"), "{}", err.message());
+
+    server.abort();
 }
 
 #[test]

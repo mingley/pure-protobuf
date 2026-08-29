@@ -39,6 +39,8 @@ impl Greeter for MyGreeter {
 GreeterServer::new(MyGreeter).serve(addr).await?;
 ```
 
+Methods you omit answer `UNIMPLEMENTED`.
+
 and call it:
 
 ```rust

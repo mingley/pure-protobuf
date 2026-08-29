@@ -58,29 +58,6 @@
 //!         reply.set_message(format!("hello {}", request.get_ref().name()));
 //!         Ok(Response::new(reply))
 //!     }
-//! #     async fn client_hello(
-//! #         &self,
-//! #         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-//! #     ) -> Result<Response<HelloReply>, Status> {
-//! #         let _ = request;
-//! #         Ok(Response::new(HelloReply::new()))
-//! #     }
-//! #     async fn server_hello(
-//! #         &self,
-//! #         request: Request<HelloRequest>,
-//! #     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-//! #         let _ = request;
-//! #         let (_, stream) = pbrs_grpc::Streaming::channel(1);
-//! #         Ok(Response::new(stream))
-//! #     }
-//! #     async fn stream_hello(
-//! #         &self,
-//! #         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-//! #     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-//! #         let _ = request;
-//! #         let (_, stream) = pbrs_grpc::Streaming::channel(1);
-//! #         Ok(Response::new(stream))
-//! #     }
 //! }
 //!
 //! # async fn example() -> Result<(), Status> {
@@ -89,6 +66,8 @@
 //!     .await
 //! # }
 //! ```
+//!
+//! Methods you omit on the generated trait answer `UNIMPLEMENTED`.
 //!
 //! The client side mirrors it:
 //!

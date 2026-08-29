@@ -108,6 +108,9 @@ async fn main() -> Result<(), Status> {
 }
 ```
 
+Methods you omit on the generated trait answer `UNIMPLEMENTED`. tonic
+requires every method.
+
 And call it:
 
 ```rust
@@ -154,6 +157,8 @@ There are only two streaming types, and they are the two halves of one channel:
 `Streaming<T>` is what you read, `StreamSender<T>` is what you write. The same
 pair is used on both sides of an RPC, so a client-streaming request and a
 server-streaming response are the same shape seen from opposite ends.
+
+Methods you omit on the generated trait answer `UNIMPLEMENTED`.
 
 ### Reading a stream
 

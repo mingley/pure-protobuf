@@ -280,9 +280,10 @@ impl Config {
     /// The generating crate must depend on `pbrs-grpc`. `FooClient` gets the
     /// same dialers as `Channel` (`connect`, `connect_tls`, `connect_unix`,
     /// `from_io`, and the lazy/`_with` variants) and the same overlays,
-    /// including `https_scheme` for already-encrypted `from_io` streams and
-    /// `scheme` / `authority` / `grpc_user_agent` to read what that overlay
-    /// (or TLS) will send.
+    /// including `https_scheme` for already-encrypted `from_io` streams.
+    /// Read those overlays with `scheme` / `authority` / `grpc_user_agent` /
+    /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `config`.
+    /// Methods you omit on the generated `Foo` trait answer `UNIMPLEMENTED`.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
     /// ```no_run
@@ -3878,11 +3879,21 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
         src,
         "/// Implement this, then serve it with [`{trait_name}Server`]."
     );
+    let _ = writeln!(src, "///");
+    let _ = writeln!(
+        src,
+        "/// Methods you omit return [`{G}::Status::unimplemented`]."
+    );
     let _ = writeln!(src, "pub trait {trait_name}: Send + Sync + 'static {{");
     for m in &svc.methods {
         let shape = shape_of(m);
         let fn_name = to_snake(&m.name);
         let _ = writeln!(src, "    /// {} `{}`.", shape.description, m.name);
+        let _ = writeln!(src, "    ///");
+        let _ = writeln!(
+            src,
+            "    /// The default answers [`{G}::Status::unimplemented`]."
+        );
         let _ = writeln!(src, "    fn {fn_name}(");
         let _ = writeln!(src, "        &self,");
         let _ = writeln!(
@@ -3892,9 +3903,19 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
         );
         let _ = writeln!(
             src,
-            "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + Send;",
+            "    ) -> impl ::core::future::Future<Output = ::core::result::Result<{G}::Response<{}>, {G}::Status>> + Send {{",
             shape.trait_response
         );
+        let _ = writeln!(src, "        async move {{");
+        let _ = writeln!(src, "            drop(request);");
+        let _ = writeln!(
+            src,
+            "            ::core::result::Result::Err({G}::Status::unimplemented(\"method {}/{} not implemented\"))",
+            svc.full_name,
+            m.name
+        );
+        let _ = writeln!(src, "        }}");
+        let _ = writeln!(src, "    }}");
     }
     let _ = writeln!(src, "}}");
 }
