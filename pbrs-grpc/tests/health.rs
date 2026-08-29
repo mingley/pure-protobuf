@@ -53,6 +53,27 @@ async fn client(addr: SocketAddr) -> HealthClient {
     panic!("connect {addr}: {last}");
 }
 
+#[test]
+fn reporter_status_round_trips_without_an_rpc() {
+    let (_, reporter) = service();
+    assert_eq!(reporter.status(""), Some(ServingStatus::Serving));
+    assert_eq!(reporter.status("helloworld.Greeter"), None);
+    reporter.set_serving("helloworld.Greeter");
+    assert_eq!(
+        reporter.status("helloworld.Greeter"),
+        Some(ServingStatus::Serving)
+    );
+    reporter.set_not_serving("helloworld.Greeter");
+    assert_eq!(
+        reporter.status("helloworld.Greeter"),
+        Some(ServingStatus::NotServing)
+    );
+    reporter.clear("helloworld.Greeter");
+    assert_eq!(reporter.status("helloworld.Greeter"), None);
+    reporter.clear("");
+    assert_eq!(reporter.status(""), None);
+}
+
 fn req(name: &str) -> HealthCheckRequest {
     let mut r = HealthCheckRequest::new();
     r.set_service(name);

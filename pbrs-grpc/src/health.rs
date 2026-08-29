@@ -75,6 +75,17 @@ impl HealthReporter {
         });
     }
 
+    /// Current status of `name`, if it has been set.
+    ///
+    /// The empty name is the process and starts as [`ServingStatus::Serving`].
+    /// Unknown names are `None`, matching [`Health::check`]'s `NOT_FOUND`.
+    /// [`Health::watch`] reports [`ServingStatus::ServiceUnknown`] for those
+    /// instead.
+    #[must_use]
+    pub fn status(&self, name: impl AsRef<str>) -> Option<ServingStatus> {
+        self.snapshot().get(name.as_ref()).copied()
+    }
+
     fn set(&self, name: &str, status: ServingStatus) {
         self.tx.send_modify(|snap| {
             let mut map = HashMap::clone(snap);

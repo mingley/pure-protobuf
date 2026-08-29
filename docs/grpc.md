@@ -681,6 +681,7 @@ Router::new()
 `Check` on the empty name is the process; `Check` on a name you have not
 set returns `NOT_FOUND`. `Watch` streams status changes, and an unknown name
 yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
+`HealthReporter::status` reads the same map without an RPC.
 
 ## Reflection
 
