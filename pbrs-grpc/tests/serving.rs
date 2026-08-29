@@ -4753,6 +4753,84 @@ async fn a_call_handle_cancels_a_live_bidi_stream_after_headers() {
     task.abort();
 }
 
+/// Drains the client stream, then waits until the client leaves.
+struct ClientStreamWaitAfterClose {
+    drained: Arc<AtomicUsize>,
+    left: Arc<AtomicUsize>,
+}
+
+impl pbrs_grpc::Greeter for ClientStreamWaitAfterClose {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("wait-after-close"))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let (mut stream, parts) = request.into_message_and_parts();
+        while stream.message().await?.is_some() {}
+        self.drained.fetch_add(1, Ordering::Relaxed);
+        tokio::select! {
+            biased;
+            () = parts.cancelled() => {}
+            () = tokio::time::sleep(Duration::from_secs(5)) => {
+                return Err(Status::internal("handler never saw cancel after half-close"));
+            }
+        }
+        self.left.fetch_add(1, Ordering::Relaxed);
+        Err(Status::cancelled("left"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("wait-after-close"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("wait-after-close"))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_call_handle_cancels_client_streaming_after_the_sender_closes() {
+    let drained = Arc::new(AtomicUsize::new(0));
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamWaitAfterClose {
+        drained: Arc::clone(&drained),
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, call) = client.client_hello(Request::new(()));
+    let handle = call.handle();
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    wait_flag(&drained).await;
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "handler must wait until cancel"
+    );
+    handle.cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
 /// Refuses a request that was not gzipped.
 struct GzipProbe;
 

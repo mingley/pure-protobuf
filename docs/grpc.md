@@ -488,7 +488,8 @@ same: the stream is reset and the handler is dropped. `cancel()` is for when
 you still hold the future and want the await to resolve with `Cancelled`.
 After a server-streaming or bidi call already has headers, a handle taken
 beforehand still resets the live stream; dropping the received `Streaming`
-before the end does the same.
+before the end does the same. After a client-streaming sender is closed, that
+handle still resets while the unary response is pending.
 
 A handler that `tokio::spawn`s work should await `request.cancelled()` in
 the child (or poll `request.is_cancelled()`). The kernel drops the handler

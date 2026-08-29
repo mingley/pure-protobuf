@@ -4899,6 +4899,12 @@ fn emit_kernel_client(
                 "    /// A [`{G}::CallHandle`] taken before await still cancels that live stream after headers."
             );
         }
+        if m.client_streaming && !m.server_streaming {
+            let _ = writeln!(
+                src,
+                "    /// A [`{G}::CallHandle`] taken before await still cancels after the sender is closed, while the unary response is pending."
+            );
+        }
         if shape.client_return.starts_with('(') {
             let _ = writeln!(
                 src,

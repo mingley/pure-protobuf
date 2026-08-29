@@ -869,7 +869,9 @@ impl Channel {
     ///
     /// Send on the returned [`StreamSender`], drop it to half-close, then
     /// await the [`Call`]. Dropping the pair without awaiting resets the
-    /// stream, the same as dropping a unary [`Call`].
+    /// stream, the same as dropping a unary [`Call`]. A [`crate::CallHandle`]
+    /// taken before await still cancels after the sender is closed, while the
+    /// unary response is pending.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
