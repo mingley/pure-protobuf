@@ -277,7 +277,7 @@ async fn a_non_post_is_http_405() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let peer = RawPeer::connect(addr).await;
     for method in [Method::GET, Method::PUT, Method::HEAD] {
-        let label = method.as_str();
+        let label = method.as_str().to_owned();
         let mut request = peer.request(SAY_HELLO, "application/grpc");
         *request.method_mut() = method;
         let mut send = peer.send.clone().ready().await.expect("ready");
