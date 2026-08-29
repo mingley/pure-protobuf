@@ -4782,7 +4782,7 @@ impl pbrs_grpc::Greeter for ClientStreamWaitAfterClose {
             }
         }
         self.left.fetch_add(1, Ordering::Relaxed);
-        Err(Status::cancelled("left"))
+        Err(Status::cancelled())
     }
 
     async fn server_hello(
