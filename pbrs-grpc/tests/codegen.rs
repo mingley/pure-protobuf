@@ -695,6 +695,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "client-streaming client methods must name CallHandle after half-close"
     );
     assert!(
+        src.contains("Dropping the [`::pbrs_grpc::Call`] or letting its deadline fire after that half-close resets the same way."),
+        "client-streaming client methods must name drop and deadline after half-close"
+    );
+    assert!(
         src.contains("dropping a streaming Call resets the stream"),
         "client-streaming and bidi pairs must be must_use"
     );

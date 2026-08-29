@@ -871,7 +871,8 @@ impl Channel {
     /// await the [`Call`]. Dropping the pair without awaiting resets the
     /// stream, the same as dropping a unary [`Call`]. A [`crate::CallHandle`]
     /// taken before await still cancels after the sender is closed, while the
-    /// unary response is pending.
+    /// unary response is pending. Dropping the [`Call`] or letting its deadline
+    /// fire after that half-close resets the same way.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -1511,7 +1512,7 @@ where
 {
     let (_, md, timeout, compress) = req.into_parts();
     let deadline = deadline_from(timeout);
-    let (resp_fut, mut send_stream) = open(
+    let (resp_fut, send_stream) = open(
         send_req,
         authority,
         path,
@@ -1522,12 +1523,16 @@ where
         https,
     )
     .await?;
-    // Keep `send_stream` on this stack. Harvesting it from a spawned pump
-    // lost the RST: cancel can win the same `select!` as JoinHandle Ready,
-    // and RecvStream drop is not a last-ref reset while that task holds
-    // the send half. Unary already RSTs the stack-owned half.
+    // Keep the send half on this stack and RST it if the Call is dropped
+    // mid-wait. Harvesting it from a spawned pump lost the RST: cancel can
+    // win the same `select!` as JoinHandle Ready, and RecvStream drop is
+    // not a last-ref reset while that task holds SendStream.
+    let mut send = ResetSend {
+        stream: send_stream,
+        live: true,
+    };
     let result = {
-        let pump = pump_outbound(&mut send_stream, rx, cancel_rx.clone(), wire);
+        let pump = pump_outbound(&mut send.stream, rx, cancel_rx.clone(), wire);
         tokio::pin!(pump);
         let fut = async {
             let response = resp_fut.await.map_err(Status::from_h2)?;
@@ -1559,9 +1564,25 @@ where
         &result,
         Err(s) if s.code() == Code::Cancelled || s.code() == Code::DeadlineExceeded
     ) {
-        send_stream.send_reset(Reason::CANCEL);
+        send.stream.send_reset(Reason::CANCEL);
     }
+    send.live = false;
     prefer_deadline(result, deadline)
+}
+
+/// `RST_STREAM` a client-streaming send half if the Call is dropped while
+/// still waiting for the unary response (including after a clean half-close).
+struct ResetSend {
+    stream: h2::SendStream<Bytes>,
+    live: bool,
+}
+
+impl Drop for ResetSend {
+    fn drop(&mut self) {
+        if self.live {
+            self.stream.send_reset(Reason::CANCEL);
+        }
+    }
 }
 
 #[allow(

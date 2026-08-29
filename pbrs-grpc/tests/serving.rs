@@ -25,7 +25,7 @@ mod common;
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService,
+    Call, Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService,
     MessageLimits, Outgoing, PeerCred, PeerIdentity, Request, Response, Router, Rpc, Server,
     ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
 };
@@ -4237,6 +4237,22 @@ async fn wait_flag(flag: &AtomicUsize) {
     panic!("spawned work never observed Request::cancelled");
 }
 
+async fn wait_half_close_drained<T: std::fmt::Debug>(call: &mut Call<T>, drained: &AtomicUsize) {
+    tokio::select! {
+        biased;
+        result = call => panic!("call returned before drain: {result:?}"),
+        () = async {
+            for _ in 0..80 {
+                if drained.load(Ordering::Relaxed) >= 1 {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("handler never finished reading the half-closed stream");
+        } => {}
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn spawned_work_stops_when_the_client_cancels() {
     let started = Arc::new(AtomicUsize::new(0));
@@ -4753,6 +4769,40 @@ async fn a_call_handle_cancels_a_live_bidi_stream_after_headers() {
     task.abort();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_call_handle_cancels_a_bidi_stream_after_the_sender_closes() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    let handle = call.handle();
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait until cancel"
+    );
+    handle.cancel();
+    wait_flag(&left).await;
+    drop(stream);
+    drop(client);
+    task.abort();
+}
+
 /// Drains the client stream, then waits until the client leaves.
 struct ClientStreamWaitAfterClose {
     drained: Arc<AtomicUsize>,
@@ -4817,19 +4867,7 @@ async fn a_call_handle_cancels_client_streaming_after_the_sender_closes() {
     let handle = call.handle();
     tx.send(req("ada")).await.expect("send");
     tx.close();
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("unary returned before cancel: {result:?}"),
-        () = async {
-            for _ in 0..80 {
-                if drained.load(Ordering::Relaxed) >= 1 {
-                    return;
-                }
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-            panic!("handler never finished reading the half-closed stream");
-        } => {}
-    }
+    wait_half_close_drained(&mut call, &drained).await;
     assert_eq!(
         left.load(Ordering::Relaxed),
         0,
@@ -4838,6 +4876,65 @@ async fn a_call_handle_cancels_client_streaming_after_the_sender_closes() {
     handle.cancel();
     let err = call.await.expect_err("cancelled");
     assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_a_call_cancels_client_streaming_after_the_sender_closes() {
+    let drained = Arc::new(AtomicUsize::new(0));
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamWaitAfterClose {
+        drained: Arc::clone(&drained),
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, mut call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    wait_half_close_drained(&mut call, &drained).await;
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "handler must wait until drop"
+    );
+    drop(call);
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_deadline_cancels_client_streaming_after_the_sender_closes() {
+    let drained = Arc::new(AtomicUsize::new(0));
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamWaitAfterClose {
+        drained: Arc::clone(&drained),
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_millis(200));
+    let (tx, mut call) = client.client_hello(request);
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    wait_half_close_drained(&mut call, &drained).await;
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "handler must wait until the deadline"
+    );
+    let err = call.await.expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
     wait_flag(&left).await;
     drop(client);
     task.abort();

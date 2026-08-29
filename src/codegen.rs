@@ -4904,6 +4904,10 @@ fn emit_kernel_client(
                 src,
                 "    /// A [`{G}::CallHandle`] taken before await still cancels after the sender is closed, while the unary response is pending."
             );
+            let _ = writeln!(
+                src,
+                "    /// Dropping the [`{G}::Call`] or letting its deadline fire after that half-close resets the same way."
+            );
         }
         if shape.client_return.starts_with('(') {
             let _ = writeln!(
