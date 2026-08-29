@@ -1448,7 +1448,7 @@ async fn a_mute_tcp_peer_does_not_stop_the_server_serving() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .config(ServerConfig::new().handshake_timeout(Duration::from_millis(80)))
+            .handshake_timeout(Duration::from_millis(80))
             .serve_listener(listener)
             .await
             .ok();

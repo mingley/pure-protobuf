@@ -4,6 +4,7 @@ use crate::status::Status;
 use base64::engine::general_purpose::{STANDARD, STANDARD_NO_PAD};
 use base64::Engine;
 use http::{HeaderMap, HeaderName, HeaderValue};
+use std::fmt;
 
 /// gRPC metadata, i.e. HTTP/2 headers or trailers minus the reserved ones.
 ///
@@ -29,16 +30,31 @@ use http::{HeaderMap, HeaderName, HeaderValue};
 /// hop-by-hop headers, ...) are invisible here and are never written out, so
 /// echoing received metadata back cannot corrupt the protocol framing.
 /// [`Self::insert`] and [`Self::insert_bin`] reject them rather than storing
-/// a value you cannot read back. `user-agent` is readable; on outbound
+/// a value you cannot read back. `Debug` omits them too, so a dumped
+/// interceptor `Rpc` or `Outgoing` does not look like it can rewrite
+/// `grpc-status`. `user-agent` is readable; on outbound
 /// requests the kernel overwrites it after user metadata so a smuggled value
 /// cannot win.
 ///
 /// The total size a peer can send is bounded by
 /// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
 /// not by this type.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct Metadata {
     map: HeaderMap,
+}
+
+impl fmt::Debug for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut s = f.debug_map();
+        for (k, v) in &self.map {
+            if is_reserved(k.as_str()) {
+                continue;
+            }
+            s.entry(&k.as_str(), v);
+        }
+        s.finish()
+    }
 }
 
 impl Metadata {
@@ -278,6 +294,10 @@ mod tests {
         assert_eq!(md.get("grpc-status"), None);
         assert_eq!(md.get_bin("grpc-status-details-bin"), None);
         assert_eq!(md.get("x-real"), Some("v"));
+        let shown = format!("{md:?}");
+        assert!(shown.contains("x-real"), "{shown}");
+        assert!(!shown.contains("grpc-status"), "{shown}");
+        assert!(!shown.contains("content-type"), "{shown}");
 
         let mut out = HeaderMap::new();
         md.write_to(&mut out).expect("write");

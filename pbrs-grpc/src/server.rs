@@ -166,6 +166,9 @@ impl std::fmt::Debug for Rpc {
             .field("authority", &self.authority())
             .field("path", &self.path())
             .field("remote_addr", &self.remote_addr)
+            .field("metadata", &self.metadata)
+            .field("timeout", &self.timeout)
+            .field("peer_timeout", &self.peer_timeout())
             .finish_non_exhaustive()
     }
 }
@@ -867,6 +870,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Drop a client that never finishes TLS or the HTTP/2 preface. See
+    /// [`ServerConfig::handshake_timeout`].
+    #[must_use]
+    pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
+        self.config = self.config.handshake_timeout(timeout);
+        self
+    }
+
     /// Run `interceptor` before this service sees any RPC.
     ///
     /// Closures implement [`crate::Interceptor`], so
@@ -1193,6 +1204,14 @@ impl Router {
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.config = self.config.max_connection_idle(idle);
+        self
+    }
+
+    /// Drop a client that never finishes TLS or the HTTP/2 preface. See
+    /// [`ServerConfig::handshake_timeout`].
+    #[must_use]
+    pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
+        self.config = self.config.handshake_timeout(timeout);
         self
     }
 

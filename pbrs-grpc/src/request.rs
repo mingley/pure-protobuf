@@ -361,6 +361,7 @@ impl fmt::Debug for Outgoing<'_> {
         f.debug_struct("Outgoing")
             .field("path", &self.path)
             .field("authority", &self.authority)
+            .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("wait_for_ready", &self.wait_for_ready)
             .field("compress", &self.compress)
@@ -724,5 +725,18 @@ mod tests {
         let mapped = resp.map(|n| n * 21);
         assert_eq!(mapped.trailers().get("t"), Some("1"));
         assert_eq!(mapped.into_inner(), 42);
+    }
+
+    #[test]
+    fn outgoing_debug_names_path_authority_and_user_metadata() {
+        let mut req = Request::new(());
+        req.metadata_mut().insert("x-trace", "abc").expect("insert");
+        req.set_timeout(Duration::from_secs(1));
+        let call = req.outgoing("/svc/Method", "127.0.0.1:1");
+        let shown = format!("{call:?}");
+        assert!(shown.contains("/svc/Method"), "{shown}");
+        assert!(shown.contains("127.0.0.1:1"), "{shown}");
+        assert!(shown.contains("x-trace"), "{shown}");
+        assert!(shown.contains("abc"), "{shown}");
     }
 }

@@ -4077,6 +4077,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Drop a client that never finishes TLS or the HTTP/2 preface. See [`{G}::ServerConfig::handshake_timeout`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn handshake_timeout(mut self, timeout: ::std::time::Duration) -> Self {{ self.config = self.config.handshake_timeout(timeout); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, or reject."
     );
     let _ = writeln!(src, "    #[must_use]");

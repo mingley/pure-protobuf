@@ -439,7 +439,7 @@ Channel::connect_with(
 Wait-for-ready treats a timed-out handshake as `UNAVAILABLE` and retries
 with backoff. An RPC deadline still races the dial.
 
-On the server, `ServerConfig::handshake_timeout` (same 20 s default) drops a
+On the server, `GreeterServer::handshake_timeout` (same 20 s default) drops a
 client that never completes TLS or the HTTP/2 preface, so a mute peer cannot
 pin a connection task forever.
 
