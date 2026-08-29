@@ -887,7 +887,8 @@ impl<'a> Outgoing<'a> {
         self.wait_for_ready.is_some()
     }
 
-    /// Queue this RPC until the channel is connected.
+    /// Queue this RPC until the channel is connected. Applies to every call
+    /// shape.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
         *self.wait_for_ready = Some(wait);
     }
@@ -943,7 +944,7 @@ impl<'a> Outgoing<'a> {
     ///
     /// The caller inserts on [`crate::Request::extensions_mut`] before the
     /// call; stacked interceptors share the same map. These values are not
-    /// sent on the wire.
+    /// sent on the wire. Visible on every call shape.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         self.extensions

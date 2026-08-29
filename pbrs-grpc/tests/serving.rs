@@ -1414,17 +1414,42 @@ async fn a_client_interceptor_reads_caller_extensions() {
         call.metadata_mut().insert("x-tenant", tenant.0)?;
         Ok(())
     });
-    let mut request = Request::new(req("ada"));
-    request.extensions_mut().insert(Tenant("acme".into()));
-    let reply = client.say_hello(request).await.expect("stamped");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-
-    let missing = client
-        .say_hello(Request::new(req("ada")))
+    fn with_tenant<T>(mut request: Request<T>) -> Request<T> {
+        request.extensions_mut().insert(Tenant("acme".into()));
+        request
+    }
+    let reply = client
+        .say_hello(with_tenant(Request::new(req("ada"))))
         .await
-        .expect_err("no tenant");
-    assert_eq!(missing.code(), Code::Internal);
-
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream = client
+        .server_hello(with_tenant(Request::new(req("ada"))))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    let (tx, call) = client.client_hello(with_tenant(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let (tx, call) = client.stream_hello(with_tenant(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert_err_on_every_shape(&client, Code::Internal).await;
     task.abort();
 }
 
@@ -1560,13 +1585,18 @@ async fn a_client_interceptor_can_set_wait_for_ready() {
         call.set_wait_for_ready(true);
         Ok(())
     });
-    let mut request = Request::new(req("late"));
-    request.set_timeout(Duration::from_secs(5));
-    let mut call = client.say_hello(request);
+    let timeout = Some(Duration::from_secs(5));
+    let mut unary = client.say_hello(stamp_timeout(Request::new(req("late")), timeout));
+    let mut server_stream = client.server_hello(stamp_timeout(Request::new(req("late")), timeout));
+    let (tx_c, mut client_stream) = client.client_hello(stamp_timeout(Request::new(()), timeout));
+    let (tx_b, mut bidi) = client.stream_hello(stamp_timeout(Request::new(()), timeout));
 
     tokio::select! {
         biased;
-        result = &mut call => panic!("RPC finished before the server listened: {result:?}"),
+        result = &mut unary => panic!("unary finished before the server listened: {result:?}"),
+        result = &mut server_stream => panic!("server-stream finished before the server listened: {result:?}"),
+        result = &mut client_stream => panic!("client-stream finished before the server listened: {result:?}"),
+        result = &mut bidi => panic!("bidi finished before the server listened: {result:?}"),
         () = tokio::time::sleep(Duration::from_millis(80)) => {}
     }
 
@@ -1574,11 +1604,45 @@ async fn a_client_interceptor_can_set_wait_for_ready() {
         .await
         .expect("serve");
 
-    let reply = tokio::time::timeout(Duration::from_secs(2), call)
+    let reply = tokio::time::timeout(Duration::from_secs(2), unary)
         .await
-        .expect("wait-for-ready hung after listen")
-        .expect("rpc");
+        .expect("unary hung after listen")
+        .expect("unary");
     assert_eq!(name_of(reply.get_ref()), "late");
+
+    let mut stream = tokio::time::timeout(Duration::from_secs(2), server_stream)
+        .await
+        .expect("server-stream hung after listen")
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "late");
+
+    tx_c.send(req("late")).await.expect("send");
+    tx_c.close();
+    let reply = tokio::time::timeout(Duration::from_secs(2), client_stream)
+        .await
+        .expect("client-stream hung after listen")
+        .expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "late");
+
+    tx_b.send(req("late")).await.expect("send");
+    tx_b.close();
+    let mut inbound = tokio::time::timeout(Duration::from_secs(2), bidi)
+        .await
+        .expect("bidi hung after listen")
+        .expect("bidi")
+        .into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "late");
 }
 
 fn interceptor_blocked() -> Status {

@@ -535,7 +535,7 @@ impl Channel {
     }
 
     /// Wait for a connection instead of failing fast. See
-    /// [`ChannelConfig::wait_for_ready`].
+    /// [`ChannelConfig::wait_for_ready`]. Applies to every call shape.
     ///
     /// A request that already called [`crate::Request::set_wait_for_ready`]
     /// is left alone. Interceptors run after this fill and can still set
