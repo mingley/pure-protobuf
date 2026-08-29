@@ -52,7 +52,7 @@ All four call shapes, `Router` for several services, TLS (rustls + Graviola,
 no C compiler) and mTLS, `grpc.health.v1`, `grpc.reflection.v1`, interceptors
 (server `Rpc`/`Request` metadata/timeout/deadline/`peer_timeout`/`rpc_timeout`/`:authority`/`:scheme`/path/service/method/`local_addr`/`peer_identity`/`peer_cred`/`limits`/`accepts_gzip`/`encoding`/`compresses_outbound`/extensions, client `Outgoing` with path/service/method, `:authority`, `:scheme`, `user-agent`, message caps, timeout/deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), caller and stacked-interceptor extensions),
 received `Response::encoding` (`None` for identity, including an explicit `identity` token; `Some("gzip")` when the peer advertised gzip),
-typed `google.rpc.Status` / `ErrorDetails` (nested `BadRequest` / `RetryInfo` / `QuotaFailure` payloads) on `grpc-status-details-bin`,
+typed `google.rpc.Status` / `ErrorDetails` (`ErrorInfo` / `RetryInfo` / `DebugInfo` / `QuotaFailure` / `PreconditionFailure` / `BadRequest` / `RequestInfo` / `ResourceInfo` / `Help` / `LocalizedMessage`) on `grpc-status-details-bin`,
 HTTP/2 PING keepalive, TCP `SO_KEEPALIVE`, max connection age (jittered ±10%) and idle, automatic
 redial of a dead connection, lazy connect with wait-for-ready, in-process
 `Channel::from_io` / `Server::serve_connection`, Unix domain

@@ -133,7 +133,8 @@ Response-side interceptors are a documented omission.
 `Status` is two machine words; message, metadata, and
 `grpc-status-details-bin` live behind a pointer. `with_error_details` /
 `from_error_details` pack the standard `google.rpc` payloads
-(`ErrorInfo`, `RetryInfo`, `QuotaFailure`, `BadRequest`, ...) as
+(`ErrorInfo`, `RetryInfo`, `DebugInfo`, `QuotaFailure`, `PreconditionFailure`,
+`BadRequest`, `RequestInfo`, `ResourceInfo`, `Help`, `LocalizedMessage`) as
 `google.rpc.Status`. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details`
 replace the protobuf without dropping trailing metadata. Received ASCII

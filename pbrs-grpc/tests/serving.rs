@@ -2308,6 +2308,10 @@ async fn interceptors_and_handlers_see_the_server_timeout_overlay() {
                         rpc.effective_timeout()
                     )));
                 }
+                let shown = format!("{rpc:?}");
+                if !shown.contains("rpc_timeout: Some(") {
+                    return Err(Status::internal(format!("rpc debug {shown}")));
+                }
                 Ok(())
             })
             .serve_listener(listener)

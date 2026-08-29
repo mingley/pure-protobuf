@@ -1218,7 +1218,9 @@ explicit `identity` token); generated handlers see the same values on
 `Request::accepts_gzip` / `Request::encoding`. `Rpc::compresses_outbound`
 is the server's `send_compressed` overlay; generated handlers see it on
 `Request::compresses_outbound` / `Parts::compresses_outbound` (`false` on a
-request you built). `grpc-*` keys stay off `Metadata`.
+request you built). `Rpc::rpc_timeout` is the server's `timeout` overlay;
+generated handlers see it on `Request::rpc_timeout` / `Parts::rpc_timeout`.
+`grpc-*` keys stay off `Metadata`.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
 id), insert it on the `Rpc` and read it from the `Request`:
