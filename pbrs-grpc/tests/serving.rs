@@ -2274,6 +2274,21 @@ async fn a_client_interceptor_sees_the_method_path() {
     task.abort();
 }
 
+#[tokio::test]
+async fn a_client_interceptor_sees_every_shape_context() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_context)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(stamp_outgoing_context);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_client_interceptor_can_set_a_deadline() {
     let started = Arc::new(AtomicUsize::new(0));
@@ -5175,6 +5190,40 @@ async fn from_io_client_interceptor_sees_every_shape_context() {
     .intercept(stamp_outgoing_context);
     echo_every_shape(&client, None).await;
     server.abort();
+}
+
+#[tokio::test]
+async fn tls_client_interceptor_sees_every_shape_context() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_context)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await).intercept(stamp_outgoing_context);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_client_interceptor_sees_every_shape_context() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_context)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(stamp_outgoing_context);
+    echo_every_shape(&client, None).await;
+    task.abort();
 }
 
 #[tokio::test]
