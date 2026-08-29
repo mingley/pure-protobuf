@@ -94,8 +94,9 @@
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`] |
 //! | Health | [`health`] |
 //! | Reflection | [`reflection`] |
-//! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Extensions`] |
-//! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`] |
+//! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
+//! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`], [`Any`] |
+//! | Rich errors | [`pb`], [`Status::with_error_details`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
@@ -204,6 +205,7 @@ pub mod timeout;
 
 pub mod health;
 pub mod hello;
+pub mod pb;
 pub mod reflection;
 pub mod testing;
 
@@ -256,7 +258,8 @@ pub use http::Extensions;
 pub use interceptor::{ClientInterceptor, Intercepted, Interceptor, ServiceExt};
 pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
-pub use request::{Call, CallHandle, Parts, Request, Response};
+pub use pb::Any;
+pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response};
 pub use server::{Router, Rpc, Server, Service};
 pub use status::{Code, Status};
 pub use stream::{Framed, StreamSender, Streaming};

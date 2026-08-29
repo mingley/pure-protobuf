@@ -207,6 +207,116 @@ impl<T> Request<T> {
         self.extensions = extensions;
         self
     }
+
+    pub(crate) fn outgoing(&mut self, path: &'static str) -> Outgoing<'_> {
+        Outgoing {
+            path,
+            metadata: &mut self.metadata,
+            timeout: &mut self.timeout,
+            wait_for_ready: &mut self.wait_for_ready,
+            compress: &mut self.compress,
+            extensions: &mut self.extensions,
+        }
+    }
+}
+
+/// The outbound half of an RPC, as a [`crate::ClientInterceptor`] sees it.
+///
+/// The request message is not here: interceptors run after the caller has
+/// already built it, and object-safe interceptors cannot be generic over it.
+/// Everything else an interceptor typically stamps — metadata, deadline,
+/// wait-for-ready, compression, typed extensions — is.
+///
+/// ```
+/// use pbrs_grpc::{Outgoing, Status};
+/// use std::time::Duration;
+///
+/// fn stamp(call: &mut Outgoing<'_>) -> Result<(), Status> {
+///     let path = call.path();
+///     call.metadata_mut().insert("x-path", path)?;
+///     if call.timeout().is_none() {
+///         call.set_timeout(Duration::from_secs(5));
+///     }
+///     Ok(())
+/// }
+/// # let _ = stamp;
+/// ```
+pub struct Outgoing<'a> {
+    path: &'static str,
+    metadata: &'a mut Metadata,
+    timeout: &'a mut Option<Duration>,
+    wait_for_ready: &'a mut bool,
+    compress: &'a mut bool,
+    extensions: &'a mut http::Extensions,
+}
+
+impl<'a> Outgoing<'a> {
+    /// The full gRPC path, `/<package>.<Service>/<Method>`.
+    #[must_use]
+    pub fn path(&self) -> &'static str {
+        self.path
+    }
+
+    /// Request headers, as gRPC metadata.
+    #[must_use]
+    pub fn metadata(&self) -> &Metadata {
+        self.metadata
+    }
+
+    /// Mutable request headers.
+    pub fn metadata_mut(&mut self) -> &mut Metadata {
+        self.metadata
+    }
+
+    /// The deadline, if any.
+    #[must_use]
+    pub fn timeout(&self) -> Option<Duration> {
+        *self.timeout
+    }
+
+    /// Set the deadline. Becomes `grpc-timeout` on the wire.
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        *self.timeout = Some(timeout);
+    }
+
+    /// Clear a deadline previously set on the request or by an earlier
+    /// interceptor.
+    pub fn clear_timeout(&mut self) {
+        *self.timeout = None;
+    }
+
+    /// Whether this RPC waits for a connection instead of failing fast.
+    #[must_use]
+    pub fn wait_for_ready(&self) -> bool {
+        *self.wait_for_ready
+    }
+
+    /// Queue this RPC until the channel is connected.
+    pub fn set_wait_for_ready(&mut self, wait: bool) {
+        *self.wait_for_ready = wait;
+    }
+
+    /// Whether the request payload will be gzipped.
+    #[must_use]
+    pub fn compress(&self) -> bool {
+        *self.compress
+    }
+
+    /// gzip this request's payload and set the Compressed-Flag.
+    pub fn set_compress(&mut self, compress: bool) {
+        *self.compress = compress;
+    }
+
+    /// Typed values earlier interceptors attached to this RPC.
+    #[must_use]
+    pub fn extensions(&self) -> &http::Extensions {
+        self.extensions
+    }
+
+    /// Insert typed values for later interceptors.
+    pub fn extensions_mut(&mut self) -> &mut http::Extensions {
+        self.extensions
+    }
 }
 
 impl<T: fmt::Debug> fmt::Debug for Request<T> {

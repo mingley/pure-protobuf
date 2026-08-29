@@ -1,7 +1,6 @@
-//! Interceptors: inspect an inbound [`Rpc`] or outbound metadata before the
-//! handler or the wire.
+//! Interceptors: inspect an inbound [`Rpc`] or outbound [`crate::Outgoing`]
+//! before the handler or the wire.
 
-use crate::metadata::Metadata;
 use crate::server::{Rpc, Service};
 use crate::status::Status;
 use std::sync::Arc;
@@ -94,22 +93,24 @@ pub trait ServiceExt: Service + Sized {
 
 impl<S: Service> ServiceExt for S {}
 
-/// Outbound metadata hook. Closures with this signature implement it.
+/// Outbound call hook. Closures with this signature implement it.
 ///
 /// Attach one with [`crate::Channel::intercept`] or the generated
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
-/// runs first.
+/// runs first. The interceptor sees the method path and can set a deadline,
+/// wait-for-ready, compression, or typed extensions — not only metadata.
 pub trait ClientInterceptor: Send + Sync + 'static {
-    /// Mutate request metadata. Called once per RPC, before the stream opens.
-    fn intercept(&self, metadata: &mut Metadata) -> Result<(), Status>;
+    /// Inspect and mutate the outbound call. Called once per RPC, before the
+    /// stream opens.
+    fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 
 impl<F> ClientInterceptor for F
 where
-    F: Fn(&mut Metadata) -> Result<(), Status> + Send + Sync + 'static,
+    F: Fn(&mut crate::Outgoing<'_>) -> Result<(), Status> + Send + Sync + 'static,
 {
-    fn intercept(&self, metadata: &mut Metadata) -> Result<(), Status> {
-        self(metadata)
+    fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status> {
+        self(call)
     }
 }
 

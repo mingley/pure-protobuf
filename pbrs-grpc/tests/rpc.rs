@@ -166,6 +166,45 @@ impl Greeter for RichFail {
     }
 }
 
+struct TypedFail;
+
+impl Greeter for TypedFail {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut info = pbrs_grpc::pb::ErrorInfo::new();
+        info.set_reason("API_DISABLED");
+        info.set_domain("example.com");
+        Err(Status::with_error_details(
+            Code::FailedPrecondition,
+            "api disabled",
+            [pbrs_grpc::Any::pack(&info)?],
+        )?)
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("fail"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("fail"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<Streaming<HelloRequest>>,
+    ) -> Result<Response<Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("fail"))
+    }
+}
+
 #[tokio::test]
 async fn unary_echoes_name() {
     let (_addr, client, _guard) = spawn_greeter(Echo).await.expect("spawn");
@@ -246,6 +285,27 @@ async fn failing_rpc_carries_status_details() {
     assert_eq!(err.details(), &[0x08, 0x09]);
     assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
     assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+}
+
+#[tokio::test]
+async fn failing_rpc_carries_typed_google_rpc_status() {
+    let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("details");
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "api disabled");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

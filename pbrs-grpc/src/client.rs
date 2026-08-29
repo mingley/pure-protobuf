@@ -160,7 +160,8 @@ impl Endpoint {
 /// same protocol over a domain socket. TLS is TCP-only.
 ///
 /// [`Self::intercept`] runs on every outbound RPC before the stream opens,
-/// which is how a client injects auth metadata without touching each call.
+/// which is how a client injects auth metadata, a default deadline, or
+/// wait-for-ready without touching each call.
 ///
 /// ```no_run
 /// use pbrs_grpc::{Channel, ChannelConfig};
@@ -330,8 +331,10 @@ impl Channel {
         self
     }
 
-    /// Run `interceptor` on every outbound request's metadata before the RPC
-    /// starts. Calling this twice stacks: the first interceptor runs first.
+    /// Run `interceptor` on every outbound RPC before the stream opens.
+    /// Calling this twice stacks: the first interceptor runs first. The
+    /// interceptor sees the method path and can set metadata, a deadline,
+    /// wait-for-ready, compression, or typed extensions.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
@@ -342,9 +345,13 @@ impl Channel {
         }
     }
 
-    fn apply_interceptors<T>(&self, req: &mut Request<T>) -> Result<(), Status> {
+    fn apply_interceptors<T>(
+        &self,
+        path: &'static str,
+        req: &mut Request<T>,
+    ) -> Result<(), Status> {
         for hook in self.interceptors.iter() {
-            hook.intercept(req.metadata_mut())?;
+            hook.intercept(&mut req.outgoing(path))?;
         }
         Ok(())
     }
@@ -406,7 +413,7 @@ impl Channel {
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(&mut req)?;
+                channel.apply_interceptors(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -432,7 +439,7 @@ impl Channel {
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(&mut req)?;
+                channel.apply_interceptors(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -482,7 +489,7 @@ impl Channel {
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(&mut req)?;
+                channel.apply_interceptors(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -521,7 +528,7 @@ impl Channel {
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(&mut req)?;
+                channel.apply_interceptors(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;

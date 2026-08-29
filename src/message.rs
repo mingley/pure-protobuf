@@ -75,6 +75,17 @@ pub trait MergeFrom: AsView + SealedInternal {
     fn merge_from(&mut self, src: impl AsView<Proxied = Self::Proxied>);
 }
 
+/// The protobuf full name of a generated message (`package.Message`).
+///
+/// Used to pack [`google.protobuf.Any`](https://protobuf.dev/programming-guides/proto3/#any)
+/// without the caller repeating the type URL. Every generated message
+/// implements this; `FULL_NAME` is the same associated constant the
+/// generated `impl` block already exposes.
+pub trait MessageName {
+    /// `package.Message` as written in the `.proto`, with no leading dot.
+    const FULL_NAME: &'static str;
+}
+
 /// Marker implemented only by message types.
 pub trait MessageType {}
 

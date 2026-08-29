@@ -4121,7 +4121,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` on every outbound request's metadata."
+        "    /// Run `interceptor` on every outbound RPC before the stream opens."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");

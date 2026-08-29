@@ -155,6 +155,10 @@ struct Detail {
 /// assert_eq!(rich.details(), &[0x08, 0x05]);
 /// # Ok::<(), Status>(())
 /// ```
+///
+/// Structured details are a `google.rpc.Status` packed into that trailer.
+/// [`Self::with_error_details`] builds one from [`crate::pb::Any`] values;
+/// [`Self::rpc`] parses it back.
 #[derive(Clone, Debug)]
 pub struct Status {
     code: Code,
@@ -218,6 +222,10 @@ impl Status {
 
     /// Serialized `google.rpc.Status` (or any protobuf the peer understands)
     /// carried as `grpc-status-details-bin`. Empty when the trailer was absent.
+    ///
+    /// Prefer [`Self::rpc`] / [`Self::with_error_details`] when the payload
+    /// is a `google.rpc.Status`. This returns the raw bytes so a proxy can
+    /// forward a trailer it does not parse.
     #[must_use]
     pub fn details(&self) -> &[u8] {
         self.detail.as_ref().map_or(&[], |d| d.details.as_ref())
@@ -225,11 +233,11 @@ impl Status {
 
     /// Attach `details` as `grpc-status-details-bin`.
     ///
-    /// The gRPC spec puts a serialized `google.rpc.Status` here: the same
+    /// The gRPC spec puts a serialized [`crate::pb::Status`] here: the same
     /// code and message as the ASCII trailers, plus a repeated
-    /// `google.protobuf.Any` payload. This method does not parse or generate
-    /// that message; it ships whatever bytes you give it. An empty slice
-    /// omits the trailer.
+    /// [`crate::pb::Any`] payload. This method ships whatever bytes you give
+    /// it. An empty slice omits the trailer. To build the protobuf, use
+    /// [`Self::with_error_details`].
     pub fn set_details(&mut self, details: impl Into<Bytes>) {
         let details = details.into();
         if details.is_empty() {
@@ -247,6 +255,69 @@ impl Status {
         let mut status = Self::new(code, message);
         status.set_details(details);
         status
+    }
+
+    /// Encode `rpc` as `grpc-status-details-bin`.
+    ///
+    /// The kernel [`Status`] code and message come from `rpc`. The same
+    /// protobuf is the trailer payload, which is what grpc-go, grpc-java,
+    /// and tonic-types expect to find there.
+    pub fn from_rpc(rpc: &crate::pb::Status) -> Result<Self, Self> {
+        let code = Code::from_i32(rpc.code());
+        let message = rpc.message().to_str().unwrap_or("").to_owned();
+        let bytes = pbrs::Serialize::serialize(rpc)
+            .map_err(|e| Self::internal(format!("serialize google.rpc.Status: {e}")))?;
+        Ok(Self::with_details(code, message, bytes))
+    }
+
+    /// Parse `grpc-status-details-bin` as [`crate::pb::Status`].
+    ///
+    /// When the trailer is absent, this synthesizes a protobuf with this
+    /// status's code and message and no `Any` payloads. Corrupt bytes are
+    /// [`Code::Internal`].
+    pub fn rpc(&self) -> Result<crate::pb::Status, Self> {
+        if self.details().is_empty() {
+            return Ok(crate::pb::Status::with_details(
+                self.code(),
+                self.message().to_owned(),
+                [],
+            ));
+        }
+        pbrs::Parse::parse(self.details())
+            .map_err(|_| Self::internal("grpc-status-details-bin is not a google.rpc.Status"))
+    }
+
+    /// Pack `details` into a `google.rpc.Status` and attach it as
+    /// `grpc-status-details-bin`.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let mut info = ErrorInfo::new();
+    /// info.set_reason("API_DISABLED");
+    /// info.set_domain("example.com");
+    /// let status = Status::with_error_details(
+    ///     Code::FailedPrecondition,
+    ///     "api disabled",
+    ///     [Any::pack(&info)?],
+    /// )?;
+    /// assert_eq!(status.code(), Code::FailedPrecondition);
+    /// let rpc = status.rpc()?;
+    /// let info = rpc
+    ///     .details()
+    ///     .get(0)
+    ///     .ok_or_else(|| Status::internal("missing Any"))?
+    ///     .unpack::<ErrorInfo>()?;
+    /// assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    /// # Ok::<(), Status>(())
+    /// ```
+    pub fn with_error_details(
+        code: Code,
+        message: impl Into<String>,
+        details: impl IntoIterator<Item = crate::pb::Any>,
+    ) -> Result<Self, Self> {
+        Self::from_rpc(&crate::pb::Status::with_details(code, message, details))
     }
 
     /// Whether this status represents success.
@@ -463,5 +534,48 @@ mod tests {
         status.set_details(Vec::<u8>::new());
         assert!(status.details().is_empty());
         assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+    }
+
+    #[test]
+    fn typed_details_round_trip_through_status() {
+        use crate::pb::{Any, ErrorInfo};
+
+        let mut info = ErrorInfo::new();
+        info.set_reason("STOCKOUT");
+        info.set_domain("spanner.googleapis.com");
+        let status = Status::with_error_details(
+            Code::ResourceExhausted,
+            "out of stock",
+            [Any::pack(&info).expect("pack")],
+        )
+        .expect("encode");
+        assert_eq!(status.code(), Code::ResourceExhausted);
+        assert_eq!(status.message(), "out of stock");
+        assert!(!status.details().is_empty());
+
+        let rpc = status.rpc().expect("parse");
+        assert_eq!(rpc.code(), Code::ResourceExhausted.to_i32());
+        assert_eq!(rpc.message().to_str().unwrap_or(""), "out of stock");
+        assert_eq!(rpc.details().len(), 1);
+        let got = rpc
+            .details()
+            .get(0)
+            .expect("one")
+            .unpack::<ErrorInfo>()
+            .expect("unpack");
+        assert_eq!(got.reason().to_str().unwrap_or(""), "STOCKOUT");
+        assert_eq!(
+            got.domain().to_str().unwrap_or(""),
+            "spanner.googleapis.com"
+        );
+    }
+
+    #[test]
+    fn rpc_synthesizes_a_protobuf_when_the_trailer_is_absent() {
+        let status = Status::not_found("no such row");
+        let rpc = status.rpc().expect("synth");
+        assert_eq!(rpc.code(), Code::NotFound.to_i32());
+        assert_eq!(rpc.message().to_str().unwrap_or(""), "no such row");
+        assert!(rpc.details().is_empty());
     }
 }

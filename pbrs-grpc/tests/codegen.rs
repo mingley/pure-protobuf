@@ -374,8 +374,8 @@ async fn generated_servers_and_clients_expose_intercept() {
 
     let allowed = client(addr)
         .await
-        .intercept(|md: &mut pbrs_grpc::Metadata| {
-            md.insert("x-token", "ok")?;
+        .intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {
+            call.metadata_mut().insert("x-token", "ok")?;
             Ok(())
         });
     let mut get = GetRequest::new();

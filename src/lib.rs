@@ -41,8 +41,8 @@ pub use crate::dynamic::{
 pub use crate::error::{ParseError, SerializeError};
 pub use crate::map::{Map, MapIter, MapKey, MapMut, MapValue, MapView};
 pub use crate::message::{
-    message_eq, Clear, ClearAndParse, CopyFrom, Enum, MergeFrom, Message, MessageMut, MessageType,
-    MessageView, Parse, Serialize, TakeFrom, UnknownEnumValue,
+    message_eq, Clear, ClearAndParse, CopyFrom, Enum, MergeFrom, Message, MessageMut, MessageName,
+    MessageType, MessageView, Parse, Serialize, TakeFrom, UnknownEnumValue,
 };
 pub use crate::proxied::{
     AsMut, AsView, IntoMut, IntoProxied, IntoView, Mut, MutProxied, Proxied, View,

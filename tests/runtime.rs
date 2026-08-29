@@ -41,6 +41,10 @@ fn generated_wkt_timestamp_roundtrip() {
     let q = Timestamp::parse(&b).unwrap();
     assert_eq!(q.seconds(), 1);
     assert_eq!(q.nanos(), 2);
+    assert_eq!(
+        <Timestamp as pbrs::MessageName>::FULL_NAME,
+        "google.protobuf.Timestamp"
+    );
 }
 
 #[test]

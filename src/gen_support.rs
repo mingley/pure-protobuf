@@ -486,6 +486,9 @@ macro_rules! impl_generated_message {
 
         impl $crate::__internal::SealedInternal for $Owned {}
         impl $crate::MessageType for $Owned {}
+        impl $crate::MessageName for $Owned {
+            const FULL_NAME: &'static str = $Owned::FULL_NAME;
+        }
         impl $crate::Proxied for $Owned {
             type View<'msg> = $View<'msg>;
         }
@@ -721,6 +724,9 @@ macro_rules! impl_typed_message {
         }
         impl $crate::__internal::SealedInternal for $Owned {}
         impl $crate::MessageType for $Owned {}
+        impl $crate::MessageName for $Owned {
+            const FULL_NAME: &'static str = $Owned::FULL_NAME;
+        }
         impl $crate::Proxied for $Owned {
             type View<'msg> = $View<'msg>;
         }

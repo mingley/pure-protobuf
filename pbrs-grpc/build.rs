@@ -58,4 +58,19 @@ fn main() {
             &[&proto_dir],
         )
         .expect("codegen grpc.reflection.v1");
+
+    // google.rpc.Status and the standard error-detail messages. Compiled
+    // separately so each FileDescriptorSet only pulls the WKT it imports
+    // (Any vs Duration) and the two generated files can live in sibling
+    // modules without duplicate `mod __gen`.
+    pbrs::codegen::Config::new()
+        .compile_protos(&[&proto_dir.join("google/rpc/status.proto")], &[&proto_dir])
+        .expect("codegen google.rpc.Status");
+
+    pbrs::codegen::Config::new()
+        .compile_protos(
+            &[&proto_dir.join("google/rpc/error_details.proto")],
+            &[&proto_dir],
+        )
+        .expect("codegen google.rpc error details");
 }

@@ -25,7 +25,7 @@ mod common;
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Channel, ChannelConfig, Code, Empty, InteropTestService, Metadata, Request, Response, Router,
+    Channel, ChannelConfig, Code, Empty, InteropTestService, Outgoing, Request, Response, Router,
     Rpc, Server, ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
 };
 use std::net::SocketAddr;
@@ -415,8 +415,9 @@ fn require_bearer(rpc: &mut Rpc) -> Result<(), Status> {
     Ok(())
 }
 
-fn inject_bearer(md: &mut Metadata) -> Result<(), Status> {
-    md.insert("authorization", "Bearer letmein")?;
+fn inject_bearer(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.metadata_mut()
+        .insert("authorization", "Bearer letmein")?;
     Ok(())
 }
 
@@ -576,9 +577,10 @@ async fn router_interceptors_stack_in_declaration_order() {
         .expect_err("auth without trace");
     assert_eq!(still_trace.code(), Code::InvalidArgument);
 
-    let authed = GreeterClient::new(channel(addr).await).intercept(|md: &mut Metadata| {
-        md.insert("x-trace", "1")?;
-        md.insert("authorization", "Bearer letmein")?;
+    let authed = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.metadata_mut().insert("x-trace", "1")?;
+        call.metadata_mut()
+            .insert("authorization", "Bearer letmein")?;
         Ok(())
     });
     let allowed = authed
@@ -598,12 +600,62 @@ async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
     });
 
     let client = GreeterClient::new(channel(addr).await)
-        .intercept(|_: &mut Metadata| Err(Status::failed_precondition("blocked locally")));
+        .intercept(|_: &mut Outgoing<'_>| Err(Status::failed_precondition("blocked locally")));
     let err = client
         .say_hello(Request::new(req("ada")))
         .await
         .expect_err("interceptor");
     assert_eq!(err.code(), Code::FailedPrecondition);
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_sees_the_method_path() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.metadata().get("x-path") != Some("/helloworld.Greeter/SayHello") {
+                    return Err(Status::invalid_argument("missing stamped path"));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        let path = call.path();
+        call.metadata_mut().insert("x-path", path)?;
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("stamped");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_set_a_deadline() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.set_timeout(Duration::from_millis(40));
+        Ok(())
+    });
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded);
 
     task.abort();
 }

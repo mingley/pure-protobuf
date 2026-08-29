@@ -268,18 +268,34 @@ status.metadata_mut().insert("x-retry-after", "30")?;
 return Err(status);
 ```
 
-Rich errors travel as `grpc-status-details-bin`. Attach a serialized
-`google.rpc.Status` (or any protobuf the peer understands); it is reserved
-wire state, not user metadata:
+Rich errors travel as `grpc-status-details-bin`. The spec puts a serialized
+`google.rpc.Status` there — the same code and message as the ASCII trailers,
+plus a repeated `google.protobuf.Any`. `Status::with_error_details` builds
+that protobuf; `Status::rpc` parses it back. The key is invisible through
+`Metadata`, so forwarding received metadata cannot inject it.
 
 ```rust
-let mut status = Status::failed_precondition("quota");
-status.set_details(encoded_google_rpc_status);
-return Err(status);
+use pbrs_grpc::pb::{Any, ErrorInfo};
+use pbrs_grpc::{Code, Status};
+
+let mut info = ErrorInfo::new();
+info.set_reason("API_DISABLED");
+info.set_domain("example.com");
+return Err(Status::with_error_details(
+    Code::FailedPrecondition,
+    "api disabled",
+    [Any::pack(&info)?],
+)?);
 ```
 
-On the client, `status.details()` is the decoded bytes. The key is invisible
-through `Metadata`, so forwarding received metadata cannot inject it.
+On the client:
+
+```rust
+let info = status.rpc()?.details().get(0).unwrap().unpack::<ErrorInfo>()?;
+```
+
+Raw bytes still work (`Status::set_details`) when you are forwarding a trailer
+you do not parse.
 
 Reserved keys (`grpc-status`, `grpc-status-details-bin`, `grpc-timeout`,
 `content-type`, HTTP/2 pseudo-headers, ...) are invisible through `Metadata`
@@ -785,11 +801,15 @@ or `ServiceExt::intercept` when you do not want the generated server's
 `.serve()` chain.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
-mutates outbound metadata before the stream opens:
+runs before the stream opens. Closures take `Outgoing`: the method path,
+metadata, deadline, wait-for-ready, compression, and typed extensions.
 
 ```rust
-let client = GreeterClient::new(channel).intercept(|md| {
-    md.insert("authorization", "Bearer secret")?;
+let client = GreeterClient::new(channel).intercept(|call| {
+    call.metadata_mut().insert("authorization", "Bearer secret")?;
+    if call.timeout().is_none() {
+        call.set_timeout(Duration::from_secs(5));
+    }
     Ok(())
 });
 ```
@@ -931,7 +951,6 @@ Deliberate omissions, with what to do instead.
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
-| Reflection | `grpc.reflection.v1` ships in-tree. Register each generated `FILE_DESCRIPTOR_SET` and mount it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 
