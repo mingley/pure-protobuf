@@ -347,6 +347,80 @@ async fn serve_test_tls_at(
     Err(last)
 }
 
+async fn serve_reverser_at(addr: SocketAddr) -> Result<tokio::task::JoinHandle<()>, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let service = Reverser::new(Arc::new(AtomicUsize::new(0)));
+                let handle = tokio::spawn(async move {
+                    Server::new(service).serve_listener(listener).await.ok();
+                });
+                return Ok(handle);
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+async fn serve_reverser_tls_at(
+    addr: SocketAddr,
+    tls: ServerTls,
+) -> Result<tokio::task::JoinHandle<()>, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let service = Reverser::new(Arc::new(AtomicUsize::new(0)));
+                let handle = tokio::spawn(async move {
+                    Server::new(service)
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return Ok(handle);
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+async fn serve_reverser_mtls_at(
+    addr: SocketAddr,
+    tls: ServerTls,
+) -> Result<tokio::task::JoinHandle<()>, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let identity = client_identity();
+                let leaf = identity.certificates().next().expect("leaf");
+                let service = Reverser::mtls(Arc::new(AtomicUsize::new(0)), leaf);
+                let handle = tokio::spawn(async move {
+                    Server::new(service)
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return Ok(handle);
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
 #[tokio::test]
 async fn a_hand_written_service_serves_without_generated_code() {
     let (addr, listener) = bind().await;
@@ -5573,6 +5647,136 @@ async fn test_unix_channel_wait_for_ready_completes_once_the_server_listens() {
     .await;
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy");
+    wait_then_complete_reverser(&channel, true, async {
+        serve_reverser_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
+    wait_then_complete_reverser(&channel, false, async {
+        serve_reverser_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_tls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_reverser(&channel, true, async {
+        serve_reverser_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_tls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = Channel::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_reverser(&channel, false, async {
+        serve_reverser_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_mtls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_reverser(&channel, true, async {
+        serve_reverser_mtls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_reverser(&channel, false, async {
+        serve_reverser_mtls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_unix_wait_for_ready_completes_once_the_server_listens() {
+    let (path, _guard) = unix_test_path();
+    let channel = Channel::connect_unix_lazy(&path).expect("lazy");
+    wait_then_complete_reverser(&channel, true, async {
+        let sock = path.clone();
+        tokio::spawn(async move {
+            Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+                .serve_unix(sock)
+                .await
+                .ok();
+        })
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_unix_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (path, _guard) = unix_test_path();
+    let channel = Channel::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_reverser(&channel, false, async {
+        let sock = path.clone();
+        tokio::spawn(async move {
+            Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+                .serve_unix(sock)
+                .await
+                .ok();
+        })
+    })
+    .await;
+}
+
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_request_can_opt_out_of_channel_wait_for_ready() {
@@ -7037,6 +7241,81 @@ async fn gzip_test_every_shape(client: &TestServiceClient) {
         inbound.message().await.expect("end").is_none(),
         "empty FullDuplexCall must end"
     );
+}
+
+async fn wait_then_complete_reverser(
+    channel: &Channel,
+    wait_on_request: bool,
+    start: impl std::future::Future,
+) {
+    let timeout = Some(Duration::from_secs(5));
+    let mut unary = channel.unary::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Reverse",
+        stamp_wait_ready(Request::new(req("stressed")), wait_on_request, timeout),
+    );
+    let mut server_stream = channel.server_streaming::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Server",
+        stamp_wait_ready(Request::new(req("stressed")), wait_on_request, timeout),
+    );
+    let (tx_c, mut client_stream) = channel.client_streaming::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Client",
+        stamp_wait_ready(Request::new(()), wait_on_request, timeout),
+    );
+    let (tx_b, mut bidi) = channel.bidi::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Bidi",
+        stamp_wait_ready(Request::new(()), wait_on_request, timeout),
+    );
+
+    tokio::select! {
+        biased;
+        result = &mut unary => panic!("unary finished before the server listened: {result:?}"),
+        result = &mut server_stream => panic!("server-stream finished before the server listened: {result:?}"),
+        result = &mut client_stream => panic!("client-stream finished before the server listened: {result:?}"),
+        result = &mut bidi => panic!("bidi finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = start.await;
+
+    let reply = tokio::time::timeout(Duration::from_secs(2), unary)
+        .await
+        .expect("unary hung after listen")
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "desserts");
+
+    let mut stream = tokio::time::timeout(Duration::from_secs(2), server_stream)
+        .await
+        .expect("server-stream hung after listen")
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
+
+    tx_c.send(req("stressed")).await.expect("send");
+    tx_c.close();
+    let reply = tokio::time::timeout(Duration::from_secs(2), client_stream)
+        .await
+        .expect("client-stream hung after listen")
+        .expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "desserts");
+
+    tx_b.send(req("stressed")).await.expect("send");
+    tx_b.close();
+    let mut inbound = tokio::time::timeout(Duration::from_secs(2), bidi)
+        .await
+        .expect("bidi hung after listen")
+        .expect("bidi")
+        .into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
 }
 
 async fn echo_reverser_every_shape(channel: &Channel) {

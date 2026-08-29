@@ -559,7 +559,9 @@ the same dialers (`HealthClient::connect_lazy` / `connect_tls_lazy` /
 method. Reflection `ServerReflectionInfo` retries until listen on those
 dialers; reflection is one bidi method. Official TestService EmptyCall,
 StreamingOutputCall, StreamingInputCall, and FullDuplexCall retry until
-listen on the same dialers.
+listen on the same dialers. A hand-written `Service` on `Channel::unary` /
+`server_streaming` / `client_streaming` / `bidi` (Reverser Reverse / Server /
+Client / Bidi) retries until listen on those dialers.
 
 `Channel::waits_for_ready` / `FooClient::waits_for_ready` read the overlay
 (`wait_for_ready` sets it).
