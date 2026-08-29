@@ -186,6 +186,8 @@ See `docs/upb.md`. Short list:
   and `Channel::connect_tls_with` apply to every call shape. Generated
   Store TLS (`serve_tls_with_shutdown` / `connect_tls_with` /
   `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape.
+  Health `send_compressed` gzips Check and Watch; reflection
+  `send_compressed` gzips the bidi `list_services` method.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.

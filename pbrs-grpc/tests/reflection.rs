@@ -325,6 +325,33 @@ async fn echo_reflection_list(client: &ServerReflectionClient) {
     );
 }
 
+async fn gzip_reflection_list(client: &ServerReflectionClient) {
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert!(tx.compress(), "reflection StreamSender must gzip");
+    let reply = call.await.expect("open");
+    assert_eq!(reply.encoding(), Some("gzip"), "reflection encoding");
+    let mut inbound = reply.into_inner();
+    tx.send(list_req()).await.expect("send");
+    let framed = inbound
+        .next_framed()
+        .await
+        .expect("frame")
+        .expect("reflection reply");
+    assert!(framed.compressed, "reflection frames gzip");
+    let resp = framed.message;
+    assert!(
+        resp.has_list_services_response(),
+        "expected list, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let names = service_names(&resp);
+    assert!(
+        names.contains(&"helloworld.Greeter".to_owned()),
+        "{names:?}"
+    );
+    tx.close();
+}
+
 #[tokio::test]
 async fn reflection_client_interceptor_rejects_with_typed_status() {
     let (addr, _guard) = serve().await;
@@ -454,4 +481,23 @@ async fn reflection_tls_lists_the_registered_greeter() {
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
     echo_reflection_list(&client).await;
+}
+
+#[tokio::test]
+async fn reflection_send_compressed_gzips_list_services() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = client(addr).await.send_compressed();
+    gzip_reflection_list(&client).await;
 }

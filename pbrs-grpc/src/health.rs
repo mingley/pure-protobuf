@@ -6,7 +6,8 @@
 //! the client on both methods. Unix (`serve_unix` / `connect_unix`), TLS
 //! (`serve_tls` / `connect_tls`), and
 //! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
-//! both methods.
+//! both methods. [`HealthServer::send_compressed`] gzips Check and Watch when
+//! the client advertises gzip.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {

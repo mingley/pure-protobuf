@@ -81,6 +81,34 @@ async fn echo_health_check_and_watch(client: &HealthClient) {
     assert_eq!(first.status(), ServingStatus::Serving);
 }
 
+async fn gzip_health_check_and_watch(client: &HealthClient) {
+    let overall = client
+        .check(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("overall");
+    assert!(overall.compressed(), "check gzip");
+    assert_eq!(overall.encoding(), Some("gzip"), "{:?}", overall.encoding());
+    assert_eq!(overall.get_ref().status(), ServingStatus::Serving);
+
+    let named = client
+        .check(Request::new(req("helloworld.Greeter")))
+        .await
+        .expect("named");
+    assert!(named.compressed(), "named check gzip");
+    assert_eq!(named.encoding(), Some("gzip"));
+    assert_eq!(named.get_ref().status(), ServingStatus::Serving);
+
+    let reply = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("watch");
+    assert_eq!(reply.encoding(), Some("gzip"), "watch encoding");
+    let mut stream = reply.into_inner();
+    let framed = stream.next_framed().await.expect("frame").expect("msg");
+    assert!(framed.compressed, "watch frames gzip");
+    assert_eq!(framed.message.status(), ServingStatus::Serving);
+}
+
 async fn assert_health_blocked(client: &HealthClient) {
     assert_interceptor_blocked(
         &client
@@ -538,5 +566,21 @@ async fn health_tls_round_trips_check_and_watch() {
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
     echo_health_check_and_watch(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_send_compressed_gzips_check_and_watch() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.send_compressed().serve_listener(listener).await.ok();
+    });
+    let client = client(addr).await.send_compressed();
+    gzip_health_check_and_watch(&client).await;
     handle.abort();
 }
