@@ -4176,7 +4176,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, or reject. Calling this twice stacks: the first interceptor runs first."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, inspect `:authority` / `:scheme` / `peer_identity` / `peer_cred`, attach extensions, or reject. Calling this twice stacks: the first interceptor runs first."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4668,7 +4668,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// The interceptor sees a [`{G}::Outgoing`]: path, `:authority`, `:scheme`,"
+        "    /// The interceptor sees a [`{G}::Outgoing`]: path, service, method, `:authority`, `:scheme`,"
     );
     let _ = writeln!(
         src,

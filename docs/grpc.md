@@ -520,6 +520,10 @@ Router::new()
     .await?;
 ```
 
+`Router::service_names` lists what is mounted (order is unspecified). Reflection
+`list_services` answers from registered file descriptor sets, not from this
+list, so register every proto you serve.
+
 Generated servers can start the chain themselves, which keeps their
 configuration:
 
@@ -1096,7 +1100,8 @@ onion-style.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs before the stream opens. Closures take `Outgoing`: the method path,
-`:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https` when the
+service and method halves (`Outgoing::service` / `Outgoing::method`, same
+split as `Rpc`), `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https` when the
 channel was built with `ClientTls`), `user-agent` (including a
 `Channel::user_agent` prefix), metadata, deadline, wait-for-ready,
 compression, and typed extensions. TCP `:authority` is `host:port`; Unix is

@@ -1,7 +1,7 @@
 //! RPC envelopes: [`Request`], [`Response`], and the cancellable [`Call`].
 
 use crate::metadata::Metadata;
-use crate::server::PeerCred;
+use crate::server::{split_path, PeerCred};
 use crate::status::Status;
 use crate::tls::PeerIdentity;
 use std::fmt;
@@ -385,9 +385,9 @@ impl<T> Request<T> {
 /// already built it, and object-safe interceptors cannot be generic over it.
 /// Everything else an interceptor typically stamps — metadata, deadline,
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
-/// `:authority`, `:scheme`, and `user-agent`, which the interceptor cannot
-/// otherwise see. Typed values the caller inserted on
-/// [`crate::Request::extensions_mut`] are on this map.
+/// `:authority`, `:scheme`, `user-agent`, and the service/method halves of
+/// the path, which the interceptor cannot otherwise see. Typed values the
+/// caller inserted on [`crate::Request::extensions_mut`] are on this map.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -396,6 +396,10 @@ impl<T> Request<T> {
 /// fn stamp(call: &mut Outgoing<'_>) -> Result<(), Status> {
 ///     let path = call.path();
 ///     call.metadata_mut().insert("x-path", path)?;
+///     let service = call.service();
+///     call.metadata_mut().set("x-service", service)?;
+///     let method = call.method();
+///     call.metadata_mut().set("x-method", method)?;
 ///     let authority = call.authority();
 ///     call.metadata_mut().insert("x-authority", authority)?;
 ///     let scheme = call.scheme();
@@ -455,6 +459,24 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn path(&self) -> &'static str {
         self.path
+    }
+
+    /// Service half of the path, e.g. `helloworld.Greeter`.
+    ///
+    /// Same split as [`crate::Rpc::service`]. Unparseable paths yield `""`.
+    /// Bind it before [`Self::metadata_mut`]: `let svc = call.service();`.
+    #[must_use]
+    pub fn service(&self) -> &'static str {
+        split_path(self.path).0
+    }
+
+    /// Method half of the path, e.g. `SayHello`.
+    ///
+    /// Same split as [`crate::Rpc::method`]. Unparseable paths yield `""`.
+    /// Bind it before [`Self::metadata_mut`]: `let method = call.method();`.
+    #[must_use]
+    pub fn method(&self) -> &'static str {
+        split_path(self.path).1
     }
 
     /// Request headers, as gRPC metadata.
@@ -536,6 +558,8 @@ impl fmt::Debug for Outgoing<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Outgoing")
             .field("path", &self.path)
+            .field("service", &split_path(self.path).0)
+            .field("method", &split_path(self.path).1)
             .field("authority", &self.authority)
             .field("scheme", &self.scheme)
             .field("user_agent", &self.user_agent)
@@ -992,9 +1016,13 @@ mod tests {
         req.set_timeout(Duration::from_secs(1));
         let shown = {
             let call = req.outgoing("/svc/Method", "127.0.0.1:1", false, "pbrs-grpc/test");
+            assert_eq!(call.service(), "svc");
+            assert_eq!(call.method(), "Method");
             format!("{call:?}")
         };
         assert!(shown.contains("/svc/Method"), "{shown}");
+        assert!(shown.contains("svc"), "{shown}");
+        assert!(shown.contains("Method"), "{shown}");
         assert!(shown.contains("127.0.0.1:1"), "{shown}");
         assert!(shown.contains("http"), "{shown}");
         assert!(shown.contains("pbrs-grpc/test"), "{shown}");

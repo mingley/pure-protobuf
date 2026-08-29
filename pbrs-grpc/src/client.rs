@@ -544,9 +544,9 @@ impl Channel {
 
     /// Run `interceptor` on every outbound RPC before the stream opens.
     /// Calling this twice stacks: the first interceptor runs first. The
-    /// interceptor sees the method path, `:authority`, `:scheme`, and
-    /// `user-agent`, and can set metadata, a deadline, wait-for-ready,
-    /// compression, or typed extensions.
+    /// interceptor sees the method path, service, method, `:authority`,
+    /// `:scheme`, and `user-agent`, and can set metadata, a deadline,
+    /// wait-for-ready, compression, or typed extensions.
     /// Values the caller put on [`crate::Request::extensions_mut`] are
     /// visible; stacked interceptors share that map.
     #[must_use]

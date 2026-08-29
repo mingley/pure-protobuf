@@ -860,7 +860,7 @@ async fn drain_to_wire<Resp: Serialize + Send>(
 
 /// Split `/service/method` without allocating. Unparseable paths yield empty
 /// halves, which route to `UNIMPLEMENTED`.
-fn split_path(path: &str) -> (&str, &str) {
+pub(crate) fn split_path(path: &str) -> (&str, &str) {
     let rest = path.strip_prefix('/').unwrap_or(path);
     match rest.rsplit_once('/') {
         Some((service, method)) => (service, method),

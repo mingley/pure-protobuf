@@ -1084,6 +1084,18 @@ async fn a_client_interceptor_sees_the_method_path() {
                 if rpc.metadata().get("x-path") != Some("/helloworld.Greeter/SayHello") {
                     return Err(Status::invalid_argument("missing stamped path"));
                 }
+                if rpc.metadata().get("x-service") != Some("helloworld.Greeter") {
+                    return Err(Status::invalid_argument(format!(
+                        "service {:?}",
+                        rpc.metadata().get("x-service")
+                    )));
+                }
+                if rpc.metadata().get("x-method") != Some("SayHello") {
+                    return Err(Status::invalid_argument(format!(
+                        "method {:?}",
+                        rpc.metadata().get("x-method")
+                    )));
+                }
                 Ok(())
             })
             .serve_listener(listener)
@@ -1094,6 +1106,10 @@ async fn a_client_interceptor_sees_the_method_path() {
     let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
         let path = call.path();
         call.metadata_mut().insert("x-path", path)?;
+        let service = call.service();
+        call.metadata_mut().set("x-service", service)?;
+        let method = call.method();
+        call.metadata_mut().set("x-method", method)?;
         Ok(())
     });
     let reply = client
