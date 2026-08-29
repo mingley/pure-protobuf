@@ -1280,7 +1280,8 @@ impl<S: Service> Server<S> {
         }
     }
 
-    /// Replace the transport and limit configuration.
+    /// Replace the transport and limit configuration. Applies to every call
+    /// shape.
     #[must_use]
     pub fn config(mut self, config: ServerConfig) -> Self {
         self.config = config;
@@ -1407,6 +1408,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Cap every RPC even when the client omits `grpc-timeout`.
+    /// Applies to every call shape.
     /// Distinct from [`Self::timeout`], which sets it.
     /// Interceptors and handlers read the same overlay on [`Rpc::rpc_timeout`]
     /// / [`Request::rpc_timeout`].
@@ -1416,6 +1418,7 @@ impl<S: Service> Server<S> {
     }
 
     /// Whether responses are gzipped when the client accepts gzip.
+    /// Applies to every call shape.
     /// Distinct from [`Self::send_compressed`], which enables it.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
@@ -1547,7 +1550,8 @@ impl<S: Service> Server<S> {
             .await
     }
 
-    /// Serve until `shutdown` resolves, then drain.
+    /// Serve until `shutdown` resolves, then drain. Applies to every call
+    /// shape.
     ///
     /// `listener` must already be bound. Draining stops accepting, sends
     /// `GOAWAY` on every live connection, and waits for in-flight RPCs to
@@ -1801,7 +1805,8 @@ impl Router {
         }
     }
 
-    /// Replace the transport and limit configuration.
+    /// Replace the transport and limit configuration. Applies to every call
+    /// shape.
     #[must_use]
     pub fn config(mut self, config: ServerConfig) -> Self {
         self.config = config;
@@ -1928,6 +1933,7 @@ impl Router {
     }
 
     /// Cap every RPC even when the client omits `grpc-timeout`.
+    /// Applies to every call shape.
     /// Distinct from [`Self::timeout`], which sets it.
     /// Interceptors and handlers read the same overlay on [`Rpc::rpc_timeout`]
     /// / [`Request::rpc_timeout`].
@@ -1937,6 +1943,7 @@ impl Router {
     }
 
     /// Whether responses are gzipped when the client accepts gzip.
+    /// Applies to every call shape.
     /// Distinct from [`Self::send_compressed`], which enables it.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
@@ -2039,8 +2046,8 @@ impl Router {
             .await
     }
 
-    /// Serve until `shutdown` resolves, then drain. See
-    /// [`Server::serve_with_shutdown`].
+    /// Serve until `shutdown` resolves, then drain. Applies to every call
+    /// shape. See [`Server::serve_with_shutdown`].
     pub async fn serve_with_shutdown(
         self,
         listener: TcpListener,

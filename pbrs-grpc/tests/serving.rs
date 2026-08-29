@@ -289,6 +289,34 @@ fn server_and_router_config_document_every_call_shape() {
         2,
         "Server::server_config and Router::server_config must name every call shape"
     );
+    assert_eq!(
+        src.matches(
+            "Replace the transport and limit configuration. Applies to every call\n    /// shape."
+        )
+        .count(),
+        2,
+        "Server::config and Router::config must name every call shape"
+    );
+    assert_eq!(
+        src.matches("Cap every RPC even when the client omits `grpc-timeout`.\n    /// Applies to every call shape.")
+            .count(),
+        2,
+        "Server::rpc_timeout and Router::rpc_timeout must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Whether responses are gzipped when the client accepts gzip.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::compresses_outbound and Router::compresses_outbound must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Serve until `shutdown` resolves, then drain. Applies to every call\n    /// shape."
+        ),
+        "Server::serve_with_shutdown must name every call shape"
+    );
 }
 
 #[tokio::test]
@@ -895,6 +923,21 @@ async fn test_service_client_interceptor_sees_every_shape_context() {
 }
 
 #[tokio::test]
+async fn test_service_send_compressed_gzips_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(channel(addr).await.send_compressed());
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
@@ -969,6 +1012,25 @@ async fn a_client_interceptor_sees_reverser_context() {
     echo_reverser_every_shape(&channel(addr).await.intercept(stamp_outgoing_context)).await;
     assert_eq!(seen.load(Ordering::Relaxed), 4);
 
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_send_compressed_gzips_every_shape() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    gzip_reverser_every_shape(&channel(addr).await.send_compressed()).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
     task.abort();
 }
 
@@ -4998,6 +5060,48 @@ async fn echo_test_every_shape(client: &TestServiceClient) {
     );
 }
 
+async fn gzip_test_every_shape(client: &TestServiceClient) {
+    let empty = client
+        .empty_call(Request::new(Empty::new()))
+        .await
+        .expect("unary");
+    assert!(empty.compressed(), "EmptyCall gzip");
+    assert_eq!(empty.encoding(), Some("gzip"), "{:?}", empty.encoding());
+
+    let reply = client
+        .streaming_output_call(Request::new(StreamingOutputCallRequest::new()))
+        .await
+        .expect("server-stream");
+    assert_eq!(
+        reply.encoding(),
+        Some("gzip"),
+        "StreamingOutputCall encoding"
+    );
+    let mut stream = reply.into_inner();
+    assert!(
+        stream.message().await.expect("end").is_none(),
+        "empty StreamingOutputCall plan must end"
+    );
+
+    let (tx, call) = client.streaming_input_call(Request::new(()));
+    assert!(tx.compress(), "StreamingInputCall StreamSender must gzip");
+    tx.close();
+    let summary = call.await.expect("client-stream");
+    assert!(summary.compressed(), "StreamingInputCall reply gzip");
+    assert_eq!(summary.encoding(), Some("gzip"));
+
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    assert!(tx.compress(), "FullDuplexCall StreamSender must gzip");
+    let reply = call.await.expect("bidi");
+    assert_eq!(reply.encoding(), Some("gzip"), "FullDuplexCall encoding");
+    tx.close();
+    let mut inbound = reply.into_inner();
+    assert!(
+        inbound.message().await.expect("end").is_none(),
+        "empty FullDuplexCall must end"
+    );
+}
+
 async fn echo_reverser_every_shape(channel: &Channel) {
     let reply: HelloReply = channel
         .unary("/demo.Reverser/Reverse", Request::new(req("stressed")))
@@ -5041,6 +5145,56 @@ async fn echo_reverser_every_shape(channel: &Channel) {
         .expect("first message");
     assert_eq!(name_of(&first), "desserts");
     assert!(inbound.message().await.expect("end").is_none());
+}
+
+async fn gzip_reverser_every_shape(channel: &Channel) {
+    let reply = channel
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("unary");
+    assert!(reply.compressed(), "Reverse gzip");
+    assert_eq!(reply.encoding(), Some("gzip"));
+    assert_eq!(name_of(reply.get_ref()), "desserts");
+
+    let reply = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(req("stressed")),
+        )
+        .await
+        .expect("server-stream");
+    assert_eq!(reply.encoding(), Some("gzip"), "Server encoding");
+    let mut stream = reply.into_inner();
+    let framed = stream.next_framed().await.expect("frame").expect("message");
+    assert!(framed.compressed, "Server frames gzip");
+    assert_eq!(name_of(&framed.message), "desserts");
+
+    let (tx, call) = channel
+        .client_streaming::<HelloRequest, HelloReply>("/demo.Reverser/Client", Request::new(()));
+    assert!(tx.compress(), "Client StreamSender must gzip");
+    tx.send(req("stressed")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert!(reply.compressed(), "Client reply gzip");
+    assert_eq!(reply.encoding(), Some("gzip"));
+    assert_eq!(name_of(reply.get_ref()), "desserts");
+
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    assert!(tx.compress(), "Bidi StreamSender must gzip");
+    let reply = call.await.expect("bidi");
+    assert_eq!(reply.encoding(), Some("gzip"), "Bidi encoding");
+    let mut inbound = reply.into_inner();
+    tx.send(req("stressed")).await.expect("send");
+    let framed = inbound
+        .next_framed()
+        .await
+        .expect("frame")
+        .expect("message");
+    assert!(framed.compressed, "Bidi frames gzip");
+    assert_eq!(name_of(&framed.message), "desserts");
+    tx.close();
+    while inbound.message().await.expect("drain").is_some() {}
 }
 
 fn fat_test_payload() -> Payload {

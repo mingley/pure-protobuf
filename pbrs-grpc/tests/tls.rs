@@ -112,6 +112,107 @@ async fn echo_every_shape(client: &GreeterClient, name: &str) {
     assert!(inbound.message().await.expect("end").is_none());
 }
 
+async fn gzip_every_shape(client: &GreeterClient) {
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert!(reply.compressed(), "unary gzip");
+    assert_eq!(reply.encoding(), Some("gzip"), "{:?}", reply.encoding());
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let reply = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert_eq!(reply.encoding(), Some("gzip"), "server-stream encoding");
+    let mut stream = reply.into_inner();
+    let framed = stream.next_framed().await.expect("frame").expect("message");
+    assert!(framed.compressed, "server-stream frames gzip");
+    assert_eq!(name_of(&framed.message), "ada");
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert!(tx.compress(), "client-stream StreamSender must gzip");
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert!(reply.compressed(), "client-stream reply gzip");
+    assert_eq!(reply.encoding(), Some("gzip"));
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert!(tx.compress(), "bidi StreamSender must gzip");
+    let reply = call.await.expect("bidi");
+    assert_eq!(reply.encoding(), Some("gzip"), "bidi encoding");
+    let mut inbound = reply.into_inner();
+    tx.send(req("ada")).await.expect("send");
+    let framed = inbound
+        .next_framed()
+        .await
+        .expect("frame")
+        .expect("message");
+    assert!(framed.compressed, "bidi frames gzip");
+    assert_eq!(name_of(&framed.message), "ada");
+    tx.close();
+    while inbound.message().await.expect("drain").is_some() {}
+}
+
+fn interceptor_blocked() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("BLOCKED");
+    info.set_domain("example.com");
+    Status::with_error_details(
+        Code::FailedPrecondition,
+        "blocked locally",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("details")
+}
+
+fn assert_interceptor_blocked(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "blocked locally");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+async fn assert_blocked_every_shape(client: &GreeterClient) {
+    assert_interceptor_blocked(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    match client.server_hello(Request::new(req("ada"))).await {
+        Err(err) => assert_interceptor_blocked(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_interceptor_blocked(&err),
+            Ok(_) => panic!("server-stream interceptor reject must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
 fn echo_named_stream(name: String) -> Response<Streaming<HelloReply>> {
     let (tx, stream) = Streaming::channel(4);
     drop(tokio::spawn(async move {
@@ -209,6 +310,24 @@ async fn unary_over_tls() {
     let (addr, _guard) = serve_tls(tls).await;
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
     echo_every_shape(&client, "ada").await;
+}
+
+#[tokio::test]
+async fn tls_send_compressed_gzips_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls"))
+        .await
+        .send_compressed();
+    gzip_every_shape(&client).await;
 }
 
 #[tokio::test]
@@ -316,6 +435,32 @@ async fn a_tls_client_interceptor_sees_https_scheme() {
         Ok(())
     });
     echo_every_shape(&client, "ada").await;
+}
+
+#[tokio::test]
+async fn tls_client_interceptor_rejects_with_typed_status() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, _guard) = serve_tls(tls).await;
+    let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls"))
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_blocked_every_shape(&client).await;
+}
+
+#[tokio::test]
+async fn tls_server_interceptor_rejects_with_typed_status() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
+    assert_blocked_every_shape(&client).await;
 }
 
 #[tokio::test]

@@ -186,7 +186,11 @@ See `docs/upb.md`. Short list:
   and `Channel::connect_tls_with` apply to every call shape. Generated
   Store TLS (`serve_tls_with_shutdown` / `connect_tls_with` /
   `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape,
-  including gzip over TLS.
+  including gzip over TLS. Greeter `send_compressed` gzips every call shape
+  over TLS. A TLS interceptor `Err(with_error_details)` unpacks on every
+  Greeter shape. Official `TestService` `send_compressed` gzips EmptyCall /
+  StreamingOutputCall / StreamingInputCall / FullDuplexCall. A wrapping
+  `Service` `send_compressed` gzips every hand-written Reverser Channel API.
   Health `send_compressed` gzips Check and Watch, including over TLS;
   reflection `send_compressed` gzips the bidi `list_services` method,
   including over TLS. A client
