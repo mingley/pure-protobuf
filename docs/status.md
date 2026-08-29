@@ -207,12 +207,15 @@ See `docs/upb.md`. Short list:
   methods the same way, including over TLS, mTLS, Unix, and `from_io`. A generated Store handler `Err(with_error_details)`
   unpacks on Get / Watch / PutAll / Sync too, including over TLS, mTLS, Unix, and `from_io`. A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written
-  Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`, and a client
-  interceptor stamps Outgoing path facts on those APIs, including over TLS,
+  Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`, a wrapping
+  `Service` handler `Err(with_error_details)` unpacks on those APIs the same way,
+  and a client interceptor stamps Outgoing path facts on those APIs, including over TLS,
   mTLS, Unix, and `from_io`.
   Official `TestService` interceptor `Err(with_error_details)` unpacks on EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
-  TLS, mTLS, Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
+  TLS, mTLS, Unix, and `from_io`, a generated TestService handler
+  `Err(with_error_details)` unpacks on those methods too, including over TLS, mTLS,
+  Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
   on those methods, including over TLS, mTLS, Unix, and `from_io`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers

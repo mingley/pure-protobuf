@@ -1573,8 +1573,11 @@ let _ = inbound.message().await?;
 This is not a second-class path. The in-tree `TestService` implementation and
 the hostile-peer tests both use it. A hand-written `Service` is first-class on
 every `Channel` call shape, including `send_compressed` gzip over TLS, mTLS,
-Unix, and `from_io`, and interceptor `with_error_details` over TLS, mTLS, Unix,
-and `from_io`.
+Unix, and `from_io`, interceptor `with_error_details` over TLS, mTLS, Unix,
+and `from_io`, and a handler `Err(with_error_details)` over TLS, mTLS, Unix,
+and `from_io`. Official `TestService` handler `Err(with_error_details)` unpacks
+on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
+those transports too.
 
 ## What is not here
 

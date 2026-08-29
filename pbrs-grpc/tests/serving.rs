@@ -30,7 +30,8 @@ use pbrs_grpc::{
     Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, Identity, Incoming,
     InteropTestService, MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity, Request,
     Response, Router, Rpc, Server, ServerConfig, ServerTls, Service, ServiceExt, SimpleRequest,
-    Status, StreamingInputCallRequest, StreamingOutputCallRequest, TestServiceClient,
+    SimpleResponse, Status, StreamingInputCallRequest, StreamingInputCallResponse,
+    StreamingOutputCallRequest, StreamingOutputCallResponse, TestService, TestServiceClient,
     TestServiceServer,
 };
 use std::net::SocketAddr;
@@ -1428,6 +1429,87 @@ async fn test_service_from_io_client_interceptor_sees_every_shape_context() {
 }
 
 #[tokio::test]
+async fn test_service_handlers_return_typed_status_on_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(FailTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_blocked_every_shape(&TestServiceClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_tls_handlers_return_typed_status_on_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(FailTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_test_blocked_every_shape(&TestServiceClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_mtls_handlers_return_typed_status_on_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(FailTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_test_blocked_every_shape(&TestServiceClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_handlers_return_typed_status_on_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(FailTestService)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_blocked_every_shape(&TestServiceClient::new(
+        Channel::connect_unix(&path).await.expect("connect"),
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_handlers_return_typed_status_on_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(FailTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_test_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
@@ -1840,6 +1922,82 @@ async fn reverser_from_io_client_interceptor_sees_every_shape_context() {
     )
     .await;
     assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_handlers_return_typed_status_on_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(FailReverser)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_blocked_every_shape(&channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_tls_handlers_return_typed_status_on_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(FailReverser)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_reverser_blocked_every_shape(&tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_mtls_handlers_return_typed_status_on_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(FailReverser)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reverser_blocked_every_shape(&tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reverser_unix_handlers_return_typed_status_on_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        Server::new(FailReverser)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_blocked_every_shape(&Channel::connect_unix(&path).await.expect("connect"))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_from_io_handlers_return_typed_status_on_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        Server::new(FailReverser)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_reverser_blocked_every_shape(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
     task.abort();
 }
 
@@ -2794,6 +2952,96 @@ impl Greeter for FailGreeter {
         _: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
         Err(interceptor_blocked())
+    }
+}
+
+struct FailTestService;
+
+impl TestService for FailTestService {
+    async fn empty_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn cacheable_unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn streaming_output_call(
+        &self,
+        _: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn streaming_input_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingInputCallRequest>>,
+    ) -> Result<Response<StreamingInputCallResponse>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn full_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn half_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn unimplemented_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(interceptor_blocked())
+    }
+}
+
+struct FailReverser;
+
+impl Service for FailReverser {
+    const NAME: &'static str = "demo.Reverser";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Reverse" => {
+                rpc.unary(|_: Request<HelloRequest>| async {
+                    Err::<Response<HelloReply>, _>(interceptor_blocked())
+                })
+                .await;
+            }
+            "Server" => {
+                rpc.server_streaming(|_: Request<HelloRequest>| async {
+                    Err::<Response<pbrs_grpc::Streaming<HelloReply>>, _>(interceptor_blocked())
+                })
+                .await;
+            }
+            "Client" => {
+                rpc.client_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Err::<Response<HelloReply>, _>(interceptor_blocked())
+                })
+                .await;
+            }
+            "Bidi" => {
+                rpc.bidi_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Err::<Response<pbrs_grpc::Streaming<HelloReply>>, _>(interceptor_blocked())
+                })
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
     }
 }
 
