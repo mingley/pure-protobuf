@@ -52,6 +52,7 @@ pub struct Request<T> {
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
     peer_timeout: Option<Duration>,
+    rpc_timeout: Option<Duration>,
     accepts_gzip: bool,
     compresses_outbound: bool,
     encoding: Option<String>,
@@ -80,6 +81,7 @@ impl<T> Request<T> {
             wait_for_ready: None,
             limits: None,
             peer_timeout: None,
+            rpc_timeout: None,
             accepts_gzip: false,
             compresses_outbound: false,
             encoding: None,
@@ -131,6 +133,7 @@ impl<T> Request<T> {
                 wait_for_ready: self.wait_for_ready,
                 limits: self.limits,
                 peer_timeout: self.peer_timeout,
+                rpc_timeout: self.rpc_timeout,
                 accepts_gzip: self.accepts_gzip,
                 compresses_outbound: self.compresses_outbound,
                 encoding: self.encoding,
@@ -163,6 +166,7 @@ impl<T> Request<T> {
             wait_for_ready: parts.wait_for_ready,
             limits: parts.limits,
             peer_timeout: parts.peer_timeout,
+            rpc_timeout: parts.rpc_timeout,
             accepts_gzip: parts.accepts_gzip,
             compresses_outbound: parts.compresses_outbound,
             encoding: parts.encoding,
@@ -362,14 +366,30 @@ impl<T> Request<T> {
     /// The client's own `grpc-timeout`, when the kernel dispatched this call.
     ///
     /// Distinct from [`timeout`](Self::timeout). After interceptors run, that
-    /// method is the *effective* cap — the tighter of the client's header and
-    /// any interceptor overlay. This method is the client's original duration
-    /// so a handler or proxy can log "the client asked 30s, we run under 5s"
-    /// or forward the original header. `None` on a request you built to send,
-    /// and `None` when the client omitted `grpc-timeout`.
+    /// method is the *effective* cap — the soonest of the client's header, the
+    /// server overlay, and any interceptor cap. This method is the client's
+    /// original duration so a handler or proxy can log "the client asked 30s,
+    /// we run under 5s" or forward the original header. The server overlay is
+    /// [`rpc_timeout`](Self::rpc_timeout). `None` on a request you built to
+    /// send, and `None` when the client omitted `grpc-timeout`.
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         self.peer_timeout
+    }
+
+    /// Server [`crate::Server::timeout`] overlay, when the kernel dispatched
+    /// this call.
+    ///
+    /// Distinct from [`timeout`](Self::timeout) (the effective cap at
+    /// dispatch) and [`peer_timeout`](Self::peer_timeout) (the client's
+    /// `grpc-timeout`). This is the server policy even after an interceptor
+    /// tightened [`crate::Rpc::set_timeout`]. Same value as
+    /// [`crate::Rpc::rpc_timeout`] / [`crate::Server::rpc_timeout`]. `None`
+    /// on a request you built to send, and `None` when the server omitted a
+    /// cap.
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.rpc_timeout
     }
 
     /// Whether the peer advertised gzip in `grpc-accept-encoding`.
@@ -541,6 +561,7 @@ impl<T> Request<T> {
             wait_for_ready: None,
             limits: None,
             peer_timeout: None,
+            rpc_timeout: None,
             accepts_gzip: false,
             compresses_outbound: false,
             encoding: None,
@@ -579,6 +600,10 @@ impl<T> Request<T> {
 
     pub(crate) fn set_peer_timeout(&mut self, timeout: Option<Duration>) {
         self.peer_timeout = timeout;
+    }
+
+    pub(crate) fn set_rpc_timeout(&mut self, timeout: Option<Duration>) {
+        self.rpc_timeout = timeout;
     }
 
     pub(crate) fn set_accepts_gzip(&mut self, accepts: bool) {
@@ -972,6 +997,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("wait_for_ready", &self.wait_for_ready)
             .field("limits", &self.limits)
             .field("peer_timeout", &self.peer_timeout)
+            .field("rpc_timeout", &self.rpc_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
             .field("compresses_outbound", &self.compresses_outbound)
             .field("encoding", &self.encoding)
@@ -1000,6 +1026,7 @@ pub struct Parts {
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
     peer_timeout: Option<Duration>,
+    rpc_timeout: Option<Duration>,
     accepts_gzip: bool,
     compresses_outbound: bool,
     encoding: Option<String>,
@@ -1150,6 +1177,13 @@ impl Parts {
         self.peer_timeout
     }
 
+    /// Server [`crate::Server::timeout`] overlay, when the kernel dispatched
+    /// this call. See [`Request::rpc_timeout`].
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.rpc_timeout
+    }
+
     /// Whether the peer advertised gzip in `grpc-accept-encoding`.
     /// See [`Request::accepts_gzip`].
     #[must_use]
@@ -1242,6 +1276,7 @@ impl fmt::Debug for Parts {
             .field("wait_for_ready", &self.wait_for_ready)
             .field("limits", &self.limits)
             .field("peer_timeout", &self.peer_timeout)
+            .field("rpc_timeout", &self.rpc_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
             .field("compresses_outbound", &self.compresses_outbound)
             .field("encoding", &self.encoding)
@@ -1728,6 +1763,7 @@ mod tests {
         let at = tokio::time::Instant::now() + Duration::from_millis(50);
         req.set_deadline(at);
         req.set_peer_timeout(Some(Duration::from_secs(5)));
+        req.set_rpc_timeout(Some(Duration::from_secs(9)));
         req.set_accepts_gzip(true);
         req.set_compresses_outbound(true);
         req.set_encoding(Some("gzip".into()));
@@ -1738,6 +1774,7 @@ mod tests {
         assert!(parts.compress());
         assert!(parts.compressed());
         assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(5)));
+        assert_eq!(parts.rpc_timeout(), Some(Duration::from_secs(9)));
         assert!(parts.accepts_gzip());
         assert!(parts.compresses_outbound());
         assert_eq!(parts.encoding(), Some("gzip"));
@@ -1762,6 +1799,7 @@ mod tests {
         assert!(shown_parts.contains("helloworld.Greeter"), "{shown_parts}");
         assert!(shown_parts.contains("SayHello"), "{shown_parts}");
         assert!(shown_parts.contains("peer_timeout: Some("), "{shown_parts}");
+        assert!(shown_parts.contains("rpc_timeout: Some("), "{shown_parts}");
         assert!(shown_parts.contains("accepts_gzip: true"), "{shown_parts}");
         assert!(
             shown_parts.contains("compresses_outbound: true"),
@@ -1776,6 +1814,7 @@ mod tests {
         assert!(rebuilt.compress_is_set());
         assert!(rebuilt.compressed());
         assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(5)));
+        assert_eq!(rebuilt.rpc_timeout(), Some(Duration::from_secs(9)));
         assert!(rebuilt.accepts_gzip());
         assert!(rebuilt.compresses_outbound());
         assert_eq!(rebuilt.encoding(), Some("gzip"));
@@ -1793,6 +1832,7 @@ mod tests {
         assert!(shown.contains("compressed: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
+        assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
@@ -1800,12 +1840,14 @@ mod tests {
         assert!(shown.contains("SayHello"), "{shown}");
         let cloned = rebuilt.clone();
         assert_eq!(cloned.peer_timeout(), Some(Duration::from_secs(5)));
+        assert_eq!(cloned.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(cloned.encoding(), Some("gzip"));
         assert_eq!(rebuilt.into_inner(), "swapped");
         assert!(Request::new(0u32).path().is_none());
         assert!(Request::new(0u32).service().is_none());
         assert!(Request::new(0u32).method().is_none());
         assert!(Request::new(0u32).peer_timeout().is_none());
+        assert!(Request::new(0u32).rpc_timeout().is_none());
         assert!(!Request::new(0u32).accepts_gzip());
         assert!(!Request::new(0u32).compresses_outbound());
         assert!(Request::new(0u32).encoding().is_none());

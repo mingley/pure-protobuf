@@ -4166,7 +4166,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Cap every RPC even when the client omits `grpc-timeout`. Distinct from [`Self::timeout`], which sets it. See [`{G}::Server::rpc_timeout`]."
+        "    /// Cap every RPC even when the client omits `grpc-timeout`. Distinct from [`Self::timeout`], which sets it. Interceptors and handlers read the same overlay on [`{G}::Rpc::rpc_timeout`] / [`{G}::Request::rpc_timeout`]. See [`{G}::Server::rpc_timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4247,7 +4247,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline (`set_timeout` / `deadline` Instant), inspect path / service / method, `:authority` / `:scheme` / `peer_timeout` / `local_addr` / `remote_addr` / `peer_identity` / `peer_cred` / message caps / gzip accept and encoding / `compresses_outbound`, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline (`set_timeout` / `deadline` Instant), inspect path / service / method, `:authority` / `:scheme` / `peer_timeout` / `rpc_timeout` / `effective_timeout` / `local_addr` / `remote_addr` / `peer_identity` / `peer_cred` / message caps / gzip accept and encoding / `compresses_outbound`, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

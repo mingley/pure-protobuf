@@ -13,7 +13,8 @@ use std::sync::Arc;
 /// are one function. Mutate inbound metadata with [`Rpc::metadata_mut`]
 /// (strip with [`crate::Metadata::remove`] or [`crate::Metadata::retain`],
 /// overwrite a hop with [`crate::Metadata::set`]), cap the deadline with
-/// [`Rpc::set_timeout`], read the client's `grpc-timeout` with [`Rpc::peer_timeout`]
+/// [`Rpc::set_timeout`], read the client's `grpc-timeout` with [`Rpc::peer_timeout`],
+/// the server overlay with [`Rpc::rpc_timeout`],
 /// or the effective remaining budget with [`Rpc::effective_timeout`] /
 /// [`Rpc::deadline`], read the path with
 /// [`Rpc::path`] / [`Rpc::service`] / [`Rpc::method`], read `:authority` with
@@ -26,7 +27,7 @@ use std::sync::Arc;
 /// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`]. Generated handlers see the same path,
-/// service, method, client timeout, gzip facts, response-gzip overlay, peer, and caps on
+/// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, peer, and caps on
 /// [`crate::Request`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
 ///

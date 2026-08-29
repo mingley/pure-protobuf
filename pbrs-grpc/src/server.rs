@@ -234,7 +234,8 @@ fn peer_cred_of(io: &UnixStream) -> Option<PeerCred> {
 /// full response: headers, message frames, and `grpc-status` trailers.
 ///
 /// An [`crate::Interceptor`] may mutate [`Self::metadata_mut`], cap the
-/// deadline with [`Self::set_timeout`], attach typed state on
+/// deadline with [`Self::set_timeout`], inspect the server overlay with
+/// [`Self::rpc_timeout`], attach typed state on
 /// [`Self::extensions_mut`], or turn the RPC away with [`Self::reject`].
 pub struct Rpc {
     request: http::Request<RecvStream>,
@@ -264,6 +265,7 @@ impl std::fmt::Debug for Rpc {
             .field("scheme", &self.scheme())
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
+            .field("rpc_timeout", &self.rpc_timeout())
             .field("peer_timeout", &self.peer_timeout())
             .field("effective_timeout", &self.effective_timeout())
             .field("deadline", &self.deadline())
@@ -403,15 +405,30 @@ impl Rpc {
     ///
     /// This is not the effective deadline: that also includes the client's
     /// `grpc-timeout` and [`ServerConfig::timeout`]. See
-    /// [`Self::effective_timeout`].
+    /// [`Self::effective_timeout`]. The server overlay itself is
+    /// [`Self::rpc_timeout`].
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
     }
 
+    /// Server [`ServerConfig::timeout`] overlay.
+    ///
+    /// Distinct from [`Self::timeout`] (an interceptor cap),
+    /// [`Self::peer_timeout`] (the client's `grpc-timeout`), and
+    /// [`Self::effective_timeout`] (the soonest of the three). This is the
+    /// server policy even after [`Self::set_timeout`]. Same value as
+    /// [`crate::Server::rpc_timeout`]. Generated handlers see it on
+    /// [`Request::rpc_timeout`].
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.config.rpc_timeout()
+    }
+
     /// The client's `grpc-timeout`, if it sent one.
     ///
-    /// Independent of [`Self::timeout`], which is only an interceptor cap.
+    /// Independent of [`Self::timeout`], which is only an interceptor cap,
+    /// and of [`Self::rpc_timeout`], which is the server overlay.
     /// [`Self::effective_timeout`] is the soonest of this, the server cap,
     /// and the interceptor cap. Generated handlers see the same value on
     /// [`Request::peer_timeout`].
@@ -765,6 +782,7 @@ impl Rpc {
         let scheme = self.scheme().map(str::to_owned);
         let path = Some(self.path().to_owned());
         let peer_timeout = self.peer_timeout();
+        let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
         let encoding = self.encoding().map(str::to_owned);
         let Self {
@@ -801,6 +819,7 @@ impl Rpc {
             req.set_peer_cred(peer_cred);
             req.set_limits(limits);
             req.set_peer_timeout(peer_timeout);
+            req.set_rpc_timeout(rpc_timeout);
             req.set_accepts_gzip(peer_accepts_gzip);
             req.set_compresses_outbound(prefer_gzip);
             req.set_encoding(encoding);
@@ -840,6 +859,7 @@ impl Rpc {
         let scheme = self.scheme().map(str::to_owned);
         let path = Some(self.path().to_owned());
         let peer_timeout = self.peer_timeout();
+        let rpc_timeout = self.rpc_timeout();
         let peer_accepts_gzip = self.accepts_gzip();
         let encoding = self.encoding().map(str::to_owned);
         let Self {
@@ -869,6 +889,7 @@ impl Rpc {
         req.set_peer_cred(peer_cred);
         req.set_limits(limits);
         req.set_peer_timeout(peer_timeout);
+        req.set_rpc_timeout(rpc_timeout);
         req.set_accepts_gzip(peer_accepts_gzip);
         req.set_compresses_outbound(prefer_gzip);
         req.set_encoding(encoding);
@@ -1362,6 +1383,8 @@ impl<S: Service> Server<S> {
 
     /// Cap every RPC even when the client omits `grpc-timeout`.
     /// Distinct from [`Self::timeout`], which sets it.
+    /// Interceptors and handlers read the same overlay on [`Rpc::rpc_timeout`]
+    /// / [`Request::rpc_timeout`].
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.config.rpc_timeout()
@@ -1433,15 +1456,15 @@ impl<S: Service> Server<S> {
     /// `server.intercept(|rpc| { ... })` is the usual form. The interceptor
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
     /// [`Rpc::set_timeout`], inspect [`Rpc::path`] / [`Rpc::service`] /
-    /// [`Rpc::method`] / [`Rpc::peer_timeout`] /
+    /// [`Rpc::method`] / [`Rpc::peer_timeout`] / [`Rpc::rpc_timeout`] /
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
     /// [`Rpc::peer_cred`] / [`Rpc::limits`] / [`Rpc::accepts_gzip`] /
     /// [`Rpc::encoding`] / [`Rpc::compresses_outbound`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject. Generated
-    /// handlers see the same path, peer, caps, client timeout, gzip facts,
-    /// and response-gzip overlay on [`Request`].
+    /// handlers see the same path, peer, caps, client timeout, server timeout
+    /// overlay, gzip facts, and response-gzip overlay on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
@@ -1871,6 +1894,8 @@ impl Router {
 
     /// Cap every RPC even when the client omits `grpc-timeout`.
     /// Distinct from [`Self::timeout`], which sets it.
+    /// Interceptors and handlers read the same overlay on [`Rpc::rpc_timeout`]
+    /// / [`Request::rpc_timeout`].
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.config.rpc_timeout()

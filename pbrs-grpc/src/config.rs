@@ -309,6 +309,8 @@ impl ServerConfig {
     ///
     /// [`crate::Server::timeout`], [`crate::Router::timeout`], and generated
     /// `FooServer::timeout` set this without building a [`ServerConfig`].
+    /// Interceptors and handlers read it on [`crate::Rpc::rpc_timeout`] /
+    /// [`crate::Request::rpc_timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout.max(Duration::from_millis(1)));
@@ -377,6 +379,8 @@ impl ServerConfig {
     }
 
     /// Configured per-RPC timeout, if any. See [`Self::timeout`].
+    /// Interceptors and handlers read this overlay on [`crate::Rpc::rpc_timeout`]
+    /// / [`crate::Request::rpc_timeout`].
     #[must_use]
     pub fn rpc_timeout(self) -> Option<Duration> {
         self.timeout

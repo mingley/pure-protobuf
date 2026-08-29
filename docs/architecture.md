@@ -47,11 +47,14 @@ deadline, `:authority` / `:scheme`, path / service / method, peer identity
 `Router` splits on the service half of the path.
 Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
-path / service / method, `peer_timeout`, gzip accept/encoding, and the
+path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
+gzip accept/encoding, and the
 `compresses_outbound` overlay. Dumping
-`Rpc` prints service/method, both timeout views, `deadline`, gzip accept /
+`Rpc` prints service/method, interceptor `timeout` / server `rpc_timeout` /
+`peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
 encoding / `compresses_outbound`, and `limits`.
-Dumping `Request` prints path / service / method, both timeout views,
+Dumping `Request` prints path / service / method, `timeout` / `rpc_timeout` /
+`peer_timeout`,
 `deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, peer,
 `:authority` / `:scheme`, wait-for-ready, `limits`, and cancel.
 Dumping `Response` prints metadata, trailers, compress intent, and received
@@ -103,11 +106,13 @@ the stream.
 Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
 `Intercepted` is `Clone` when the interceptor is.
 The first registered runs first. Closures see `Rpc` (path, service/method,
-metadata, both timeout views, `deadline`, gzip accept/encoding,
+metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
+`effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`.
 Generated handlers read the same facts on `Request` / `Parts`, including
-the method path, the client's `grpc-timeout`, gzip, and the
+the method path, the client's `grpc-timeout`, the server timeout overlay,
+gzip, and the
 `compresses_outbound` overlay.
 
 Client: `Channel::intercept` / `FooClient::intercept`. Closures see

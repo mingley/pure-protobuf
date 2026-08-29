@@ -1862,6 +1862,9 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
             if parts.peer_timeout() != Some(peer) {
                 return Err(Status::internal("parts peer_timeout must match Request"));
             }
+            if parts.rpc_timeout().is_some() {
+                return Err(Status::internal("no server timeout overlay on this test"));
+            }
             let deadline = parts
                 .deadline()
                 .ok_or_else(|| Status::internal("missing deadline Instant"))?;
@@ -2179,6 +2182,9 @@ async fn a_server_interceptor_sees_a_missing_deadline() {
                 if rpc.peer_timeout().is_some() {
                     return Err(Status::internal("unexpected peer timeout"));
                 }
+                if rpc.rpc_timeout().is_some() {
+                    return Err(Status::internal("unexpected server timeout overlay"));
+                }
                 if rpc.effective_timeout().is_some() {
                     return Err(Status::internal("unexpected effective timeout"));
                 }
@@ -2196,6 +2202,130 @@ async fn a_server_interceptor_sees_a_missing_deadline() {
         .await
         .expect("rpc");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn interceptors_and_handlers_see_the_server_timeout_overlay() {
+    fn check_overlay<T>(request: &Request<T>) -> Result<(), Status> {
+        if request.rpc_timeout() != Some(Duration::from_secs(5)) {
+            return Err(Status::internal(format!(
+                "rpc_timeout {:?}",
+                request.rpc_timeout()
+            )));
+        }
+        if request.peer_timeout() != Some(Duration::from_secs(30)) {
+            return Err(Status::internal(format!(
+                "peer_timeout {:?}",
+                request.peer_timeout()
+            )));
+        }
+        if request.timeout() != Some(Duration::from_secs(1)) {
+            return Err(Status::internal(format!("timeout {:?}", request.timeout())));
+        }
+        Ok(())
+    }
+
+    struct SeesOverlay;
+
+    impl Greeter for SeesOverlay {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            check_overlay(&request)?;
+            let (msg, parts) = request.into_message_and_parts();
+            if parts.rpc_timeout() != Some(Duration::from_secs(5)) {
+                return Err(Status::internal(format!(
+                    "parts rpc_timeout {:?}",
+                    parts.rpc_timeout()
+                )));
+            }
+            if parts.peer_timeout() != Some(Duration::from_secs(30)) {
+                return Err(Status::internal("parts peer_timeout must match Request"));
+            }
+            if parts.timeout() != Some(Duration::from_secs(1)) {
+                return Err(Status::internal("parts timeout must match Request"));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
+        }
+
+        async fn client_hello(
+            &self,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            check_overlay(&request)?;
+            let mut reply = HelloReply::new();
+            reply.set_message("overlay");
+            Ok(Response::new(reply))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-overlay"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-overlay"))
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesOverlay)
+            .timeout(Duration::from_secs(5))
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.rpc_timeout() != Some(Duration::from_secs(5)) {
+                    return Err(Status::internal(format!(
+                        "rpc overlay {:?}",
+                        rpc.rpc_timeout()
+                    )));
+                }
+                if rpc.peer_timeout() != Some(Duration::from_secs(30)) {
+                    return Err(Status::internal(format!("peer {:?}", rpc.peer_timeout())));
+                }
+                if rpc.effective_timeout() != Some(Duration::from_secs(5)) {
+                    return Err(Status::internal(format!(
+                        "effective {:?}",
+                        rpc.effective_timeout()
+                    )));
+                }
+                rpc.set_timeout(Duration::from_secs(1));
+                if rpc.rpc_timeout() != Some(Duration::from_secs(5)) {
+                    return Err(Status::internal("overlay vanished after set_timeout"));
+                }
+                if rpc.timeout() != Some(Duration::from_secs(1)) {
+                    return Err(Status::internal(format!("cap {:?}", rpc.timeout())));
+                }
+                if rpc.effective_timeout() != Some(Duration::from_secs(1)) {
+                    return Err(Status::internal(format!(
+                        "tightened {:?}",
+                        rpc.effective_timeout()
+                    )));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(30));
+    let reply = client.say_hello(request).await.expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream_req = Request::new(());
+    stream_req.set_timeout(Duration::from_secs(30));
+    let (tx, call) = client.client_hello(stream_req);
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "overlay");
+    assert!(Request::new(req("ada")).rpc_timeout().is_none());
     task.abort();
 }
 

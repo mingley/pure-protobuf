@@ -108,8 +108,11 @@ See `docs/upb.md`. Short list:
   shapes), not on first poll of the `Call`. Interceptors and generated
   handlers see `MessageLimits` on `Rpc::limits` / `Request::limits`, the
   method path on `Rpc::path` / `Request::path`, gzip accept/encoding, and
-  the server `send_compressed` overlay on `Rpc::compresses_outbound` /
-  `Request::compresses_outbound`; received replies surface `grpc-encoding` on
+  the server overlays on `Rpc::compresses_outbound` /
+  `Request::compresses_outbound` and `Rpc::rpc_timeout` /
+  `Request::rpc_timeout` (the `Server::timeout` cap, distinct from the
+  interceptor `set_timeout` and the client's `peer_timeout`); received replies
+  surface `grpc-encoding` on
   `Response::encoding` (`None` for identity, including an explicit
   `identity` token). Client interceptors see the channel overlay
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
@@ -125,7 +128,11 @@ See `docs/upb.md`. Short list:
   live stream after headers, and a client-streaming handle still cancels
   after the sender is closed while the unary response is pending (dropping
   the `Call` or hitting the deadline after that half-close does the same).
-  Spawned handler work awaiting `Request::cancelled` sees the RST. Generated method rustdoc names
+  Spawned handler work awaiting `Request::cancelled` sees the RST, including
+  when the server deadline wins (signalled before trailers). Generated trait
+  rustdoc names `Request::cancelled` on every call shape (and
+  `StreamSender::closed` on server-streaming); unary `Channel` / generated
+  client methods name `CallHandle`. Generated method rustdoc names
   inbound/received `encoding` and interceptor timing. Methods omitted on generated traits answer `UNIMPLEMENTED`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers

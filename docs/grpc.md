@@ -452,12 +452,15 @@ dispatch: the soonest of the client's `grpc-timeout`, a server cap
 (`ServerConfig::timeout`, also `Server::timeout` / `Router::timeout` /
 generated `FooServer::timeout`), and [`Rpc::set_timeout`] from an interceptor.
 `Server::rpc_timeout` / `FooServer::rpc_timeout` read that cap (`timeout` sets
-it).
+it). Interceptors read the same overlay on `Rpc::rpc_timeout`; it stays
+visible after `set_timeout`. Generated handlers see it on
+`Request::rpc_timeout` / `Parts::rpc_timeout`.
 That value does not shrink as the handler runs. `request.deadline()` is the
 same instant the kernel is actually racing — forward
 `deadline.saturating_duration_since(Instant::now())` onto a downstream RPC
 instead of copying `timeout()`. An interceptor reads the client value with
-`Rpc::peer_timeout` and the combined value with `Rpc::effective_timeout`.
+`Rpc::peer_timeout`, the server overlay with `Rpc::rpc_timeout`, and the
+combined value with `Rpc::effective_timeout`.
 `Rpc::deadline` is that combined duration as an `Instant`, computed when you
 call it so a just-tightened `set_timeout` is visible. The handler's
 `request.deadline()` is stamped once when dispatch starts.
@@ -1174,13 +1177,15 @@ The handler sees the mutated metadata on `request.metadata()`, including
 injected keys and without stripped ones. `set` / `set_bin` replace a hop the
 interceptor owns (a peer-supplied `x-actor` does not survive). `retain` keeps
 a subset of names. `Rpc::peer_timeout` is the client's
-`grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
-cap, and `set_timeout`. `Rpc::deadline` is that same duration as an
+`grpc-timeout`; `Rpc::rpc_timeout` is the server cap overlay (`Server::timeout`)
+and stays visible after `set_timeout`; `Rpc::effective_timeout` is the soonest of
+that overlay, the client header, and `set_timeout`. `Rpc::deadline` is that same duration as an
 `Instant`, computed at the call so a just-tightened cap is visible. An
 interceptor can only tighten the deadline, not extend it. The handler's
 `request.timeout()` / `request.deadline()` are that tightened cap, not the
 original client value. The handler Instant is stamped once at dispatch. That original duration is
-`Request::peer_timeout` / `Parts::peer_timeout`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
+`Request::peer_timeout` / `Parts::peer_timeout`. The server overlay is
+`Request::rpc_timeout` / `Parts::rpc_timeout`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
 the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
 and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a
