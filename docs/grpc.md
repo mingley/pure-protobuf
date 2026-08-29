@@ -341,7 +341,8 @@ plus a repeated `google.protobuf.Any`. `Status::with_error_details` builds
 that protobuf from packed `Any` values; `Status::from_error_details` does
 the same from an `ErrorDetails` bag of the standard `google.rpc` messages.
 `Status::rpc` / `Status::error_details` parse it back. A handler or interceptor
-`Err` built this way is that protobuf on the client for every call shape.
+`Err` built this way is that protobuf on the client for every call shape,
+including Health `Check` / `Watch` and the reflection bidi method.
 `from_rpc` / `with_error_details` mint a fresh status (empty trailers). To change
 the Anys while keeping `x-retry-after`, use `set_rpc` / `set_error_details` /
 `set_from_error_details`. The key is invisible through `Metadata`, so
@@ -837,6 +838,10 @@ balancer can drain before `serve_*_until_shutdown`. `HealthReporter::resume`
 is the inverse: every known name is `SERVING` again, still without creating
 unknown names.
 
+There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
+`RESOURCE_EXHAUSTED`. An interceptor `Err(Status::with_error_details(...))`
+unpacks as `Status::rpc` / `Status::error_details` on both methods.
+
 ## Reflection
 
 `grpc.reflection.v1.ServerReflection` ships in-tree so `grpcurl` and friends
@@ -860,7 +865,10 @@ whatever transitive imports were in the set. `file_containing_extension` and
 `all_extension_numbers_of_type` answer from the same sets; a missing extension
 is a `NOT_FOUND` on the stream, and extension-number listing is best-effort
 (empty when the type has none). A missing symbol is a `NOT_FOUND` on the
-stream (`ErrorResponse`), not a broken RPC.
+stream (`ErrorResponse`), not a broken RPC. An inbound message over the
+decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
+OK end. An interceptor `Err(Status::with_error_details(...))` unpacks as
+`Status::rpc` / `Status::error_details` on that bidi method.
 
 ## Graceful shutdown
 
