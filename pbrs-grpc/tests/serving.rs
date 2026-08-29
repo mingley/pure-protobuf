@@ -25,8 +25,8 @@ mod common;
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Channel, Code, Empty, InteropTestService, Metadata, Request, Response, Router, Rpc, Server,
-    ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
+    Channel, ChannelConfig, Code, Empty, InteropTestService, Metadata, Request, Response, Router,
+    Rpc, Server, ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -814,6 +814,77 @@ async fn wait_for_ready_times_out_when_nothing_is_listening() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn connect_times_out_when_the_peer_never_speaks_http2() {
+    let (addr, listener) = bind().await;
+    let started = Instant::now();
+    let err = Channel::connect_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
+    )
+    .await
+    .expect_err("handshake should time out");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert!(
+        err.message().contains("timed out"),
+        "expected timeout status, got {err}"
+    );
+    assert!(
+        started.elapsed() >= Duration::from_millis(50),
+        "timed out too fast: {:?}",
+        started.elapsed()
+    );
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "timed out too slow: {:?}",
+        started.elapsed()
+    );
+    drop(listener);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn connect_to_a_closed_port_fails_fast() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let started = Instant::now();
+    let err = Channel::connect_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_secs(20)),
+    )
+    .await
+    .expect_err("closed port");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "refused connect took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_mute_tcp_peer_does_not_stop_the_server_serving() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .config(ServerConfig::new().handshake_timeout(Duration::from_millis(80)))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let mute = tokio::net::TcpStream::connect(addr)
+        .await
+        .expect("mute connect");
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let client = GreeterClient::new(channel(addr).await);
+    let reply = client
+        .say_hello(Request::new(req("after-mute")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "after-mute");
+    drop(mute);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn max_connection_age_goaway_then_the_channel_redials() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -998,4 +1069,29 @@ async fn unix_wait_for_ready_completes_once_the_server_listens() {
         .expect("rpc");
     assert_eq!(name_of(reply.get_ref()), "late");
     task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let started = Instant::now();
+    let err = Channel::connect_unix_with(
+        &path,
+        ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
+    )
+    .await
+    .expect_err("handshake should time out");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert!(
+        err.message().contains("timed out"),
+        "expected timeout status, got {err}"
+    );
+    assert!(
+        started.elapsed() >= Duration::from_millis(50),
+        "timed out too fast: {:?}",
+        started.elapsed()
+    );
+    drop(listener);
 }

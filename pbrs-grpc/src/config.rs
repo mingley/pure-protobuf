@@ -34,6 +34,13 @@ pub const DEFAULT_STREAM_BUFFER: usize = 16;
 /// How long to wait for a keepalive PING acknowledgement. Default 20 s.
 pub const DEFAULT_KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(20);
 
+/// How long a client dial or a server TLS/HTTP/2 preface may take. Default 20 s.
+///
+/// Covers TCP (or Unix) connect, optional TLS, and the HTTP/2 connection
+/// preface. A peer that accepts the socket and never speaks is dropped
+/// instead of hanging the caller forever.
+pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
+
 /// After [`ServerConfig::max_connection_age`] or idle fires, how long to wait
 /// for in-flight RPCs before dropping the socket. Default 10 s.
 pub const DEFAULT_MAX_CONNECTION_AGE_GRACE: Duration = Duration::from_secs(10);
@@ -69,6 +76,7 @@ pub struct ServerConfig {
     max_header_list_size: u32,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
+    handshake_timeout: Duration,
     max_connection_age: Option<Duration>,
     max_connection_idle: Option<Duration>,
     max_connection_age_grace: Duration,
@@ -86,6 +94,7 @@ impl Default for ServerConfig {
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+            handshake_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_age: None,
             max_connection_idle: None,
             max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
@@ -181,6 +190,19 @@ impl ServerConfig {
         self
     }
 
+    /// How long TLS accept (if any) and the HTTP/2 preface may each take.
+    /// Default 20 s. Values below 1 ms are raised to 1 ms.
+    ///
+    /// A client that opens a socket and never speaks is dropped, so it cannot
+    /// pin a connection task forever. A completed handshake is not subject to
+    /// this cap; use [`Self::max_connection_idle`] / [`Self::max_connection_age`]
+    /// for live connections.
+    #[must_use]
+    pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
+        self.handshake_timeout = timeout.max(Duration::from_millis(1));
+        self
+    }
+
     /// Send GOAWAY this long after the connection is accepted. Disabled by
     /// default. Values below 1 ms are raised to 1 ms.
     ///
@@ -227,6 +249,10 @@ impl ServerConfig {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
 
+    pub(crate) fn io_handshake_timeout(self) -> Duration {
+        self.handshake_timeout
+    }
+
     pub(crate) fn connection_lifetime(self) -> (Option<Duration>, Option<Duration>, Duration) {
         (
             self.max_connection_age,
@@ -269,9 +295,12 @@ pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
 /// HTTP/2 and resource settings for a [`Channel`](crate::Channel).
 ///
 /// ```
+/// use std::time::Duration;
 /// use pbrs_grpc::ChannelConfig;
 ///
-/// let config = ChannelConfig::new().connections(4);
+/// let config = ChannelConfig::new()
+///     .connections(4)
+///     .connect_timeout(Duration::from_secs(5));
 /// assert_eq!(config.connection_count(), 4);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -287,6 +316,7 @@ pub struct ChannelConfig {
     stream_buffer: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
+    connect_timeout: Duration,
 }
 
 impl Default for ChannelConfig {
@@ -303,6 +333,7 @@ impl Default for ChannelConfig {
             stream_buffer: DEFAULT_STREAM_BUFFER,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+            connect_timeout: DEFAULT_CONNECT_TIMEOUT,
         }
     }
 }
@@ -422,6 +453,22 @@ impl ChannelConfig {
         self
     }
 
+    /// How long a dial may take: TCP (or Unix) connect, optional TLS, and
+    /// the HTTP/2 preface. Default 20 s. Values below 1 ms are raised to 1 ms.
+    ///
+    /// Always on. A peer that accepts the socket and never speaks HTTP/2
+    /// fails with [`crate::Code::Unavailable`] instead of hanging
+    /// [`crate::Channel::connect`] forever. Connection refused still fails
+    /// immediately; this bound is for the hang, not the bounce.
+    ///
+    /// Wait-for-ready treats the timeout as `UNAVAILABLE` and retries with
+    /// backoff. An RPC deadline still races the dial.
+    #[must_use]
+    pub fn connect_timeout(mut self, timeout: Duration) -> Self {
+        self.connect_timeout = timeout.max(Duration::from_millis(1));
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -448,6 +495,12 @@ impl ChannelConfig {
 
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
+    }
+
+    /// Bound used by the client handshake. Named apart from
+    /// [`Self::connect_timeout`] so the setter stays the gRPC name.
+    pub(crate) fn handshake_timeout(self) -> Duration {
+        self.connect_timeout
     }
 
     pub(crate) fn wire(self) -> Wire {
@@ -510,6 +563,22 @@ mod tests {
                 .keep_alive_timeout(Duration::from_millis(0))
                 .keepalive()
                 .1,
+            Duration::from_millis(1)
+        );
+    }
+
+    #[test]
+    fn connect_timeout_never_zero() {
+        assert_eq!(
+            ChannelConfig::new()
+                .connect_timeout(Duration::from_millis(0))
+                .handshake_timeout(),
+            Duration::from_millis(1)
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .handshake_timeout(Duration::from_millis(0))
+                .io_handshake_timeout(),
             Duration::from_millis(1)
         );
     }

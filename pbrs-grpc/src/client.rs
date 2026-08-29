@@ -147,6 +147,12 @@ impl Endpoint {
 /// unless that request set [`Request::set_wait_for_ready`], in which case
 /// it retries until connected, cancelled, or the deadline fires.
 ///
+/// A dial is bounded by [`ChannelConfig::connect_timeout`] (default 20 s),
+/// covering TCP or Unix connect, optional TLS, and the HTTP/2 preface. A
+/// peer that accepts the socket and never speaks fails with
+/// [`Code::Unavailable`] instead of hanging forever. Connection refused
+/// still fails immediately.
+///
 /// On Unix, [`Self::connect_unix`] / [`Self::connect_unix_lazy`] speak the
 /// same protocol over a domain socket. TLS is TCP-only.
 ///
@@ -191,7 +197,8 @@ impl Channel {
     ///
     /// Opens [`ChannelConfig::connections`] connections up front; RPCs are
     /// spread over them round-robin. All of them must succeed. A slot that
-    /// later dies is redialed on the next RPC that lands on it.
+    /// later dies is redialed on the next RPC that lands on it. Each dial is
+    /// bounded by [`ChannelConfig::connect_timeout`].
     pub async fn connect_with(
         target: impl Into<Target>,
         config: ChannelConfig,
@@ -694,6 +701,21 @@ impl ChannelInner {
 }
 
 async fn handshake(
+    endpoint: &Endpoint,
+    config: ChannelConfig,
+    tls: Option<&ClientTls>,
+) -> Result<h2::client::SendRequest<Bytes>, Status> {
+    let timeout = config.handshake_timeout();
+    match tokio::time::timeout(timeout, handshake_io(endpoint, config, tls)).await {
+        Ok(result) => result,
+        Err(_) => Err(Status::unavailable(format!(
+            "connect {}: timed out after {timeout:?}",
+            endpoint.describe()
+        ))),
+    }
+}
+
+async fn handshake_io(
     endpoint: &Endpoint,
     config: ChannelConfig,
     tls: Option<&ClientTls>,

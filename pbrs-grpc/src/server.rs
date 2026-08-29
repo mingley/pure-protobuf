@@ -935,7 +935,11 @@ async fn accept_loop<D: Dispatch>(
                     match tls {
                         None => serve_io(dispatch, tcp, Some(peer), config, goaway).await,
                         Some(tls) => {
-                            if let Ok(io) = tls.accept(tcp).await {
+                            let accept = tokio::time::timeout(
+                                config.io_handshake_timeout(),
+                                tls.accept(tcp),
+                            );
+                            if let Ok(Ok(io)) = accept.await {
                                 serve_io(dispatch, io, Some(peer), config, goaway).await;
                             }
                         }
@@ -1026,7 +1030,11 @@ async fn serve_io<D, IO>(
     D: Dispatch,
     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    let Ok(mut conn) = config.h2_builder().handshake(io).await else {
+    let handshake = tokio::time::timeout(
+        config.io_handshake_timeout(),
+        config.h2_builder().handshake(io),
+    );
+    let Ok(Ok(mut conn)) = handshake.await else {
         return;
     };
     let (interval, timeout) = config.keepalive();

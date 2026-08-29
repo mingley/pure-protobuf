@@ -12,6 +12,7 @@ numbers, see [benchmarks](benchmarks.md).
 - [Errors and status codes](#errors-and-status-codes)
 - [Deadlines and cancellation](#deadlines-and-cancellation)
 - [Wait-for-ready and lazy connect](#wait-for-ready-and-lazy-connect)
+- [Connect timeout](#connect-timeout)
 - [Serving several services](#serving-several-services)
 - [TLS](#tls)
 - [Unix domain sockets](#unix-domain-sockets)
@@ -379,6 +380,29 @@ The same flag applies after a live connection dies: fail-fast redials once
 and returns `UNAVAILABLE` if nothing is listening; wait-for-ready keeps
 trying.
 
+## Connect timeout
+
+`Channel::connect` does not hang forever on a peer that accepts TCP (or a
+Unix socket) and never speaks HTTP/2. The whole dial — connect, optional
+TLS, HTTP/2 preface — is bounded by `ChannelConfig::connect_timeout`,
+default 20 s. Connection refused still fails immediately; the bound is for
+the hang, not the bounce.
+
+```rust
+Channel::connect_with(
+    addr,
+    ChannelConfig::new().connect_timeout(Duration::from_secs(5)),
+)
+.await?;
+```
+
+Wait-for-ready treats a timed-out handshake as `UNAVAILABLE` and retries
+with backoff. An RPC deadline still races the dial.
+
+On the server, `ServerConfig::handshake_timeout` (same 20 s default) drops a
+client that never completes TLS or the HTTP/2 preface, so a mute peer cannot
+pin a connection task forever.
+
 ## Serving several services
 
 One service uses `Server`, which has no per-RPC dynamic dispatch:
@@ -608,6 +632,7 @@ guards is committed.
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
 | Reserved metadata injection | `grpc-status`, `grpc-status-details-bin`, and friends are never read from or written to user metadata | always |
 | Long-lived connection hold | `GOAWAY` after age or idle, then force-close; PINGs do not reset idle | opt-in |
+| Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
