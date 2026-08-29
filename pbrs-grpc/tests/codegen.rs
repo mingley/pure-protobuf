@@ -711,6 +711,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "client-streaming client methods must name drop and deadline after half-close"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::StreamSender::fail`] resolves the [`::pbrs_grpc::Call`] with that status (no request-side `grpc-status`; the stream is reset with CANCEL)."),
+        "client-streaming client methods must name StreamSender::fail"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::StreamSender::fail`] before headers resolves the [`::pbrs_grpc::Call`] with that status; after headers the reset surfaces on the received [`::pbrs_grpc::Streaming`]."),
+        "bidi client methods must name StreamSender::fail before headers"
+    );
+    assert!(
         src.contains("dropping a streaming Call resets the stream"),
         "client-streaming and bidi pairs must be must_use"
     );

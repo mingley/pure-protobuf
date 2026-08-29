@@ -5134,9 +5134,23 @@ impl Greeter for ClientStreamFailAfterOne {
 
     async fn stream_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail-after-one"))
+        let cancelled = request.cancelled();
+        let left = Arc::clone(&self.left);
+        drop(tokio::spawn(async move {
+            cancelled.await;
+            left.fetch_add(1, Ordering::Relaxed);
+        }));
+        let mut inbound = request.into_inner();
+        let first = inbound
+            .message()
+            .await?
+            .ok_or_else(|| Status::internal("empty"))?;
+        if first.name().to_str().unwrap_or("") != "ada" {
+            return Err(Status::internal("unexpected name"));
+        }
+        std::future::pending().await
     }
 }
 
@@ -5153,19 +5167,26 @@ async fn failing_a_client_stream_after_a_message_is_that_status_not_internal() {
     let client = GreeterClient::new(channel(addr).await);
     let (tx, call) = client.client_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
+    tx.fail(stream_abort_status()).await;
+    assert_stream_abort(&call.await.expect_err("fail"));
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
+fn stream_abort_status() -> Status {
     let mut info = pbrs_grpc::pb::ErrorInfo::new();
     info.set_reason("STREAM_ABORTED");
     info.set_domain("example.com");
-    tx.fail(
-        Status::with_error_details(
-            Code::NotFound,
-            "gone",
-            [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
-        )
-        .expect("details"),
+    Status::with_error_details(
+        Code::NotFound,
+        "gone",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
     )
-    .await;
-    let err = call.await.expect_err("fail");
+    .expect("details")
+}
+
+fn assert_stream_abort(err: &Status) {
     assert_eq!(err.code(), Code::NotFound, "{err}");
     assert_eq!(err.message(), "gone");
     let info = err
@@ -5174,6 +5195,23 @@ async fn failing_a_client_stream_after_a_message_is_that_status_not_internal() {
         .error_info
         .expect("ErrorInfo");
     assert_eq!(info.reason().to_str().unwrap_or(""), "STREAM_ABORTED");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn failing_a_bidi_stream_before_headers_is_that_status_not_unavailable() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamFailAfterOne {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.fail(stream_abort_status()).await;
+    assert_stream_abort(&call.await.expect_err("fail"));
     wait_flag(&left).await;
     drop(client);
     task.abort();

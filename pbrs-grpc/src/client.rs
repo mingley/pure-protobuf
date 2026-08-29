@@ -878,6 +878,8 @@ impl Channel {
     /// taken before await still cancels after the sender is closed, while the
     /// unary response is pending. Dropping the [`Call`] or letting its deadline
     /// fire after that half-close resets the same way.
+    /// [`crate::StreamSender::fail`] resolves the [`Call`] with that status
+    /// (no request-side `grpc-status`; the stream is reset with CANCEL).
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -946,6 +948,9 @@ impl Channel {
     /// before await still cancels that live stream after headers, including
     /// after the sender is closed. Dropping the received [`Streaming`] before
     /// the end does the same.
+    /// [`crate::StreamSender::fail`] before headers resolves the [`Call`] with
+    /// that status; after headers the reset surfaces on the received
+    /// [`Streaming`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -1628,28 +1633,53 @@ where
         https,
     )
     .await?;
+    // A spawned pump can RST before headers; without this channel the Call
+    // would see UNAVAILABLE from h2 instead of StreamSender::fail's status.
+    let (fail_tx, mut fail_rx) = tokio::sync::oneshot::channel();
     drop(tokio::spawn({
         let cancel_rx = cancel_rx.clone();
         async move {
             let mut send = send_stream;
-            if matches!(
-                pump_outbound(&mut send, rx, cancel_rx.clone(), wire).await,
-                PumpEnd::HalfClosed
-            ) {
-                reset_on_cancel(send, cancel_rx);
+            match pump_outbound(&mut send, rx, cancel_rx.clone(), wire).await {
+                PumpEnd::Failed(status) => {
+                    fail_tx.send(status).ok();
+                }
+                PumpEnd::HalfClosed => reset_on_cancel(send, cancel_rx),
+                PumpEnd::Reset => {}
             }
         }
     }));
-    race(
-        async {
+    let result = {
+        let fut = async {
             let response = resp_fut.await.map_err(Status::from_h2)?;
             finish_stream::<Resp>(response, wire.limits, deadline).await
-        },
-        cancel_rx,
-        deadline,
-        None,
-    )
-    .await
+        };
+        tokio::pin!(fut);
+        let until_deadline = async {
+            match deadline {
+                Some(at) => tokio::time::sleep_until(at).await,
+                None => std::future::pending().await,
+            }
+        };
+        tokio::pin!(until_deadline);
+        let mut cancelled = cancel_rx;
+        let mut fail_done = false;
+        loop {
+            tokio::select! {
+                biased;
+                () = &mut until_deadline => break Err(Status::deadline_exceeded()),
+                _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
+                status = &mut fail_rx, if !fail_done => {
+                    match status {
+                        Ok(status) => break Err(status),
+                        Err(_) => fail_done = true,
+                    }
+                }
+                result = &mut fut => break result,
+            }
+        }
+    };
+    prefer_deadline(result, deadline)
 }
 
 #[allow(

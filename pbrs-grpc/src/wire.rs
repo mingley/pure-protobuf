@@ -884,7 +884,8 @@ pub(crate) enum PumpEnd {
     /// Already `RST_STREAM` (Call cancel, or a write failed). Do not park.
     Reset,
     /// [`crate::StreamSender::fail`]: already `RST_STREAM` CANCEL. A
-    /// client-streaming [`crate::Call`] resolves with this status.
+    /// client-streaming [`crate::Call`], or a bidi [`crate::Call`] that has
+    /// not yet seen headers, resolves with this status.
     Failed(Status),
 }
 

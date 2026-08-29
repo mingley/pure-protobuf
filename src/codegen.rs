@@ -4924,6 +4924,16 @@ fn emit_kernel_client(
                 src,
                 "    /// Dropping the [`{G}::Call`] or letting its deadline fire after that half-close resets the same way."
             );
+            let _ = writeln!(
+                src,
+                "    /// [`{G}::StreamSender::fail`] resolves the [`{G}::Call`] with that status (no request-side `grpc-status`; the stream is reset with CANCEL)."
+            );
+        }
+        if m.client_streaming && m.server_streaming {
+            let _ = writeln!(
+                src,
+                "    /// [`{G}::StreamSender::fail`] before headers resolves the [`{G}::Call`] with that status; after headers the reset surfaces on the received [`{G}::Streaming`]."
+            );
         }
         if shape.client_return.starts_with('(') {
             let _ = writeln!(

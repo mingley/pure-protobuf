@@ -223,8 +223,9 @@ server response producer that puts the status in the trailers, including
 trailing metadata and `grpc-status-details-bin` (`Status::with_error_details`),
 after any messages already sent — the same as a handler `Err`. On a client
 request sender, gRPC has no request-side `grpc-status`: the stream is reset
-with CANCEL. A client-streaming `Call` resolves with that status; a bidi call
-that already has headers surfaces the reset on the received `Streaming`.
+with CANCEL. A client-streaming `Call`, or a bidi `Call` that has not yet seen
+headers, resolves with that status; a bidi call that already has headers
+surfaces the reset on the received `Streaming`.
 
 A producer that waits on a timer or a status map, rather than on `send`,
 should select on `tx.closed()` or `request.cancelled()`. The wire drain

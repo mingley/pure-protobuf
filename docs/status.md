@@ -122,8 +122,10 @@ See `docs/upb.md`. Short list:
   metadata. `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream. On a client request sender it resets CANCEL
-  (no request-side `grpc-status`); a client-streaming `Call` resolves
-  with that status. A `Call` is fused after `Ready`. Client-streaming and bidi
+  (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
+  `Call` that has not yet seen headers, resolves with that status. After
+  bidi headers the reset surfaces on the received `Streaming`. A `Call`
+  is fused after `Ready`. Client-streaming and bidi
   `(StreamSender, Call)` pairs are `must_use`. `Health::watch` ends when the
   client leaves, without waiting for the next status change. A server-streaming
   drain waiting for the next message ends on client RST. Dropping a received
@@ -136,7 +138,8 @@ See `docs/upb.md`. Short list:
   when the server deadline wins (signalled before trailers). Generated trait
   rustdoc names `Request::cancelled` on every call shape (and
   `StreamSender::closed` on server-streaming); unary `Channel` / generated
-  client methods name `CallHandle`. Generated method rustdoc names
+  client methods name `CallHandle`. Generated client-streaming and bidi
+  methods name `StreamSender::fail`. Generated method rustdoc names
   inbound/received `encoding` and interceptor timing. Methods omitted on generated traits answer `UNIMPLEMENTED`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers

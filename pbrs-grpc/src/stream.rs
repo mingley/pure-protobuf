@@ -427,7 +427,8 @@ impl<T> StreamSender<T> {
     /// On a **client request** sender (client-streaming or bidi), gRPC has no
     /// request-side `grpc-status`. This resets the HTTP/2 stream with CANCEL,
     /// matching [`crate::CallHandle::cancel`]. A client-streaming
-    /// [`crate::Call`] resolves with `status`; a bidi call that already has
+    /// [`crate::Call`], or a bidi [`crate::Call`] that has not yet seen
+    /// headers, resolves with `status`; a bidi call that already has
     /// headers surfaces the reset on the received [`Streaming`].
     pub async fn fail(self, status: Status) {
         self.tx.send(Err(status)).await.ok();
