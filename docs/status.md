@@ -202,7 +202,7 @@ See `docs/upb.md`. Short list:
   / PutAll / Sync, including over TLS, mTLS, Unix, and `from_io`. A packed `google.rpc.Status` from interceptor
   `Err(with_error_details)` unpacks on those Store, Health, and reflection
   methods the same way, including over TLS, mTLS, Unix, and `from_io`. A generated Store handler `Err(with_error_details)`
-  unpacks on Get / Watch / PutAll / Sync too. A wrapping `Service`
+  unpacks on Get / Watch / PutAll / Sync too, including over TLS, mTLS, Unix, and `from_io`. A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written
   Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`, and a client
   interceptor stamps Outgoing path facts on those APIs, including over TLS,

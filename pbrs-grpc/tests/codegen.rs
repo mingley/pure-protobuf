@@ -577,6 +577,72 @@ async fn generated_handlers_return_typed_status_on_every_shape() {
     server.abort();
 }
 
+#[tokio::test]
+async fn generated_tls_handlers_return_typed_status_on_every_shape() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedFailStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_blocked_every_shape(&tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_handlers_return_typed_status_on_every_shape() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::mtls(identity, CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedFailStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_blocked_every_shape(&tls_client_with(addr, client_tls).await).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_handlers_return_typed_status_on_every_shape() {
+    let path = unix_sock("typed-handler");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedFailStore).serve_unix(sock).await.ok();
+    });
+    assert_store_blocked_every_shape(&unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_handlers_return_typed_status_on_every_shape() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedFailStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io");
+    assert_store_blocked_every_shape(&client).await;
+    server.abort();
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn generated_serve_unix_round_trips() {
