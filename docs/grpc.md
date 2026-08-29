@@ -215,8 +215,10 @@ async fn server_hello(
 }
 ```
 
-Dropping the sender half-closes the stream cleanly. To end it with an error
-instead, use `tx.fail(status).await`, which puts the status in the trailers.
+Dropping the last sender half-closes the stream cleanly. Cloning a sender
+keeps the stream open until every clone is dropped; `close()` consumes one
+handle. To end it with an error instead, use `tx.fail(status).await`, which
+puts the status in the trailers.
 
 A producer that waits on a timer or a status map, rather than on `send`,
 should select on `tx.closed()` or `request.cancelled()`. The wire drain

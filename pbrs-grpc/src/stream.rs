@@ -295,14 +295,19 @@ impl<T> Stream for Streaming<T> {
 
 /// The write half of a message stream.
 ///
-/// Dropping the sender half-closes the stream cleanly; use
-/// [`Self::fail`] to end it with an error status instead.
+/// Dropping the last sender half-closes the stream cleanly; use
+/// [`Self::fail`] to end it with an error status instead. [`Clone`] shares
+/// the stream: it stays open until every clone is dropped.
+/// [`Self::close`] consumes this handle only.
 pub struct StreamSender<T> {
     tx: mpsc::Sender<Item<T>>,
     limits: MessageLimits,
     compress: bool,
 }
 
+/// [`Clone`] shares the stream. The stream stays open until every clone is
+/// dropped. Compress intent is per handle: cloning then
+/// [`StreamSender::set_compress`] does not change the original.
 impl<T> Clone for StreamSender<T> {
     fn clone(&self) -> Self {
         Self {
@@ -387,11 +392,12 @@ impl<T> StreamSender<T> {
         self.tx.send(Err(status)).await.ok();
     }
 
-    /// Half-close the stream. Equivalent to dropping the sender.
+    /// Half-close this handle. Equivalent to dropping it.
     ///
     /// The peer sees end-of-stream and may answer `OK` (an empty
-    /// client-stream is a successful empty aggregate). To abort, keep this
-    /// sender and cancel the [`crate::Call`].
+    /// client-stream is a successful empty aggregate) once every clone is
+    /// gone. If this sender was cloned, other clones keep the stream open.
+    /// To abort, keep a handle and cancel the [`crate::Call`].
     pub fn close(self) {
         drop(self.tx);
     }
@@ -531,6 +537,21 @@ mod tests {
         tx.closed().await;
         assert!(tx.send(reply("late")).await.is_err());
         assert!(tx.is_closed());
+    }
+
+    #[tokio::test]
+    async fn a_clone_keeps_the_stream_open() {
+        let (tx, mut stream) = Streaming::<HelloReply>::channel(4);
+        let extra = tx.clone();
+        tx.close();
+        extra
+            .send(reply("still"))
+            .await
+            .expect("clone keeps it open");
+        extra.close();
+        let got = stream.message().await.expect("recv").expect("item");
+        assert_eq!(text(&got), "still");
+        assert!(stream.message().await.expect("end").is_none());
     }
 
     #[test]
