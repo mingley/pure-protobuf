@@ -116,6 +116,130 @@ fn unix_sock(prefix: &str) -> std::path::PathBuf {
     path
 }
 
+fn server_identity() -> Identity {
+    Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("server identity")
+}
+
+struct ServeGuard(tokio::task::JoinHandle<()>);
+
+impl Drop for ServeGuard {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+async fn bind_health() -> (SocketAddr, TcpListener) {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    (addr, listener)
+}
+
+fn health_server() -> HealthServer<impl Health> {
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    svc
+}
+
+async fn serve_health_at(addr: SocketAddr) -> Result<ServeGuard, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let svc = health_server();
+                let handle = tokio::spawn(async move {
+                    svc.serve_listener(listener).await.ok();
+                });
+                return Ok(ServeGuard(handle));
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+async fn serve_health_tls_at(addr: SocketAddr, tls: ServerTls) -> Result<ServeGuard, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let svc = health_server();
+                let handle = tokio::spawn(async move {
+                    svc.serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return Ok(ServeGuard(handle));
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+fn stamp_wait_ready<T>(
+    mut request: Request<T>,
+    wait_on_request: bool,
+    timeout: Option<Duration>,
+) -> Request<T> {
+    if wait_on_request {
+        request.set_wait_for_ready(true);
+    }
+    if let Some(timeout) = timeout {
+        request.set_timeout(timeout);
+    }
+    request
+}
+
+async fn wait_then_complete_health(
+    client: &HealthClient,
+    wait_on_request: bool,
+    start: impl std::future::Future,
+) {
+    let timeout = Some(Duration::from_secs(5));
+    let mut check = client.check(stamp_wait_ready(
+        Request::new(HealthCheckRequest::new()),
+        wait_on_request,
+        timeout,
+    ));
+    let mut watch = client.watch(stamp_wait_ready(
+        Request::new(HealthCheckRequest::new()),
+        wait_on_request,
+        timeout,
+    ));
+
+    tokio::select! {
+        biased;
+        result = &mut check => panic!("check finished before the server listened: {result:?}"),
+        result = &mut watch => panic!("watch finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = start.await;
+
+    let overall = tokio::time::timeout(Duration::from_secs(2), check)
+        .await
+        .expect("check hung after listen")
+        .expect("check")
+        .into_inner();
+    assert_eq!(overall.status(), ServingStatus::Serving);
+
+    let mut stream = tokio::time::timeout(Duration::from_secs(2), watch)
+        .await
+        .expect("watch hung after listen")
+        .expect("watch")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::Serving);
+}
+
 async fn echo_health_check_and_watch(client: &HealthClient) {
     let overall = client
         .check(Request::new(HealthCheckRequest::new()))
@@ -854,6 +978,136 @@ async fn health_tls_round_trips_check_and_watch() {
     };
     echo_health_check_and_watch(&client).await;
     handle.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client = HealthClient::connect_lazy(addr).expect("lazy");
+    wait_then_complete_health(&client, true, async {
+        serve_health_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client = HealthClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_health(&client, false, async {
+        serve_health_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_tls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_health(&client, true, async {
+        serve_health_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_tls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_health(&client, false, async {
+        serve_health_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_mtls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_health(&client, true, async {
+        serve_health_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = HealthClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_health(&client, false, async {
+        serve_health_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_unix_wait_for_ready_completes_once_the_server_listens() {
+    let path = unix_sock("wait");
+    let client = HealthClient::connect_unix_lazy(&path).expect("lazy");
+    wait_then_complete_health(&client, true, async {
+        let sock = path.clone();
+        let svc = health_server();
+        ServeGuard(tokio::spawn(async move {
+            svc.serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn health_unix_channel_wait_for_ready_completes_once_the_server_listens() {
+    let path = unix_sock("channel-wait");
+    let client = HealthClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_health(&client, false, async {
+        let sock = path.clone();
+        let svc = health_server();
+        ServeGuard(tokio::spawn(async move {
+            svc.serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
 }
 
 #[tokio::test]

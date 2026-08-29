@@ -8,7 +8,10 @@
 //! `connect_unix`), TLS (`serve_tls` / `connect_tls`), and
 //! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
 //! both methods. [`HealthServer::send_compressed`] gzips Check and Watch when
-//! the client advertises gzip. A client interceptor sees [`crate::Outgoing`]
+//! the client advertises gzip. [`HealthClient::connect_lazy`],
+//! [`HealthClient::connect_tls_lazy`] (including mTLS), and
+//! [`HealthClient::connect_unix_lazy`] retry Check and Watch until listen when
+//! wait-for-ready is set on the request or the client. A client interceptor sees [`crate::Outgoing`]
 //! path / service / method / `:authority` / `:scheme` on both methods.
 //!
 //! ```no_run
