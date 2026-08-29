@@ -13,6 +13,7 @@ use bytes::Bytes;
 use h2::Reason;
 use http::uri::Authority;
 use pbrs::{Parse, Serialize};
+use std::fmt;
 use std::future::Future;
 use std::net::SocketAddr;
 #[cfg(unix)]
@@ -163,6 +164,9 @@ impl Endpoint {
 /// which is how a client injects auth metadata, a default deadline, or
 /// wait-for-ready without touching each call.
 ///
+/// [`Debug`] prints the authority, pool size, and config. It does not dump
+/// live HTTP/2 state.
+///
 /// ```no_run
 /// use pbrs_grpc::{Channel, ChannelConfig};
 ///
@@ -188,6 +192,19 @@ pub struct Channel {
     inner: Arc<ChannelInner>,
     config: ChannelConfig,
     interceptors: Arc<[ClientHook]>,
+}
+
+impl fmt::Debug for Channel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Channel")
+            .field("authority", &self.inner.authority.as_str())
+            .field("endpoint", &self.inner.endpoint.describe())
+            .field("connections", &self.inner.slots.len())
+            .field("tls", &self.inner.tls.is_some())
+            .field("interceptors", &self.interceptors.len())
+            .field("config", &self.config)
+            .finish()
+    }
 }
 
 impl Channel {
@@ -1074,5 +1091,15 @@ mod tests {
     fn bad_authority_is_unavailable_not_a_panic() {
         let err = Target::from("not a host").parse().expect_err("invalid");
         assert_eq!(err.code(), crate::status::Code::Unavailable);
+    }
+
+    #[test]
+    fn channel_debug_names_the_authority() {
+        let channel = super::Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+        let dbg = format!("{channel:?}");
+        assert!(dbg.contains("127.0.0.1:9"), "{dbg}");
+        assert!(dbg.contains("connections: 1"), "{dbg}");
+        assert!(dbg.contains("tls: false"), "{dbg}");
+        assert!(dbg.contains("interceptors: 0"), "{dbg}");
     }
 }

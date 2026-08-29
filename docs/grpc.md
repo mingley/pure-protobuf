@@ -271,8 +271,10 @@ return Err(status);
 Rich errors travel as `grpc-status-details-bin`. The spec puts a serialized
 `google.rpc.Status` there — the same code and message as the ASCII trailers,
 plus a repeated `google.protobuf.Any`. `Status::with_error_details` builds
-that protobuf; `Status::rpc` parses it back. The key is invisible through
-`Metadata`, so forwarding received metadata cannot inject it.
+that protobuf from packed `Any` values; `Status::from_error_details` does
+the same from an `ErrorDetails` bag of the standard `google.rpc` messages.
+`Status::rpc` / `Status::error_details` parse it back. The key is invisible
+through `Metadata`, so forwarding received metadata cannot inject it.
 
 ```rust
 use pbrs_grpc::pb::{Any, ErrorInfo};
@@ -291,7 +293,10 @@ return Err(Status::with_error_details(
 On the client:
 
 ```rust
-let info = status.rpc()?.details().get(0).unwrap().unpack::<ErrorInfo>()?;
+let details = status.error_details()?;
+if let Some(info) = details.error_info {
+    println!("{}", info.reason());
+}
 ```
 
 Raw bytes still work (`Status::set_details`) when you are forwarding a trailer

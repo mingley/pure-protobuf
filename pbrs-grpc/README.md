@@ -48,7 +48,7 @@ let reply = client.say_hello(Request::new(req)).await?;
 All four call shapes, `Router` for several services, TLS (rustls + Graviola,
 no C compiler) and mTLS, `grpc.health.v1`, `grpc.reflection.v1`, interceptors
 (server `Rpc` extensions, client `Outgoing` with path/deadline/wait-for-ready),
-typed `google.rpc.Status` / `google.protobuf.Any` on `grpc-status-details-bin`,
+typed `google.rpc.Status` / `ErrorDetails` on `grpc-status-details-bin`,
 HTTP/2 PING keepalive, max connection age (jittered ±10%) and idle, automatic
 redial of a dead connection, lazy connect with wait-for-ready, Unix domain
 sockets (h2c), graceful drain with `GOAWAY`, per-message gzip, deadlines,

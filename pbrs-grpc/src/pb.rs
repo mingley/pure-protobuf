@@ -120,6 +120,153 @@ impl Status {
     }
 }
 
+/// The standard `google.rpc` payloads a status may carry, plus any other
+/// `Any` the peer sent.
+///
+/// Pack with [`crate::Status::from_error_details`]; unpack with
+/// [`crate::Status::error_details`]. Unknown types stay in [`Self::unknown`]
+/// so a custom detail is not dropped on a round-trip.
+///
+/// ```
+/// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+/// use pbrs_grpc::{Code, Status};
+///
+/// let mut info = ErrorInfo::new();
+/// info.set_reason("API_DISABLED");
+/// info.set_domain("example.com");
+/// let details = ErrorDetails {
+///     error_info: Some(info),
+///     ..ErrorDetails::default()
+/// };
+/// let status = Status::from_error_details(Code::FailedPrecondition, "disabled", &details)?;
+/// let info = status.error_details()?.error_info.ok_or_else(|| Status::internal("missing"))?;
+/// assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+/// # Ok::<(), Status>(())
+/// ```
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct ErrorDetails {
+    /// [`ErrorInfo`], if the status named one.
+    pub error_info: Option<ErrorInfo>,
+    /// [`RetryInfo`].
+    pub retry_info: Option<RetryInfo>,
+    /// [`DebugInfo`].
+    pub debug_info: Option<DebugInfo>,
+    /// [`QuotaFailure`].
+    pub quota_failure: Option<QuotaFailure>,
+    /// [`PreconditionFailure`].
+    pub precondition_failure: Option<PreconditionFailure>,
+    /// [`BadRequest`].
+    pub bad_request: Option<BadRequest>,
+    /// [`RequestInfo`].
+    pub request_info: Option<RequestInfo>,
+    /// [`ResourceInfo`].
+    pub resource_info: Option<ResourceInfo>,
+    /// [`Help`].
+    pub help: Option<Help>,
+    /// [`LocalizedMessage`].
+    pub localized_message: Option<LocalizedMessage>,
+    /// Payloads that are not one of the standard types.
+    pub unknown: Vec<Any>,
+}
+
+impl ErrorDetails {
+    /// No detail messages.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Encode every populated field as `google.protobuf.Any`, standard
+    /// types first, then [`Self::unknown`].
+    pub fn to_anys(&self) -> Result<Vec<Any>, crate::Status> {
+        let mut out = Vec::new();
+        push_named(&mut out, self.error_info.as_ref())?;
+        push_named(&mut out, self.retry_info.as_ref())?;
+        push_named(&mut out, self.debug_info.as_ref())?;
+        push_named(&mut out, self.quota_failure.as_ref())?;
+        push_named(&mut out, self.precondition_failure.as_ref())?;
+        push_named(&mut out, self.bad_request.as_ref())?;
+        push_named(&mut out, self.request_info.as_ref())?;
+        push_named(&mut out, self.resource_info.as_ref())?;
+        push_named(&mut out, self.help.as_ref())?;
+        push_named(&mut out, self.localized_message.as_ref())?;
+        out.extend(self.unknown.iter().cloned());
+        Ok(out)
+    }
+
+    /// Decode a `google.rpc.Status` details list. The first value of each
+    /// standard type fills the matching field; anything else, including a
+    /// second value of a known type, goes to [`Self::unknown`].
+    pub fn from_rpc(rpc: &Status) -> Result<Self, crate::Status> {
+        let mut out = Self::new();
+        let details = rpc.details();
+        for i in 0..details.len() {
+            let Some(view) = details.get(i) else {
+                continue;
+            };
+            if fill_standard(&mut out, &view)? {
+                continue;
+            }
+            out.unknown.push(Any::clone(&view));
+        }
+        Ok(out)
+    }
+}
+
+fn push_named<M: pbrs::Serialize + pbrs::MessageName>(
+    out: &mut Vec<Any>,
+    msg: Option<&M>,
+) -> Result<(), crate::Status> {
+    if let Some(msg) = msg {
+        out.push(Any::pack(msg)?);
+    }
+    Ok(())
+}
+
+fn fill_standard(out: &mut ErrorDetails, any: &Any) -> Result<bool, crate::Status> {
+    if out.error_info.is_none() && any.is::<ErrorInfo>() {
+        out.error_info = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.retry_info.is_none() && any.is::<RetryInfo>() {
+        out.retry_info = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.debug_info.is_none() && any.is::<DebugInfo>() {
+        out.debug_info = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.quota_failure.is_none() && any.is::<QuotaFailure>() {
+        out.quota_failure = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.precondition_failure.is_none() && any.is::<PreconditionFailure>() {
+        out.precondition_failure = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.bad_request.is_none() && any.is::<BadRequest>() {
+        out.bad_request = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.request_info.is_none() && any.is::<RequestInfo>() {
+        out.request_info = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.resource_info.is_none() && any.is::<ResourceInfo>() {
+        out.resource_info = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.help.is_none() && any.is::<Help>() {
+        out.help = Some(any.unpack()?);
+        return Ok(true);
+    }
+    if out.localized_message.is_none() && any.is::<LocalizedMessage>() {
+        out.localized_message = Some(any.unpack()?);
+        return Ok(true);
+    }
+    Ok(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Any, ErrorInfo, Status, TYPE_URL_PREFIX};
@@ -191,5 +338,39 @@ mod tests {
             .unpack::<ErrorInfo>()
             .expect("unpack");
         assert_eq!(got.reason().to_str().unwrap_or(""), "QUOTA");
+    }
+
+    #[test]
+    fn error_details_round_trips_known_and_unknown() {
+        use super::ErrorDetails;
+        use crate::HelloRequest;
+
+        let mut info = ErrorInfo::new();
+        info.set_reason("API_DISABLED");
+        let mut extra = HelloRequest::new();
+        extra.set_name("custom");
+        let bag = ErrorDetails {
+            error_info: Some(info),
+            unknown: vec![Any::pack(&extra).expect("pack hello")],
+            ..ErrorDetails::default()
+        };
+        let rpc = Status::with_details(
+            Code::FailedPrecondition,
+            "disabled",
+            bag.to_anys().expect("anys"),
+        );
+        let got = ErrorDetails::from_rpc(&rpc).expect("decode");
+        assert_eq!(
+            got.error_info
+                .as_ref()
+                .expect("info")
+                .reason()
+                .to_str()
+                .unwrap_or(""),
+            "API_DISABLED"
+        );
+        assert_eq!(got.unknown.len(), 1);
+        let hello = got.unknown[0].unpack::<HelloRequest>().expect("hello");
+        assert_eq!(hello.name().to_str().unwrap_or(""), "custom");
     }
 }

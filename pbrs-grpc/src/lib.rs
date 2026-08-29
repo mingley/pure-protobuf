@@ -96,7 +96,7 @@
 //! | Reflection | [`reflection`] |
 //! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`], [`Any`] |
-//! | Rich errors | [`pb`], [`Status::with_error_details`] |
+//! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
@@ -258,7 +258,7 @@ pub use http::Extensions;
 pub use interceptor::{ClientInterceptor, Intercepted, Interceptor, ServiceExt};
 pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
-pub use pb::Any;
+pub use pb::{Any, ErrorDetails};
 pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response};
 pub use server::{Router, Rpc, Server, Service};
 pub use status::{Code, Status};

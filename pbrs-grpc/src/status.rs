@@ -320,6 +320,24 @@ impl Status {
         Self::from_rpc(&crate::pb::Status::with_details(code, message, details))
     }
 
+    /// Encode a typed [`crate::pb::ErrorDetails`] bag as
+    /// `grpc-status-details-bin`.
+    pub fn from_error_details(
+        code: Code,
+        message: impl Into<String>,
+        details: &crate::pb::ErrorDetails,
+    ) -> Result<Self, Self> {
+        Self::with_error_details(code, message, details.to_anys()?)
+    }
+
+    /// Decode [`crate::pb::ErrorDetails`] from this status.
+    ///
+    /// Absent or empty `grpc-status-details-bin` yields an empty bag, not an
+    /// error. Corrupt bytes are [`Code::Internal`].
+    pub fn error_details(&self) -> Result<crate::pb::ErrorDetails, Self> {
+        crate::pb::ErrorDetails::from_rpc(&self.rpc()?)
+    }
+
     /// Whether this status represents success.
     #[must_use]
     pub fn is_ok(&self) -> bool {
@@ -436,6 +454,30 @@ impl fmt::Display for Status {
 }
 
 impl std::error::Error for Status {}
+
+/// Map a local I/O failure onto a gRPC code.
+///
+/// Timeouts become [`Code::DeadlineExceeded`]. Connection failures become
+/// [`Code::Unavailable`]. Everything else is [`Code::Unknown`], with the
+/// original error text as the message. This is for *this process's* I/O,
+/// not for a peer status.
+impl From<std::io::Error> for Status {
+    fn from(err: std::io::Error) -> Self {
+        let code = match err.kind() {
+            std::io::ErrorKind::TimedOut => Code::DeadlineExceeded,
+            std::io::ErrorKind::ConnectionRefused
+            | std::io::ErrorKind::ConnectionReset
+            | std::io::ErrorKind::ConnectionAborted
+            | std::io::ErrorKind::NotConnected
+            | std::io::ErrorKind::BrokenPipe
+            | std::io::ErrorKind::UnexpectedEof
+            | std::io::ErrorKind::AddrNotAvailable => Code::Unavailable,
+            std::io::ErrorKind::InvalidData => Code::Internal,
+            _ => Code::Unknown,
+        };
+        Self::new(code, err.to_string())
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -577,5 +619,44 @@ mod tests {
         assert_eq!(rpc.code(), Code::NotFound.to_i32());
         assert_eq!(rpc.message().to_str().unwrap_or(""), "no such row");
         assert!(rpc.details().is_empty());
+    }
+
+    #[test]
+    fn error_details_bag_round_trips_through_status() {
+        use crate::pb::{ErrorDetails, ErrorInfo};
+
+        let mut info = ErrorInfo::new();
+        info.set_reason("STOCKOUT");
+        let details = ErrorDetails {
+            error_info: Some(info),
+            ..ErrorDetails::default()
+        };
+        let status = Status::from_error_details(Code::ResourceExhausted, "out of stock", &details)
+            .expect("encode");
+        let got = status.error_details().expect("decode");
+        assert_eq!(
+            got.error_info
+                .as_ref()
+                .expect("info")
+                .reason()
+                .to_str()
+                .unwrap_or(""),
+            "STOCKOUT"
+        );
+    }
+
+    #[test]
+    fn io_timeout_is_deadline_exceeded() {
+        let err = std::io::Error::new(std::io::ErrorKind::TimedOut, "slow");
+        let status = Status::from(err);
+        assert_eq!(status.code(), Code::DeadlineExceeded);
+        assert!(status.message().contains("slow"));
+    }
+
+    #[test]
+    fn io_connection_refused_is_unavailable() {
+        let err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "refused");
+        let status = Status::from(err);
+        assert_eq!(status.code(), Code::Unavailable);
     }
 }
