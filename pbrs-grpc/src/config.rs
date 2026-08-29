@@ -36,8 +36,8 @@ pub const DEFAULT_KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// How long a client dial or a server TLS/HTTP/2 preface may take. Default 20 s.
 ///
-/// Covers TCP (or Unix) connect, optional TLS, and the HTTP/2 connection
-/// preface. A peer that accepts the socket and never speaks is dropped
+/// Covers TCP (or Unix) connect, optional TLS, and the peer's HTTP/2
+/// SETTINGS. A peer that accepts the socket and never speaks is dropped
 /// instead of hanging the caller forever.
 pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 
@@ -454,7 +454,8 @@ impl ChannelConfig {
     }
 
     /// How long a dial may take: TCP (or Unix) connect, optional TLS, and
-    /// the HTTP/2 preface. Default 20 s. Values below 1 ms are raised to 1 ms.
+    /// the peer's HTTP/2 SETTINGS. Default 20 s. Values below 1 ms are raised
+    /// to 1 ms.
     ///
     /// Always on. A peer that accepts the socket and never speaks HTTP/2
     /// fails with [`crate::Code::Unavailable`] instead of hanging
@@ -519,7 +520,12 @@ impl ChannelConfig {
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
-            .enable_push(false);
+            .enable_push(false)
+            // h2's handshake future returns after writing the client preface,
+            // before the peer speaks. Starting send capacity at 0 makes
+            // `SendRequest::ready` wait for the peer's SETTINGS, so a mute
+            // socket fails the dial instead of looking connected.
+            .initial_max_send_streams(0);
         builder
     }
 }

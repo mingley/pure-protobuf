@@ -103,9 +103,16 @@ async fn h2c_client_cannot_speak_tls() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, _guard) = serve_tls(tls).await;
     tokio::time::sleep(Duration::from_millis(20)).await;
-    // h2's handshake resolves after writing the preface, before the peer
-    // speaks, so a successful connect is not proof the peer is HTTP/2.
-    let err = match Channel::connect(addr).await {
+    // h2's handshake future returns after writing the preface. The kernel
+    // then waits for the peer's SETTINGS, so a TLS server (which never
+    // sends them) fails the dial at connect_timeout rather than looking
+    // connected.
+    let err = match Channel::connect_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
+    )
+    .await
+    {
         Ok(channel) => GreeterClient::new(channel)
             .say_hello(Request::new(req("x")))
             .await

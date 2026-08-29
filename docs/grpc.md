@@ -384,9 +384,9 @@ trying.
 
 `Channel::connect` does not hang forever on a peer that accepts TCP (or a
 Unix socket) and never speaks HTTP/2. The whole dial — connect, optional
-TLS, HTTP/2 preface — is bounded by `ChannelConfig::connect_timeout`,
-default 20 s. Connection refused still fails immediately; the bound is for
-the hang, not the bounce.
+TLS, and the peer's HTTP/2 `SETTINGS` — is bounded by
+`ChannelConfig::connect_timeout`, default 20 s. Connection refused still
+fails immediately; the bound is for the hang, not the bounce.
 
 ```rust
 Channel::connect_with(

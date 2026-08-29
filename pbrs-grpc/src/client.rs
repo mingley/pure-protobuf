@@ -148,8 +148,8 @@ impl Endpoint {
 /// it retries until connected, cancelled, or the deadline fires.
 ///
 /// A dial is bounded by [`ChannelConfig::connect_timeout`] (default 20 s),
-/// covering TCP or Unix connect, optional TLS, and the HTTP/2 preface. A
-/// peer that accepts the socket and never speaks fails with
+/// covering TCP or Unix connect, optional TLS, and the peer's HTTP/2
+/// SETTINGS. A peer that accepts the socket and never speaks fails with
 /// [`Code::Unavailable`] instead of hanging forever. Connection refused
 /// still fails immediately.
 ///
@@ -761,6 +761,19 @@ where
         .map_err(|e| Status::unavailable(e.to_string()))?;
     let (interval, timeout) = config.keepalive();
     let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
+    // Drive the connection until the peer's SETTINGS arrives (send capacity
+    // starts at 0). Dropping this future on connect_timeout then drops `conn`
+    // instead of leaking a driver task.
+    let send = tokio::select! {
+        biased;
+        result = send.ready() => {
+            result.map_err(|e| Status::unavailable(e.to_string()))?
+        }
+        result = &mut conn => {
+            drop(result);
+            return Err(Status::unavailable("http/2 preface: connection closed"));
+        }
+    };
     drop(tokio::spawn(async move {
         match dead {
             Some(dead) => {
