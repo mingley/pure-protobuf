@@ -1056,7 +1056,9 @@ The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
 produces. An interceptor reads those caps with `Rpc::limits`; a generated
 handler reads them with `Request::limits`. Oversize encode or decode is
-`RESOURCE_EXHAUSTED` on every call shape.
+`RESOURCE_EXHAUSTED` on every call shape. A server-streaming or bidi producer
+that exceeds `max_encoding_message_size` ships that status as trailers, not
+an HTTP/2 reset.
 
 ```rust
 GreeterServer::new(MyGreeter)

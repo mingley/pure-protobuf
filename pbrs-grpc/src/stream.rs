@@ -115,6 +115,9 @@ impl<T> Streaming<T> {
     /// on a timer or a status map, rather than on [`StreamSender::send`],
     /// should select on [`StreamSender::closed`] or [`crate::Request::cancelled`]:
     /// drain aborts on client RST so those resolve without another send.
+    /// The kernel still encodes each message under the server's
+    /// [`crate::Server::max_encoding_message_size`] cap; oversize is
+    /// [`crate::Code::ResourceExhausted`] trailers, not a reset.
     ///
     /// ```no_run
     /// use pbrs_grpc::{HelloReply, Response, Status, Streaming};
@@ -385,7 +388,8 @@ impl<T> StreamSender<T> {
     /// ([`crate::ChannelConfig::send_compressed`]), the request called
     /// [`crate::Request::set_compress`], or a client interceptor set
     /// [`crate::Outgoing::set_compress`]. `Err` means the peer is
-    /// gone or the message exceeds the outbound cap.
+    /// gone or the message exceeds the outbound cap. An oversize send
+    /// also ends a server response stream with [`crate::Code::ResourceExhausted`].
     pub async fn send(&self, message: T) -> Result<(), Status>
     where
         T: pbrs::Serialize,
@@ -406,11 +410,18 @@ impl<T> StreamSender<T> {
     }
 
     /// Queue a message with an explicit Compressed-Flag.
+    ///
+    /// An oversize message fails this send with [`crate::Code::ResourceExhausted`]
+    /// and, on a server response producer, ends the stream with that status
+    /// so a handler that ignores the error cannot ship OK trailers.
     pub async fn send_framed(&self, item: Framed<T>) -> Result<(), Status>
     where
         T: pbrs::Serialize,
     {
-        self.limits.check_encode(T::serialized_len(&item.message))?;
+        if let Err(status) = self.limits.check_encode(T::serialized_len(&item.message)) {
+            self.tx.send(Err(status.clone())).await.ok();
+            return Err(status);
+        }
         self.tx
             .send(Ok(item))
             .await

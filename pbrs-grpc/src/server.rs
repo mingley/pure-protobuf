@@ -1170,10 +1170,12 @@ async fn drain_to_wire<Resp: Serialize + Send>(
             let mut item = item.map_err(DrainError::Producer)?;
             item.compressed =
                 gzip_stream_frame(item.compressed, envelope, prefer_gzip, peer_accepts_gzip);
-            batch
-                .push(send, item)
-                .await
-                .map_err(|_| DrainError::Transport)?;
+            if let Err(status) = batch.encode(item) {
+                return Err(DrainError::Producer(status));
+            }
+            if batch.is_full() {
+                batch.flush(send).await.map_err(|_| DrainError::Transport)?;
+            }
         }
         if !batch.is_full() {
             batch.flush(send).await.map_err(|_| DrainError::Transport)?;

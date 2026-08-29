@@ -345,26 +345,17 @@ impl OutBatch {
         }
     }
 
-    /// Encode one message into the batch, flushing if the batch is now full.
+    /// Encode one message into the batch without writing.
     ///
-    /// Takes the message by value so the returned future owns it: holding a
-    /// borrow across the flush would demand `T: Sync` of every streamed
-    /// message type.
-    pub(crate) async fn push<T: Serialize>(
-        &mut self,
-        send: &mut SendStream<Bytes>,
-        item: Framed<T>,
-    ) -> Result<(), Status> {
+    /// Encode-cap and serialize failures stay [`Status`] so a server drain
+    /// can ship them as trailers instead of treating them as a dead socket.
+    pub(crate) fn encode<T: Serialize>(&mut self, item: Framed<T>) -> Result<(), Status> {
         append_frame(
             &mut self.buf,
             &item.message,
             item.compressed,
             self.wire.limits,
-        )?;
-        if self.buf.len() >= STREAM_BATCH_BYTES {
-            self.flush(send).await?;
-        }
-        Ok(())
+        )
     }
 
     /// Whether the batch has reached the size worth writing on its own.
@@ -951,7 +942,10 @@ pub(crate) async fn pump_outbound<T: Serialize>(
                     return PumpEnd::Failed(status);
                 }
             };
-            if batch.push(send, item).await.is_err() {
+            if let Err(status) = batch.encode(item) {
+                return PumpEnd::Failed(status);
+            }
+            if batch.is_full() && batch.flush(send).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
                 return PumpEnd::Reset;
             }
