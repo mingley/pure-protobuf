@@ -514,7 +514,9 @@ impl Channel {
     /// this channel.
     ///
     /// Off by default. Equivalent to [`ChannelConfig::send_compressed`].
-    /// A later interceptor can still call [`crate::Outgoing::set_compress`].
+    /// This overlay always sets compress true before interceptors run, so
+    /// [`crate::Request::set_compress`]`(false)` cannot opt out. A later
+    /// interceptor can still call [`crate::Outgoing::set_compress`]`(false)`.
     #[must_use]
     pub fn send_compressed(mut self) -> Self {
         self.config = self.config.send_compressed(true);
@@ -601,8 +603,9 @@ impl Channel {
     /// Run `interceptor` on every outbound RPC before the stream opens.
     /// Calling this twice stacks: the first interceptor runs first. The
     /// interceptor sees the method path, service, method, `:authority`,
-    /// `:scheme`, `user-agent`, and message caps, and can set metadata, a deadline,
-    /// wait-for-ready, compression, or typed extensions.
+    /// `:scheme`, `user-agent`, and message caps, and can set metadata, a
+    /// timeout / deadline Instant, wait-for-ready, compression, or typed
+    /// extensions.
     /// Values the caller put on [`crate::Request::extensions_mut`] are
     /// visible; stacked interceptors share that map.
     #[must_use]

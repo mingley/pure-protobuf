@@ -153,8 +153,9 @@ impl<S: Service> ServiceExt for S {}
 /// Attach one with [`crate::Channel::intercept`] or the generated
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
 /// runs first. The interceptor sees the method path, service, method,
-/// `:authority`, `:scheme`, `user-agent`, and message caps, and can set a deadline,
-/// wait-for-ready, compression, or typed extensions — not only metadata.
+/// `:authority`, `:scheme`, `user-agent`, and message caps, and can set a
+/// timeout / deadline Instant, wait-for-ready, compression, or typed
+/// extensions — not only metadata.
 ///
 /// Typed context the caller put on [`crate::Request::extensions_mut`] is
 /// visible here, so an interceptor can stamp metadata from a trace id or
@@ -186,6 +187,9 @@ impl<S: Service> ServiceExt for S {}
 ///     }
 ///     if call.timeout().is_none() {
 ///         call.set_timeout(Duration::from_secs(5));
+///     }
+///     if !call.wait_for_ready_is_set() {
+///         call.set_wait_for_ready(true);
 ///     }
 ///     Ok(())
 /// }

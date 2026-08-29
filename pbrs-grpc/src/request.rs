@@ -241,7 +241,12 @@ impl<T> Request<T> {
         self.wait_for_ready.unwrap_or(false)
     }
 
-    pub(crate) fn wait_for_ready_is_set(&self) -> bool {
+    /// Whether [`Self::set_wait_for_ready`] has been called.
+    ///
+    /// Distinct from [`Self::wait_for_ready`], which is `false` when unset.
+    /// [`crate::Channel::wait_for_ready`] fills only when this is `false`.
+    #[must_use]
+    pub fn wait_for_ready_is_set(&self) -> bool {
         self.wait_for_ready.is_some()
     }
 
@@ -589,6 +594,9 @@ impl<T> Request<T> {
 ///     if call.timeout().is_none() {
 ///         call.set_timeout(Duration::from_secs(5));
 ///     }
+///     if !call.wait_for_ready_is_set() {
+///         call.set_wait_for_ready(true);
+///     }
 ///     Ok(())
 /// }
 /// # let _ = stamp;
@@ -686,27 +694,55 @@ impl<'a> Outgoing<'a> {
         self.metadata
     }
 
-    /// The deadline, if any.
+    /// Relative timeout that becomes `grpc-timeout` on the wire.
+    ///
+    /// `None` when neither the request nor a channel overlay set one. Fill
+    /// that case with [`Self::set_timeout`]. The matching Instant is
+    /// [`Self::deadline`].
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         *self.timeout
     }
 
-    /// Set the deadline. Becomes `grpc-timeout` on the wire.
+    /// Absolute Instant matching [`Self::timeout`].
+    ///
+    /// Computed when you call this, so an interceptor that just set
+    /// [`Self::set_timeout`] sees the new Instant. Same contract as
+    /// [`crate::Rpc::deadline`].
+    #[must_use]
+    pub fn deadline(&self) -> Option<tokio::time::Instant> {
+        self.timeout.map(|d| tokio::time::Instant::now() + d)
+    }
+
+    /// Set the relative timeout. Becomes `grpc-timeout` on the wire.
     pub fn set_timeout(&mut self, timeout: Duration) {
         *self.timeout = Some(timeout);
     }
 
-    /// Clear a deadline previously set on the request or by an earlier
+    /// Clear a timeout previously set on the request or by an earlier
     /// interceptor.
     pub fn clear_timeout(&mut self) {
         *self.timeout = None;
     }
 
     /// Whether this RPC waits for a connection instead of failing fast.
+    ///
+    /// `false` when unset. Use [`Self::wait_for_ready_is_set`] to tell
+    /// `None` from an explicit `false`.
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
         self.wait_for_ready.unwrap_or(false)
+    }
+
+    /// Whether [`Self::set_wait_for_ready`] has been called, including a
+    /// channel overlay.
+    ///
+    /// Distinct from [`Self::wait_for_ready`], which is `false` when unset.
+    /// Fill a default only when this is `false`, the same pattern as
+    /// [`Self::timeout`] being `None`.
+    #[must_use]
+    pub fn wait_for_ready_is_set(&self) -> bool {
+        self.wait_for_ready.is_some()
     }
 
     /// Queue this RPC until the channel is connected.
@@ -762,6 +798,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("limits", &self.limits)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
+            .field("deadline", &self.deadline())
             .field("wait_for_ready", &self.wait_for_ready)
             .field("compress", &self.compress)
             .field("extensions", &self.extensions.len())
@@ -882,9 +919,17 @@ impl Parts {
     }
 
     /// Whether this RPC waits for a connection instead of failing fast.
+    /// See [`Request::wait_for_ready`].
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
         self.wait_for_ready.unwrap_or(false)
+    }
+
+    /// Whether [`Self::set_wait_for_ready`] has been called.
+    /// See [`Request::wait_for_ready_is_set`].
+    #[must_use]
+    pub fn wait_for_ready_is_set(&self) -> bool {
+        self.wait_for_ready.is_some()
     }
 
     /// Queue this RPC until the channel is connected.
@@ -1416,6 +1461,7 @@ mod tests {
         let (message, mut parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
         assert!(parts.wait_for_ready());
+        assert!(parts.wait_for_ready_is_set());
         assert!(parts.compress());
         assert!(parts.compressed());
         assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(5)));
@@ -1433,6 +1479,7 @@ mod tests {
         parts.set_timeout(Duration::from_millis(3));
         parts.set_compress(false);
         parts.clear_wait_for_ready();
+        assert!(!parts.wait_for_ready_is_set());
         let shown_parts = format!("{parts:?}");
         assert!(
             shown_parts.contains("/helloworld.Greeter/SayHello"),
@@ -1571,6 +1618,9 @@ mod tests {
             assert_eq!(call.service(), "svc");
             assert_eq!(call.method(), "Method");
             assert_eq!(call.limits(), crate::MessageLimits::default());
+            assert_eq!(call.timeout(), Some(Duration::from_secs(1)));
+            assert!(call.deadline().is_some());
+            assert!(!call.wait_for_ready_is_set());
             format!("{call:?}")
         };
         assert!(shown.contains("/svc/Method"), "{shown}");
@@ -1582,6 +1632,7 @@ mod tests {
         assert!(shown.contains("x-trace"), "{shown}");
         assert!(shown.contains("abc"), "{shown}");
         assert!(shown.contains("max_decoding"), "{shown}");
+        assert!(shown.contains("deadline"), "{shown}");
         let https = req.outgoing(
             "/svc/Method",
             "127.0.0.1:1",
@@ -1590,6 +1641,47 @@ mod tests {
             crate::MessageLimits::default(),
         );
         assert!(format!("{https:?}").contains("https"));
+    }
+
+    #[test]
+    fn outgoing_deadline_and_wait_for_ready_is_set() {
+        let mut req = Request::new(());
+        {
+            let call = req.outgoing(
+                "/svc/Method",
+                "127.0.0.1:1",
+                false,
+                "pbrs-grpc/test",
+                crate::MessageLimits::default(),
+            );
+            assert!(call.timeout().is_none());
+            assert!(call.deadline().is_none());
+            assert!(!call.wait_for_ready_is_set());
+            assert!(!call.wait_for_ready());
+        }
+        req.set_timeout(Duration::from_secs(5));
+        req.set_wait_for_ready(false);
+        {
+            let mut call = req.outgoing(
+                "/svc/Method",
+                "127.0.0.1:1",
+                false,
+                "pbrs-grpc/test",
+                crate::MessageLimits::default(),
+            );
+            assert_eq!(call.timeout(), Some(Duration::from_secs(5)));
+            let at = call.deadline().expect("instant");
+            let left = at.saturating_duration_since(tokio::time::Instant::now());
+            assert!(left <= Duration::from_secs(5));
+            assert!(call.wait_for_ready_is_set());
+            assert!(!call.wait_for_ready());
+            call.clear_wait_for_ready();
+            assert!(!call.wait_for_ready_is_set());
+            call.set_timeout(Duration::from_millis(40));
+            let tightened = call.deadline().expect("instant");
+            let left = tightened.saturating_duration_since(tokio::time::Instant::now());
+            assert!(left <= Duration::from_millis(40));
+        }
     }
 
     #[test]

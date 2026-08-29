@@ -49,7 +49,9 @@ Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, and gzip accept/encoding. Dumping
 `Rpc` prints service/method, both timeout views, `deadline`, gzip facts, and
 `limits`.
-Dumping `Request` prints path / service / method, `peer_timeout`, and gzip.
+Dumping `Request` prints path / service / method, both timeout views,
+`deadline`, gzip intent vs wire flag, peer, `:authority` / `:scheme`,
+wait-for-ready, `limits`, and cancel.
 Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
 after the response is written / the stream drains).
 
@@ -66,8 +68,8 @@ age/idle) are enforced before the memory they guard is committed.
 
 `Channel` pools HTTP/2 connections to one authority. A client interceptor
 sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
-`user-agent`, message caps, metadata, deadline, wait-for-ready, compression,
-extensions). Unary and server-streaming retry once when the connection
+`user-agent`, message caps, metadata, timeout / deadline Instant,
+wait-for-ready (`wait_for_ready_is_set`), compression, extensions). Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. `from_io` cannot redial.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
@@ -94,7 +96,8 @@ the method path, the client's `grpc-timeout`, and gzip.
 
 Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 `Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,
-limits, metadata, deadline, wait-for-ready, compression, extensions).
+limits, metadata, timeout / deadline Instant, wait-for-ready
+(`wait_for_ready_is_set`), compression, extensions).
 Overlays (timeout, wait-for-ready, send_compressed, message caps,
 `https_scheme`) fill in before interceptors run. Bind borrowed getters
 before `metadata_mut`.
@@ -107,8 +110,11 @@ Response-side interceptors are a documented omission.
 `grpc-status-details-bin` live behind a pointer. `with_error_details` /
 `from_error_details` pack the standard `google.rpc` payloads
 (`ErrorInfo`, `RetryInfo`, `QuotaFailure`, `BadRequest`, ...) as
-`google.rpc.Status`. `set_message` rewrites a packed protobuf whose
-message still matches.
+`google.rpc.Status`. `set_code` / `set_message` rewrite a packed protobuf
+whose code or message still matches. `set_rpc` / `set_error_details`
+replace the protobuf without dropping trailing metadata. Received ASCII
+`grpc-status` / `grpc-message` are independent of the packed protobuf;
+`rpc()` does not overwrite one from the other.
 
 ### Health and reflection
 

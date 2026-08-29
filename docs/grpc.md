@@ -318,8 +318,11 @@ Rich errors travel as `grpc-status-details-bin`. The spec puts a serialized
 plus a repeated `google.protobuf.Any`. `Status::with_error_details` builds
 that protobuf from packed `Any` values; `Status::from_error_details` does
 the same from an `ErrorDetails` bag of the standard `google.rpc` messages.
-`Status::rpc` / `Status::error_details` parse it back. The key is invisible
-through `Metadata`, so forwarding received metadata cannot inject it.
+`Status::rpc` / `Status::error_details` parse it back. `from_rpc` /
+`with_error_details` mint a fresh status (empty trailers). To change the
+Anys while keeping `x-retry-after`, use `set_rpc` / `set_error_details` /
+`set_from_error_details`. The key is invisible through `Metadata`, so
+forwarding received metadata cannot inject it.
 
 ```rust
 use pbrs_grpc::pb::{Any, ErrorInfo};
@@ -381,9 +384,16 @@ match client.say_hello(request).await {
 `Status` is two machine words. Its message, metadata, and
 `grpc-status-details-bin` live behind a pointer that is only allocated when
 one of them is set, so `Result<T, Status>` stays cheap on paths where nothing
-goes wrong. `set_message` / `with_message` rewrite a packed
-`google.rpc.Status` whose message still matches, so the ASCII trailer and
-the protobuf stay in sync; opaque detail bytes are left alone.
+goes wrong. `set_code` / `with_code` and `set_message` / `with_message`
+rewrite a packed `google.rpc.Status` whose code or message still matches,
+so the ASCII trailers and the protobuf stay in sync; opaque or mismatched
+detail bytes are left alone.
+
+On the receive path the ASCII `grpc-status` / `grpc-message` win:
+`code()` / `message()` are those trailers, and `rpc()` returns the packed
+protobuf as-is when `grpc-status-details-bin` is present. A peer can send
+a protobuf whose code or message disagrees with the ASCII half; the kernel
+does not silently overwrite one from the other.
 
 Codes the kernel produces on your behalf:
 
@@ -913,7 +923,10 @@ channel.send_compressed()
 ```
 
 `Channel::compresses_outbound` / `FooClient::compresses_outbound` read that
-overlay. `Server::compresses_outbound` / `Router` / `FooServer` read the
+overlay. That overlay always sets compress true before interceptors run, so
+`Request::set_compress(false)` cannot opt out of a channel that called
+`send_compressed`; `Outgoing::set_compress(false)` in an interceptor can.
+`Server::compresses_outbound` / `Router` / `FooServer` read the
 response-side overlay. `Response::compress` is the outbound intent on a
 reply you build (same bit as `compressed()`). `StreamSender::compress` /
 `set_compress` is the same flag `send()` consults.
@@ -1192,8 +1205,13 @@ when the channel was built with `ClientTls` or when a `from_io` channel called
 `Channel::scheme` / `FooClient::scheme` is that same string without an interceptor),
 `user-agent` (including a
 `Channel::user_agent` prefix; `FooClient::grpc_user_agent` reads it), message caps (`Outgoing::limits`, the
-channel overlay the kernel will enforce), metadata, deadline, wait-for-ready,
-compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
+channel overlay the kernel will enforce), metadata, timeout (`Outgoing::timeout`,
+the relative duration that becomes `grpc-timeout`) and deadline Instant
+(`Outgoing::deadline`, `Instant::now() + timeout`, computed at the call),
+wait-for-ready (`Outgoing::wait_for_ready` is `false` when unset;
+`wait_for_ready_is_set` distinguishes that from an explicit `false`, so a
+later interceptor can fill only when the request omitted a choice — the same
+pattern as `timeout()` being `None`), compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata succeeds — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
@@ -1224,6 +1242,9 @@ let client = GreeterClient::connect(addr).await?
         call.metadata_mut().set("x-ua", user_agent)?;
         if call.timeout().is_none() {
             call.set_timeout(Duration::from_secs(5));
+        }
+        if !call.wait_for_ready_is_set() {
+            call.set_wait_for_ready(true);
         }
         Ok(())
     });

@@ -231,7 +231,10 @@ struct Detail {
 ///
 /// Structured details are a `google.rpc.Status` packed into that trailer.
 /// [`Self::with_error_details`] builds one from [`crate::pb::Any`] values;
-/// [`Self::rpc`] parses it back.
+/// [`Self::rpc`] parses it back. [`Self::set_code`] / [`Self::set_message`]
+/// rewrite a packed protobuf that still matches the ASCII trailers.
+/// [`Self::set_rpc`] / [`Self::set_error_details`] replace the protobuf
+/// without dropping trailing metadata.
 #[derive(Clone, Debug)]
 pub struct Status {
     code: Code,
@@ -277,6 +280,32 @@ impl Status {
     #[must_use]
     pub fn message(&self) -> &str {
         self.detail.as_ref().map_or("", |d| d.message.as_str())
+    }
+
+    /// Replace the [`Code`]. Metadata is left alone. When
+    /// `grpc-status-details-bin` holds a `google.rpc.Status` whose code
+    /// matches this status, that protobuf is rewritten so the ASCII
+    /// `grpc-status` and the packed code stay the same. Opaque detail
+    /// bytes that are not a matching `google.rpc.Status` are left alone.
+    pub fn set_code(&mut self, code: Code) {
+        if !self.details().is_empty() {
+            if let Ok(mut rpc) = <crate::pb::Status as pbrs::Parse>::parse(self.details()) {
+                if rpc.code() == self.code.to_i32() {
+                    rpc.set_code(code.to_i32());
+                    if let Ok(bytes) = pbrs::Serialize::serialize(&rpc) {
+                        self.set_details(bytes);
+                    }
+                }
+            }
+        }
+        self.code = code;
+    }
+
+    /// [`Self::set_code`] as a builder.
+    #[must_use]
+    pub fn with_code(mut self, code: Code) -> Self {
+        self.set_code(code);
+        self
     }
 
     /// Replace the `grpc-message` text. Empty clears it. Metadata is left
@@ -368,13 +397,40 @@ impl Status {
     ///
     /// The kernel [`Status`] code and message come from `rpc`. The same
     /// protobuf is the trailer payload, which is what grpc-go, grpc-java,
-    /// and tonic-types expect to find there.
+    /// and tonic-types expect to find there. This mints a fresh status:
+    /// trailing metadata is empty. To keep existing trailers, use
+    /// [`Self::set_rpc`].
     pub fn from_rpc(rpc: &crate::pb::Status) -> Result<Self, Self> {
-        let code = Code::from_i32(rpc.code());
-        let message = rpc.message().to_str().unwrap_or("").to_owned();
+        let mut status = Self::from_code(Code::Ok);
+        status.set_rpc(rpc)?;
+        Ok(status)
+    }
+
+    /// Replace code, message, and `grpc-status-details-bin` from `rpc`.
+    /// Trailing metadata is left alone.
+    ///
+    /// Prefer this over [`Self::from_rpc`] when the status already carries
+    /// trailers such as `x-retry-after`.
+    pub fn set_rpc(&mut self, rpc: &crate::pb::Status) -> Result<(), Self> {
         let bytes = pbrs::Serialize::serialize(rpc)
             .map_err(|e| Self::internal(format!("serialize google.rpc.Status: {e}")))?;
-        Ok(Self::with_details(code, message, bytes))
+        self.code = Code::from_i32(rpc.code());
+        let message = rpc.message().to_str().unwrap_or("").to_owned();
+        self.set_details(bytes);
+        if message.is_empty() {
+            if let Some(detail) = self.detail.as_mut() {
+                detail.message.clear();
+            }
+        } else {
+            self.detail.get_or_insert_with(Box::default).message = message;
+        }
+        Ok(())
+    }
+
+    /// [`Self::set_rpc`] as a builder.
+    pub fn with_rpc(mut self, rpc: &crate::pb::Status) -> Result<Self, Self> {
+        self.set_rpc(rpc)?;
+        Ok(self)
     }
 
     /// Parse `grpc-status-details-bin` as [`crate::pb::Status`].
@@ -382,6 +438,13 @@ impl Status {
     /// When the trailer is absent, this synthesizes a protobuf with this
     /// status's code and message and no `Any` payloads. Corrupt bytes are
     /// [`Code::Internal`].
+    ///
+    /// Receiving does not overwrite ASCII `grpc-status` / `grpc-message`
+    /// from the protobuf. [`Self::code`] and [`Self::message`] are the
+    /// trailers; this returns the packed message as-is when details are
+    /// present. A peer can send a protobuf whose code or message disagrees
+    /// with the ASCII half. [`Self::set_code`] / [`Self::set_message`] only
+    /// rewrite the protobuf when it still matches.
     pub fn rpc(&self) -> Result<crate::pb::Status, Self> {
         if self.details().is_empty() {
             return Ok(crate::pb::Status::with_details(
@@ -427,6 +490,35 @@ impl Status {
         Self::from_rpc(&crate::pb::Status::with_details(code, message, details))
     }
 
+    /// [`Self::with_error_details`] in place. Trailing metadata is left
+    /// alone; [`Self::with_error_details`] mints a fresh status.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let mut status = Status::not_found("gone");
+    /// status.metadata_mut().insert("x-retry-after", "30")?;
+    /// let mut info = ErrorInfo::new();
+    /// info.set_reason("STOCKOUT");
+    /// status.set_error_details(
+    ///     Code::ResourceExhausted,
+    ///     "out of stock",
+    ///     [Any::pack(&info)?],
+    /// )?;
+    /// assert_eq!(status.code(), Code::ResourceExhausted);
+    /// assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+    /// # Ok::<(), Status>(())
+    /// ```
+    pub fn set_error_details(
+        &mut self,
+        code: Code,
+        message: impl Into<String>,
+        details: impl IntoIterator<Item = crate::pb::Any>,
+    ) -> Result<(), Self> {
+        self.set_rpc(&crate::pb::Status::with_details(code, message, details))
+    }
+
     /// Encode a typed [`crate::pb::ErrorDetails`] bag as
     /// `grpc-status-details-bin`.
     pub fn from_error_details(
@@ -435,6 +527,17 @@ impl Status {
         details: &crate::pb::ErrorDetails,
     ) -> Result<Self, Self> {
         Self::with_error_details(code, message, details.to_anys()?)
+    }
+
+    /// [`Self::from_error_details`] in place. Trailing metadata is left
+    /// alone.
+    pub fn set_from_error_details(
+        &mut self,
+        code: Code,
+        message: impl Into<String>,
+        details: &crate::pb::ErrorDetails,
+    ) -> Result<(), Self> {
+        self.set_error_details(code, message, details.to_anys()?)
     }
 
     /// Decode [`crate::pb::ErrorDetails`] from this status.
@@ -768,6 +871,127 @@ mod tests {
         assert_eq!(rpc.message().to_str().unwrap_or(""), "still gone");
         assert_eq!(rpc.code(), Code::NotFound.to_i32());
         assert_eq!(rpc.details().len(), 1);
+    }
+
+    #[test]
+    fn set_code_keeps_a_packed_google_rpc_status_in_sync() {
+        use crate::pb::{Any, ErrorInfo};
+
+        let mut info = ErrorInfo::new();
+        info.set_reason("STOCKOUT");
+        let mut status =
+            Status::with_error_details(Code::NotFound, "gone", [Any::pack(&info).expect("pack")])
+                .expect("encode");
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        status.set_code(Code::PermissionDenied);
+        assert_eq!(status.code(), Code::PermissionDenied);
+        assert_eq!(status.message(), "gone");
+        assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+        let rpc = status.rpc().expect("parse");
+        assert_eq!(rpc.code(), Code::PermissionDenied.to_i32());
+        assert_eq!(rpc.message().to_str().unwrap_or(""), "gone");
+        assert_eq!(rpc.details().len(), 1);
+        let status = status.with_code(Code::FailedPrecondition);
+        assert_eq!(status.code(), Code::FailedPrecondition);
+        assert_eq!(
+            status.rpc().expect("parse").code(),
+            Code::FailedPrecondition.to_i32()
+        );
+    }
+
+    #[test]
+    fn set_code_leaves_opaque_details_alone() {
+        // Not a google.rpc.Status (unlike 0x08 0x05, which is code 5).
+        let mut status = Status::with_details(Code::NotFound, "gone", vec![0xff]);
+        status.set_code(Code::PermissionDenied);
+        assert_eq!(status.code(), Code::PermissionDenied);
+        assert_eq!(status.details(), &[0xff]);
+    }
+
+    #[test]
+    fn set_code_leaves_a_mismatched_packed_code_alone() {
+        let packed =
+            Status::with_error_details(Code::NotFound, "gone", Vec::<crate::pb::Any>::new())
+                .expect("encode");
+        let mut status = Status::permission_denied("no");
+        status.set_details(packed.details().to_vec());
+        status.set_code(Code::Unavailable);
+        assert_eq!(status.code(), Code::Unavailable);
+        assert_eq!(status.rpc().expect("parse").code(), Code::NotFound.to_i32());
+    }
+
+    #[test]
+    fn set_rpc_keeps_trailing_metadata() {
+        use crate::pb::{Any, ErrorInfo};
+
+        let mut status = Status::not_found("gone");
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        let mut info = ErrorInfo::new();
+        info.set_reason("STOCKOUT");
+        status
+            .set_error_details(
+                Code::ResourceExhausted,
+                "out of stock",
+                [Any::pack(&info).expect("pack")],
+            )
+            .expect("encode");
+        assert_eq!(status.code(), Code::ResourceExhausted);
+        assert_eq!(status.message(), "out of stock");
+        assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+        let rpc = status.rpc().expect("parse");
+        assert_eq!(rpc.code(), Code::ResourceExhausted.to_i32());
+        assert_eq!(rpc.details().len(), 1);
+
+        let minted = Status::from_rpc(&rpc).expect("mint");
+        assert!(minted.metadata().is_empty());
+        let mut with_md = Status::cancelled();
+        with_md
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        let kept = with_md.with_rpc(&rpc).expect("keep");
+        assert_eq!(kept.metadata().get("x-retry-after"), Some("30"));
+        assert_eq!(kept.code(), Code::ResourceExhausted);
+        assert_eq!(kept.message(), "out of stock");
+    }
+
+    #[test]
+    fn set_from_error_details_keeps_trailing_metadata() {
+        use crate::pb::{ErrorDetails, ErrorInfo};
+
+        let mut status = Status::not_found("gone");
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        let mut info = ErrorInfo::new();
+        info.set_reason("STOCKOUT");
+        let details = ErrorDetails {
+            error_info: Some(info),
+            ..ErrorDetails::default()
+        };
+        status
+            .set_from_error_details(Code::ResourceExhausted, "out of stock", &details)
+            .expect("encode");
+        assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+        assert_eq!(
+            status
+                .error_details()
+                .expect("decode")
+                .error_info
+                .as_ref()
+                .expect("info")
+                .reason()
+                .to_str()
+                .unwrap_or(""),
+            "STOCKOUT"
+        );
     }
 
     #[test]

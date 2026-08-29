@@ -1142,6 +1142,41 @@ async fn a_client_interceptor_can_set_a_deadline() {
 }
 
 #[tokio::test]
+async fn a_client_interceptor_sees_a_deadline_instant() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+
+    let timeout = Duration::from_secs(5);
+    let client = GreeterClient::new(channel(addr).await)
+        .timeout(timeout)
+        .intercept(move |call: &mut Outgoing<'_>| {
+            if call.timeout() != Some(timeout) {
+                return Err(Status::internal("channel overlay should fill timeout"));
+            }
+            let Some(deadline) = call.deadline() else {
+                return Err(Status::internal("missing deadline Instant"));
+            };
+            let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if left > timeout {
+                return Err(Status::internal("deadline Instant later than timeout"));
+            }
+            if call.wait_for_ready_is_set() {
+                return Err(Status::internal("wait-for-ready should be unset"));
+            }
+            Ok(())
+        });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_channel_timeout_expires_when_the_request_omits_one() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {

@@ -107,7 +107,7 @@
 //! | Reflection | [`reflection`] |
 //! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Parts`], [`Response`], [`ResponseParts`], [`Metadata`], [`Status`], [`Code`], [`ParseCodeError`], [`Any`] |
-//! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`pb::bad_request`] |
+//! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`Status::set_rpc`], [`pb::bad_request`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`] |
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
