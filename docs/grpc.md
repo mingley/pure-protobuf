@@ -495,7 +495,8 @@ before `return Ok(Response::new(stream))` stays live until that drain. A
 client RST while drain is waiting for the next message aborts that wait,
 so `cancelled` and `StreamSender::closed` resolve without another send.
 Work meant to outlive the RPC needs its own lifetime. The same signal is
-on `Parts` after `into_message_and_parts`.
+on `Parts` after `into_message_and_parts`. `into_inner` discards the
+envelope, including cancel.
 
 ## Wait-for-ready and lazy connect
 

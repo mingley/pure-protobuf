@@ -89,6 +89,10 @@ impl<T> Request<T> {
     }
 
     /// Take the message, discarding the envelope.
+    ///
+    /// Metadata, the deadline, [`Self::cancelled`], peer facts, and extensions
+    /// go with it. Use [`Self::into_message_and_parts`] when spawned work
+    /// still needs [`Parts::cancelled`].
     #[must_use]
     pub fn into_inner(self) -> T {
         self.message
@@ -105,7 +109,7 @@ impl<T> Request<T> {
         &mut self.message
     }
 
-    /// Split into message and envelope, keeping metadata, deadline,
+    /// Split into message and envelope, keeping metadata, deadline, cancel,
     /// compression choice, and method path.
     #[must_use]
     pub fn into_message_and_parts(self) -> (T, Parts) {
