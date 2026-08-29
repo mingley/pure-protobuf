@@ -4882,6 +4882,10 @@ fn emit_kernel_client(
         src,
         "    /// Wait for a connection instead of failing fast. See [`{G}::Channel::wait_for_ready`]. Applies to every call shape."
     );
+    let _ = writeln!(
+        src,
+        "    /// A request that already called [`{G}::Request::set_wait_for_ready`] is left alone. Interceptors run after this fill and can still set or clear it."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

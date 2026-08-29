@@ -2179,6 +2179,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "A request that already called [`::pbrs_grpc::Request::set_wait_for_ready`] is left alone. Interceptors run after this fill and can still set or clear it."
+        ),
+        "generated wait_for_ready rustdoc must name interceptor set/clear"
+    );
+    assert!(
+        src.contains(
             "Send `:scheme https` from a [`Self::from_io`] channel. See [`::pbrs_grpc::Channel::https_scheme`]. Applies to every call shape."
         ),
         "generated https_scheme rustdoc must name every call shape"

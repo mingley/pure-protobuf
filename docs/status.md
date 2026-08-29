@@ -124,9 +124,9 @@ See `docs/upb.md`. Short list:
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress, and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
-  after `clear_*`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
+  after `clear_*`.   Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
-  overlay, per-RPC opt-out, and a waiting Call's deadline, including mTLS.
+  overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, and a waiting Call's deadline, including mTLS.
   Generated `StoreClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
   retry Get / Watch / PutAll / Sync until listen on those transports, from either
   the request flag or `FooClient::wait_for_ready`; opt-out and a waiting Call's

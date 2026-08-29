@@ -524,6 +524,10 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Channel::stream_buffer must name the streaming shapes it queues"
     );
+    assert!(
+        src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
+        "Channel::wait_for_ready must name interceptor set/clear"
+    );
 }
 
 #[test]
@@ -590,6 +594,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Dial bound: TCP/Unix connect, optional TLS, peer SETTINGS.\n    /// See [`Self::connect_timeout`]. Applies to every call shape once that\n    /// dial happens."
         ),
         "ChannelConfig::dial_timeout must name the dial bound"
+    );
+    assert!(
+        src.contains("a later interceptor\n    /// can still set or clear it."),
+        "ChannelConfig::wait_for_ready must name interceptor set/clear"
     );
 }
 
@@ -3101,6 +3109,65 @@ async fn a_client_interceptor_can_set_wait_for_ready() {
         serve_at(addr, Echo, ServerConfig::default())
             .await
             .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_tls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+        call.set_wait_for_ready(true);
+        Ok(())
+    });
+    wait_then_complete_every_shape(&client, false, async {
+        serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_mtls_client_interceptor_can_set_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+        call.set_wait_for_ready(true);
+        Ok(())
+    });
+    wait_then_complete_every_shape(&client, false, async {
+        serve_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_unix_client_interceptor_can_set_wait_for_ready() {
+    let (path, _guard) = unix_test_path();
+    let channel = Channel::connect_unix_lazy(&path).expect("lazy");
+    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+        call.set_wait_for_ready(true);
+        Ok(())
+    });
+    wait_then_complete_every_shape(&client, false, async {
+        let sock = path.clone();
+        tokio::spawn(async move {
+            GreeterServer::new(Echo).serve_unix(sock).await.ok();
+        })
     })
     .await;
 }
