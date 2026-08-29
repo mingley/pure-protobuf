@@ -167,14 +167,18 @@ async fn empty_stream(client: &TestServiceClient) -> Result<(), Status> {
 }
 
 async fn cancel_after_begin(client: &TestServiceClient) -> Result<(), Status> {
-    let (_tx, call) = client.streaming_input_call(Request::new(()));
+    let (tx, call) = client.streaming_input_call(Request::new(()));
     let handle = call.handle();
     handle.cancel();
-    match call.await {
+    // Hold `tx` until the call settles. Dropping it is a half-close, which
+    // can complete StreamingInputCall as OK before the RST is observed.
+    let result = match call.await {
         Err(st) if st.code() == Code::Cancelled => Ok(()),
         Err(st) => Err(Status::internal(format!("want CANCELLED got {st}"))),
         Ok(_) => Err(Status::internal("want CANCELLED got ok")),
-    }
+    };
+    drop(tx);
+    result
 }
 
 async fn cancel_after_first_response(client: &TestServiceClient) -> Result<(), Status> {

@@ -345,6 +345,10 @@ impl<T> StreamSender<T> {
     }
 
     /// Half-close the stream. Equivalent to dropping the sender.
+    ///
+    /// The peer sees end-of-stream and may answer `OK` (an empty
+    /// client-stream is a successful empty aggregate). To abort, keep this
+    /// sender and cancel the [`crate::Call`].
     pub fn close(self) {
         drop(self.tx);
     }

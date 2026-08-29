@@ -3728,6 +3728,22 @@ impl pbrs_grpc::Greeter for Hang {
     }
 }
 
+#[tokio::test]
+async fn cancel_after_begin_is_cancelled_not_ok() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, call) = client.client_hello(Request::new(()));
+    let handle = call.handle();
+    handle.cancel();
+    let err = call.await.expect_err("cancel_after_begin");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    drop(tx);
+    task.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_client_reset_drops_the_handler() {
     let started = Arc::new(AtomicUsize::new(0));
