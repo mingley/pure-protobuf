@@ -118,16 +118,18 @@ See `docs/upb.md`. Short list:
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress, and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
-  after `clear_*`. A client interceptor `Err` fails the `Call` on poll for
-  every call shape, including `with_error_details`; nothing is sent. A
+  after `clear_*`.   A client interceptor `Err` fails the `Call` on poll for
+  every call shape, including `with_error_details`; nothing is sent.
+  `Outgoing::set_timeout` is that Call's deadline on every call shape. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream. On a client request sender it resets CANCEL
   (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
-  `Call` that has not yet seen headers, resolves with that status. After
-  bidi headers the reset surfaces on the received `Streaming`. A `Call`
+  `Call` that has not yet seen headers, resolves with that status, not
+  `UNAVAILABLE` from the reset. After bidi headers the reset surfaces on
+  the received `Streaming`. A `Call`
   is fused after `Ready`. Client-streaming and bidi
   `(StreamSender, Call)` pairs are `must_use`. `Health::watch` ends when the
   client leaves, without waiting for the next status change. A server-streaming

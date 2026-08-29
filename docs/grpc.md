@@ -224,8 +224,8 @@ trailing metadata and `grpc-status-details-bin` (`Status::with_error_details`),
 after any messages already sent — the same as a handler `Err`. On a client
 request sender, gRPC has no request-side `grpc-status`: the stream is reset
 with CANCEL. A client-streaming `Call`, or a bidi `Call` that has not yet seen
-headers, resolves with that status; a bidi call that already has headers
-surfaces the reset on the received `Streaming`.
+headers, resolves with that status — not `UNAVAILABLE` from that reset. A bidi
+call that already has headers surfaces the reset on the received `Streaming`.
 
 A producer that waits on a timer or a status map, rather than on `send`,
 should select on `tx.closed()` or `request.cancelled()`. The wire drain
@@ -507,8 +507,8 @@ that deadline still RSTs the parked send half, so a Ready `Call` does not
 leave the stream parked.
 `StreamSender::fail` on a client request sender is the same RST with CANCEL:
 a client-streaming `Call`, or a bidi `Call` that has not yet seen headers,
-resolves with that status; after bidi headers the reset surfaces on the
-received `Streaming`.
+resolves with that status, not `UNAVAILABLE` from the reset; after bidi
+headers the reset surfaces on the received `Streaming`.
 
 A handler that `tokio::spawn`s work should await `request.cancelled()` in
 the child (or poll `request.is_cancelled()`). On RST the kernel signals
@@ -1286,7 +1286,8 @@ already-applied default), compression (`Outgoing::compress` is
 `Request::set_compress(false)` opts out of `Channel::send_compressed`), and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata succeeds — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win.
 Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
-for every call shape; nothing is sent.
+for every call shape; nothing is sent. `Outgoing::set_timeout` is that Call's
+deadline on every call shape.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor. Calling `intercept` twice stacks — the first interceptor runs

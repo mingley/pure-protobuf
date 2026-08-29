@@ -618,7 +618,8 @@ impl Channel {
     /// [`Self::client_streaming`] / [`Self::bidi`] (and generated methods)
     /// return, not when the [`crate::Call`] is first polled. `Err` fails that
     /// Call on poll, including [`crate::Status::with_error_details`]; nothing
-    /// is sent.
+    /// is sent. [`crate::Outgoing::set_timeout`] is that Call's deadline on
+    /// every call shape.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
@@ -957,8 +958,8 @@ impl Channel {
     /// parked.
     ///
     /// [`crate::StreamSender::fail`] before headers resolves the [`Call`] with
-    /// that status; after headers the reset surfaces on the received
-    /// [`Streaming`].
+    /// that status, not `UNAVAILABLE` from the reset; after headers the reset
+    /// surfaces on the received [`Streaming`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};

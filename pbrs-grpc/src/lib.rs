@@ -145,7 +145,7 @@
 //! | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`], override [`ServerConfig::max_pending_accept_reset_streams`]) |
 //! | Client RST after the request is read | Signal [`Request::cancelled`], then drop a still-pending handler; abort a stream drain waiting for the next message | always |
 //! | Client cancel after a client-streaming half-close | RST while the unary response is pending (handle, drop, or deadline) | always |
-//! | Client request-stream abort ([`StreamSender::fail`]) | RST CANCEL; the [`Call`] resolves with that status (client-streaming, or bidi before headers) | always |
+//! | Client request-stream abort ([`StreamSender::fail`]) | RST CANCEL; the [`Call`] resolves with that status (client-streaming, or bidi before headers — not `UNAVAILABLE` from the reset) | always |
 //! | Client streaming deadline | RST the send half before headers (server-streaming and bidi) and after a half-close; after those headers RST the parked send half | always |
 //! | Non-gRPC HTTP/2 (GET, grpc-web, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken | always |
 //!

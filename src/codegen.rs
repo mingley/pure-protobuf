@@ -4815,7 +4815,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent."
+        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent. [`{G}::Outgoing::set_timeout`] is that Call's deadline on every call shape."
     );
     let _ = writeln!(
         src,
@@ -4940,7 +4940,7 @@ fn emit_kernel_client(
         if m.client_streaming && m.server_streaming {
             let _ = writeln!(
                 src,
-                "    /// [`{G}::StreamSender::fail`] before headers resolves the [`{G}::Call`] with that status; after headers the reset surfaces on the received [`{G}::Streaming`]."
+                "    /// [`{G}::StreamSender::fail`] before headers resolves the [`{G}::Call`] with that status, not `UNAVAILABLE` from the reset; after headers the reset surfaces on the received [`{G}::Streaming`]."
             );
         }
         if shape.client_return.starts_with('(') {

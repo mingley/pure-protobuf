@@ -131,7 +131,8 @@ Overlays (timeout, wait-for-ready, send_compressed, message caps,
 already-applied default while the overlay getters stay. Interceptors run when the
 RPC method is invoked, not when the `Call` is first polled. `Err` fails that
 `Call` on poll for every call shape, including `with_error_details`; nothing
-is sent. Bind borrowed getters
+is sent. `Outgoing::set_timeout` is that Call's deadline on every call shape.
+Bind borrowed getters
 before `metadata_mut`.
 
 Response-side interceptors are a documented omission.
@@ -149,8 +150,8 @@ replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing
 `grpc-status-details-bin` for a server response stream. A client request
 `fail` resets CANCEL; a client-streaming `Call`, or a bidi `Call` that has
-not yet seen headers, resolves with the status. After bidi headers the
-reset surfaces on the received `Streaming`.
+not yet seen headers, resolves with the status, not `UNAVAILABLE` from the
+reset. After bidi headers the reset surfaces on the received `Streaming`.
 Received ASCII
 `grpc-status` / `grpc-message` are independent of the packed protobuf;
 `rpc()` does not overwrite one from the other.

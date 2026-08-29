@@ -723,8 +723,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "client-streaming client methods must name StreamSender::fail"
     );
     assert!(
-        src.contains("[`::pbrs_grpc::StreamSender::fail`] before headers resolves the [`::pbrs_grpc::Call`] with that status; after headers the reset surfaces on the received [`::pbrs_grpc::Streaming`]."),
-        "bidi client methods must name StreamSender::fail before headers"
+        src.contains("[`::pbrs_grpc::StreamSender::fail`] before headers resolves the [`::pbrs_grpc::Call`] with that status, not `UNAVAILABLE` from the reset; after headers the reset surfaces on the received [`::pbrs_grpc::Streaming`]."),
+        "bidi client methods must name StreamSender::fail before headers, not UNAVAILABLE"
+    );
+    assert!(
+        src.contains(
+            "[`::pbrs_grpc::Outgoing::set_timeout`] is that Call's deadline on every call shape."
+        ),
+        "generated client intercept rustdoc must name set_timeout as the Call deadline"
     );
     assert!(
         src.contains("dropping a streaming Call resets the stream"),

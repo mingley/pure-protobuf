@@ -168,6 +168,8 @@ impl<S: Service> ServiceExt for S {}
 /// interceptor can insert values for a later one the same way.
 /// `Err` fails the [`crate::Call`] on poll for every call shape, including
 /// [`crate::Status::with_error_details`]; nothing is sent.
+/// [`crate::Outgoing::set_timeout`] is that Call's deadline on every call
+/// shape.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -214,7 +216,8 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// Inspect and mutate the outbound call. Called once per RPC when the
     /// call is created, before the stream opens. `Err` fails the
     /// [`crate::Call`] on poll, including [`crate::Status::with_error_details`];
-    /// nothing is sent.
+    /// nothing is sent. [`crate::Outgoing::set_timeout`] is that Call's
+    /// deadline on every call shape.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 

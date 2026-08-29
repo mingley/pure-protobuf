@@ -1174,22 +1174,26 @@ async fn a_client_interceptor_sees_the_method_path() {
     task.abort();
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_client_interceptor_can_set_a_deadline() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
     let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
     let task = tokio::spawn(async move {
-        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
     });
 
     let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
         call.set_timeout(Duration::from_millis(40));
         Ok(())
     });
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded);
+    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
 
     task.abort();
 }
@@ -4434,6 +4438,59 @@ async fn wait_flag(flag: &AtomicUsize) {
     panic!("spawned work never observed Request::cancelled");
 }
 
+async fn assert_deadline_dropped_spawned<T>(
+    call: Call<T>,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    started.store(0, Ordering::Relaxed);
+    child_done.store(0, Ordering::Relaxed);
+    let err = match call.await {
+        Ok(_) => panic!("expected deadline"),
+        Err(status) => status,
+    };
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    wait_flag(child_done).await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "handler should have been dropped, not run to completion"
+    );
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+}
+
+async fn assert_deadline_on_every_shape(
+    client: &GreeterClient,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    assert_deadline_dropped_spawned(
+        client.say_hello(Request::new(req("ada"))),
+        started,
+        finished,
+        child_done,
+    )
+    .await;
+    assert_deadline_dropped_spawned(
+        client.server_hello(Request::new(req("ada"))),
+        started,
+        finished,
+        child_done,
+    )
+    .await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_deadline_dropped_spawned(call, started, finished, child_done).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_deadline_dropped_spawned(call, started, finished, child_done).await;
+    drop(tx);
+}
+
 async fn wait_half_close_drained<T: std::fmt::Debug>(call: &mut Call<T>, drained: &AtomicUsize) {
     tokio::select! {
         biased;
@@ -4634,14 +4691,8 @@ async fn spawned_work_stops_when_the_deadline_fires() {
             .await
             .ok();
     });
-    let err = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("deadline");
-    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
-    wait_flag(&child_done).await;
-    assert_eq!(finished.load(Ordering::Relaxed), 0);
-    assert!(started.load(Ordering::Relaxed) >= 1);
+    let client = GreeterClient::new(channel(addr).await);
+    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
     task.abort();
 }
 

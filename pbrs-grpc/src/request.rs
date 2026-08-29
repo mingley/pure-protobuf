@@ -848,6 +848,8 @@ impl<'a> Outgoing<'a> {
     }
 
     /// Set the relative timeout. Becomes `grpc-timeout` on the wire.
+    ///
+    /// This is the [`crate::Call`]'s deadline on every call shape.
     pub fn set_timeout(&mut self, timeout: Duration) {
         *self.timeout = Some(timeout);
     }
