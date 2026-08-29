@@ -18,7 +18,8 @@
 //!
 //! [`service`] is the same registration as a one-liner. An inbound message
 //! over the decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers
-//! (`StreamSender::fail`), not a quiet OK end.
+//! (`StreamSender::fail`), not a quiet OK end. An interceptor `Err` may carry
+//! [`crate::Status::with_error_details`]; those trailers reach the client.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

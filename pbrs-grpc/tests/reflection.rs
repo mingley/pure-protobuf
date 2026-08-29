@@ -250,6 +250,61 @@ async fn all_extension_numbers_of_type_lists_registered_tags() {
     assert_eq!(nums, vec![100]);
 }
 
+fn interceptor_blocked() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("BLOCKED");
+    info.set_domain("example.com");
+    Status::with_error_details(
+        Code::FailedPrecondition,
+        "blocked locally",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("details")
+}
+
+fn assert_interceptor_blocked(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "blocked locally");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+#[tokio::test]
+async fn reflection_interceptor_rejects_with_typed_status() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = client(addr).await;
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
 #[tokio::test]
 async fn oversize_reflection_request_is_resource_exhausted() {
     let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");

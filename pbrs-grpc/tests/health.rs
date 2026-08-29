@@ -155,6 +155,40 @@ fn req(name: &str) -> HealthCheckRequest {
     r
 }
 
+fn interceptor_blocked() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("BLOCKED");
+    info.set_domain("example.com");
+    Status::with_error_details(
+        Code::FailedPrecondition,
+        "blocked locally",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("details")
+}
+
+fn assert_interceptor_blocked(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "blocked locally");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
 #[tokio::test]
 async fn check_overall_and_named() {
     let (addr, _reporter, _handle) = serve().await;
@@ -352,21 +386,22 @@ async fn health_interceptor_rejects_check_and_watch() {
         .expect("bind");
     let addr = listener.local_addr().expect("local_addr");
     let handle = tokio::spawn(async move {
-        svc.intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(Status::unauthenticated("nope")))
+        svc.intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
             .serve_listener(listener)
             .await
             .ok();
     });
     let client = client(addr).await;
-    let err = client
-        .check(Request::new(HealthCheckRequest::new()))
-        .await
-        .expect_err("check");
-    assert_eq!(err.code(), Code::Unauthenticated, "{err}");
+    assert_interceptor_blocked(
+        &client
+            .check(Request::new(HealthCheckRequest::new()))
+            .await
+            .expect_err("check"),
+    );
     match client.watch(Request::new(HealthCheckRequest::new())).await {
-        Err(err) => assert_eq!(err.code(), Code::Unauthenticated, "{err}"),
+        Err(err) => assert_interceptor_blocked(&err),
         Ok(resp) => match resp.into_inner().message().await {
-            Err(err) => assert_eq!(err.code(), Code::Unauthenticated, "{err}"),
+            Err(err) => assert_interceptor_blocked(&err),
             Ok(_) => panic!("Watch interceptor reject must fail"),
         },
     }
