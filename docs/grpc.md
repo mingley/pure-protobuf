@@ -322,8 +322,9 @@ received metadata cannot corrupt the protocol framing.
 
 ## Errors and status codes
 
-Return `Err(Status)`. All sixteen gRPC codes have constructors, and `Code`
-knows its canonical name:
+`Code` names are the spec's `SCREAMING_SNAKE_CASE` (`Code::NotFound.name()`
+is `"NOT_FOUND"`). `Code::description` is the one-line `google.rpc.Code`
+sentence. Both the name and `0..=16` parse through `FromStr`.
 
 ```rust
 Err(Status::not_found(format!("row {id}")))
@@ -954,10 +955,11 @@ fn with_tenant(rpc: &mut Rpc) -> Result<(), Status> {
 let tenant = request.extensions().get::<String>().cloned();
 ```
 
-`Router::intercept` runs before every mounted service. Calling it twice stacks:
-the first interceptor runs first. Per-service wrapping is `Intercepted::new`
-or `ServiceExt::intercept` when you do not want the generated server's
-`.serve()` chain.
+`Router::intercept` and `Server::intercept` (and the generated
+`FooServer::intercept`) run before every RPC on that server. Calling any of
+them twice stacks: the first interceptor runs first. Per-service wrapping is
+`Intercepted::new` or `ServiceExt::intercept` when you do not want the
+generated server's `.serve()` chain.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs before the stream opens. Closures take `Outgoing`: the method path,

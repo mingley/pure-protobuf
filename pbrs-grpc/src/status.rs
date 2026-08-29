@@ -105,11 +105,81 @@ impl Code {
             Self::Unknown => "UNKNOWN",
         }
     }
+
+    /// One-line description from `google.rpc.Code`.
+    #[must_use]
+    pub fn description(self) -> &'static str {
+        match self {
+            Self::Ok => "The operation completed successfully",
+            Self::Cancelled => "The operation was cancelled, typically by the caller",
+            Self::Unknown => "Unknown error",
+            Self::InvalidArgument => "The client specified an invalid argument",
+            Self::DeadlineExceeded => "The deadline expired before the operation could complete",
+            Self::NotFound => "Some requested entity was not found",
+            Self::AlreadyExists => "The entity that a client attempted to create already exists",
+            Self::PermissionDenied => {
+                "The caller does not have permission to execute the specified operation"
+            }
+            Self::ResourceExhausted => "Some resource has been exhausted",
+            Self::FailedPrecondition => {
+                "The operation was rejected because the system is not in the required state"
+            }
+            Self::Aborted => "The operation was aborted, typically by a concurrency conflict",
+            Self::OutOfRange => "The operation was attempted past the valid range",
+            Self::Unimplemented => "The operation is not implemented or is not supported/enabled",
+            Self::Internal => "Internal errors",
+            Self::Unavailable => "The service is currently unavailable",
+            Self::DataLoss => "Unrecoverable data loss or corruption",
+            Self::Unauthenticated => "The request does not have valid authentication credentials",
+        }
+    }
 }
 
 impl fmt::Display for Code {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.name())
+    }
+}
+
+/// The string was not a canonical gRPC code name or a code in `0..=16`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ParseCodeError;
+
+impl fmt::Display for ParseCodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("unknown grpc code")
+    }
+}
+
+impl std::error::Error for ParseCodeError {}
+
+impl std::str::FromStr for Code {
+    type Err = ParseCodeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "OK" => Ok(Self::Ok),
+            "CANCELLED" => Ok(Self::Cancelled),
+            "UNKNOWN" => Ok(Self::Unknown),
+            "INVALID_ARGUMENT" => Ok(Self::InvalidArgument),
+            "DEADLINE_EXCEEDED" => Ok(Self::DeadlineExceeded),
+            "NOT_FOUND" => Ok(Self::NotFound),
+            "ALREADY_EXISTS" => Ok(Self::AlreadyExists),
+            "PERMISSION_DENIED" => Ok(Self::PermissionDenied),
+            "RESOURCE_EXHAUSTED" => Ok(Self::ResourceExhausted),
+            "FAILED_PRECONDITION" => Ok(Self::FailedPrecondition),
+            "ABORTED" => Ok(Self::Aborted),
+            "OUT_OF_RANGE" => Ok(Self::OutOfRange),
+            "UNIMPLEMENTED" => Ok(Self::Unimplemented),
+            "INTERNAL" => Ok(Self::Internal),
+            "UNAVAILABLE" => Ok(Self::Unavailable),
+            "DATA_LOSS" => Ok(Self::DataLoss),
+            "UNAUTHENTICATED" => Ok(Self::Unauthenticated),
+            _ => match s.parse::<i32>() {
+                Ok(n) if (0..=16).contains(&n) => Ok(Self::from_i32(n)),
+                _ => Err(ParseCodeError),
+            },
+        }
     }
 }
 
@@ -204,6 +274,26 @@ impl Status {
     #[must_use]
     pub fn message(&self) -> &str {
         self.detail.as_ref().map_or("", |d| d.message.as_str())
+    }
+
+    /// Replace the `grpc-message` text. Empty clears it. Metadata and
+    /// `grpc-status-details-bin` are left alone.
+    pub fn set_message(&mut self, message: impl Into<String>) {
+        let message = message.into();
+        if message.is_empty() {
+            if let Some(detail) = self.detail.as_mut() {
+                detail.message.clear();
+            }
+            return;
+        }
+        self.detail.get_or_insert_with(Box::default).message = message;
+    }
+
+    /// [`Self::set_message`] as a builder.
+    #[must_use]
+    pub fn with_message(mut self, message: impl Into<String>) -> Self {
+        self.set_message(message);
+        self
     }
 
     /// Trailing metadata carried with this status.
@@ -561,6 +651,40 @@ mod tests {
             "DEADLINE_EXCEEDED: deadline exceeded"
         );
         assert_eq!(Code::ResourceExhausted.name(), "RESOURCE_EXHAUSTED");
+        assert_eq!(
+            Code::NotFound.description(),
+            "Some requested entity was not found"
+        );
+    }
+
+    #[test]
+    fn codes_parse_from_name_and_number() {
+        use std::str::FromStr;
+
+        for n in 0..=16 {
+            let code = Code::from_i32(n);
+            assert_eq!(Code::from_str(code.name()), Ok(code), "{}", code.name());
+            assert_eq!(Code::from_str(&n.to_string()), Ok(code), "{n}");
+        }
+        assert_eq!(Code::from_str("not_found"), Err(super::ParseCodeError));
+        assert_eq!(Code::from_str("17"), Err(super::ParseCodeError));
+        assert_eq!(Code::from_str(""), Err(super::ParseCodeError));
+    }
+
+    #[test]
+    fn set_message_keeps_metadata_and_details() {
+        let mut status = Status::with_details(Code::NotFound, "gone", vec![0x08, 0x05]);
+        status
+            .metadata_mut()
+            .insert("x-retry-after", "30")
+            .expect("md");
+        status.set_message("still gone");
+        assert_eq!(status.message(), "still gone");
+        assert_eq!(status.details(), &[0x08, 0x05]);
+        assert_eq!(status.metadata().get("x-retry-after"), Some("30"));
+        let status = status.with_message("");
+        assert_eq!(status.message(), "");
+        assert_eq!(status.details(), &[0x08, 0x05]);
     }
 
     #[test]

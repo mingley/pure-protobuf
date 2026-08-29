@@ -168,40 +168,45 @@ impl Greeter for RichFail {
 
 struct TypedFail;
 
+fn typed_status() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("API_DISABLED");
+    info.set_domain("example.com");
+    Status::with_error_details(
+        Code::FailedPrecondition,
+        "api disabled",
+        [pbrs_grpc::Any::pack(&info).expect("pack")],
+    )
+    .expect("encode")
+}
+
 impl Greeter for TypedFail {
     async fn say_hello(
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        let mut info = pbrs_grpc::pb::ErrorInfo::new();
-        info.set_reason("API_DISABLED");
-        info.set_domain("example.com");
-        Err(Status::with_error_details(
-            Code::FailedPrecondition,
-            "api disabled",
-            [pbrs_grpc::Any::pack(&info)?],
-        )?)
+        Err(typed_status())
     }
 
     async fn client_hello(
         &self,
         _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(typed_status())
     }
 
     async fn server_hello(
         &self,
         _request: Request<HelloRequest>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(typed_status())
     }
 
     async fn stream_hello(
         &self,
         _request: Request<Streaming<HelloRequest>>,
     ) -> Result<Response<Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("fail"))
+        Err(typed_status())
     }
 }
 
@@ -325,6 +330,44 @@ async fn failing_rpc_carries_typed_google_rpc_status() {
         .expect("ErrorInfo");
     assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
     assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+}
+
+fn assert_typed_fail(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "api disabled");
+    let info = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+}
+
+#[tokio::test]
+async fn typed_google_rpc_status_on_every_call_shape() {
+    let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
+
+    assert_typed_fail(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    assert_typed_fail(&call.await.expect_err("client-stream"));
+
+    assert_typed_fail(
+        &client
+            .server_hello(Request::new(req("ada")))
+            .await
+            .expect_err("server-stream"),
+    );
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    assert_typed_fail(&call.await.expect_err("bidi"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

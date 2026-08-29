@@ -37,7 +37,8 @@ use std::sync::Arc;
 ///
 /// Generated servers expose the same method, so
 /// `GreeterServer::new(svc).intercept(require_token).serve(addr)` is the
-/// one-service form. On a [`crate::Router`], call
+/// one-service form; calling `.intercept` twice stacks (first interceptor
+/// first). On a [`crate::Router`], call
 /// [`crate::Router::intercept`] or wrap one service with [`Intercepted`].
 pub trait Interceptor: Send + Sync + 'static {
     /// Inspect `rpc`. The body has not been read yet.
@@ -71,11 +72,6 @@ impl<S, I> Intercepted<S, I> {
             inner: Arc::new(inner),
             interceptor,
         }
-    }
-
-    /// Wrap an existing `Arc` without adding another layer of indirection.
-    pub(crate) fn from_arc(inner: Arc<S>, interceptor: I) -> Self {
-        Self { inner, interceptor }
     }
 }
 

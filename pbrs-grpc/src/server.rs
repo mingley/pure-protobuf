@@ -752,6 +752,7 @@ fn split_path(path: &str) -> (&str, &str) {
 pub struct Server<S> {
     service: Arc<S>,
     config: ServerConfig,
+    interceptor: Option<Arc<dyn crate::Interceptor>>,
 }
 
 impl<S: Service> std::fmt::Debug for Server<S> {
@@ -759,6 +760,7 @@ impl<S: Service> std::fmt::Debug for Server<S> {
         f.debug_struct("Server")
             .field("service", &S::NAME)
             .field("config", &self.config)
+            .field("interceptors", &self.interceptor.is_some())
             .finish()
     }
 }
@@ -770,6 +772,7 @@ impl<S: Service> Server<S> {
         Self {
             service,
             config: ServerConfig::default(),
+            interceptor: None,
         }
     }
 
@@ -785,6 +788,7 @@ impl<S: Service> Server<S> {
         Self {
             service: Arc::new(service),
             config: ServerConfig::default(),
+            interceptor: None,
         }
     }
 
@@ -905,17 +909,27 @@ impl<S: Service> Server<S> {
     /// [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
+    /// Calling this twice stacks: the first interceptor runs first, matching
+    /// [`Router::intercept`] and [`crate::Channel::intercept`].
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
     /// service, or wrap one service with [`crate::Intercepted`].
     #[must_use]
-    pub fn intercept<I: crate::Interceptor>(
-        self,
-        interceptor: I,
-    ) -> Server<crate::Intercepted<S, I>> {
-        Server {
-            service: Arc::new(crate::Intercepted::from_arc(self.service, interceptor)),
-            config: self.config,
-        }
+    pub fn intercept<I: crate::Interceptor>(mut self, interceptor: I) -> Self {
+        self.interceptor = Some(match self.interceptor {
+            None => Arc::new(interceptor),
+            Some(prev) => Arc::new(crate::interceptor::Then::new(prev, interceptor)),
+        });
+        self
+    }
+
+    fn into_single(self) -> (Single<S>, ServerConfig) {
+        (
+            Single {
+                service: self.service,
+                interceptor: self.interceptor,
+            },
+            self.config,
+        )
     }
 
     /// Add a second service, switching to path-based routing.
@@ -924,10 +938,13 @@ impl<S: Service> Server<S> {
         self.into_router().add_service(service)
     }
 
-    /// Move this service into a [`Router`], keeping the configuration.
+    /// Move this service into a [`Router`], keeping the configuration and any
+    /// interceptors.
     #[must_use]
     pub fn into_router(self) -> Router {
-        Router::new().config(self.config).add_arc(self.service)
+        let mut router = Router::new().config(self.config).add_arc(self.service);
+        router.interceptor = self.interceptor;
+        router
     }
 
     /// Bind `addr` and serve until the listener fails.
@@ -950,14 +967,8 @@ impl<S: Service> Server<S> {
         listener: TcpListener,
         shutdown: impl Future<Output = ()> + Send,
     ) -> Result<(), Status> {
-        accept_loop(
-            Arc::new(Single(self.service)),
-            listener,
-            self.config,
-            shutdown,
-            None,
-        )
-        .await
+        let (dispatch, config) = self.into_single();
+        accept_loop(Arc::new(dispatch), listener, config, shutdown, None).await
     }
 
     /// Bind `path` and serve h2c over a Unix domain socket until the listener
@@ -997,13 +1008,8 @@ impl<S: Service> Server<S> {
         listener: UnixListener,
         shutdown: impl Future<Output = ()> + Send,
     ) -> Result<(), Status> {
-        accept_unix_loop(
-            Arc::new(Single(self.service)),
-            listener,
-            self.config,
-            shutdown,
-        )
-        .await
+        let (dispatch, config) = self.into_single();
+        accept_unix_loop(Arc::new(dispatch), listener, config, shutdown).await
     }
 
     /// Bind `addr` and serve over TLS until the listener fails.
@@ -1019,14 +1025,8 @@ impl<S: Service> Server<S> {
         shutdown: impl Future<Output = ()> + Send,
         tls: ServerTls,
     ) -> Result<(), Status> {
-        accept_loop(
-            Arc::new(Single(self.service)),
-            listener,
-            self.config,
-            shutdown,
-            Some(tls),
-        )
-        .await
+        let (dispatch, config) = self.into_single();
+        accept_loop(Arc::new(dispatch), listener, config, shutdown, Some(tls)).await
     }
 
     /// Serve a single already-accepted byte stream until it closes.
@@ -1052,7 +1052,8 @@ impl<S: Service> Server<S> {
     where
         IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
     {
-        serve_one(Arc::new(Single(self.service)), io, None, self.config).await
+        let (dispatch, config) = self.into_single();
+        serve_one(Arc::new(dispatch), io, None, config).await
     }
 
     /// Serve connections from `incoming` until it is exhausted or the
@@ -1068,22 +1069,25 @@ impl<S: Service> Server<S> {
         incoming: I,
         shutdown: impl Future<Output = ()> + Send,
     ) -> Result<(), Status> {
-        accept_incoming(
-            Arc::new(Single(self.service)),
-            incoming,
-            self.config,
-            shutdown,
-        )
-        .await
+        let (dispatch, config) = self.into_single();
+        accept_incoming(Arc::new(dispatch), incoming, config, shutdown).await
     }
 }
 
 /// Newtype so the monomorphic path gets its own [`Dispatch`] impl.
-struct Single<S>(Arc<S>);
+struct Single<S> {
+    service: Arc<S>,
+    interceptor: Option<Arc<dyn crate::Interceptor>>,
+}
 
 impl<S: Service> Dispatch for Single<S> {
-    fn dispatch(&self, rpc: Rpc) -> impl Future<Output = ()> + Send {
-        self.0.call(rpc)
+    async fn dispatch(&self, mut rpc: Rpc) {
+        if let Some(interceptor) = &self.interceptor {
+            if let Err(status) = interceptor.intercept(&mut rpc) {
+                return rpc.reject(status);
+            }
+        }
+        self.service.call(rpc).await;
     }
 }
 

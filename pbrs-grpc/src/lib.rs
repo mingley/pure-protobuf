@@ -127,7 +127,7 @@
 //! | Health | [`health`] |
 //! | Reflection | [`reflection`] |
 //! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
-//! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`], [`Any`] |
+//! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`], [`ParseCodeError`], [`Any`] |
 //! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`pb::bad_request`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`] |
 //! | Limits | [`MessageLimits`] |
@@ -307,7 +307,7 @@ pub use metadata::Metadata;
 pub use pb::{Any, ErrorDetails};
 pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response};
 pub use server::{Incoming, IncomingAccept, Router, Rpc, Server, Service};
-pub use status::{Code, Status};
+pub use status::{Code, ParseCodeError, Status};
 pub use stream::{Framed, StreamSender, Streaming};
 pub use tls::{ClientTls, Identity, ServerTls};
 

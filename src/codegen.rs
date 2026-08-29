@@ -4104,12 +4104,12 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, or reject."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, or reject. Calling this twice stacks: the first interceptor runs first."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
-        "    pub fn intercept<I>(self, interceptor: I) -> {G}::Server<{G}::Intercepted<Self, I>>"
+        "    pub fn intercept<I>(self, interceptor: I) -> {G}::Server<Self>"
     );
     let _ = writeln!(src, "    where");
     let _ = writeln!(src, "        I: {G}::Interceptor,");

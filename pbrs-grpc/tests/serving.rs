@@ -451,6 +451,91 @@ async fn a_generated_server_interceptor_rejects_before_the_handler() {
 }
 
 #[tokio::test]
+async fn generated_server_interceptors_stack_in_declaration_order() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.metadata().get("x-trace").is_none() {
+                    return Err(Status::invalid_argument("missing x-trace"));
+                }
+                Ok(())
+            })
+            .intercept(require_bearer)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let missing_trace = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("neither header");
+    assert_eq!(missing_trace.code(), Code::InvalidArgument);
+
+    let mut only_auth = Request::new(req("ada"));
+    only_auth
+        .metadata_mut()
+        .insert("authorization", "Bearer letmein")
+        .expect("metadata");
+    let still_trace = client
+        .say_hello(only_auth)
+        .await
+        .expect_err("auth without trace");
+    assert_eq!(still_trace.code(), Code::InvalidArgument);
+
+    let authed = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.metadata_mut().insert("x-trace", "1")?;
+        call.metadata_mut()
+            .insert("authorization", "Bearer letmein")?;
+        Ok(())
+    });
+    let allowed = authed
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("both headers");
+    assert_eq!(name_of(allowed.get_ref()), "ada");
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn intercept_on_a_generated_server_survives_add_service() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let denied = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("no token");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+
+    let allowed = GreeterClient::new(channel(addr).await)
+        .intercept(inject_bearer)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("with token");
+    assert_eq!(name_of(allowed.get_ref()), "ada");
+
+    let denied_empty = TestServiceClient::new(channel(addr).await)
+        .empty_call(Request::new(Empty::new()))
+        .await
+        .expect_err("router interceptor covers every mount");
+    assert_eq!(denied_empty.code(), Code::Unauthenticated);
+
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
@@ -2674,6 +2759,27 @@ async fn the_client_gzips_when_configured() {
     });
     let channel = channel(addr).await.send_compressed();
     let reply = GreeterClient::new(channel)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("gzip request");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_set_compress() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.set_compress(true);
+        Ok(())
+    });
+    let reply = client
         .say_hello(Request::new(req("ada")))
         .await
         .expect("gzip request");
