@@ -284,7 +284,7 @@ impl Status {
     pub fn set_message(&mut self, message: impl Into<String>) {
         let message = message.into();
         if !self.details().is_empty() {
-            if let Ok(mut rpc) = pbrs::Parse::parse::<crate::pb::Status>(self.details()) {
+            if let Ok(mut rpc) = <crate::pb::Status as pbrs::Parse>::parse(self.details()) {
                 let packed = rpc.message().to_str().unwrap_or("");
                 if packed == self.message() {
                     rpc.set_message(message.clone());
