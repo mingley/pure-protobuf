@@ -281,7 +281,8 @@ impl Config {
     /// same dialers as `Channel` (`connect`, `connect_tls`, `connect_unix`,
     /// `from_io`, and the lazy/`_with` variants) and the same overlays,
     /// including `https_scheme` for already-encrypted `from_io` streams and
-    /// `scheme` to read the `:scheme` that overlay (or TLS) will send.
+    /// `scheme` / `authority` / `grpc_user_agent` to read what that overlay
+    /// (or TLS) will send.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
     /// ```no_run
@@ -4601,6 +4602,24 @@ fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn scheme(&self) -> &'static str {{ self.channel.scheme() }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// The HTTP/2 `:authority` this client sends. See [`{G}::Channel::authority`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn authority(&self) -> &str {{ self.channel.authority() }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// The `user-agent` this client sends. See [`{G}::Channel::grpc_user_agent`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn grpc_user_agent(&self) -> &str {{ self.channel.grpc_user_agent() }}"
+    );
 }
 
 fn emit_kernel_client(
@@ -4623,6 +4642,10 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "/// On Unix, `connect_unix` takes a filesystem path. Wrap an existing channel with [`Self::new`]."
+    );
+    let _ = writeln!(
+        src,
+        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");

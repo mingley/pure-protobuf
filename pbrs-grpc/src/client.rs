@@ -207,7 +207,9 @@ impl Endpoint {
 ///
 /// Generated `FooClient` types wrap these constructors as `FooClient::connect`,
 /// `connect_tls`, `connect_unix`, and `from_io`, so a service crate rarely
-/// constructs a `Channel` by hand.
+/// constructs a `Channel` by hand. `FooClient::authority`, `FooClient::scheme`,
+/// and `FooClient::grpc_user_agent` read the same values interceptors see on
+/// [`Outgoing`](crate::Outgoing).
 ///
 /// [`Self::intercept`] runs on every outbound RPC before the stream opens,
 /// which is how a client injects auth metadata, a default deadline, or

@@ -1136,10 +1136,10 @@ when the channel was built with `ClientTls` or when a `from_io` channel called
 `https_scheme`; no-op on TCP and Unix so a cleartext `connect()` cannot lie;
 `Channel::scheme` / `FooClient::scheme` is that same string without an interceptor),
 `user-agent` (including a
-`Channel::user_agent` prefix), message caps (`Outgoing::limits`, the
+`Channel::user_agent` prefix; `FooClient::grpc_user_agent` reads it), message caps (`Outgoing::limits`, the
 channel overlay the kernel will enforce), metadata, deadline, wait-for-ready,
 compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
-`localhost`. Inserting `user-agent` into metadata does not change the
+`localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata does not change the
 header: that name is reserved.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every

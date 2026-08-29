@@ -685,7 +685,6 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 
 /// A [`Request`] envelope without its message. See
 /// [`Request::into_message_and_parts`].
-#[derive(Debug)]
 pub struct Parts {
     metadata: Metadata,
     timeout: Option<Duration>,
@@ -819,6 +818,29 @@ impl Parts {
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
         self.limits
+    }
+}
+
+impl fmt::Debug for Parts {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Parts")
+            .field("metadata", &self.metadata)
+            .field("timeout", &self.timeout)
+            .field("deadline", &self.deadline)
+            .field("compress", &self.compress)
+            .field("compressed", &self.compressed)
+            .field("remote_addr", &self.remote_addr)
+            .field("local_addr", &self.local_addr)
+            .field("peer_identity", &self.peer_identity)
+            .field("peer_cred", &self.peer_cred)
+            .field("authority", &self.authority)
+            .field("scheme", &self.scheme)
+            .field("path", &self.path())
+            .field("service", &self.service())
+            .field("method", &self.method())
+            .field("wait_for_ready", &self.wait_for_ready)
+            .field("limits", &self.limits)
+            .finish_non_exhaustive()
     }
 }
 
@@ -1088,6 +1110,13 @@ mod tests {
         assert_eq!(parts.method(), Some("SayHello"));
         assert_eq!(parts.deadline(), Some(at));
         assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
+        let shown_parts = format!("{parts:?}");
+        assert!(
+            shown_parts.contains("/helloworld.Greeter/SayHello"),
+            "{shown_parts}"
+        );
+        assert!(shown_parts.contains("helloworld.Greeter"), "{shown_parts}");
+        assert!(shown_parts.contains("SayHello"), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
         assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));

@@ -182,6 +182,12 @@ async fn a_tls_client_interceptor_sees_https_scheme() {
     let client = tls_client(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
     assert_eq!(client.scheme(), "https");
     assert_eq!(client.channel().scheme(), "https");
+    assert_eq!(client.authority(), client.channel().authority());
+    assert!(
+        client.grpc_user_agent().starts_with("pbrs-grpc/"),
+        "{}",
+        client.grpc_user_agent()
+    );
     let client = client.intercept(|call: &mut Outgoing<'_>| {
         if call.scheme() != "https" {
             return Err(Status::internal(format!("scheme {}", call.scheme())));

@@ -120,8 +120,9 @@ See [the threat model](../docs/grpc.md#limits-and-the-threat-model).
 ## Scope
 
 h2c by default; TLS is opt-in via `ServerTls` / `ClientTls` (rustls + Graviola,
-certificate verification is not optional). No load balancing, no retries —
-pool with `ChannelConfig::connections`, retry at the call site, and see
+certificate verification is not optional). No load balancing. Application
+retries stay at the call site; unary and server-streaming already redial once
+when a connection dies after the slot looked live. See
 [what is not here](../docs/grpc.md#what-is-not-here).
 
 `pbrs` does not depend on this crate, and this crate does not depend on tonic

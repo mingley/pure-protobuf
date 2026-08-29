@@ -67,7 +67,8 @@ dies after the stream slot looked live. `from_io` cannot redial.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on
-`Outgoing::scheme`.
+`Outgoing::scheme`. `FooClient::authority` and `FooClient::grpc_user_agent`
+are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
 
 ### Interceptors
 
