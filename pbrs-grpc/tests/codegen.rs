@@ -915,4 +915,38 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         ),
         "generated serve_connection rustdoc must name every call shape"
     );
+    assert!(
+        src.contains(
+            "Bind `addr` and serve until the listener fails. Applies to every call shape."
+        ),
+        "generated serve rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("Serve on an existing listener until it fails. Applies to every call shape."),
+        "generated serve_listener rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Dial `target`. See [`::pbrs_grpc::Channel::connect`]. Applies to every call shape."
+        ),
+        "generated connect rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Dial on the first RPC. See [`::pbrs_grpc::Channel::connect_lazy`]. Applies to every call shape."
+        ),
+        "generated connect_lazy rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_unix`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
+        ),
+        "generated connect_unix_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_unix`] that dials on the first RPC. Applies to every call shape."
+        ),
+        "generated connect_unix_lazy rustdoc must name every call shape"
+    );
 }

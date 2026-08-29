@@ -212,6 +212,14 @@ fn channel_call_apis_document_hand_written_services() {
         4,
         "Channel unary / server_streaming / client_streaming / bidi must name hand-written Service as first-class"
     );
+    assert!(
+        src.contains("inbound cap. Applies to every call shape."),
+        "Channel::connect must name every call shape"
+    );
+    assert!(
+        src.contains("Build a channel that dials on the first RPC instead of now.\n    /// Applies to every call shape."),
+        "Channel::connect_lazy must name every call shape"
+    );
 }
 
 #[tokio::test]

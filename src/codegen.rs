@@ -4280,13 +4280,16 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `addr` and serve until the listener fails."
+        "    /// Bind `addr` and serve until the listener fails. Applies to every call shape."
     );
     let _ = writeln!(
         src,
         "    pub async fn serve(self, addr: ::std::net::SocketAddr) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve(addr).await }}"
     );
-    let _ = writeln!(src, "    /// Serve on an existing listener until it fails.");
+    let _ = writeln!(
+        src,
+        "    /// Serve on an existing listener until it fails. Applies to every call shape."
+    );
     let _ = writeln!(
         src,
         "    pub async fn serve_listener(self, listener: {G}::codegen_support::TcpListener) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_listener(listener).await }}"
@@ -4448,7 +4451,10 @@ fn emit_kernel_server(
 }
 
 fn emit_kernel_client_dialers(src: &mut String) {
-    let _ = writeln!(src, "    /// Dial `target`. See [`{G}::Channel::connect`].");
+    let _ = writeln!(
+        src,
+        "    /// Dial `target`. See [`{G}::Channel::connect`]. Applies to every call shape."
+    );
     let _ = writeln!(
         src,
         "    pub async fn connect(target: impl Into<{G}::Target>) -> ::core::result::Result<Self, {G}::Status> {{"
@@ -4512,7 +4518,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Dial on the first RPC. See [`{G}::Channel::connect_lazy`]."
+        "    /// Dial on the first RPC. See [`{G}::Channel::connect_lazy`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4578,7 +4584,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect_unix`] with [`{G}::ChannelConfig`]."
+        "    /// [`Self::connect_unix`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4592,7 +4598,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect_unix`] that dials on the first RPC."
+        "    /// [`Self::connect_unix`] that dials on the first RPC. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(

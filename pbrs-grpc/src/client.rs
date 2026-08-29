@@ -288,7 +288,7 @@ impl fmt::Debug for Channel {
 
 impl Channel {
     /// Dial `target` with default configuration: one connection, 4 MiB
-    /// inbound cap.
+    /// inbound cap. Applies to every call shape.
     pub async fn connect(target: impl Into<Target>) -> Result<Self, Status> {
         Self::connect_with(target, ChannelConfig::default()).await
     }
@@ -336,6 +336,7 @@ impl Channel {
     }
 
     /// Build a channel that dials on the first RPC instead of now.
+    /// Applies to every call shape.
     ///
     /// Invalid `target` still fails immediately. A closed port, a name that
     /// does not resolve, or a TLS handshake the peer refuses surfaces on the

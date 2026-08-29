@@ -92,6 +92,9 @@ a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
 `FooClient::rpc_timeout`, `waits_for_ready`, and `compresses_outbound` read
 the same overlays as the channel (the setter names cannot collide).
+`Channel::unary` / `server_streaming` / `client_streaming` / `bidi` are
+first-class for a hand-written `Service`; generated clients call the same
+methods.
 `FooServer::rpc_timeout` and `compresses_outbound` (also `Server` / `Router`)
 read the same overlays as `server_config`.
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`

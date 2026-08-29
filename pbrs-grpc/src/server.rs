@@ -1535,11 +1535,13 @@ impl<S: Service> Server<S> {
     }
 
     /// Bind `addr` and serve until the listener fails.
+    /// Applies to every call shape.
     pub async fn serve(self, addr: SocketAddr) -> Result<(), Status> {
         self.serve_listener(bind(addr).await?).await
     }
 
     /// Serve on an existing listener until it fails.
+    /// Applies to every call shape.
     pub async fn serve_listener(self, listener: TcpListener) -> Result<(), Status> {
         self.serve_with_shutdown(listener, std::future::pending())
             .await
@@ -2025,11 +2027,13 @@ impl Router {
     }
 
     /// Bind `addr` and serve until the listener fails.
+    /// Applies to every call shape.
     pub async fn serve(self, addr: SocketAddr) -> Result<(), Status> {
         self.serve_listener(bind(addr).await?).await
     }
 
     /// Serve on an existing listener until it fails.
+    /// Applies to every call shape.
     pub async fn serve_listener(self, listener: TcpListener) -> Result<(), Status> {
         self.serve_with_shutdown(listener, std::future::pending())
             .await
