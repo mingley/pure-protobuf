@@ -1579,6 +1579,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server send_compressed rustdoc must name every call shape"
     );
     assert!(
+        src.contains(
+            "Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape."
+        ),
+        "generated server timeout rustdoc must name every call shape"
+    );
+    assert!(
         src.contains("Replace both message caps at once. Applies to every call shape."),
         "generated message_limits rustdoc must name every call shape"
     );

@@ -181,6 +181,7 @@ impl ServerConfig {
     }
 
     /// Concurrent RPCs allowed per connection. Default 256.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.max_concurrent_streams = streams;
@@ -677,6 +678,7 @@ impl ChannelConfig {
     }
 
     /// Concurrent RPCs allowed per connection. Default 256.
+    /// Applies to every call shape.
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.max_concurrent_streams = streams;
