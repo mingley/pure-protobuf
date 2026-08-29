@@ -118,7 +118,8 @@ See `docs/upb.md`. Short list:
   `(StreamSender, Call)` pairs are `must_use`. `Health::watch` ends when the
   client leaves, without waiting for the next status change. A server-streaming
   drain waiting for the next message ends on client RST. Dropping a received
-  `Streaming` before the end resets that RPC. Generated method rustdoc names
+  `Streaming` before the end resets that RPC, including bidi while the send
+  half is still held. Generated method rustdoc names
   inbound/received `encoding` and interceptor timing. Methods omitted on generated traits answer `UNIMPLEMENTED`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
