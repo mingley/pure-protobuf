@@ -11,7 +11,8 @@ use std::sync::Arc;
 /// Return `Err` to reject without reading the body; `Ok` to proceed.
 /// Closures with this signature implement the trait, so most interceptors
 /// are one function. Mutate inbound metadata with [`Rpc::metadata_mut`]
-/// (strip with [`crate::Metadata::remove`]), cap the deadline with
+/// (strip with [`crate::Metadata::remove`] or [`crate::Metadata::retain`],
+/// overwrite a hop with [`crate::Metadata::set`]), cap the deadline with
 /// [`Rpc::set_timeout`], read the client's deadline with [`Rpc::peer_timeout`]
 /// or the handler's with [`Rpc::effective_timeout`], read `:authority` with
 /// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], read the mTLS

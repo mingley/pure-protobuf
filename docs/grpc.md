@@ -266,8 +266,10 @@ every value for that key (last write wins) and leave the map unchanged on
 error. `contains` / `contains_bin` match `get`. `keys` lists unique ASCII
 and `-bin` names in first-insertion order, still skipping reserved names.
 `clear` drops every user entry; `merge` appends another map's user entries
-(repeats accumulate, reserved names are not copied). Reserved protocol keys
-(`grpc-*`, `content-type`, ...) are invisible on every read path.
+(repeats accumulate, reserved names are not copied). `retain` keeps the
+entries whose names pass a predicate (reserved names are always dropped).
+Reserved protocol keys (`grpc-*`, `content-type`, ...) are invisible on every
+read path.
 
 Reading it costs nothing until you read it: `Metadata` wraps the received
 header map rather than copying every entry into owned strings.
@@ -689,6 +691,7 @@ Router::new()
 set returns `NOT_FOUND`. `Watch` streams status changes, and an unknown name
 yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
 `HealthReporter::status` reads the same map without an RPC.
+`HealthReporter::names` lists every known name (the process `""` first).
 `HealthReporter::shutdown` marks every known name `NOT_SERVING` so a load
 balancer can drain before `serve_*_until_shutdown`.
 

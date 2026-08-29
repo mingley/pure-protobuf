@@ -86,6 +86,18 @@ impl HealthReporter {
         self.snapshot().get(name.as_ref()).copied()
     }
 
+    /// Known service names, including the process (`""`).
+    ///
+    /// Sorted lexicographically, so the empty process name is first. Names
+    /// you never set are omitted. After [`Self::shutdown`] the names are
+    /// still here, all [`ServingStatus::NotServing`].
+    #[must_use]
+    pub fn names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.snapshot().keys().cloned().collect();
+        names.sort();
+        names
+    }
+
     /// Mark every known name, including the process (`""`), as
     /// [`ServingStatus::NotServing`].
     ///

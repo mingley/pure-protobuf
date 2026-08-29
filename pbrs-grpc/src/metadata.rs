@@ -34,6 +34,9 @@ use std::fmt;
 /// md.set_bin("x-trace-bin", [0xbe, 0xef])?;
 /// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xbe, 0xef][..]));
 /// assert!(md.contains_bin("x-trace-bin"));
+/// md.insert("legacy", "drop-me")?;
+/// md.retain(|k| k.starts_with("x-"));
+/// assert_eq!(md.get("legacy"), None);
 /// assert_eq!(md.keys().collect::<Vec<_>>(), vec!["x-request-id", "x-trace-bin"]);
 /// md.merge(&md.clone());
 /// assert_eq!(md.len(), 4);
@@ -321,6 +324,28 @@ impl Metadata {
                 continue;
             }
             self.map.append(name.clone(), value.clone());
+        }
+    }
+
+    /// Keep user entries for which `f(key)` is true.
+    ///
+    /// The predicate is called once per unique name; repeats of that name
+    /// are kept or dropped together. Reserved protocol names are always
+    /// dropped (they were never readable). An interceptor that forwards a
+    /// subset of hops uses this instead of rebuilding the map with
+    /// [`Self::clear`] and [`Self::insert`].
+    pub fn retain(&mut self, mut f: impl FnMut(&str) -> bool) {
+        let drop_names: Vec<HeaderName> = self
+            .map
+            .keys()
+            .filter(|name| {
+                let key = name.as_str();
+                is_reserved(key) || !f(key)
+            })
+            .cloned()
+            .collect();
+        for name in drop_names {
+            drop(self.map.remove(name));
         }
     }
 
@@ -692,6 +717,40 @@ mod tests {
         assert!(md.set_bin("x-ok", b"x").is_err());
         assert_eq!(md.len(), 1);
         assert_eq!(md.get("x-ok"), Some("v"));
+    }
+
+    #[test]
+    fn retain_keeps_matching_keys() {
+        let mut md = Metadata::new();
+        md.insert("x-keep", "a").expect("ascii");
+        md.insert("x-keep", "b").expect("repeat");
+        md.insert("y-drop", "c").expect("other");
+        md.insert_bin("x-trace-bin", [1u8]).expect("bin");
+        md.retain(|k| k.starts_with("x-"));
+        assert_eq!(md.get_all("x-keep").collect::<Vec<_>>(), vec!["a", "b"]);
+        assert_eq!(md.get("y-drop"), None);
+        assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[1u8][..]));
+        assert_eq!(md.keys().collect::<Vec<_>>(), vec!["x-keep", "x-trace-bin"]);
+    }
+
+    #[test]
+    fn retain_drops_reserved_names() {
+        let mut raw = HeaderMap::new();
+        raw.insert(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("0"),
+        );
+        raw.insert(
+            HeaderName::from_static("x-ok"),
+            HeaderValue::from_static("v"),
+        );
+        let mut md = Metadata::from_headers(&raw);
+        md.retain(|_| true);
+        assert_eq!(md.get("x-ok"), Some("v"));
+        assert_eq!(md.get("grpc-status"), None);
+        md.retain(|_| false);
+        assert!(md.is_empty());
+        assert_eq!(md.len(), 0);
     }
 
     #[test]

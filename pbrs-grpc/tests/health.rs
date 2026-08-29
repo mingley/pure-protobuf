@@ -75,6 +75,35 @@ fn reporter_status_round_trips_without_an_rpc() {
 }
 
 #[test]
+fn reporter_names_lists_known_services() {
+    let (_, reporter) = service();
+    assert_eq!(reporter.names(), vec![String::new()]);
+    reporter.set_serving("helloworld.Greeter");
+    reporter.set_not_serving("demo.Other");
+    assert_eq!(
+        reporter.names(),
+        vec![
+            String::new(),
+            "demo.Other".to_owned(),
+            "helloworld.Greeter".to_owned()
+        ]
+    );
+    reporter.clear("demo.Other");
+    assert_eq!(
+        reporter.names(),
+        vec![String::new(), "helloworld.Greeter".to_owned()]
+    );
+    reporter.shutdown();
+    assert_eq!(
+        reporter.names(),
+        vec![String::new(), "helloworld.Greeter".to_owned()]
+    );
+    reporter.clear("helloworld.Greeter");
+    reporter.clear("");
+    assert!(reporter.names().is_empty());
+}
+
+#[test]
 fn shutdown_marks_known_names_not_serving() {
     let (_, reporter) = service();
     reporter.set_serving("helloworld.Greeter");
