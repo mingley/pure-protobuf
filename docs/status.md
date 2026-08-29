@@ -157,7 +157,8 @@ See `docs/upb.md`. Short list:
   `Channel::user_agent` prefix) is sent on every shape; inserting `user-agent`
   into metadata cannot override it. Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape.
-  `Outgoing::set_timeout` is that Call's deadline on every call shape. A
+  `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
+  a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`. A
   wrapping `Service`, generated `FooServer::intercept`, and
   `Router::intercept` reject before the body is read and stack in
   declaration order on every call shape. Interceptor extensions on a
