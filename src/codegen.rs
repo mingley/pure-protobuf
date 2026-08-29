@@ -4062,7 +4062,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Replace both message caps at once. See [`{G}::ServerConfig::message_limits`]."
+        "    /// Replace both message caps at once. Applies to every call shape. See [`{G}::ServerConfig::message_limits`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4071,7 +4071,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Cap how many RPCs the process will run at once. See [`{G}::ServerConfig::max_concurrent_rpcs`]."
+        "    /// Cap how many RPCs the process will run at once. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_rpcs`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4080,7 +4080,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Cap how many TCP/Unix connections the accept loop will serve at once. See [`{G}::ServerConfig::max_concurrent_connections`]."
+        "    /// Cap how many TCP/Unix connections the accept loop will serve at once. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_connections`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4089,7 +4089,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Concurrent RPCs allowed per HTTP/2 connection. See [`{G}::ServerConfig::max_concurrent_streams`]."
+        "    /// Concurrent RPCs allowed per HTTP/2 connection. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_streams`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4818,7 +4818,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Replace both message caps at once. See [`{G}::Channel::message_limits`]."
+        "    /// Replace both message caps at once. Applies to every call shape. See [`{G}::Channel::message_limits`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

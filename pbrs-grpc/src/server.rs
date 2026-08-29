@@ -1313,15 +1313,16 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// Replace both message caps at once. See [`ServerConfig::message_limits`].
+    /// Replace both message caps at once. Applies to every call shape.
+    /// See [`ServerConfig::message_limits`].
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.config = self.config.message_limits(limits);
         self
     }
 
-    /// Cap how many RPCs the process will run at once. See
-    /// [`ServerConfig::max_concurrent_rpcs`].
+    /// Cap how many RPCs the process will run at once.
+    /// Applies to every call shape. See [`ServerConfig::max_concurrent_rpcs`].
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);
@@ -1329,15 +1330,15 @@ impl<S: Service> Server<S> {
     }
 
     /// Cap how many TCP/Unix connections the accept loop will serve at once.
-    /// See [`ServerConfig::max_concurrent_connections`].
+    /// Applies to every call shape. See [`ServerConfig::max_concurrent_connections`].
     #[must_use]
     pub fn max_concurrent_connections(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_connections(n);
         self
     }
 
-    /// Concurrent RPCs allowed per HTTP/2 connection. See
-    /// [`ServerConfig::max_concurrent_streams`].
+    /// Concurrent RPCs allowed per HTTP/2 connection. Applies to every call
+    /// shape. See [`ServerConfig::max_concurrent_streams`].
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.config = self.config.max_concurrent_streams(streams);
@@ -1846,15 +1847,16 @@ impl Router {
         self
     }
 
-    /// Replace both message caps at once. See [`ServerConfig::message_limits`].
+    /// Replace both message caps at once. Applies to every call shape.
+    /// See [`ServerConfig::message_limits`].
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.config = self.config.message_limits(limits);
         self
     }
 
-    /// Cap how many RPCs the process will run at once. See
-    /// [`ServerConfig::max_concurrent_rpcs`].
+    /// Cap how many RPCs the process will run at once.
+    /// Applies to every call shape. See [`ServerConfig::max_concurrent_rpcs`].
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);
@@ -1862,15 +1864,15 @@ impl Router {
     }
 
     /// Cap how many TCP/Unix connections the accept loop will serve at once.
-    /// See [`ServerConfig::max_concurrent_connections`].
+    /// Applies to every call shape. See [`ServerConfig::max_concurrent_connections`].
     #[must_use]
     pub fn max_concurrent_connections(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_connections(n);
         self
     }
 
-    /// Concurrent RPCs allowed per HTTP/2 connection. See
-    /// [`ServerConfig::max_concurrent_streams`].
+    /// Concurrent RPCs allowed per HTTP/2 connection. Applies to every call
+    /// shape. See [`ServerConfig::max_concurrent_streams`].
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.config = self.config.max_concurrent_streams(streams);

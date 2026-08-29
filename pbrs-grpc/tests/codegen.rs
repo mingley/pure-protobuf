@@ -1418,6 +1418,20 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server send_compressed rustdoc must name every call shape"
     );
     assert!(
+        src.contains("Replace both message caps at once. Applies to every call shape."),
+        "generated message_limits rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Cap how many RPCs the process will run at once. Applies to every call shape."
+        ),
+        "generated max_concurrent_rpcs rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains("Concurrent RPCs allowed per HTTP/2 connection. Applies to every call shape."),
+        "generated max_concurrent_streams rustdoc must name every call shape"
+    );
+    assert!(
         src.contains("`Err` fails that Call on poll, including [`::pbrs_grpc::Status::with_error_details`]; nothing is sent."),
         "generated client intercept rustdoc must name typed Err"
     );

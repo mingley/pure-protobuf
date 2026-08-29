@@ -400,6 +400,26 @@ fn server_and_router_config_document_every_call_shape() {
         2,
         "Server::serve_tls_with_shutdown and Router::serve_tls_with_shutdown must name every call shape"
     );
+    assert_eq!(
+        src.matches("Replace both message caps at once. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::message_limits and Router::message_limits must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Cap how many RPCs the process will run at once.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::max_concurrent_rpcs and Router::max_concurrent_rpcs must name every call shape"
+    );
+    assert_eq!(
+        src.matches("Concurrent RPCs allowed per HTTP/2 connection. Applies to every call\n    /// shape.")
+            .count(),
+        2,
+        "Server::max_concurrent_streams and Router::max_concurrent_streams must name every call shape"
+    );
 }
 
 #[tokio::test]
