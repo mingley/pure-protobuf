@@ -76,6 +76,10 @@ enum Source<T> {
 ///
 /// A stream received from a [`crate::Channel`] holds the HTTP/2 driver, so
 /// dropping the client after headers still lets you read to the end.
+/// Dropping this `Streaming` before the end resets the HTTP/2 stream: that
+/// is how a client cancels a server-streaming RPC after it already has
+/// headers. A server-side producer waiting on [`crate::Request::cancelled`] or
+/// [`StreamSender::closed`] then wakes.
 ///
 /// ```no_run
 /// # use pbrs_grpc::{HelloReply, Status, Streaming};
@@ -103,7 +107,10 @@ impl<T> Streaming<T> {
     /// messages in flight.
     ///
     /// This is how a server-streaming handler produces its response: keep the
-    /// sender in a spawned task and return the receiver.
+    /// sender in a spawned task and return the receiver. A producer that waits
+    /// on a timer or a status map, rather than on [`StreamSender::send`],
+    /// should select on [`StreamSender::closed`] or [`crate::Request::cancelled`]:
+    /// drain aborts on client RST so those resolve without another send.
     ///
     /// ```no_run
     /// use pbrs_grpc::{HelloReply, Response, Status, Streaming};

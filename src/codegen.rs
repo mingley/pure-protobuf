@@ -3898,6 +3898,12 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
             src,
             "    /// Inbound `grpc-encoding` is [`{G}::Request::encoding`] (`None` for identity)."
         );
+        if m.server_streaming {
+            let _ = writeln!(
+                src,
+                "    /// Spawned producers should select on [`{G}::Request::cancelled`] and [`{G}::StreamSender::closed`]; drain aborts on client RST."
+            );
+        }
         let _ = writeln!(src, "    fn {fn_name}(");
         let _ = writeln!(src, "        &self,");
         let _ = writeln!(
@@ -4883,6 +4889,12 @@ fn emit_kernel_client(
             src,
             "    /// The reply's [`{G}::Response::encoding`] is the peer's `grpc-encoding` (`None` for identity). The [`{G}::Call`] is fused after it resolves."
         );
+        if m.server_streaming {
+            let _ = writeln!(
+                src,
+                "    /// Dropping the received [`{G}::Streaming`] before the end resets the RPC."
+            );
+        }
         if shape.client_return.starts_with('(') {
             let _ = writeln!(
                 src,
