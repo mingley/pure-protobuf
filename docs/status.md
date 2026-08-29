@@ -190,22 +190,24 @@ See `docs/upb.md`. Short list:
   over TLS, including over mTLS. A TLS interceptor `Err(with_error_details)`
   unpacks on every Greeter shape. Official `TestService` `send_compressed`
   gzips EmptyCall / StreamingOutputCall / StreamingInputCall /
-  FullDuplexCall. A wrapping `Service` `send_compressed` gzips every
-  hand-written Reverser Channel API. Health `send_compressed` gzips Check
-  and Watch, including over TLS; reflection `send_compressed` gzips the
-  bidi `list_services` method, including over TLS. A client interceptor
-  sees Outgoing path / service / method / authority / scheme on Health
-  Check/Watch, the reflection bidi method, and generated Store Get / Watch
-  / PutAll / Sync, including over TLS. A packed `google.rpc.Status` from
-  interceptor `Err(with_error_details)` unpacks on those Store, Health, and
-  reflection methods the same way, including over TLS.
-  A generated Store handler `Err(with_error_details)` unpacks on Get /
-  Watch / PutAll / Sync too. A wrapping `Service` interceptor
-  `Err(with_error_details)` unpacks on every hand-written Reverser Channel
-  API, and a client interceptor stamps Outgoing path facts on those APIs.
-  Official `TestService` interceptor `Err(with_error_details)` unpacks on
-  EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall,
-  and a client interceptor stamps Outgoing path facts on those methods.
+  FullDuplexCall, including over TLS. A wrapping `Service` `send_compressed`
+  gzips every hand-written Reverser Channel API, including over TLS. Health
+  `send_compressed` gzips Check and Watch, including over TLS; reflection
+  `send_compressed` gzips the bidi `list_services` method, including over
+  TLS. A client interceptor sees Outgoing path / service / method /
+  authority / scheme on Health Check/Watch, the reflection bidi method,
+  and generated Store Get / Watch / PutAll / Sync, including over TLS. A
+  packed `google.rpc.Status` from interceptor `Err(with_error_details)`
+  unpacks on those Store, Health, and reflection methods the same way,
+  including over TLS. A generated Store handler `Err(with_error_details)`
+  unpacks on Get / Watch / PutAll / Sync too. A wrapping `Service`
+  interceptor `Err(with_error_details)` unpacks on every hand-written
+  Reverser Channel API, including over TLS, and a client interceptor stamps
+  Outgoing path facts on those APIs, including over TLS. Official
+  `TestService` interceptor `Err(with_error_details)` unpacks on EmptyCall /
+  StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
+  TLS, and a client interceptor stamps Outgoing path facts on those methods,
+  including over TLS.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
