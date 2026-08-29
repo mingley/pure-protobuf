@@ -192,7 +192,7 @@ See `docs/upb.md`. Short list:
   or `from_io` interceptor `Err(with_error_details)` unpacks on every Greeter
   shape. Official `TestService` `send_compressed` gzips EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
-  TLS and Unix. A wrapping `Service` `send_compressed` gzips every
+  TLS, Unix, and `from_io`. A wrapping `Service` `send_compressed` gzips every
   hand-written Reverser Channel API, including over TLS. Health
   `send_compressed` gzips Check and Watch, including over TLS, Unix, and
   `from_io`; reflection `send_compressed` gzips the bidi `list_services`
@@ -208,8 +208,8 @@ See `docs/upb.md`. Short list:
   Outgoing path facts on those APIs, including over TLS. Official
   `TestService` interceptor `Err(with_error_details)` unpacks on EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
-  TLS and Unix, and a client interceptor stamps Outgoing path facts on those
-  methods, including over TLS and Unix.
+  TLS, Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
+  on those methods, including over TLS, Unix, and `from_io`.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.

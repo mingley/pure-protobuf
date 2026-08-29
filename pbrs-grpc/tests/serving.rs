@@ -1140,6 +1140,84 @@ async fn test_service_unix_client_interceptor_sees_every_shape_context() {
 }
 
 #[tokio::test]
+async fn test_service_from_io_send_compressed_gzips_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .send_compressed(),
+    );
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_test_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_client_interceptor_rejects_with_typed_status() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_test_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_client_interceptor_sees_every_shape_context() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_context)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(stamp_outgoing_context);
+    echo_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
