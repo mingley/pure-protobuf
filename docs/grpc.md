@@ -795,6 +795,7 @@ guards is committed.
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 |
 | Client RST after the request is read | Drop the handler; do not run it to completion | always |
+| Non-gRPC HTTP/2 (GET, grpc-web, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken | always |
 
 `max_concurrent_rpcs` is a process-wide handler budget, distinct from HTTP/2
 `max_concurrent_streams` (per connection) and `max_concurrent_connections`
@@ -826,8 +827,9 @@ Two layers of tests enforce this.
 `tests/hostile.rs` speaks raw HTTP/2 so it can send bytes no real client would
 — a length prefix claiming 4 GiB, a 64 MiB gzip bomb small enough on the wire
 to pass the frame check, reserved compressed-flag values, truncated frames,
-malformed paths, garbage protobuf — and requires that every case answers with a
-status and leaves the server serving.
+malformed paths, garbage protobuf, `application/grpc+json`, GET/PUT — and
+requires that every case answers with a status (or HTTP 405/415) and leaves
+the server serving.
 
 Property tests in the wire module cover what fixed cases cannot, using a
 deterministic xorshift generator so a failure reproduces from its seed:

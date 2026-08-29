@@ -1130,6 +1130,7 @@ impl std::fmt::Debug for Router {
         f.debug_struct("Router")
             .field("services", &services)
             .field("config", &self.config)
+            .field("interceptors", &self.interceptor.is_some())
             .finish()
     }
 }
