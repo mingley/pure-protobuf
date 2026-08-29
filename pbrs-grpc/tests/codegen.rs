@@ -25,11 +25,17 @@
     reason = "integration tests"
 )]
 
-use pbrs_grpc::{ChannelConfig, Code, Request, Response, Status, Streaming};
+use pbrs_grpc::{
+    ChannelConfig, ClientTls, Code, Identity, Request, Response, ServerTls, Status, Streaming,
+};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
+
+const CA: &str = include_str!("tls_data/ca.crt");
+const SERVER_CERT: &str = include_str!("tls_data/server.crt");
+const SERVER_KEY: &str = include_str!("tls_data/server.key");
 
 /// Exactly what a user writes: include the generated file and use the names.
 mod kv {
@@ -215,6 +221,63 @@ async fn echo_store_every_shape(client: &StoreClient) {
         let ev = inbound.message().await.expect("event").expect("some");
         assert_eq!(ev.kind(), Kind::Delete);
         assert_eq!(key_of(ev.entry()), key);
+    }
+    tx.close();
+    while inbound.message().await.expect("drain").is_some() {}
+}
+
+async fn gzip_store_every_shape(client: &StoreClient) {
+    let mut get = GetRequest::new();
+    get.set_key("alpha");
+    let got = client.get(Request::new(get)).await.expect("unary");
+    assert!(got.compressed(), "unary gzip");
+    assert_eq!(got.encoding(), Some("gzip"), "{:?}", got.encoding());
+    assert!(got.get_ref().found());
+    assert_eq!(key_of(got.get_ref().entry()), "alpha");
+
+    let (tx, call) = client.put_all(Request::new(()));
+    assert!(tx.compress(), "put_all StreamSender must gzip");
+    for (key, value) in [("a", &b"11"[..]), ("b", &b"222"[..])] {
+        tx.send(entry(key, value)).await.expect("send");
+    }
+    tx.close();
+    let summary = call.await.expect("client-stream");
+    assert!(summary.compressed(), "put_all reply gzip");
+    assert_eq!(summary.encoding(), Some("gzip"));
+    assert_eq!(summary.get_ref().entries(), 2);
+    assert_eq!(summary.get_ref().bytes(), 5);
+
+    let mut watch = WatchRequest::new();
+    for prefix in ["x", "y", "z"] {
+        watch.prefixes_mut().push(pbrs::ProtoString::from(prefix));
+    }
+    let reply = client
+        .watch(Request::new(watch))
+        .await
+        .expect("server-stream");
+    assert_eq!(reply.encoding(), Some("gzip"), "watch encoding");
+    let mut events = reply.into_inner();
+    let framed = events.next_framed().await.expect("frame").expect("message");
+    assert!(framed.compressed, "watch frames gzip");
+    assert_eq!(framed.message.kind(), Kind::Put);
+    let mut seen = vec![key_of(framed.message.entry())];
+    while let Some(ev) = events.message().await.expect("event") {
+        assert_eq!(ev.kind(), Kind::Put);
+        seen.push(key_of(ev.entry()));
+    }
+    assert_eq!(seen, ["x", "y", "z"]);
+
+    let (tx, call) = client.sync(Request::new(()));
+    assert!(tx.compress(), "sync StreamSender must gzip");
+    let reply = call.await.expect("bidi");
+    assert_eq!(reply.encoding(), Some("gzip"), "sync encoding");
+    let mut inbound = reply.into_inner();
+    for key in ["p", "q"] {
+        tx.send(entry(key, b"v")).await.expect("send");
+        let framed = inbound.next_framed().await.expect("frame").expect("some");
+        assert!(framed.compressed, "sync frames gzip");
+        assert_eq!(framed.message.kind(), Kind::Delete);
+        assert_eq!(key_of(framed.message.entry()), key);
     }
     tx.close();
     while inbound.message().await.expect("drain").is_some() {}
@@ -688,6 +751,92 @@ async fn generated_serve_connection_round_trips() {
     server.abort();
 }
 
+#[tokio::test]
+async fn generated_serve_tls_round_trips_every_shape() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match StoreClient::connect_tls_with(
+                addr,
+                ChannelConfig::default().timeout(Duration::from_secs(5)),
+                client_tls.clone(),
+            )
+            .await
+            {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    };
+    echo_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_connect_tls_lazy_round_trips_every_shape() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = StoreClient::connect_tls_lazy_with(
+        addr,
+        ChannelConfig::default().timeout(Duration::from_secs(5)),
+        client_tls,
+    )
+    .expect("tls lazy")
+    .wait_for_ready();
+    echo_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_send_compressed_gzips_every_shape() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = client(addr).await.send_compressed();
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
 #[test]
 fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     let src = include_str!(concat!(env!("OUT_DIR"), "/kv.rs"));
@@ -948,5 +1097,35 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "[`Self::connect_unix`] that dials on the first RPC. Applies to every call shape."
         ),
         "generated connect_unix_lazy rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_tls`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
+        ),
+        "generated connect_tls_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_lazy`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
+        ),
+        "generated connect_lazy_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_lazy`] over TLS. See [`::pbrs_grpc::Channel::connect_tls_lazy`]. Applies to every call shape."
+        ),
+        "generated connect_tls_lazy rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_tls_lazy`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
+        ),
+        "generated connect_tls_lazy_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_unix_lazy`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
+        ),
+        "generated connect_unix_lazy_with rustdoc must name every call shape"
     );
 }

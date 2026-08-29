@@ -4505,7 +4505,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect_tls`] with [`{G}::ChannelConfig`]."
+        "    /// [`Self::connect_tls`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4531,7 +4531,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect_lazy`] with [`{G}::ChannelConfig`]."
+        "    /// [`Self::connect_lazy`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4544,7 +4544,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect_lazy`] over TLS. See [`{G}::Channel::connect_tls_lazy`]."
+        "    /// [`Self::connect_lazy`] over TLS. See [`{G}::Channel::connect_tls_lazy`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4557,7 +4557,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect_tls_lazy`] with [`{G}::ChannelConfig`]."
+        "    /// [`Self::connect_tls_lazy`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4612,7 +4612,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// [`Self::connect_unix_lazy`] with [`{G}::ChannelConfig`]."
+        "    /// [`Self::connect_unix_lazy`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(

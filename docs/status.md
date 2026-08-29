@@ -181,6 +181,11 @@ See `docs/upb.md`. Short list:
   headers.
   Generated method rustdoc names
   inbound/received `encoding` and interceptor timing. Methods omitted on generated traits answer `UNIMPLEMENTED`.
+  Generated `FooClient::connect_tls_with` / `connect_lazy_with` /
+  `connect_tls_lazy` / `connect_tls_lazy_with` / `connect_unix_lazy_with`
+  and `Channel::connect_tls_with` apply to every call shape. Generated
+  Store TLS (`serve_tls_with_shutdown` / `connect_tls_with` /
+  `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.

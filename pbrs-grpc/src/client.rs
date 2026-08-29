@@ -293,7 +293,7 @@ impl Channel {
         Self::connect_with(target, ChannelConfig::default()).await
     }
 
-    /// Dial `target` with `config`.
+    /// Dial `target` with `config`. Applies to every call shape.
     ///
     /// Opens [`ChannelConfig::connections`] connections up front; RPCs are
     /// spread over them round-robin. All of them must succeed. A slot that
@@ -310,6 +310,7 @@ impl Channel {
     ///
     /// One connection means one `h2` driver task, so concurrent small RPCs
     /// serialize behind a single core's framing work. Pooling is the fix.
+    /// Applies to every call shape.
     pub async fn connect_pool(
         target: impl Into<Target>,
         connections: usize,
@@ -326,7 +327,7 @@ impl Channel {
         Self::connect_tls_with(target, ChannelConfig::default(), tls).await
     }
 
-    /// Dial `target` over TLS with `config`.
+    /// Dial `target` over TLS with `config`. Applies to every call shape.
     pub async fn connect_tls_with(
         target: impl Into<Target>,
         config: ChannelConfig,
@@ -348,7 +349,7 @@ impl Channel {
     }
 
     /// [`Self::connect_lazy`] with `config`. Each slot dials when an RPC first
-    /// lands on it, not all at once.
+    /// lands on it, not all at once. Applies to every call shape.
     pub fn connect_lazy_with(
         target: impl Into<Target>,
         config: ChannelConfig,
@@ -356,12 +357,12 @@ impl Channel {
         connect_lazy_inner(target.into(), config, None)
     }
 
-    /// [`Self::connect_lazy`] over TLS.
+    /// [`Self::connect_lazy`] over TLS. Applies to every call shape.
     pub fn connect_tls_lazy(target: impl Into<Target>, tls: ClientTls) -> Result<Self, Status> {
         Self::connect_tls_lazy_with(target, ChannelConfig::default(), tls)
     }
 
-    /// [`Self::connect_lazy_with`] over TLS.
+    /// [`Self::connect_lazy_with`] over TLS. Applies to every call shape.
     pub fn connect_tls_lazy_with(
         target: impl Into<Target>,
         config: ChannelConfig,
@@ -374,12 +375,13 @@ impl Channel {
     ///
     /// h2c only; TLS over a Unix socket is not supported. `:authority` is
     /// `localhost`. `path` is a filesystem path, not a `unix://` URI.
+    /// Applies to every call shape.
     #[cfg(unix)]
     pub async fn connect_unix(path: impl AsRef<Path>) -> Result<Self, Status> {
         Self::connect_unix_with(path, ChannelConfig::default()).await
     }
 
-    /// [`Self::connect_unix`] with `config`.
+    /// [`Self::connect_unix`] with `config`. Applies to every call shape.
     #[cfg(unix)]
     pub async fn connect_unix_with(
         path: impl AsRef<Path>,
@@ -389,12 +391,13 @@ impl Channel {
     }
 
     /// [`Self::connect_unix`] that dials on the first RPC instead of now.
+    /// Applies to every call shape.
     #[cfg(unix)]
     pub fn connect_unix_lazy(path: impl AsRef<Path>) -> Result<Self, Status> {
         Self::connect_unix_lazy_with(path, ChannelConfig::default())
     }
 
-    /// [`Self::connect_unix_lazy`] with `config`.
+    /// [`Self::connect_unix_lazy`] with `config`. Applies to every call shape.
     #[cfg(unix)]
     pub fn connect_unix_lazy_with(
         path: impl AsRef<Path>,
@@ -420,6 +423,7 @@ impl Channel {
     /// [`ChannelConfig::connections`] is ignored (always one slot).
     /// [`Outgoing::scheme`](crate::Outgoing::scheme) is `http`. If the byte
     /// stream is already encrypted, call [`Self::https_scheme`].
+    /// Applies to every call shape.
     ///
     /// ```no_run
     /// # async fn run(
@@ -456,7 +460,7 @@ impl Channel {
         self
     }
 
-    /// [`Self::from_io`] with `config`.
+    /// [`Self::from_io`] with `config`. Applies to every call shape.
     pub async fn from_io_with<IO>(
         io: IO,
         authority: impl Into<Target>,

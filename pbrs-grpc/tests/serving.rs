@@ -220,6 +220,28 @@ fn channel_call_apis_document_hand_written_services() {
         src.contains("Build a channel that dials on the first RPC instead of now.\n    /// Applies to every call shape."),
         "Channel::connect_lazy must name every call shape"
     );
+    assert!(
+        src.contains("Dial `target` over TLS with `config`. Applies to every call shape."),
+        "Channel::connect_tls_with must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_lazy`] with `config`. Each slot dials when an RPC first\n    /// lands on it, not all at once. Applies to every call shape."
+        ),
+        "Channel::connect_lazy_with must name every call shape"
+    );
+    assert!(
+        src.contains("[`Self::connect_lazy`] over TLS. Applies to every call shape."),
+        "Channel::connect_tls_lazy must name every call shape"
+    );
+    assert!(
+        src.contains("[`Self::connect_lazy_with`] over TLS. Applies to every call shape."),
+        "Channel::connect_tls_lazy_with must name every call shape"
+    );
+    assert!(
+        src.contains("Dial `target` with `config`. Applies to every call shape."),
+        "Channel::connect_with must name every call shape"
+    );
 }
 
 #[tokio::test]

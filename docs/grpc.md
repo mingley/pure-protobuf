@@ -656,6 +656,11 @@ let tls = ClientTls::ca("localhost", ca_pem)?;
 let client = GreeterClient::connect_tls("127.0.0.1:443", tls).await?;
 ```
 
+Generated `FooClient::connect_tls` / `connect_tls_with` / `connect_tls_lazy`
+and `FooServer::serve_tls` apply to every call shape of that service.
+`FooClient::connect_lazy_with` / `connect_unix_lazy_with` do the same on
+h2c and Unix. `Channel::connect_tls_with` is the hand-written equivalent.
+
 To drain a TLS listener the same way as h2c, use
 `serve_tls_until_shutdown(addr, shutdown, tls)` (or
 `serve_tls_with_shutdown` when you already have the `TcpListener`). See
