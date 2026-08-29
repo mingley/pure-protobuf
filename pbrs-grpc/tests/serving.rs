@@ -5414,10 +5414,13 @@ async fn failing_a_bidi_stream_before_headers_is_that_status_not_unavailable() {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let (tx, call) = client.stream_hello(Request::new(()));
-    tx.send(req("ada")).await.expect("send");
-    tx.fail(stream_abort_status()).await;
-    assert_stream_abort(&call.await.expect_err("fail"));
+    // Repeat: RST can surface as UNAVAILABLE on the same poll as fail's oneshot.
+    for _ in 0..24 {
+        let (tx, call) = client.stream_hello(Request::new(()));
+        tx.send(req("ada")).await.expect("send");
+        tx.fail(stream_abort_status()).await;
+        assert_stream_abort(&call.await.expect_err("fail"));
+    }
     wait_flag(&left).await;
     drop(client);
     task.abort();

@@ -1656,6 +1656,7 @@ where
     // deadline). Watch the same Instant here so a Ready DEADLINE_EXCEEDED
     // Call does not leave SendStream parked on a watch that never fires.
     let (fail_tx, mut fail_rx) = tokio::sync::oneshot::channel();
+    let (hold_tx, hold_rx) = tokio::sync::oneshot::channel::<()>();
     drop(tokio::spawn({
         let cancel_rx = cancel_rx.clone();
         async move {
@@ -1679,7 +1680,11 @@ where
             match end {
                 None => send.send_reset(Reason::CANCEL),
                 Some(PumpEnd::Failed(status)) => {
+                    // Hold RST until the Call takes this status. RST first
+                    // and resp_fut surfaces CANCEL as UNAVAILABLE
+                    // ("stream no longer needed") on the same poll.
                     fail_tx.send(status).ok();
+                    hold_rx.await.ok();
                     send.send_reset(Reason::CANCEL);
                 }
                 Some(PumpEnd::HalfClosed) => reset_on_cancel(send, cancel_rx, deadline),
@@ -1702,6 +1707,7 @@ where
         tokio::pin!(until_deadline);
         let mut cancelled = cancel_rx;
         let mut fail_done = false;
+        let mut hold_tx = Some(hold_tx);
         loop {
             tokio::select! {
                 biased;
@@ -1709,7 +1715,10 @@ where
                 _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
                 status = &mut fail_rx, if !fail_done => {
                     match status {
-                        Ok(status) => break Err(status),
+                        Ok(status) => {
+                            hold_tx.take();
+                            break Err(status);
+                        }
                         Err(_) => fail_done = true,
                     }
                 }
