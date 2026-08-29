@@ -26,7 +26,8 @@
 )]
 
 use pbrs_grpc::{
-    ChannelConfig, ClientTls, Code, Identity, Request, Response, ServerTls, Status, Streaming,
+    ChannelConfig, ClientTls, Code, Identity, Outgoing, Request, Response, ServerTls, Status,
+    Streaming,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -348,6 +349,117 @@ async fn assert_store_oversize_every_shape(client: &StoreClient) {
     }
 }
 
+fn stamp_outgoing_context(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let path = call.path();
+    call.metadata_mut().insert("x-path", path)?;
+    let service = call.service();
+    call.metadata_mut().set("x-service", service)?;
+    let method = call.method();
+    call.metadata_mut().set("x-method", method)?;
+    let authority = call.authority();
+    call.metadata_mut().insert("x-authority", authority)?;
+    let scheme = call.scheme();
+    call.metadata_mut().set("x-scheme", scheme)?;
+    Ok(())
+}
+
+fn require_stamped_context(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-path") != Some(rpc.path()) {
+        return Err(Status::invalid_argument(format!(
+            "x-path {:?} path {}",
+            rpc.metadata().get("x-path"),
+            rpc.path()
+        )));
+    }
+    if rpc.metadata().get("x-service") != Some(rpc.service()) {
+        return Err(Status::invalid_argument(format!(
+            "x-service {:?} service {}",
+            rpc.metadata().get("x-service"),
+            rpc.service()
+        )));
+    }
+    if rpc.metadata().get("x-method") != Some(rpc.method()) {
+        return Err(Status::invalid_argument(format!(
+            "x-method {:?} method {}",
+            rpc.metadata().get("x-method"),
+            rpc.method()
+        )));
+    }
+    if rpc.metadata().get("x-authority") != rpc.authority() {
+        return Err(Status::invalid_argument(format!(
+            "x-authority {:?} authority {:?}",
+            rpc.metadata().get("x-authority"),
+            rpc.authority()
+        )));
+    }
+    if rpc.metadata().get("x-scheme") != rpc.scheme() {
+        return Err(Status::invalid_argument(format!(
+            "x-scheme {:?} scheme {:?}",
+            rpc.metadata().get("x-scheme"),
+            rpc.scheme()
+        )));
+    }
+    Ok(())
+}
+
+fn interceptor_blocked() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("BLOCKED");
+    info.set_domain("example.com");
+    Status::with_error_details(
+        Code::FailedPrecondition,
+        "blocked locally",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("details")
+}
+
+fn assert_store_blocked(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "blocked locally");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+async fn assert_store_blocked_every_shape(client: &StoreClient) {
+    let mut get = GetRequest::new();
+    get.set_key("intercepted");
+    assert_store_blocked(&client.get(Request::new(get)).await.expect_err("unary"));
+
+    let mut watch = WatchRequest::new();
+    watch.prefixes_mut().push(pbrs::ProtoString::from("x"));
+    match client.watch(Request::new(watch)).await {
+        Err(err) => assert_store_blocked(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_store_blocked(&err),
+            Ok(_) => panic!("server-stream interceptor reject must fail"),
+        },
+    }
+
+    let (tx, call) = client.put_all(Request::new(()));
+    assert_store_blocked(&call.await.expect_err("client-stream"));
+    drop(tx);
+
+    let (tx, call) = client.sync(Request::new(()));
+    assert_store_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
 #[tokio::test]
 async fn generated_stubs_serve_all_four_shapes() {
     let (addr, server) = serve().await;
@@ -562,6 +674,51 @@ async fn generated_servers_and_clients_expose_intercept() {
         });
     echo_store_every_shape(&allowed).await;
 
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_client_interceptor_sees_every_shape_context() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_context)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = client(addr).await.intercept(stamp_outgoing_context);
+    echo_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_client_interceptor_rejects_with_typed_status() {
+    let (addr, server) = serve().await;
+    let client = client(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_store_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_server_interceptor_rejects_with_typed_status() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_blocked_every_shape(&client(addr).await).await;
     server.abort();
 }
 

@@ -189,7 +189,9 @@ See `docs/upb.md`. Short list:
   Health `send_compressed` gzips Check and Watch; reflection
   `send_compressed` gzips the bidi `list_services` method. A client
   interceptor sees Outgoing path / service / method / authority / scheme on
-  Health Check/Watch and the reflection bidi method.
+  Health Check/Watch, the reflection bidi method, and generated Store Get /
+  Watch / PutAll / Sync. A packed `google.rpc.Status` from interceptor
+  `Err(with_error_details)` unpacks on those Store shapes the same way.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
