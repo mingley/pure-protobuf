@@ -132,7 +132,8 @@ See `docs/upb.md`. Short list:
   the request flag or `FooClient::wait_for_ready`. Health Check and Watch
   retry until listen on the same dialers; Health has no List. Reflection
   `ServerReflectionInfo` retries until listen on those dialers; reflection
-  is one bidi method. `clear_compress` then `set_compress(compresses_outbound())`
+  is one bidi method. Official TestService EmptyCall / StreamingOutputCall /
+  StreamingInputCall / FullDuplexCall retry until listen on those dialers. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
   without details; nothing is sent. A packed `google.rpc.Status` on that

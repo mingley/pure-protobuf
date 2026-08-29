@@ -300,6 +300,53 @@ async fn serve_tls_at(
     Err(last)
 }
 
+async fn serve_test_at(addr: SocketAddr) -> Result<tokio::task::JoinHandle<()>, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let handle = tokio::spawn(async move {
+                    TestServiceServer::new(InteropTestService)
+                        .serve_listener(listener)
+                        .await
+                        .ok();
+                });
+                return Ok(handle);
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+async fn serve_test_tls_at(
+    addr: SocketAddr,
+    tls: ServerTls,
+) -> Result<tokio::task::JoinHandle<()>, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let handle = tokio::spawn(async move {
+                    TestServiceServer::new(InteropTestService)
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return Ok(handle);
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
 #[tokio::test]
 async fn a_hand_written_service_serves_without_generated_code() {
     let (addr, listener) = bind().await;
@@ -5394,6 +5441,138 @@ async fn unix_channel_wait_for_ready_completes_once_the_server_listens() {
     .await;
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client = TestServiceClient::connect_lazy(addr).expect("lazy");
+    wait_then_complete_test(&client, true, async {
+        serve_test_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client = TestServiceClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_test(&client, false, async {
+        serve_test_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_tls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_test(&client, true, async {
+        serve_test_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_tls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_test(&client, false, async {
+        serve_test_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_mtls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_test(&client, true, async {
+        serve_test_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_test(&client, false, async {
+        serve_test_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_unix_wait_for_ready_completes_once_the_server_listens() {
+    let (path, _guard) = unix_test_path();
+    let client = TestServiceClient::connect_unix_lazy(&path).expect("lazy");
+    wait_then_complete_test(&client, true, async {
+        let sock = path.clone();
+        tokio::spawn(async move {
+            TestServiceServer::new(InteropTestService)
+                .serve_unix(sock)
+                .await
+                .ok();
+        })
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_unix_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (path, _guard) = unix_test_path();
+    let client = TestServiceClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_test(&client, false, async {
+        let sock = path.clone();
+        tokio::spawn(async move {
+            TestServiceServer::new(InteropTestService)
+                .serve_unix(sock)
+                .await
+                .ok();
+        })
+    })
+    .await;
+}
+
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_request_can_opt_out_of_channel_wait_for_ready() {
@@ -7074,6 +7253,71 @@ async fn wait_then_complete_every_shape(
         .expect("item")
         .expect("first message");
     assert_eq!(name_of(&first), "late");
+}
+
+async fn wait_then_complete_test(
+    client: &TestServiceClient,
+    wait_on_request: bool,
+    start: impl std::future::Future,
+) {
+    let timeout = Some(Duration::from_secs(5));
+    let mut unary = client.empty_call(stamp_wait_ready(
+        Request::new(Empty::new()),
+        wait_on_request,
+        timeout,
+    ));
+    let mut server_stream = client.streaming_output_call(stamp_wait_ready(
+        Request::new(StreamingOutputCallRequest::new()),
+        wait_on_request,
+        timeout,
+    ));
+    let (tx_c, mut client_stream) =
+        client.streaming_input_call(stamp_wait_ready(Request::new(()), wait_on_request, timeout));
+    let (tx_b, mut bidi) =
+        client.full_duplex_call(stamp_wait_ready(Request::new(()), wait_on_request, timeout));
+
+    tokio::select! {
+        biased;
+        result = &mut unary => panic!("unary finished before the server listened: {result:?}"),
+        result = &mut server_stream => panic!("server-stream finished before the server listened: {result:?}"),
+        result = &mut client_stream => panic!("client-stream finished before the server listened: {result:?}"),
+        result = &mut bidi => panic!("bidi finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = start.await;
+
+    tokio::time::timeout(Duration::from_secs(2), unary)
+        .await
+        .expect("unary hung after listen")
+        .expect("unary");
+
+    let mut stream = tokio::time::timeout(Duration::from_secs(2), server_stream)
+        .await
+        .expect("server-stream hung after listen")
+        .expect("server-stream")
+        .into_inner();
+    assert!(
+        stream.message().await.expect("end").is_none(),
+        "empty StreamingOutputCall plan must end"
+    );
+
+    tx_c.close();
+    tokio::time::timeout(Duration::from_secs(2), client_stream)
+        .await
+        .expect("client-stream hung after listen")
+        .expect("client-stream");
+
+    tx_b.close();
+    let mut inbound = tokio::time::timeout(Duration::from_secs(2), bidi)
+        .await
+        .expect("bidi hung after listen")
+        .expect("bidi")
+        .into_inner();
+    assert!(
+        inbound.message().await.expect("end").is_none(),
+        "empty FullDuplexCall must end"
+    );
 }
 
 fn echo_named_stream(name: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
