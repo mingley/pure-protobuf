@@ -201,10 +201,11 @@ impl Endpoint {
 /// wait-for-ready without touching each call.
 ///
 /// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
-/// [`Self::send_compressed`], the two message-size caps, and
-/// [`Self::stream_buffer`] overlay this clone. Keepalive, idle, TCP
-/// keepalive, connection count, HTTP/2 windows, and the rapid-reset cap are
-/// set at handshake ([`ChannelConfig`] / [`Self::connect_with`]).
+/// [`Self::send_compressed`], the two message-size caps /
+/// [`Self::message_limits`], and [`Self::stream_buffer`] overlay this clone.
+/// Keepalive, idle, TCP keepalive, connection count, HTTP/2 windows, and
+/// the rapid-reset cap are set at handshake ([`ChannelConfig`] /
+/// [`Self::connect_with`]).
 ///
 /// [`Debug`] prints the authority, pool size, and config. It does not dump
 /// live HTTP/2 state.
@@ -447,6 +448,16 @@ impl Channel {
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_encoding_message_size(limit);
+        self
+    }
+
+    /// Replace both message caps at once. See [`ChannelConfig::message_limits`].
+    ///
+    /// Overlay: applies to RPCs from this clone. Does not change how a dead
+    /// slot is redialed.
+    #[must_use]
+    pub fn message_limits(mut self, limits: crate::MessageLimits) -> Self {
+        self.config = self.config.message_limits(limits);
         self
     }
 

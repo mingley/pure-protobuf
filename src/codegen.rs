@@ -4005,6 +4005,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Replace both message caps at once. See [`{G}::ServerConfig::message_limits`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn message_limits(mut self, limits: {G}::MessageLimits) -> Self {{ self.config = self.config.message_limits(limits); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap how many RPCs the process will run at once. See [`{G}::ServerConfig::max_concurrent_rpcs`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4643,6 +4652,15 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {{ self.channel = self.channel.max_encoding_message_size(limit); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Replace both message caps at once. See [`{G}::Channel::message_limits`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn message_limits(mut self, limits: {G}::MessageLimits) -> Self {{ self.channel = self.channel.message_limits(limits); self }}"
     );
     let _ = writeln!(
         src,

@@ -144,6 +144,10 @@ impl ServerConfig {
     }
 
     /// Replace both message caps at once.
+    ///
+    /// [`crate::Server::message_limits`], [`crate::Router::message_limits`],
+    /// and generated `FooServer::message_limits` set this without building a
+    /// [`ServerConfig`].
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;
@@ -620,6 +624,9 @@ impl ChannelConfig {
     }
 
     /// Replace both message caps at once.
+    ///
+    /// [`crate::Channel::message_limits`] and generated `FooClient::message_limits`
+    /// set this without building a [`ChannelConfig`].
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;

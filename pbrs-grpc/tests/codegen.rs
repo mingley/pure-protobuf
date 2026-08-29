@@ -342,7 +342,7 @@ async fn generated_servers_accept_configuration() {
     let server = tokio::spawn(async move {
         StoreServer::new(MemStore)
             .send_compressed()
-            .max_decoding_message_size(16)
+            .message_limits(pbrs_grpc::MessageLimits::new().with_max_decoding(16))
             .max_concurrent_rpcs(32)
             .max_concurrent_connections(8)
             .timeout(Duration::from_secs(5))
@@ -381,6 +381,7 @@ async fn generated_servers_mount_on_a_router() {
     let addr = listener.local_addr().expect("addr");
     let server = tokio::spawn(async move {
         pbrs_grpc::Router::new()
+            .message_limits(pbrs_grpc::MessageLimits::default())
             .send_compressed()
             .max_decoding_message_size(4 * 1024 * 1024)
             .add_service(StoreServer::new(MemStore))
@@ -559,9 +560,11 @@ fn generated_client_debug_and_into_inner() {
     )
     .expect("lazy")
     .wait_for_ready()
-    .stream_buffer(64);
+    .stream_buffer(64)
+    .message_limits(pbrs_grpc::MessageLimits::unlimited());
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
     assert_eq!(client.channel().config().stream_buffer_size(), 64);
+    assert_eq!(client.channel().config().limits().max_decoding(), None);
     let _ = client.into_inner();
 }
 

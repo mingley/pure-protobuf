@@ -880,6 +880,13 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Replace both message caps at once. See [`ServerConfig::message_limits`].
+    #[must_use]
+    pub fn message_limits(mut self, limits: MessageLimits) -> Self {
+        self.config = self.config.message_limits(limits);
+        self
+    }
+
     /// Cap how many RPCs the process will run at once. See
     /// [`ServerConfig::max_concurrent_rpcs`].
     #[must_use]
@@ -1344,6 +1351,13 @@ impl Router {
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_encoding_message_size(limit);
+        self
+    }
+
+    /// Replace both message caps at once. See [`ServerConfig::message_limits`].
+    #[must_use]
+    pub fn message_limits(mut self, limits: MessageLimits) -> Self {
+        self.config = self.config.message_limits(limits);
         self
     }
 

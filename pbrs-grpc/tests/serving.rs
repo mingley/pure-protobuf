@@ -1468,6 +1468,82 @@ async fn a_server_interceptor_can_tighten_the_deadline() {
 }
 
 #[tokio::test]
+async fn a_handler_sees_the_interceptor_deadline_on_request() {
+    struct SeesCap;
+
+    impl Greeter for SeesCap {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            let timeout = request
+                .timeout()
+                .ok_or_else(|| Status::internal("missing timeout duration"))?;
+            if timeout != Duration::from_millis(20) {
+                return Err(Status::internal(format!(
+                    "stamped timeout {timeout:?} is not the interceptor cap"
+                )));
+            }
+            let (msg, parts) = request.into_message_and_parts();
+            if parts.timeout() != Some(timeout) {
+                return Err(Status::internal("parts timeout must match Request"));
+            }
+            let deadline = parts
+                .deadline()
+                .ok_or_else(|| Status::internal("missing deadline Instant"))?;
+            let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if left > Duration::from_millis(50) {
+                return Err(Status::internal(format!(
+                    "remaining {left:?} looks like the client 5s, not the interceptor cap"
+                )));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("sees-cap"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-cap"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-cap"))
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesCap)
+            .intercept(|rpc: &mut Rpc| {
+                rpc.set_timeout(Duration::from_millis(20));
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(5));
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(request)
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_server_interceptor_cannot_extend_the_client_deadline() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {

@@ -893,7 +893,7 @@ Lifting the inbound cap entirely is possible and is only appropriate when
 every peer is trusted:
 
 ```rust
-ServerConfig::new().message_limits(MessageLimits::unlimited())
+GreeterServer::new(MyGreeter).message_limits(MessageLimits::unlimited())
 ```
 
 with the consequence that a single frame header can then ask for as much
