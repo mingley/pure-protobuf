@@ -1460,6 +1460,12 @@ Deliberate omissions, with what to do instead.
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
 | GCP-auth and ORCA | Out of scope. |
+| `grpc.health.v1` List | `Check` and `Watch` only. |
+| `FusedStream` on `Streaming` | A `Call` is fused after it resolves. A finished stream yields `None`; wrap it if a combinator needs `FusedStream`. |
+| `from_io` TLS handshake | `connect_tls` / `serve_tls`. `from_io` is already-connected bytes; `https_scheme` labels an encrypted stream. |
+| `Status` as `std::error::Error` source | `Status` is the error. There is no `Error::source` chain. |
+| `Outgoing::set_user_agent` | Prefix with `Channel::user_agent`. Interceptors read `Outgoing::user_agent`. |
+| Response extensions | Request / `Rpc` extensions only. |
 | crates.io publish | Path or git dependency until a registry version exists. `pbrs-grpc` has `publish = false`. |
 
 `pbrs` does not depend on this crate, and this crate does not depend on tonic
