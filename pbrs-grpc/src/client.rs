@@ -781,7 +781,9 @@ impl Channel {
     ///
     /// Await the [`Call`] for headers and the response [`Streaming`]. Dropping
     /// the [`Call`] without awaiting resets the stream, the same as dropping a
-    /// unary [`Call`].
+    /// unary [`Call`]. A [`crate::CallHandle`] taken before await still cancels
+    /// that live stream after headers. Dropping the received [`Streaming`]
+    /// before the end does the same.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -937,7 +939,10 @@ impl Channel {
     ///
     /// Send on the returned [`StreamSender`] and await the [`Call`] for
     /// responses. Dropping the pair without awaiting resets the stream,
-    /// the same as dropping a unary [`Call`].
+    /// the same as dropping a unary [`Call`]. A [`crate::CallHandle`] taken
+    /// before await still cancels that live stream after headers, including
+    /// after the sender is closed. Dropping the received [`Streaming`] before
+    /// the end does the same.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
