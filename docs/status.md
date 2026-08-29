@@ -185,7 +185,8 @@ See `docs/upb.md`. Short list:
   `connect_tls_lazy` / `connect_tls_lazy_with` / `connect_unix_lazy_with`
   and `Channel::connect_tls_with` apply to every call shape. Generated
   Store TLS (`serve_tls_with_shutdown` / `connect_tls_with` /
-  `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape.
+  `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape,
+  including gzip over TLS.
   Health `send_compressed` gzips Check and Watch, including over TLS;
   reflection `send_compressed` gzips the bidi `list_services` method,
   including over TLS. A client

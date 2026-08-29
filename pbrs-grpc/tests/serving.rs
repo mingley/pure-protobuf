@@ -280,6 +280,17 @@ fn channel_call_apis_document_hand_written_services() {
     );
 }
 
+#[test]
+fn server_and_router_config_document_every_call_shape() {
+    let src = include_str!("../src/server.rs");
+    assert_eq!(
+        src.matches("The configuration in effect. Applies to every call shape.")
+            .count(),
+        2,
+        "Server::server_config and Router::server_config must name every call shape"
+    );
+}
+
 #[tokio::test]
 async fn a_router_dispatches_between_two_services() {
     let (addr, listener) = bind().await;

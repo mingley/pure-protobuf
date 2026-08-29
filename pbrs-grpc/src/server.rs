@@ -1287,7 +1287,7 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// The configuration in effect.
+    /// The configuration in effect. Applies to every call shape.
     ///
     /// Distinct from [`Self::config`], which replaces it. Same snapshot a
     /// [`crate::Channel::config`] getter returns on the client.
@@ -1808,7 +1808,7 @@ impl Router {
         self
     }
 
-    /// The configuration in effect.
+    /// The configuration in effect. Applies to every call shape.
     ///
     /// Distinct from [`Self::config`], which replaces it. Same snapshot a
     /// [`crate::Channel::config`] getter returns on the client.

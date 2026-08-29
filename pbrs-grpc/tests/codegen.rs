@@ -1033,6 +1033,50 @@ async fn generated_send_compressed_gzips_every_shape() {
     server.abort();
 }
 
+#[tokio::test]
+async fn generated_tls_send_compressed_gzips_every_shape() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match StoreClient::connect_tls_with(
+                addr,
+                ChannelConfig::default().timeout(Duration::from_secs(5)),
+                client_tls.clone(),
+            )
+            .await
+            {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    }
+    .send_compressed();
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
 #[test]
 fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     let src = include_str!(concat!(env!("OUT_DIR"), "/kv.rs"));
