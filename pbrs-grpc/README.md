@@ -53,7 +53,7 @@ typed `google.rpc.Status` / `ErrorDetails` on `grpc-status-details-bin`,
 HTTP/2 PING keepalive, TCP `SO_KEEPALIVE`, max connection age (jittered ±10%) and idle, automatic
 redial of a dead connection, lazy connect with wait-for-ready, in-process
 `Channel::from_io` / `Server::serve_connection`, Unix domain
-sockets (h2c), graceful drain with `GOAWAY`, per-message gzip, deadlines,
+sockets (h2c; `serve_unix_unlink` after a crash), graceful drain with `GOAWAY`, per-message gzip, deadlines,
 cancellation, ASCII and `-bin` metadata, OK-path custom trailers. Outbound
 RPCs send `user-agent: pbrs-grpc/0.1.0`.
 

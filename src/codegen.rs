@@ -4055,6 +4055,15 @@ fn emit_kernel_server(
         src,
         "    pub async fn serve_unix(self, path: impl AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix(path).await }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Bind `path`, unlinking a leftover socket file if bind fails with address-in-use."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_unix_unlink(self, path: impl AsRef<::std::path::Path>) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_unlink(path).await }}"
+    );
     let _ = writeln!(src, "    /// Serve h2c on an existing Unix listener.");
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(

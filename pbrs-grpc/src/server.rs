@@ -722,12 +722,21 @@ impl<S: Service> Server<S> {
     /// Bind `path` and serve h2c over a Unix domain socket until the listener
     /// fails.
     ///
-    /// `path` must not already be bound. This does not unlink a stale socket.
-    /// TLS over a Unix socket is not supported; use
-    /// [`Self::serve_tls`] on TCP.
+    /// `path` must not already be bound. This does not unlink a leftover
+    /// socket file; use [`Self::serve_unix_unlink`] after a crash. TLS over a
+    /// Unix socket is not supported; use [`Self::serve_tls`] on TCP.
     #[cfg(unix)]
     pub async fn serve_unix(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
         self.serve_unix_listener(bind_unix(path)?).await
+    }
+
+    /// [`Self::serve_unix`], removing a leftover socket file first if bind
+    /// fails with address-in-use.
+    ///
+    /// If another process is actually listening on `path`, this steals it.
+    #[cfg(unix)]
+    pub async fn serve_unix_unlink(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
+        self.serve_unix_listener(bind_unix_unlink(path)?).await
     }
 
     /// Serve h2c on an existing Unix listener until it fails.
@@ -952,6 +961,13 @@ impl Router {
         self.serve_unix_listener(bind_unix(path)?).await
     }
 
+    /// [`Self::serve_unix`], removing a leftover socket file first if bind
+    /// fails with address-in-use. See [`Server::serve_unix_unlink`].
+    #[cfg(unix)]
+    pub async fn serve_unix_unlink(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
+        self.serve_unix_listener(bind_unix_unlink(path)?).await
+    }
+
     /// Serve h2c on an existing Unix listener until it fails.
     #[cfg(unix)]
     pub async fn serve_unix_listener(self, listener: UnixListener) -> Result<(), Status> {
@@ -1039,6 +1055,22 @@ async fn bind(addr: SocketAddr) -> Result<TcpListener, Status> {
 #[cfg(unix)]
 fn bind_unix(path: impl AsRef<std::path::Path>) -> Result<UnixListener, Status> {
     UnixListener::bind(path.as_ref()).map_err(|e| Status::unavailable(e.to_string()))
+}
+
+#[cfg(unix)]
+fn bind_unix_unlink(path: impl AsRef<std::path::Path>) -> Result<UnixListener, Status> {
+    let path = path.as_ref();
+    match UnixListener::bind(path) {
+        Ok(listener) => Ok(listener),
+        Err(e)
+            if e.kind() == std::io::ErrorKind::AddrInUse
+                || e.kind() == std::io::ErrorKind::AlreadyExists =>
+        {
+            std::fs::remove_file(path).map_err(|e| Status::unavailable(e.to_string()))?;
+            UnixListener::bind(path).map_err(|e| Status::unavailable(e.to_string()))
+        }
+        Err(e) => Err(Status::unavailable(e.to_string())),
+    }
 }
 
 fn connection_slots(config: ServerConfig) -> Option<Arc<Semaphore>> {

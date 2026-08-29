@@ -275,6 +275,56 @@ async fn generated_serve_unix_round_trips() {
     let _ = std::fs::remove_file(&path);
 }
 
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_serve_unix_unlink_replaces_a_leftover() {
+    static UNIQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "pbrs-grpc-kv-unlink-{}-{}.sock",
+        std::process::id(),
+        UNIQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    let leftover = tokio::net::UnixListener::bind(&path).expect("stale");
+    drop(leftover);
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_unix_unlink(sock)
+            .await
+            .ok();
+    });
+    let mut last = None;
+    let channel = {
+        let mut found = None;
+        for _ in 0..80 {
+            match Channel::connect_unix(&path).await {
+                Ok(channel) => {
+                    found = Some(channel);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    };
+    let client = StoreClient::new(channel);
+    let mut get = GetRequest::new();
+    get.set_key("alpha");
+    assert!(client
+        .get(Request::new(get))
+        .await
+        .expect("unary")
+        .get_ref()
+        .found());
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
 #[tokio::test]
 async fn generated_names_match_the_proto() {
     assert_eq!(StoreServer::<MemStore>::NAME, "kv.Store");

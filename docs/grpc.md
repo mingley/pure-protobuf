@@ -547,8 +547,10 @@ let channel = Channel::connect_unix("/tmp/greeter.sock").await?;
 ```
 
 `connect_unix_lazy` and `Request::set_wait_for_ready` work the same as on
-TCP. The path is a filesystem path, not a `unix://` URI. Bind fails if the
-path already exists; this crate does not unlink a stale socket.
+TCP. The path is a filesystem path, not a `unix://` URI. `serve_unix` fails
+if the path already exists. After a crash, `serve_unix_unlink` removes a
+leftover socket file when bind returns address-in-use; if another process is
+actually listening, that steals the path.
 
 `:authority` on Unix RPCs is `localhost`.
 
@@ -707,6 +709,7 @@ guards is committed.
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
+| HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 |
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service

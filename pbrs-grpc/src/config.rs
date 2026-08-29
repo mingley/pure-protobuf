@@ -45,6 +45,13 @@ pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 /// for in-flight RPCs before dropping the socket. Default 10 s.
 pub const DEFAULT_MAX_CONNECTION_AGE_GRACE: Duration = Duration::from_secs(10);
 
+/// HTTP/2 rapid-reset cap: remotely-reset streams waiting in the accept queue.
+///
+/// h2's default, set explicitly. A peer that opens streams and immediately
+/// `RST_STREAM`s them sits in that queue until accepted; exceeding this is
+/// `ENHANCE_YOUR_CALM` and the connection is dropped.
+pub const DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS: usize = 20;
+
 /// The per-stream settings the wire layer needs: message caps plus how much
 /// the connection will buffer before a write has to wait for flow control.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +71,7 @@ pub(crate) struct Wire {
 ///     .max_decoding_message_size(1024 * 1024)
 ///     .max_concurrent_streams(1024);
 /// assert_eq!(config.limits().max_decoding(), Some(1024 * 1024));
+/// assert_eq!(config.concurrent_streams(), 1024);
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ServerConfig {
@@ -321,12 +329,66 @@ impl ServerConfig {
         self.tcp_keepalive
     }
 
+    /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
+    #[must_use]
+    pub fn stream_window(self) -> u32 {
+        self.initial_stream_window_size
+    }
+
+    /// HTTP/2 per-connection receive window. See [`Self::initial_connection_window_size`].
+    #[must_use]
+    pub fn connection_window(self) -> u32 {
+        self.initial_connection_window_size
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
+    #[must_use]
+    pub fn frame_size(self) -> u32 {
+        self.max_frame_size
+    }
+
+    /// Concurrent RPCs allowed per connection. See [`Self::max_concurrent_streams`].
+    #[must_use]
+    pub fn concurrent_streams(self) -> u32 {
+        self.max_concurrent_streams
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`Self::max_header_list_size`].
+    #[must_use]
+    pub fn header_list_size(self) -> u32 {
+        self.max_header_list_size
+    }
+
+    /// TLS accept and HTTP/2 preface bound. See [`Self::handshake_timeout`].
+    #[must_use]
+    pub fn handshake_wait(self) -> Duration {
+        self.handshake_timeout
+    }
+
+    /// Configured max connection age, if any. See [`Self::max_connection_age`].
+    #[must_use]
+    pub fn connection_age(self) -> Option<Duration> {
+        self.max_connection_age
+    }
+
+    /// Configured max connection idle, if any. See [`Self::max_connection_idle`].
+    #[must_use]
+    pub fn connection_idle(self) -> Option<Duration> {
+        self.max_connection_idle
+    }
+
+    /// Grace after age or idle. See [`Self::max_connection_age_grace`].
+    #[must_use]
+    pub fn age_grace(self) -> Duration {
+        self.max_connection_age_grace
+    }
+
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
 
     pub(crate) fn io_handshake_timeout(self) -> Duration {
-        self.handshake_timeout
+        self.handshake_wait()
     }
 
     pub(crate) fn connection_lifetime(self) -> (Option<Duration>, Option<Duration>, Duration) {
@@ -352,7 +414,8 @@ impl ServerConfig {
             .max_frame_size(self.max_frame_size)
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
-            .max_header_list_size(self.max_header_list_size);
+            .max_header_list_size(self.max_header_list_size)
+            .max_pending_accept_reset_streams(DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS);
         builder
     }
 }
@@ -378,6 +441,7 @@ pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
 ///     .connections(4)
 ///     .connect_timeout(Duration::from_secs(5));
 /// assert_eq!(config.connection_count(), 4);
+/// assert_eq!(config.dial_timeout(), Duration::from_secs(5));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChannelConfig {
@@ -607,6 +671,43 @@ impl ChannelConfig {
         self.tcp_keepalive
     }
 
+    /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
+    #[must_use]
+    pub fn stream_window(self) -> u32 {
+        self.initial_stream_window_size
+    }
+
+    /// HTTP/2 per-connection receive window. See [`Self::initial_connection_window_size`].
+    #[must_use]
+    pub fn connection_window(self) -> u32 {
+        self.initial_connection_window_size
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`Self::max_frame_size`].
+    #[must_use]
+    pub fn frame_size(self) -> u32 {
+        self.max_frame_size
+    }
+
+    /// Concurrent RPCs allowed per connection. See [`Self::max_concurrent_streams`].
+    #[must_use]
+    pub fn concurrent_streams(self) -> u32 {
+        self.max_concurrent_streams
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`Self::max_header_list_size`].
+    #[must_use]
+    pub fn header_list_size(self) -> u32 {
+        self.max_header_list_size
+    }
+
+    /// Dial bound: TCP/Unix connect, optional TLS, peer SETTINGS.
+    /// See [`Self::connect_timeout`].
+    #[must_use]
+    pub fn dial_timeout(self) -> Duration {
+        self.connect_timeout
+    }
+
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
@@ -614,7 +715,7 @@ impl ChannelConfig {
     /// Bound used by the client handshake. Named apart from
     /// [`Self::connect_timeout`] so the setter stays the gRPC name.
     pub(crate) fn handshake_timeout(self) -> Duration {
-        self.connect_timeout
+        self.dial_timeout()
     }
 
     pub(crate) fn wire(self) -> Wire {
@@ -633,6 +734,7 @@ impl ChannelConfig {
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
+            .max_pending_accept_reset_streams(DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS)
             .enable_push(false)
             // h2's handshake future returns after writing the client preface,
             // before the peer speaks. Starting send capacity at 0 lets
@@ -657,6 +759,21 @@ mod tests {
         assert_eq!(config.connection_limit(), None);
         assert_eq!(config.tcp_keepalive_period(), None);
         assert_eq!(config.keep_alive_ping_interval(), None);
+        assert_eq!(config.stream_window(), super::DEFAULT_WINDOW_SIZE);
+        assert_eq!(config.connection_window(), super::DEFAULT_WINDOW_SIZE);
+        assert_eq!(config.frame_size(), super::DEFAULT_MAX_FRAME_SIZE);
+        assert_eq!(
+            config.concurrent_streams(),
+            super::DEFAULT_MAX_CONCURRENT_STREAMS
+        );
+        assert_eq!(
+            config.header_list_size(),
+            super::DEFAULT_MAX_HEADER_LIST_SIZE
+        );
+        assert_eq!(config.handshake_wait(), super::DEFAULT_CONNECT_TIMEOUT);
+        assert_eq!(config.connection_age(), None);
+        assert_eq!(config.connection_idle(), None);
+        assert_eq!(config.age_grace(), super::DEFAULT_MAX_CONNECTION_AGE_GRACE);
     }
 
     #[test]
@@ -720,13 +837,13 @@ mod tests {
         assert_eq!(
             ChannelConfig::new()
                 .connect_timeout(Duration::from_millis(0))
-                .handshake_timeout(),
+                .dial_timeout(),
             Duration::from_millis(1)
         );
         assert_eq!(
             ServerConfig::new()
                 .handshake_timeout(Duration::from_millis(0))
-                .io_handshake_timeout(),
+                .handshake_wait(),
             Duration::from_millis(1)
         );
     }
@@ -741,6 +858,36 @@ mod tests {
         assert_eq!(age, Some(Duration::from_millis(1)));
         assert_eq!(idle, Some(Duration::from_millis(1)));
         assert_eq!(grace, Duration::from_millis(1));
+        assert_eq!(config.connection_age(), Some(Duration::from_millis(1)));
+        assert_eq!(config.connection_idle(), Some(Duration::from_millis(1)));
+        assert_eq!(config.age_grace(), Duration::from_millis(1));
+    }
+
+    #[test]
+    fn http2_knobs_round_trip() {
+        let server = ServerConfig::new()
+            .initial_stream_window_size(1)
+            .initial_connection_window_size(2)
+            .max_frame_size(16_384)
+            .max_concurrent_streams(8)
+            .max_header_list_size(32);
+        assert_eq!(server.stream_window(), 1);
+        assert_eq!(server.connection_window(), 2);
+        assert_eq!(server.frame_size(), 16_384);
+        assert_eq!(server.concurrent_streams(), 8);
+        assert_eq!(server.header_list_size(), 32);
+
+        let channel = ChannelConfig::new()
+            .initial_stream_window_size(3)
+            .initial_connection_window_size(4)
+            .max_frame_size(16_384)
+            .max_concurrent_streams(9)
+            .max_header_list_size(64);
+        assert_eq!(channel.stream_window(), 3);
+        assert_eq!(channel.connection_window(), 4);
+        assert_eq!(channel.frame_size(), 16_384);
+        assert_eq!(channel.concurrent_streams(), 9);
+        assert_eq!(channel.header_list_size(), 64);
     }
 
     #[test]

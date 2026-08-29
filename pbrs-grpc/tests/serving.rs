@@ -1186,6 +1186,54 @@ async fn unix_wait_for_ready_completes_once_the_server_listens() {
 
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn serve_unix_fails_on_a_leftover_socket() {
+    let (path, _guard) = unix_test_path();
+    let leftover = tokio::net::UnixListener::bind(&path).expect("stale");
+    drop(leftover);
+    let err = GreeterServer::new(Echo)
+        .serve_unix(&path)
+        .await
+        .expect_err("stale path should fail");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn serve_unix_unlink_replaces_a_leftover_socket() {
+    let (path, _guard) = unix_test_path();
+    let leftover = tokio::net::UnixListener::bind(&path).expect("stale");
+    drop(leftover);
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix_unlink(sock).await.ok();
+    });
+    let mut last = None;
+    let channel = {
+        let mut found = None;
+        for _ in 0..80 {
+            match Channel::connect_unix(&path).await {
+                Ok(channel) => {
+                    found = Some(channel);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("connect after unlink: {last:?}"))
+    };
+    let reply = GreeterClient::new(channel)
+        .say_hello(Request::new(req("uds")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "uds");
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");

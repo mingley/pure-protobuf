@@ -162,6 +162,7 @@
 //! | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in [`ServerConfig::max_concurrent_connections`] |
 //! | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in [`ServerConfig::timeout`] |
 //! | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in [`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`] |
+//! | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`]) |
 //!
 //! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is
 //! what a loopback test and a mesh sidecar speak. Production that is not
@@ -289,8 +290,8 @@ pub use client::{Channel, Target};
 pub use config::{
     ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_KEEP_ALIVE_TIMEOUT,
     DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE,
-    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
-    DEFAULT_WINDOW_SIZE,
+    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
+    DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
 };
 /// Per-RPC typed bag: insert in an interceptor, read in the handler.
 pub use http::Extensions;
