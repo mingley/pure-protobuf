@@ -668,3 +668,28 @@ async fn generated_serve_connection_round_trips() {
     assert!(got.get_ref().found());
     server.abort();
 }
+
+#[test]
+fn generated_stubs_name_encoding_cancel_and_stream_drop() {
+    let src = include_str!(concat!(env!("OUT_DIR"), "/kv.rs"));
+    assert!(
+        src.contains("Inbound `grpc-encoding` is [`::pbrs_grpc::Request::encoding`]"),
+        "trait methods must name inbound encoding"
+    );
+    assert!(
+        src.contains("Spawned producers should select on [`::pbrs_grpc::Request::cancelled`] and [`::pbrs_grpc::StreamSender::closed`]"),
+        "server-streaming trait methods must name cancelled/closed"
+    );
+    assert!(
+        src.contains("Dropping the received [`::pbrs_grpc::Streaming`] before the end resets the RPC."),
+        "server-streaming client methods must name stream drop"
+    );
+    assert!(
+        src.contains("dropping a streaming Call resets the stream"),
+        "client-streaming and bidi pairs must be must_use"
+    );
+    assert!(
+        src.contains("The [`::pbrs_grpc::Call`] is fused after it resolves."),
+        "client methods must name fused Call"
+    );
+}
