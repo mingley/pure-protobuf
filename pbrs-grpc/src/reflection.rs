@@ -23,7 +23,9 @@
 //! Unix (`serve_unix` / `connect_unix`), TLS (`serve_tls` / `connect_tls`),
 //! and [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
 //! the bidi method. [`ServerReflectionServer::send_compressed`] gzips that
-//! method when the client advertises gzip.
+//! method when the client advertises gzip. A client interceptor sees
+//! [`crate::Outgoing`] path / service / method / `:authority` / `:scheme` on
+//! that method.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

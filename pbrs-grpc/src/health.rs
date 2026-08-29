@@ -7,7 +7,8 @@
 //! (`serve_tls` / `connect_tls`), and
 //! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
 //! both methods. [`HealthServer::send_compressed`] gzips Check and Watch when
-//! the client advertises gzip.
+//! the client advertises gzip. A client interceptor sees [`crate::Outgoing`]
+//! path / service / method / `:authority` / `:scheme` on both methods.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {

@@ -242,6 +242,32 @@ fn channel_call_apis_document_hand_written_services() {
         src.contains("Dial `target` with `config`. Applies to every call shape."),
         "Channel::connect_with must name every call shape"
     );
+    assert!(
+        src.contains("not a `unix://` URI.\n    /// Applies to every call shape."),
+        "Channel::connect_unix must name every call shape"
+    );
+    assert!(
+        src.contains("[`Self::connect_unix`] with `config`. Applies to every call shape."),
+        "Channel::connect_unix_with must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`Self::connect_unix`] that dials on the first RPC instead of now.\n    /// Applies to every call shape."
+        ),
+        "Channel::connect_unix_lazy must name every call shape"
+    );
+    assert!(
+        src.contains("[`Self::connect_unix_lazy`] with `config`. Applies to every call shape."),
+        "Channel::connect_unix_lazy_with must name every call shape"
+    );
+    assert!(
+        src.contains("call [`Self::https_scheme`].\n    /// Applies to every call shape."),
+        "Channel::from_io must name every call shape"
+    );
+    assert!(
+        src.contains("[`Self::from_io`] with `config`. Applies to every call shape."),
+        "Channel::from_io_with must name every call shape"
+    );
 }
 
 #[tokio::test]

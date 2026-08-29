@@ -256,6 +256,59 @@ async fn all_extension_numbers_of_type_lists_registered_tags() {
     assert_eq!(nums, vec![100]);
 }
 
+fn stamp_outgoing_context(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let path = call.path();
+    call.metadata_mut().insert("x-path", path)?;
+    let service = call.service();
+    call.metadata_mut().set("x-service", service)?;
+    let method = call.method();
+    call.metadata_mut().set("x-method", method)?;
+    let authority = call.authority();
+    call.metadata_mut().insert("x-authority", authority)?;
+    let scheme = call.scheme();
+    call.metadata_mut().set("x-scheme", scheme)?;
+    Ok(())
+}
+
+fn require_stamped_context(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-path") != Some(rpc.path()) {
+        return Err(Status::invalid_argument(format!(
+            "x-path {:?} path {}",
+            rpc.metadata().get("x-path"),
+            rpc.path()
+        )));
+    }
+    if rpc.metadata().get("x-service") != Some(rpc.service()) {
+        return Err(Status::invalid_argument(format!(
+            "x-service {:?} service {}",
+            rpc.metadata().get("x-service"),
+            rpc.service()
+        )));
+    }
+    if rpc.metadata().get("x-method") != Some(rpc.method()) {
+        return Err(Status::invalid_argument(format!(
+            "x-method {:?} method {}",
+            rpc.metadata().get("x-method"),
+            rpc.method()
+        )));
+    }
+    if rpc.metadata().get("x-authority") != rpc.authority() {
+        return Err(Status::invalid_argument(format!(
+            "x-authority {:?} authority {:?}",
+            rpc.metadata().get("x-authority"),
+            rpc.authority()
+        )));
+    }
+    if rpc.metadata().get("x-scheme") != rpc.scheme() {
+        return Err(Status::invalid_argument(format!(
+            "x-scheme {:?} scheme {:?}",
+            rpc.metadata().get("x-scheme"),
+            rpc.scheme()
+        )));
+    }
+    Ok(())
+}
+
 fn interceptor_blocked() -> Status {
     let mut info = pbrs_grpc::pb::ErrorInfo::new();
     info.set_reason("BLOCKED");
@@ -361,6 +414,25 @@ async fn reflection_client_interceptor_rejects_with_typed_status() {
     let (tx, call) = client.server_reflection_info(Request::new(()));
     assert_interceptor_blocked(&call.await.expect_err("bidi"));
     drop(tx);
+}
+
+#[tokio::test]
+async fn reflection_client_interceptor_sees_list_services_context() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_context)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = client(addr).await.intercept(stamp_outgoing_context);
+    echo_reflection_list(&client).await;
 }
 
 #[tokio::test]
