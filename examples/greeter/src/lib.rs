@@ -265,11 +265,7 @@ mod tests {
         assert_eq!(live.reporter.watchers(), 0);
         let mut req = HealthCheckRequest::new();
         req.set_service(GreeterServer::<MyGreeter>::NAME);
-        let mut stream = client
-            .watch(Request::new(req))
-            .await
-            .unwrap()
-            .into_inner();
+        let mut stream = client.watch(Request::new(req)).await.unwrap().into_inner();
         let first = stream.message().await.unwrap().unwrap();
         assert_eq!(first.status(), ServingStatus::Serving);
         assert!(
