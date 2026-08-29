@@ -112,35 +112,50 @@ pub(crate) fn gzip_outbound(handler: bool, configured: bool, peer_accepts: bool)
     (handler || configured) && peer_accepts
 }
 
+/// How [`check_request`] turns a request away.
+pub(crate) enum RequestReject {
+    /// Trailers-only gRPC status on HTTP 200.
+    Grpc(Status),
+    /// Bare HTTP status, no `grpc-status`. Used when the request is not gRPC
+    /// (wrong method or content-type), per PROTOCOL-HTTP2.md.
+    Http(StatusCode),
+}
+
+/// `application/grpc`, `application/grpc+proto`, `application/grpc;charset=…`.
+///
+/// `application/grpc-web` is not a match: the suffix is `-web`, not `+` / `;`.
+pub(crate) fn grpc_content_type(ct: &str) -> bool {
+    let Some(subtype) = ct.strip_prefix("application/grpc") else {
+        return false;
+    };
+    subtype.is_empty() || subtype.starts_with('+') || subtype.starts_with(';')
+}
+
 /// Reject anything that is not a gRPC request we can answer.
 ///
-/// Runs before any body is read, so a malformed or unsupported request costs
-/// one trailers-only response and nothing else.
-pub(crate) fn check_request(request: &Request<RecvStream>) -> Result<(), Status> {
+/// Runs before a handler is spawned, so a malformed or unsupported request
+/// costs one response and no RPC slot. Non-POST is HTTP 405; a content-type
+/// that is not gRPC is HTTP 415, so a browser does not take HTTP 200 as
+/// success. Unsupported `grpc-encoding` stays a gRPC `UNIMPLEMENTED`.
+pub(crate) fn check_request(request: &Request<RecvStream>) -> Result<(), RequestReject> {
     if request.method() != http::Method::POST {
-        return Err(Status::unimplemented("gRPC requires POST"));
+        return Err(RequestReject::Http(StatusCode::METHOD_NOT_ALLOWED));
     }
     let Some(ct) = request.headers().get(http::header::CONTENT_TYPE) else {
-        return Err(Status::invalid_argument("missing content-type"));
+        return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     };
     let Ok(ct) = ct.to_str() else {
-        return Err(Status::invalid_argument("invalid content-type"));
+        return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     };
-    // `application/grpc`, `application/grpc+proto`, `application/grpc;charset=..`.
-    let subtype = ct
-        .strip_prefix("application/grpc")
-        .ok_or_else(|| Status::invalid_argument("content-type must begin with application/grpc"))?;
-    if !(subtype.is_empty() || subtype.starts_with('+') || subtype.starts_with(';')) {
-        return Err(Status::invalid_argument(
-            "content-type must begin with application/grpc",
-        ));
+    if !grpc_content_type(ct) {
+        return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     }
     if let Some(enc) = request.headers().get(GRPC_ENCODING) {
         let supported = matches!(enc.to_str(), Ok("identity" | "gzip"));
         if !supported {
-            return Err(Status::unimplemented(
+            return Err(RequestReject::Grpc(Status::unimplemented(
                 "grpc-encoding not supported; this server accepts identity and gzip",
-            ));
+            )));
         }
     }
     Ok(())
@@ -413,6 +428,27 @@ pub(crate) fn reject(respond: &mut h2::server::SendResponse<Bytes>, status: Stat
             res.headers_mut().append(k, v.clone());
         }
     }
+    respond.send_response(res, true).ok();
+}
+
+/// Answer [`RequestReject`]: gRPC trailers-only, or a bare HTTP status.
+pub(crate) fn reject_request(respond: &mut h2::server::SendResponse<Bytes>, err: RequestReject) {
+    match err {
+        RequestReject::Grpc(status) => reject(respond, status),
+        RequestReject::Http(code) => send_http(respond, code),
+    }
+}
+
+/// HTTP 405/415 for a request that is not gRPC. No `grpc-status`, so an HTTP/2
+/// client cannot take this as a successful RPC.
+fn send_http(respond: &mut h2::server::SendResponse<Bytes>, status: StatusCode) {
+    let mut builder = Response::builder().status(status);
+    if status == StatusCode::METHOD_NOT_ALLOWED {
+        builder = builder.header(http::header::ALLOW, "POST");
+    }
+    let Ok(res) = builder.body(()) else {
+        return;
+    };
     respond.send_response(res, true).ok();
 }
 
@@ -937,8 +973,8 @@ fn percent_decode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        accepts_gzip, effective_timeout, grpc_request, gzip_outbound, percent_decode,
-        percent_encode, soonest, FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
+        accepts_gzip, effective_timeout, grpc_content_type, grpc_request, gzip_outbound,
+        percent_decode, percent_encode, soonest, FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
     };
     use crate::codec;
     use crate::gzip;
@@ -966,6 +1002,28 @@ mod tests {
                 .and_then(|v| v.to_str().ok()),
             Some(DEFAULT_UA)
         );
+    }
+
+    #[test]
+    fn grpc_content_type_accepts_the_spec_prefix() {
+        for ok in [
+            "application/grpc",
+            "application/grpc+proto",
+            "application/grpc+json",
+            "application/grpc;charset=utf-8",
+        ] {
+            assert!(grpc_content_type(ok), "{ok}");
+        }
+        for no in [
+            "application/json",
+            "application/grpc-web",
+            "application/grpc-web+proto",
+            "application/grpcweb",
+            "text/plain",
+            "",
+        ] {
+            assert!(!grpc_content_type(no), "{no}");
+        }
     }
 
     #[test]

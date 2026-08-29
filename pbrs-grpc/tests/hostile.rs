@@ -110,8 +110,18 @@ struct Answer {
 
 impl Answer {
     fn expect_code(&self, want: Code) {
-        assert_eq!(self.http_status, StatusCode::OK, "gRPC always answers 200");
+        assert_eq!(
+            self.http_status,
+            StatusCode::OK,
+            "gRPC protocol errors answer 200"
+        );
         assert_eq!(self.code, Some(want));
+    }
+
+    fn expect_http(&self, want: StatusCode) {
+        assert_eq!(self.http_status, want);
+        assert_eq!(self.code, None, "HTTP {want} is not a gRPC status");
+        assert_eq!(self.payload_frames, 0);
     }
 }
 
@@ -235,13 +245,49 @@ async fn two_messages_on_a_unary_path_are_refused() {
 }
 
 #[tokio::test]
-async fn a_non_grpc_content_type_is_rejected() {
+async fn a_non_grpc_content_type_is_http_415() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let mut peer = RawPeer::connect(addr).await;
-    let request = peer.request(SAY_HELLO, "application/json");
-    peer.call_with(request, frame(&hello_request()))
+    for content_type in [
+        "application/json",
+        "application/grpc-web",
+        "application/grpc-web+proto",
+    ] {
+        let request = peer.request(SAY_HELLO, content_type);
+        peer.call_with(request, frame(&hello_request()))
+            .await
+            .expect_http(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+    }
+}
+
+#[tokio::test]
+async fn a_non_grpc_content_type_on_an_unknown_method_is_still_415() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawPeer::connect(addr).await;
+    let request = peer.request("/nope.Nothing/Anything", "application/json");
+    peer.call_with(request, Bytes::new())
         .await
-        .expect_code(Code::InvalidArgument);
+        .expect_http(StatusCode::UNSUPPORTED_MEDIA_TYPE);
+}
+
+#[tokio::test]
+async fn a_get_is_http_405() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    *request.method_mut() = Method::GET;
+    let mut send = peer.send.clone().ready().await.expect("ready");
+    let (response, _stream) = send.send_request(request, true).expect("send_request");
+    let response = response.await.expect("response");
+    assert_eq!(response.status(), StatusCode::METHOD_NOT_ALLOWED);
+    assert_eq!(
+        response
+            .headers()
+            .get(http::header::ALLOW)
+            .and_then(|v| v.to_str().ok()),
+        Some("POST")
+    );
+    assert!(grpc_status(response.headers()).is_none());
 }
 
 #[tokio::test]

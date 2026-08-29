@@ -339,12 +339,16 @@ Codes the kernel produces on your behalf:
 | Code | When |
 |---|---|
 | `Unimplemented` | unknown service or method; unsupported `grpc-encoding` |
-| `InvalidArgument` | `content-type` is not `application/grpc` |
 | `ResourceExhausted` | a message exceeds an inbound or outbound cap |
 | `DeadlineExceeded` | `grpc-timeout` elapsed |
 | `Cancelled` | the peer reset the stream, or the caller cancelled |
 | `Unavailable` | the connection could not be established or was lost |
 | `Internal` | a malformed frame, or a protobuf parse failure |
+
+A request that is not gRPC at all — GET, missing `content-type`,
+`application/json`, `application/grpc-web` — is HTTP 405 or 415 with no
+`grpc-status`, so a browser does not take HTTP 200 as success. That check
+runs before an RPC slot is taken.
 
 ## Deadlines and cancellation
 

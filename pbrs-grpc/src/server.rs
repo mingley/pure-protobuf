@@ -14,8 +14,8 @@ use crate::stream::Streaming;
 use crate::tls::ServerTls;
 use crate::wire::{
     accepts_gzip, check_request, encode_msg, grpc_trailers, gzip_outbound, let_producer_catch_up,
-    read_one_message, reject, send_bytes, send_ok_headers, send_trailers_only, wrap_timeout,
-    OutBatch, WireStream,
+    read_one_message, reject, reject_request, send_bytes, send_ok_headers, send_trailers_only,
+    wrap_timeout, OutBatch, WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -488,10 +488,6 @@ impl Rpc {
             timeout: _,
         } = self;
         let limits = config.limits();
-        if let Err(status) = check_request(&request) {
-            reject(&mut respond, status);
-            return None;
-        }
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
@@ -541,10 +537,6 @@ impl Rpc {
             timeout: _,
         } = self;
         let limits = config.limits();
-        if let Err(status) = check_request(&request) {
-            reject(&mut respond, status);
-            return None;
-        }
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
@@ -1688,6 +1680,10 @@ where
                     break;
                 };
                 occupied = true;
+                if let Err(err) = check_request(&request) {
+                    reject_request(&mut respond, err);
+                    continue;
+                }
                 let permit = match &rpc_slots {
                     None => None,
                     Some(slots) => match slots.clone().try_acquire_owned() {
