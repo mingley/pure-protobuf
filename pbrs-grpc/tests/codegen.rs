@@ -37,6 +37,8 @@ use tokio::net::TcpListener;
 const CA: &str = include_str!("tls_data/ca.crt");
 const SERVER_CERT: &str = include_str!("tls_data/server.crt");
 const SERVER_KEY: &str = include_str!("tls_data/server.key");
+const CLIENT_CERT: &str = include_str!("tls_data/client.crt");
+const CLIENT_KEY: &str = include_str!("tls_data/client.key");
 
 /// Exactly what a user writes: include the generated file and use the names.
 mod kv {
@@ -199,8 +201,11 @@ async fn client(addr: SocketAddr) -> StoreClient {
     panic!("could not connect to {addr}");
 }
 
-async fn tls_client(addr: SocketAddr) -> StoreClient {
-    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+fn client_identity() -> Identity {
+    Identity::from_pem(CLIENT_CERT, CLIENT_KEY).expect("client identity")
+}
+
+async fn tls_client_with(addr: SocketAddr, client_tls: ClientTls) -> StoreClient {
     let mut last = None;
     for _ in 0..80 {
         match StoreClient::connect_tls_with(
@@ -218,6 +223,10 @@ async fn tls_client(addr: SocketAddr) -> StoreClient {
         }
     }
     panic!("could not connect: {last:?}")
+}
+
+async fn tls_client(addr: SocketAddr) -> StoreClient {
+    tls_client_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await
 }
 
 #[cfg(unix)]
@@ -1260,6 +1269,27 @@ async fn generated_tls_send_compressed_gzips_every_shape() {
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     }
     .send_compressed();
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_send_compressed_gzips_every_shape() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::mtls(identity, CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = tls_client_with(addr, client_tls).await.send_compressed();
     gzip_store_every_shape(&client).await;
     server.abort();
 }

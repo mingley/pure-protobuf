@@ -848,7 +848,7 @@ unknown names.
 There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
 `RESOURCE_EXHAUSTED`. Unix, TLS, and `from_io` serve both methods.
 `send_compressed` gzips Check and Watch when the client advertises gzip,
-including over TLS, Unix, and `from_io`. A client interceptor sees path,
+including over TLS, mTLS, Unix, and `from_io`. A client interceptor sees path,
 service, method, `:authority`, and `:scheme` on both methods, including over
 TLS, Unix, and `from_io`. An interceptor `Err(Status::with_error_details(...))`
 unpacks as `Status::rpc` / `Status::error_details` on both methods, including
