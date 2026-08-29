@@ -326,15 +326,9 @@ fn assert_typed_fail(err: &Status) {
     assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
     assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
     let details = err.error_details().expect("ErrorDetails");
-    assert_eq!(
-        details
-            .error_info
-            .expect("ErrorInfo")
-            .reason()
-            .to_str()
-            .unwrap_or(""),
-        "API_DISABLED"
-    );
+    let unpacked = details.error_info.expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
 }
 
 #[tokio::test]

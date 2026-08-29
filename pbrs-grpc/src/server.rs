@@ -293,6 +293,7 @@ impl Rpc {
     /// Service half of the path, e.g. `helloworld.Greeter`.
     ///
     /// Generated handlers see the same value on [`Request::service`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn service(&self) -> &str {
         split_path(self.path()).0
@@ -301,13 +302,14 @@ impl Rpc {
     /// Method half of the path, e.g. `SayHello`.
     ///
     /// Generated handlers see the same value on [`Request::method`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn method(&self) -> &str {
         split_path(self.path()).1
     }
 
     /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051` or
-    /// `localhost` on a Unix socket.
+    /// `localhost` on a Unix socket. Applies to every call shape.
     #[must_use]
     pub fn authority(&self) -> Option<&str> {
         self.request
@@ -333,7 +335,7 @@ impl Rpc {
     ///
     /// TCP fills this from accept. [`Incoming`] copies the `SocketAddr` from
     /// [`IncomingAccept`] unless [`Incoming::peer`] replaces it. Unix and
-    /// [`Server::serve_connection`] yield `None`.
+    /// [`Server::serve_connection`] yield `None`. Applies to every call shape.
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote_addr
@@ -344,7 +346,8 @@ impl Rpc {
     /// On TCP this is `TcpStream::local_addr` (the interface the peer hit),
     /// not the listener bind address if that was `0.0.0.0`. Unix and
     /// [`Server::serve_connection`] yield `None`. The default [`Incoming`]
-    /// leaves it unset; [`Incoming::peer`] can fill it.
+    /// leaves it unset; [`Incoming::peer`] can fill it. Applies to every call
+    /// shape.
     #[must_use]
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.local_addr
@@ -356,7 +359,7 @@ impl Rpc {
     /// Unix, the default [`Incoming`], and [`Server::serve_connection`] yield
     /// `None`. [`Incoming::peer`] can supply a chain the acceptor already
     /// verified ([`PeerIdentity::from_der_certs`]). The kernel does not parse
-    /// X.509.
+    /// X.509. Applies to every call shape.
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.peer_identity.as_ref()
@@ -368,6 +371,7 @@ impl Rpc {
     /// Same-process tests see this process's uid/gid/`pid`. TCP, TLS, the
     /// default [`Incoming`], and [`Server::serve_connection`] yield `None`.
     /// [`Incoming::peer`] can supply credentials the acceptor already probed.
+    /// Applies to every call shape.
     #[must_use]
     pub fn peer_cred(&self) -> Option<PeerCred> {
         self.peer_cred

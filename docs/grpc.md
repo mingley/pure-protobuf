@@ -1268,7 +1268,9 @@ let tenant = request.extensions().get::<String>().cloned();
 `Router::intercept` and `Server::intercept` (and the generated
 `FooServer::intercept`) run before every RPC on that server, on every call
 shape, and `Err` rejects before the body is read. Calling any of
-them twice stacks: the first interceptor runs first. Per-service wrapping is
+them twice stacks: the first interceptor runs first. `FooServer::intercept`
+then `add_service` keeps that interceptor on every mounted service, on
+every call shape of those mounts. Per-service wrapping is
 `Intercepted::new` or `ServiceExt::intercept` when you do not want the
 generated server's `.serve()` chain. Chaining `ServiceExt::intercept` is
 first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
@@ -1299,9 +1301,13 @@ already-applied default), compression (`Outgoing::compress` is
 `false` when unset; `compress_is_set` is the same fill-if-unset pattern, and
 `Request::set_compress(false)` opts out of `Channel::send_compressed`), and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
-for every call shape; nothing is sent. A local `Err` before the stream opens
+for every call shape; nothing is sent. The Call's `Status::rpc` /
+`Status::error_details` unpack that packed protobuf, the same as a handler
+`Err`. A local `Err` before the stream opens
 is that status on every shape, including without details. `Outgoing::set_timeout` is that Call's
-deadline on every call shape. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape.
+deadline on every call shape. Outgoing getters (`authority`, `scheme`,
+`user_agent`, `limits`, overlays, `service` / `method`, metadata, timeout)
+apply to every call shape. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor. Calling `intercept` twice stacks — the first interceptor runs

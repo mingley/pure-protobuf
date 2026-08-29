@@ -506,7 +506,7 @@ impl Channel {
     /// Replace both message caps at once. See [`ChannelConfig::message_limits`].
     ///
     /// Overlay: applies to RPCs from this clone. Does not change how a dead
-    /// slot is redialed.
+    /// slot is redialed. Applies to every call shape.
     #[must_use]
     pub fn message_limits(mut self, limits: crate::MessageLimits) -> Self {
         self.config = self.config.message_limits(limits);
@@ -559,14 +559,14 @@ impl Channel {
     }
 
     /// Whether this clone waits for a connection instead of failing fast.
-    /// See [`Self::wait_for_ready`].
+    /// See [`Self::wait_for_ready`]. Applies to every call shape.
     #[must_use]
     pub fn waits_for_ready(&self) -> bool {
         self.config.waits_for_ready()
     }
 
     /// Whether this clone gzips outbound payloads.
-    /// See [`Self::send_compressed`].
+    /// See [`Self::send_compressed`]. Applies to every call shape.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
@@ -603,7 +603,7 @@ impl Channel {
         Ok(self)
     }
 
-    /// The `user-agent` sent on every RPC.
+    /// The `user-agent` sent on every RPC. Applies to every call shape.
     #[must_use]
     pub fn grpc_user_agent(&self) -> &str {
         self.user_agent.to_str().unwrap_or(crate::wire::DEFAULT_UA)
@@ -624,10 +624,13 @@ impl Channel {
     /// [`Self::client_streaming`] / [`Self::bidi`] (and generated methods)
     /// return, not when the [`crate::Call`] is first polled. `Err` fails that
     /// Call on poll, including [`crate::Status::with_error_details`]; nothing
-    /// is sent. [`crate::Outgoing::set_timeout`] is that Call's deadline on
+    /// is sent. A local [`crate::Status::with_error_details`] is
+    /// [`crate::Status::rpc`] / [`crate::Status::error_details`] on that Call
+    /// for every call shape. [`crate::Outgoing::set_timeout`] is that Call's deadline on
     /// every call shape. [`crate::Outgoing::clear_compress`] then
     /// [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`]
-    /// reapplies channel gzip on every call shape.
+    /// reapplies channel gzip on every call shape. Outgoing getters apply to
+    /// every call shape.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
@@ -670,7 +673,7 @@ impl Channel {
         Ok(())
     }
 
-    /// The `:authority` sent with every request.
+    /// The `:authority` sent with every request. Applies to every call shape.
     #[must_use]
     pub fn authority(&self) -> &str {
         self.inner.authority.as_str()

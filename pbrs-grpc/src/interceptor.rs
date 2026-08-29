@@ -170,11 +170,14 @@ impl<S: Service> ServiceExt for S {}
 /// tenant without the call site knowing the header names. An earlier
 /// interceptor can insert values for a later one the same way.
 /// `Err` fails the [`crate::Call`] on poll for every call shape, including
-/// [`crate::Status::with_error_details`]; nothing is sent.
+/// [`crate::Status::with_error_details`]; nothing is sent. A local
+/// [`crate::Status::with_error_details`] is [`crate::Status::rpc`] /
+/// [`crate::Status::error_details`] on that Call for every call shape.
 /// [`crate::Outgoing::set_timeout`] is that Call's deadline on every call
 /// shape. [`crate::Outgoing::clear_compress`] then
 /// [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`]
-/// reapplies channel gzip on every call shape.
+/// reapplies channel gzip on every call shape. Outgoing getters apply to
+/// every call shape.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -221,7 +224,9 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// Inspect and mutate the outbound call. Called once per RPC when the
     /// call is created, before the stream opens. `Err` fails the
     /// [`crate::Call`] on poll, including [`crate::Status::with_error_details`];
-    /// nothing is sent. [`crate::Outgoing::set_timeout`] is that Call's
+    /// nothing is sent. A local [`crate::Status::with_error_details`] is
+    /// [`crate::Status::rpc`] / [`crate::Status::error_details`] on that Call
+    /// for every call shape. [`crate::Outgoing::set_timeout`] is that Call's
     /// deadline on every call shape.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }

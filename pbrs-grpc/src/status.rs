@@ -447,7 +447,8 @@ impl Status {
     /// rewrite the protobuf when it still matches.
     ///
     /// A handler or interceptor [`Err`] built with [`Self::with_error_details`]
-    /// is this protobuf on the client for every call shape.
+    /// is this protobuf on the client for every call shape, including a
+    /// client-interceptor `Err` that never opens a stream.
     pub fn rpc(&self) -> Result<crate::pb::Status, Self> {
         if self.details().is_empty() {
             return Ok(crate::pb::Status::with_details(

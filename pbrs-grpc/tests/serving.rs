@@ -27,7 +27,8 @@ use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloR
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService,
     MessageLimits, Outgoing, PeerCred, PeerIdentity, Request, Response, Router, Rpc, Server,
-    ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
+    ServerConfig, Service, ServiceExt, Status, StreamingOutputCallRequest, TestServiceClient,
+    TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -149,11 +150,7 @@ async fn a_router_dispatches_between_two_services() {
     let channel = channel(addr).await;
 
     echo_every_shape(&GreeterClient::new(channel.clone()), None).await;
-
-    TestServiceClient::new(channel.clone())
-        .empty_call(Request::new(Empty::new()))
-        .await
-        .expect("test service");
+    echo_test_every_shape(&TestServiceClient::new(channel.clone())).await;
 
     let missing = channel
         .unary::<HelloRequest, HelloReply>("/nope.Absent/Method", Request::new(req("x")))
@@ -684,15 +681,15 @@ async fn intercept_on_a_generated_server_survives_add_service() {
 
     let client = GreeterClient::new(channel(addr).await);
     assert_err_on_every_shape(&client, Code::Unauthenticated).await;
+    assert_err_on_test_every_shape(
+        &TestServiceClient::new(channel(addr).await),
+        Code::Unauthenticated,
+    )
+    .await;
 
     let allowed = GreeterClient::new(channel(addr).await).intercept(inject_bearer);
     echo_every_shape(&allowed, None).await;
-
-    let denied_empty = TestServiceClient::new(channel(addr).await)
-        .empty_call(Request::new(Empty::new()))
-        .await
-        .expect_err("router interceptor covers every mount");
-    assert_eq!(denied_empty.code(), Code::Unauthenticated);
+    echo_test_every_shape(&TestServiceClient::new(allowed.channel().clone())).await;
 
     task.abort();
 }
@@ -1527,12 +1524,22 @@ fn assert_interceptor_blocked(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "blocked locally");
     let info = err
-        .error_details()
-        .expect("details")
-        .error_info
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
         .expect("ErrorInfo");
     assert_eq!(info.reason().to_str().unwrap_or(""), "BLOCKED");
     assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
 }
 
 #[tokio::test]
@@ -2540,15 +2547,9 @@ fn assert_api_disabled(err: &Status) {
     assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
     assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
     let details = err.error_details().expect("ErrorDetails");
-    assert_eq!(
-        details
-            .error_info
-            .expect("ErrorInfo")
-            .reason()
-            .to_str()
-            .unwrap_or(""),
-        "API_DISABLED"
-    );
+    let unpacked = details.error_info.expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -4593,6 +4594,35 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
     assert!(inbound.message().await.expect("end").is_none());
 }
 
+async fn echo_test_every_shape(client: &TestServiceClient) {
+    client
+        .empty_call(Request::new(Empty::new()))
+        .await
+        .expect("unary");
+
+    let mut stream = client
+        .streaming_output_call(Request::new(StreamingOutputCallRequest::new()))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    assert!(
+        stream.message().await.expect("end").is_none(),
+        "empty StreamingOutputCall plan must end"
+    );
+
+    let (tx, call) = client.streaming_input_call(Request::new(()));
+    tx.close();
+    call.await.expect("client-stream");
+
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    assert!(
+        inbound.message().await.expect("end").is_none(),
+        "empty FullDuplexCall must end"
+    );
+}
+
 async fn wait_then_complete_every_shape(
     client: &GreeterClient,
     wait_on_request: bool,
@@ -5043,6 +5073,27 @@ async fn assert_err_on_every_shape(client: &GreeterClient, want: Code) {
     assert_eq!(err.code(), want, "{err}");
     drop(tx);
     let (tx, call) = client.stream_hello(Request::new(()));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+}
+
+async fn assert_err_on_test_every_shape(client: &TestServiceClient, want: Code) {
+    let err = client
+        .empty_call(Request::new(Empty::new()))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), want, "{err}");
+    let err = client
+        .streaming_output_call(Request::new(StreamingOutputCallRequest::new()))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), want, "{err}");
+    let (tx, call) = client.streaming_input_call(Request::new(()));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+    let (tx, call) = client.full_duplex_call(Request::new(()));
     let err = call.await.expect_err("bidi");
     assert_eq!(err.code(), want, "{err}");
     drop(tx);

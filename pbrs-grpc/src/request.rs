@@ -512,7 +512,8 @@ impl<T> Request<T> {
     /// Service half of the path, e.g. `helloworld.Greeter`.
     ///
     /// Same split as [`crate::Rpc::service`]. Unparseable paths yield
-    /// `Some("")`. `None` when [`Self::path`] is `None`.
+    /// `Some("")`. `None` when [`Self::path`] is `None`. Stamped on every
+    /// call shape.
     #[must_use]
     pub fn service(&self) -> Option<&str> {
         self.path.as_deref().map(|p| split_path(p).0)
@@ -521,7 +522,8 @@ impl<T> Request<T> {
     /// Method half of the path, e.g. `SayHello`.
     ///
     /// Same split as [`crate::Rpc::method`]. Unparseable paths yield
-    /// `Some("")`. `None` when [`Self::path`] is `None`.
+    /// `Some("")`. `None` when [`Self::path`] is `None`. Stamped on every
+    /// call shape.
     #[must_use]
     pub fn method(&self) -> Option<&str> {
         self.path.as_deref().map(|p| split_path(p).1)
@@ -668,6 +670,7 @@ impl<T> Request<T> {
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
 /// [`Self::clear_compress`] opt out of an already-applied default. Typed values
 /// the caller inserted on [`crate::Request::extensions_mut`] are on this map.
+/// Applies to every call shape.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -722,7 +725,7 @@ pub struct Outgoing<'a> {
 
 impl<'a> Outgoing<'a> {
     /// The HTTP/2 `:authority` this channel sends, e.g. `127.0.0.1:50051`
-    /// or `localhost` on a Unix socket.
+    /// or `localhost` on a Unix socket. Applies to every call shape.
     #[must_use]
     pub fn authority(&self) -> &'a str {
         self.authority
@@ -734,7 +737,7 @@ impl<'a> Outgoing<'a> {
     /// built with [`crate::ClientTls`], or when a [`crate::Channel::from_io`]
     /// clone called [`crate::Channel::https_scheme`]. Otherwise `http`
     /// (cleartext TCP, Unix, and `from_io` without that overlay). Matches
-    /// what the kernel writes on the request.
+    /// what the kernel writes on the request. Applies to every call shape.
     #[must_use]
     pub fn scheme(&self) -> &'static str {
         self.scheme
@@ -746,6 +749,7 @@ impl<'a> Outgoing<'a> {
     /// [`crate::Channel::user_agent`] is visible here. Inserting `user-agent`
     /// into metadata succeeds — that name is not reserved — but the kernel
     /// overwrites it after user metadata, so a smuggled value cannot win.
+    /// Applies to every call shape.
     #[must_use]
     pub fn user_agent(&self) -> &'a str {
         self.user_agent
@@ -759,7 +763,7 @@ impl<'a> Outgoing<'a> {
     /// [`crate::Channel::max_encoding_message_size`]). An interceptor cannot
     /// raise them; the kernel applies them when encoding and decoding.
     /// Distinct from [`crate::Request::limits`], which is `None` on a request
-    /// you built to send.
+    /// you built to send. Applies to every call shape.
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
         self.limits
@@ -770,7 +774,7 @@ impl<'a> Outgoing<'a> {
     /// Distinct from [`Self::timeout`]: that is the per-RPC `grpc-timeout`
     /// after the overlay and any interceptor mutation. This is the channel
     /// default even after [`Self::clear_timeout`]. Same value as
-    /// [`crate::Channel::rpc_timeout`].
+    /// [`crate::Channel::rpc_timeout`]. Applies to every call shape.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.rpc_timeout
@@ -781,7 +785,7 @@ impl<'a> Outgoing<'a> {
     /// Distinct from [`Self::wait_for_ready`]: that is the per-RPC choice
     /// after the overlay and any interceptor mutation. This is the channel
     /// policy even after [`Self::clear_wait_for_ready`]. Same value as
-    /// [`crate::Channel::waits_for_ready`].
+    /// [`crate::Channel::waits_for_ready`]. Applies to every call shape.
     #[must_use]
     pub fn waits_for_ready(&self) -> bool {
         self.waits_for_ready
@@ -793,6 +797,7 @@ impl<'a> Outgoing<'a> {
     /// the overlay and any interceptor mutation. This is the channel policy
     /// even after [`Self::clear_compress`]. Same value as
     /// [`crate::Channel::compresses_outbound`] / [`crate::Rpc::compresses_outbound`].
+    /// Applies to every call shape.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.compresses_outbound
@@ -809,6 +814,7 @@ impl<'a> Outgoing<'a> {
     ///
     /// Same split as [`crate::Rpc::service`]. Unparseable paths yield `""`.
     /// Bind it before [`Self::metadata_mut`]: `let svc = call.service();`.
+    /// Applies to every call shape.
     #[must_use]
     pub fn service(&self) -> &'static str {
         split_path(self.path).0
@@ -818,18 +824,19 @@ impl<'a> Outgoing<'a> {
     ///
     /// Same split as [`crate::Rpc::method`]. Unparseable paths yield `""`.
     /// Bind it before [`Self::metadata_mut`]: `let method = call.method();`.
+    /// Applies to every call shape.
     #[must_use]
     pub fn method(&self) -> &'static str {
         split_path(self.path).1
     }
 
-    /// Request headers, as gRPC metadata.
+    /// Request headers, as gRPC metadata. Applies to every call shape.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         self.metadata
     }
 
-    /// Mutable request headers.
+    /// Mutable request headers. Applies to every call shape.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         self.metadata
     }
@@ -838,7 +845,7 @@ impl<'a> Outgoing<'a> {
     ///
     /// `None` when neither the request nor a channel overlay set one. Fill
     /// that case with [`Self::set_timeout`]. The matching Instant is
-    /// [`Self::deadline`].
+    /// [`Self::deadline`]. Applies to every call shape.
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         *self.timeout
@@ -866,7 +873,7 @@ impl<'a> Outgoing<'a> {
     ///
     /// The channel overlay has already run; clearing here opts out of that
     /// default too. [`Self::rpc_timeout`] still reports the channel policy so
-    /// a later interceptor can re-apply it.
+    /// a later interceptor can re-apply it. Applies to every call shape.
     pub fn clear_timeout(&mut self) {
         *self.timeout = None;
     }
@@ -874,7 +881,7 @@ impl<'a> Outgoing<'a> {
     /// Whether this RPC waits for a connection instead of failing fast.
     ///
     /// `false` when unset. Use [`Self::wait_for_ready_is_set`] to tell
-    /// `None` from an explicit `false`.
+    /// `None` from an explicit `false`. Applies to every call shape.
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
         self.wait_for_ready.unwrap_or(false)
@@ -885,7 +892,7 @@ impl<'a> Outgoing<'a> {
     ///
     /// Distinct from [`Self::wait_for_ready`], which is `false` when unset.
     /// Fill a default only when this is `false`, the same pattern as
-    /// [`Self::timeout`] being `None`.
+    /// [`Self::timeout`] being `None`. Applies to every call shape.
     #[must_use]
     pub fn wait_for_ready_is_set(&self) -> bool {
         self.wait_for_ready.is_some()
@@ -902,6 +909,7 @@ impl<'a> Outgoing<'a> {
     /// The channel overlay has already run; clearing here opts out of that
     /// default too, the same as [`Self::clear_timeout`]. [`Self::waits_for_ready`]
     /// still reports the channel policy so a later interceptor can re-apply it.
+    /// Applies to every call shape.
     pub fn clear_wait_for_ready(&mut self) {
         *self.wait_for_ready = None;
     }
@@ -909,7 +917,7 @@ impl<'a> Outgoing<'a> {
     /// Whether the request payload will be gzipped.
     ///
     /// `false` when unset. Use [`Self::compress_is_set`] to tell `None`
-    /// from an explicit `false`.
+    /// from an explicit `false`. Applies to every call shape.
     #[must_use]
     pub fn compress(&self) -> bool {
         self.compress.unwrap_or(false)
@@ -920,7 +928,7 @@ impl<'a> Outgoing<'a> {
     ///
     /// Distinct from [`Self::compress`], which is `false` when unset.
     /// Fill a default only when this is `false`, the same pattern as
-    /// [`Self::timeout`] being `None`.
+    /// [`Self::timeout`] being `None`. Applies to every call shape.
     #[must_use]
     pub fn compress_is_set(&self) -> bool {
         self.compress.is_some()
@@ -939,7 +947,7 @@ impl<'a> Outgoing<'a> {
     /// The channel overlay has already run; clearing here opts out of that
     /// default too, the same as [`Self::clear_timeout`].
     /// [`Self::compresses_outbound`] still reports the channel policy so a
-    /// later interceptor can re-apply it.
+    /// later interceptor can re-apply it. Applies to every call shape.
     pub fn clear_compress(&mut self) {
         *self.compress = None;
     }
@@ -957,7 +965,7 @@ impl<'a> Outgoing<'a> {
     /// Insert typed values for later interceptors.
     ///
     /// Use this to pass a parsed identity or span into the next interceptor
-    /// without a metadata round-trip.
+    /// without a metadata round-trip. Applies to every call shape.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         self.extensions
     }

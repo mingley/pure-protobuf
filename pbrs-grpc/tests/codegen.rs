@@ -810,4 +810,42 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         ),
         "generated https_scheme rustdoc must name every call shape"
     );
+    assert!(
+        src.contains("A local [`::pbrs_grpc::Status::with_error_details`] is [`::pbrs_grpc::Status::rpc`] / [`::pbrs_grpc::Status::error_details`] on that Call for every call shape."),
+        "generated client intercept rustdoc must name packed Status unpacking on local Err"
+    );
+    assert!(
+        src.contains("Outgoing getters apply to every call shape."),
+        "generated client intercept rustdoc must name Outgoing getters on every call shape"
+    );
+    assert!(
+        src.contains(
+            "The HTTP/2 `:authority` this client sends. See [`::pbrs_grpc::Channel::authority`]. Applies to every call shape."
+        ),
+        "generated authority rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "HTTP/2 `:scheme` this client sends. See [`::pbrs_grpc::Channel::scheme`]. Applies to every call shape."
+        ),
+        "generated scheme rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "The `user-agent` this client sends. See [`::pbrs_grpc::Channel::grpc_user_agent`]. Applies to every call shape."
+        ),
+        "generated grpc_user_agent rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Prefix the kernel `user-agent`. See [`::pbrs_grpc::Channel::user_agent`]. Applies to every call shape."
+        ),
+        "generated user_agent rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Default per-RPC deadline when the request omits one. See [`::pbrs_grpc::Channel::timeout`]. Applies to every call shape."
+        ),
+        "generated timeout rustdoc must name every call shape"
+    );
 }

@@ -4667,7 +4667,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// HTTP/2 `:scheme` this client sends. See [`{G}::Channel::scheme`]."
+        "    /// HTTP/2 `:scheme` this client sends. See [`{G}::Channel::scheme`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4676,7 +4676,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// The HTTP/2 `:authority` this client sends. See [`{G}::Channel::authority`]."
+        "    /// The HTTP/2 `:authority` this client sends. See [`{G}::Channel::authority`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4685,7 +4685,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// The `user-agent` this client sends. See [`{G}::Channel::grpc_user_agent`]."
+        "    /// The `user-agent` this client sends. See [`{G}::Channel::grpc_user_agent`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4703,7 +4703,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// Default per-RPC deadline when the request omits one. Distinct from [`Self::timeout`], which sets it. See [`{G}::Channel::rpc_timeout`]."
+        "    /// Default per-RPC deadline when the request omits one. Distinct from [`Self::timeout`], which sets it. See [`{G}::Channel::rpc_timeout`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4712,7 +4712,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// Whether this client waits for a connection instead of failing fast. See [`{G}::Channel::waits_for_ready`]."
+        "    /// Whether this client waits for a connection instead of failing fast. See [`{G}::Channel::waits_for_ready`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4721,7 +4721,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// Whether this client gzips outbound payloads. See [`{G}::Channel::compresses_outbound`]."
+        "    /// Whether this client gzips outbound payloads. See [`{G}::Channel::compresses_outbound`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4815,7 +4815,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent. [`{G}::Outgoing::set_timeout`] is that Call's deadline on every call shape. `clear_compress` then `set_compress(compresses_outbound())` reapplies channel gzip on every call shape."
+        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent. A local [`{G}::Status::with_error_details`] is [`{G}::Status::rpc`] / [`{G}::Status::error_details`] on that Call for every call shape. [`{G}::Outgoing::set_timeout`] is that Call's deadline on every call shape. `clear_compress` then `set_compress(compresses_outbound())` reapplies channel gzip on every call shape. Outgoing getters apply to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4837,7 +4837,7 @@ fn emit_kernel_client(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Prefix the kernel `user-agent`. See [`{G}::Channel::user_agent`]."
+        "    /// Prefix the kernel `user-agent`. See [`{G}::Channel::user_agent`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
@@ -4859,7 +4859,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Default per-RPC deadline when the request omits one. See [`{G}::Channel::timeout`]."
+        "    /// Default per-RPC deadline when the request omits one. See [`{G}::Channel::timeout`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

@@ -124,14 +124,17 @@ See `docs/upb.md`. Short list:
   after `clear_*`. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
-  without details; nothing is sent. Kernel `user-agent` (and a
+  without details; nothing is sent. A packed `google.rpc.Status` on that
+  local `Err` is `Status::rpc` / `Status::error_details` on the Call.
+  Outgoing getters apply to every call shape. Kernel `user-agent` (and a
   `Channel::user_agent` prefix) is sent on every shape; inserting `user-agent`
   into metadata cannot override it. Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape.
   `Outgoing::set_timeout` is that Call's deadline on every call shape. A
   wrapping `Service`, generated `FooServer::intercept`, and
   `Router::intercept` reject before the body is read and stack in
-  declaration order on every call shape. Generated handlers see
+  declaration order on every call shape. `FooServer::intercept` then
+  `add_service` keeps that reject on every mount and every call shape. Generated handlers see
   `:authority` / `:scheme` / `Request` parts, a deadline Instant that
   elapses, TCP local/remote, Unix `peer_cred`, and `Incoming::peer`
   stamps on every call shape. Handler `Err` (nonzero `grpc-status` and

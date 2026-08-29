@@ -83,7 +83,7 @@ sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 `user-agent`, message caps, metadata, timeout / deadline Instant,
 wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`),
-extensions). Unary and server-streaming retry once when the connection
+extensions). Those Outgoing getters apply to every call shape. Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. `from_io` cannot redial.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
