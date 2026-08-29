@@ -769,7 +769,8 @@ If another process is actually listening, the path is left alone and
 `serve_unix_until_shutdown` / `serve_unix_unlink_until_shutdown` are the
 path forms of graceful drain.
 
-`:authority` on Unix RPCs is `localhost`.
+`:authority` on Unix RPCs is `localhost`. A Unix listener multiplexes every
+call shape.
 
 ## In-process connections
 

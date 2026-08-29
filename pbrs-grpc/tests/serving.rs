@@ -148,15 +148,7 @@ async fn a_router_dispatches_between_two_services() {
 
     let channel = channel(addr).await;
 
-    let greeting = GreeterClient::new(channel.clone())
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("greeter");
-    assert_eq!(name_of(greeting.get_ref()), "ada");
-    assert!(
-        greeting.encoding().is_none(),
-        "identity unary must not invent grpc-encoding"
-    );
+    echo_every_shape(&GreeterClient::new(channel.clone()), None).await;
 
     TestServiceClient::new(channel.clone())
         .empty_call(Request::new(Empty::new()))
@@ -2831,10 +2823,7 @@ async fn a_dead_channel_fails_fast_when_nothing_is_listening() {
             .ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    client
-        .say_hello(Request::new(req("before")))
-        .await
-        .expect("before");
+    echo_every_shape(&client, None).await;
 
     shutdown_tx.send(()).expect("signal");
     tokio::time::timeout(Duration::from_secs(5), served)
@@ -2842,19 +2831,9 @@ async fn a_dead_channel_fails_fast_when_nothing_is_listening() {
         .expect("drain must finish")
         .expect("join");
 
-    let mut request = Request::new(req("gone"));
-    request.set_timeout(Duration::from_millis(200));
-    let err = tokio::time::timeout(Duration::from_secs(2), client.say_hello(request))
+    tokio::time::timeout(Duration::from_secs(2), assert_gone_on_every_shape(&client))
         .await
-        .expect("reconnect to a closed port hung")
-        .expect_err("rpc succeeded with no server");
-    assert!(
-        matches!(
-            err.code(),
-            Code::Unavailable | Code::DeadlineExceeded | Code::Cancelled
-        ),
-        "{err}"
-    );
+        .expect("reconnect to a closed port hung");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3176,22 +3155,16 @@ async fn client_max_connection_idle_closes_the_socket() {
         .keep_alive_interval(Duration::from_millis(20));
     let client = GreeterClient::new(channel_with(addr, cfg).await);
     assert_eq!(accepts.load(Ordering::Relaxed), 1, "dial is one accept");
-    let first = client
-        .say_hello(Request::new(req("before")))
-        .await
-        .expect("before");
-    assert_eq!(name_of(first.get_ref()), "before");
-    assert_eq!(accepts.load(Ordering::Relaxed), 1, "unary reuses the dial");
+    echo_every_shape(&client, None).await;
+    assert_eq!(accepts.load(Ordering::Relaxed), 1, "rpcs reuse the dial");
 
     tokio::time::sleep(Duration::from_millis(250)).await;
-    let after = tokio::time::timeout(
+    tokio::time::timeout(
         Duration::from_secs(5),
-        client.say_hello(Request::new(req("after"))),
+        echo_every_shape(&client, Some(Duration::from_secs(5))),
     )
     .await
-    .expect("redial hung")
-    .expect("after");
-    assert_eq!(name_of(after.get_ref()), "after");
+    .expect("redial hung");
     assert_eq!(
         accepts.load(Ordering::Relaxed),
         2,
@@ -3318,7 +3291,7 @@ fn unix_test_path() -> (std::path::PathBuf, UnixSockGuard) {
 
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn unix_socket_unary() {
+async fn unix_socket_serves() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let task = tokio::spawn(async move {
@@ -3350,12 +3323,7 @@ async fn unix_socket_unary() {
             .ok();
     });
     let channel = Channel::connect_unix(&path).await.expect("connect");
-    let client = GreeterClient::new(channel);
-    let reply = client
-        .say_hello(Request::new(req("uds")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "uds");
+    echo_every_shape(&GreeterClient::new(channel), None).await;
     task.abort();
 }
 
@@ -3440,11 +3408,7 @@ async fn serve_unix_until_shutdown_serves_then_drains() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(unix_channel(&path).await)
-        .say_hello(Request::new(req("uds")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "uds");
+    echo_every_shape(&GreeterClient::new(unix_channel(&path).await), None).await;
     shutdown_tx.send(()).expect("signal");
     tokio::time::timeout(Duration::from_secs(5), served)
         .await
@@ -3468,11 +3432,7 @@ async fn serve_unix_unlink_until_shutdown_replaces_leftover_then_drains() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(unix_channel(&path).await)
-        .say_hello(Request::new(req("uds")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "uds");
+    echo_every_shape(&GreeterClient::new(unix_channel(&path).await), None).await;
     shutdown_tx.send(()).expect("signal");
     tokio::time::timeout(Duration::from_secs(5), served)
         .await
@@ -3593,11 +3553,7 @@ async fn serve_unix_unlink_replaces_a_leftover_socket() {
         }
         found.unwrap_or_else(|| panic!("connect after unlink: {last:?}"))
     };
-    let reply = GreeterClient::new(channel)
-        .say_hello(Request::new(req("uds")))
-        .await
-        .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "uds");
+    echo_every_shape(&GreeterClient::new(channel), None).await;
     task.abort();
 }
 
@@ -3631,11 +3587,7 @@ async fn serve_unix_unlink_does_not_steal_a_live_socket() {
         .await
         .expect_err("must not steal a live socket");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
-    let reply = GreeterClient::new(channel)
-        .say_hello(Request::new(req("still")))
-        .await
-        .expect("original listener must keep serving");
-    assert_eq!(name_of(reply.get_ref()), "still");
+    echo_every_shape(&GreeterClient::new(channel), None).await;
     live.abort();
 }
 
@@ -5136,6 +5088,42 @@ async fn assert_opt_out_every_shape(client: &GreeterClient) {
     let (tx, call) = client.stream_hello(stamp_opt_out(Request::new(())));
     let err = call.await.expect_err("bidi");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+}
+
+fn stamp_gone<T>(mut request: Request<T>) -> Request<T> {
+    request.set_timeout(Duration::from_millis(200));
+    request
+}
+
+fn assert_gone(err: &Status) {
+    assert!(
+        matches!(
+            err.code(),
+            Code::Unavailable | Code::DeadlineExceeded | Code::Cancelled
+        ),
+        "{err}"
+    );
+}
+
+async fn assert_gone_on_every_shape(client: &GreeterClient) {
+    let err = client
+        .say_hello(stamp_gone(Request::new(req("gone"))))
+        .await
+        .expect_err("unary");
+    assert_gone(&err);
+    let err = client
+        .server_hello(stamp_gone(Request::new(req("gone"))))
+        .await
+        .expect_err("server-stream");
+    assert_gone(&err);
+    let (tx, call) = client.client_hello(stamp_gone(Request::new(())));
+    let err = call.await.expect_err("client-stream");
+    assert_gone(&err);
+    drop(tx);
+    let (tx, call) = client.stream_hello(stamp_gone(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_gone(&err);
     drop(tx);
 }
 
