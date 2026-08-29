@@ -4788,6 +4788,58 @@ async fn tls_wait_for_ready_times_out_when_nothing_is_listening() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let client = GreeterClient::new(channel);
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_opt_out_every_shape(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    let client = GreeterClient::new(channel);
+    let timeout = Duration::from_millis(80);
+    let min = Duration::from_millis(50);
+    let max = Duration::from_secs(2);
+    assert_deadline_in(
+        client.say_hello(stamp_wait_deadline(Request::new(req("x")), timeout)),
+        min,
+        max,
+    )
+    .await;
+    assert_deadline_in(
+        client.server_hello(stamp_wait_deadline(Request::new(req("x")), timeout)),
+        min,
+        max,
+    )
+    .await;
+    let (tx, call) = client.client_hello(stamp_wait_deadline(Request::new(()), timeout));
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(stamp_wait_deadline(Request::new(()), timeout));
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind().await;
     drop(listener);

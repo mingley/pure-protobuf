@@ -553,7 +553,8 @@ That opt-out, and a waiting Call's deadline, apply on h2c, TLS
 Generated `FooClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
 retry the same way: Store Get, Watch, PutAll, and Sync wait until listen
 on those transports, from either `Request::set_wait_for_ready` or
-`FooClient::wait_for_ready`. Health Check and Watch retry until listen on
+`FooClient::wait_for_ready`. Per-RPC opt-out and a waiting Call's deadline
+apply on those Store dialers too, including mTLS. Health Check and Watch retry until listen on
 the same dialers (`HealthClient::connect_lazy` / `connect_tls_lazy` /
 `connect_unix_lazy`); Health has no List and no client-streaming or bidi
 method. Reflection `ServerReflectionInfo` retries until listen on those

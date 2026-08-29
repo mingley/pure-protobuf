@@ -126,10 +126,11 @@ See `docs/upb.md`. Short list:
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
   after `clear_*`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
-  overlay, per-RPC opt-out, and a waiting Call's deadline. Generated
-  `StoreClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy` retry
-  Get / Watch / PutAll / Sync until listen on those transports, from either
-  the request flag or `FooClient::wait_for_ready`. Health Check and Watch
+  overlay, per-RPC opt-out, and a waiting Call's deadline, including mTLS.
+  Generated `StoreClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
+  retry Get / Watch / PutAll / Sync until listen on those transports, from either
+  the request flag or `FooClient::wait_for_ready`; opt-out and a waiting Call's
+  deadline apply on those Store dialers too. Health Check and Watch
   retry until listen on the same dialers; Health has no List. Reflection
   `ServerReflectionInfo` retries until listen on those dialers; reflection
   is one bidi method. Official TestService EmptyCall / StreamingOutputCall /
