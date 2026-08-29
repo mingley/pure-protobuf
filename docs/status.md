@@ -98,7 +98,7 @@ See `docs/upb.md`. Short list:
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
-  retry). Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
+  retry) — proven for unary and server-streaming on h2c and TLS. Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
   `ConnectionInfo`. TLS `:scheme https` and mTLS `peer_identity` apply to

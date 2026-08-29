@@ -22,7 +22,7 @@
 
 mod common;
 
-use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
+use common::{greeter_client, name_of, req, serve_at, spawn_greeter, until_ok, Echo};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService,
@@ -2838,6 +2838,14 @@ async fn a_dead_channel_redials_the_same_address() {
         .await
         .expect("before");
     assert_eq!(name_of(before.get_ref()), "before");
+    let mut before_stream = client
+        .server_hello(Request::new(req("before")))
+        .await
+        .expect("before stream")
+        .into_inner();
+    let first = before_stream.message().await.expect("item").expect("first");
+    assert_eq!(name_of(&first), "before");
+    assert!(before_stream.message().await.expect("end").is_none());
 
     drop(guard);
     let _guard = serve_at(addr, Echo, ServerConfig::default())
@@ -2845,26 +2853,21 @@ async fn a_dead_channel_redials_the_same_address() {
         .expect("rebind");
 
     // The first attempt can still land on the dying connection (`ready`
-    // succeeded, then GOAWAY). Unary retries that redial once; this loop
-    // covers a rebound listener that is not yet accepting.
-    let mut last = None;
-    let after = 'done: {
-        for _ in 0..40 {
-            match tokio::time::timeout(
-                Duration::from_secs(2),
-                client.say_hello(Request::new(req("after"))),
-            )
-            .await
-            {
-                Ok(Ok(reply)) => break 'done reply,
-                Ok(Err(status)) => last = Some(status),
-                Err(_) => last = Some(Status::unavailable("redial attempt timed out")),
-            }
-            tokio::time::sleep(Duration::from_millis(25)).await;
-        }
-        panic!("after: {last:?}");
-    };
+    // succeeded, then GOAWAY). Unary and server-streaming retry that redial
+    // once; this loop covers a rebound listener that is not yet accepting.
+    let after = until_ok("unary after", || {
+        client.say_hello(Request::new(req("after")))
+    })
+    .await;
     assert_eq!(name_of(after.get_ref()), "after");
+    let mut after_stream = until_ok("server-stream after", || {
+        client.server_hello(Request::new(req("after")))
+    })
+    .await
+    .into_inner();
+    let first = after_stream.message().await.expect("item").expect("first");
+    assert_eq!(name_of(&first), "after");
+    assert!(after_stream.message().await.expect("end").is_none());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

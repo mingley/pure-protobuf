@@ -20,6 +20,7 @@
 
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{Request, Response, ServerConfig, Status, Streaming};
+use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -32,6 +33,24 @@ impl Drop for ServerGuard {
     fn drop(&mut self) {
         self.0.abort();
     }
+}
+
+/// Retry `attempt` while a rebound listener comes up after a slot death.
+pub async fn until_ok<T, F, Fut>(label: &'static str, mut attempt: F) -> T
+where
+    F: FnMut() -> Fut,
+    Fut: Future<Output = Result<T, Status>>,
+{
+    let mut last = None;
+    for _ in 0..40 {
+        match tokio::time::timeout(Duration::from_secs(2), attempt()).await {
+            Ok(Ok(value)) => return value,
+            Ok(Err(status)) => last = Some(status),
+            Err(_) => last = Some(Status::unavailable(format!("{label} timed out"))),
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    panic!("{label}: {last:?}");
 }
 
 /// Bind an ephemeral port and serve `service` on it.
