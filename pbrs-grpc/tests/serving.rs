@@ -1356,9 +1356,12 @@ async fn a_server_interceptor_injects_metadata_the_handler_sees() {
 
         async fn call(&self, rpc: Rpc) {
             rpc.unary(|request: Request<HelloRequest>| async move {
-                let actor = request.metadata().get("x-actor").unwrap_or("").to_owned();
+                let actors: Vec<_> = request.metadata().get_all("x-actor").collect();
+                if actors != ["kernel"] {
+                    return Err(Status::internal(format!("x-actor {actors:?}")));
+                }
                 let mut reply = HelloReply::new();
-                reply.set_message(actor);
+                reply.set_message(actors[0]);
                 Ok(Response::new(reply))
             })
             .await;
@@ -1368,7 +1371,7 @@ async fn a_server_interceptor_injects_metadata_the_handler_sees() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         Server::new(ActorEcho.intercept(|rpc: &mut Rpc| {
-            rpc.metadata_mut().insert("x-actor", "kernel")?;
+            rpc.metadata_mut().set("x-actor", "kernel")?;
             Ok(())
         }))
         .serve_listener(listener)
@@ -1376,9 +1379,14 @@ async fn a_server_interceptor_injects_metadata_the_handler_sees() {
         .ok();
     });
 
+    let mut tagged = Request::new(req("ignored"));
+    tagged
+        .metadata_mut()
+        .insert("x-actor", "smuggled")
+        .expect("metadata");
     let reply = channel(addr)
         .await
-        .unary::<HelloRequest, HelloReply>("/demo.ActorEcho/Ping", Request::new(req("ignored")))
+        .unary::<HelloRequest, HelloReply>("/demo.ActorEcho/Ping", tagged)
         .await
         .expect("injected")
         .into_inner();

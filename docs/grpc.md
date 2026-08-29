@@ -341,8 +341,8 @@ you do not parse.
 
 Reserved keys (`grpc-status`, `grpc-status-details-bin`, `grpc-timeout`,
 `content-type`, HTTP/2 pseudo-headers, ...) are invisible through `Metadata`
-and are never written out. `insert` / `insert_bin` reject them, so forwarding
-received metadata cannot corrupt the protocol framing.
+and are never written out. `insert` / `set` / `insert_bin` / `set_bin` reject
+them, so forwarding received metadata cannot corrupt the protocol framing.
 
 ## Errors and status codes
 
@@ -1006,7 +1006,7 @@ fn require_token(rpc: &mut Rpc) -> Result<(), Status> {
         return Err(Status::unauthenticated("bad or missing token"));
     }
     rpc.metadata_mut().remove("authorization");
-    rpc.metadata_mut().insert("x-actor", "gateway")?;
+    rpc.metadata_mut().set("x-actor", "gateway")?;
     rpc.set_timeout(Duration::from_secs(5));
     Ok(())
 }
@@ -1018,10 +1018,13 @@ GreeterServer::new(MyGreeter)
 ```
 
 The handler sees the mutated metadata on `request.metadata()`, including
-injected keys and without stripped ones. `Rpc::peer_timeout` is the client's
+injected keys and without stripped ones. `set` / `set_bin` replace a hop the
+interceptor owns (a peer-supplied `x-actor` does not survive). `retain` keeps
+a subset of names. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
 cap, and `set_timeout`. An interceptor can only tighten the deadline, not
-extend it. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
+extend it. The handler's `request.timeout()` / `request.deadline()` are that
+tightened cap, not the original client value. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
 the transport so a peer cannot claim TLS on cleartext. `Incoming` and
 `serve_connection` keep the peer's `:scheme`.

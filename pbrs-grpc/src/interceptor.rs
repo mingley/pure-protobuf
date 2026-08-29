@@ -29,7 +29,7 @@ use std::sync::Arc;
 ///         return Err(Status::unauthenticated("bad or missing token"));
 ///     }
 ///     rpc.metadata_mut().remove("authorization");
-///     rpc.metadata_mut().insert("x-actor", "gateway")?;
+///     rpc.metadata_mut().set("x-actor", "gateway")?;
 ///     Ok(())
 /// }
 ///
