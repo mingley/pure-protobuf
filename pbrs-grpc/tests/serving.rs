@@ -1080,7 +1080,7 @@ async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
 }
 
 #[tokio::test]
-async fn unary_and_server_streaming_interceptors_run_when_the_call_is_created() {
+async fn client_interceptors_run_when_the_call_is_created() {
     let (addr, listener) = bind().await;
     drop(listener);
 
@@ -1108,6 +1108,24 @@ async fn unary_and_server_streaming_interceptors_run_when_the_call_is_created() 
         "server-streaming interceptor must run when the method returns"
     );
     drop(streaming);
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        3,
+        "client-streaming interceptor must run when the method returns"
+    );
+    drop(call);
+    drop(tx);
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        4,
+        "bidi interceptor must run when the method returns"
+    );
+    drop(call);
+    drop(tx);
 }
 
 #[tokio::test]
