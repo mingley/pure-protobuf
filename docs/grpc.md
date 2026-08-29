@@ -608,12 +608,14 @@ GreeterServer::new(MyGreeter).serve_unix("/tmp/greeter.sock").await?;
 let client = GreeterClient::connect_unix("/tmp/greeter.sock").await?;
 ```
 
-`connect_unix_lazy` and `Request::set_wait_for_ready` work the same as on
-TCP. The path is a filesystem path, not a `unix://` URI. `serve_unix` fails
-if the path already exists. After a crash, `serve_unix_unlink` unlinks a
-leftover socket inode that is not accepting. If another process is actually
-listening, the path is left alone and `serve_unix_unlink` fails with
-`UNAVAILABLE` instead of stealing it.
+`connect_unix_lazy` and `Request::set_wait_for_ready` / `Channel::wait_for_ready`
+work the same as on TCP. The path is a filesystem path, not a `unix://` URI.
+`serve_unix` fails if the path already exists. After a crash,
+`serve_unix_unlink` unlinks a leftover socket inode that is not accepting.
+If another process is actually listening, the path is left alone and
+`serve_unix_unlink` fails with `UNAVAILABLE` instead of stealing it.
+`serve_unix_until_shutdown` / `serve_unix_unlink_until_shutdown` are the
+path forms of graceful drain.
 
 `:authority` on Unix RPCs is `localhost`.
 
@@ -692,7 +694,9 @@ stream (`ErrorResponse`), not a broken RPC.
 `GOAWAY` on every live connection, and waits for in-flight RPCs to finish
 before returning. Use `serve_with_shutdown` when you already have a
 `TcpListener`. The TLS forms are `serve_tls_until_shutdown(addr, shutdown, tls)`
-and `serve_tls_with_shutdown(listener, shutdown, tls)`.
+and `serve_tls_with_shutdown(listener, shutdown, tls)`. On Unix the path forms
+are `serve_unix_until_shutdown(path, shutdown)` and
+`serve_unix_unlink_until_shutdown` after a crash leftover.
 
 ```rust
 let (tx, rx) = tokio::sync::oneshot::channel();

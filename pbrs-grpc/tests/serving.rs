@@ -2195,6 +2195,75 @@ async fn unix_socket_unary() {
 }
 
 #[cfg(unix)]
+async fn unix_channel(path: &std::path::Path) -> Channel {
+    let mut last = None;
+    for _ in 0..80 {
+        match Channel::connect_unix(path).await {
+            Ok(channel) => return channel,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("connect unix {}: {last:?}", path.display());
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn serve_unix_until_shutdown_serves_then_drains() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_unix_until_shutdown(sock, async {
+                shutdown_rx.await.ok();
+            })
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(unix_channel(&path).await)
+        .say_hello(Request::new(req("uds")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "uds");
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("unix drain hung")
+        .expect("join");
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn serve_unix_unlink_until_shutdown_replaces_leftover_then_drains() {
+    let (path, _guard) = unix_test_path();
+    let leftover = tokio::net::UnixListener::bind(&path).expect("stale");
+    drop(leftover);
+    let sock = path.clone();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_unix_unlink_until_shutdown(sock, async {
+                shutdown_rx.await.ok();
+            })
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(unix_channel(&path).await)
+        .say_hello(Request::new(req("uds")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "uds");
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("unix unlink drain hung")
+        .expect("join");
+}
+
+#[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_client_interceptor_sees_unix_localhost_authority() {
     let (path, _guard) = unix_test_path();

@@ -4201,6 +4201,24 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Bind `path` and serve h2c until `shutdown` resolves, then drain."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_unix_until_shutdown(self, path: impl AsRef<::std::path::Path>, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_until_shutdown(path, shutdown).await }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Bind `path` until `shutdown` after unlinking a crash leftover. A live listener is left alone."
+    );
+    let _ = writeln!(src, "    #[cfg(unix)]");
+    let _ = writeln!(
+        src,
+        "    pub async fn serve_unix_unlink_until_shutdown(self, path: impl AsRef<::std::path::Path>, shutdown: impl ::core::future::Future<Output = ()> + Send) -> ::core::result::Result<(), {G}::Status> {{ self.into_server().serve_unix_unlink_until_shutdown(path, shutdown).await }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Bind `addr` and serve over TLS until the listener fails."
     );
     let _ = writeln!(

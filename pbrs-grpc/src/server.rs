@@ -1021,6 +1021,7 @@ impl<S: Service> Server<S> {
     /// `path` must not already be bound. This does not unlink a leftover
     /// socket file; use [`Self::serve_unix_unlink`] after a crash. TLS over a
     /// Unix socket is not supported; use [`Self::serve_tls`] on TCP.
+    /// To bind and then drain on a signal, use [`Self::serve_unix_until_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
         self.serve_unix_listener(bind_unix(path)?).await
@@ -1031,6 +1032,8 @@ impl<S: Service> Server<S> {
     /// A crash leaves a socket inode that is not accepting. This unlinks that
     /// leftover and binds. If another process is actually listening on `path`,
     /// the file is left alone and this returns [`Code::Unavailable`].
+    /// To unlink, bind, and then drain on a signal, use
+    /// [`Self::serve_unix_unlink_until_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix_unlink(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
         self.serve_unix_listener(bind_unix_unlink(path).await?)
@@ -1054,6 +1057,31 @@ impl<S: Service> Server<S> {
     ) -> Result<(), Status> {
         let (dispatch, config) = self.into_single();
         accept_unix_loop(Arc::new(dispatch), listener, config, shutdown).await
+    }
+
+    /// Bind `path` and serve h2c until `shutdown` resolves, then drain.
+    ///
+    /// This is the path form of [`Self::serve_unix_with_shutdown`].
+    #[cfg(unix)]
+    pub async fn serve_unix_until_shutdown(
+        self,
+        path: impl AsRef<std::path::Path>,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_unix_with_shutdown(bind_unix(path)?, shutdown)
+            .await
+    }
+
+    /// [`Self::serve_unix_until_shutdown`], after unlinking a crash leftover.
+    /// A live listener is left alone. See [`Self::serve_unix_unlink`].
+    #[cfg(unix)]
+    pub async fn serve_unix_unlink_until_shutdown(
+        self,
+        path: impl AsRef<std::path::Path>,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_unix_with_shutdown(bind_unix_unlink(path).await?, shutdown)
+            .await
     }
 
     /// Bind `addr` and serve over TLS until the listener fails.
@@ -1409,6 +1437,30 @@ impl Router {
     ) -> Result<(), Status> {
         let config = self.config;
         accept_unix_loop(Arc::new(self), listener, config, shutdown).await
+    }
+
+    /// Bind `path` and serve h2c until `shutdown` resolves, then drain.
+    /// See [`Server::serve_unix_until_shutdown`].
+    #[cfg(unix)]
+    pub async fn serve_unix_until_shutdown(
+        self,
+        path: impl AsRef<std::path::Path>,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_unix_with_shutdown(bind_unix(path)?, shutdown)
+            .await
+    }
+
+    /// [`Self::serve_unix_until_shutdown`], after unlinking a crash leftover.
+    /// See [`Server::serve_unix_unlink_until_shutdown`].
+    #[cfg(unix)]
+    pub async fn serve_unix_unlink_until_shutdown(
+        self,
+        path: impl AsRef<std::path::Path>,
+        shutdown: impl Future<Output = ()> + Send,
+    ) -> Result<(), Status> {
+        self.serve_unix_with_shutdown(bind_unix_unlink(path).await?, shutdown)
+            .await
     }
 
     /// Bind `addr` and serve over TLS until the listener fails.
