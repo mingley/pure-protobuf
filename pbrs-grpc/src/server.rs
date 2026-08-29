@@ -819,6 +819,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// gzip responses when the client advertises gzip. See
+    /// [`ServerConfig::send_compressed`].
+    #[must_use]
+    pub fn send_compressed(mut self) -> Self {
+        self.config = self.config.send_compressed(true);
+        self
+    }
+
     /// Run `interceptor` before this service sees any RPC.
     ///
     /// Closures implement [`crate::Interceptor`], so
@@ -1073,6 +1081,20 @@ impl Router {
         self
     }
 
+    /// Cap inbound messages at `limit` bytes. Default 4 MiB.
+    #[must_use]
+    pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
+        self.config = self.config.max_decoding_message_size(limit);
+        self
+    }
+
+    /// Cap outbound messages at `limit` bytes. Default unlimited.
+    #[must_use]
+    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
+        self.config = self.config.max_encoding_message_size(limit);
+        self
+    }
+
     /// Cap how many RPCs the process will run at once. See
     /// [`ServerConfig::max_concurrent_rpcs`].
     #[must_use]
@@ -1086,6 +1108,14 @@ impl Router {
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.timeout(timeout);
+        self
+    }
+
+    /// gzip responses when the client advertises gzip. See
+    /// [`ServerConfig::send_compressed`].
+    #[must_use]
+    pub fn send_compressed(mut self) -> Self {
+        self.config = self.config.send_compressed(true);
         self
     }
 

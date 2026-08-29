@@ -368,6 +368,8 @@ async fn generated_servers_mount_on_a_router() {
     let addr = listener.local_addr().expect("addr");
     let server = tokio::spawn(async move {
         pbrs_grpc::Router::new()
+            .send_compressed()
+            .max_decoding_message_size(4 * 1024 * 1024)
             .add_service(StoreServer::new(MemStore))
             .add_service(pbrs_grpc::GreeterServer::new(EchoGreeter))
             .serve_listener(listener)

@@ -319,6 +319,10 @@ impl ServerConfig {
     /// latencies identity framing usually wins. A handler can still gzip one
     /// RPC with [`crate::Response::set_compress`]. Either way, a peer that
     /// did not advertise gzip is never sent a compressed frame.
+    ///
+    /// [`crate::Server::send_compressed`], [`crate::Router::send_compressed`],
+    /// and generated `FooServer::send_compressed` enable this without
+    /// building a [`ServerConfig`].
     #[must_use]
     pub fn send_compressed(mut self, enable: bool) -> Self {
         self.send_compressed = enable;

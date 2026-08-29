@@ -701,7 +701,8 @@ On a stream, choose per message with `send` or `send_compressed`.
 To gzip every response a client advertised `gzip` for:
 
 ```rust
-ServerConfig::new().send_compressed(true)
+GreeterServer::new(svc).send_compressed()
+// or Server::new(svc) / Router::new().add_service(svc), same method
 ```
 
 To gzip every request from a channel (and `StreamSender::send` on streams

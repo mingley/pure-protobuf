@@ -2247,8 +2247,9 @@ async fn metadata_cannot_override_the_kernel_user_agent() {
 async fn the_server_gzips_when_configured_and_the_client_accepts() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        GreeterServer::new(Echo)
-            .config(ServerConfig::new().send_compressed(true))
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .send_compressed()
             .serve_listener(listener)
             .await
             .ok();
