@@ -227,6 +227,41 @@ async fn a_legitimate_compressed_frame_still_round_trips() {
 }
 
 #[tokio::test]
+async fn an_identity_encoding_header_is_the_same_as_omitting_it() {
+    struct WantsNone;
+
+    impl Greeter for WantsNone {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            if let Some(enc) = request.encoding() {
+                return Err(Status::internal(format!("identity advertised {enc}")));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(
+                request.get_ref(),
+            ))))
+        }
+    }
+
+    let (addr, _guard) = serve(WantsNone, ServerConfig::new()).await.expect("serve");
+    let mut peer = RawPeer::connect(addr).await;
+    peer.call(SAY_HELLO, frame(&hello_request()))
+        .await
+        .expect_code(Code::Ok);
+    for token in ["identity", "IDENTITY", "Identity", "identity;q=0"] {
+        let mut request = peer.request(SAY_HELLO, "application/grpc");
+        request.headers_mut().insert(
+            "grpc-encoding",
+            HeaderValue::from_str(token).expect("encoding"),
+        );
+        peer.call_with(request, frame(&hello_request()))
+            .await
+            .expect_code(Code::Ok);
+    }
+}
+
+#[tokio::test]
 async fn a_reserved_compressed_flag_is_a_protocol_error() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let mut peer = RawPeer::connect(addr).await;

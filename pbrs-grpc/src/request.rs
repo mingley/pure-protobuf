@@ -399,11 +399,12 @@ impl<T> Request<T> {
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
-    /// is gzip-compressed. `None` means identity encoding, or a request you
-    /// built to send. Distinct from [`compressed`](Self::compressed): that
-    /// is the per-message Compressed-Flag on a unary first frame; this is
-    /// the HTTP header that applies to the whole call. Bind it before
-    /// [`Self::metadata_mut`]: `let enc = request.encoding();`.
+    /// is gzip-compressed. `None` means identity — header absent, empty, or
+    /// an explicit `identity` token — or a request you built to send. Distinct
+    /// from [`compressed`](Self::compressed): that is the per-message
+    /// Compressed-Flag on a unary first frame; this is the HTTP header that
+    /// applies to the whole call. Bind it before [`Self::metadata_mut`]:
+    /// `let enc = request.encoding();`.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         self.encoding.as_deref()
@@ -1344,8 +1345,9 @@ impl<T> Response<T> {
     /// The `grpc-encoding` token on a received reply, if any.
     ///
     /// `Some("gzip")` when the peer advertised gzip on this response.
-    /// `None` means identity, or a response you built to send — outbound
-    /// intent is [`Self::set_compress`], not this header. Distinct from
+    /// `None` means identity — header absent, empty, or an explicit
+    /// `identity` token — or a response you built to send. Outbound intent
+    /// is [`Self::set_compress`], not this header. Distinct from
     /// [`Self::compressed`]: that is the unary Compressed-Flag (and
     /// outbound intent); this is the HTTP header that applies to the whole
     /// call. Streaming payloads still report the per-message flag on

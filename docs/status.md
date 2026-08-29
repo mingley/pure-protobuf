@@ -109,7 +109,9 @@ See `docs/upb.md`. Short list:
   handlers see `MessageLimits` on `Rpc::limits` / `Request::limits`, the
   method path on `Rpc::path` / `Request::path`, gzip accept/encoding, and
   the server `send_compressed` overlay on `Rpc::compresses_outbound` /
-  `Request::compresses_outbound`; client interceptors see the channel overlay
+  `Request::compresses_outbound`; received replies surface `grpc-encoding` on
+  `Response::encoding` (`None` for identity, including an explicit
+  `identity` token). Client interceptors see the channel overlay
   on `Outgoing::limits` plus a deadline Instant and fill-if-unset
   wait-for-ready / compress. `Status::set_rpc` / `set_code` keep trailing
   metadata. Methods omitted on generated traits answer `UNIMPLEMENTED`.

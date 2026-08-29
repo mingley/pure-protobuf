@@ -902,10 +902,11 @@ stream (gzip then identity) is legal; it does not gzip identity `send()`
 frames. `set_compress(false)` opts those frames out of `Server::send_compressed`.
 `request.compressed()` is the unary first-frame Compressed-Flag.
 Client- and bidi-streaming requests leave it `false`; each message's flag
-is on `Framed`. `request.encoding()` is the call's `grpc-encoding` header
-(`Some("gzip")` or `None` for identity). `response.encoding()` is the same
-header on a received reply (`None` on a response you built). `grpc-*` keys
-stay off `Metadata`. `request.accepts_gzip()` is
+is on `Framed`. `request.encoding()` is the call's `grpc-encoding` token
+(`Some("gzip")` for gzip; `None` for identity — header absent or an
+explicit `identity` token). `response.encoding()` is the same token on a
+received reply (`None` on a response you built, and on identity replies).
+`grpc-*` keys stay off `Metadata`. `request.accepts_gzip()` is
 whether the peer listed gzip in `grpc-accept-encoding` — a handler that
 calls `Response::set_compress(true)` still only gzips when this is true.
 `Parts` keeps all three across `into_message_and_parts`. `ResponseParts`
@@ -1180,7 +1181,8 @@ them. Generated handlers see the same caps on `Request::limits`; a request
 you built to send has `None` — the channel's `message_limits` applies at
 send time. A client interceptor reads that overlay with `Outgoing::limits`.
 `Rpc::accepts_gzip` / `Rpc::encoding` are the peer's `grpc-accept-encoding`
-and `grpc-encoding`; generated handlers see the same values on
+and `grpc-encoding` (`encoding` is `None` for identity, including an
+explicit `identity` token); generated handlers see the same values on
 `Request::accepts_gzip` / `Request::encoding`. `Rpc::compresses_outbound`
 is the server's `send_compressed` overlay; generated handlers see it on
 `Request::compresses_outbound` / `Parts::compresses_outbound` (`false` on a

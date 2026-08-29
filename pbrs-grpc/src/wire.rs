@@ -89,12 +89,29 @@ pub(crate) fn grpc_request(
     Ok(req)
 }
 
-/// The peer's `grpc-encoding`, if it sent one.
+/// Content-coding token in `grpc-encoding`: trim whitespace and a trailing
+/// `;parameter`. Case is kept.
+fn encoding_token(value: &str) -> &str {
+    match value.split_once(';') {
+        Some((coding, _)) => coding.trim(),
+        None => value.trim(),
+    }
+}
+
+/// The peer's `grpc-encoding` token, if it sent a non-identity coding.
 ///
-/// Missing means identity. The token is not normalized: `"GZIP"` stays
-/// `"GZIP"`. [`grpc_encoding_supported`] is what the kernel used to admit it.
+/// Missing, empty, or `identity` (any case, optional `;parameter`) is `None` —
+/// the spec treats those as the same coding. The token is trimmed; case is
+/// kept (`"GZIP"` stays `"GZIP"`). [`grpc_encoding_supported`] is what the
+/// kernel used to admit it.
 pub(crate) fn grpc_encoding(headers: &HeaderMap) -> Option<&str> {
-    headers.get(GRPC_ENCODING).and_then(|v| v.to_str().ok())
+    let raw = headers.get(GRPC_ENCODING).and_then(|v| v.to_str().ok())?;
+    let token = encoding_token(raw);
+    if token.is_empty() || token.eq_ignore_ascii_case("identity") {
+        None
+    } else {
+        Some(token)
+    }
 }
 
 /// Whether the peer advertised gzip in `grpc-accept-encoding`.
@@ -187,10 +204,7 @@ pub(crate) fn grpc_content_type(ct: &str) -> bool {
 /// ignored. Anything else is unsupported.
 #[must_use]
 pub(crate) fn grpc_encoding_supported(value: &str) -> bool {
-    let token = match value.split_once(';') {
-        Some((coding, _)) => coding.trim(),
-        None => value.trim(),
-    };
+    let token = encoding_token(value);
     token.eq_ignore_ascii_case("identity") || token.eq_ignore_ascii_case("gzip")
 }
 
@@ -1171,6 +1185,12 @@ mod tests {
         assert_eq!(grpc_encoding(&headers), Some("gzip"));
         headers.insert("grpc-encoding", HeaderValue::from_static("GZIP"));
         assert_eq!(grpc_encoding(&headers), Some("GZIP"));
+        headers.insert("grpc-encoding", HeaderValue::from_static(" gzip;q=1.0 "));
+        assert_eq!(grpc_encoding(&headers), Some("gzip"));
+        for identity in ["identity", "IDENTITY", " identity ", "identity;q=0"] {
+            headers.insert("grpc-encoding", HeaderValue::from_static(identity));
+            assert_eq!(grpc_encoding(&headers), None, "{identity}");
+        }
         assert!(!gzip_outbound(Some(true), true, false));
         assert!(gzip_outbound(None, true, true));
         assert!(gzip_outbound(Some(true), false, true));

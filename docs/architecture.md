@@ -49,11 +49,13 @@ Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, gzip accept/encoding, and the
 `compresses_outbound` overlay. Dumping
-`Rpc` prints service/method, both timeout views, `deadline`, gzip facts, and
-`limits`.
+`Rpc` prints service/method, both timeout views, `deadline`, gzip accept /
+encoding / `compresses_outbound`, and `limits`.
 Dumping `Request` prints path / service / method, both timeout views,
-`deadline`, gzip intent vs wire flag, `compresses_outbound`, peer,
+`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, peer,
 `:authority` / `:scheme`, wait-for-ready, `limits`, and cancel.
+Dumping `Response` prints metadata, trailers, compress intent, and received
+`encoding`.
 Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
 after the response is written / the stream drains).
 

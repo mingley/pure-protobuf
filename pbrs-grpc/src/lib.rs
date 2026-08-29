@@ -195,6 +195,8 @@
 //! [`ServerConfig::send_compressed`] / [`ChannelConfig::send_compressed`]
 //! trade CPU for bandwidth, and at LAN latencies identity framing usually
 //! wins. A peer that did not advertise gzip is never sent a compressed frame.
+//! A received reply surfaces the peer's `grpc-encoding` on [`Response::encoding`]
+//! (`None` for identity).
 //!
 //! # Relationship to the rest of the workspace
 //!

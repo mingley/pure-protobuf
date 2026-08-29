@@ -475,11 +475,13 @@ impl Rpc {
         self.config.compresses_outbound()
     }
 
-    /// The peer's `grpc-encoding` token, if it sent one.
+    /// The peer's `grpc-encoding` token, if it sent a non-identity coding.
     ///
-    /// Missing means identity. Generated handlers see the same value on
-    /// [`Request::encoding`]. `grpc-*` keys are not in [`Self::metadata`].
-    /// Bind it before [`Self::metadata_mut`]: `let enc = rpc.encoding();`.
+    /// Missing, empty, or an explicit `identity` token is `None` — the spec
+    /// treats those as the same coding. `"GZIP"` stays `"GZIP"`. Generated
+    /// handlers see the same value on [`Request::encoding`]. `grpc-*` keys
+    /// are not in [`Self::metadata`]. Bind it before [`Self::metadata_mut`]:
+    /// `let enc = rpc.encoding();`.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         crate::wire::grpc_encoding(self.request.headers())

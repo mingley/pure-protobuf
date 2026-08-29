@@ -21,7 +21,8 @@ use std::sync::Arc;
 /// client certificate with [`Rpc::peer_identity`], Unix credentials with
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
 /// message caps with [`Rpc::limits`], gzip accept/encoding with
-/// [`Rpc::accepts_gzip`] / [`Rpc::encoding`] / [`Rpc::compresses_outbound`], the TCP interface with
+/// [`Rpc::accepts_gzip`] / [`Rpc::encoding`] / [`Rpc::compresses_outbound`]
+/// (`encoding` is `None` for identity), the TCP interface with
 /// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`]. Generated handlers see the same path,
