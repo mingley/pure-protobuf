@@ -127,13 +127,22 @@ fn echo_named_stream(name: String) -> Response<Streaming<HelloReply>> {
 fn echo_bidi(mut inbound: Streaming<HelloRequest>) -> Response<Streaming<HelloReply>> {
     let (tx, stream) = Streaming::channel(4);
     drop(tokio::spawn(async move {
-        while let Ok(Some(msg)) = inbound.message().await {
-            if tx
-                .send(common::reply(common::name_of_request(&msg)))
-                .await
-                .is_err()
-            {
-                break;
+        loop {
+            match inbound.message().await {
+                Ok(Some(msg)) => {
+                    if tx
+                        .send(common::reply(common::name_of_request(&msg)))
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+                Ok(None) => break,
+                Err(status) => {
+                    tx.fail(status).await;
+                    break;
+                }
             }
         }
     }));

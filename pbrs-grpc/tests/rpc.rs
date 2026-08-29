@@ -84,11 +84,20 @@ impl Greeter for Echo {
         let mut inbound = request.into_inner();
         let (tx, rx) = Streaming::channel(4);
         drop(tokio::spawn(async move {
-            while let Ok(Some(msg)) = inbound.message().await {
-                let mut reply = HelloReply::new();
-                reply.set_message(msg.name().to_str().unwrap_or("").to_string());
-                if tx.send(reply).await.is_err() {
-                    break;
+            loop {
+                match inbound.message().await {
+                    Ok(Some(msg)) => {
+                        let mut reply = HelloReply::new();
+                        reply.set_message(msg.name().to_str().unwrap_or("").to_string());
+                        if tx.send(reply).await.is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(status) => {
+                        tx.fail(status).await;
+                        break;
+                    }
                 }
             }
         }));

@@ -249,3 +249,34 @@ async fn all_extension_numbers_of_type_lists_registered_tags() {
         .collect();
     assert_eq!(nums, vec![100]);
 }
+
+#[tokio::test]
+async fn oversize_reflection_request_is_resource_exhausted() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        Router::new()
+            .max_decoding_message_size(16)
+            .add_service(reflection)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = client(addr).await;
+    let mut fat = ServerReflectionRequest::new();
+    fat.set_file_containing_symbol("k".repeat(64));
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    tx.send(fat).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("oversize reflection request must fail as trailers"),
+        },
+    }
+}

@@ -16,7 +16,9 @@
 //! # }
 //! ```
 //!
-//! [`service`] is the same registration as a one-liner.
+//! [`service`] is the same registration as a one-liner. An inbound message
+//! over the decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers
+//! (`StreamSender::fail`), not a quiet OK end.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
@@ -305,9 +307,18 @@ impl ServerReflection for Reflection {
         let (tx, stream) = Streaming::channel(8);
         let inner = self.clone();
         drop(tokio::spawn(async move {
-            while let Ok(Some(req)) = inbound.message().await {
-                if tx.send(inner.answer(&req)).await.is_err() {
-                    break;
+            loop {
+                match inbound.message().await {
+                    Ok(Some(req)) => {
+                        if tx.send(inner.answer(&req)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(status) => {
+                        tx.fail(status).await;
+                        break;
+                    }
                 }
             }
         }));
