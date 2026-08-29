@@ -1561,7 +1561,8 @@ where
         tokio::pin!(until_deadline);
         let mut cancelled = cancel_rx;
         let mut half_closed = false;
-        loop {
+        let mut failed = false;
+        let result = loop {
             tokio::select! {
                 biased;
                 () = &mut until_deadline => break Err(Status::deadline_exceeded()),
@@ -1569,7 +1570,7 @@ where
                 end = &mut pump, if !half_closed => {
                     match end {
                         PumpEnd::Failed(status) => {
-                            send.stream.send_reset(Reason::CANCEL);
+                            failed = true;
                             break Err(status);
                         }
                         PumpEnd::HalfClosed | PumpEnd::Reset => half_closed = true,
@@ -1577,14 +1578,18 @@ where
                 }
                 result = &mut fut => break result,
             }
+        };
+        drop(pump);
+        if failed
+            || matches!(
+                &result,
+                Err(s) if s.code() == Code::Cancelled || s.code() == Code::DeadlineExceeded
+            )
+        {
+            send.stream.send_reset(Reason::CANCEL);
         }
+        result
     };
-    if matches!(
-        &result,
-        Err(s) if s.code() == Code::Cancelled || s.code() == Code::DeadlineExceeded
-    ) {
-        send.stream.send_reset(Reason::CANCEL);
-    }
     send.live = false;
     prefer_deadline(result, deadline)
 }
