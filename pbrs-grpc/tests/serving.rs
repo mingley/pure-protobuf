@@ -4813,20 +4813,23 @@ async fn a_call_handle_cancels_client_streaming_after_the_sender_closes() {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let (tx, call) = client.client_hello(Request::new(()));
+    let (tx, mut call) = client.client_hello(Request::new(()));
     let handle = call.handle();
     tx.send(req("ada")).await.expect("send");
     tx.close();
-    for _ in 0..80 {
-        if drained.load(Ordering::Relaxed) >= 1 {
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(10)).await;
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("unary returned before cancel: {result:?}"),
+        () = async {
+            for _ in 0..80 {
+                if drained.load(Ordering::Relaxed) >= 1 {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            panic!("handler never finished reading the half-closed stream");
+        } => {}
     }
-    assert!(
-        drained.load(Ordering::Relaxed) >= 1,
-        "handler never finished reading the half-closed stream"
-    );
     assert_eq!(
         left.load(Ordering::Relaxed),
         0,
