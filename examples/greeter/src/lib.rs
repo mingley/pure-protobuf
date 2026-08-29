@@ -238,6 +238,10 @@ mod tests {
             live.reporter.status(GreeterServer::<MyGreeter>::NAME),
             Some(ServingStatus::Serving)
         );
+        assert_eq!(
+            live.reporter.names(),
+            vec![String::new(), GreeterServer::<MyGreeter>::NAME.to_owned()]
+        );
         let _ready = greeter(live.addr).await.unwrap();
         let client = HealthClient::connect(live.addr).await.unwrap();
         let mut req = HealthCheckRequest::new();

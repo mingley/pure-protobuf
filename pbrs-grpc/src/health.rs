@@ -90,7 +90,8 @@ impl HealthReporter {
     ///
     /// Sorted lexicographically, so the empty process name is first. Names
     /// you never set are omitted. After [`Self::shutdown`] the names are
-    /// still here, all [`ServingStatus::NotServing`].
+    /// still here, all [`ServingStatus::NotServing`]. After [`Self::resume`]
+    /// they are all [`ServingStatus::Serving`].
     #[must_use]
     pub fn names(&self) -> Vec<String> {
         let mut names: Vec<String> = self.snapshot().keys().cloned().collect();
@@ -105,11 +106,27 @@ impl HealthReporter {
     /// you [`crate::Server::serve_until_shutdown`]. Names you never set stay
     /// unknown (`NOT_FOUND` on `Check`, `SERVICE_UNKNOWN` on `Watch`).
     /// [`Self::set_serving`] after this is allowed and brings a name back.
+    /// [`Self::resume`] marks every known name [`ServingStatus::Serving`]
+    /// without enumerating them.
     pub fn shutdown(&self) {
+        self.set_all(ServingStatus::NotServing);
+    }
+
+    /// Mark every known name, including the process (`""`), as
+    /// [`ServingStatus::Serving`].
+    ///
+    /// Inverse of [`Self::shutdown`]: abort a drain and advertise again
+    /// without enumerating names. Unknown names stay unknown.
+    /// [`Self::set_not_serving`] after this is allowed.
+    pub fn resume(&self) {
+        self.set_all(ServingStatus::Serving);
+    }
+
+    fn set_all(&self, status: ServingStatus) {
         self.tx.send_modify(|snap| {
             let mut map = HashMap::clone(snap);
-            for status in map.values_mut() {
-                *status = ServingStatus::NotServing;
+            for value in map.values_mut() {
+                *value = status;
             }
             *snap = Arc::new(map);
         });

@@ -693,7 +693,9 @@ yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
 `HealthReporter::status` reads the same map without an RPC.
 `HealthReporter::names` lists every known name (the process `""` first).
 `HealthReporter::shutdown` marks every known name `NOT_SERVING` so a load
-balancer can drain before `serve_*_until_shutdown`.
+balancer can drain before `serve_*_until_shutdown`. `HealthReporter::resume`
+is the inverse: every known name is `SERVING` again, still without creating
+unknown names.
 
 ## Reflection
 
@@ -758,6 +760,8 @@ GreeterServer::new(MyGreeter)
     .serve_until_shutdown(addr, shutdown)
     .await?;
 ```
+
+`HealthReporter::resume` aborts that drain and advertises `SERVING` again.
 
 ## Connection age and idle
 

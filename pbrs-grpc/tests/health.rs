@@ -124,6 +124,30 @@ fn shutdown_marks_known_names_not_serving() {
     );
 }
 
+#[test]
+fn resume_marks_known_names_serving() {
+    let (_, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    reporter.shutdown();
+    reporter.resume();
+    assert_eq!(reporter.status(""), Some(ServingStatus::Serving));
+    assert_eq!(
+        reporter.status("helloworld.Greeter"),
+        Some(ServingStatus::Serving)
+    );
+    assert_eq!(reporter.status("no.Such"), None);
+    assert_eq!(
+        reporter.names(),
+        vec![String::new(), "helloworld.Greeter".to_owned()]
+    );
+    reporter.set_not_serving("helloworld.Greeter");
+    assert_eq!(
+        reporter.status("helloworld.Greeter"),
+        Some(ServingStatus::NotServing)
+    );
+    assert_eq!(reporter.status(""), Some(ServingStatus::Serving));
+}
+
 fn req(name: &str) -> HealthCheckRequest {
     let mut r = HealthCheckRequest::new();
     r.set_service(name);
@@ -226,5 +250,30 @@ async fn shutdown_is_visible_to_check_and_watch() {
         .check(Request::new(req("no.Such")))
         .await
         .expect_err("unknown stays not found");
+    assert_eq!(missing.code(), Code::NotFound, "{missing}");
+
+    reporter.resume();
+    let third = tokio::time::timeout(Duration::from_secs(2), stream.message())
+        .await
+        .expect("timeout")
+        .expect("third")
+        .expect("msg");
+    assert_eq!(third.status(), ServingStatus::Serving);
+    let overall = client
+        .check(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("overall after resume")
+        .into_inner();
+    assert_eq!(overall.status(), ServingStatus::Serving);
+    let named = client
+        .check(Request::new(req("helloworld.Greeter")))
+        .await
+        .expect("named after resume")
+        .into_inner();
+    assert_eq!(named.status(), ServingStatus::Serving);
+    let missing = client
+        .check(Request::new(req("no.Such")))
+        .await
+        .expect_err("unknown still not found");
     assert_eq!(missing.code(), Code::NotFound, "{missing}");
 }

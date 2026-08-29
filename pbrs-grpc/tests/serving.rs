@@ -1442,6 +1442,65 @@ async fn a_server_interceptor_strips_metadata_before_the_handler() {
     task.abort();
 }
 
+#[tokio::test]
+async fn a_server_interceptor_retains_a_subset_of_metadata() {
+    struct SeesHops;
+
+    impl Service for SeesHops {
+        const NAME: &'static str = "demo.SeesHops";
+
+        async fn call(&self, rpc: Rpc) {
+            rpc.unary(|request: Request<HelloRequest>| async move {
+                if request.metadata().get("y-drop").is_some() {
+                    return Err(Status::internal("y-drop leaked to handler"));
+                }
+                let keep = request.metadata().get("x-keep").unwrap_or("").to_owned();
+                if keep != "v" {
+                    return Err(Status::internal(format!("x-keep {keep:?}")));
+                }
+                if request.metadata().get_bin("x-trace-bin").as_deref() != Some(&[1u8][..]) {
+                    return Err(Status::internal("x-trace-bin missing"));
+                }
+                let mut reply = HelloReply::new();
+                reply.set_message(request.get_ref().name());
+                Ok(Response::new(reply))
+            })
+            .await;
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(SeesHops.intercept(|rpc: &mut Rpc| {
+            rpc.metadata_mut().retain(|k| k.starts_with("x-"));
+            Ok(())
+        }))
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+
+    let mut tagged = Request::new(req("ada"));
+    tagged.metadata_mut().insert("x-keep", "v").expect("keep");
+    tagged
+        .metadata_mut()
+        .insert("y-drop", "secret")
+        .expect("drop");
+    tagged
+        .metadata_mut()
+        .insert_bin("x-trace-bin", [1u8])
+        .expect("bin");
+    let reply = channel(addr)
+        .await
+        .unary::<HelloRequest, HelloReply>("/demo.SeesHops/Ping", tagged)
+        .await
+        .expect("retained")
+        .into_inner();
+    assert_eq!(name_of(&reply), "ada");
+
+    task.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_server_interceptor_can_tighten_the_deadline() {
     let (addr, listener) = bind().await;
