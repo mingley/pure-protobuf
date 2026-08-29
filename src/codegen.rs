@@ -4032,6 +4032,51 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// HTTP/2 per-stream receive window. See [`{G}::ServerConfig::initial_stream_window_size`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {{ self.config = self.config.initial_stream_window_size(bytes); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// HTTP/2 per-connection receive window. See [`{G}::ServerConfig::initial_connection_window_size`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {{ self.config = self.config.initial_connection_window_size(bytes); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`{G}::ServerConfig::max_frame_size`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_frame_size(mut self, bytes: u32) -> Self {{ self.config = self.config.max_frame_size(bytes); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See [`{G}::ServerConfig::max_header_list_size`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_header_list_size(mut self, bytes: u32) -> Self {{ self.config = self.config.max_header_list_size(bytes); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Per-connection HTTP/2 send buffer. See [`{G}::ServerConfig::max_send_buffer_size`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {{ self.config = self.config.max_send_buffer_size(bytes); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4647,6 +4692,15 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    pub fn wait_for_ready(mut self) -> Self {{ self.channel = self.channel.wait_for_ready(); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// How many messages sit between a client-streaming caller and the wire. See [`{G}::Channel::stream_buffer`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn stream_buffer(mut self, messages: usize) -> Self {{ self.channel = self.channel.stream_buffer(messages); self }}"
     );
     let _ = writeln!(src, "    /// The channel this client sends on.");
     let _ = writeln!(src, "    #[must_use]");

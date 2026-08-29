@@ -937,7 +937,8 @@ Channel::connect_with(target, ChannelConfig::new().connections(4)).await?
 goes. Lower it only under memory pressure:
 
 ```rust
-ServerConfig::new().initial_stream_window_size(1024 * 1024)
+GreeterServer::new(MyGreeter).initial_stream_window_size(1024 * 1024)
+// or Server::new(svc) / Router::new().add_service(svc), same method
 ```
 
 **Stream queue depth.** How many messages sit between a producer and the wire.
@@ -953,6 +954,8 @@ On the client it is configuration, because the client's outbound queue belongs
 to the channel:
 
 ```rust
+channel.stream_buffer(64)
+// or, at connect:
 ChannelConfig::new().stream_buffer(64)
 ```
 
@@ -960,9 +963,9 @@ Received streams are decoded inline on the reading task, so they have no queue
 to size in either direction.
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
-`max_send_buffer_size`, `max_header_list_size` — is available on both
-`ServerConfig` and `ChannelConfig` and is more likely to be a safety decision
-than a performance one.
+`max_send_buffer_size`, `max_header_list_size` — is available on `Server` /
+`Router` / generated `FooServer` as well as `ServerConfig` and `ChannelConfig`,
+and is more likely to be a safety decision than a performance one.
 
 ## Interceptors and middleware
 

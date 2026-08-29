@@ -124,8 +124,9 @@ struct ChannelInner {
     authority: Authority,
     endpoint: Endpoint,
     tls: Option<ClientTls>,
-    /// Settings used to dial. Per-clone message-size overlays on [`Channel`]
-    /// do not change how a dead slot is redialed.
+    /// Settings used to dial. Per-clone overlays on [`Channel`] (timeout,
+    /// wait-for-ready, send_compressed, message sizes, stream_buffer) do not
+    /// change how a dead slot is redialed.
     dial: ChannelConfig,
 }
 
@@ -198,6 +199,12 @@ impl Endpoint {
 /// [`Self::intercept`] runs on every outbound RPC before the stream opens,
 /// which is how a client injects auth metadata, a default deadline, or
 /// wait-for-ready without touching each call.
+///
+/// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
+/// [`Self::send_compressed`], the two message-size caps, and
+/// [`Self::stream_buffer`] overlay this clone. Keepalive, idle, TCP
+/// keepalive, connection count, and HTTP/2 windows are set at handshake
+/// ([`ChannelConfig`] / [`Self::connect_with`]).
 ///
 /// [`Debug`] prints the authority, pool size, and config. It does not dump
 /// live HTTP/2 state.
@@ -472,6 +479,17 @@ impl Channel {
     #[must_use]
     pub fn wait_for_ready(mut self) -> Self {
         self.config = self.config.wait_for_ready(true);
+        self
+    }
+
+    /// How many messages sit between a client-streaming caller and the wire.
+    /// See [`ChannelConfig::stream_buffer`].
+    ///
+    /// Overlay: applies to streams opened from this clone. Does not change
+    /// already-open streams or how a dead slot is redialed.
+    #[must_use]
+    pub fn stream_buffer(mut self, messages: usize) -> Self {
+        self.config = self.config.stream_buffer(messages);
         self
     }
 
@@ -1465,5 +1483,13 @@ mod tests {
         assert!(dbg.contains("connections: 1"), "{dbg}");
         assert!(dbg.contains("tls: false"), "{dbg}");
         assert!(dbg.contains("interceptors: 0"), "{dbg}");
+    }
+
+    #[test]
+    fn stream_buffer_overlays_a_live_channel() {
+        let channel = super::Channel::connect_lazy("127.0.0.1:9")
+            .expect("lazy")
+            .stream_buffer(64);
+        assert_eq!(channel.config().stream_buffer_size(), 64);
     }
 }

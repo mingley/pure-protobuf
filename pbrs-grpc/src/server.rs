@@ -882,6 +882,45 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// HTTP/2 per-stream receive window. See
+    /// [`ServerConfig::initial_stream_window_size`].
+    #[must_use]
+    pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.initial_stream_window_size(bytes);
+        self
+    }
+
+    /// HTTP/2 per-connection receive window. See
+    /// [`ServerConfig::initial_connection_window_size`].
+    #[must_use]
+    pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.initial_connection_window_size(bytes);
+        self
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`ServerConfig::max_frame_size`].
+    #[must_use]
+    pub fn max_frame_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.max_frame_size(bytes);
+        self
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See
+    /// [`ServerConfig::max_header_list_size`].
+    #[must_use]
+    pub fn max_header_list_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.max_header_list_size(bytes);
+        self
+    }
+
+    /// Per-connection HTTP/2 send buffer. See
+    /// [`ServerConfig::max_send_buffer_size`].
+    #[must_use]
+    pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
+        self.config = self.config.max_send_buffer_size(bytes);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. See
     /// [`ServerConfig::timeout`].
     #[must_use]
@@ -1299,6 +1338,45 @@ impl Router {
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.config = self.config.max_concurrent_streams(streams);
+        self
+    }
+
+    /// HTTP/2 per-stream receive window. See
+    /// [`ServerConfig::initial_stream_window_size`].
+    #[must_use]
+    pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.initial_stream_window_size(bytes);
+        self
+    }
+
+    /// HTTP/2 per-connection receive window. See
+    /// [`ServerConfig::initial_connection_window_size`].
+    #[must_use]
+    pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.initial_connection_window_size(bytes);
+        self
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. See [`ServerConfig::max_frame_size`].
+    #[must_use]
+    pub fn max_frame_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.max_frame_size(bytes);
+        self
+    }
+
+    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. See
+    /// [`ServerConfig::max_header_list_size`].
+    #[must_use]
+    pub fn max_header_list_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.max_header_list_size(bytes);
+        self
+    }
+
+    /// Per-connection HTTP/2 send buffer. See
+    /// [`ServerConfig::max_send_buffer_size`].
+    #[must_use]
+    pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
+        self.config = self.config.max_send_buffer_size(bytes);
         self
     }
 

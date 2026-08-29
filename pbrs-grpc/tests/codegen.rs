@@ -354,6 +354,11 @@ async fn generated_servers_accept_configuration() {
             .max_connection_age_grace(Duration::from_secs(30))
             .handshake_timeout(Duration::from_secs(5))
             .max_concurrent_streams(128)
+            .initial_stream_window_size(1024 * 1024)
+            .initial_connection_window_size(2 * 1024 * 1024)
+            .max_frame_size(32 * 1024)
+            .max_header_list_size(8 * 1024)
+            .max_send_buffer_size(512 * 1024)
             .serve_listener(listener)
             .await
             .ok();
@@ -552,8 +557,10 @@ fn generated_client_debug_and_into_inner() {
             .wait_for_ready(true),
     )
     .expect("lazy")
-    .wait_for_ready();
+    .wait_for_ready()
+    .stream_buffer(64);
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
+    assert_eq!(client.channel().config().stream_buffer_size(), 64);
     let _ = client.into_inner();
 }
 

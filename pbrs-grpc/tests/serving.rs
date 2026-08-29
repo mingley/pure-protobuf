@@ -1596,6 +1596,26 @@ async fn config_flows_from_the_generated_server_to_the_router() {
     task.abort();
 }
 
+#[test]
+fn http2_tuning_knobs_are_fluent_on_server_and_router() {
+    let server = GreeterServer::new(Echo)
+        .initial_stream_window_size(3 * 1024 * 1024)
+        .max_frame_size(65_536);
+    let dbg = format!("{server:?}");
+    assert!(dbg.contains("3145728"), "{dbg}");
+    assert!(dbg.contains("65536"), "{dbg}");
+
+    let router = Router::new()
+        .add_service(GreeterServer::new(Echo))
+        .initial_connection_window_size(7 * 1024 * 1024)
+        .max_header_list_size(4096)
+        .max_send_buffer_size(123_456);
+    let dbg = format!("{router:?}");
+    assert!(dbg.contains("7340032"), "{dbg}");
+    assert!(dbg.contains("4096"), "{dbg}");
+    assert!(dbg.contains("123456"), "{dbg}");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_dead_channel_redials_the_same_address() {
     let (addr, client, guard) = spawn_greeter(Echo).await.expect("spawn");

@@ -648,6 +648,8 @@ impl ChannelConfig {
     /// The wire layer sends whatever is queued as one batch, so deeper means
     /// fewer and larger writes at the cost of memory. Received streams are
     /// decoded inline and are not queued, so this does not affect them.
+    /// [`crate::Channel::stream_buffer`] sets this on a live clone without
+    /// building a [`ChannelConfig`].
     #[must_use]
     pub fn stream_buffer(mut self, messages: usize) -> Self {
         self.stream_buffer = messages.max(1);
