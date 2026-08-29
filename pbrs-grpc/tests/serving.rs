@@ -4436,17 +4436,23 @@ struct SpawnOk {
     child_done: Arc<AtomicUsize>,
 }
 
-impl pbrs_grpc::Greeter for SpawnOk {
-    async fn say_hello(
-        &self,
-        request: Request<HelloRequest>,
-    ) -> Result<Response<HelloReply>, Status> {
+impl SpawnOk {
+    fn spawn_child<T>(&self, request: &Request<T>) {
         let child_done = Arc::clone(&self.child_done);
         let cancelled = request.cancelled();
         drop(tokio::spawn(async move {
             cancelled.await;
             child_done.fetch_add(1, Ordering::Relaxed);
         }));
+    }
+}
+
+impl pbrs_grpc::Greeter for SpawnOk {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.spawn_child(&request);
         Ok(Response::new(common::reply(common::name_of_request(
             request.get_ref(),
         ))))
@@ -4454,23 +4460,26 @@ impl pbrs_grpc::Greeter for SpawnOk {
 
     async fn client_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        Err(Status::unimplemented("spawn-ok"))
+        self.spawn_child(&request);
+        Ok(Response::new(common::reply("ok")))
     }
 
     async fn server_hello(
         &self,
-        _request: Request<HelloRequest>,
+        request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("spawn-ok"))
+        self.spawn_child(&request);
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
     }
 
     async fn stream_hello(
         &self,
-        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        Err(Status::unimplemented("spawn-ok"))
+        self.spawn_child(&request);
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
     }
 }
 
@@ -4798,11 +4807,31 @@ async fn spawned_work_stops_when_the_rpc_completes() {
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
+    let client = GreeterClient::new(channel(addr).await);
+    let reply = client
         .say_hello(Request::new(req("ada")))
         .await
-        .expect("ok");
+        .expect("unary");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    wait_flag(&child_done).await;
+
+    child_done.store(0, Ordering::Relaxed);
+    let _ = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    wait_flag(&child_done).await;
+
+    child_done.store(0, Ordering::Relaxed);
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    let _ = call.await.expect("client-stream");
+    wait_flag(&child_done).await;
+
+    child_done.store(0, Ordering::Relaxed);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let _ = call.await.expect("bidi");
     wait_flag(&child_done).await;
     task.abort();
 }
