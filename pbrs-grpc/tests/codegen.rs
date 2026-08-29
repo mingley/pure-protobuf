@@ -152,6 +152,29 @@ impl Store for MemStore {
     }
 }
 
+struct TypedFailStore;
+
+impl Store for TypedFailStore {
+    async fn get(&self, _: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn put_all(&self, _: Request<Streaming<Entry>>) -> Result<Response<PutSummary>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn watch(&self, _: Request<WatchRequest>) -> Result<Response<Streaming<Event>>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn sync(
+        &self,
+        _: Request<Streaming<Entry>>,
+    ) -> Result<Response<Streaming<Event>>, Status> {
+        Err(interceptor_blocked())
+    }
+}
+
 async fn serve() -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
         .await
@@ -477,6 +500,22 @@ async fn generated_stubs_carry_handler_errors() {
         .expect_err("empty key");
     assert_eq!(err.code(), Code::InvalidArgument);
     assert_eq!(err.message(), "empty key");
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_handlers_return_typed_status_on_every_shape() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedFailStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_blocked_every_shape(&client(addr).await).await;
     server.abort();
 }
 

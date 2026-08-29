@@ -192,6 +192,8 @@ See `docs/upb.md`. Short list:
   Health Check/Watch, the reflection bidi method, and generated Store Get /
   Watch / PutAll / Sync. A packed `google.rpc.Status` from interceptor
   `Err(with_error_details)` unpacks on those Store shapes the same way.
+  A generated Store handler `Err(with_error_details)` unpacks on Get /
+  Watch / PutAll / Sync too.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
