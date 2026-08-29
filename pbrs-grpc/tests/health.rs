@@ -13,8 +13,10 @@
 )]
 
 use pbrs_grpc::health::{service, HealthCheckRequest, HealthClient, ServingStatus};
-use pbrs_grpc::{Channel, Code, Request, Router, Status};
+use pbrs_grpc::{Channel, Code, Outgoing, Request, Router, Status};
 use std::net::SocketAddr;
+#[cfg(unix)]
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::net::TcpListener;
 
@@ -51,6 +53,44 @@ async fn client(addr: SocketAddr) -> HealthClient {
         }
     }
     panic!("connect {addr}: {last}");
+}
+
+async fn echo_health_check_and_watch(client: &HealthClient) {
+    let overall = client
+        .check(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("overall")
+        .into_inner();
+    assert_eq!(overall.status(), ServingStatus::Serving);
+    let named = client
+        .check(Request::new(req("helloworld.Greeter")))
+        .await
+        .expect("named")
+        .into_inner();
+    assert_eq!(named.status(), ServingStatus::Serving);
+    let mut stream = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("watch")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::Serving);
+}
+
+async fn assert_health_blocked(client: &HealthClient) {
+    assert_interceptor_blocked(
+        &client
+            .check(Request::new(HealthCheckRequest::new()))
+            .await
+            .expect_err("check"),
+    );
+    match client.watch(Request::new(HealthCheckRequest::new())).await {
+        Err(err) => assert_interceptor_blocked(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_interceptor_blocked(&err),
+            Ok(_) => panic!("Watch interceptor reject must fail"),
+        },
+    }
 }
 
 #[test]
@@ -392,18 +432,70 @@ async fn health_interceptor_rejects_check_and_watch() {
             .ok();
     });
     let client = client(addr).await;
-    assert_interceptor_blocked(
-        &client
-            .check(Request::new(HealthCheckRequest::new()))
-            .await
-            .expect_err("check"),
-    );
-    match client.watch(Request::new(HealthCheckRequest::new())).await {
-        Err(err) => assert_interceptor_blocked(&err),
-        Ok(resp) => match resp.into_inner().message().await {
-            Err(err) => assert_interceptor_blocked(&err),
-            Ok(_) => panic!("Watch interceptor reject must fail"),
-        },
-    }
+    assert_health_blocked(&client).await;
     handle.abort();
+}
+
+#[tokio::test]
+async fn health_client_interceptor_rejects_check_and_watch() {
+    let (addr, _reporter, handle) = serve().await;
+    let client = client(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_health_blocked(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_from_io_round_trips_check_and_watch() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.serve_connection(server_io).await.ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    echo_health_check_and_watch(&client).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_round_trips_check_and_watch() {
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "pbrs-grpc-health-{}-{}.sock",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        svc.serve_unix(sock).await.ok();
+    });
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match HealthClient::connect_unix(&path).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    };
+    echo_health_check_and_watch(&client).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
 }

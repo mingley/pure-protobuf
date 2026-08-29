@@ -20,8 +20,10 @@ use pbrs_grpc::reflection::{
     service, ExtensionRequest, ServerReflectionClient, ServerReflectionRequest,
     ServerReflectionResponse,
 };
-use pbrs_grpc::{Channel, Code, Request, Router, Status};
+use pbrs_grpc::{Channel, Code, Outgoing, Request, Router, Status};
 use std::net::SocketAddr;
+#[cfg(unix)]
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 use tokio::net::TcpListener;
 
@@ -303,6 +305,83 @@ async fn reflection_interceptor_rejects_with_typed_status() {
     let (tx, call) = client.server_reflection_info(Request::new(()));
     assert_interceptor_blocked(&call.await.expect_err("bidi"));
     drop(tx);
+}
+
+async fn echo_reflection_list(client: &ServerReflectionClient) {
+    let resp = ask(client, list_req()).await;
+    assert!(
+        resp.has_list_services_response(),
+        "expected list, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let names = service_names(&resp);
+    assert!(
+        names.contains(&"helloworld.Greeter".to_owned()),
+        "{names:?}"
+    );
+}
+
+#[tokio::test]
+async fn reflection_client_interceptor_rejects_with_typed_status() {
+    let (addr, _guard) = serve().await;
+    let client = client(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+#[tokio::test]
+async fn reflection_from_io_lists_the_registered_greeter() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection.serve_connection(server_io).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    echo_reflection_list(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_lists_the_registered_greeter() {
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let mut path = std::env::temp_dir();
+    path.push(format!(
+        "pbrs-grpc-reflection-{}-{}.sock",
+        std::process::id(),
+        N.fetch_add(1, Ordering::Relaxed)
+    ));
+    let _ = std::fs::remove_file(&path);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection.serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match ServerReflectionClient::connect_unix(&path).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    };
+    echo_reflection_list(&client).await;
+    let _ = std::fs::remove_file(&path);
 }
 
 #[tokio::test]

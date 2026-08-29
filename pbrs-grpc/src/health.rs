@@ -3,7 +3,9 @@
 //! Check and Watch are the proto methods. There is no `List`. An inbound
 //! request over the decoding cap is `RESOURCE_EXHAUSTED` on both. An interceptor
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
-//! the client on both methods.
+//! the client on both methods. Unix (`serve_unix` / `connect_unix`) and
+//! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
+//! both methods.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {
