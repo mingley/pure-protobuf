@@ -447,6 +447,14 @@ impl Channel {
         self
     }
 
+    /// Default per-RPC deadline when the request omits one. See
+    /// [`ChannelConfig::timeout`].
+    #[must_use]
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.config = self.config.timeout(timeout);
+        self
+    }
+
     /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
     ///
     /// `user_agent("my-app/1.0")` sends `my-app/1.0 pbrs-grpc/<version>`.
@@ -487,6 +495,11 @@ impl Channel {
     }
 
     fn prepare_outbound<T>(&self, path: &'static str, req: &mut Request<T>) -> Result<(), Status> {
+        if req.timeout().is_none() {
+            if let Some(timeout) = self.config.rpc_timeout() {
+                req.set_timeout(timeout);
+            }
+        }
         if self.config.compresses_outbound() {
             req.set_compress(true);
         }

@@ -351,7 +351,10 @@ Codes the kernel produces on your behalf:
 
 A deadline set on a request travels as `grpc-timeout` and is enforced on both
 ends: the server wraps the handler in a timeout, and the client stops waiting
-and resets the stream.
+and resets the stream. `Channel::timeout` / generated `FooClient::timeout`
+fill that in when the request omits one, matching tonic's client timeout and
+grpc-go's default call option. A request that already has a deadline is left
+alone; a client interceptor can still replace or clear it.
 
 ```rust
 let mut req = Request::new(payload);

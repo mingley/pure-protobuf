@@ -523,6 +523,7 @@ pub struct ChannelConfig {
     connect_timeout: Duration,
     max_connection_idle: Option<Duration>,
     send_compressed: bool,
+    timeout: Option<Duration>,
 }
 
 impl Default for ChannelConfig {
@@ -543,6 +544,7 @@ impl Default for ChannelConfig {
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_idle: None,
             send_compressed: false,
+            timeout: None,
         }
     }
 }
@@ -723,6 +725,21 @@ impl ChannelConfig {
         self
     }
 
+    /// Default per-RPC deadline when the request omits `grpc-timeout`.
+    ///
+    /// Distinct from [`Self::connect_timeout`], which bounds the dial. Disabled
+    /// by default. Values below 1 ms are raised to 1 ms. A request that already
+    /// has a deadline is left alone; a later interceptor can still
+    /// [`crate::Outgoing::set_timeout`] or [`crate::Outgoing::clear_timeout`].
+    ///
+    /// [`crate::Channel::timeout`] and generated `FooClient::timeout` set this
+    /// without building a [`ChannelConfig`].
+    #[must_use]
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout.max(Duration::from_millis(1)));
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -814,6 +831,12 @@ impl ChannelConfig {
         self.send_compressed
     }
 
+    /// Configured default per-RPC deadline, if any. See [`Self::timeout`].
+    #[must_use]
+    pub fn rpc_timeout(self) -> Option<Duration> {
+        self.timeout
+    }
+
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
@@ -883,6 +906,7 @@ mod tests {
         assert_eq!(config.age_grace(), super::DEFAULT_MAX_CONNECTION_AGE_GRACE);
         assert!(!config.compresses_outbound());
         assert_eq!(ChannelConfig::new().connection_idle(), None);
+        assert_eq!(ChannelConfig::new().rpc_timeout(), None);
     }
 
     #[test]
@@ -894,6 +918,16 @@ mod tests {
         assert_eq!(config.rpc_timeout(), Some(Duration::from_millis(1)));
         assert_eq!(config.connection_limit(), Some(4));
         assert_eq!(config.concurrent_rpc_limit(), Some(1));
+    }
+
+    #[test]
+    fn channel_timeout_never_zero() {
+        assert_eq!(
+            ChannelConfig::new()
+                .timeout(Duration::from_millis(0))
+                .rpc_timeout(),
+            Some(Duration::from_millis(1))
+        );
     }
 
     #[test]

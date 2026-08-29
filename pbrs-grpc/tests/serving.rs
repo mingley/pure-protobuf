@@ -687,6 +687,61 @@ async fn a_client_interceptor_can_set_a_deadline() {
 }
 
 #[tokio::test]
+async fn a_channel_timeout_expires_when_the_request_omits_one() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).timeout(Duration::from_millis(40));
+    let started = Instant::now();
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_millis(150),
+        "channel default should fire before Slow returns: {:?}",
+        started.elapsed()
+    );
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_request_timeout_wins_over_the_channel_default() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).timeout(Duration::from_millis(40));
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(5));
+    let reply = client.say_hello(request).await.expect("request deadline");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_clear_the_channel_timeout() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await)
+        .timeout(Duration::from_millis(40))
+        .intercept(|call: &mut Outgoing<'_>| {
+            call.clear_timeout();
+            Ok(())
+        });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("cleared");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_server_interceptor_injects_metadata_the_handler_sees() {
     struct ActorEcho;
 

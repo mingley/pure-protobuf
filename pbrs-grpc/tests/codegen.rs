@@ -539,7 +539,7 @@ fn generated_server_into_router_keeps_the_name() {
 #[test]
 fn generated_client_debug_and_into_inner() {
     let channel = Channel::connect_lazy("127.0.0.1:1").expect("lazy");
-    let client = StoreClient::new(channel);
+    let client = StoreClient::new(channel).timeout(Duration::from_secs(5));
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
     let _ = client.into_inner();
 }

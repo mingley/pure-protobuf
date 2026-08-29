@@ -4300,6 +4300,15 @@ fn emit_kernel_client(
         src,
         "    pub fn send_compressed(mut self) -> Self {{ self.channel = self.channel.send_compressed(); self }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Default per-RPC deadline when the request omits one. See [`{G}::Channel::timeout`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn timeout(mut self, timeout: ::std::time::Duration) -> Self {{ self.channel = self.channel.timeout(timeout); self }}"
+    );
     let _ = writeln!(src, "    /// The channel this client sends on.");
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
