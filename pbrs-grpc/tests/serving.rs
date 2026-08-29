@@ -386,6 +386,17 @@ fn channel_call_apis_document_hand_written_services() {
 }
 
 #[test]
+fn channel_config_connect_timeout_documents_every_call_shape() {
+    let src = include_str!("../src/config.rs");
+    assert!(
+        src.contains(
+            "This is a dial bound, not an RPC overlay. Every call shape uses the\n    /// same bound when the channel actually dials (eager `connect`, a lazy\n    /// first RPC, or a reconnect). Applies to every call shape once that\n    /// dial happens."
+        ),
+        "ChannelConfig::connect_timeout must name every call shape as a dial bound"
+    );
+}
+
+#[test]
 fn server_and_router_config_document_every_call_shape() {
     let src = include_str!("../src/server.rs");
     assert_eq!(

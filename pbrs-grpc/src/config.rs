@@ -773,6 +773,11 @@ impl ChannelConfig {
     /// the peer's HTTP/2 SETTINGS. Default 20 s. Values below 1 ms are raised
     /// to 1 ms.
     ///
+    /// This is a dial bound, not an RPC overlay. Every call shape uses the
+    /// same bound when the channel actually dials (eager `connect`, a lazy
+    /// first RPC, or a reconnect). Applies to every call shape once that
+    /// dial happens.
+    ///
     /// Always on. A peer that accepts the socket and never speaks HTTP/2
     /// fails with [`crate::Code::Unavailable`] instead of hanging
     /// [`crate::Channel::connect`] forever. Connection refused still fails
