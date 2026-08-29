@@ -573,3 +573,42 @@ async fn reflection_send_compressed_gzips_list_services() {
     let client = client(addr).await.send_compressed();
     gzip_reflection_list(&client).await;
 }
+
+#[tokio::test]
+async fn reflection_tls_send_compressed_gzips_list_services() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match ServerReflectionClient::connect_tls(addr, client_tls.clone()).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    }
+    .send_compressed();
+    gzip_reflection_list(&client).await;
+}

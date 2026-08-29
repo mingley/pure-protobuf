@@ -268,6 +268,16 @@ fn channel_call_apis_document_hand_written_services() {
         src.contains("[`Self::from_io`] with `config`. Applies to every call shape."),
         "Channel::from_io_with must name every call shape"
     );
+    assert!(
+        src.contains("The configuration in effect. Applies to every call shape."),
+        "Channel::config must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Run `interceptor` on every outbound RPC before the stream opens.\n    /// Applies to every call shape."
+        ),
+        "Channel::intercept must name every call shape"
+    );
 }
 
 #[tokio::test]

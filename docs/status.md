@@ -186,8 +186,9 @@ See `docs/upb.md`. Short list:
   and `Channel::connect_tls_with` apply to every call shape. Generated
   Store TLS (`serve_tls_with_shutdown` / `connect_tls_with` /
   `connect_tls_lazy_with`) and `send_compressed` gzip every Store shape.
-  Health `send_compressed` gzips Check and Watch; reflection
-  `send_compressed` gzips the bidi `list_services` method. A client
+  Health `send_compressed` gzips Check and Watch, including over TLS;
+  reflection `send_compressed` gzips the bidi `list_services` method,
+  including over TLS. A client
   interceptor sees Outgoing path / service / method / authority / scheme on
   Health Check/Watch, the reflection bidi method, and generated Store Get /
   Watch / PutAll / Sync. A packed `google.rpc.Status` from interceptor

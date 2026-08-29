@@ -656,3 +656,42 @@ async fn health_send_compressed_gzips_check_and_watch() {
     gzip_health_check_and_watch(&client).await;
     handle.abort();
 }
+
+#[tokio::test]
+async fn health_tls_send_compressed_gzips_check_and_watch() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match HealthClient::connect_tls(addr, client_tls.clone()).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    }
+    .send_compressed();
+    gzip_health_check_and_watch(&client).await;
+    handle.abort();
+}

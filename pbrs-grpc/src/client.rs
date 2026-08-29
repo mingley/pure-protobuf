@@ -490,7 +490,7 @@ impl Channel {
         ))
     }
 
-    /// The configuration in effect.
+    /// The configuration in effect. Applies to every call shape.
     #[must_use]
     pub fn config(&self) -> ChannelConfig {
         self.config
@@ -619,6 +619,7 @@ impl Channel {
     }
 
     /// Run `interceptor` on every outbound RPC before the stream opens.
+    /// Applies to every call shape.
     /// Calling this twice stacks: the first interceptor runs first. The
     /// interceptor sees the method path, service, method, `:authority`,
     /// `:scheme`, `user-agent`, and message caps, and can set metadata, a

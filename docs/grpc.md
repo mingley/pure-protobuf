@@ -847,7 +847,7 @@ There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
 `RESOURCE_EXHAUSTED`. An interceptor `Err(Status::with_error_details(...))`
 unpacks as `Status::rpc` / `Status::error_details` on both methods. Unix, TLS,
 and `from_io` serve both methods. `send_compressed` gzips Check and Watch
-when the client advertises gzip. A client interceptor sees path, service,
+when the client advertises gzip, including over TLS. A client interceptor sees path, service,
 method, `:authority`, and `:scheme` on both methods.
 
 ## Reflection
@@ -878,7 +878,7 @@ decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
 OK end. An interceptor `Err(Status::with_error_details(...))` unpacks as
 `Status::rpc` / `Status::error_details` on that bidi method. Unix, TLS, and
 `from_io` serve that method. `send_compressed` gzips that bidi method when
-the client advertises gzip. A client interceptor sees path, service, method,
+the client advertises gzip, including over TLS. A client interceptor sees path, service, method,
 `:authority`, and `:scheme` on that method.
 
 ## Graceful shutdown
