@@ -204,14 +204,25 @@ async fn a_legitimate_compressed_frame_still_round_trips() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let compressed = gzip(&hello_request());
     let mut peer = RawPeer::connect(addr).await;
-    let mut request = peer.request(SAY_HELLO, "application/grpc");
-    request
-        .headers_mut()
-        .insert("grpc-encoding", HeaderValue::from_static("gzip"));
     let body = frame_with_declared_len(1, compressed.len() as u32, &compressed);
-    let answer = peer.call_with(request, body).await;
-    answer.expect_code(Code::Ok);
-    assert_eq!(answer.payload_frames, 1);
+    for encoding in ["gzip", "GZIP", "Gzip"] {
+        let mut request = peer.request(SAY_HELLO, "application/grpc");
+        request.headers_mut().insert(
+            "grpc-encoding",
+            HeaderValue::from_str(encoding).expect("encoding"),
+        );
+        let answer = peer.call_with(request, body.clone()).await;
+        answer.expect_code(Code::Ok);
+        assert_eq!(answer.payload_frames, 1, "{encoding}");
+    }
+
+    let mut identity = peer.request(SAY_HELLO, "application/grpc");
+    identity
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("IDENTITY"));
+    peer.call_with(identity, frame(&hello_request()))
+        .await
+        .expect_code(Code::Ok);
 }
 
 #[tokio::test]

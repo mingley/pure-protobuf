@@ -751,7 +751,9 @@ channel.send_compressed()
 A peer that omitted `gzip` from `grpc-accept-encoding` is never sent a
 compressed frame, even if the handler or the config asked. Successful
 responses advertise `grpc-accept-encoding: identity,gzip` so the client
-knows what it can send next.
+knows what it can send next. Incoming `grpc-encoding` is matched
+case-insensitively (`GZIP` is gzip); anything other than identity or gzip
+is `UNIMPLEMENTED` and the response still advertises `identity,gzip`.
 
 Compression is not free. At LAN latencies, identity framing usually wins:
 gzipping a 300 KiB message costs more CPU time than the saved bytes cost in

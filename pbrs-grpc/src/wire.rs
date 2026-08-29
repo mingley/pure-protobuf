@@ -142,6 +142,20 @@ pub(crate) fn grpc_content_type(ct: &str) -> bool {
     subtype.eq_ignore_ascii_case("grpc") || subtype.eq_ignore_ascii_case("grpc+proto")
 }
 
+/// Whether `grpc-encoding` is identity or gzip.
+///
+/// HTTP content-codings are case-insensitive. Surrounding whitespace and a
+/// trailing `;parameter` (a `q=` some peers copy from accept-encoding) are
+/// ignored. Anything else is unsupported.
+#[must_use]
+pub(crate) fn grpc_encoding_supported(value: &str) -> bool {
+    let token = match value.split_once(';') {
+        Some((coding, _)) => coding.trim(),
+        None => value.trim(),
+    };
+    token.eq_ignore_ascii_case("identity") || token.eq_ignore_ascii_case("gzip")
+}
+
 /// Reject anything that is not a gRPC request we can answer.
 ///
 /// Runs before a handler is spawned, so a malformed or unsupported request
@@ -163,7 +177,7 @@ pub(crate) fn check_request(request: &Request<RecvStream>) -> Result<(), Request
         return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     }
     if let Some(enc) = request.headers().get(GRPC_ENCODING) {
-        let supported = matches!(enc.to_str(), Ok("identity" | "gzip"));
+        let supported = enc.to_str().is_ok_and(grpc_encoding_supported);
         if !supported {
             return Err(RequestReject::Grpc(Status::unimplemented(
                 "grpc-encoding not supported; this server accepts identity and gzip",
@@ -985,8 +999,9 @@ fn percent_decode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        accepts_gzip, effective_timeout, grpc_content_type, grpc_request, gzip_outbound,
-        percent_decode, percent_encode, soonest, FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
+        accepts_gzip, effective_timeout, grpc_content_type, grpc_encoding_supported, grpc_request,
+        gzip_outbound, percent_decode, percent_encode, soonest, FrameReader, DEFAULT_UA,
+        PBRS_GRPC_UA,
     };
     use crate::codec;
     use crate::gzip;
@@ -1042,6 +1057,25 @@ mod tests {
             "",
         ] {
             assert!(!grpc_content_type(no), "{no}");
+        }
+    }
+
+    #[test]
+    fn grpc_encoding_accepts_identity_and_gzip_case_insensitively() {
+        for ok in [
+            "gzip",
+            "GZIP",
+            "Gzip",
+            " gzip ",
+            "gzip;q=1.0",
+            "identity",
+            "IDENTITY",
+            " identity ",
+        ] {
+            assert!(grpc_encoding_supported(ok), "{ok}");
+        }
+        for no in ["snappy", "deflate", "gzip,identity", "", "br"] {
+            assert!(!grpc_encoding_supported(no), "{no}");
         }
     }
 
