@@ -698,4 +698,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         src.contains("The [`::pbrs_grpc::Call`] is fused after it resolves."),
         "client methods must name fused Call"
     );
+    assert!(
+        src.contains(
+            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`)"
+        ),
+        "generated intercept rustdoc must name channel overlays"
+    );
 }

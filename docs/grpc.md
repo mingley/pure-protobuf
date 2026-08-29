@@ -1250,8 +1250,11 @@ the relative duration that becomes `grpc-timeout`) and deadline Instant
 (`Outgoing::deadline`, `Instant::now() + timeout`, computed at the call),
 wait-for-ready (`Outgoing::wait_for_ready` is `false` when unset;
 `wait_for_ready_is_set` distinguishes that from an explicit `false`, so a
-later interceptor can fill only when the request omitted a choice — the same
-pattern as `timeout()` being `None`), compression (`Outgoing::compress` is
+later interceptor can fill only when neither the request nor the channel
+overlay set a choice — the same pattern as `timeout()` being `None`;
+`Outgoing::rpc_timeout` / `Outgoing::waits_for_ready` / `Outgoing::compresses_outbound`
+are those channel overlays and stay visible after `clear_*` opts out of the
+already-applied default), compression (`Outgoing::compress` is
 `false` when unset; `compress_is_set` is the same fill-if-unset pattern, and
 `Request::set_compress(false)` opts out of `Channel::send_compressed`), and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata succeeds — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win.

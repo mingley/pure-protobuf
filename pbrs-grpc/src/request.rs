@@ -600,14 +600,17 @@ impl<T> Request<T> {
         authority: &'a str,
         https: bool,
         user_agent: &'a str,
-        limits: MessageLimits,
+        config: crate::ChannelConfig,
     ) -> Outgoing<'a> {
         Outgoing {
             path,
             authority,
             scheme: if https { "https" } else { "http" },
             user_agent,
-            limits,
+            limits: config.limits(),
+            rpc_timeout: config.rpc_timeout(),
+            waits_for_ready: config.waits_for_ready(),
+            compresses_outbound: config.compresses_outbound(),
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -623,9 +626,13 @@ impl<T> Request<T> {
 /// already built it, and object-safe interceptors cannot be generic over it.
 /// Everything else an interceptor typically stamps — metadata, deadline,
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
-/// `:authority`, `:scheme`, `user-agent`, message caps, and the service/method
-/// halves of the path, which the interceptor cannot otherwise see. Typed values the
-/// caller inserted on [`crate::Request::extensions_mut`] are on this map.
+/// `:authority`, `:scheme`, `user-agent`, message caps, timeout / wait-for-ready
+/// / gzip overlays ([`Self::rpc_timeout`] / [`Self::waits_for_ready`] /
+/// [`Self::compresses_outbound`]), and the service/method halves of the path,
+/// which the interceptor cannot otherwise see. Those overlays fill in before
+/// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
+/// [`Self::clear_compress`] opt out of an already-applied default. Typed values
+/// the caller inserted on [`crate::Request::extensions_mut`] are on this map.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -653,6 +660,11 @@ impl<T> Request<T> {
 ///     if !call.compress_is_set() {
 ///         call.set_compress(true);
 ///     }
+///     let _ = (
+///         call.rpc_timeout(),
+///         call.waits_for_ready(),
+///         call.compresses_outbound(),
+///     );
 ///     Ok(())
 /// }
 /// # let _ = stamp;
@@ -663,6 +675,9 @@ pub struct Outgoing<'a> {
     scheme: &'static str,
     user_agent: &'a str,
     limits: MessageLimits,
+    rpc_timeout: Option<Duration>,
+    waits_for_ready: bool,
+    compresses_outbound: bool,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -713,6 +728,39 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
         self.limits
+    }
+
+    /// Channel [`crate::Channel::timeout`] overlay.
+    ///
+    /// Distinct from [`Self::timeout`]: that is the per-RPC `grpc-timeout`
+    /// after the overlay and any interceptor mutation. This is the channel
+    /// default even after [`Self::clear_timeout`]. Same value as
+    /// [`crate::Channel::rpc_timeout`].
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.rpc_timeout
+    }
+
+    /// Channel [`crate::Channel::wait_for_ready`] overlay.
+    ///
+    /// Distinct from [`Self::wait_for_ready`]: that is the per-RPC choice
+    /// after the overlay and any interceptor mutation. This is the channel
+    /// policy even after [`Self::clear_wait_for_ready`]. Same value as
+    /// [`crate::Channel::waits_for_ready`].
+    #[must_use]
+    pub fn waits_for_ready(&self) -> bool {
+        self.waits_for_ready
+    }
+
+    /// Channel [`crate::Channel::send_compressed`] overlay.
+    ///
+    /// Distinct from [`Self::compress`]: that is the per-RPC choice after
+    /// the overlay and any interceptor mutation. This is the channel policy
+    /// even after [`Self::clear_compress`]. Same value as
+    /// [`crate::Channel::compresses_outbound`] / [`crate::Rpc::compresses_outbound`].
+    #[must_use]
+    pub fn compresses_outbound(&self) -> bool {
+        self.compresses_outbound
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`.
@@ -775,8 +823,12 @@ impl<'a> Outgoing<'a> {
         *self.timeout = Some(timeout);
     }
 
-    /// Clear a timeout previously set on the request or by an earlier
-    /// interceptor.
+    /// Clear a timeout previously set on the request, by the channel overlay,
+    /// or by an earlier interceptor.
+    ///
+    /// The channel overlay has already run; clearing here opts out of that
+    /// default too. [`Self::rpc_timeout`] still reports the channel policy so
+    /// a later interceptor can re-apply it.
     pub fn clear_timeout(&mut self) {
         *self.timeout = None;
     }
@@ -806,8 +858,11 @@ impl<'a> Outgoing<'a> {
         *self.wait_for_ready = Some(wait);
     }
 
-    /// Drop a wait-for-ready choice so a later interceptor or channel
-    /// default can fill it in.
+    /// Drop a wait-for-ready choice so a later interceptor can fill it in.
+    ///
+    /// The channel overlay has already run; clearing here opts out of that
+    /// default too, the same as [`Self::clear_timeout`]. [`Self::waits_for_ready`]
+    /// still reports the channel policy so a later interceptor can re-apply it.
     pub fn clear_wait_for_ready(&mut self) {
         *self.wait_for_ready = None;
     }
@@ -840,8 +895,12 @@ impl<'a> Outgoing<'a> {
         *self.compress = Some(compress);
     }
 
-    /// Drop a compression choice so a later interceptor or channel
-    /// default can fill it in.
+    /// Drop a compression choice so a later interceptor can fill it in.
+    ///
+    /// The channel overlay has already run; clearing here opts out of that
+    /// default too, the same as [`Self::clear_timeout`].
+    /// [`Self::compresses_outbound`] still reports the channel policy so a
+    /// later interceptor can re-apply it.
     pub fn clear_compress(&mut self) {
         *self.compress = None;
     }
@@ -875,6 +934,9 @@ impl fmt::Debug for Outgoing<'_> {
             .field("scheme", &self.scheme)
             .field("user_agent", &self.user_agent)
             .field("limits", &self.limits)
+            .field("rpc_timeout", &self.rpc_timeout)
+            .field("waits_for_ready", &self.waits_for_ready)
+            .field("compresses_outbound", &self.compresses_outbound)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline())
@@ -1838,7 +1900,7 @@ mod tests {
                 "127.0.0.1:1",
                 false,
                 "pbrs-grpc/test",
-                crate::MessageLimits::default(),
+                crate::ChannelConfig::default(),
             );
             assert_eq!(call.service(), "svc");
             assert_eq!(call.method(), "Method");
@@ -1846,6 +1908,9 @@ mod tests {
             assert_eq!(call.timeout(), Some(Duration::from_secs(1)));
             assert!(call.deadline().is_some());
             assert!(!call.wait_for_ready_is_set());
+            assert!(call.rpc_timeout().is_none());
+            assert!(!call.waits_for_ready());
+            assert!(!call.compresses_outbound());
             format!("{call:?}")
         };
         assert!(shown.contains("/svc/Method"), "{shown}");
@@ -1863,7 +1928,7 @@ mod tests {
             "127.0.0.1:1",
             true,
             "pbrs-grpc/test",
-            crate::MessageLimits::default(),
+            crate::ChannelConfig::default(),
         );
         assert!(format!("{https:?}").contains("https"));
     }
@@ -1877,7 +1942,7 @@ mod tests {
                 "127.0.0.1:1",
                 false,
                 "pbrs-grpc/test",
-                crate::MessageLimits::default(),
+                crate::ChannelConfig::default(),
             );
             assert!(call.timeout().is_none());
             assert!(call.deadline().is_none());
@@ -1894,7 +1959,7 @@ mod tests {
                 "127.0.0.1:1",
                 false,
                 "pbrs-grpc/test",
-                crate::MessageLimits::default(),
+                crate::ChannelConfig::default(),
             );
             assert_eq!(call.timeout(), Some(Duration::from_secs(5)));
             let at = call.deadline().expect("instant");
@@ -1914,6 +1979,45 @@ mod tests {
             let left = tightened.saturating_duration_since(tokio::time::Instant::now());
             assert!(left <= Duration::from_millis(40));
         }
+    }
+
+    #[test]
+    fn outgoing_channel_overlays_survive_clear() {
+        let mut req = Request::new(());
+        let config = crate::ChannelConfig::new()
+            .timeout(Duration::from_secs(5))
+            .wait_for_ready(true)
+            .send_compressed(true);
+        let mut call = req.outgoing(
+            "/svc/Method",
+            "127.0.0.1:1",
+            false,
+            "pbrs-grpc/test",
+            config,
+        );
+        assert_eq!(call.rpc_timeout(), Some(Duration::from_secs(5)));
+        assert!(call.waits_for_ready());
+        assert!(call.compresses_outbound());
+        // Overlays are not copied onto the per-RPC fields until prepare_outbound.
+        assert!(call.timeout().is_none());
+        assert!(!call.wait_for_ready_is_set());
+        assert!(!call.compress_is_set());
+        call.set_timeout(Duration::from_secs(5));
+        call.set_wait_for_ready(true);
+        call.set_compress(true);
+        call.clear_timeout();
+        call.clear_wait_for_ready();
+        call.clear_compress();
+        assert!(call.timeout().is_none());
+        assert!(!call.wait_for_ready_is_set());
+        assert!(!call.compress_is_set());
+        assert_eq!(call.rpc_timeout(), Some(Duration::from_secs(5)));
+        assert!(call.waits_for_ready());
+        assert!(call.compresses_outbound());
+        let shown = format!("{call:?}");
+        assert!(shown.contains("rpc_timeout"), "{shown}");
+        assert!(shown.contains("waits_for_ready: true"), "{shown}");
+        assert!(shown.contains("compresses_outbound: true"), "{shown}");
     }
 
     #[test]

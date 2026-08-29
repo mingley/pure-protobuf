@@ -157,7 +157,9 @@ impl<S: Service> ServiceExt for S {}
 /// runs first. The interceptor sees the method path, service, method,
 /// `:authority`, `:scheme`, `user-agent`, and message caps, and can set a
 /// timeout / deadline Instant, wait-for-ready, compression, or typed
-/// extensions — not only metadata.
+/// extensions — not only metadata. Channel overlays (`rpc_timeout`,
+/// `waits_for_ready`, `compresses_outbound`) stay visible after `clear_*`
+/// opts out of the already-applied default.
 ///
 /// Typed context the caller put on [`crate::Request::extensions_mut`] is
 /// visible here, so an interceptor can stamp metadata from a trace id or
@@ -196,6 +198,11 @@ impl<S: Service> ServiceExt for S {}
 ///     if !call.compress_is_set() {
 ///         call.set_compress(true);
 ///     }
+///     let _ = (
+///         call.rpc_timeout(),
+///         call.waits_for_ready(),
+///         call.compresses_outbound(),
+///     );
 ///     Ok(())
 /// }
 /// # let _ = stamp;

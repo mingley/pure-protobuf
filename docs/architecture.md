@@ -75,7 +75,9 @@ age/idle) are enforced before the memory they guard is committed.
 `Channel` pools HTTP/2 connections to one authority. A client interceptor
 sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 `user-agent`, message caps, metadata, timeout / deadline Instant,
-wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), extensions). Unary and server-streaming retry once when the connection
+wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
+channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`),
+extensions). Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. `from_io` cannot redial.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
@@ -110,9 +112,11 @@ the method path, the client's `grpc-timeout`, gzip, and the
 Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 `Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,
 limits, metadata, timeout / deadline Instant, wait-for-ready
-(`wait_for_ready_is_set`), compression (`compress_is_set`), extensions).
+(`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays
+(`rpc_timeout` / `waits_for_ready` / `compresses_outbound`), extensions).
 Overlays (timeout, wait-for-ready, send_compressed, message caps,
-`https_scheme`) fill in before interceptors run. Interceptors run when the
+`https_scheme`) fill in before interceptors run; `clear_*` opts out of that
+already-applied default while the overlay getters stay. Interceptors run when the
 RPC method is invoked, not when the `Call` is first polled. Bind borrowed getters
 before `metadata_mut`.
 

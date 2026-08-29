@@ -608,7 +608,9 @@ impl Channel {
     /// interceptor sees the method path, service, method, `:authority`,
     /// `:scheme`, `user-agent`, and message caps, and can set metadata, a
     /// timeout / deadline Instant, wait-for-ready, compression, or typed
-    /// extensions.
+    /// extensions. Channel overlays (`rpc_timeout`, `waits_for_ready`,
+    /// `compresses_outbound`) are visible even after `clear_*` opts out of
+    /// the already-applied default.
     /// Values the caller put on [`crate::Request::extensions_mut`] are
     /// visible; stacked interceptors share that map.
     ///
@@ -652,7 +654,7 @@ impl Channel {
                 self.authority(),
                 self.https,
                 self.grpc_user_agent(),
-                self.config.limits(),
+                self.config,
             ))?;
         }
         Ok(())
