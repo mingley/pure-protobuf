@@ -556,7 +556,8 @@ on those transports, from either `Request::set_wait_for_ready` or
 `FooClient::wait_for_ready`. Health Check and Watch retry until listen on
 the same dialers (`HealthClient::connect_lazy` / `connect_tls_lazy` /
 `connect_unix_lazy`); Health has no List and no client-streaming or bidi
-method.
+method. Reflection `ServerReflectionInfo` retries until listen on those
+dialers; reflection is one bidi method.
 
 `Channel::waits_for_ready` / `FooClient::waits_for_ready` read the overlay
 (`wait_for_ready` sets it).

@@ -116,6 +116,119 @@ fn unix_sock(prefix: &str) -> std::path::PathBuf {
     path
 }
 
+fn server_identity() -> Identity {
+    Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("server identity")
+}
+
+fn reflection_server() -> ServerReflectionServer<impl ServerReflection> {
+    service([FILE_DESCRIPTOR_SET]).expect("reflection")
+}
+
+async fn bind_reflection() -> (SocketAddr, TcpListener) {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    (addr, listener)
+}
+
+async fn serve_reflection_at(addr: SocketAddr) -> Result<ServerGuard, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let reflection = reflection_server();
+                let handle = tokio::spawn(async move {
+                    reflection.serve_listener(listener).await.ok();
+                });
+                return Ok(ServerGuard(handle));
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+async fn serve_reflection_tls_at(addr: SocketAddr, tls: ServerTls) -> Result<ServerGuard, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let reflection = reflection_server();
+                let handle = tokio::spawn(async move {
+                    reflection
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return Ok(ServerGuard(handle));
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+fn stamp_wait_ready<T>(
+    mut request: Request<T>,
+    wait_on_request: bool,
+    timeout: Option<Duration>,
+) -> Request<T> {
+    if wait_on_request {
+        request.set_wait_for_ready(true);
+    }
+    if let Some(timeout) = timeout {
+        request.set_timeout(timeout);
+    }
+    request
+}
+
+async fn wait_then_complete_reflection(
+    client: &ServerReflectionClient,
+    wait_on_request: bool,
+    start: impl std::future::Future,
+) {
+    let timeout = Some(Duration::from_secs(5));
+    let (tx, mut call) =
+        client.server_reflection_info(stamp_wait_ready(Request::new(()), wait_on_request, timeout));
+
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("bidi finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = start.await;
+
+    let mut inbound = tokio::time::timeout(Duration::from_secs(2), call)
+        .await
+        .expect("bidi hung after listen")
+        .expect("bidi")
+        .into_inner();
+    tx.send(list_req()).await.expect("send");
+    let resp = inbound
+        .message()
+        .await
+        .expect("read")
+        .expect("reflection reply");
+    assert!(
+        resp.has_list_services_response(),
+        "expected list, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let names = service_names(&resp);
+    assert!(
+        names.contains(&"helloworld.Greeter".to_owned()),
+        "{names:?}"
+    );
+}
+
 fn list_req() -> ServerReflectionRequest {
     let mut req = ServerReflectionRequest::new();
     req.set_list_services("");
@@ -772,6 +885,136 @@ async fn reflection_tls_lists_the_registered_greeter() {
         found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
     };
     echo_reflection_list(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client = ServerReflectionClient::connect_lazy(addr).expect("lazy");
+    wait_then_complete_reflection(&client, true, async {
+        serve_reflection_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client = ServerReflectionClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_reflection(&client, false, async {
+        serve_reflection_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_tls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_reflection(&client, true, async {
+        serve_reflection_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_tls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_reflection(&client, false, async {
+        serve_reflection_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_mtls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_reflection(&client, true, async {
+        serve_reflection_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_reflection(&client, false, async {
+        serve_reflection_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_unix_wait_for_ready_completes_once_the_server_listens() {
+    let path = unix_sock("wait");
+    let client = ServerReflectionClient::connect_unix_lazy(&path).expect("lazy");
+    wait_then_complete_reflection(&client, true, async {
+        let sock = path.clone();
+        let reflection = reflection_server();
+        ServerGuard(tokio::spawn(async move {
+            reflection.serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reflection_unix_channel_wait_for_ready_completes_once_the_server_listens() {
+    let path = unix_sock("channel-wait");
+    let client = ServerReflectionClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_reflection(&client, false, async {
+        let sock = path.clone();
+        let reflection = reflection_server();
+        ServerGuard(tokio::spawn(async move {
+            reflection.serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
 }
 
 #[tokio::test]
