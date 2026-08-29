@@ -877,17 +877,29 @@ impl<T> WireStream<T> {
     }
 }
 
+/// How [`pump_outbound`] stopped.
+pub(crate) enum PumpEnd {
+    /// Request half-closed with `end_stream`. Park `SendStream` on cancel.
+    HalfClosed,
+    /// Already `RST_STREAM` (Call cancel, or a write failed). Do not park.
+    Reset,
+    /// [`crate::StreamSender::fail`]: already `RST_STREAM` CANCEL. A
+    /// client-streaming [`crate::Call`] resolves with this status.
+    Failed(Status),
+}
+
 /// Encode a client's outbound stream, watching for cancellation.
 ///
 /// The caller keeps `send` so a client-streaming [`crate::CallHandle`] can
-/// still `RST_STREAM` after a clean half-close. Returns `true` when this
-/// pump half-closed; `false` if it already reset the stream.
+/// still `RST_STREAM` after a clean half-close. [`PumpEnd::HalfClosed`]
+/// means this pump half-closed; [`PumpEnd::Reset`] means it already reset;
+/// [`PumpEnd::Failed`] is [`crate::StreamSender::fail`] (reset with CANCEL).
 pub(crate) async fn pump_outbound<T: Serialize>(
     send: &mut SendStream<Bytes>,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     wire: Wire,
-) -> bool {
+) -> PumpEnd {
     let mut batch = OutBatch::new(wire);
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut watch_cancel = true;
@@ -899,7 +911,7 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             }, if watch_cancel => {
                 if cancelled {
                     send.send_reset(Reason::CANCEL);
-                    return false;
+                    return PumpEnd::Reset;
                 }
                 // The Call finished and dropped its sender, and no received
                 // stream is holding a clone. Stop watching.
@@ -912,10 +924,10 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             // Half-close, carrying whatever is still batched.
             if batch.flush(send).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return false;
+                return PumpEnd::Reset;
             }
             send.send_data(Bytes::new(), true).ok();
-            return true;
+            return PumpEnd::HalfClosed;
         }
         // See the note in the server's drain loop: yield only when the caller
         // is demonstrably ahead of the network.
@@ -925,18 +937,21 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             rx.try_recv_many(&mut items, room);
         }
         for item in items.drain(..) {
-            let Ok(item) = item else {
-                send.send_reset(Reason::INTERNAL_ERROR);
-                return false;
+            let item = match item {
+                Ok(item) => item,
+                Err(status) => {
+                    send.send_reset(Reason::CANCEL);
+                    return PumpEnd::Failed(status);
+                }
             };
             if batch.push(send, item).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return false;
+                return PumpEnd::Reset;
             }
         }
         if !batch.is_full() && batch.flush(send).await.is_err() {
             send.send_reset(Reason::INTERNAL_ERROR);
-            return false;
+            return PumpEnd::Reset;
         }
     }
 }

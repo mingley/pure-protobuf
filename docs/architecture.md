@@ -139,7 +139,9 @@ Response-side interceptors are a documented omission.
 whose code or message still matches. `set_rpc` / `set_error_details`
 replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing
-`grpc-status-details-bin`. Received ASCII
+`grpc-status-details-bin` for a server response stream. A client request
+`fail` resets CANCEL; a client-streaming `Call` resolves with the status.
+Received ASCII
 `grpc-status` / `grpc-message` are independent of the packed protobuf;
 `rpc()` does not overwrite one from the other.
 

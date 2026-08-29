@@ -8,7 +8,7 @@ use crate::stream::{StreamSender, Streaming};
 use crate::tls::ClientTls;
 use crate::wire::{
     encode_msg, finish_stream, finish_unary, grpc_request, pump_outbound, reset_on_cancel,
-    send_bytes,
+    send_bytes, PumpEnd,
 };
 use bytes::Bytes;
 use h2::Reason;
@@ -1559,12 +1559,15 @@ where
         loop {
             tokio::select! {
                 biased;
-                result = &mut fut => break result,
                 () = &mut until_deadline => break Err(Status::deadline_exceeded()),
                 _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
-                _ = &mut pump, if !half_closed => {
-                    half_closed = true;
+                end = &mut pump, if !half_closed => {
+                    match end {
+                        PumpEnd::Failed(status) => break Err(status),
+                        PumpEnd::HalfClosed | PumpEnd::Reset => half_closed = true,
+                    }
                 }
+                result = &mut fut => break result,
             }
         }
     };
@@ -1629,7 +1632,10 @@ where
         let cancel_rx = cancel_rx.clone();
         async move {
             let mut send = send_stream;
-            if pump_outbound(&mut send, rx, cancel_rx.clone(), wire).await {
+            if matches!(
+                pump_outbound(&mut send, rx, cancel_rx.clone(), wire).await,
+                PumpEnd::HalfClosed
+            ) {
                 reset_on_cancel(send, cancel_rx);
             }
         }

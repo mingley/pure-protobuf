@@ -218,10 +218,13 @@ async fn server_hello(
 
 Dropping the last sender half-closes the stream cleanly. Cloning a sender
 keeps the stream open until every clone is dropped; `close()` consumes one
-handle. To end it with an error instead, use `tx.fail(status).await`, which
-puts the status in the trailers. Trailing metadata and
-`grpc-status-details-bin` (`Status::with_error_details`) both ship after
-any messages already sent, the same as a handler `Err`.
+handle. To end it with an error instead, use `tx.fail(status).await`. On a
+server response producer that puts the status in the trailers, including
+trailing metadata and `grpc-status-details-bin` (`Status::with_error_details`),
+after any messages already sent — the same as a handler `Err`. On a client
+request sender, gRPC has no request-side `grpc-status`: the stream is reset
+with CANCEL. A client-streaming `Call` resolves with that status; a bidi call
+that already has headers surfaces the reset on the received `Streaming`.
 
 A producer that waits on a timer or a status map, rather than on `send`,
 should select on `tx.closed()` or `request.cancelled()`. The wire drain

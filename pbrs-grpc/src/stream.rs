@@ -419,9 +419,16 @@ impl<T> StreamSender<T> {
 
     /// End the stream with an error status instead of a clean half-close.
     ///
-    /// Trailing metadata on `status` and `grpc-status-details-bin` (see
-    /// [`crate::Status::with_error_details`]) both ship after any messages
-    /// already sent, the same as a handler `Err`.
+    /// On a **server response** producer, trailing metadata and
+    /// `grpc-status-details-bin` (see [`crate::Status::with_error_details`])
+    /// both ship after any messages already sent, the same as a handler
+    /// `Err`.
+    ///
+    /// On a **client request** sender (client-streaming or bidi), gRPC has no
+    /// request-side `grpc-status`. This resets the HTTP/2 stream with CANCEL,
+    /// matching [`crate::CallHandle::cancel`]. A client-streaming
+    /// [`crate::Call`] resolves with `status`; a bidi call that already has
+    /// headers surfaces the reset on the received [`Streaming`].
     pub async fn fail(self, status: Status) {
         self.tx.send(Err(status)).await.ok();
     }
