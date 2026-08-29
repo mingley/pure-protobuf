@@ -1,5 +1,6 @@
 //! RPC envelopes: [`Request`], [`Response`], and the cancellable [`Call`].
 
+use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::server::{split_path, PeerCred};
 use crate::status::Status;
@@ -44,6 +45,7 @@ pub struct Request<T> {
     scheme: Option<String>,
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
+    limits: Option<MessageLimits>,
     extensions: http::Extensions,
 }
 
@@ -65,6 +67,7 @@ impl<T> Request<T> {
             scheme: None,
             deadline: None,
             wait_for_ready: None,
+            limits: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -105,6 +108,7 @@ impl<T> Request<T> {
                 scheme: self.scheme,
                 deadline: self.deadline,
                 wait_for_ready: self.wait_for_ready,
+                limits: self.limits,
                 extensions: self.extensions,
             },
         )
@@ -130,6 +134,7 @@ impl<T> Request<T> {
             scheme: parts.scheme,
             deadline: parts.deadline,
             wait_for_ready: parts.wait_for_ready,
+            limits: parts.limits,
             extensions: parts.extensions,
         }
     }
@@ -312,6 +317,17 @@ impl<T> Request<T> {
         self.scheme.as_deref()
     }
 
+    /// Message caps the kernel is enforcing on this RPC.
+    ///
+    /// Same value as [`crate::Rpc::limits`] on an inbound server request.
+    /// `None` on a request you built to send: the channel's
+    /// [`crate::Channel::message_limits`] applies at send time and is not
+    /// stored here.
+    #[must_use]
+    pub fn limits(&self) -> Option<MessageLimits> {
+        self.limits
+    }
+
     pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>, bool) {
         (self.message, self.metadata, self.timeout, self.compress)
     }
@@ -337,6 +353,7 @@ impl<T> Request<T> {
             scheme: None,
             deadline: None,
             wait_for_ready: None,
+            limits: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -353,6 +370,10 @@ impl<T> Request<T> {
 
     pub(crate) fn set_peer_cred(&mut self, cred: Option<PeerCred>) {
         self.peer_cred = cred;
+    }
+
+    pub(crate) fn set_limits(&mut self, limits: MessageLimits) {
+        self.limits = Some(limits);
     }
 
     pub(crate) fn set_compressed(&mut self, compressed: bool) {
@@ -591,6 +612,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("authority", &self.authority)
             .field("scheme", &self.scheme)
             .field("wait_for_ready", &self.wait_for_ready)
+            .field("limits", &self.limits)
             .finish_non_exhaustive()
     }
 }
@@ -611,6 +633,7 @@ pub struct Parts {
     scheme: Option<String>,
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
+    limits: Option<MessageLimits>,
     extensions: http::Extensions,
 }
 
@@ -705,6 +728,12 @@ impl Parts {
     #[must_use]
     pub fn scheme(&self) -> Option<&str> {
         self.scheme.as_deref()
+    }
+
+    /// Message caps the kernel is enforcing. See [`Request::limits`].
+    #[must_use]
+    pub fn limits(&self) -> Option<MessageLimits> {
+        self.limits
     }
 }
 
@@ -962,6 +991,7 @@ mod tests {
         assert!(parts.compress());
         assert!(parts.compressed());
         assert!(parts.peer_cred().is_none());
+        assert!(parts.limits().is_none());
         assert_eq!(parts.authority(), Some("127.0.0.1:9"));
         assert_eq!(parts.scheme(), Some("http"));
         assert_eq!(parts.deadline(), Some(at));
@@ -973,6 +1003,7 @@ mod tests {
         assert!(rebuilt.compress());
         assert!(rebuilt.compressed());
         assert!(rebuilt.peer_cred().is_none());
+        assert!(rebuilt.limits().is_none());
         assert_eq!(rebuilt.authority(), Some("127.0.0.1:9"));
         assert_eq!(rebuilt.scheme(), Some("http"));
         assert_eq!(rebuilt.deadline(), Some(at));

@@ -414,6 +414,13 @@ impl Rpc {
     }
 
     /// Effective message caps for this RPC.
+    ///
+    /// Same value as [`ServerConfig::limits`]: the inbound decode cap and the
+    /// outbound encode cap the kernel enforces when it reads and writes
+    /// frames. Default is 4 MiB inbound ([`crate::DEFAULT_MAX_DECODING_MESSAGE_SIZE`])
+    /// and unlimited outbound. An interceptor cannot raise them; it can only
+    /// inspect, or reject before the body is read. Generated handlers see the
+    /// same caps on [`Request::limits`].
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
         self.config.limits()
@@ -658,6 +665,7 @@ impl Rpc {
             .with_http(authority, scheme);
             req.set_compressed(framed.compressed);
             req.set_peer_cred(peer_cred);
+            req.set_limits(limits);
             if let Some(d) = timeout {
                 req.set_timeout(d);
             }
@@ -719,6 +727,7 @@ impl Rpc {
                 .with_extensions(extensions)
                 .with_http(authority, scheme);
         req.set_peer_cred(peer_cred);
+        req.set_limits(limits);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -1141,7 +1150,7 @@ impl<S: Service> Server<S> {
     /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
-    /// [`Rpc::peer_cred`],
+    /// [`Rpc::peer_cred`] / [`Rpc::limits`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:

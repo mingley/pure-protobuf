@@ -25,9 +25,9 @@ mod common;
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService, Outgoing,
-    PeerCred, PeerIdentity, Request, Response, Router, Rpc, Server, ServerConfig, Service,
-    ServiceExt, Status, TestServiceClient, TestServiceServer,
+    Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService,
+    MessageLimits, Outgoing, PeerCred, PeerIdentity, Request, Response, Router, Rpc, Server,
+    ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -1711,6 +1711,80 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
         .await
         .expect("rpc");
     assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn interceptors_and_handlers_see_message_limits() {
+    struct SeesLimits;
+
+    impl Greeter for SeesLimits {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            let want = MessageLimits::new()
+                .with_max_decoding(16)
+                .with_max_encoding(32);
+            if request.limits() != Some(want) {
+                return Err(Status::internal(format!("limits {:?}", request.limits())));
+            }
+            let (msg, parts) = request.into_message_and_parts();
+            if parts.limits() != Some(want) {
+                return Err(Status::internal(format!(
+                    "parts limits {:?}",
+                    parts.limits()
+                )));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("sees-limits"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-limits"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-limits"))
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let want = MessageLimits::new()
+        .with_max_decoding(16)
+        .with_max_encoding(32);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesLimits)
+            .max_decoding_message_size(16)
+            .max_encoding_message_size(32)
+            .intercept(move |rpc: &mut Rpc| {
+                if rpc.limits() != want {
+                    return Err(Status::internal(format!("rpc limits {:?}", rpc.limits())));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    assert!(Request::new(req("ada")).limits().is_none());
     task.abort();
 }
 

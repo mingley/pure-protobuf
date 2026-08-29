@@ -99,7 +99,8 @@ See `docs/upb.md`. Short list:
   retry). Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
-  `ConnectionInfo`. GCP-auth and ORCA stay out; load balancing, application retries, and
+  `ConnectionInfo`. Interceptors and generated handlers see
+  `MessageLimits` on `Rpc::limits` / `Request::limits`. GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
 - There are no arena views.

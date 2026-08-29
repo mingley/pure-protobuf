@@ -926,7 +926,8 @@ guards is committed.
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
-produces.
+produces. An interceptor reads those caps with `Rpc::limits`; a generated
+handler reads them with `Request::limits`.
 
 ```rust
 GreeterServer::new(MyGreeter)
@@ -1086,6 +1087,11 @@ included one, or when `Incoming::peer` supplies `PeerIdentity::from_der_certs`.
 the default `Incoming`, and `serve_connection` leave it `None`.
 Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.
+`Rpc::limits` is the `MessageLimits` the kernel will enforce on this RPC
+(default 4 MiB inbound, unlimited outbound). An interceptor cannot raise
+them. Generated handlers see the same caps on `Request::limits`; a request
+you built to send has `None` — the channel's `message_limits` applies at
+send time.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
 id), insert it on the `Rpc` and read it from the `Request`:
@@ -1166,7 +1172,7 @@ in the method.
 
 For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, `:authority` / `:scheme`, the
-peer address, mTLS identity, and Unix `peer_cred` there.
+peer address, mTLS identity, Unix `peer_cred`, and `Request::limits` there.
 
 ## Testing
 
