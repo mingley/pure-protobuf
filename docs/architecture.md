@@ -44,7 +44,8 @@ and does not probe `Io`. `serve_connection` leaves those fields unset.
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, peer identity / cred, and
 `Rpc::limits`. `Router` splits on the service half of the path.
-Generated handlers see the same facts on `Request` / `Parts`.
+Generated handlers see the same facts on `Request` / `Parts`. Dumping
+`Rpc` prints service/method, both timeout views, and `limits`.
 
 ### Wire
 
@@ -65,6 +66,38 @@ dies after the stream slot looked live. `from_io` cannot redial.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` is
 the same string client interceptors see on `Outgoing::scheme`.
+
+### Interceptors
+
+Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
+The first registered runs first. Closures see `Rpc` (path, service/method,
+metadata, both timeout views, peer, `:authority` / `:scheme`, limits).
+They may only tighten the deadline. `Err(Status)` is `rpc.reject`.
+Generated handlers read the same facts on `Request` / `Parts`.
+
+Client: `Channel::intercept` / `FooClient::intercept`. Closures see
+`Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,
+limits, metadata, deadline, wait-for-ready, compression, extensions).
+Overlays (timeout, wait-for-ready, send_compressed, message caps,
+`https_scheme`) fill in before interceptors run. Bind borrowed getters
+before `metadata_mut`.
+
+Response-side interceptors are a documented omission.
+
+### Status
+
+`Status` is two machine words; message, metadata, and
+`grpc-status-details-bin` live behind a pointer. `with_error_details` /
+`from_error_details` pack the standard `google.rpc` payloads
+(`ErrorInfo`, `RetryInfo`, `QuotaFailure`, `BadRequest`, ...) as
+`google.rpc.Status`. `set_message` rewrites a packed protobuf whose
+message still matches.
+
+### Health and reflection
+
+`grpc.health.v1` is an ordinary service plus `HealthReporter`
+(`Check` / `Watch` only). `grpc.reflection.v1` is built from registered
+`FILE_DESCRIPTOR_SET`s.
 
 ## Parse / encode
 

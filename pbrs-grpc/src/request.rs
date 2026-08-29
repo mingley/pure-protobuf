@@ -623,6 +623,8 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("message", &self.message)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
+            .field("deadline", &self.deadline)
+            .field("compress", &self.compress)
             .field("compressed", &self.compressed)
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
@@ -1027,6 +1029,10 @@ mod tests {
         assert_eq!(rebuilt.scheme(), Some("http"));
         assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
+        let shown = format!("{rebuilt:?}");
+        assert!(shown.contains("compress: true"), "{shown}");
+        assert!(shown.contains("compressed: true"), "{shown}");
+        assert!(shown.contains("deadline: Some("), "{shown}");
         assert_eq!(rebuilt.into_inner(), "swapped");
         let mut cleared = Request::new(0u32);
         cleared.set_timeout(Duration::from_secs(1));
@@ -1091,6 +1097,7 @@ mod tests {
         assert!(shown.contains("pbrs-grpc/test"), "{shown}");
         assert!(shown.contains("x-trace"), "{shown}");
         assert!(shown.contains("abc"), "{shown}");
+        assert!(shown.contains("max_decoding"), "{shown}");
         let https = req.outgoing(
             "/svc/Method",
             "127.0.0.1:1",

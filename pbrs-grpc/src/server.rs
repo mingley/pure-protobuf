@@ -255,6 +255,8 @@ impl std::fmt::Debug for Rpc {
         f.debug_struct("Rpc")
             .field("authority", &self.authority())
             .field("path", &self.path())
+            .field("service", &self.service())
+            .field("method", &self.method())
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
             .field("peer_identity", &self.peer_identity)
@@ -263,6 +265,8 @@ impl std::fmt::Debug for Rpc {
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("peer_timeout", &self.peer_timeout())
+            .field("effective_timeout", &self.effective_timeout())
+            .field("limits", &self.limits())
             .finish_non_exhaustive()
     }
 }
