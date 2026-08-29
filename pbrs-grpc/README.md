@@ -54,8 +54,8 @@ HTTP/2 PING keepalive, TCP `SO_KEEPALIVE`, max connection age (jittered ±10%) a
 redial of a dead connection, lazy connect with wait-for-ready, in-process
 `Channel::from_io` / `Server::serve_connection`, Unix domain
 sockets (h2c; `serve_unix_unlink` after a crash), graceful drain with `GOAWAY`, per-message gzip, deadlines,
-cancellation, ASCII and `-bin` metadata, OK-path custom trailers. Outbound
-RPCs send `user-agent: pbrs-grpc/0.1.0`.
+cancellation (dropping a `Call` resets the stream), ASCII and `-bin` metadata, OK-path custom trailers. Outbound
+RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`.
 
 **[Guide](../docs/grpc.md)** — building services, streaming, metadata, errors,
 deadlines, lazy connect, compression, interceptors, limits, tuning, testing,

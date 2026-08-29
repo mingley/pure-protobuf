@@ -112,6 +112,7 @@ impl<T> Streaming<T> {
             StreamSender {
                 tx,
                 limits: MessageLimits::unlimited(),
+                compress: false,
             },
             Self {
                 source: Source::Channel(rx),
@@ -228,6 +229,7 @@ impl<T> std::fmt::Debug for Streaming<T> {
 pub struct StreamSender<T> {
     tx: mpsc::Sender<Item<T>>,
     limits: MessageLimits,
+    compress: bool,
 }
 
 impl<T> Clone for StreamSender<T> {
@@ -235,6 +237,7 @@ impl<T> Clone for StreamSender<T> {
         Self {
             tx: self.tx.clone(),
             limits: self.limits,
+            compress: self.compress,
         }
     }
 }
@@ -246,14 +249,25 @@ impl<T> StreamSender<T> {
         self
     }
 
-    /// Queue one uncompressed message, waiting if the buffer is full.
+    pub(crate) fn with_compress(mut self, compress: bool) -> Self {
+        self.compress = compress;
+        self
+    }
+
+    /// Queue one message, waiting if the buffer is full.
     ///
-    /// `Err` means the peer is gone or the message exceeds the outbound cap.
+    /// Uncompressed unless this sender was built with channel-wide gzip
+    /// ([`crate::ChannelConfig::send_compressed`]). `Err` means the peer is
+    /// gone or the message exceeds the outbound cap.
     pub async fn send(&self, message: T) -> Result<(), Status>
     where
         T: pbrs::Serialize,
     {
-        self.send_framed(Framed::new(message)).await
+        if self.compress {
+            self.send_framed(Framed::compressed(message)).await
+        } else {
+            self.send_framed(Framed::new(message)).await
+        }
     }
 
     /// Queue one gzip-compressed message (Compressed-Flag 1).

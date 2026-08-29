@@ -13,9 +13,9 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::tls::ServerTls;
 use crate::wire::{
-    check_request, effective_timeout, encode_msg, grpc_trailers, let_producer_catch_up,
-    read_one_message, reject, send_bytes, send_ok_headers, send_trailers_only, wrap_timeout,
-    OutBatch, WireStream,
+    accepts_gzip, check_request, effective_timeout, encode_msg, grpc_trailers, gzip_outbound,
+    let_producer_catch_up, read_one_message, reject, send_bytes, send_ok_headers,
+    send_trailers_only, wrap_timeout, OutBatch, WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -281,6 +281,8 @@ impl Rpc {
             mut respond,
             wire,
             outcome,
+            prefer_gzip,
+            peer_accepts_gzip,
             ..
         }) = self.run_unary_request(handler).await
         else {
@@ -288,7 +290,9 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_unary_response(response, respond, wire).await,
+            Ok(response) => {
+                send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip).await
+            }
         }
     }
 
@@ -304,6 +308,8 @@ impl Rpc {
             mut respond,
             wire,
             outcome,
+            prefer_gzip,
+            peer_accepts_gzip,
             ..
         }) = self.run_streaming_request(handler).await
         else {
@@ -311,7 +317,9 @@ impl Rpc {
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_unary_response(response, respond, wire).await,
+            Ok(response) => {
+                send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip).await
+            }
         }
     }
 
@@ -328,13 +336,25 @@ impl Rpc {
             wire,
             deadline,
             outcome,
+            prefer_gzip,
+            peer_accepts_gzip,
         }) = self.run_unary_request(handler).await
         else {
             return;
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_stream_response(response, respond, wire, deadline).await,
+            Ok(response) => {
+                send_stream_response(
+                    response,
+                    respond,
+                    wire,
+                    deadline,
+                    prefer_gzip,
+                    peer_accepts_gzip,
+                )
+                .await
+            }
         }
     }
 
@@ -351,13 +371,25 @@ impl Rpc {
             wire,
             deadline,
             outcome,
+            prefer_gzip,
+            peer_accepts_gzip,
         }) = self.run_streaming_request(handler).await
         else {
             return;
         };
         match outcome {
             Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
-            Ok(response) => send_stream_response(response, respond, wire, deadline).await,
+            Ok(response) => {
+                send_stream_response(
+                    response,
+                    respond,
+                    wire,
+                    deadline,
+                    prefer_gzip,
+                    peer_accepts_gzip,
+                )
+                .await
+            }
         }
     }
 
@@ -384,6 +416,8 @@ impl Rpc {
         }
         let timeout = effective_timeout(request.headers(), config.rpc_timeout());
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
+        let peer_accepts_gzip = accepts_gzip(request.headers());
+        let prefer_gzip = config.compresses_outbound();
         let (parts, mut recv) = request.into_parts();
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
@@ -405,6 +439,8 @@ impl Rpc {
             wire: config.wire(),
             deadline,
             outcome,
+            prefer_gzip,
+            peer_accepts_gzip,
         })
     }
 
@@ -431,6 +467,8 @@ impl Rpc {
         }
         let timeout = effective_timeout(request.headers(), config.rpc_timeout());
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
+        let peer_accepts_gzip = accepts_gzip(request.headers());
+        let prefer_gzip = config.compresses_outbound();
         let (parts, recv) = request.into_parts();
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
@@ -453,6 +491,8 @@ impl Rpc {
             wire: config.wire(),
             deadline,
             outcome,
+            prefer_gzip,
+            peer_accepts_gzip,
         })
     }
 }
@@ -476,22 +516,27 @@ struct Prepared<T> {
     /// response writer, so no stage can outlive it.
     deadline: Option<tokio::time::Instant>,
     outcome: Result<T, Status>,
+    prefer_gzip: bool,
+    peer_accepts_gzip: bool,
 }
 
 async fn send_unary_response<Resp: Serialize>(
     response: Response<Resp>,
     mut respond: h2::server::SendResponse<Bytes>,
     wire: Wire,
+    prefer_gzip: bool,
+    peer_accepts_gzip: bool,
 ) {
     let (msg, headers, trailers, compress) = response.split();
-    let frame = match encode_msg(&msg, compress, wire.limits) {
+    let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
+    let frame = match encode_msg(&msg, gzip, wire.limits) {
         Ok(frame) => frame,
         Err(status) => {
             send_trailers_only(&mut respond, status, &Metadata::new());
             return;
         }
     };
-    let Ok(mut send) = send_ok_headers(&mut respond, &headers, compress) else {
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip) else {
         return;
     };
     send_bytes(&mut send, frame, false, wire.send_buffer)
@@ -509,11 +554,14 @@ async fn send_stream_response<Resp: Serialize + Send>(
     mut respond: h2::server::SendResponse<Bytes>,
     wire: Wire,
     deadline: Option<tokio::time::Instant>,
+    prefer_gzip: bool,
+    peer_accepts_gzip: bool,
 ) {
     let (mut stream, headers, trailers, compress) = response.split();
     // Headers go out before the first message so a client that only wants
     // initial metadata is not blocked behind handler work.
-    let Ok(mut send) = send_ok_headers(&mut respond, &headers, compress) else {
+    let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip) else {
         return;
     };
     let mut status = Status::from_code(Code::Ok);
@@ -522,10 +570,13 @@ async fn send_stream_response<Resp: Serialize + Send>(
     // future: a producer that stops early because *its* deadline expired must
     // not be reported as a clean end of stream.
     let drained = match deadline {
-        None => drain_to_wire(&mut stream, &mut send, wire).await,
-        Some(at) => tokio::time::timeout_at(at, drain_to_wire(&mut stream, &mut send, wire))
-            .await
-            .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
+        None => drain_to_wire(&mut stream, &mut send, wire, prefer_gzip, peer_accepts_gzip).await,
+        Some(at) => tokio::time::timeout_at(
+            at,
+            drain_to_wire(&mut stream, &mut send, wire, prefer_gzip, peer_accepts_gzip),
+        )
+        .await
+        .unwrap_or_else(|_| Err(DrainError::Producer(Status::deadline_exceeded()))),
     };
     if let Err(err) = drained {
         // A transport failure cannot be reported; a producer failure becomes
@@ -562,6 +613,8 @@ async fn drain_to_wire<Resp: Serialize + Send>(
     stream: &mut Streaming<Resp>,
     send: &mut h2::SendStream<Bytes>,
     wire: Wire,
+    prefer_gzip: bool,
+    peer_accepts_gzip: bool,
 ) -> Result<(), DrainError> {
     let mut batch = OutBatch::new(wire);
     let mut items = Vec::with_capacity(OutBatch::BURST);
@@ -581,7 +634,8 @@ async fn drain_to_wire<Resp: Serialize + Send>(
             stream.try_recv_many(&mut items, room);
         }
         for item in items.drain(..) {
-            let item = item.map_err(DrainError::Producer)?;
+            let mut item = item.map_err(DrainError::Producer)?;
+            item.compressed = gzip_outbound(item.compressed, prefer_gzip, peer_accepts_gzip);
             batch
                 .push(send, item)
                 .await

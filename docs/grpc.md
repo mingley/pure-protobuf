@@ -379,7 +379,9 @@ let result = call.await;   // Err(Cancelled) if the handle fired
 ```
 
 Cancelling resets the HTTP/2 stream, so the server stops working on it rather
-than finishing into a void.
+than finishing into a void. Dropping the `Call` without awaiting does the
+same: the stream is reset and the handler is dropped. `cancel()` is for when
+you still hold the future and want the await to resolve with `Cancelled`.
 
 ## Wait-for-ready and lazy connect
 
@@ -680,6 +682,26 @@ resp.set_compress(true);
 On a stream, choose per message with `send` or `send_compressed`.
 `request.compressed()` reports whether what arrived was compressed.
 
+To gzip every response a client advertised `gzip` for:
+
+```rust
+ServerConfig::new().send_compressed(true)
+```
+
+To gzip every request from a channel (and `StreamSender::send` on streams
+it opens):
+
+```rust
+ChannelConfig::new().send_compressed(true)
+// or, after connect:
+channel.send_compressed()
+```
+
+A peer that omitted `gzip` from `grpc-accept-encoding` is never sent a
+compressed frame, even if the handler or the config asked. Successful
+responses advertise `grpc-accept-encoding: identity,gzip` so the client
+knows what it can send next.
+
 Compression is not free. At LAN latencies, identity framing usually wins:
 gzipping a 300 KiB message costs more CPU time than the saved bytes cost in
 transit. Measure before turning it on.
@@ -687,6 +709,16 @@ transit. Measure before turning it on.
 A peer asking for an encoding the kernel does not implement gets
 `UNIMPLEMENTED` with `grpc-accept-encoding: identity,gzip` attached, so it
 knows what to retry with.
+
+Outbound RPCs send `user-agent: pbrs-grpc/<version>`. Prefix it the way
+grpc-go does with `WithUserAgent`:
+
+```rust
+let channel = Channel::connect(addr).await?.user_agent("inventory/2.1")?;
+// sends: inventory/2.1 pbrs-grpc/0.1.0
+```
+
+`user-agent` in request metadata cannot replace that value.
 
 ## Limits and the threat model
 

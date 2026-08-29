@@ -4239,6 +4239,28 @@ fn emit_kernel_client(
         "        Self {{ channel: self.channel.intercept(interceptor) }}"
     );
     let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// Prefix the kernel `user-agent`. See [`{G}::Channel::user_agent`]."
+    );
+    let _ = writeln!(
+        src,
+        "    pub fn user_agent(self, prefix: impl AsRef<str>) -> ::core::result::Result<Self, {G}::Status> {{"
+    );
+    let _ = writeln!(
+        src,
+        "        Ok(Self {{ channel: self.channel.user_agent(prefix)? }})"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
+        "    /// gzip unary payloads and [`{G}::StreamSender::send`]. See [`{G}::Channel::send_compressed`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn send_compressed(mut self) -> Self {{ self.channel = self.channel.send_compressed(); self }}"
+    );
     let _ = writeln!(src, "    /// The channel this client sends on.");
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

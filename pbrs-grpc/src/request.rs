@@ -538,13 +538,17 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
 
 /// An RPC in flight.
 ///
-/// Await it for the result. Dropping it without awaiting abandons the RPC;
-/// dropping it after [`Self::cancel`] resets the HTTP/2 stream so the server
-/// drops the handler instead of running it to completion.
+/// Await it for the result. Dropping it without awaiting resets the HTTP/2
+/// stream so the server drops the handler, the same as [`Self::cancel`].
+/// Cancel while you still hold the future if you need the await to resolve
+/// with [`Code::Cancelled`](crate::Code::Cancelled) rather than being dropped.
 #[must_use = "an RPC does nothing until awaited"]
 pub struct Call<T> {
     fut: Pin<Box<dyn Future<Output = Result<T, Status>> + Send>>,
     cancel: watch::Sender<bool>,
+    /// Set when [`Future::poll`] returns `Ready`, so [`Drop`] does not RST a
+    /// finished RPC.
+    done: bool,
 }
 
 impl<T> Call<T> {
@@ -552,7 +556,11 @@ impl<T> Call<T> {
         cancel: watch::Sender<bool>,
         fut: Pin<Box<dyn Future<Output = Result<T, Status>> + Send>>,
     ) -> Self {
-        Self { fut, cancel }
+        Self {
+            fut,
+            cancel,
+            done: false,
+        }
     }
 
     /// Reset the stream and resolve with [`Code::Cancelled`](crate::Code::Cancelled).
@@ -584,7 +592,21 @@ impl<T> Future for Call<T> {
     type Output = Result<T, Status>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.fut.as_mut().poll(cx)
+        let poll = self.fut.as_mut().poll(cx);
+        if poll.is_ready() {
+            self.done = true;
+        }
+        poll
+    }
+}
+
+impl<T> Drop for Call<T> {
+    fn drop(&mut self) {
+        if !self.done {
+            // Wakes a client-streaming pump that still holds the send half;
+            // unary RSTs when the boxed future (and its `SendStream`) drops.
+            self.cancel.send(true).ok();
+        }
     }
 }
 

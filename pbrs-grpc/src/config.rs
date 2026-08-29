@@ -91,6 +91,7 @@ pub struct ServerConfig {
     max_connection_age_grace: Duration,
     timeout: Option<Duration>,
     max_concurrent_connections: Option<usize>,
+    send_compressed: bool,
 }
 
 impl Default for ServerConfig {
@@ -112,6 +113,7 @@ impl Default for ServerConfig {
             max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
             timeout: None,
             max_concurrent_connections: None,
+            send_compressed: false,
         }
     }
 }
@@ -286,6 +288,19 @@ impl ServerConfig {
         self
     }
 
+    /// gzip responses when the client advertises `gzip` in
+    /// `grpc-accept-encoding`.
+    ///
+    /// Off by default: compression is CPU for bandwidth, and at LAN
+    /// latencies identity framing usually wins. A handler can still gzip one
+    /// RPC with [`crate::Response::set_compress`]. Either way, a peer that
+    /// did not advertise gzip is never sent a compressed frame.
+    #[must_use]
+    pub fn send_compressed(mut self, enable: bool) -> Self {
+        self.send_compressed = enable;
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -309,6 +324,13 @@ impl ServerConfig {
     #[must_use]
     pub fn connection_limit(self) -> Option<usize> {
         self.max_concurrent_connections
+    }
+
+    /// Whether responses are gzipped when the client accepts gzip.
+    /// See [`Self::send_compressed`].
+    #[must_use]
+    pub fn compresses_outbound(self) -> bool {
+        self.send_compressed
     }
 
     /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
@@ -458,6 +480,7 @@ pub struct ChannelConfig {
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
     connect_timeout: Duration,
+    send_compressed: bool,
 }
 
 impl Default for ChannelConfig {
@@ -476,6 +499,7 @@ impl Default for ChannelConfig {
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
+            send_compressed: false,
         }
     }
 }
@@ -629,6 +653,18 @@ impl ChannelConfig {
         self
     }
 
+    /// gzip request payloads (and [`crate::StreamSender::send`] on a stream).
+    ///
+    /// Off by default. The kernel always advertises `identity,gzip`, so a
+    /// server that implements gzip will accept these frames. Per-RPC
+    /// [`crate::Request::set_compress`] still works when this is off; a
+    /// client interceptor can clear it when this is on.
+    #[must_use]
+    pub fn send_compressed(mut self, enable: bool) -> Self {
+        self.send_compressed = enable;
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -708,6 +744,12 @@ impl ChannelConfig {
         self.connect_timeout
     }
 
+    /// Whether request payloads are gzipped. See [`Self::send_compressed`].
+    #[must_use]
+    pub fn compresses_outbound(self) -> bool {
+        self.send_compressed
+    }
+
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
@@ -774,6 +816,7 @@ mod tests {
         assert_eq!(config.connection_age(), None);
         assert_eq!(config.connection_idle(), None);
         assert_eq!(config.age_grace(), super::DEFAULT_MAX_CONNECTION_AGE_GRACE);
+        assert!(!config.compresses_outbound());
     }
 
     #[test]
@@ -888,6 +931,13 @@ mod tests {
         assert_eq!(channel.frame_size(), 16_384);
         assert_eq!(channel.concurrent_streams(), 9);
         assert_eq!(channel.header_list_size(), 64);
+        assert!(!ChannelConfig::new().compresses_outbound());
+        assert!(ChannelConfig::new()
+            .send_compressed(true)
+            .compresses_outbound());
+        assert!(ServerConfig::new()
+            .send_compressed(true)
+            .compresses_outbound());
     }
 
     #[test]

@@ -1537,3 +1537,172 @@ async fn a_client_reset_drops_the_handler() {
     );
     task.abort();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_a_call_drops_the_handler() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let hang = Hang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut call = client.say_hello(Request::new(req("ada")));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("Hang returned before drop: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    drop(call);
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "dropping the Call should RST the stream and drop the handler"
+    );
+    task.abort();
+}
+
+/// Refuses a request that was not gzipped.
+struct GzipProbe;
+
+impl pbrs_grpc::Greeter for GzipProbe {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        if !request.compressed() {
+            return Err(Status::invalid_argument("expected gzip"));
+        }
+        let mut reply = HelloReply::new();
+        reply.set_message(request.get_ref().name());
+        Ok(Response::new(reply))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("gzip-probe"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("gzip-probe"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("gzip-probe"))
+    }
+}
+
+#[tokio::test]
+async fn a_prefixed_user_agent_is_sent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                let md = rpc.metadata();
+                let ua = md.get("user-agent").unwrap_or("");
+                if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+                    return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = channel(addr)
+        .await
+        .user_agent("inventory/2.1")
+        .expect("user-agent");
+    let reply = GreeterClient::new(channel)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("prefixed user-agent");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn metadata_cannot_override_the_kernel_user_agent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                let md = rpc.metadata();
+                let ua = md.get("user-agent").unwrap_or("");
+                if !ua.starts_with("pbrs-grpc/") {
+                    return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.metadata_mut().insert("user-agent", "evil-agent")?;
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("kernel user-agent wins");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn the_server_gzips_when_configured_and_the_client_accepts() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .config(ServerConfig::new().send_compressed(true))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("gzip reply");
+    assert!(
+        reply.compressed(),
+        "server send_compressed plus client grpc-accept-encoding: gzip"
+    );
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn the_client_gzips_when_configured() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let channel = channel(addr).await.send_compressed();
+    let reply = GreeterClient::new(channel)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("gzip request");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}

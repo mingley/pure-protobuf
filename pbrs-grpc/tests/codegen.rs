@@ -441,6 +441,43 @@ async fn generated_servers_and_clients_expose_intercept() {
     server.abort();
 }
 
+#[tokio::test]
+async fn generated_client_user_agent_is_prefixed() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(|rpc: &mut pbrs_grpc::Rpc| {
+                let md = rpc.metadata();
+                let ua = md.get("user-agent").unwrap_or("");
+                if !ua.starts_with("kv-test ") || !ua.contains("pbrs-grpc/") {
+                    return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = client(addr)
+        .await
+        .user_agent("kv-test")
+        .expect("user-agent");
+    let mut get = GetRequest::new();
+    get.set_key("ua");
+    assert!(client
+        .get(Request::new(get))
+        .await
+        .expect("get")
+        .get_ref()
+        .found());
+
+    server.abort();
+}
+
 /// A second service, so the router has something to route between.
 struct EchoGreeter;
 

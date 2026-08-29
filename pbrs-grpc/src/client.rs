@@ -12,6 +12,7 @@ use crate::wire::{
 use bytes::Bytes;
 use h2::Reason;
 use http::uri::Authority;
+use http::HeaderValue;
 use pbrs::{Parse, Serialize};
 use std::fmt;
 use std::future::Future;
@@ -203,6 +204,7 @@ pub struct Channel {
     inner: Arc<ChannelInner>,
     config: ChannelConfig,
     interceptors: Arc<[ClientHook]>,
+    user_agent: HeaderValue,
 }
 
 impl fmt::Debug for Channel {
@@ -214,6 +216,7 @@ impl fmt::Debug for Channel {
             .field("tls", &self.inner.tls.is_some())
             .field("interceptors", &self.interceptors.len())
             .field("config", &self.config)
+            .field("user_agent", &self.user_agent)
             .finish()
     }
 }
@@ -415,6 +418,43 @@ impl Channel {
         self
     }
 
+    /// gzip every unary request payload, and every
+    /// [`crate::StreamSender::send`] on a client- or bidi-stream opened from
+    /// this channel.
+    ///
+    /// Off by default. Equivalent to [`ChannelConfig::send_compressed`].
+    /// A later interceptor can still call [`crate::Outgoing::set_compress`].
+    #[must_use]
+    pub fn send_compressed(mut self) -> Self {
+        self.config = self.config.send_compressed(true);
+        self
+    }
+
+    /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
+    ///
+    /// `user_agent("my-app/1.0")` sends `my-app/1.0 pbrs-grpc/<version>`.
+    /// The kernel suffix is always present so a peer can identify the stack.
+    /// Empty or whitespace-only prefix restores the kernel identity alone.
+    ///
+    /// ```
+    /// # fn demo(channel: pbrs_grpc::Channel) -> Result<(), pbrs_grpc::Status> {
+    /// let channel = channel.user_agent("inventory/2.1")?;
+    /// assert!(channel.grpc_user_agent().starts_with("inventory/2.1 "));
+    /// # let _ = channel;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn user_agent(mut self, prefix: impl AsRef<str>) -> Result<Self, Status> {
+        self.user_agent = crate::wire::user_agent_value(prefix.as_ref())?;
+        Ok(self)
+    }
+
+    /// The `user-agent` sent on every RPC.
+    #[must_use]
+    pub fn grpc_user_agent(&self) -> &str {
+        self.user_agent.to_str().unwrap_or(crate::wire::DEFAULT_UA)
+    }
+
     /// Run `interceptor` on every outbound RPC before the stream opens.
     /// Calling this twice stacks: the first interceptor runs first. The
     /// interceptor sees the method path and can set metadata, a deadline,
@@ -427,6 +467,13 @@ impl Channel {
             interceptors: hooks.into(),
             ..self
         }
+    }
+
+    fn prepare_outbound<T>(&self, path: &'static str, req: &mut Request<T>) -> Result<(), Status> {
+        if self.config.compresses_outbound() {
+            req.set_compress(true);
+        }
+        self.apply_interceptors(path, req)
     }
 
     fn apply_interceptors<T>(
@@ -497,11 +544,20 @@ impl Channel {
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(path, &mut req)?;
+                channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                run_unary(send, &channel.inner.authority, path, req, cancel_rx, wire).await
+                run_unary(
+                    send,
+                    &channel.inner.authority,
+                    path,
+                    req,
+                    cancel_rx,
+                    wire,
+                    channel.user_agent.clone(),
+                )
+                .await
             }),
         )
     }
@@ -523,11 +579,20 @@ impl Channel {
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(path, &mut req)?;
+                channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                run_server_stream(send, &channel.inner.authority, path, req, cancel_rx, wire).await
+                run_server_stream(
+                    send,
+                    &channel.inner.authority,
+                    path,
+                    req,
+                    cancel_rx,
+                    wire,
+                    channel.user_agent.clone(),
+                )
+                .await
             }),
         )
     }
@@ -566,14 +631,16 @@ impl Channel {
     {
         let wire = self.config.wire();
         let (tx, rx) = Streaming::channel(self.config.stream_buffer_size());
-        let tx = tx.with_limits(wire.limits);
+        let tx = tx
+            .with_limits(wire.limits)
+            .with_compress(self.config.compresses_outbound());
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let call = Call::new(
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(path, &mut req)?;
+                channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -585,6 +652,7 @@ impl Channel {
                     rx,
                     cancel_rx,
                     wire,
+                    channel.user_agent.clone(),
                 )
                 .await
             }),
@@ -605,14 +673,16 @@ impl Channel {
         let wire = self.config.wire();
         let buffer = self.config.stream_buffer_size();
         let (tx, rx) = Streaming::channel(buffer);
-        let tx = tx.with_limits(wire.limits);
+        let tx = tx
+            .with_limits(wire.limits)
+            .with_compress(self.config.compresses_outbound());
         let (cancel, cancel_rx) = watch::channel(false);
         let channel = self.clone();
         let call = Call::new(
             cancel,
             Box::pin(async move {
                 let mut req = req;
-                channel.apply_interceptors(path, &mut req)?;
+                channel.prepare_outbound(path, &mut req)?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -624,6 +694,7 @@ impl Channel {
                     rx,
                     cancel_rx,
                     wire,
+                    channel.user_agent.clone(),
                 )
                 .await
             }),
@@ -704,6 +775,7 @@ fn finish_channel(
         }),
         config,
         interceptors: Arc::from([]),
+        user_agent: crate::wire::PBRS_GRPC_UA,
     }
 }
 
@@ -905,6 +977,7 @@ async fn run_unary<Req, Resp>(
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
+    user_agent: HeaderValue,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize,
@@ -915,8 +988,16 @@ where
     // the wire and never occupies a stream slot.
     let frame = encode_msg(&msg, compress, wire.limits)?;
     let deadline = deadline_from(timeout);
-    let (resp_fut, mut send_stream) =
-        open(send_req, authority, path, &md, timeout, compress).await?;
+    let (resp_fut, mut send_stream) = open(
+        send_req,
+        authority,
+        path,
+        &md,
+        timeout,
+        compress,
+        &user_agent,
+    )
+    .await?;
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
     race(
         async {
@@ -943,6 +1024,7 @@ async fn run_server_stream<Req, Resp>(
     req: Request<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
+    user_agent: HeaderValue,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize,
@@ -953,8 +1035,16 @@ where
     // One deadline for the whole RPC: setup, and every read of the response
     // stream that outlives it.
     let deadline = deadline_from(timeout);
-    let (resp_fut, mut send_stream) =
-        open(send_req, authority, path, &md, timeout, compress).await?;
+    let (resp_fut, mut send_stream) = open(
+        send_req,
+        authority,
+        path,
+        &md,
+        timeout,
+        compress,
+        &user_agent,
+    )
+    .await?;
     send_bytes(&mut send_stream, frame, true, wire.send_buffer).await?;
     race(
         async {
@@ -982,6 +1072,7 @@ async fn run_client_stream<Req, Resp>(
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
+    user_agent: HeaderValue,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -989,7 +1080,16 @@ where
 {
     let (_, md, timeout, compress) = req.into_parts();
     let deadline = deadline_from(timeout);
-    let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout, compress).await?;
+    let (resp_fut, send_stream) = open(
+        send_req,
+        authority,
+        path,
+        &md,
+        timeout,
+        compress,
+        &user_agent,
+    )
+    .await?;
     drop(tokio::spawn(pump_outbound(
         send_stream,
         rx,
@@ -1022,6 +1122,7 @@ async fn run_bidi<Req, Resp>(
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
+    user_agent: HeaderValue,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
@@ -1029,7 +1130,16 @@ where
 {
     let (_, md, timeout, compress) = req.into_parts();
     let deadline = deadline_from(timeout);
-    let (resp_fut, send_stream) = open(send_req, authority, path, &md, timeout, compress).await?;
+    let (resp_fut, send_stream) = open(
+        send_req,
+        authority,
+        path,
+        &md,
+        timeout,
+        compress,
+        &user_agent,
+    )
+    .await?;
     drop(tokio::spawn(pump_outbound(
         send_stream,
         rx,
@@ -1057,12 +1167,13 @@ async fn open(
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
     send_gzip: bool,
+    user_agent: &HeaderValue,
 ) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
     let mut send_req = send_req
         .ready()
         .await
         .map_err(|e| Status::unavailable(e.to_string()))?;
-    let http_req = grpc_request(authority, path, md, timeout, send_gzip)?;
+    let http_req = grpc_request(authority, path, md, timeout, send_gzip, user_agent)?;
     send_req
         .send_request(http_req, false)
         .map_err(|e| Status::unavailable(e.to_string()))

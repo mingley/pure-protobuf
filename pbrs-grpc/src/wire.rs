@@ -29,7 +29,21 @@ const TRAILERS: HeaderValue = HeaderValue::from_static("trailers");
 const IDENTITY_GZIP: HeaderValue = HeaderValue::from_static("identity,gzip");
 const GZIP: HeaderValue = HeaderValue::from_static("gzip");
 const STATUS_OK: HeaderValue = HeaderValue::from_static("0");
-const PBRS_GRPC_UA: HeaderValue = HeaderValue::from_static("pbrs-grpc/0.1.0");
+
+/// Kernel identity stamped on every outbound RPC. Prefixed by
+/// [`crate::Channel::user_agent`].
+pub(crate) const DEFAULT_UA: &str = concat!("pbrs-grpc/", env!("CARGO_PKG_VERSION"));
+pub(crate) const PBRS_GRPC_UA: HeaderValue = HeaderValue::from_static(DEFAULT_UA);
+
+/// `"{prefix} pbrs-grpc/<version>"`, matching grpc-go `WithUserAgent`.
+pub(crate) fn user_agent_value(prefix: &str) -> Result<HeaderValue, Status> {
+    let prefix = prefix.trim();
+    if prefix.is_empty() {
+        return Ok(PBRS_GRPC_UA);
+    }
+    HeaderValue::from_str(&format!("{prefix} {DEFAULT_UA}"))
+        .map_err(|_| Status::invalid_argument("user-agent is not valid HTTP"))
+}
 
 /// Headers a gRPC request or response carries before user metadata, rounded to
 /// what `HeaderMap` will actually allocate. Sizing up front avoids a rehash.
@@ -41,6 +55,7 @@ pub(crate) fn grpc_request(
     md: &Metadata,
     timeout: Option<Duration>,
     send_gzip: bool,
+    user_agent: &HeaderValue,
 ) -> Result<Request<()>, Status> {
     let mut parts = http::uri::Parts::default();
     parts.scheme = Some(Scheme::HTTP);
@@ -56,7 +71,6 @@ pub(crate) fn grpc_request(
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(http::header::TE, TRAILERS);
     headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP);
-    headers.insert(USER_AGENT, PBRS_GRPC_UA);
     if send_gzip {
         headers.insert(GRPC_ENCODING, GZIP);
     }
@@ -66,7 +80,33 @@ pub(crate) fn grpc_request(
         headers.insert(GRPC_TIMEOUT, val);
     }
     md.write_to(headers)?;
+    // After user metadata so a `user-agent` smuggled in metadata cannot win.
+    headers.insert(USER_AGENT, user_agent.clone());
     Ok(req)
+}
+
+/// Whether the peer advertised gzip in `grpc-accept-encoding`.
+///
+/// Tokens are comma-separated; a `q=` parameter is ignored. Missing or
+/// unreadable header means identity only — never gzip a peer that did not
+/// ask for it.
+pub(crate) fn accepts_gzip(headers: &HeaderMap) -> bool {
+    headers
+        .get(GRPC_ACCEPT_ENCODING)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|raw| {
+            raw.split(',').any(|part| {
+                part.split(';')
+                    .next()
+                    .is_some_and(|token| token.trim().eq_ignore_ascii_case("gzip"))
+            })
+        })
+}
+
+/// gzip this payload only if the handler or the config asked, and the peer
+/// advertised gzip.
+pub(crate) fn gzip_outbound(handler: bool, configured: bool, peer_accepts: bool) -> bool {
+    (handler || configured) && peer_accepts
 }
 
 /// Reject anything that is not a gRPC request we can answer.
@@ -379,6 +419,7 @@ pub(crate) fn send_ok_headers(
     *res.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
     let headers = res.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
+    headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP);
     if send_gzip {
         headers.insert(GRPC_ENCODING, GZIP);
     }
@@ -841,7 +882,10 @@ fn percent_decode(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{effective_timeout, grpc_request, percent_decode, percent_encode, FrameReader};
+    use super::{
+        accepts_gzip, effective_timeout, grpc_request, gzip_outbound, percent_decode,
+        percent_encode, FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
+    };
     use crate::codec;
     use crate::gzip;
     use crate::limits::MessageLimits;
@@ -853,14 +897,62 @@ mod tests {
     #[test]
     fn outbound_requests_identify_the_kernel() {
         let authority: Authority = "127.0.0.1:1".parse().expect("authority");
-        let req = grpc_request(&authority, "/svc/Method", &Metadata::new(), None, false)
-            .expect("request");
+        let req = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            false,
+            &PBRS_GRPC_UA,
+        )
+        .expect("request");
         assert_eq!(
             req.headers()
                 .get("user-agent")
                 .and_then(|v| v.to_str().ok()),
-            Some("pbrs-grpc/0.1.0")
+            Some(DEFAULT_UA)
         );
+    }
+
+    #[test]
+    fn accepts_gzip_parses_the_usual_header_shapes() {
+        use http::{HeaderMap, HeaderValue};
+
+        let mut headers = HeaderMap::new();
+        assert!(!accepts_gzip(&headers));
+        headers.insert("grpc-accept-encoding", HeaderValue::from_static("identity"));
+        assert!(!accepts_gzip(&headers));
+        headers.insert(
+            "grpc-accept-encoding",
+            HeaderValue::from_static("identity,gzip"),
+        );
+        assert!(accepts_gzip(&headers));
+        headers.insert(
+            "grpc-accept-encoding",
+            HeaderValue::from_static("gzip;q=1.0, identity"),
+        );
+        assert!(accepts_gzip(&headers));
+        headers.insert("grpc-accept-encoding", HeaderValue::from_static("GZIP"));
+        assert!(accepts_gzip(&headers));
+        assert!(!gzip_outbound(true, true, false));
+        assert!(gzip_outbound(false, true, true));
+        assert!(gzip_outbound(true, false, true));
+        assert!(!gzip_outbound(false, false, true));
+    }
+
+    #[test]
+    fn user_agent_prefixes_the_kernel_identity() {
+        assert_eq!(super::user_agent_value("").expect("empty"), PBRS_GRPC_UA);
+        assert_eq!(
+            super::user_agent_value("  ").expect("whitespace"),
+            PBRS_GRPC_UA
+        );
+        let ua = super::user_agent_value("inventory/2.1").expect("prefix");
+        assert_eq!(
+            ua.to_str().expect("ascii"),
+            format!("inventory/2.1 {DEFAULT_UA}")
+        );
+        assert!(super::user_agent_value("bad\nagent").is_err());
     }
 
     #[test]

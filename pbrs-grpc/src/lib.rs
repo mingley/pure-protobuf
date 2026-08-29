@@ -208,8 +208,10 @@
 //!    means fewer and larger writes at the cost of memory. Received streams are
 //!    decoded inline and have no queue to size.
 //!
-//! Compression is not free: [`Request::set_compress`] trades CPU for
-//! bandwidth, and at LAN latencies identity framing usually wins.
+//! Compression is not free: [`Request::set_compress`] and
+//! [`ServerConfig::send_compressed`] / [`ChannelConfig::send_compressed`]
+//! trade CPU for bandwidth, and at LAN latencies identity framing usually
+//! wins. A peer that did not advertise gzip is never sent a compressed frame.
 //!
 //! # Relationship to the rest of the workspace
 //!
