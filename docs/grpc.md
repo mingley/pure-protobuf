@@ -550,6 +550,10 @@ Per-RPC `Request::set_wait_for_ready(false)` opts out of a channel default.
 `set_wait_for_ready(true)` on a request that did not inherit still works.
 That opt-out, and a waiting Call's deadline, apply on h2c, TLS
 (`connect_tls_lazy`, including mTLS), and Unix (`connect_unix_lazy`), on every call shape.
+Generated `FooClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
+retry the same way: Store Get, Watch, PutAll, and Sync wait until listen
+on those transports, from either `Request::set_wait_for_ready` or
+`FooClient::wait_for_ready`.
 
 `Channel::waits_for_ready` / `FooClient::waits_for_ready` read the overlay
 (`wait_for_ready` sets it).

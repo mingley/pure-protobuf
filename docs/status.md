@@ -123,7 +123,10 @@ See `docs/upb.md`. Short list:
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
   after `clear_*`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
-  overlay, per-RPC opt-out, and a waiting Call's deadline. `clear_compress` then `set_compress(compresses_outbound())`
+  overlay, per-RPC opt-out, and a waiting Call's deadline. Generated
+  `StoreClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy` retry
+  Get / Watch / PutAll / Sync until listen on those transports, from either
+  the request flag or `FooClient::wait_for_ready`. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
   without details; nothing is sent. A packed `google.rpc.Status` on that

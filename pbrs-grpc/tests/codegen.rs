@@ -205,6 +205,165 @@ fn client_identity() -> Identity {
     Identity::from_pem(CLIENT_CERT, CLIENT_KEY).expect("client identity")
 }
 
+fn server_identity() -> Identity {
+    Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("server identity")
+}
+
+struct ServeGuard(tokio::task::JoinHandle<()>);
+
+impl Drop for ServeGuard {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+async fn bind_store() -> (SocketAddr, TcpListener) {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    (addr, listener)
+}
+
+async fn serve_store_at(addr: SocketAddr) -> Result<ServeGuard, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let handle = tokio::spawn(async move {
+                    StoreServer::new(MemStore)
+                        .serve_listener(listener)
+                        .await
+                        .ok();
+                });
+                return Ok(ServeGuard(handle));
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+async fn serve_store_tls_at(addr: SocketAddr, tls: ServerTls) -> Result<ServeGuard, Status> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        match TcpListener::bind(addr).await {
+            Ok(listener) => {
+                let handle = tokio::spawn(async move {
+                    StoreServer::new(MemStore)
+                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                        .await
+                        .ok();
+                });
+                return Ok(ServeGuard(handle));
+            }
+            Err(e) => {
+                last = Status::unavailable(e.to_string());
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+    Err(last)
+}
+
+fn stamp_wait_ready<T>(
+    mut request: Request<T>,
+    wait_on_request: bool,
+    timeout: Option<Duration>,
+) -> Request<T> {
+    if wait_on_request {
+        request.set_wait_for_ready(true);
+    }
+    if let Some(timeout) = timeout {
+        request.set_timeout(timeout);
+    }
+    request
+}
+
+async fn wait_then_complete_store(
+    client: &StoreClient,
+    wait_on_request: bool,
+    start: impl std::future::Future,
+) {
+    let timeout = Some(Duration::from_secs(5));
+    let mut get = GetRequest::new();
+    get.set_key("late");
+    let mut unary = client.get(stamp_wait_ready(
+        Request::new(get),
+        wait_on_request,
+        timeout,
+    ));
+    let mut watch = WatchRequest::new();
+    watch.prefixes_mut().push(pbrs::ProtoString::from("late"));
+    let mut server_stream = client.watch(stamp_wait_ready(
+        Request::new(watch),
+        wait_on_request,
+        timeout,
+    ));
+    let (tx_c, mut client_stream) =
+        client.put_all(stamp_wait_ready(Request::new(()), wait_on_request, timeout));
+    let (tx_b, mut bidi) =
+        client.sync(stamp_wait_ready(Request::new(()), wait_on_request, timeout));
+
+    tokio::select! {
+        biased;
+        result = &mut unary => panic!("unary finished before the server listened: {result:?}"),
+        result = &mut server_stream => panic!("server-stream finished before the server listened: {result:?}"),
+        result = &mut client_stream => panic!("client-stream finished before the server listened: {result:?}"),
+        result = &mut bidi => panic!("bidi finished before the server listened: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(80)) => {}
+    }
+
+    let _guard = start.await;
+
+    let got = tokio::time::timeout(Duration::from_secs(2), unary)
+        .await
+        .expect("unary hung after listen")
+        .expect("unary");
+    assert!(got.get_ref().found());
+    assert_eq!(key_of(got.get_ref().entry()), "late");
+
+    let mut stream = tokio::time::timeout(Duration::from_secs(2), server_stream)
+        .await
+        .expect("server-stream hung after listen")
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(first.kind(), Kind::Put);
+    assert_eq!(key_of(first.entry()), "late");
+
+    tx_c.send(entry("late", b"v")).await.expect("send");
+    tx_c.close();
+    let summary = tokio::time::timeout(Duration::from_secs(2), client_stream)
+        .await
+        .expect("client-stream hung after listen")
+        .expect("client-stream");
+    assert_eq!(summary.get_ref().entries(), 1);
+    assert_eq!(summary.get_ref().bytes(), 1);
+
+    tx_b.send(entry("late", b"v")).await.expect("send");
+    tx_b.close();
+    let mut inbound = tokio::time::timeout(Duration::from_secs(2), bidi)
+        .await
+        .expect("bidi hung after listen")
+        .expect("bidi")
+        .into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(first.kind(), Kind::Delete);
+    assert_eq!(key_of(first.entry()), "late");
+}
+
 async fn tls_client_with(addr: SocketAddr, client_tls: ClientTls) -> StoreClient {
     let mut last = None;
     for _ in 0..80 {
@@ -1275,6 +1434,134 @@ async fn generated_connect_tls_lazy_round_trips_every_shape() {
     .wait_for_ready();
     echo_store_every_shape(&client).await;
     server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client = StoreClient::connect_lazy(addr).expect("lazy");
+    wait_then_complete_store(&client, true, async {
+        serve_store_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client = StoreClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_store(&client, false, async {
+        serve_store_at(addr).await.expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_tls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = StoreClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_store(&client, true, async {
+        serve_store_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_tls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = StoreClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_store(&client, false, async {
+        serve_store_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
+            .await
+            .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_mtls_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = StoreClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    wait_then_complete_store(&client, true, async {
+        serve_store_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
+    let (addr, listener) = bind_store().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = StoreClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_store(&client, false, async {
+        serve_store_tls_at(
+            addr,
+            ServerTls::mtls(server_identity(), CA).expect("mtls server"),
+        )
+        .await
+        .expect("serve")
+    })
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_unix_wait_for_ready_completes_once_the_server_listens() {
+    let path = unix_sock("wait");
+    let client = StoreClient::connect_unix_lazy(&path).expect("lazy");
+    wait_then_complete_store(&client, true, async {
+        let sock = path.clone();
+        ServeGuard(tokio::spawn(async move {
+            StoreServer::new(MemStore).serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_unix_channel_wait_for_ready_completes_once_the_server_listens() {
+    let path = unix_sock("channel-wait");
+    let client = StoreClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    wait_then_complete_store(&client, false, async {
+        let sock = path.clone();
+        ServeGuard(tokio::spawn(async move {
+            StoreServer::new(MemStore).serve_unix(sock).await.ok();
+        }))
+    })
+    .await;
+    let _ = std::fs::remove_file(&path);
 }
 
 #[tokio::test]
