@@ -72,7 +72,8 @@ impl<T> Request<T> {
         &mut self.message
     }
 
-    /// Split into message and envelope, keeping metadata and deadline.
+    /// Split into message and envelope, keeping metadata, deadline, and
+    /// compression choice.
     #[must_use]
     pub fn into_message_and_parts(self) -> (T, Parts) {
         (
@@ -80,6 +81,7 @@ impl<T> Request<T> {
             Parts {
                 metadata: self.metadata,
                 timeout: self.timeout,
+                compress: self.compress,
                 compressed: self.compressed,
                 remote_addr: self.remote_addr,
                 wait_for_ready: self.wait_for_ready,
@@ -91,14 +93,14 @@ impl<T> Request<T> {
     /// Rebuild a request around a different message, keeping the envelope.
     ///
     /// This is how a proxy or interceptor rewrites a payload without losing
-    /// the caller's metadata or deadline.
+    /// the caller's metadata, deadline, or gzip choice.
     #[must_use]
     pub fn from_message_and_parts<U>(message: U, parts: Parts) -> Request<U> {
         Request {
             message,
             metadata: parts.metadata,
             timeout: parts.timeout,
-            compress: false,
+            compress: parts.compress,
             compressed: parts.compressed,
             remote_addr: parts.remote_addr,
             wait_for_ready: parts.wait_for_ready,
@@ -106,7 +108,8 @@ impl<T> Request<T> {
         }
     }
 
-    /// Replace the message, keeping metadata, deadline, and extensions.
+    /// Replace the message, keeping metadata, deadline, compression, and
+    /// extensions.
     #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Request<U> {
         let (message, parts) = self.into_message_and_parts();
@@ -128,6 +131,11 @@ impl<T> Request<T> {
     /// reports the effective deadline (client, server cap, interceptor).
     pub fn set_timeout(&mut self, timeout: Duration) {
         self.timeout = Some(timeout);
+    }
+
+    /// Clear a deadline previously set on this request.
+    pub fn clear_timeout(&mut self) {
+        self.timeout = None;
     }
 
     /// The deadline, if any.
@@ -171,6 +179,12 @@ impl<T> Request<T> {
     /// gzip this request's payload and set the Compressed-Flag.
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = compress;
+    }
+
+    /// Whether this request's payload will be gzipped. Outbound only.
+    #[must_use]
+    pub fn compress(&self) -> bool {
+        self.compress
     }
 
     /// Whether the received frame had the Compressed-Flag set.
@@ -373,6 +387,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 pub struct Parts {
     metadata: Metadata,
     timeout: Option<Duration>,
+    compress: bool,
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     wait_for_ready: bool,
@@ -395,6 +410,12 @@ impl Parts {
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+
+    /// Whether the payload will be gzipped. Outbound only.
+    #[must_use]
+    pub fn compress(&self) -> bool {
+        self.compress
     }
 
     /// Whether this RPC waits for a connection instead of failing fast.
@@ -508,7 +529,11 @@ impl<T> Response<T> {
         self.compress = compress;
     }
 
-    /// Whether the received frame had the Compressed-Flag set.
+    /// Whether this payload is gzipped.
+    ///
+    /// On a response you build, this is [`Self::set_compress`]. On a received
+    /// unary response, it is the Compressed-Flag from the wire. Streaming
+    /// payloads report the flag on each [`crate::Framed`] instead.
     #[must_use]
     pub fn compressed(&self) -> bool {
         self.compress
@@ -658,28 +683,37 @@ mod tests {
         let mut req = Request::new(1u32);
         req.set_timeout(Duration::from_millis(7));
         req.set_wait_for_ready(true);
+        req.set_compress(true);
         req.extensions_mut().insert(7u8);
         req.metadata_mut().insert("k", "v").expect("insert");
         let (message, parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
         assert!(parts.wait_for_ready());
+        assert!(parts.compress());
         assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
         assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
         assert!(rebuilt.wait_for_ready());
+        assert!(rebuilt.compress());
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
         assert_eq!(rebuilt.into_inner(), "swapped");
+        let mut cleared = Request::new(0u32);
+        cleared.set_timeout(Duration::from_secs(1));
+        cleared.clear_timeout();
+        assert_eq!(cleared.timeout(), None);
     }
 
     #[test]
     fn request_map_keeps_metadata() {
         let mut req = Request::new(1u32);
         req.set_timeout(Duration::from_millis(7));
+        req.set_compress(true);
         req.metadata_mut().insert("k", "v").expect("insert");
         let mapped = req.map(|n| n + 1);
         assert_eq!(mapped.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(mapped.metadata().get("k"), Some("v"));
+        assert!(mapped.compress());
         assert_eq!(mapped.into_inner(), 2);
     }
 

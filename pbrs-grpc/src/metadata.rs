@@ -25,11 +25,13 @@ use http::{HeaderMap, HeaderName, HeaderValue};
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
 ///
-/// Reserved keys (`content-type`, `grpc-status`, `grpc-status-details-bin`,
-/// `grpc-timeout`, HTTP/2 pseudo-headers, ...) are invisible here and are
-/// never written out, so echoing received metadata back cannot corrupt the
-/// protocol framing. [`Self::insert`] and [`Self::insert_bin`] reject them
-/// rather than storing a value you cannot read back.
+/// Reserved keys (`grpc-*`, `content-type`, HTTP/2 pseudo-headers,
+/// hop-by-hop headers, ...) are invisible here and are never written out, so
+/// echoing received metadata back cannot corrupt the protocol framing.
+/// [`Self::insert`] and [`Self::insert_bin`] reject them rather than storing
+/// a value you cannot read back. `user-agent` is readable; on outbound
+/// requests the kernel overwrites it after user metadata so a smuggled value
+/// cannot win.
 ///
 /// The total size a peer can send is bounded by
 /// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
@@ -62,7 +64,7 @@ impl Metadata {
     }
 
     /// Add an ASCII entry. The key must not end in `-bin` and must not be a
-    /// reserved protocol key (`grpc-status`, `grpc-timeout`, `content-type`,
+    /// reserved protocol key (`grpc-*`, `content-type`, hop-by-hop headers,
     /// ...).
     ///
     /// Repeated keys accumulate rather than replace, matching gRPC's
@@ -203,17 +205,26 @@ fn header_name(key: &str) -> Result<HeaderName, Status> {
         .map_err(|_| Status::invalid_argument(format!("invalid metadata key {key:?}")))
 }
 
-/// Keys the gRPC wire protocol owns. Never surfaced, never echoed.
+/// Keys the gRPC wire protocol owns, plus HTTP/2 hop-by-hop headers.
+///
+/// The spec forbids user metadata whose names start with `grpc-`. Pseudo-headers
+/// and hop-by-hop names (`connection`, `host`, ...) are similarly not metadata.
+/// Never surfaced, never echoed.
 fn is_reserved(key: &str) -> bool {
     key.starts_with(':')
+        || key
+            .as_bytes()
+            .get(..5)
+            .is_some_and(|p| p.eq_ignore_ascii_case(b"grpc-"))
         || key.eq_ignore_ascii_case("content-type")
         || key.eq_ignore_ascii_case("te")
-        || key.eq_ignore_ascii_case("grpc-status")
-        || key.eq_ignore_ascii_case("grpc-message")
-        || key.eq_ignore_ascii_case("grpc-status-details-bin")
-        || key.eq_ignore_ascii_case("grpc-timeout")
-        || key.eq_ignore_ascii_case("grpc-encoding")
-        || key.eq_ignore_ascii_case("grpc-accept-encoding")
+        || key.eq_ignore_ascii_case("connection")
+        || key.eq_ignore_ascii_case("keep-alive")
+        || key.eq_ignore_ascii_case("proxy-connection")
+        || key.eq_ignore_ascii_case("transfer-encoding")
+        || key.eq_ignore_ascii_case("upgrade")
+        || key.eq_ignore_ascii_case("host")
+        || key.eq_ignore_ascii_case("content-length")
 }
 
 /// Accept padded and unpadded standard base64. Peers disagree on padding;
@@ -313,8 +324,13 @@ mod tests {
     fn insert_rejects_reserved_keys() {
         let mut md = Metadata::new();
         assert!(md.insert("grpc-timeout", "1S").is_err());
+        assert!(md.insert("GRPC-previous-rpc-attempts", "1").is_err());
+        assert!(md.insert("grpc-foo", "x").is_err());
         assert!(md.insert("content-type", "application/grpc").is_err());
+        assert!(md.insert("connection", "close").is_err());
+        assert!(md.insert("host", "evil").is_err());
         assert!(md.insert_bin("grpc-status-details-bin", [1u8]).is_err());
+        assert!(md.insert_bin("grpc-retry-pushback-ms", [1u8]).is_err());
         assert!(md.is_empty());
     }
 

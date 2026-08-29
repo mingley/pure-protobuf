@@ -619,6 +619,74 @@ async fn a_client_interceptor_sees_the_authority() {
 }
 
 #[tokio::test]
+async fn a_server_interceptor_sees_the_authority() {
+    let (addr, listener) = bind().await;
+    let want = addr.to_string();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                if rpc.authority() != Some(want.as_str()) {
+                    return Err(Status::internal(format!(
+                        "authority {:?} want {want}",
+                        rpc.authority()
+                    )));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("authority");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_cannot_insert_reserved_metadata() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.metadata_mut()
+            .insert("grpc-previous-rpc-attempts", "1")?;
+        Ok(())
+    });
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("reserved");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("reserved"),
+        "expected reserved-key status, got {err}"
+    );
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
+        call.metadata_mut().insert("connection", "close")?;
+        Ok(())
+    });
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("hop-by-hop");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -702,6 +770,48 @@ async fn a_channel_timeout_expires_when_the_request_omits_one() {
     assert!(
         started.elapsed() < Duration::from_millis(150),
         "channel default should fire before Slow returns: {:?}",
+        started.elapsed()
+    );
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_channel_config_timeout_is_the_default_rpc_deadline() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let mut last = None;
+    let channel = {
+        let mut found = None;
+        for _ in 0..80 {
+            match Channel::connect_with(
+                addr,
+                ChannelConfig::new().timeout(Duration::from_millis(40)),
+            )
+            .await
+            {
+                Ok(channel) => {
+                    found = Some(channel);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    };
+    let started = Instant::now();
+    let err = GreeterClient::new(channel)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_millis(150),
+        "ChannelConfig::timeout should fire: {:?}",
         started.elapsed()
     );
     task.abort();
@@ -858,6 +968,33 @@ async fn a_server_interceptor_can_tighten_the_deadline() {
         started.elapsed()
     );
 
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_server_interceptor_cannot_extend_the_client_deadline() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(|rpc: &mut Rpc| {
+                rpc.set_timeout(Duration::from_secs(5));
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_millis(50));
+    let started = Instant::now();
+    let err = client.say_hello(request).await.expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_millis(150),
+        "interceptor must not extend the client deadline: {:?}",
+        started.elapsed()
+    );
     task.abort();
 }
 
@@ -1830,6 +1967,37 @@ async fn serve_unix_unlink_does_not_steal_a_live_socket() {
 
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn serve_unix_unlink_does_not_steal_when_the_backlog_is_full() {
+    let (path, _guard) = unix_test_path();
+    let sock =
+        socket2::Socket::new(socket2::Domain::UNIX, socket2::Type::STREAM, None).expect("socket");
+    sock.bind(&socket2::SockAddr::unix(&path).expect("addr"))
+        .expect("bind");
+    sock.listen(1).expect("listen");
+    let mut held = Vec::new();
+    for _ in 0..8 {
+        match tokio::time::timeout(
+            Duration::from_millis(20),
+            tokio::net::UnixStream::connect(&path),
+        )
+        .await
+        {
+            Ok(Ok(stream)) => held.push(stream),
+            Ok(Err(_)) | Err(_) => break,
+        }
+    }
+    let err = GreeterServer::new(Echo)
+        .serve_unix_unlink(&path)
+        .await
+        .expect_err("full backlog is a live listener");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert!(path.exists(), "must not unlink a live inode");
+    drop(held);
+    drop(sock);
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
@@ -2000,6 +2168,44 @@ async fn from_io_round_trips_without_tcp() {
         .say_hello(Request::new(req("ada")))
         .await
         .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    server.abort();
+}
+
+#[tokio::test]
+async fn from_io_authority_is_visible_to_interceptors() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.authority() != Some("my-svc") {
+                    return Err(Status::internal(format!(
+                        "server authority {:?}",
+                        rpc.authority()
+                    )));
+                }
+                Ok(())
+            })
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "my-svc")
+        .await
+        .expect("from_io");
+    let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
+        if call.authority() != "my-svc" {
+            return Err(Status::internal(format!(
+                "client authority {}",
+                call.authority()
+            )));
+        }
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("from_io authority");
     assert_eq!(name_of(reply.get_ref()), "ada");
     server.abort();
 }

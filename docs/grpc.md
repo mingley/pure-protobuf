@@ -755,7 +755,7 @@ guards is committed.
 | Slow-reader amplification | Capacity is released only after a chunk is handed on | always |
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
-| Reserved metadata injection | `grpc-status`, `grpc-status-details-bin`, and friends are never read from or written to user metadata | always |
+| Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata | always |
 | Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
@@ -906,7 +906,8 @@ The handler sees the mutated metadata on `request.metadata()`, including
 injected keys and without stripped ones. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
 cap, and `set_timeout`. An interceptor can only tighten the deadline, not
-extend it. Returning `Err(Status::with_error_details(...))` ships
+extend it. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
+Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
@@ -1093,6 +1094,8 @@ Deliberate omissions, with what to do instead.
 | Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
 | Response interceptors | Interceptors run before the handler. Inspect or rewrite the result in the method. |
 | Channel connectivity state | A failed RPC is `UNAVAILABLE`. There is no `GetState` / `WaitForStateChange`. |
+| Client `max_connection_age` | Age is a server `GOAWAY`. Clients close unused sockets with `ChannelConfig::max_connection_idle`. |
+| Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

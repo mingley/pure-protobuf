@@ -163,6 +163,7 @@ pub struct Rpc {
 impl std::fmt::Debug for Rpc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Rpc")
+            .field("authority", &self.authority())
             .field("path", &self.path())
             .field("remote_addr", &self.remote_addr)
             .finish_non_exhaustive()
@@ -188,6 +189,16 @@ impl Rpc {
         split_path(self.path()).1
     }
 
+    /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051` or
+    /// `localhost` on a Unix socket.
+    #[must_use]
+    pub fn authority(&self) -> Option<&str> {
+        self.request
+            .uri()
+            .authority()
+            .map(http::uri::Authority::as_str)
+    }
+
     /// Peer address, when the transport exposed one.
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
@@ -206,7 +217,7 @@ impl Rpc {
     /// Mutate inbound metadata the handler will see.
     ///
     /// Insert, or strip with [`Metadata::remove`] / [`Metadata::remove_bin`].
-    /// Reserved keys (`grpc-timeout`, `grpc-encoding`, `content-type`, ...)
+    /// Reserved keys (`grpc-*`, `content-type`, hop-by-hop headers, ...)
     /// stay on the HTTP request for the kernel; they cannot be inserted or
     /// removed here.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
@@ -841,7 +852,7 @@ impl<S: Service> Server<S> {
     /// `server.intercept(|rpc| { ... })` is the usual form. The interceptor
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
     /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
-    /// [`Rpc::effective_timeout`], attach typed state on
+    /// [`Rpc::effective_timeout`] / [`Rpc::authority`], attach typed state on
     /// [`Rpc::extensions_mut`], or return `Err` (including
     /// [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:
@@ -1311,17 +1322,31 @@ async fn bind_unix_unlink(path: impl AsRef<std::path::Path>) -> Result<UnixListe
     }
 }
 
-/// `true` if `connect` succeeds, meaning some process is accepting. A stale
-/// inode fails immediately. Treat a hang as live so we do not steal.
+/// `true` if some process owns this inode. A crash leftover fails connect
+/// with `ConnectionRefused`. A live listener accepts, a full backlog returns
+/// `WouldBlock`, and a stuck accept loop times out — all of those are live,
+/// so we do not steal.
 #[cfg(unix)]
 async fn unix_path_has_listener(path: &std::path::Path) -> bool {
+    match tokio::time::timeout(
+        std::time::Duration::from_millis(50),
+        UnixStream::connect(path),
+    )
+    .await
+    {
+        Ok(Ok(_stream)) => true,
+        Ok(Err(e)) => !unix_connect_means_stale(&e),
+        Err(_elapsed) => true,
+    }
+}
+
+#[cfg(unix)]
+fn unix_connect_means_stale(err: &std::io::Error) -> bool {
     matches!(
-        tokio::time::timeout(
-            std::time::Duration::from_millis(50),
-            UnixStream::connect(path)
-        )
-        .await,
-        Ok(Ok(_stream))
+        err.kind(),
+        std::io::ErrorKind::ConnectionRefused
+            | std::io::ErrorKind::NotFound
+            | std::io::ErrorKind::AddrNotAvailable
     )
 }
 
