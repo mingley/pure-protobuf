@@ -1522,24 +1522,41 @@ where
         https,
     )
     .await?;
-    drop(tokio::spawn(pump_outbound(
-        send_stream,
-        rx,
-        cancel_rx.clone(),
-        wire,
-    )));
-    // pump_outbound keeps SendStream after half-close so CallHandle still
-    // RSTs while this unary response is pending.
-    race(
-        async {
-            let response = resp_fut.await.map_err(Status::from_h2)?;
-            finish_unary::<Resp>(response, wire.limits).await
-        },
-        cancel_rx,
-        deadline,
-        None,
-    )
-    .await
+    let mut pump = tokio::spawn(pump_outbound(send_stream, rx, cancel_rx.clone(), wire));
+    let fut = async {
+        let response = resp_fut.await.map_err(Status::from_h2)?;
+        finish_unary::<Resp>(response, wire.limits).await
+    };
+    tokio::pin!(fut);
+    let until_deadline = async {
+        match deadline {
+            Some(at) => tokio::time::sleep_until(at).await,
+            None => std::future::pending().await,
+        }
+    };
+    tokio::pin!(until_deadline);
+    let mut send = None;
+    let mut cancelled = cancel_rx;
+    let result = loop {
+        tokio::select! {
+            biased;
+            result = &mut fut => break result,
+            () = &mut until_deadline => break Err(Status::deadline_exceeded()),
+            _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
+            pumped = &mut pump, if send.is_none() => {
+                send = pumped.ok().flatten();
+            }
+        }
+    };
+    if matches!(
+        &result,
+        Err(s) if s.code() == Code::Cancelled || s.code() == Code::DeadlineExceeded
+    ) {
+        if let Some(mut send) = send {
+            send.send_reset(Reason::CANCEL);
+        }
+    }
+    prefer_deadline(result, deadline)
 }
 
 #[allow(
@@ -1574,12 +1591,14 @@ where
         https,
     )
     .await?;
-    drop(tokio::spawn(pump_outbound(
-        send_stream,
-        rx,
-        cancel_rx.clone(),
-        wire,
-    )));
+    drop(tokio::spawn({
+        let cancel_rx = cancel_rx.clone();
+        async move {
+            if let Some(send) = pump_outbound(send_stream, rx, cancel_rx.clone(), wire).await {
+                reset_on_cancel(send, cancel_rx);
+            }
+        }
+    }));
     race(
         async {
             let response = resp_fut.await.map_err(Status::from_h2)?;

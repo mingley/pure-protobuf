@@ -879,15 +879,15 @@ impl<T> WireStream<T> {
 
 /// Encode a client's outbound stream, watching for cancellation.
 ///
-/// After the sender half-closes, the send half is kept so a
-/// [`crate::CallHandle`] can still `RST_STREAM` while a client-streaming
-/// unary response (or a bidi read) is pending.
+/// Returns the send half after a clean half-close so the caller can still
+/// `RST_STREAM` (client-streaming [`crate::CallHandle`] after close). `None`
+/// if this pump already reset the stream.
 pub(crate) async fn pump_outbound<T: Serialize>(
     mut send: SendStream<Bytes>,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     wire: Wire,
-) {
+) -> Option<SendStream<Bytes>> {
     let mut batch = OutBatch::new(wire);
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut watch_cancel = true;
@@ -899,7 +899,7 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             }, if watch_cancel => {
                 if cancelled {
                     send.send_reset(Reason::CANCEL);
-                    return;
+                    return None;
                 }
                 // The Call finished and dropped its sender, and no received
                 // stream is holding a clone. Stop watching.
@@ -912,14 +912,10 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             // Half-close, carrying whatever is still batched.
             if batch.flush(&mut send).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return;
+                return None;
             }
             send.send_data(Bytes::new(), true).ok();
-            // Half-closed send would otherwise drop here. Client-streaming
-            // has no received Streaming to RST, so keep the send half
-            // watching cancel for a CallHandle after close.
-            reset_on_cancel(send, cancel_rx);
-            return;
+            return Some(send);
         }
         // See the note in the server's drain loop: yield only when the caller
         // is demonstrably ahead of the network.
@@ -931,16 +927,16 @@ pub(crate) async fn pump_outbound<T: Serialize>(
         for item in items.drain(..) {
             let Ok(item) = item else {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return;
+                return None;
             };
             if batch.push(&mut send, item).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return;
+                return None;
             }
         }
         if !batch.is_full() && batch.flush(&mut send).await.is_err() {
             send.send_reset(Reason::INTERNAL_ERROR);
-            return;
+            return None;
         }
     }
 }
