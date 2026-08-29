@@ -1227,14 +1227,17 @@ impl<T> Response<T> {
         }
     }
 
-    /// Take the message.
+    /// Take the message, discarding the envelope.
+    ///
+    /// Headers, trailers, compress intent, and received [`Self::encoding`]
+    /// go with it. Use [`Self::into_message_and_parts`] to keep them.
     #[must_use]
     pub fn into_inner(self) -> T {
         self.message
     }
 
-    /// Split into message and envelope, keeping headers, trailers, and
-    /// compression.
+    /// Split into message and envelope, keeping headers, trailers, compression,
+    /// and received [`Self::encoding`].
     ///
     /// Same idea as [`Request::into_message_and_parts`]. Rebuild with
     /// [`Self::from_message_and_parts`].
@@ -1401,8 +1404,8 @@ impl<T> Response<T> {
     }
 }
 
-/// A [`Response`] envelope without its message. See
-/// [`Response::into_message_and_parts`].
+/// A [`Response`] envelope without its message, including received
+/// [`Response::encoding`]. See [`Response::into_message_and_parts`].
 #[derive(Clone, Debug)]
 pub struct ResponseParts {
     metadata: Metadata,

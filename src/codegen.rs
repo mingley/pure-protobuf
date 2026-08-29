@@ -4894,6 +4894,10 @@ fn emit_kernel_client(
                 src,
                 "    /// Dropping the received [`{G}::Streaming`] before the end resets the RPC."
             );
+            let _ = writeln!(
+                src,
+                "    /// A [`{G}::CallHandle`] taken before await still cancels that live stream after headers."
+            );
         }
         if shape.client_return.starts_with('(') {
             let _ = writeln!(
