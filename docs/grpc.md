@@ -500,6 +500,10 @@ beforehand still resets the live stream; dropping the received `Streaming`
 before the end does the same. After a client-streaming sender is closed, that
 handle still resets while the unary response is pending. Dropping that
 `Call` or letting its deadline fire after the half-close resets the same way.
+`StreamSender::fail` on a client request sender is the same RST with CANCEL:
+a client-streaming `Call`, or a bidi `Call` that has not yet seen headers,
+resolves with that status; after bidi headers the reset surfaces on the
+received `Streaming`.
 
 A handler that `tokio::spawn`s work should await `request.cancelled()` in
 the child (or poll `request.is_cancelled()`). On RST the kernel signals

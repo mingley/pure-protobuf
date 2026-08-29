@@ -878,6 +878,7 @@ impl Channel {
     /// taken before await still cancels after the sender is closed, while the
     /// unary response is pending. Dropping the [`Call`] or letting its deadline
     /// fire after that half-close resets the same way.
+    ///
     /// [`crate::StreamSender::fail`] resolves the [`Call`] with that status
     /// (no request-side `grpc-status`; the stream is reset with CANCEL).
     ///
@@ -948,6 +949,7 @@ impl Channel {
     /// before await still cancels that live stream after headers, including
     /// after the sender is closed. Dropping the received [`Streaming`] before
     /// the end does the same.
+    ///
     /// [`crate::StreamSender::fail`] before headers resolves the [`Call`] with
     /// that status; after headers the reset surfaces on the received
     /// [`Streaming`].

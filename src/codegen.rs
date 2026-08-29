@@ -3907,6 +3907,10 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
                 src,
                 "    /// Spawned producers should select on [`{G}::Request::cancelled`] and [`{G}::StreamSender::closed`]; drain aborts on client RST."
             );
+            let _ = writeln!(
+                src,
+                "    /// [`{G}::StreamSender::fail`] after a message ships trailing metadata and `grpc-status-details-bin` the same as a handler `Err`."
+            );
         }
         if m.client_streaming && !m.server_streaming {
             let _ = writeln!(

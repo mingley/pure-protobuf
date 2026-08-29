@@ -440,12 +440,28 @@ async fn typed_google_rpc_status_after_a_streamed_message() {
     assert_eq!(name_of(&first), "ada");
     assert_typed_stream_fail(&stream.message().await.expect_err("status"));
 
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.trailers().await.expect_err("trailers"));
+
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.close();
     let mut stream = call.await.expect("headers").into_inner();
     let first = stream.message().await.expect("msg").expect("item");
     assert_eq!(name_of(&first), "ada");
     assert_typed_stream_fail(&stream.message().await.expect_err("status"));
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_stream_fail(&stream.trailers().await.expect_err("trailers"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

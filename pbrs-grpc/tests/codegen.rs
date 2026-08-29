@@ -681,6 +681,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "server-streaming trait methods must name cancelled/closed"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::StreamSender::fail`] after a message ships trailing metadata and `grpc-status-details-bin` the same as a handler `Err`."),
+        "server-streaming trait methods must name StreamSender::fail trailers"
+    );
+    assert!(
         src.contains("Spawned work should await [`::pbrs_grpc::Request::cancelled`]"),
         "trait methods must name spawned cancelled"
     );
