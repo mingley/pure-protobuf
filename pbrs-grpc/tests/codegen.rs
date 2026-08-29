@@ -565,7 +565,22 @@ fn generated_client_debug_and_into_inner() {
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
     assert_eq!(client.channel().config().stream_buffer_size(), 64);
     assert_eq!(client.channel().config().limits().max_decoding(), None);
+    assert_eq!(client.config(), client.channel().config());
     let _ = client.into_inner();
+}
+
+#[test]
+fn generated_server_config_is_readable_after_overlays() {
+    let server = StoreServer::new(MemStore).timeout(Duration::from_secs(5));
+    assert_eq!(
+        server.server_config().rpc_timeout(),
+        Some(Duration::from_secs(5))
+    );
+    let router = server.clone().into_router();
+    assert_eq!(
+        router.server_config().rpc_timeout(),
+        Some(Duration::from_secs(5))
+    );
 }
 
 #[tokio::test]

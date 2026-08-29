@@ -419,6 +419,8 @@ same instant the kernel is actually racing — forward
 `deadline.saturating_duration_since(Instant::now())` onto a downstream RPC
 instead of copying `timeout()`. An interceptor reads the client value with
 `Rpc::peer_timeout` and the combined value with `Rpc::effective_timeout`.
+Generated handlers see the same client duration on `Request::peer_timeout`
+/ `Parts::peer_timeout`, distinct from the tightened `request.timeout()`.
 A client that omits `grpc-timeout` can otherwise pin a handler forever; the
 server cap closes that hole. An interceptor can only tighten that deadline,
 not extend it.
@@ -851,8 +853,13 @@ resp.set_compress(true);
 ```
 
 On a stream, choose per message with `send` or `send_compressed`.
-`request.compressed()` reports whether what arrived was compressed.
-`Parts::compressed` keeps that flag across `into_message_and_parts`.
+`request.compressed()` is the unary first-frame Compressed-Flag.
+Client- and bidi-streaming requests leave it `false`; each message's flag
+is on `Framed`. `request.encoding()` is the call's `grpc-encoding` header
+(`Some("gzip")` or `None` for identity). `request.accepts_gzip()` is
+whether the peer listed gzip in `grpc-accept-encoding` — a handler that
+calls `Response::set_compress(true)` still only gzips when this is true.
+`Parts` keeps all three across `into_message_and_parts`.
 
 To gzip every response a client advertised `gzip` for:
 
@@ -1075,7 +1082,8 @@ a subset of names. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
 cap, and `set_timeout`. An interceptor can only tighten the deadline, not
 extend it. The handler's `request.timeout()` / `request.deadline()` are that
-tightened cap, not the original client value. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
+tightened cap, not the original client value. That original duration is
+`Request::peer_timeout` / `Parts::peer_timeout`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
 the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
 and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a
@@ -1102,6 +1110,10 @@ Returning `Err(Status::with_error_details(...))` ships
 them. Generated handlers see the same caps on `Request::limits`; a request
 you built to send has `None` — the channel's `message_limits` applies at
 send time. A client interceptor reads that overlay with `Outgoing::limits`.
+`Rpc::accepts_gzip` / `Rpc::encoding` are the peer's `grpc-accept-encoding`
+and `grpc-encoding`; generated handlers see the same values on
+`Request::accepts_gzip` / `Request::encoding`. `grpc-*` keys stay off
+`Metadata`.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
 id), insert it on the `Rpc` and read it from the `Request`:
@@ -1139,8 +1151,7 @@ when the channel was built with `ClientTls` or when a `from_io` channel called
 `Channel::user_agent` prefix; `FooClient::grpc_user_agent` reads it), message caps (`Outgoing::limits`, the
 channel overlay the kernel will enforce), metadata, deadline, wait-for-ready,
 compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
-`localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata does not change the
-header: that name is reserved.
+`localhost` (`FooClient::authority` is the same string). Inserting `user-agent` into metadata succeeds — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor. Calling `intercept` twice stacks — the first interceptor runs

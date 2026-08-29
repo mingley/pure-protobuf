@@ -365,6 +365,7 @@ impl<T> std::fmt::Debug for StreamSender<T> {
         f.debug_struct("StreamSender")
             .field("closed", &self.tx.is_closed())
             .field("limits", &self.limits)
+            .field("compress", &self.compress)
             .finish()
     }
 }
@@ -390,6 +391,8 @@ mod tests {
         let (tx, mut stream) = Streaming::<HelloReply>::channel(4);
         tx.send(reply("one")).await.expect("send");
         tx.send_compressed(reply("two")).await.expect("send");
+        let shown = format!("{tx:?}");
+        assert!(shown.contains("compress: false"), "{shown}");
         tx.close();
         let first = stream.message().await.expect("recv").expect("item");
         assert_eq!(text(&first), "one");

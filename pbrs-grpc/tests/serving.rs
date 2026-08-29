@@ -1680,9 +1680,20 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
                     "stamped timeout {timeout:?} is not the interceptor cap"
                 )));
             }
+            let peer = request
+                .peer_timeout()
+                .ok_or_else(|| Status::internal("missing client grpc-timeout"))?;
+            if peer != Duration::from_secs(5) {
+                return Err(Status::internal(format!(
+                    "peer timeout {peer:?} is not the client's 5s"
+                )));
+            }
             let (msg, parts) = request.into_message_and_parts();
             if parts.timeout() != Some(timeout) {
                 return Err(Status::internal("parts timeout must match Request"));
+            }
+            if parts.peer_timeout() != Some(peer) {
+                return Err(Status::internal("parts peer_timeout must match Request"));
             }
             let deadline = parts
                 .deadline()
@@ -1722,6 +1733,10 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
     let task = tokio::spawn(async move {
         GreeterServer::new(SeesCap)
             .intercept(|rpc: &mut Rpc| {
+                let peer = rpc.peer_timeout();
+                if peer != Some(Duration::from_secs(5)) {
+                    return Err(Status::internal(format!("rpc peer timeout {peer:?}")));
+                }
                 rpc.set_timeout(Duration::from_millis(20));
                 Ok(())
             })
@@ -4105,4 +4120,169 @@ async fn a_client_interceptor_can_set_compress() {
         .expect("gzip request");
     assert_eq!(name_of(reply.get_ref()), "ada");
     task.abort();
+}
+
+/// A handler that records gzip headers and the unary Compressed-Flag.
+struct SeesGzip;
+
+impl pbrs_grpc::Greeter for SeesGzip {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        if !request.accepts_gzip() {
+            return Err(Status::internal("kernel client advertises gzip"));
+        }
+        let encoding = request.encoding().map(str::to_owned);
+        let compressed = request.compressed();
+        let (msg, parts) = request.into_message_and_parts();
+        if !parts.accepts_gzip() {
+            return Err(Status::internal("parts dropped accepts_gzip"));
+        }
+        if parts.encoding() != encoding.as_deref() {
+            return Err(Status::internal(format!(
+                "parts encoding {:?}",
+                parts.encoding()
+            )));
+        }
+        if parts.compressed() != compressed {
+            return Err(Status::internal("parts dropped Compressed-Flag"));
+        }
+        match (encoding.as_deref(), compressed) {
+            (None, false) | (Some("gzip"), true) => {}
+            other => {
+                return Err(Status::internal(format!("unary gzip facts {other:?}")));
+            }
+        }
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        if request.compressed() {
+            return Err(Status::internal(
+                "streaming Request.compressed is the unary first-frame flag",
+            ));
+        }
+        if !request.accepts_gzip() {
+            return Err(Status::internal("kernel client advertises gzip"));
+        }
+        let encoding = request.encoding().map(str::to_owned);
+        let mut stream = request.into_inner();
+        match encoding.as_deref() {
+            None => {
+                if let Some(framed) = stream.next_framed().await? {
+                    if framed.compressed {
+                        return Err(Status::internal("identity frame was gzipped"));
+                    }
+                }
+            }
+            Some("gzip") => {
+                let framed = stream
+                    .next_framed()
+                    .await?
+                    .ok_or_else(|| Status::internal("empty gzip stream"))?;
+                if !framed.compressed {
+                    return Err(Status::internal(
+                        "gzip frame missing per-message Compressed-Flag",
+                    ));
+                }
+            }
+            other => {
+                return Err(Status::internal(format!("stream encoding {other:?}")));
+            }
+        }
+        let mut reply = HelloReply::new();
+        reply.set_message("gzip");
+        Ok(Response::new(reply))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("sees-gzip"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("sees-gzip"))
+    }
+}
+
+#[tokio::test]
+async fn a_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .intercept(|rpc: &mut Rpc| {
+                if !rpc.accepts_gzip() {
+                    return Err(Status::internal("rpc accepts_gzip"));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let identity = GreeterClient::new(channel(addr).await);
+    let gzip = GreeterClient::new(channel(addr).await.send_compressed());
+
+    let reply = identity
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("identity unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let reply = gzip
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("gzip unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = identity.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("identity stream");
+    assert_eq!(name_of(reply.get_ref()), "gzip");
+
+    let (tx, call) = gzip.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send gzip");
+    tx.close();
+    let reply = call.await.expect("gzip stream");
+    assert_eq!(name_of(reply.get_ref()), "gzip");
+    task.abort();
+}
+
+#[test]
+fn server_and_router_config_is_readable_and_cloneable() {
+    let svc = GreeterServer::new(Echo).timeout(Duration::from_secs(3));
+    assert_eq!(
+        svc.server_config().rpc_timeout(),
+        Some(Duration::from_secs(3))
+    );
+    let server = Server::new(svc.clone()).timeout(Duration::from_secs(9));
+    assert_eq!(
+        server.server_config().rpc_timeout(),
+        Some(Duration::from_secs(9))
+    );
+    assert_eq!(
+        server.clone().server_config().rpc_timeout(),
+        Some(Duration::from_secs(9))
+    );
+    let router = Router::new()
+        .add_service(svc)
+        .timeout(Duration::from_secs(2));
+    assert_eq!(
+        router.server_config().rpc_timeout(),
+        Some(Duration::from_secs(2))
+    );
+    assert_eq!(
+        router.clone().server_config().rpc_timeout(),
+        Some(Duration::from_secs(2))
+    );
 }

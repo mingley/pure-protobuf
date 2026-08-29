@@ -13,7 +13,7 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::tls::{PeerIdentity, ServerTls};
 use crate::wire::{
-    accepts_gzip, check_request, encode_msg, grpc_trailers, gzip_outbound, let_producer_catch_up,
+    check_request, encode_msg, grpc_trailers, gzip_outbound, let_producer_catch_up,
     read_one_message, reject, reject_request, send_bytes, send_ok_headers, send_trailers_only,
     wrap_timeout, OutBatch, WireStream,
 };
@@ -267,6 +267,9 @@ impl std::fmt::Debug for Rpc {
             .field("peer_timeout", &self.peer_timeout())
             .field("effective_timeout", &self.effective_timeout())
             .field("limits", &self.limits())
+            .field("accepts_gzip", &self.accepts_gzip())
+            .field("encoding", &self.encoding())
+            .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
     }
 }
@@ -274,7 +277,8 @@ impl std::fmt::Debug for Rpc {
 impl Rpc {
     /// Full request path, e.g. `/helloworld.Greeter/SayHello`.
     ///
-    /// Generated handlers see the same value on [`Request::path`].
+    /// Generated handlers see the same value on [`Request::path`]. Bind it
+    /// before [`Self::metadata_mut`]: `let path = rpc.path();`.
     #[must_use]
     pub fn path(&self) -> &str {
         self.request.uri().path()
@@ -407,7 +411,8 @@ impl Rpc {
     ///
     /// Independent of [`Self::timeout`], which is only an interceptor cap.
     /// [`Self::effective_timeout`] is the soonest of this, the server cap,
-    /// and the interceptor cap.
+    /// and the interceptor cap. Generated handlers see the same value on
+    /// [`Request::peer_timeout`].
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         crate::wire::timeout_from_headers(self.request.headers())
@@ -434,6 +439,26 @@ impl Rpc {
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
         self.config.limits()
+    }
+
+    /// Whether the peer advertised gzip in `grpc-accept-encoding`.
+    ///
+    /// Same value as [`Request::accepts_gzip`] after dispatch. A handler that
+    /// calls [`crate::Response::set_compress`] still only gzips when this is
+    /// true: the kernel will not compress a peer that did not ask.
+    #[must_use]
+    pub fn accepts_gzip(&self) -> bool {
+        crate::wire::accepts_gzip(self.request.headers())
+    }
+
+    /// The peer's `grpc-encoding` token, if it sent one.
+    ///
+    /// Missing means identity. Generated handlers see the same value on
+    /// [`Request::encoding`]. `grpc-*` keys are not in [`Self::metadata`].
+    /// Bind it before [`Self::metadata_mut`]: `let enc = rpc.encoding();`.
+    #[must_use]
+    pub fn encoding(&self) -> Option<&str> {
+        crate::wire::grpc_encoding(self.request.headers())
     }
 
     /// Typed values an interceptor may attach for the handler.
@@ -645,6 +670,9 @@ impl Rpc {
         let authority = self.authority().map(str::to_owned);
         let scheme = self.scheme().map(str::to_owned);
         let path = Some(self.path().to_owned());
+        let peer_timeout = self.peer_timeout();
+        let peer_accepts_gzip = self.accepts_gzip();
+        let encoding = self.encoding().map(str::to_owned);
         let Self {
             request,
             mut respond,
@@ -660,7 +688,6 @@ impl Rpc {
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
-        let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
         let mut recv = request.into_body();
         let outcome = wrap_timeout(timeout, async {
@@ -677,6 +704,9 @@ impl Rpc {
             req.set_compressed(framed.compressed);
             req.set_peer_cred(peer_cred);
             req.set_limits(limits);
+            req.set_peer_timeout(peer_timeout);
+            req.set_accepts_gzip(peer_accepts_gzip);
+            req.set_encoding(encoding);
             if let Some(d) = timeout {
                 req.set_timeout(d);
             }
@@ -713,6 +743,9 @@ impl Rpc {
         let authority = self.authority().map(str::to_owned);
         let scheme = self.scheme().map(str::to_owned);
         let path = Some(self.path().to_owned());
+        let peer_timeout = self.peer_timeout();
+        let peer_accepts_gzip = self.accepts_gzip();
+        let encoding = self.encoding().map(str::to_owned);
         let Self {
             request,
             mut respond,
@@ -728,7 +761,6 @@ impl Rpc {
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
-        let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
         let recv = request.into_body();
         // Decoded on the handler's task: no pump task, no queue, and reading
@@ -740,6 +772,9 @@ impl Rpc {
                 .with_http(authority, scheme, path);
         req.set_peer_cred(peer_cred);
         req.set_limits(limits);
+        req.set_peer_timeout(peer_timeout);
+        req.set_accepts_gzip(peer_accepts_gzip);
+        req.set_encoding(encoding);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -949,6 +984,16 @@ pub struct Server<S> {
     interceptor: Option<Arc<dyn crate::Interceptor>>,
 }
 
+impl<S> Clone for Server<S> {
+    fn clone(&self) -> Self {
+        Self {
+            service: Arc::clone(&self.service),
+            config: self.config,
+            interceptor: self.interceptor.clone(),
+        }
+    }
+}
+
 impl<S: Service> std::fmt::Debug for Server<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Server")
@@ -991,6 +1036,15 @@ impl<S: Service> Server<S> {
     pub fn config(mut self, config: ServerConfig) -> Self {
         self.config = config;
         self
+    }
+
+    /// The configuration in effect.
+    ///
+    /// Distinct from [`Self::config`], which replaces it. Same snapshot a
+    /// [`crate::Channel::config`] getter returns on the client.
+    #[must_use]
+    pub fn server_config(&self) -> ServerConfig {
+        self.config
     }
 
     /// Cap inbound messages at `limit` bytes. Default 4 MiB.
@@ -1163,10 +1217,12 @@ impl<S: Service> Server<S> {
     /// [`Rpc::method`] / [`Rpc::peer_timeout`] /
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
-    /// [`Rpc::peer_cred`] / [`Rpc::limits`],
+    /// [`Rpc::peer_cred`] / [`Rpc::limits`] / [`Rpc::accepts_gzip`] /
+    /// [`Rpc::encoding`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject. Generated
-    /// handlers see the same path, peer, and caps on [`Request`].
+    /// handlers see the same path, peer, caps, client timeout, and gzip
+    /// facts on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
@@ -1440,7 +1496,7 @@ impl<S: Service> Dispatch for Single<S> {
 ///     .await
 /// # }
 /// ```
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Router {
     routes: HashMap<&'static str, Arc<dyn DynService>>,
     config: ServerConfig,
@@ -1475,6 +1531,15 @@ impl Router {
     pub fn config(mut self, config: ServerConfig) -> Self {
         self.config = config;
         self
+    }
+
+    /// The configuration in effect.
+    ///
+    /// Distinct from [`Self::config`], which replaces it. Same snapshot a
+    /// [`crate::Channel::config`] getter returns on the client.
+    #[must_use]
+    pub fn server_config(&self) -> ServerConfig {
+        self.config
     }
 
     /// Cap inbound messages at `limit` bytes. Default 4 MiB.

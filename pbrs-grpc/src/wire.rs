@@ -89,6 +89,14 @@ pub(crate) fn grpc_request(
     Ok(req)
 }
 
+/// The peer's `grpc-encoding`, if it sent one.
+///
+/// Missing means identity. The token is not normalized: `"GZIP"` stays
+/// `"GZIP"`. [`grpc_encoding_supported`] is what the kernel used to admit it.
+pub(crate) fn grpc_encoding(headers: &HeaderMap) -> Option<&str> {
+    headers.get(GRPC_ENCODING).and_then(|v| v.to_str().ok())
+}
+
 /// Whether the peer advertised gzip in `grpc-accept-encoding`.
 ///
 /// Tokens are comma-separated; a `q=` parameter is ignored. Missing or
@@ -1007,9 +1015,9 @@ fn percent_decode(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        accepts_gzip, effective_timeout, grpc_content_type, grpc_encoding_supported, grpc_request,
-        gzip_outbound, percent_decode, percent_encode, soonest, FrameReader, DEFAULT_UA,
-        PBRS_GRPC_UA,
+        accepts_gzip, effective_timeout, grpc_content_type, grpc_encoding, grpc_encoding_supported,
+        grpc_request, gzip_outbound, percent_decode, percent_encode, soonest, FrameReader,
+        DEFAULT_UA, PBRS_GRPC_UA,
     };
     use crate::codec;
     use crate::gzip;
@@ -1125,6 +1133,11 @@ mod tests {
         assert!(accepts_gzip(&headers));
         headers.insert("grpc-accept-encoding", HeaderValue::from_static("GZIP"));
         assert!(accepts_gzip(&headers));
+        assert_eq!(grpc_encoding(&headers), None);
+        headers.insert("grpc-encoding", HeaderValue::from_static("gzip"));
+        assert_eq!(grpc_encoding(&headers), Some("gzip"));
+        headers.insert("grpc-encoding", HeaderValue::from_static("GZIP"));
+        assert_eq!(grpc_encoding(&headers), Some("GZIP"));
         assert!(!gzip_outbound(true, true, false));
         assert!(gzip_outbound(false, true, true));
         assert!(gzip_outbound(true, false, true));

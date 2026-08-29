@@ -33,6 +33,7 @@ use tokio::sync::watch;
 /// assert_eq!(req.timeout(), Some(Duration::from_secs(5)));
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
+#[derive(Clone)]
 pub struct Request<T> {
     message: T,
     metadata: Metadata,
@@ -49,6 +50,9 @@ pub struct Request<T> {
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
+    peer_timeout: Option<Duration>,
+    accepts_gzip: bool,
+    encoding: Option<String>,
     extensions: http::Extensions,
 }
 
@@ -72,6 +76,9 @@ impl<T> Request<T> {
             deadline: None,
             wait_for_ready: None,
             limits: None,
+            peer_timeout: None,
+            accepts_gzip: false,
+            encoding: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -114,6 +121,9 @@ impl<T> Request<T> {
                 deadline: self.deadline,
                 wait_for_ready: self.wait_for_ready,
                 limits: self.limits,
+                peer_timeout: self.peer_timeout,
+                accepts_gzip: self.accepts_gzip,
+                encoding: self.encoding,
                 extensions: self.extensions,
             },
         )
@@ -141,6 +151,9 @@ impl<T> Request<T> {
             deadline: parts.deadline,
             wait_for_ready: parts.wait_for_ready,
             limits: parts.limits,
+            peer_timeout: parts.peer_timeout,
+            accepts_gzip: parts.accepts_gzip,
+            encoding: parts.encoding,
             extensions: parts.extensions,
         }
     }
@@ -255,7 +268,12 @@ impl<T> Request<T> {
         self.compress
     }
 
-    /// Whether the received frame had the Compressed-Flag set.
+    /// Whether the received unary first frame had the Compressed-Flag set.
+    ///
+    /// True after inbound unary dispatch when that frame was gzipped. Always
+    /// `false` on a client-/bidi-streaming request: each message's flag is
+    /// on [`crate::Framed`]. Whether the call itself used gzip is
+    /// [`Self::encoding`]. A request you built to send stays `false`.
     #[must_use]
     pub fn compressed(&self) -> bool {
         self.compressed
@@ -299,6 +317,48 @@ impl<T> Request<T> {
     #[must_use]
     pub fn peer_cred(&self) -> Option<PeerCred> {
         self.peer_cred
+    }
+
+    /// The client's own `grpc-timeout`, when the kernel dispatched this call.
+    ///
+    /// Distinct from [`timeout`](Self::timeout). After interceptors run, that
+    /// method is the *effective* cap — the tighter of the client's header and
+    /// any interceptor overlay. This method is the client's original duration
+    /// so a handler or proxy can log "the client asked 30s, we run under 5s"
+    /// or forward the original header. `None` on a request you built to send,
+    /// and `None` when the client omitted `grpc-timeout`.
+    #[must_use]
+    pub fn peer_timeout(&self) -> Option<Duration> {
+        self.peer_timeout
+    }
+
+    /// Whether the peer advertised gzip in `grpc-accept-encoding`.
+    ///
+    /// `true` after inbound dispatch when the client listed gzip. Kernel
+    /// clients always advertise gzip, so a handler talking to
+    /// [`crate::Channel`] sees `true` even when the request body itself is
+    /// uncompressed. `false` on a request you built to send.
+    ///
+    /// [`crate::Response::set_compress`] is honoured only when this is
+    /// `true`; the kernel silently drops the flag otherwise. Read this
+    /// before setting the flag if a handler wants to know whether gzip will
+    /// actually go on the wire.
+    #[must_use]
+    pub fn accepts_gzip(&self) -> bool {
+        self.accepts_gzip
+    }
+
+    /// The `grpc-encoding` token the peer used on this call, if any.
+    ///
+    /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
+    /// is gzip-compressed. `None` means identity encoding, or a request you
+    /// built to send. Distinct from [`compressed`](Self::compressed): that
+    /// is the per-message Compressed-Flag on a unary first frame; this is
+    /// the HTTP header that applies to the whole call. Bind it before
+    /// [`Self::metadata_mut`]: `let enc = request.encoding();`.
+    #[must_use]
+    pub fn encoding(&self) -> Option<&str> {
+        self.encoding.as_deref()
     }
 
     /// HTTP/2 `:authority` the peer sent, e.g. `127.0.0.1:50051`.
@@ -390,6 +450,9 @@ impl<T> Request<T> {
             deadline: None,
             wait_for_ready: None,
             limits: None,
+            peer_timeout: None,
+            accepts_gzip: false,
+            encoding: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -420,6 +483,18 @@ impl<T> Request<T> {
 
     pub(crate) fn set_compressed(&mut self, compressed: bool) {
         self.compressed = compressed;
+    }
+
+    pub(crate) fn set_peer_timeout(&mut self, timeout: Option<Duration>) {
+        self.peer_timeout = timeout;
+    }
+
+    pub(crate) fn set_accepts_gzip(&mut self, accepts: bool) {
+        self.accepts_gzip = accepts;
+    }
+
+    pub(crate) fn set_encoding(&mut self, encoding: Option<String>) {
+        self.encoding = encoding;
     }
 
     pub(crate) fn with_extensions(mut self, extensions: http::Extensions) -> Self {
@@ -521,8 +596,8 @@ impl<'a> Outgoing<'a> {
     ///
     /// Same value as [`crate::Channel::grpc_user_agent`]. A prefix set with
     /// [`crate::Channel::user_agent`] is visible here. Inserting `user-agent`
-    /// into metadata does not change it: that name is reserved, and the
-    /// kernel writes this value after user metadata.
+    /// into metadata succeeds — that name is not reserved — but the kernel
+    /// overwrites it after user metadata, so a smuggled value cannot win.
     #[must_use]
     pub fn user_agent(&self) -> &'a str {
         self.user_agent
@@ -655,6 +730,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("timeout", &self.timeout)
             .field("wait_for_ready", &self.wait_for_ready)
             .field("compress", &self.compress)
+            .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
     }
 }
@@ -679,12 +755,17 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("method", &self.method())
             .field("wait_for_ready", &self.wait_for_ready)
             .field("limits", &self.limits)
+            .field("peer_timeout", &self.peer_timeout)
+            .field("accepts_gzip", &self.accepts_gzip)
+            .field("encoding", &self.encoding)
+            .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
     }
 }
 
 /// A [`Request`] envelope without its message. See
 /// [`Request::into_message_and_parts`].
+#[derive(Clone)]
 pub struct Parts {
     metadata: Metadata,
     timeout: Option<Duration>,
@@ -700,6 +781,9 @@ pub struct Parts {
     deadline: Option<tokio::time::Instant>,
     wait_for_ready: Option<bool>,
     limits: Option<MessageLimits>,
+    peer_timeout: Option<Duration>,
+    accepts_gzip: bool,
+    encoding: Option<String>,
     extensions: http::Extensions,
 }
 
@@ -721,6 +805,21 @@ impl Parts {
         self.timeout
     }
 
+    /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
+    ///
+    /// Same as [`Request::set_timeout`]. A proxy that split the envelope
+    /// with [`Request::into_message_and_parts`] can tighten the deadline
+    /// here without rebuilding a [`Request`] first.
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        self.timeout = Some(timeout);
+    }
+
+    /// Clear a timeout previously set on this envelope.
+    /// See [`Request::clear_timeout`].
+    pub fn clear_timeout(&mut self) {
+        self.timeout = None;
+    }
+
     /// Absolute deadline the server is enforcing, if any. See [`Request::deadline`].
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
@@ -733,7 +832,13 @@ impl Parts {
         self.compress
     }
 
-    /// Whether the received frame had the Compressed-Flag set.
+    /// gzip this request's payload and set the Compressed-Flag.
+    /// See [`Request::set_compress`].
+    pub fn set_compress(&mut self, compress: bool) {
+        self.compress = compress;
+    }
+
+    /// Whether the received unary first frame had the Compressed-Flag set.
     /// See [`Request::compressed`].
     #[must_use]
     pub fn compressed(&self) -> bool {
@@ -744,6 +849,18 @@ impl Parts {
     #[must_use]
     pub fn wait_for_ready(&self) -> bool {
         self.wait_for_ready.unwrap_or(false)
+    }
+
+    /// Queue this RPC until the channel is connected.
+    /// See [`Request::set_wait_for_ready`].
+    pub fn set_wait_for_ready(&mut self, wait: bool) {
+        self.wait_for_ready = Some(wait);
+    }
+
+    /// Drop a wait-for-ready choice so a later channel default can fill it in.
+    /// See [`Request::clear_wait_for_ready`].
+    pub fn clear_wait_for_ready(&mut self) {
+        self.wait_for_ready = None;
     }
 
     /// Typed values an interceptor attached to this RPC.
@@ -782,6 +899,27 @@ impl Parts {
     #[must_use]
     pub fn peer_cred(&self) -> Option<PeerCred> {
         self.peer_cred
+    }
+
+    /// The client's own `grpc-timeout`, when the kernel dispatched this call.
+    /// See [`Request::peer_timeout`].
+    #[must_use]
+    pub fn peer_timeout(&self) -> Option<Duration> {
+        self.peer_timeout
+    }
+
+    /// Whether the peer advertised gzip in `grpc-accept-encoding`.
+    /// See [`Request::accepts_gzip`].
+    #[must_use]
+    pub fn accepts_gzip(&self) -> bool {
+        self.accepts_gzip
+    }
+
+    /// The `grpc-encoding` token the peer used on this call, if any.
+    /// See [`Request::encoding`].
+    #[must_use]
+    pub fn encoding(&self) -> Option<&str> {
+        self.encoding.as_deref()
     }
 
     /// HTTP/2 `:authority` the peer sent. See [`Request::authority`].
@@ -840,6 +978,10 @@ impl fmt::Debug for Parts {
             .field("method", &self.method())
             .field("wait_for_ready", &self.wait_for_ready)
             .field("limits", &self.limits)
+            .field("peer_timeout", &self.peer_timeout)
+            .field("accepts_gzip", &self.accepts_gzip)
+            .field("encoding", &self.encoding)
+            .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
     }
 }
@@ -857,6 +999,7 @@ impl fmt::Debug for Parts {
 /// resp.trailers_mut().insert("x-rows-scanned", "17")?;
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
+#[derive(Clone)]
 pub struct Response<T> {
     message: T,
     metadata: Metadata,
@@ -1096,11 +1239,17 @@ mod tests {
         );
         let at = tokio::time::Instant::now() + Duration::from_millis(50);
         req.set_deadline(at);
-        let (message, parts) = req.into_message_and_parts();
+        req.set_peer_timeout(Some(Duration::from_secs(5)));
+        req.set_accepts_gzip(true);
+        req.set_encoding(Some("gzip".into()));
+        let (message, mut parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
         assert!(parts.wait_for_ready());
         assert!(parts.compress());
         assert!(parts.compressed());
+        assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(5)));
+        assert!(parts.accepts_gzip());
+        assert_eq!(parts.encoding(), Some("gzip"));
         assert!(parts.peer_cred().is_none());
         assert!(parts.limits().is_none());
         assert_eq!(parts.authority(), Some("127.0.0.1:9"));
@@ -1110,6 +1259,9 @@ mod tests {
         assert_eq!(parts.method(), Some("SayHello"));
         assert_eq!(parts.deadline(), Some(at));
         assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
+        parts.set_timeout(Duration::from_millis(3));
+        parts.set_compress(false);
+        parts.clear_wait_for_ready();
         let shown_parts = format!("{parts:?}");
         assert!(
             shown_parts.contains("/helloworld.Greeter/SayHello"),
@@ -1117,12 +1269,18 @@ mod tests {
         );
         assert!(shown_parts.contains("helloworld.Greeter"), "{shown_parts}");
         assert!(shown_parts.contains("SayHello"), "{shown_parts}");
+        assert!(shown_parts.contains("peer_timeout: Some("), "{shown_parts}");
+        assert!(shown_parts.contains("accepts_gzip: true"), "{shown_parts}");
+        assert!(shown_parts.contains("encoding: Some("), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
-        assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(7)));
+        assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(3)));
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
-        assert!(rebuilt.wait_for_ready());
-        assert!(rebuilt.compress());
+        assert!(!rebuilt.wait_for_ready());
+        assert!(!rebuilt.compress());
         assert!(rebuilt.compressed());
+        assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(5)));
+        assert!(rebuilt.accepts_gzip());
+        assert_eq!(rebuilt.encoding(), Some("gzip"));
         assert!(rebuilt.peer_cred().is_none());
         assert!(rebuilt.limits().is_none());
         assert_eq!(rebuilt.authority(), Some("127.0.0.1:9"));
@@ -1133,16 +1291,24 @@ mod tests {
         assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
         let shown = format!("{rebuilt:?}");
-        assert!(shown.contains("compress: true"), "{shown}");
+        assert!(shown.contains("compress: false"), "{shown}");
         assert!(shown.contains("compressed: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
+        assert!(shown.contains("peer_timeout: Some("), "{shown}");
+        assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
         assert!(shown.contains("SayHello"), "{shown}");
+        let cloned = rebuilt.clone();
+        assert_eq!(cloned.peer_timeout(), Some(Duration::from_secs(5)));
+        assert_eq!(cloned.encoding(), Some("gzip"));
         assert_eq!(rebuilt.into_inner(), "swapped");
         assert!(Request::new(0u32).path().is_none());
         assert!(Request::new(0u32).service().is_none());
         assert!(Request::new(0u32).method().is_none());
+        assert!(Request::new(0u32).peer_timeout().is_none());
+        assert!(!Request::new(0u32).accepts_gzip());
+        assert!(Request::new(0u32).encoding().is_none());
         let garbage = Request::new(0u32).with_http(None, None, Some("/nomethod".into()));
         assert_eq!(garbage.path(), Some("/nomethod"));
         assert_eq!(garbage.service(), Some(""));

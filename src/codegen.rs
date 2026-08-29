@@ -3990,6 +3990,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// The configuration in effect. Distinct from [`Self::config`], which replaces it. See [`{G}::Server::server_config`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn server_config(&self) -> {G}::ServerConfig {{ self.config }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap inbound messages at `limit` bytes. Default 4 MiB."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4179,7 +4188,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, inspect path / service / method, `:authority` / `:scheme` / `peer_identity` / `peer_cred` / message caps, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, inspect path / service / method, `:authority` / `:scheme` / `peer_timeout` / `local_addr` / `remote_addr` / `peer_identity` / `peer_cred` / message caps / gzip accept and encoding, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4620,6 +4629,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn grpc_user_agent(&self) -> &str {{ self.channel.grpc_user_agent() }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// The configuration in effect. See [`{G}::Channel::config`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn config(&self) -> {G}::ChannelConfig {{ self.channel.config() }}"
+    );
 }
 
 fn emit_kernel_client(
@@ -4645,7 +4663,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]."
+        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");

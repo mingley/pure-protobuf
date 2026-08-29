@@ -19,11 +19,13 @@ use std::sync::Arc;
 /// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], read the mTLS
 /// client certificate with [`Rpc::peer_identity`], Unix credentials with
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
-/// message caps with [`Rpc::limits`], or insert typed values with
+/// message caps with [`Rpc::limits`], gzip accept/encoding with
+/// [`Rpc::accepts_gzip`] / [`Rpc::encoding`], the TCP interface with
+/// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`]. Generated handlers see the same path,
-/// service, and method on [`crate::Request::path`] /
-/// [`crate::Request::service`] / [`crate::Request::method`]. `Err` may
+/// service, method, client timeout, gzip facts, peer, and caps on
+/// [`crate::Request`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
 ///
 /// ```
