@@ -879,15 +879,15 @@ impl<T> WireStream<T> {
 
 /// Encode a client's outbound stream, watching for cancellation.
 ///
-/// Returns the send half after a clean half-close so the caller can still
-/// `RST_STREAM` (client-streaming [`crate::CallHandle`] after close). `None`
-/// if this pump already reset the stream.
+/// The caller keeps `send` so a client-streaming [`crate::CallHandle`] can
+/// still `RST_STREAM` after a clean half-close. Returns `true` when this
+/// pump half-closed; `false` if it already reset the stream.
 pub(crate) async fn pump_outbound<T: Serialize>(
-    mut send: SendStream<Bytes>,
+    send: &mut SendStream<Bytes>,
     mut rx: Streaming<T>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
     wire: Wire,
-) -> Option<SendStream<Bytes>> {
+) -> bool {
     let mut batch = OutBatch::new(wire);
     let mut items = Vec::with_capacity(OutBatch::BURST);
     let mut watch_cancel = true;
@@ -899,7 +899,7 @@ pub(crate) async fn pump_outbound<T: Serialize>(
             }, if watch_cancel => {
                 if cancelled {
                     send.send_reset(Reason::CANCEL);
-                    return None;
+                    return false;
                 }
                 // The Call finished and dropped its sender, and no received
                 // stream is holding a clone. Stop watching.
@@ -910,12 +910,12 @@ pub(crate) async fn pump_outbound<T: Serialize>(
         };
         if taken == 0 {
             // Half-close, carrying whatever is still batched.
-            if batch.flush(&mut send).await.is_err() {
+            if batch.flush(send).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return None;
+                return false;
             }
             send.send_data(Bytes::new(), true).ok();
-            return Some(send);
+            return true;
         }
         // See the note in the server's drain loop: yield only when the caller
         // is demonstrably ahead of the network.
@@ -927,24 +927,25 @@ pub(crate) async fn pump_outbound<T: Serialize>(
         for item in items.drain(..) {
             let Ok(item) = item else {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return None;
+                return false;
             };
-            if batch.push(&mut send, item).await.is_err() {
+            if batch.push(send, item).await.is_err() {
                 send.send_reset(Reason::INTERNAL_ERROR);
-                return None;
+                return false;
             }
         }
-        if !batch.is_full() && batch.flush(&mut send).await.is_err() {
+        if !batch.is_full() && batch.flush(send).await.is_err() {
             send.send_reset(Reason::INTERNAL_ERROR);
-            return None;
+            return false;
         }
     }
 }
 
-/// After a server-streaming request or a client-streaming sender is
-/// half-closed, keep `send` so a [`crate::CallHandle`] (or dropping the
-/// received [`Streaming`] before the end) can still `RST_STREAM`. RecvStream
-/// drop is not a last-ref reset while this handle lives.
+/// After a server-streaming request or a bidi sender is half-closed, keep
+/// `send` so a [`crate::CallHandle`] (or dropping the received [`Streaming`]
+/// before the end) can still `RST_STREAM`. RecvStream drop is not a last-ref
+/// reset while this handle lives. Client-streaming keeps the send half on
+/// the Call task instead.
 pub(crate) fn reset_on_cancel(
     mut send: SendStream<Bytes>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
