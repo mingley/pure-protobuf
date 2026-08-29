@@ -25,9 +25,9 @@ mod common;
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Channel, ChannelConfig, Code, Empty, Incoming, InteropTestService, Outgoing, Request, Response,
-    Router, Rpc, Server, ServerConfig, Service, ServiceExt, Status, TestServiceClient,
-    TestServiceServer,
+    Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService, Outgoing,
+    PeerCred, PeerIdentity, Request, Response, Router, Rpc, Server, ServerConfig, Service,
+    ServiceExt, Status, TestServiceClient, TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -3106,6 +3106,7 @@ fn duplex_pair() -> (tokio::io::DuplexStream, tokio::io::DuplexStream) {
 
 struct OneIncoming<IO> {
     io: Option<IO>,
+    remote: Option<SocketAddr>,
 }
 
 impl<IO> Incoming for OneIncoming<IO>
@@ -3118,9 +3119,10 @@ where
         &mut self,
     ) -> impl std::future::Future<Output = pbrs_grpc::IncomingAccept<IO>> + Send {
         let io = self.io.take();
+        let remote = self.remote;
         async move {
             match io {
-                Some(io) => Some(Ok((io, None))),
+                Some(io) => Some(Ok((io, remote))),
                 None => std::future::pending().await,
             }
         }
@@ -3273,6 +3275,7 @@ async fn serve_with_incoming_accepts_a_duplex() {
         GreeterServer::new(Echo)
             .serve_with_incoming(OneIncoming {
                 io: Some(server_io),
+                remote: None,
             })
             .await
             .ok();
@@ -3284,6 +3287,216 @@ async fn serve_with_incoming_accepts_a_duplex() {
         .say_hello(Request::new(req("ada")))
         .await
         .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    server.abort();
+}
+
+#[tokio::test]
+async fn incoming_default_peer_copies_the_accept_addr() {
+    let remote: SocketAddr = "203.0.113.1:7".parse().expect("remote");
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                if rpc.remote_addr() != Some(remote) {
+                    return Err(Status::internal(format!(
+                        "remote {:?} want {remote}",
+                        rpc.remote_addr()
+                    )));
+                }
+                if rpc.local_addr().is_some() {
+                    return Err(Status::internal(
+                        "default Incoming must not invent local_addr",
+                    ));
+                }
+                if rpc.peer_identity().is_some() {
+                    return Err(Status::internal(
+                        "default Incoming must not invent identity",
+                    ));
+                }
+                if rpc.peer_cred().is_some() {
+                    return Err(Status::internal(
+                        "default Incoming must not invent peer_cred",
+                    ));
+                }
+                if rpc.scheme() != Some("http") {
+                    return Err(Status::internal(format!(
+                        "default Incoming scheme {:?}",
+                        rpc.scheme()
+                    )));
+                }
+                Ok(())
+            })
+            .serve_with_incoming(OneIncoming {
+                io: Some(server_io),
+                remote: Some(remote),
+            })
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .say_hello(Request::new(req("ada")))
+    .await
+    .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    server.abort();
+}
+
+struct StampedIncoming<IO> {
+    io: Option<IO>,
+    accept_remote: SocketAddr,
+}
+
+impl<IO> Incoming for StampedIncoming<IO>
+where
+    IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    type Io = IO;
+
+    fn accept(
+        &mut self,
+    ) -> impl std::future::Future<Output = pbrs_grpc::IncomingAccept<IO>> + Send {
+        let io = self.io.take();
+        let remote = self.accept_remote;
+        async move {
+            match io {
+                Some(io) => Some(Ok((io, Some(remote)))),
+                None => std::future::pending().await,
+            }
+        }
+    }
+
+    fn peer(&self, io: &Self::Io, remote: Option<SocketAddr>) -> ConnectionInfo {
+        let _ = (self, io, remote);
+        ConnectionInfo::new()
+            .with_remote_addr("192.0.2.1:8".parse().expect("remote"))
+            .with_local_addr("127.0.0.1:9".parse().expect("local"))
+            .with_peer_identity(PeerIdentity::from_der_certs([b"leaf"]).expect("leaf"))
+            .with_peer_cred(PeerCred::new(42, 43, Some(44)))
+            .with_scheme("https")
+    }
+}
+
+#[tokio::test]
+async fn incoming_peer_stamps_connection_facts() {
+    struct SeesIncoming;
+
+    impl Greeter for SeesIncoming {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            let want_remote: SocketAddr = "192.0.2.1:8".parse().expect("remote");
+            let want_local: SocketAddr = "127.0.0.1:9".parse().expect("local");
+            let want_cred = PeerCred::new(42, 43, Some(44));
+            if request.remote_addr() != Some(want_remote) {
+                return Err(Status::internal(format!(
+                    "remote {:?}",
+                    request.remote_addr()
+                )));
+            }
+            if request.local_addr() != Some(want_local) {
+                return Err(Status::internal(format!(
+                    "local {:?}",
+                    request.local_addr()
+                )));
+            }
+            if request.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf") {
+                return Err(Status::internal("missing stamped identity"));
+            }
+            if request.peer_cred() != Some(want_cred) {
+                return Err(Status::internal(format!("cred {:?}", request.peer_cred())));
+            }
+            if request.scheme() != Some("https") {
+                return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+            }
+            let (msg, parts) = request.into_message_and_parts();
+            if parts.remote_addr() != Some(want_remote)
+                || parts.local_addr() != Some(want_local)
+                || parts.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf")
+                || parts.peer_cred() != Some(want_cred)
+                || parts.scheme() != Some("https")
+            {
+                return Err(Status::internal("parts dropped Incoming::peer facts"));
+            }
+            Ok(Response::new(common::reply(common::name_of_request(&msg))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("sees-incoming"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-incoming"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("sees-incoming"))
+        }
+    }
+
+    let accept_remote: SocketAddr = "203.0.113.1:7".parse().expect("accept");
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesIncoming)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.remote_addr() != Some("192.0.2.1:8".parse().expect("remote")) {
+                    return Err(Status::internal(format!(
+                        "interceptor remote {:?}",
+                        rpc.remote_addr()
+                    )));
+                }
+                if rpc.local_addr() != Some("127.0.0.1:9".parse().expect("local")) {
+                    return Err(Status::internal(format!(
+                        "interceptor local {:?}",
+                        rpc.local_addr()
+                    )));
+                }
+                if rpc.peer_identity().and_then(|id| id.leaf()) != Some(b"leaf") {
+                    return Err(Status::internal("interceptor missing identity"));
+                }
+                if rpc.peer_cred() != Some(PeerCred::new(42, 43, Some(44))) {
+                    return Err(Status::internal(format!(
+                        "interceptor cred {:?}",
+                        rpc.peer_cred()
+                    )));
+                }
+                if rpc.scheme() != Some("https") {
+                    return Err(Status::internal(format!(
+                        "interceptor scheme {:?}",
+                        rpc.scheme()
+                    )));
+                }
+                Ok(())
+            })
+            .serve_with_incoming(StampedIncoming {
+                io: Some(server_io),
+                accept_remote,
+            })
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .say_hello(Request::new(req("ada")))
+    .await
+    .expect("unary");
     assert_eq!(name_of(reply.get_ref()), "ada");
     server.abort();
 }

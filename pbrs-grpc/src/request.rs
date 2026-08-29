@@ -258,8 +258,9 @@ impl<T> Request<T> {
 
     /// Local address of this connection, when the transport exposed one.
     ///
-    /// TCP fills this from the accepted socket. Unix, in-process, and
-    /// [`crate::Incoming`] paths yield `None`. See [`crate::Rpc::local_addr`].
+    /// TCP fills this from the accepted socket. Unix, in-process, and the
+    /// default [`crate::Incoming`] yield `None`. [`crate::Incoming::peer`]
+    /// can fill it. See [`crate::Rpc::local_addr`].
     #[must_use]
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.local_addr
@@ -268,7 +269,9 @@ impl<T> Request<T> {
     /// Client certificate chain from mTLS, when the peer presented one.
     ///
     /// Same value as [`crate::Rpc::peer_identity`]. TLS without a client
-    /// certificate, h2c, Unix, and in-process connections yield `None`.
+    /// certificate, h2c, Unix, in-process connections, and the default
+    /// [`crate::Incoming`] yield `None`. [`crate::Incoming::peer`] can supply
+    /// a chain via [`crate::PeerIdentity::from_der_certs`].
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.peer_identity.as_ref()
@@ -278,8 +281,10 @@ impl<T> Request<T> {
     /// filled them.
     ///
     /// Same value as [`crate::Rpc::peer_cred`]. Same-process tests see this
-    /// process's uid/gid/`pid`. TCP, TLS, [`crate::Incoming`], and
-    /// [`crate::Server::serve_connection`] yield `None`.
+    /// process's uid/gid/`pid`. TCP, TLS, the default [`crate::Incoming`],
+    /// and [`crate::Server::serve_connection`] yield `None`.
+    /// [`crate::Incoming::peer`] can supply credentials the acceptor already
+    /// probed.
     #[must_use]
     pub fn peer_cred(&self) -> Option<PeerCred> {
         self.peer_cred
@@ -298,9 +303,10 @@ impl<T> Request<T> {
     /// HTTP/2 `:scheme` for this RPC (`http` on h2c, `https` on TLS).
     ///
     /// On TCP and Unix the kernel reports the transport, so a peer cannot
-    /// claim `https` on cleartext. [`crate::Incoming`] and
+    /// claim `https` on cleartext. The default [`crate::Incoming`] and
     /// [`crate::Server::serve_connection`] keep whatever the peer sent.
-    /// Same value as [`crate::Rpc::scheme`].
+    /// [`crate::Incoming::peer`] can set a transport scheme. Same value as
+    /// [`crate::Rpc::scheme`].
     #[must_use]
     pub fn scheme(&self) -> Option<&str> {
         self.scheme.as_deref()

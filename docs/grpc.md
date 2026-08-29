@@ -574,7 +574,9 @@ PKI and tests, pin a CA with `ClientTls::ca`. Mutual TLS is
 `webpki_mtls`) with a client `Identity`. On mTLS,
 `Rpc::peer_identity` / `Request::peer_identity` is the verified client
 certificate chain (DER, leaf first). TLS without a client certificate, h2c,
-Unix, and `serve_connection` yield `None`. The kernel does not parse X.509;
+Unix, `serve_connection`, and the default `Incoming` yield `None`.
+`Incoming::peer` can supply a chain the acceptor already verified
+(`PeerIdentity::from_der_certs`). The kernel does not parse X.509;
 an interceptor that needs a CN or SAN decodes the leaf:
 
 ```rust
@@ -645,8 +647,10 @@ Loopback without TCP: a filesystem socket. The protocol is the same h2c as
 no `std::net::SocketAddr` for a Unix peer, and Unix is h2c.
 `Rpc::peer_cred` / `Request::peer_cred` is the connecting process's
 uid/gid/pid from `SO_PEERCRED` (Linux) or `LOCAL_PEERCRED` (macOS / *BSD).
-TCP, TLS, `Incoming`, and `serve_connection` leave it `None`, even when the
-byte stream is a Unix socket — those entry points do not probe `Io`.
+TCP, TLS, the default `Incoming`, and `serve_connection` leave it `None`,
+even when the byte stream is a Unix socket — those entry points do not
+probe `Io`. Override `Incoming::peer` when you accepted the Unix socket
+yourself.
 
 ```rust
 fn require_local_user(rpc: &mut Rpc, expected_uid: u32) -> Result<(), Status> {
@@ -695,7 +699,13 @@ let client = GreeterClient::from_io(client_io, "localhost").await?;
 ```
 
 A custom acceptor implements `Incoming` and is served with
-`serve_with_incoming`. `TcpListener` / `UnixListener` stay on
+`serve_with_incoming`. The default copies the `SocketAddr` from
+`IncomingAccept` and leaves `local_addr`, `peer_identity`, `peer_cred`,
+and the transport `:scheme` unset (`serve_connection` is the same empty
+set). Override `Incoming::peer` and return a `ConnectionInfo` when you
+already know those facts — a vsock, a TLS stack you drove, a Unix socket
+you accepted yourself. `IncomingAccept` is unchanged; the kernel does
+not probe `Io`. `TcpListener` / `UnixListener` stay on
 `serve_listener` / `serve_unix_listener` so `TCP_NODELAY`, TCP keepalive,
 and TLS stay applied.
 
@@ -1062,14 +1072,18 @@ cap, and `set_timeout`. An interceptor can only tighten the deadline, not
 extend it. The handler's `request.timeout()` / `request.deadline()` are that
 tightened cap, not the original client value. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
-the transport so a peer cannot claim TLS on cleartext. `Incoming` and
-`serve_connection` keep the peer's `:scheme`.
+the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
+and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a
+transport scheme.
 Generated handlers see the same values on `Request::authority` / `Request::scheme`.
 `Rpc::local_addr` is the TCP interface that accepted the socket; Unix,
-`Incoming`, and `serve_connection` leave it `None`.
+the default `Incoming`, and `serve_connection` leave it `None`.
+`Incoming::peer` fills it for a custom acceptor.
 `Rpc::peer_identity` is the mTLS client certificate chain when the handshake
-included one. `Rpc::peer_cred` is the Unix `SO_PEERCRED` uid/gid/pid after
-`serve_unix`; TCP, TLS, `Incoming`, and `serve_connection` leave it `None`.
+included one, or when `Incoming::peer` supplies `PeerIdentity::from_der_certs`.
+`Rpc::peer_cred` is the Unix `SO_PEERCRED` uid/gid/pid after
+`serve_unix`, or when `Incoming::peer` supplies `PeerCred`. TCP, TLS,
+the default `Incoming`, and `serve_connection` leave it `None`.
 Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.
 

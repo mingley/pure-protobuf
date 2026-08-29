@@ -121,7 +121,7 @@
 //!
 //! | Concern | Types |
 //! |---|---|
-//! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`Incoming`], [`IncomingAccept`], [`ServerConfig`], [`PeerCred`] |
+//! | Serving | [`Service`], [`Rpc`], [`Server`], [`Router`], [`Incoming`], [`IncomingAccept`], [`ConnectionInfo`], [`ServerConfig`], [`PeerCred`] |
 //! | Calling | [`Channel`], [`ChannelConfig`], [`Target`], [`Call`], [`CallHandle`] |
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`], [`PeerIdentity`] |
 //! | Health | [`health`] |
@@ -309,7 +309,9 @@ pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
 pub use pb::{Any, ErrorDetails};
 pub use request::{Call, CallHandle, Outgoing, Parts, Request, Response};
-pub use server::{Incoming, IncomingAccept, PeerCred, Router, Rpc, Server, Service};
+pub use server::{
+    ConnectionInfo, Incoming, IncomingAccept, PeerCred, Router, Rpc, Server, Service,
+};
 pub use status::{Code, ParseCodeError, Status};
 pub use stream::{Framed, StreamSender, Streaming};
 pub use tls::{ClientTls, Identity, PeerIdentity, ServerTls};

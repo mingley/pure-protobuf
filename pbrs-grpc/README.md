@@ -55,7 +55,8 @@ redial of a dead connection, lazy connect with wait-for-ready, in-process
 `Channel::from_io` / `Server::serve_connection`, Unix domain
 sockets (h2c; `serve_unix_unlink` after a crash, without stealing a live listener), graceful drain with `GOAWAY`, per-message gzip, deadlines,
 cancellation (dropping a `Call` resets the stream), ASCII and `-bin` metadata, OK-path custom trailers,
-mTLS client certificates on `Rpc::peer_identity`, Unix `SO_PEERCRED` on `Rpc::peer_cred`. Outbound
+mTLS client certificates on `Rpc::peer_identity`, Unix `SO_PEERCRED` on `Rpc::peer_cred`,
+`Incoming::peer` / `ConnectionInfo` for custom acceptors. Outbound
 RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`. `Streaming` implements
 `futures_core::Stream`.
 

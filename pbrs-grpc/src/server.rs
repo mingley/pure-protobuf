@@ -97,6 +97,9 @@ trait Dispatch: Send + Sync + 'static {
 }
 
 /// One [`Incoming::accept`] result: a connection, an error, or `None` if exhausted.
+///
+/// The `SocketAddr` is the remote peer when the transport has one. Other
+/// connection facts go on [`Incoming::peer`], not this tuple.
 #[allow(
     clippy::type_complexity,
     reason = "Option<Result<(Io, peer), Status>> is the accept contract"
@@ -109,6 +112,11 @@ pub type IncomingAccept<Io> = Option<Result<(Io, Option<SocketAddr>), Status>>;
 /// / [`Server::serve_unix_listener`] so TCP_NODELAY, TCP keepalive, and TLS
 /// stay applied. Implement this for a custom acceptor (in-process duplex,
 /// vsock, a TLS stack you drove yourself).
+///
+/// [`IncomingAccept`] stays `(Io, Option<SocketAddr>)`. Override [`Self::peer`]
+/// to return a [`ConnectionInfo`] with a local address, mTLS identity, Unix
+/// credentials, or a transport `:scheme`. The default copies the accept
+/// address and does not probe `Io`.
 ///
 /// Returning `None` means the source is exhausted: the server stops accepting,
 /// sends `GOAWAY`, and drains. After the last connection, pending forever is
@@ -135,13 +143,27 @@ pub trait Incoming: Send {
 
     /// Next connection, or `None` when the source is exhausted.
     ///
-    /// `SocketAddr` is what [`Rpc::remote_addr`] reports; use `None` when the
-    /// transport has no TCP peer (Unix, in-process). [`Rpc::local_addr`] and
-    /// [`Rpc::peer_identity`] are `None` on this path; only the TCP accept
-    /// loop fills the local address, and only an mTLS handshake fills the
-    /// client certificate. Unix credentials ([`Rpc::peer_cred`]) are filled
-    /// only by the Unix accept loop.
+    /// `SocketAddr` is what [`Rpc::remote_addr`] reports unless
+    /// [`Self::peer`] replaces it; use `None` when the transport has no TCP
+    /// peer (Unix, in-process). Override [`Self::peer`] to fill
+    /// [`Rpc::local_addr`], [`Rpc::peer_identity`], [`Rpc::peer_cred`], or a
+    /// transport [`Rpc::scheme`]. The default leaves those unset: only the
+    /// TCP accept loop fills the local address, only an mTLS handshake fills
+    /// the client certificate, and only the Unix accept loop fills
+    /// credentials.
     fn accept(&mut self) -> impl Future<Output = IncomingAccept<Self::Io>> + Send;
+
+    /// Facts copied onto every RPC on this connection.
+    ///
+    /// The default keeps the `SocketAddr` from [`Self::accept`] and does not
+    /// probe `Io`. [`IncomingAccept`] is unchanged. Override this when you
+    /// already know a local address, mTLS identity, Unix credentials, or a
+    /// transport `:scheme` (a vsock, a TLS stack you drove, a Unix socket
+    /// you accepted yourself).
+    fn peer(&self, io: &Self::Io, remote: Option<SocketAddr>) -> ConnectionInfo {
+        let _ = (self, io);
+        ConnectionInfo::from_accept(remote)
+    }
 }
 
 /// Unix-domain peer credentials from `SO_PEERCRED` (Linux) or
@@ -149,9 +171,10 @@ pub trait Incoming: Send {
 ///
 /// Present on [`Rpc::peer_cred`] / [`Request::peer_cred`] after
 /// [`Server::serve_unix`] / [`Server::serve_unix_until_shutdown`] (and the
-/// `*_unlink` / `serve_unix_listener` forms). TCP, TLS, [`Incoming`], and
-/// [`Server::serve_connection`] yield `None` even when the byte stream is a
-/// Unix socket — those entry points do not probe `Io`.
+/// `*_unlink` / `serve_unix_listener` forms), or when [`Incoming::peer`]
+/// supplies them. TCP, TLS, and [`Server::serve_connection`] yield `None`
+/// even when the byte stream is a Unix socket — those entry points do not
+/// probe `Io`.
 ///
 /// The kernel does not interpret uid/gid against `/etc/passwd`; an
 /// interceptor that authorizes by user does that itself. `pid` is `None` on
@@ -164,6 +187,13 @@ pub struct PeerCred {
 }
 
 impl PeerCred {
+    /// Construct credentials. The Unix accept loop fills these from the
+    /// socket; an [`Incoming`] implementor that already probed `Io` uses this.
+    #[must_use]
+    pub const fn new(uid: u32, gid: u32, pid: Option<u32>) -> Self {
+        Self { uid, gid, pid }
+    }
+
     /// Effective user id of the connecting process.
     #[must_use]
     pub const fn uid(self) -> u32 {
@@ -270,15 +300,18 @@ impl Rpc {
     ///
     /// On TCP and Unix this is the transport, not whatever the peer wrote:
     /// a cleartext connection reports `http` even if the preface claimed
-    /// `https`. [`Incoming`] and [`Server::serve_connection`] keep the
-    /// peer's `:scheme`.
+    /// `https`. The default [`Incoming`] and [`Server::serve_connection`] keep
+    /// the peer's `:scheme`. [`Incoming::peer`] can set a transport scheme.
     #[must_use]
     pub fn scheme(&self) -> Option<&str> {
         self.transport_scheme
             .or_else(|| self.request.uri().scheme_str())
     }
 
-    /// Peer address, when the transport exposed one. TCP only; Unix and
+    /// Peer address, when the transport exposed one.
+    ///
+    /// TCP fills this from accept. [`Incoming`] copies the `SocketAddr` from
+    /// [`IncomingAccept`] unless [`Incoming::peer`] replaces it. Unix and
     /// [`Server::serve_connection`] yield `None`.
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
@@ -288,8 +321,9 @@ impl Rpc {
     /// Local address of this connection, when the transport exposed one.
     ///
     /// On TCP this is `TcpStream::local_addr` (the interface the peer hit),
-    /// not the listener bind address if that was `0.0.0.0`. Unix,
-    /// [`Incoming`], and [`Server::serve_connection`] yield `None`.
+    /// not the listener bind address if that was `0.0.0.0`. Unix and
+    /// [`Server::serve_connection`] yield `None`. The default [`Incoming`]
+    /// leaves it unset; [`Incoming::peer`] can fill it.
     #[must_use]
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.local_addr
@@ -298,8 +332,10 @@ impl Rpc {
     /// Client certificate chain from mTLS, when the peer presented one.
     ///
     /// Leaf first, DER-encoded. TLS without client authentication, h2c,
-    /// Unix, [`Incoming`], and [`Server::serve_connection`] yield `None`.
-    /// The kernel does not parse X.509.
+    /// Unix, the default [`Incoming`], and [`Server::serve_connection`] yield
+    /// `None`. [`Incoming::peer`] can supply a chain the acceptor already
+    /// verified ([`PeerIdentity::from_der_certs`]). The kernel does not parse
+    /// X.509.
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.peer_identity.as_ref()
@@ -308,8 +344,9 @@ impl Rpc {
     /// Unix-socket peer credentials (`SO_PEERCRED`), when the accept loop
     /// filled them.
     ///
-    /// Same-process tests see this process's uid/gid/`pid`. TCP, TLS,
-    /// [`Incoming`], and [`Server::serve_connection`] yield `None`.
+    /// Same-process tests see this process's uid/gid/`pid`. TCP, TLS, the
+    /// default [`Incoming`], and [`Server::serve_connection`] yield `None`.
+    /// [`Incoming::peer`] can supply credentials the acceptor already probed.
     #[must_use]
     pub fn peer_cred(&self) -> Option<PeerCred> {
         self.peer_cred
@@ -1290,7 +1327,9 @@ impl<S: Service> Server<S> {
     ///
     /// No accept loop, no TLS, no TCP options. Pair with [`crate::Channel::from_io`].
     /// [`Rpc::remote_addr`], [`Rpc::local_addr`], [`Rpc::peer_identity`],
-    /// and [`Rpc::peer_cred`] are `None`.
+    /// and [`Rpc::peer_cred`] are `None`. [`Rpc::scheme`] is the peer's
+    /// `:scheme`. Use [`Self::serve_with_incoming`] and [`Incoming::peer`]
+    /// when a custom acceptor already knows those facts.
     ///
     /// ```no_run
     /// # async fn run(
@@ -1316,6 +1355,10 @@ impl<S: Service> Server<S> {
 
     /// Serve connections from `incoming` until it is exhausted or the
     /// listener-side work fails. See [`Incoming`].
+    ///
+    /// Override [`Incoming::peer`] to fill [`Rpc::local_addr`],
+    /// [`Rpc::peer_identity`], [`Rpc::peer_cred`], or a transport
+    /// [`Rpc::scheme`] without changing [`IncomingAccept`].
     pub async fn serve_with_incoming<I: Incoming>(self, incoming: I) -> Result<(), Status> {
         self.serve_with_incoming_shutdown(incoming, std::future::pending())
             .await
@@ -1909,7 +1952,7 @@ async fn accept_loop<D: Dispatch>(
                                 serve_io(
                                     dispatch,
                                     tcp,
-                                    ConnPeer::tcp(peer, local),
+                                    ConnectionInfo::tcp(peer, local),
                                     config,
                                     goaway,
                                     rpcs,
@@ -1928,7 +1971,7 @@ async fn accept_loop<D: Dispatch>(
                                     serve_io(
                                         dispatch,
                                         io,
-                                        ConnPeer::tls(peer, local, identity),
+                                        ConnectionInfo::tls(peer, local, identity),
                                         config,
                                         goaway,
                                         rpcs,
@@ -2006,7 +2049,17 @@ async fn accept_unix_loop<D: Dispatch>(
                 let rpcs = rpcs.clone();
                 let cred = peer_cred_of(&io);
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, ConnPeer::unix(cred), config, goaway, rpcs).await);
+                    drop(
+                        serve_io(
+                            dispatch,
+                            io,
+                            ConnectionInfo::unix(cred),
+                            config,
+                            goaway,
+                            rpcs,
+                        )
+                        .await,
+                    );
                     drop(permit);
                     drop(drain);
                 }));
@@ -2075,11 +2128,9 @@ async fn accept_incoming<D: Dispatch, I: Incoming>(
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
+                let info = incoming.peer(&io, peer);
                 drop(tokio::spawn(async move {
-                    drop(
-                        serve_io(dispatch, io, ConnPeer::incoming(peer), config, goaway, rpcs)
-                            .await,
-                    );
+                    drop(serve_io(dispatch, io, info, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -2111,7 +2162,7 @@ where
     let result = serve_io(
         dispatch,
         io,
-        ConnPeer::incoming(peer),
+        ConnectionInfo::from_accept(peer),
         config,
         goaway_rx,
         rpc_slots(config),
@@ -2122,8 +2173,14 @@ where
 }
 
 /// Connection-level facts copied onto every RPC on this socket.
-#[derive(Clone)]
-struct ConnPeer {
+///
+/// The TCP, TLS, and Unix accept loops fill this themselves.
+/// [`Incoming::peer`] is how a custom acceptor supplies a local address,
+/// mTLS identity, Unix credentials, or a transport `:scheme`. The default
+/// keeps the `SocketAddr` from [`IncomingAccept`] and does not override
+/// `:scheme`. [`Server::serve_connection`] leaves every field unset.
+#[derive(Clone, Debug, Default)]
+pub struct ConnectionInfo {
     remote: Option<SocketAddr>,
     local: Option<SocketAddr>,
     identity: Option<PeerIdentity>,
@@ -2133,8 +2190,93 @@ struct ConnPeer {
     scheme: Option<&'static str>,
 }
 
-impl ConnPeer {
-    fn tcp(remote: SocketAddr, local: Option<SocketAddr>) -> Self {
+impl ConnectionInfo {
+    /// Empty facts: no addresses, no identity, no credentials, no scheme
+    /// override. Same as [`Default`].
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Start from the `SocketAddr` [`Incoming::accept`] returned.
+    #[must_use]
+    pub fn from_accept(remote: Option<SocketAddr>) -> Self {
+        Self {
+            remote,
+            ..Self::default()
+        }
+    }
+
+    /// Peer address reported as [`Rpc::remote_addr`].
+    #[must_use]
+    pub fn with_remote_addr(mut self, addr: SocketAddr) -> Self {
+        self.remote = Some(addr);
+        self
+    }
+
+    /// Local address reported as [`Rpc::local_addr`].
+    #[must_use]
+    pub fn with_local_addr(mut self, addr: SocketAddr) -> Self {
+        self.local = Some(addr);
+        self
+    }
+
+    /// Client certificate chain reported as [`Rpc::peer_identity`].
+    ///
+    /// Build one with [`PeerIdentity::from_der_certs`] when the acceptor
+    /// already verified TLS; the kernel does not parse X.509.
+    #[must_use]
+    pub fn with_peer_identity(mut self, identity: PeerIdentity) -> Self {
+        self.identity = Some(identity);
+        self
+    }
+
+    /// Unix credentials reported as [`Rpc::peer_cred`].
+    #[must_use]
+    pub fn with_peer_cred(mut self, cred: PeerCred) -> Self {
+        self.cred = Some(cred);
+        self
+    }
+
+    /// Transport `:scheme` (`http` or `https`). `None` (the default on this
+    /// type) keeps whatever the peer sent.
+    #[must_use]
+    pub fn with_scheme(mut self, scheme: &'static str) -> Self {
+        self.scheme = Some(scheme);
+        self
+    }
+
+    /// Peer address, if set.
+    #[must_use]
+    pub fn remote_addr(&self) -> Option<SocketAddr> {
+        self.remote
+    }
+
+    /// Local address, if set.
+    #[must_use]
+    pub fn local_addr(&self) -> Option<SocketAddr> {
+        self.local
+    }
+
+    /// mTLS client certificate chain, if set.
+    #[must_use]
+    pub fn peer_identity(&self) -> Option<&PeerIdentity> {
+        self.identity.as_ref()
+    }
+
+    /// Unix credentials, if set.
+    #[must_use]
+    pub fn peer_cred(&self) -> Option<PeerCred> {
+        self.cred
+    }
+
+    /// Transport `:scheme` override, if set.
+    #[must_use]
+    pub fn scheme(&self) -> Option<&'static str> {
+        self.scheme
+    }
+
+    pub(crate) fn tcp(remote: SocketAddr, local: Option<SocketAddr>) -> Self {
         Self {
             remote: Some(remote),
             local,
@@ -2144,7 +2286,11 @@ impl ConnPeer {
         }
     }
 
-    fn tls(remote: SocketAddr, local: Option<SocketAddr>, identity: Option<PeerIdentity>) -> Self {
+    pub(crate) fn tls(
+        remote: SocketAddr,
+        local: Option<SocketAddr>,
+        identity: Option<PeerIdentity>,
+    ) -> Self {
         Self {
             remote: Some(remote),
             local,
@@ -2154,7 +2300,7 @@ impl ConnPeer {
         }
     }
 
-    fn unix(cred: Option<PeerCred>) -> Self {
+    pub(crate) fn unix(cred: Option<PeerCred>) -> Self {
         Self {
             remote: None,
             local: None,
@@ -2163,23 +2309,13 @@ impl ConnPeer {
             scheme: Some("http"),
         }
     }
-
-    fn incoming(remote: Option<SocketAddr>) -> Self {
-        Self {
-            remote,
-            local: None,
-            identity: None,
-            cred: None,
-            scheme: None,
-        }
-    }
 }
 
 fn incoming_rpc(
     request: http::Request<RecvStream>,
     respond: h2::server::SendResponse<Bytes>,
     config: ServerConfig,
-    peer: ConnPeer,
+    peer: ConnectionInfo,
 ) -> Rpc {
     let metadata = Metadata::from_headers(request.headers());
     Rpc {
@@ -2200,7 +2336,7 @@ fn incoming_rpc(
 async fn serve_io<D, IO>(
     dispatch: Arc<D>,
     io: IO,
-    peer: ConnPeer,
+    peer: ConnectionInfo,
     config: ServerConfig,
     goaway: watch::Receiver<bool>,
     rpc_slots: Option<Arc<Semaphore>>,
