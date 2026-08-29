@@ -126,9 +126,18 @@ impl Store for MemStore {
         let mut inbound = request.into_inner();
         let (tx, stream) = Streaming::channel(8);
         drop(tokio::spawn(async move {
-            while let Ok(Some(e)) = inbound.message().await {
-                if tx.send(event(Kind::Delete, &key_of(&e))).await.is_err() {
-                    return;
+            loop {
+                match inbound.message().await {
+                    Ok(Some(e)) => {
+                        if tx.send(event(Kind::Delete, &key_of(&e))).await.is_err() {
+                            return;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(status) => {
+                        tx.fail(status).await;
+                        break;
+                    }
                 }
             }
         }));
@@ -160,19 +169,13 @@ async fn client(addr: SocketAddr) -> StoreClient {
     panic!("could not connect to {addr}");
 }
 
-#[tokio::test]
-async fn generated_stubs_serve_all_four_shapes() {
-    let (addr, server) = serve().await;
-    let client = client(addr).await;
-
-    // Unary.
+async fn echo_store_every_shape(client: &StoreClient) {
     let mut get = GetRequest::new();
     get.set_key("alpha");
     let got = client.get(Request::new(get)).await.expect("unary");
     assert!(got.get_ref().found());
     assert_eq!(key_of(got.get_ref().entry()), "alpha");
 
-    // Client-streaming.
     let (tx, call) = client.put_all(Request::new(()));
     for (key, value) in [("a", &b"11"[..]), ("b", &b"222"[..])] {
         tx.send(entry(key, value)).await.expect("send");
@@ -189,7 +192,6 @@ async fn generated_stubs_serve_all_four_shapes() {
         .collect();
     assert_eq!(keys, ["a", "b"]);
 
-    // Server-streaming.
     let mut watch = WatchRequest::new();
     for prefix in ["x", "y", "z"] {
         watch.prefixes_mut().push(pbrs::ProtoString::from(prefix));
@@ -206,7 +208,6 @@ async fn generated_stubs_serve_all_four_shapes() {
     }
     assert_eq!(seen, ["x", "y", "z"]);
 
-    // Bidirectional-streaming.
     let (tx, call) = client.sync(Request::new(()));
     let mut inbound = call.await.expect("bidi").into_inner();
     for key in ["p", "q"] {
@@ -217,7 +218,37 @@ async fn generated_stubs_serve_all_four_shapes() {
     }
     tx.close();
     while inbound.message().await.expect("drain").is_some() {}
+}
 
+async fn assert_store_err_every_shape(client: &StoreClient, want: Code) {
+    let mut get = GetRequest::new();
+    get.set_key("intercepted");
+    let err = client.get(Request::new(get)).await.expect_err("unary");
+    assert_eq!(err.code(), want, "{err}");
+
+    let mut watch = WatchRequest::new();
+    watch.prefixes_mut().push(pbrs::ProtoString::from("x"));
+    let err = client
+        .watch(Request::new(watch))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), want, "{err}");
+
+    let (tx, call) = client.put_all(Request::new(()));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+
+    let (tx, call) = client.sync(Request::new(()));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+}
+
+#[tokio::test]
+async fn generated_stubs_serve_all_four_shapes() {
+    let (addr, server) = serve().await;
+    echo_store_every_shape(&client(addr).await).await;
     server.abort();
 }
 
@@ -392,14 +423,7 @@ async fn generated_servers_mount_on_a_router() {
     });
 
     let store = client(addr).await;
-    let mut get = GetRequest::new();
-    get.set_key("routed");
-    assert!(store
-        .get(Request::new(get))
-        .await
-        .expect("routed")
-        .get_ref()
-        .found());
+    echo_store_every_shape(&store).await;
 
     let greeter = pbrs_grpc::GreeterClient::connect(addr)
         .await
@@ -438,10 +462,7 @@ async fn generated_servers_and_clients_expose_intercept() {
     });
 
     let denied = client(addr).await;
-    let mut get = GetRequest::new();
-    get.set_key("intercepted");
-    let err = denied.get(Request::new(get)).await.expect_err("no token");
-    assert_eq!(err.code(), Code::Unauthenticated);
+    assert_store_err_every_shape(&denied, Code::Unauthenticated).await;
 
     let allowed = client(addr)
         .await
@@ -449,14 +470,7 @@ async fn generated_servers_and_clients_expose_intercept() {
             call.metadata_mut().insert("x-token", "ok")?;
             Ok(())
         });
-    let mut get = GetRequest::new();
-    get.set_key("intercepted");
-    assert!(allowed
-        .get(Request::new(get))
-        .await
-        .expect("with token")
-        .get_ref()
-        .found());
+    echo_store_every_shape(&allowed).await;
 
     server.abort();
 }

@@ -22,7 +22,9 @@
 
 mod common;
 
-use common::{greeter_client, name_of, req, serve_at, spawn_greeter, until_ok, Echo};
+use common::{
+    greeter_client, name_of, name_of_request, req, serve_at, spawn_greeter, until_ok, Echo,
+};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService,
@@ -41,42 +43,113 @@ struct Reverser {
     seen: Arc<AtomicUsize>,
 }
 
+fn reversed_hello(name: &str) -> HelloReply {
+    let mut reply = HelloReply::new();
+    reply.set_message(name.chars().rev().collect::<String>());
+    reply
+}
+
+fn reversed_stream(name: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        tx.send(reversed_hello(&name)).await.ok();
+    }));
+    Response::new(stream)
+}
+
+fn check_h2c_peer<T>(
+    request: &Request<T>,
+    peer: Option<SocketAddr>,
+    local: Option<SocketAddr>,
+    tls_id: Option<&PeerIdentity>,
+) -> Result<(), Status> {
+    if peer.is_none() {
+        return Err(Status::internal("expected a peer address"));
+    }
+    if local.is_none() || request.local_addr() != local {
+        return Err(Status::internal("expected a local address"));
+    }
+    if tls_id.is_some() || request.peer_identity().is_some() {
+        return Err(Status::internal("h2c has no TLS client certificate"));
+    }
+    if request.peer_cred().is_some() {
+        return Err(Status::internal("tcp has no unix credentials"));
+    }
+    Ok(())
+}
+
 impl Service for Reverser {
     const NAME: &'static str = "demo.Reverser";
 
     async fn call(&self, rpc: Rpc) {
         let seen = Arc::clone(&self.seen);
+        let peer = rpc.remote_addr();
+        let local = rpc.local_addr();
+        let tls_id = rpc.peer_identity().cloned();
         match rpc.method() {
             "Reverse" => {
-                let peer = rpc.remote_addr();
-                let local = rpc.local_addr();
-                let tls_id = rpc.peer_identity().cloned();
                 rpc.unary(move |request: Request<HelloRequest>| async move {
                     seen.fetch_add(1, Ordering::Relaxed);
-                    if peer.is_none() {
-                        return Err(Status::internal("expected a peer address"));
-                    }
-                    if local.is_none() || request.local_addr() != local {
-                        return Err(Status::internal("expected a local address"));
-                    }
-                    if tls_id.is_some() || request.peer_identity().is_some() {
-                        return Err(Status::internal("h2c has no TLS client certificate"));
-                    }
-                    if request.peer_cred().is_some() {
-                        return Err(Status::internal("tcp has no unix credentials"));
-                    }
-                    let name: String = request
-                        .get_ref()
-                        .name()
-                        .to_str()
-                        .unwrap_or_default()
-                        .chars()
-                        .rev()
-                        .collect();
-                    let mut reply = HelloReply::new();
-                    reply.set_message(name);
-                    Ok(Response::new(reply))
+                    check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                    Ok(Response::new(reversed_hello(&name_of_request(
+                        request.get_ref(),
+                    ))))
                 })
+                .await;
+            }
+            "Server" => {
+                rpc.server_streaming(move |request: Request<HelloRequest>| async move {
+                    seen.fetch_add(1, Ordering::Relaxed);
+                    check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                    Ok(reversed_stream(name_of_request(request.get_ref())))
+                })
+                .await;
+            }
+            "Client" => {
+                rpc.client_streaming(
+                    move |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
+                        seen.fetch_add(1, Ordering::Relaxed);
+                        check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                        let mut inbound = request.into_inner();
+                        let msg = inbound
+                            .message()
+                            .await?
+                            .ok_or_else(|| Status::internal("empty stream"))?;
+                        Ok(Response::new(reversed_hello(&name_of_request(&msg))))
+                    },
+                )
+                .await;
+            }
+            "Bidi" => {
+                rpc.bidi_streaming(
+                    move |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
+                        seen.fetch_add(1, Ordering::Relaxed);
+                        check_h2c_peer(&request, peer, local, tls_id.as_ref())?;
+                        let mut inbound = request.into_inner();
+                        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+                        drop(tokio::spawn(async move {
+                            loop {
+                                match inbound.message().await {
+                                    Ok(Some(msg)) => {
+                                        if tx
+                                            .send(reversed_hello(&name_of_request(&msg)))
+                                            .await
+                                            .is_err()
+                                        {
+                                            break;
+                                        }
+                                    }
+                                    Ok(None) => break,
+                                    Err(status) => {
+                                        tx.fail(status).await;
+                                        break;
+                                    }
+                                }
+                            }
+                        }));
+                        Ok(Response::new(stream))
+                    },
+                )
                 .await;
             }
             _ => rpc.unimplemented(),
@@ -118,13 +191,8 @@ async fn a_hand_written_service_serves_without_generated_code() {
     });
 
     let channel = channel(addr).await;
-    let reply: HelloReply = channel
-        .unary("/demo.Reverser/Reverse", Request::new(req("stressed")))
-        .await
-        .expect("unary")
-        .into_inner();
-    assert_eq!(name_of(&reply), "desserts");
-    assert_eq!(seen.load(Ordering::Relaxed), 1);
+    echo_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
 
     let missing = channel
         .unary::<HelloRequest, HelloReply>("/demo.Reverser/Nope", Request::new(req("x")))
@@ -133,6 +201,17 @@ async fn a_hand_written_service_serves_without_generated_code() {
     assert_eq!(missing.code(), Code::Unimplemented);
 
     task.abort();
+}
+
+#[test]
+fn channel_call_apis_document_hand_written_services() {
+    let src = include_str!("../src/client.rs");
+    let needle = "A hand-written [`crate::Service`] is first-class on this path;";
+    assert_eq!(
+        src.matches(needle).count(),
+        4,
+        "Channel unary / server_streaming / client_streaming / bidi must name hand-written Service as first-class"
+    );
 }
 
 #[tokio::test]
@@ -707,21 +786,11 @@ async fn service_ext_intercept_wraps_a_hand_written_service() {
     });
 
     let ch = channel(addr).await;
-    let denied = ch
-        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
-        .await
-        .expect_err("no token");
-    assert_eq!(denied.code(), Code::Unauthenticated);
+    assert_reverser_err_every_shape(&ch, Code::Unauthenticated).await;
     assert_eq!(seen.load(Ordering::Relaxed), 0);
 
-    let allowed = ch
-        .intercept(inject_bearer)
-        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
-        .await
-        .expect("with token")
-        .into_inner();
-    assert_eq!(name_of(&allowed), "desserts");
-    assert_eq!(seen.load(Ordering::Relaxed), 1);
+    echo_reverser_every_shape(&ch.clone().intercept(inject_bearer)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
 
     task.abort();
 }
@@ -749,36 +818,19 @@ async fn service_ext_interceptors_stack_in_declaration_order() {
     });
 
     let ch = channel(addr).await;
-    let missing_trace = ch
-        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
-        .await
-        .expect_err("neither header");
-    assert_eq!(missing_trace.code(), Code::InvalidArgument);
+    assert_reverser_err_every_shape(&ch, Code::InvalidArgument).await;
 
-    let mut only_auth = Request::new(req("stressed"));
-    only_auth
-        .metadata_mut()
-        .insert("authorization", "Bearer letmein")
-        .expect("metadata");
-    let still_trace = ch
-        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", only_auth)
-        .await
-        .expect_err("auth without trace");
-    assert_eq!(still_trace.code(), Code::InvalidArgument);
+    assert_reverser_err_every_shape(&ch.clone().intercept(inject_bearer), Code::InvalidArgument)
+        .await;
 
-    let allowed = ch
-        .intercept(|call: &mut Outgoing<'_>| {
-            call.metadata_mut().insert("x-trace", "1")?;
-            call.metadata_mut()
-                .insert("authorization", "Bearer letmein")?;
-            Ok(())
-        })
-        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
-        .await
-        .expect("both headers")
-        .into_inner();
-    assert_eq!(name_of(&allowed), "desserts");
-    assert_eq!(seen.load(Ordering::Relaxed), 1);
+    echo_reverser_every_shape(&ch.intercept(|call: &mut Outgoing<'_>| {
+        call.metadata_mut().insert("x-trace", "1")?;
+        call.metadata_mut()
+            .insert("authorization", "Bearer letmein")?;
+        Ok(())
+    }))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
 
     task.abort();
 }
@@ -4716,6 +4768,51 @@ async fn echo_test_every_shape(client: &TestServiceClient) {
     );
 }
 
+async fn echo_reverser_every_shape(channel: &Channel) {
+    let reply: HelloReply = channel
+        .unary("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("unary")
+        .into_inner();
+    assert_eq!(name_of(&reply), "desserts");
+
+    let mut stream = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(req("stressed")),
+        )
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
+    assert!(stream.message().await.expect("end").is_none());
+
+    let (tx, call) = channel
+        .client_streaming::<HelloRequest, HelloReply>("/demo.Reverser/Client", Request::new(()));
+    tx.send(req("stressed")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "desserts");
+
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    tx.send(req("stressed")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
+    assert!(inbound.message().await.expect("end").is_none());
+}
+
 fn fat_test_payload() -> Payload {
     let mut p = Payload::new();
     p.set_body(vec![0u8; 64]);
@@ -5235,6 +5332,32 @@ async fn assert_err_on_test_every_shape(client: &TestServiceClient, want: Code) 
     assert_eq!(err.code(), want, "{err}");
     drop(tx);
     let (tx, call) = client.full_duplex_call(Request::new(()));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+}
+
+async fn assert_reverser_err_every_shape(channel: &Channel, want: Code) {
+    let err = channel
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), want, "{err}");
+    let err = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(req("stressed")),
+        )
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), want, "{err}");
+    let (tx, call) = channel
+        .client_streaming::<HelloRequest, HelloReply>("/demo.Reverser/Client", Request::new(()));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
     let err = call.await.expect_err("bidi");
     assert_eq!(err.code(), want, "{err}");
     drop(tx);

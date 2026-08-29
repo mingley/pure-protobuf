@@ -1450,7 +1450,7 @@ Codegen is a convenience, not a requirement. `Service` plus a `match` on the
 method name is the whole contract, and every dispatch shape is public:
 
 ```rust
-use pbrs_grpc::{Request, Response, Rpc, Service, Status};
+use pbrs_grpc::{Request, Response, Rpc, Service, Status, Streaming};
 
 struct Echo;
 
@@ -1471,6 +1471,27 @@ impl Service for Echo {
                 rpc.server_streaming(|_req: Request<HelloRequest>| async move {
                     let (tx, stream) = Streaming::channel(8);
                     tokio::spawn(async move { /* produce */ });
+                    Ok::<_, Status>(Response::new(stream))
+                })
+                .await;
+            }
+            "Collect" => {
+                rpc.client_streaming(|req: Request<Streaming<HelloRequest>>| async move {
+                    let mut inbound = req.into_inner();
+                    let msg = inbound
+                        .message()
+                        .await?
+                        .ok_or_else(|| Status::internal("empty"))?;
+                    let mut reply = HelloReply::new();
+                    reply.set_message(msg.name());
+                    Ok::<_, Status>(Response::new(reply))
+                })
+                .await;
+            }
+            "Chat" => {
+                rpc.bidi_streaming(|req: Request<Streaming<HelloRequest>>| async move {
+                    let (tx, stream) = Streaming::channel(8);
+                    tokio::spawn(async move { /* echo */ });
                     Ok::<_, Status>(Response::new(stream))
                 })
                 .await;
@@ -1504,10 +1525,28 @@ let mut stream = channel
 while let Some(reply) = stream.message().await? {
     let _ = reply;
 }
+
+let (tx, call) = channel.client_streaming::<HelloRequest, HelloReply>(
+    "/demo.Echo/Collect",
+    Request::new(()),
+);
+tx.send(req)?;
+tx.close();
+let reply = call.await?.into_inner();
+
+let (tx, call) = channel.bidi::<HelloRequest, HelloReply>(
+    "/demo.Echo/Chat",
+    Request::new(()),
+);
+let mut inbound = call.await?.into_inner();
+tx.send(req)?;
+tx.close();
+let _ = inbound.message().await?;
 ```
 
 This is not a second-class path. The in-tree `TestService` implementation and
-the hostile-peer tests both use it.
+the hostile-peer tests both use it. A hand-written `Service` is first-class on
+every `Channel` call shape.
 
 ## What is not here
 

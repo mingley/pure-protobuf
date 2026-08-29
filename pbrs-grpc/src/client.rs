@@ -218,6 +218,10 @@ impl Endpoint {
 /// and `FooClient::grpc_user_agent` read the same values interceptors see on
 /// [`Outgoing`](crate::Outgoing).
 ///
+/// [`Self::unary`], [`Self::server_streaming`], [`Self::client_streaming`],
+/// and [`Self::bidi`] are first-class for a hand-written [`crate::Service`];
+/// generated clients call the same methods.
+///
 /// [`Self::intercept`] runs on every outbound RPC when the method is
 /// called — before the stream opens and before the [`Call`] is polled —
 /// which is how a client injects auth metadata, a default deadline, or
@@ -717,7 +721,8 @@ impl Channel {
     /// Issue a unary RPC: one request message, one response message.
     ///
     /// `path` is the full gRPC path, `/<package>.<Service>/<Method>`.
-    /// Generated clients call this for you.
+    /// A hand-written [`crate::Service`] is first-class on this path;
+    /// generated clients call this for you.
     ///
     /// Dropping the [`Call`] without awaiting resets the stream. A
     /// [`crate::CallHandle`] taken before await still cancels it.
@@ -794,7 +799,8 @@ impl Channel {
     /// Issue a server-streaming RPC: one request message, many responses.
     ///
     /// `path` is the full gRPC path, `/<package>.<Service>/<Method>`.
-    /// Generated clients call this for you.
+    /// A hand-written [`crate::Service`] is first-class on this path;
+    /// generated clients call this for you.
     ///
     /// Await the [`Call`] for headers and the response [`Streaming`]. Dropping
     /// the [`Call`] without awaiting resets the stream, the same as dropping a
@@ -888,6 +894,9 @@ impl Channel {
 
     /// Issue a client-streaming RPC: many request messages, one response.
     ///
+    /// A hand-written [`crate::Service`] is first-class on this path;
+    /// generated clients call this for you.
+    ///
     /// Send on the returned [`StreamSender`], drop it to half-close, then
     /// await the [`Call`]. Dropping the pair without awaiting resets the
     /// stream, the same as dropping a unary [`Call`]. A [`crate::CallHandle`]
@@ -958,6 +967,9 @@ impl Channel {
     }
 
     /// Issue a bidirectional-streaming RPC.
+    ///
+    /// A hand-written [`crate::Service`] is first-class on this path;
+    /// generated clients call this for you.
     ///
     /// Send on the returned [`StreamSender`] and await the [`Call`] for
     /// responses. Dropping the pair without awaiting resets the stream,
