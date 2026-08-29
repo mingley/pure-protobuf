@@ -94,6 +94,7 @@
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`] |
 //! | Health | [`health`] |
 //! | Reflection | [`reflection`] |
+//! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`] |
 //! | Envelopes | [`Request`], [`Response`], [`Metadata`], [`Status`], [`Code`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`] |
 //! | Limits | [`MessageLimits`] |
@@ -123,6 +124,7 @@
 //! | Reserved metadata injection | `grpc-status` and friends are never read from or written to user metadata | always on |
 //! | Cleartext interception | TLS 1.2/1.3, ALPN `h2` required, certificate verification is not optional | opt-in [`Server::serve_tls`] / [`Channel::connect_tls`] |
 //! | Impersonation | WebPKI roots or a CA you pin; mTLS via [`ServerTls::mtls`] | opt-in |
+//! | Long-lived connection hold | GOAWAY after age or idle, then force-close; keepalive PINGs do not reset idle | opt-in [`ServerConfig::max_connection_age`] / [`ServerConfig::max_connection_idle`] |
 //!
 //! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is
 //! what a loopback test and a mesh sidecar speak. Production that is not
@@ -209,6 +211,8 @@ mod client;
 #[forbid(unsafe_code)]
 mod config;
 #[forbid(unsafe_code)]
+mod interceptor;
+#[forbid(unsafe_code)]
 mod keepalive;
 #[forbid(unsafe_code)]
 mod limits;
@@ -240,9 +244,10 @@ pub mod codegen_support {
 pub use client::{Channel, Target};
 pub use config::{
     ChannelConfig, ServerConfig, DEFAULT_KEEP_ALIVE_TIMEOUT, DEFAULT_MAX_CONCURRENT_STREAMS,
-    DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_SEND_BUFFER_SIZE,
-    DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
+    DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE,
+    DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
 };
+pub use interceptor::{ClientInterceptor, Intercepted, Interceptor, ServiceExt};
 pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
 pub use request::{Call, CallHandle, Parts, Request, Response};

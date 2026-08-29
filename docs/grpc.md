@@ -15,6 +15,7 @@ numbers, see [benchmarks](benchmarks.md).
 - [TLS](#tls)
 - [Health checks](#health-checks)
 - [Graceful shutdown](#graceful-shutdown)
+- [Connection age and idle](#connection-age-and-idle)
 - [Compression](#compression)
 - [Limits and the threat model](#limits-and-the-threat-model)
 - [Tuning](#tuning)
@@ -476,7 +477,26 @@ GreeterServer::new(MyGreeter)
 ```
 
 An RPC already running when the signal arrives completes and its response is
-delivered. New connections are refused as soon as the signal fires.
+delivered. New connections are refused as soon as the signal fires. Process-wide
+drain waits for those RPCs with no force-close; to cap how long a *peer* can
+hold a socket, see [Connection age and idle](#connection-age-and-idle).
+
+## Connection age and idle
+
+A connection lives until the peer goes away unless you cap it. Age is measured
+from accept. Idle is measured from the last RPC — keepalive PINGs do not count,
+so a peer that only answers PINGs still looks idle.
+
+```rust
+ServerConfig::new()
+    .max_connection_age(Duration::from_secs(30 * 60))
+    .max_connection_idle(Duration::from_secs(5 * 60))
+    .max_connection_age_grace(Duration::from_secs(10))
+```
+
+When either fires the kernel sends `GOAWAY`, waits the grace period (default
+10 s) for in-flight RPCs, then drops the socket. The next RPC on a `Channel`
+redials that slot.
 
 ## Compression
 
@@ -521,6 +541,7 @@ guards is committed.
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
 | Reserved metadata injection | `grpc-status` and friends are never read from or written to user metadata | always |
+| Long-lived connection hold | `GOAWAY` after age or idle, then force-close; PINGs do not reset idle | opt-in |
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
@@ -634,36 +655,43 @@ than a performance one.
 
 ## Interceptors and middleware
 
-There is no interceptor type. The kernel deliberately has no `tower` layer,
-because a `Service` implementation is already the interception point: it sees
-the `Rpc` before any body is read, and it can inspect the path and metadata,
-reject, or delegate.
+Auth, tracing, and tenant checks run before the handler. Closures implement
+`Interceptor`, so most interceptors are one function:
 
 ```rust
-use pbrs_grpc::{Rpc, Service, Status};
-use std::sync::Arc;
-
-/// Requires a bearer token before delegating to `inner`.
-struct RequireAuth<S> {
-    inner: Arc<S>,
-    token: String,
-}
-
-impl<S: Service> Service for RequireAuth<S> {
-    const NAME: &'static str = S::NAME;
-
-    async fn call(&self, rpc: Rpc) {
-        let presented = rpc.metadata().get("authorization").map(str::to_owned);
-        if presented.as_deref() != Some(self.token.as_str()) {
-            return rpc.reject(Status::unauthenticated("bad or missing token"));
-        }
-        self.inner.call(rpc).await;
+fn require_token(rpc: &Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("authorization") != Some("Bearer secret") {
+        return Err(Status::unauthenticated("bad or missing token"));
     }
+    Ok(())
 }
+
+GreeterServer::new(MyGreeter)
+    .intercept(require_token)
+    .serve(addr)
+    .await?;
 ```
 
-Because `NAME` is inherited, the wrapper mounts wherever the wrapped service
-would. The same shape covers logging, per-tenant rate limiting, and metrics.
+`Router::intercept` runs before every mounted service. Calling it twice stacks:
+the first interceptor runs first. Per-service wrapping is `Intercepted::new`
+or `ServiceExt::intercept` when you do not want the generated server's
+`.serve()` chain.
+
+On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
+mutates outbound metadata before the stream opens:
+
+```rust
+let client = GreeterClient::new(channel).intercept(|md| {
+    md.insert("authorization", "Bearer secret")?;
+    Ok(())
+});
+```
+
+A wrapping `Service` is still valid when the interceptor needs state the
+closure form does not hold easily — `Rpc::reject` is the same turn-away path
+either way, and `NAME` is inherited so the wrapper mounts where the inner
+service would. There is no `tower` layer; use `protobuf-tonic` if you need
+tonic's middleware stack.
 
 For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, and the peer address there.

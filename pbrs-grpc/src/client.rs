@@ -1,6 +1,7 @@
 //! gRPC client: [`Channel`] and the four call shapes.
 
 use crate::config::{ChannelConfig, Wire};
+use crate::interceptor::{ClientHook, ClientInterceptor};
 use crate::request::{Call, Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::{StreamSender, Streaming};
@@ -114,6 +115,9 @@ struct ChannelInner {
 /// cancelled, and it fails with [`Code::DeadlineExceeded`] if the request
 /// deadline elapses while connecting.
 ///
+/// [`Self::intercept`] runs on every outbound RPC before the stream opens,
+/// which is how a client injects auth metadata without touching each call.
+///
 /// ```no_run
 /// use pbrs_grpc::{Channel, ChannelConfig};
 ///
@@ -135,6 +139,7 @@ struct ChannelInner {
 pub struct Channel {
     inner: Arc<ChannelInner>,
     config: ChannelConfig,
+    interceptors: Arc<[ClientHook]>,
 }
 
 impl Channel {
@@ -205,6 +210,25 @@ impl Channel {
         self
     }
 
+    /// Run `interceptor` on every outbound request's metadata before the RPC
+    /// starts. Calling this twice stacks: the first interceptor runs first.
+    #[must_use]
+    pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
+        let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();
+        hooks.push(Arc::new(interceptor));
+        Self {
+            interceptors: hooks.into(),
+            ..self
+        }
+    }
+
+    fn apply_interceptors<T>(&self, req: &mut Request<T>) -> Result<(), Status> {
+        for hook in self.interceptors.iter() {
+            hook.intercept(req.metadata_mut())?;
+        }
+        Ok(())
+    }
+
     /// The `:authority` sent with every request.
     #[must_use]
     pub fn authority(&self) -> &str {
@@ -259,6 +283,8 @@ impl Channel {
         Call::new(
             cancel,
             Box::pin(async move {
+                let mut req = req;
+                channel.apply_interceptors(&mut req)?;
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline).await?;
                 run_unary(send, &channel.inner.authority, path, req, cancel_rx, wire).await
@@ -282,6 +308,8 @@ impl Channel {
         Call::new(
             cancel,
             Box::pin(async move {
+                let mut req = req;
+                channel.apply_interceptors(&mut req)?;
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline).await?;
                 run_server_stream(send, &channel.inner.authority, path, req, cancel_rx, wire).await
@@ -329,6 +357,8 @@ impl Channel {
         let call = Call::new(
             cancel,
             Box::pin(async move {
+                let mut req = req;
+                channel.apply_interceptors(&mut req)?;
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline).await?;
                 run_client_stream(
@@ -365,6 +395,8 @@ impl Channel {
         let call = Call::new(
             cancel,
             Box::pin(async move {
+                let mut req = req;
+                channel.apply_interceptors(&mut req)?;
                 let deadline = deadline_from(req.timeout());
                 let send = channel.grab(cancel_rx.clone(), deadline).await?;
                 run_bidi(
@@ -408,6 +440,7 @@ async fn connect_inner(
             dial: config,
         }),
         config,
+        interceptors: Arc::from([]),
     })
 }
 

@@ -165,9 +165,9 @@ impl Rpc {
 
     /// Answer with `status` without reading the request body.
     ///
-    /// This is how a wrapping [`Service`] turns away an RPC it will not
-    /// delegate, for example on failed authentication. Any trailing metadata on
-    /// `status` is delivered.
+    /// This is how an [`crate::Interceptor`] or a wrapping [`Service`] turns
+    /// away an RPC it will not delegate, for example on failed authentication.
+    /// Any trailing metadata on `status` is delivered.
     ///
     /// ```
     /// use pbrs_grpc::{Rpc, Service, Status};
@@ -577,6 +577,24 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Run `interceptor` before this service sees any RPC.
+    ///
+    /// Closures implement [`crate::Interceptor`], so
+    /// `server.intercept(|rpc| { ... })` is the usual form. Generated servers
+    /// expose the same method: `GreeterServer::new(svc).intercept(auth).serve(addr)`.
+    /// On a [`Router`], call [`Router::intercept`] to cover every mounted
+    /// service, or wrap one service with [`crate::Intercepted`].
+    #[must_use]
+    pub fn intercept<I: crate::Interceptor>(
+        self,
+        interceptor: I,
+    ) -> Server<crate::Intercepted<S, I>> {
+        Server {
+            service: Arc::new(crate::Intercepted::from_arc(self.service, interceptor)),
+            config: self.config,
+        }
+    }
+
     /// Add a second service, switching to path-based routing.
     #[must_use]
     pub fn add_service<T: Service>(self, service: T) -> Router {
@@ -681,6 +699,7 @@ impl<S: Service> Dispatch for Single<S> {
 pub struct Router {
     routes: HashMap<&'static str, Arc<dyn DynService>>,
     config: ServerConfig,
+    interceptor: Option<Arc<dyn crate::Interceptor>>,
 }
 
 impl std::fmt::Debug for Router {
@@ -701,6 +720,7 @@ impl Router {
         Self {
             routes: HashMap::new(),
             config: ServerConfig::default(),
+            interceptor: None,
         }
     }
 
@@ -715,6 +735,17 @@ impl Router {
     #[must_use]
     pub fn add_service<S: Service>(self, service: S) -> Self {
         self.add_arc(Arc::new(service))
+    }
+
+    /// Run `interceptor` before every mounted service. Calling this twice
+    /// stacks: the first interceptor runs first.
+    #[must_use]
+    pub fn intercept<I: crate::Interceptor>(mut self, interceptor: I) -> Self {
+        self.interceptor = Some(match self.interceptor {
+            None => Arc::new(interceptor),
+            Some(prev) => Arc::new(crate::interceptor::Then::new(prev, interceptor)),
+        });
+        self
     }
 
     fn add_arc<S: Service>(mut self, service: Arc<S>) -> Self {
@@ -770,6 +801,11 @@ impl Router {
 
 impl Dispatch for Router {
     async fn dispatch(&self, rpc: Rpc) {
+        if let Some(interceptor) = &self.interceptor {
+            if let Err(status) = interceptor.intercept(&rpc) {
+                return rpc.reject(status);
+            }
+        }
         match self.routes.get(rpc.service()) {
             Some(service) => service.dispatch(rpc).await,
             None => rpc.unimplemented(),
@@ -867,15 +903,22 @@ async fn serve_io<D, IO>(
         return;
     };
     let (interval, timeout) = config.keepalive();
+    let (age, idle, grace) = config.connection_lifetime();
     let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
+    let born = tokio::time::Instant::now();
+    let mut last_rpc = born;
     let mut draining = false;
+    let mut force_close: Option<tokio::time::Instant> = None;
     loop {
+        let age_at = age.map(|d| born + d);
+        let idle_at = idle.map(|d| last_rpc + d);
         tokio::select! {
             biased;
             accepted = std::future::poll_fn(|cx| conn.poll_accept(cx)) => {
                 let Some(Ok((request, respond))) = accepted else {
                     break;
                 };
+                last_rpc = tokio::time::Instant::now();
                 let dispatch = Arc::clone(&dispatch);
                 drop(tokio::spawn(async move {
                     dispatch
@@ -892,10 +935,30 @@ async fn serve_io<D, IO>(
                 draining = true;
                 conn.graceful_shutdown();
             }
+            _ = sleep_until_opt(age_at), if !draining => {
+                draining = true;
+                force_close = Some(tokio::time::Instant::now() + grace);
+                conn.graceful_shutdown();
+            }
+            _ = sleep_until_opt(idle_at), if !draining => {
+                draining = true;
+                force_close = Some(tokio::time::Instant::now() + grace);
+                conn.graceful_shutdown();
+            }
+            _ = sleep_until_opt(force_close) => {
+                break;
+            }
             _ = wait_dead(dead.clone()) => {
                 break;
             }
         }
+    }
+}
+
+async fn sleep_until_opt(at: Option<tokio::time::Instant>) {
+    match at {
+        Some(at) => tokio::time::sleep_until(at).await,
+        None => std::future::pending().await,
     }
 }
 

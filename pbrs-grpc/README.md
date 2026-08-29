@@ -46,14 +46,14 @@ let reply = client.say_hello(Request::new(req)).await?;
 ```
 
 All four call shapes, `Router` for several services, TLS (rustls + Graviola,
-no C compiler) and mTLS, `grpc.health.v1`, `grpc.reflection.v1`, HTTP/2 PING
-keepalive, automatic redial of a dead connection, graceful drain with
-`GOAWAY`, per-message gzip, deadlines, cancellation, ASCII and `-bin`
-metadata, and OK-path custom trailers.
+no C compiler) and mTLS, `grpc.health.v1`, `grpc.reflection.v1`, interceptors,
+HTTP/2 PING keepalive, max connection age and idle, automatic redial of a dead
+connection, graceful drain with `GOAWAY`, per-message gzip, deadlines,
+cancellation, ASCII and `-bin` metadata, and OK-path custom trailers.
 
 **[Guide](../docs/grpc.md)** — building services, streaming, metadata, errors,
-deadlines, compression, limits, tuning, testing, and writing a service without
-codegen.
+deadlines, compression, interceptors, limits, tuning, testing, and writing a
+service without codegen.
 
 ## Fast
 

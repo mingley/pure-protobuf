@@ -306,6 +306,49 @@ async fn generated_servers_mount_on_a_router() {
     server.abort();
 }
 
+#[tokio::test]
+async fn generated_servers_and_clients_expose_intercept() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(|rpc: &pbrs_grpc::Rpc| {
+                if rpc.metadata().get("x-token") != Some("ok") {
+                    return Err(Status::unauthenticated("nope"));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let denied = client(addr).await;
+    let mut get = GetRequest::new();
+    get.set_key("intercepted");
+    let err = denied.get(Request::new(get)).await.expect_err("no token");
+    assert_eq!(err.code(), Code::Unauthenticated);
+
+    let allowed = client(addr)
+        .await
+        .intercept(|md: &mut pbrs_grpc::Metadata| {
+            md.insert("x-token", "ok")?;
+            Ok(())
+        });
+    let mut get = GetRequest::new();
+    get.set_key("intercepted");
+    assert!(allowed
+        .get(Request::new(get))
+        .await
+        .expect("with token")
+        .get_ref()
+        .found());
+
+    server.abort();
+}
+
 /// A second service, so the router has something to route between.
 struct EchoGreeter;
 

@@ -34,6 +34,10 @@ pub const DEFAULT_STREAM_BUFFER: usize = 16;
 /// How long to wait for a keepalive PING acknowledgement. Default 20 s.
 pub const DEFAULT_KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(20);
 
+/// After [`ServerConfig::max_connection_age`] or idle fires, how long to wait
+/// for in-flight RPCs before dropping the socket. Default 10 s.
+pub const DEFAULT_MAX_CONNECTION_AGE_GRACE: Duration = Duration::from_secs(10);
+
 /// The per-stream settings the wire layer needs: message caps plus how much
 /// the connection will buffer before a write has to wait for flow control.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -65,6 +69,9 @@ pub struct ServerConfig {
     max_header_list_size: u32,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
+    max_connection_age: Option<Duration>,
+    max_connection_idle: Option<Duration>,
+    max_connection_age_grace: Duration,
 }
 
 impl Default for ServerConfig {
@@ -79,6 +86,9 @@ impl Default for ServerConfig {
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
+            max_connection_age: None,
+            max_connection_idle: None,
+            max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
         }
     }
 }
@@ -171,6 +181,34 @@ impl ServerConfig {
         self
     }
 
+    /// Send GOAWAY this long after the connection is accepted. Disabled by
+    /// default. Values below 1 ms are raised to 1 ms.
+    ///
+    /// In-flight RPCs get [`Self::max_connection_age_grace`] to finish; a
+    /// [`crate::Channel`] on the other end redials the next RPC.
+    #[must_use]
+    pub fn max_connection_age(mut self, age: Duration) -> Self {
+        self.max_connection_age = Some(age.max(Duration::from_millis(1)));
+        self
+    }
+
+    /// Send GOAWAY if no new RPC has arrived for this long. Disabled by
+    /// default. Values below 1 ms are raised to 1 ms. Keepalive PINGs do not
+    /// count as activity.
+    #[must_use]
+    pub fn max_connection_idle(mut self, idle: Duration) -> Self {
+        self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));
+        self
+    }
+
+    /// After age or idle fires, wait this long for in-flight RPCs before
+    /// dropping the socket. Default 10 s. Values below 1 ms are raised to 1 ms.
+    #[must_use]
+    pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
+        self.max_connection_age_grace = grace.max(Duration::from_millis(1));
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -185,6 +223,14 @@ impl ServerConfig {
 
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
+    }
+
+    pub(crate) fn connection_lifetime(self) -> (Option<Duration>, Option<Duration>, Duration) {
+        (
+            self.max_connection_age,
+            self.max_connection_idle,
+            self.max_connection_age_grace,
+        )
     }
 
     pub(crate) fn wire(self) -> Wire {
@@ -453,5 +499,17 @@ mod tests {
                 .1,
             Duration::from_millis(1)
         );
+    }
+
+    #[test]
+    fn connection_age_never_zero() {
+        let config = ServerConfig::new()
+            .max_connection_age(Duration::from_millis(0))
+            .max_connection_idle(Duration::from_millis(0))
+            .max_connection_age_grace(Duration::from_millis(0));
+        let (age, idle, grace) = config.connection_lifetime();
+        assert_eq!(age, Some(Duration::from_millis(1)));
+        assert_eq!(idle, Some(Duration::from_millis(1)));
+        assert_eq!(grace, Duration::from_millis(1));
     }
 }

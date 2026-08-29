@@ -3961,6 +3961,20 @@ fn emit_kernel_server(
         src,
         "    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {{ self.config = self.config.max_encoding_message_size(limit); self }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Run `interceptor` before `{trait_name}` methods."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn intercept<I>(self, interceptor: I) -> {G}::Server<{G}::Intercepted<Self, I>>"
+    );
+    let _ = writeln!(src, "    where");
+    let _ = writeln!(src, "        I: {G}::Interceptor,");
+    let _ = writeln!(src, "    {{");
+    let _ = writeln!(src, "        self.into_server().intercept(interceptor)");
+    let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "    /// Mount alongside another service.");
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4081,6 +4095,20 @@ fn emit_kernel_client(
         src,
         "    pub fn max_encoding_message_size(mut self, limit: usize) -> Self {{ self.channel = self.channel.max_encoding_message_size(limit); self }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Run `interceptor` on every outbound request's metadata."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
+    let _ = writeln!(src, "    where");
+    let _ = writeln!(src, "        I: {G}::ClientInterceptor,");
+    let _ = writeln!(src, "    {{");
+    let _ = writeln!(
+        src,
+        "        Self {{ channel: self.channel.intercept(interceptor) }}"
+    );
+    let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "    /// The channel this client sends on.");
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

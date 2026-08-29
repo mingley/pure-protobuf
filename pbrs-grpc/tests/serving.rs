@@ -25,8 +25,8 @@ mod common;
 use common::{greeter_client, name_of, req, serve_at, spawn_greeter, Echo};
 use pbrs_grpc::hello::{GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Channel, Code, Empty, InteropTestService, Request, Response, Router, Rpc, Server, ServerConfig,
-    Service, Status, TestServiceClient, TestServiceServer,
+    Channel, Code, Empty, InteropTestService, Metadata, Request, Response, Router, Rpc, Server,
+    ServerConfig, Service, ServiceExt, Status, TestServiceClient, TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -408,6 +408,146 @@ async fn a_wrapping_service_can_reject_before_the_body_is_read() {
     task.abort();
 }
 
+fn require_bearer(rpc: &Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("authorization") != Some("Bearer letmein") {
+        return Err(Status::unauthenticated("bad or missing token"));
+    }
+    Ok(())
+}
+
+fn inject_bearer(md: &mut Metadata) -> Result<(), Status> {
+    md.insert("authorization", "Bearer letmein")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_generated_server_interceptor_rejects_before_the_handler() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let denied = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("no token");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+
+    let allowed = GreeterClient::new(channel(addr).await)
+        .intercept(inject_bearer)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("with token");
+    assert_eq!(name_of(allowed.get_ref()), "ada");
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn service_ext_intercept_wraps_a_hand_written_service() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(require_bearer);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+
+    let ch = channel(addr).await;
+    let denied = ch
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect_err("no token");
+    assert_eq!(denied.code(), Code::Unauthenticated);
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+
+    let allowed = ch
+        .intercept(inject_bearer)
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("with token")
+        .into_inner();
+    assert_eq!(name_of(&allowed), "desserts");
+    assert_eq!(seen.load(Ordering::Relaxed), 1);
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn router_interceptors_stack_in_declaration_order() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .intercept(|rpc: &Rpc| {
+                if rpc.metadata().get("x-trace").is_none() {
+                    return Err(Status::invalid_argument("missing x-trace"));
+                }
+                Ok(())
+            })
+            .intercept(require_bearer)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let missing_trace = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("neither header");
+    assert_eq!(missing_trace.code(), Code::InvalidArgument);
+
+    let mut only_auth = Request::new(req("ada"));
+    only_auth
+        .metadata_mut()
+        .insert("authorization", "Bearer letmein")
+        .expect("metadata");
+    let still_trace = client
+        .say_hello(only_auth)
+        .await
+        .expect_err("auth without trace");
+    assert_eq!(still_trace.code(), Code::InvalidArgument);
+
+    let authed = GreeterClient::new(channel(addr).await).intercept(|md: &mut Metadata| {
+        md.insert("x-trace", "1")?;
+        md.insert("authorization", "Bearer letmein")?;
+        Ok(())
+    });
+    let allowed = authed
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("both headers");
+    assert_eq!(name_of(allowed.get_ref()), "ada");
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await)
+        .intercept(|_: &mut Metadata| Err(Status::failed_precondition("blocked locally")));
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("interceptor");
+    assert_eq!(err.code(), Code::FailedPrecondition);
+
+    task.abort();
+}
+
 /// Answers without ever reading the request stream. Inbound messages are
 /// decoded on the handler's task, so a handler that ignores them must still
 /// terminate the RPC rather than leaving the client blocked on the window.
@@ -510,13 +650,25 @@ async fn a_dead_channel_redials_the_same_address() {
         .await
         .expect("rebind");
 
-    let after = tokio::time::timeout(
-        Duration::from_secs(5),
-        client.say_hello(Request::new(req("after"))),
-    )
-    .await
-    .expect("redial hung")
-    .expect("after");
+    // The first attempt can still land on the dying connection (`ready`
+    // succeeded, then GOAWAY). Subsequent RPCs redial the rebound listener.
+    let mut last = None;
+    let after = 'done: {
+        for _ in 0..40 {
+            match tokio::time::timeout(
+                Duration::from_secs(2),
+                client.say_hello(Request::new(req("after"))),
+            )
+            .await
+            {
+                Ok(Ok(reply)) => break 'done reply,
+                Ok(Err(status)) => last = Some(status),
+                Err(_) => last = Some(Status::unavailable("redial attempt timed out")),
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        panic!("after: {last:?}");
+    };
     assert_eq!(name_of(after.get_ref()), "after");
 }
 
@@ -557,4 +709,101 @@ async fn a_dead_channel_fails_fast_when_nothing_is_listening() {
         ),
         "{err}"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn max_connection_age_goaway_then_the_channel_redials() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .config(
+                ServerConfig::new()
+                    .max_connection_age(Duration::from_millis(80))
+                    .max_connection_age_grace(Duration::from_secs(2)),
+            )
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let first = client
+        .say_hello(Request::new(req("before")))
+        .await
+        .expect("before");
+    assert_eq!(name_of(first.get_ref()), "before");
+
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    let after = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(Request::new(req("after"))),
+    )
+    .await
+    .expect("redial hung")
+    .expect("after");
+    assert_eq!(name_of(after.get_ref()), "after");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn max_connection_idle_goaway_then_the_channel_redials() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .config(
+                ServerConfig::new()
+                    .max_connection_idle(Duration::from_millis(80))
+                    .max_connection_age_grace(Duration::from_secs(2))
+                    .keep_alive_interval(Duration::from_millis(20)),
+            )
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let first = client
+        .say_hello(Request::new(req("before")))
+        .await
+        .expect("before");
+    assert_eq!(name_of(first.get_ref()), "before");
+
+    // Keepalive PINGs must not reset idle. Wait well past the idle cap.
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    let after = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(Request::new(req("after"))),
+    )
+    .await
+    .expect("redial hung")
+    .expect("after");
+    assert_eq!(name_of(after.get_ref()), "after");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn max_connection_age_lets_in_flight_rpcs_finish() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .config(
+                ServerConfig::new()
+                    .max_connection_age(Duration::from_millis(80))
+                    .max_connection_age_grace(Duration::from_secs(2)),
+            )
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut call = client.say_hello(Request::new(req("ada")));
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("Slow returned before age: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(30)) => {}
+    }
+    let reply = tokio::time::timeout(Duration::from_secs(5), call)
+        .await
+        .expect("in-flight RPC hung past grace")
+        .expect("in-flight RPC must complete");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
 }
