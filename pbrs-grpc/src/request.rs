@@ -2,6 +2,7 @@
 
 use crate::metadata::Metadata;
 use crate::status::Status;
+use crate::tls::PeerIdentity;
 use std::fmt;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -36,6 +37,7 @@ pub struct Request<T> {
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
+    peer_identity: Option<PeerIdentity>,
     wait_for_ready: Option<bool>,
     extensions: http::Extensions,
 }
@@ -52,6 +54,7 @@ impl<T> Request<T> {
             compressed: false,
             remote_addr: None,
             local_addr: None,
+            peer_identity: None,
             wait_for_ready: None,
             extensions: http::Extensions::new(),
         }
@@ -87,6 +90,7 @@ impl<T> Request<T> {
                 compressed: self.compressed,
                 remote_addr: self.remote_addr,
                 local_addr: self.local_addr,
+                peer_identity: self.peer_identity,
                 wait_for_ready: self.wait_for_ready,
                 extensions: self.extensions,
             },
@@ -107,6 +111,7 @@ impl<T> Request<T> {
             compressed: parts.compressed,
             remote_addr: parts.remote_addr,
             local_addr: parts.local_addr,
+            peer_identity: parts.peer_identity,
             wait_for_ready: parts.wait_for_ready,
             extensions: parts.extensions,
         }
@@ -227,6 +232,15 @@ impl<T> Request<T> {
         self.local_addr
     }
 
+    /// Client certificate chain from mTLS, when the peer presented one.
+    ///
+    /// Same value as [`crate::Rpc::peer_identity`]. TLS without a client
+    /// certificate, h2c, Unix, and in-process connections yield `None`.
+    #[must_use]
+    pub fn peer_identity(&self) -> Option<&PeerIdentity> {
+        self.peer_identity.as_ref()
+    }
+
     pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>, bool) {
         (self.message, self.metadata, self.timeout, self.compress)
     }
@@ -236,6 +250,7 @@ impl<T> Request<T> {
         metadata: Metadata,
         remote_addr: Option<SocketAddr>,
         local_addr: Option<SocketAddr>,
+        peer_identity: Option<PeerIdentity>,
     ) -> Self {
         Self {
             message,
@@ -245,6 +260,7 @@ impl<T> Request<T> {
             compressed: false,
             remote_addr,
             local_addr,
+            peer_identity,
             wait_for_ready: None,
             extensions: http::Extensions::new(),
         }
@@ -422,6 +438,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("compressed", &self.compressed)
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
+            .field("peer_identity", &self.peer_identity)
             .field("wait_for_ready", &self.wait_for_ready)
             .finish_non_exhaustive()
     }
@@ -437,6 +454,7 @@ pub struct Parts {
     compressed: bool,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
+    peer_identity: Option<PeerIdentity>,
     wait_for_ready: Option<bool>,
     extensions: http::Extensions,
 }
@@ -493,6 +511,13 @@ impl Parts {
     #[must_use]
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.local_addr
+    }
+
+    /// Client certificate chain from mTLS, when the peer presented one.
+    /// See [`Request::peer_identity`].
+    #[must_use]
+    pub fn peer_identity(&self) -> Option<&PeerIdentity> {
+        self.peer_identity.as_ref()
     }
 }
 

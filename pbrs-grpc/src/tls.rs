@@ -88,6 +88,82 @@ impl Identity {
             key: key_from_pem(key_pem.as_ref())?,
         })
     }
+
+    /// DER certificates in this identity, leaf first.
+    pub fn certificates(&self) -> impl Iterator<Item = &[u8]> + '_ {
+        self.certs.iter().map(|c| c.as_ref())
+    }
+}
+
+/// Client certificate chain from a TLS handshake, DER-encoded, leaf first.
+///
+/// Present only when the peer actually sent a certificate (mTLS). TLS
+/// without client authentication, h2c, Unix, [`crate::Incoming`], and
+/// [`crate::Server::serve_connection`] yield `None` from
+/// [`crate::Rpc::peer_identity`]. The kernel does not parse X.509; an
+/// interceptor that needs a CN or SAN decodes the leaf itself.
+///
+/// ```
+/// # use pbrs_grpc::PeerIdentity;
+/// fn allow(id: &PeerIdentity, known_leaf: &[u8]) -> bool {
+///     id.leaf() == Some(known_leaf)
+/// }
+/// ```
+#[derive(Clone, PartialEq, Eq)]
+pub struct PeerIdentity {
+    certs: Arc<[Box<[u8]>]>,
+}
+
+impl fmt::Debug for PeerIdentity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PeerIdentity")
+            .field("certificates", &self.certs.len())
+            .finish()
+    }
+}
+
+impl PeerIdentity {
+    pub(crate) fn from_rustls(certs: &[CertificateDer<'_>]) -> Option<Self> {
+        if certs.is_empty() {
+            return None;
+        }
+        let certs: Vec<Box<[u8]>> = certs
+            .iter()
+            .map(|c| Box::<[u8]>::from(c.as_ref()))
+            .collect();
+        Some(Self {
+            certs: Arc::from(certs),
+        })
+    }
+
+    /// DER certificates, leaf first.
+    pub fn certificates(&self) -> impl Iterator<Item = &[u8]> + '_ {
+        self.certs.iter().map(|c| c.as_ref())
+    }
+
+    /// End-entity (leaf) certificate, DER.
+    #[must_use]
+    pub fn leaf(&self) -> Option<&[u8]> {
+        self.certs.first().map(|c| c.as_ref())
+    }
+
+    /// Certificates in the chain, including the leaf.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.certs.len()
+    }
+
+    /// Always false: an empty chain is represented as `None`, not this type.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.certs.is_empty()
+    }
+}
+
+pub(crate) fn peer_identity_of(
+    stream: &tokio_rustls::server::TlsStream<TcpStream>,
+) -> Option<PeerIdentity> {
+    PeerIdentity::from_rustls(stream.get_ref().1.peer_certificates()?)
 }
 
 impl fmt::Debug for Identity {
@@ -337,6 +413,31 @@ mod tests {
         )
         .expect_err("bad name or empty cert");
         assert_eq!(err.code(), Code::InvalidArgument);
+    }
+
+    #[test]
+    fn identity_exposes_der_certificates() {
+        let id = Identity::from_pem(
+            include_str!("../tests/tls_data/client.crt"),
+            include_str!("../tests/tls_data/client.key"),
+        )
+        .expect("identity");
+        let leaf = id.certificates().next().expect("leaf");
+        assert!(!leaf.is_empty());
+    }
+
+    #[test]
+    fn peer_identity_skips_an_empty_chain() {
+        assert!(super::PeerIdentity::from_rustls(&[]).is_none());
+        let der = rustls::pki_types::CertificateDer::from(vec![0x30, 0x00]);
+        let id = super::PeerIdentity::from_rustls(&[der]).expect("leaf");
+        assert_eq!(id.len(), 1);
+        assert!(!id.is_empty());
+        assert_eq!(id.leaf(), Some(&[0x30, 0x00][..]));
+        assert_eq!(
+            id.certificates().collect::<Vec<_>>(),
+            vec![&[0x30, 0x00][..]]
+        );
     }
 }
 

@@ -14,7 +14,8 @@ use std::sync::Arc;
 /// (strip with [`crate::Metadata::remove`]), cap the deadline with
 /// [`Rpc::set_timeout`], read the client's deadline with [`Rpc::peer_timeout`]
 /// or the handler's with [`Rpc::effective_timeout`], read `:authority` with
-/// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], or insert typed
+/// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], read the mTLS
+/// client certificate with [`Rpc::peer_identity`], or insert typed
 /// values with [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.

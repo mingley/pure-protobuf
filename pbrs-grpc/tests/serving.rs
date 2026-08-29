@@ -49,6 +49,7 @@ impl Service for Reverser {
             "Reverse" => {
                 let peer = rpc.remote_addr();
                 let local = rpc.local_addr();
+                let tls_id = rpc.peer_identity().cloned();
                 rpc.unary(move |request: Request<HelloRequest>| async move {
                     seen.fetch_add(1, Ordering::Relaxed);
                     if peer.is_none() {
@@ -56,6 +57,9 @@ impl Service for Reverser {
                     }
                     if local.is_none() || request.local_addr() != local {
                         return Err(Status::internal("expected a local address"));
+                    }
+                    if tls_id.is_some() || request.peer_identity().is_some() {
+                        return Err(Status::internal("h2c has no TLS client certificate"));
                     }
                     let name: String = request
                         .get_ref()
@@ -464,8 +468,10 @@ async fn tcp_rpcs_expose_local_and_remote_addr() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .intercept(move |rpc: &mut Rpc| {
-                let n = match (rpc.local_addr(), rpc.remote_addr()) {
-                    (Some(local), Some(remote)) if local == listen && remote.ip().is_loopback() => {
+                let n = match (rpc.local_addr(), rpc.remote_addr(), rpc.peer_identity()) {
+                    (Some(local), Some(remote), None)
+                        if local == listen && remote.ip().is_loopback() =>
+                    {
                         1
                     }
                     _ => 2,
@@ -2178,6 +2184,9 @@ async fn unix_socket_unary() {
                 if rpc.remote_addr().is_some() || rpc.local_addr().is_some() {
                     return Err(Status::internal("unix has no std::net::SocketAddr"));
                 }
+                if rpc.peer_identity().is_some() {
+                    return Err(Status::internal("unix has no TLS client certificate"));
+                }
                 Ok(())
             })
             .serve_unix_listener(listener)
@@ -2646,6 +2655,9 @@ async fn from_io_authority_is_visible_to_interceptors() {
                 }
                 if rpc.remote_addr().is_some() || rpc.local_addr().is_some() {
                     return Err(Status::internal("from_io must not invent TCP addrs"));
+                }
+                if rpc.peer_identity().is_some() {
+                    return Err(Status::internal("from_io must not invent a TLS identity"));
                 }
                 Ok(())
             })

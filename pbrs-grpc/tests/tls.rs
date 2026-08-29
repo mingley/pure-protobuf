@@ -16,8 +16,11 @@
 mod common;
 
 use common::{greeter_client, name_of, req, Echo, ServerGuard};
-use pbrs_grpc::hello::{GreeterClient, GreeterServer};
-use pbrs_grpc::{Channel, ChannelConfig, ClientTls, Code, Identity, Request, ServerTls, Status};
+use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
+use pbrs_grpc::{
+    Channel, ChannelConfig, ClientTls, Code, Identity, Request, Response, Rpc, ServerTls, Status,
+    Streaming,
+};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -125,10 +128,11 @@ async fn tls_requests_use_the_https_scheme() {
     let handle = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .intercept(move |rpc: &mut pbrs_grpc::Rpc| {
-                let n = match (rpc.scheme(), rpc.local_addr()) {
-                    (Some("https"), Some(_)) => 2,
-                    (Some("https"), None) => 4,
-                    (Some("http"), _) => 1,
+                let n = match (rpc.scheme(), rpc.local_addr(), rpc.peer_identity()) {
+                    (Some("https"), Some(_), None) => 2,
+                    (Some("https"), Some(_), Some(_)) => 5,
+                    (Some("https"), None, _) => 4,
+                    (Some("http"), _, _) => 1,
                     _ => 3,
                 };
                 flag.store(n, Ordering::SeqCst);
@@ -148,6 +152,92 @@ async fn tls_requests_use_the_https_scheme() {
         seen.load(Ordering::SeqCst),
         2,
         "TLS RPCs must send :scheme https and expose a TCP local_addr"
+    );
+}
+
+#[tokio::test]
+async fn mtls_exposes_the_client_certificate() {
+    use std::sync::atomic::{AtomicU8, Ordering};
+    use std::sync::Arc;
+
+    struct SeesPeerCert {
+        want: Vec<u8>,
+    }
+
+    impl Greeter for SeesPeerCert {
+        async fn say_hello(
+            &self,
+            request: Request<HelloRequest>,
+        ) -> Result<Response<HelloReply>, Status> {
+            match request.peer_identity().and_then(|id| id.leaf()) {
+                Some(leaf) if leaf == self.want.as_slice() => {}
+                Some(_) => return Err(Status::internal("wrong leaf")),
+                None => return Err(Status::internal("missing peer identity")),
+            }
+            Ok(Response::new(common::reply(common::name_of_request(
+                request.get_ref(),
+            ))))
+        }
+
+        async fn client_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<HelloReply>, Status> {
+            Err(Status::unimplemented("unary only"))
+        }
+
+        async fn server_hello(
+            &self,
+            _request: Request<HelloRequest>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("unary only"))
+        }
+
+        async fn stream_hello(
+            &self,
+            _request: Request<Streaming<HelloRequest>>,
+        ) -> Result<Response<Streaming<HelloReply>>, Status> {
+            Err(Status::unimplemented("unary only"))
+        }
+    }
+
+    let want = client_identity()
+        .certificates()
+        .next()
+        .expect("leaf")
+        .to_vec();
+    let seen = Arc::new(AtomicU8::new(0));
+    let flag = Arc::clone(&seen);
+    let intercept_want = want.clone();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(SeesPeerCert { want })
+            .intercept(move |rpc: &mut Rpc| {
+                let n = match rpc.peer_identity().and_then(|id| id.leaf()) {
+                    Some(leaf) if leaf == intercept_want.as_slice() => 1,
+                    Some(_) => 2,
+                    None => 3,
+                };
+                flag.store(n, Ordering::SeqCst);
+                Ok(())
+            })
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = tls_client(addr, client_tls).await;
+    let reply = client
+        .say_hello(Request::new(req("grace")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "grace");
+    assert_eq!(
+        seen.load(Ordering::SeqCst),
+        1,
+        "mTLS RPCs must expose the client certificate on Rpc"
     );
 }
 

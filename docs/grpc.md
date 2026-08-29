@@ -259,8 +259,9 @@ let local = request.local_addr();
 
 `get` / `get_bin` return the first value. `insert` / `insert_bin` append, so a
 peer that sends two `x-forwarded-for` entries (or an interceptor that adds a
-second) is visible with `get_all` / `get_all_bin`. Reserved protocol keys
-(`grpc-*`, `content-type`, ...) are invisible on every read path.
+second) is visible with `get_all` / `get_all_bin`. `contains` / `contains_bin`
+match `get`. Reserved protocol keys (`grpc-*`, `content-type`, ...) are
+invisible on every read path.
 
 Reading it costs nothing until you read it: `Metadata` wraps the received
 header map rather than copying every entry into owned strings.
@@ -547,7 +548,23 @@ To drain a TLS listener the same way as h2c, use
 `ClientTls::webpki("api.example.com")` trusts Mozilla's CA set. For private
 PKI and tests, pin a CA with `ClientTls::ca`. Mutual TLS is
 `ServerTls::mtls(identity, client_ca_pem)` plus `ClientTls::ca_mtls` (or
-`webpki_mtls`) with a client `Identity`.
+`webpki_mtls`) with a client `Identity`. On mTLS,
+`Rpc::peer_identity` / `Request::peer_identity` is the verified client
+certificate chain (DER, leaf first). TLS without a client certificate, h2c,
+Unix, and `serve_connection` yield `None`. The kernel does not parse X.509;
+an interceptor that needs a CN or SAN decodes the leaf:
+
+```rust
+fn require_client(rpc: &mut Rpc, known_leaf: &[u8]) -> Result<(), Status> {
+    let Some(leaf) = rpc.peer_identity().and_then(|id| id.leaf()) else {
+        return Err(Status::unauthenticated("client certificate required"));
+    };
+    if leaf != known_leaf {
+        return Err(Status::unauthenticated("unknown client"));
+    }
+    Ok(())
+}
+```
 
 Graviola currently targets x86_64 and aarch64, and wants a CPU with AES-NI /
 NEON. That is every machine this crate is likely to run a gRPC service on;
@@ -599,9 +616,9 @@ left alone.
 ## Unix domain sockets
 
 Loopback without TCP: a filesystem socket. The protocol is the same h2c as
-`127.0.0.1`. TLS is TCP-only. `request.remote_addr()` and
-`request.local_addr()` are `None`; there is no `std::net::SocketAddr` for a
-Unix peer.
+`127.0.0.1`. TLS is TCP-only. `request.remote_addr()`,
+`request.local_addr()`, and `request.peer_identity()` are `None`; there is
+no `std::net::SocketAddr` for a Unix peer, and Unix is h2c.
 
 ```rust
 GreeterServer::new(MyGreeter).serve_unix("/tmp/greeter.sock").await?;
@@ -974,7 +991,8 @@ injected keys and without stripped ones. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
 cap, and `set_timeout`. An interceptor can only tighten the deadline, not
 extend it. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
-Returning `Err(Status::with_error_details(...))` ships
+`Rpc::peer_identity` is the mTLS client certificate chain when the handshake
+included one. Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace

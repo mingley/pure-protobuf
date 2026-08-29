@@ -11,7 +11,7 @@ use crate::metadata::Metadata;
 use crate::request::{Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::Streaming;
-use crate::tls::ServerTls;
+use crate::tls::{PeerIdentity, ServerTls};
 use crate::wire::{
     accepts_gzip, check_request, encode_msg, grpc_trailers, gzip_outbound, let_producer_catch_up,
     read_one_message, reject, reject_request, send_bytes, send_ok_headers, send_trailers_only,
@@ -136,8 +136,10 @@ pub trait Incoming: Send {
     /// Next connection, or `None` when the source is exhausted.
     ///
     /// `SocketAddr` is what [`Rpc::remote_addr`] reports; use `None` when the
-    /// transport has no TCP peer (Unix, in-process). [`Rpc::local_addr`] is
-    /// `None` on this path; only the TCP accept loop fills it.
+    /// transport has no TCP peer (Unix, in-process). [`Rpc::local_addr`] and
+    /// [`Rpc::peer_identity`] are `None` on this path; only the TCP accept
+    /// loop fills the local address, and only an mTLS handshake fills the
+    /// client certificate.
     fn accept(&mut self) -> impl Future<Output = IncomingAccept<Self::Io>> + Send;
 }
 
@@ -157,6 +159,7 @@ pub struct Rpc {
     config: ServerConfig,
     remote_addr: Option<SocketAddr>,
     local_addr: Option<SocketAddr>,
+    peer_identity: Option<PeerIdentity>,
     extensions: http::Extensions,
     metadata: Metadata,
     timeout: Option<Duration>,
@@ -169,6 +172,7 @@ impl std::fmt::Debug for Rpc {
             .field("path", &self.path())
             .field("remote_addr", &self.remote_addr)
             .field("local_addr", &self.local_addr)
+            .field("peer_identity", &self.peer_identity)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("peer_timeout", &self.peer_timeout())
@@ -226,6 +230,16 @@ impl Rpc {
     #[must_use]
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.local_addr
+    }
+
+    /// Client certificate chain from mTLS, when the peer presented one.
+    ///
+    /// Leaf first, DER-encoded. TLS without client authentication, h2c,
+    /// Unix, [`Incoming`], and [`Server::serve_connection`] yield `None`.
+    /// The kernel does not parse X.509.
+    #[must_use]
+    pub fn peer_identity(&self) -> Option<&PeerIdentity> {
+        self.peer_identity.as_ref()
     }
 
     /// Request metadata the handler will see.
@@ -507,6 +521,7 @@ impl Rpc {
             config,
             remote_addr,
             local_addr,
+            peer_identity,
             extensions,
             metadata,
             timeout: _,
@@ -518,8 +533,14 @@ impl Rpc {
         let mut recv = request.into_body();
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
-            let mut req = Request::from_metadata(framed.message, metadata, remote_addr, local_addr)
-                .with_extensions(extensions);
+            let mut req = Request::from_metadata(
+                framed.message,
+                metadata,
+                remote_addr,
+                local_addr,
+                peer_identity,
+            )
+            .with_extensions(extensions);
             req.set_compressed(framed.compressed);
             if let Some(d) = timeout {
                 req.set_timeout(d);
@@ -557,6 +578,7 @@ impl Rpc {
             config,
             remote_addr,
             local_addr,
+            peer_identity,
             extensions,
             metadata,
             timeout: _,
@@ -569,8 +591,9 @@ impl Rpc {
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
         let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits, deadline));
-        let mut req = Request::from_metadata(stream, metadata, remote_addr, local_addr)
-            .with_extensions(extensions);
+        let mut req =
+            Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
+                .with_extensions(extensions);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -935,7 +958,7 @@ impl<S: Service> Server<S> {
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
     /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
-    /// [`Rpc::remote_addr`] / [`Rpc::local_addr`],
+    /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:
@@ -1119,7 +1142,8 @@ impl<S: Service> Server<S> {
     /// Serve a single already-accepted byte stream until it closes.
     ///
     /// No accept loop, no TLS, no TCP options. Pair with [`crate::Channel::from_io`].
-    /// [`Rpc::remote_addr`] and [`Rpc::local_addr`] are `None`.
+    /// [`Rpc::remote_addr`], [`Rpc::local_addr`], and [`Rpc::peer_identity`]
+    /// are `None`.
     ///
     /// ```no_run
     /// # async fn run(
@@ -1681,8 +1705,15 @@ async fn accept_loop<D: Dispatch>(
                     match tls {
                         None => {
                             drop(
-                                serve_io(dispatch, tcp, Some(peer), local, config, goaway, rpcs)
-                                    .await,
+                                serve_io(
+                                    dispatch,
+                                    tcp,
+                                    ConnPeer::tcp(peer, local),
+                                    config,
+                                    goaway,
+                                    rpcs,
+                                )
+                                .await,
                             );
                         }
                         Some(tls) => {
@@ -1691,9 +1722,17 @@ async fn accept_loop<D: Dispatch>(
                                 tls.accept(tcp),
                             );
                             if let Ok(Ok(io)) = accept.await {
+                                let identity = crate::tls::peer_identity_of(&io);
                                 drop(
-                                    serve_io(dispatch, io, Some(peer), local, config, goaway, rpcs)
-                                        .await,
+                                    serve_io(
+                                        dispatch,
+                                        io,
+                                        ConnPeer::tls(peer, local, identity),
+                                        config,
+                                        goaway,
+                                        rpcs,
+                                    )
+                                    .await,
                                 );
                             }
                         }
@@ -1765,7 +1804,10 @@ async fn accept_unix_loop<D: Dispatch>(
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, None, None, config, goaway, rpcs).await);
+                    drop(
+                        serve_io(dispatch, io, ConnPeer::incoming(None), config, goaway, rpcs)
+                            .await,
+                    );
                     drop(permit);
                     drop(drain);
                 }));
@@ -1835,7 +1877,10 @@ async fn accept_incoming<D: Dispatch, I: Incoming>(
                 let drain = drain_tx.clone();
                 let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, peer, None, config, goaway, rpcs).await);
+                    drop(
+                        serve_io(dispatch, io, ConnPeer::incoming(peer), config, goaway, rpcs)
+                            .await,
+                    );
                     drop(permit);
                     drop(drain);
                 }));
@@ -1867,8 +1912,7 @@ where
     let result = serve_io(
         dispatch,
         io,
-        peer,
-        None,
+        ConnPeer::incoming(peer),
         config,
         goaway_rx,
         rpc_slots(config),
@@ -1878,20 +1922,54 @@ where
     result
 }
 
+/// Connection-level facts copied onto every RPC on this socket.
+#[derive(Clone)]
+struct ConnPeer {
+    remote: Option<SocketAddr>,
+    local: Option<SocketAddr>,
+    identity: Option<PeerIdentity>,
+}
+
+impl ConnPeer {
+    fn tcp(remote: SocketAddr, local: Option<SocketAddr>) -> Self {
+        Self {
+            remote: Some(remote),
+            local,
+            identity: None,
+        }
+    }
+
+    fn tls(remote: SocketAddr, local: Option<SocketAddr>, identity: Option<PeerIdentity>) -> Self {
+        Self {
+            remote: Some(remote),
+            local,
+            identity,
+        }
+    }
+
+    fn incoming(remote: Option<SocketAddr>) -> Self {
+        Self {
+            remote,
+            local: None,
+            identity: None,
+        }
+    }
+}
+
 fn incoming_rpc(
     request: http::Request<RecvStream>,
     respond: h2::server::SendResponse<Bytes>,
     config: ServerConfig,
-    remote_addr: Option<SocketAddr>,
-    local_addr: Option<SocketAddr>,
+    peer: ConnPeer,
 ) -> Rpc {
     let metadata = Metadata::from_headers(request.headers());
     Rpc {
         request,
         respond,
         config,
-        remote_addr,
-        local_addr,
+        remote_addr: peer.remote,
+        local_addr: peer.local,
+        peer_identity: peer.identity,
         extensions: http::Extensions::new(),
         metadata,
         timeout: None,
@@ -1901,8 +1979,7 @@ fn incoming_rpc(
 async fn serve_io<D, IO>(
     dispatch: Arc<D>,
     io: IO,
-    peer: Option<SocketAddr>,
-    local: Option<SocketAddr>,
+    peer: ConnPeer,
     config: ServerConfig,
     goaway: watch::Receiver<bool>,
     rpc_slots: Option<Arc<Semaphore>>,
@@ -1923,7 +2000,7 @@ where
     };
     let (interval, timeout) = config.keepalive();
     let (age, idle, grace) = config.connection_lifetime();
-    let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer)));
+    let age = age.map(|d| crate::config::jitter_age(d, connection_seed(peer.remote)));
     let dead = crate::keepalive::spawn(conn.ping_pong(), interval, timeout);
     let born = tokio::time::Instant::now();
     let busy = crate::keepalive::Busy::new();
@@ -1973,11 +2050,12 @@ where
                 };
                 let lease = busy.start();
                 let dispatch = Arc::clone(&dispatch);
+                let rpc_peer = peer.clone();
                 drop(tokio::spawn(async move {
                     let _lease = lease;
                     let _permit = permit;
                     dispatch
-                        .dispatch(incoming_rpc(request, respond, config, peer, local))
+                        .dispatch(incoming_rpc(request, respond, config, rpc_peer))
                         .await;
                 }));
             }

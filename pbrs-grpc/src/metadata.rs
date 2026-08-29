@@ -21,8 +21,10 @@ use std::fmt;
 /// md.insert_bin("x-trace-bin", [0xde, 0xad])?;
 ///
 /// assert_eq!(md.get("X-Request-Id"), Some("abc123"));
+/// assert!(md.contains("x-request-id"));
 /// assert_eq!(md.get_all("x-request-id").collect::<Vec<_>>(), vec!["abc123"]);
 /// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xde, 0xad][..]));
+/// assert!(md.contains_bin("x-trace-bin"));
 /// assert!(md.insert("bad-bin", "not base64").is_err());
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
@@ -202,6 +204,18 @@ impl Metadata {
             .iter()
             .filter(move |_| !skip)
             .filter_map(|value| decode_base64(value.to_str().ok()?))
+    }
+
+    /// Whether `key` has an ASCII value. Reserved names are never present.
+    #[must_use]
+    pub fn contains(&self, key: &str) -> bool {
+        self.get(key).is_some()
+    }
+
+    /// Whether `key` has a `-bin` value. Reserved names are never present.
+    #[must_use]
+    pub fn contains_bin(&self, key: &str) -> bool {
+        self.get_bin(key).is_some()
     }
 
     /// Every ASCII entry, skipping reserved and `-bin` keys.
@@ -393,6 +407,21 @@ mod tests {
         let md = Metadata::from_headers(&raw);
         assert_eq!(md.get_all("grpc-status").count(), 0);
         assert_eq!(md.get_all_bin("grpc-status-details-bin").count(), 0);
+        assert!(!md.contains("grpc-status"));
+        assert!(!md.contains_bin("grpc-status-details-bin"));
+    }
+
+    #[test]
+    fn contains_matches_get() {
+        let mut md = Metadata::new();
+        md.insert("x-tenant", "acme").expect("ascii");
+        md.insert_bin("x-trace-bin", [0xdeu8, 0xad]).expect("bin");
+        assert!(md.contains("X-Tenant"));
+        assert!(md.contains_bin("x-trace-bin"));
+        assert!(!md.contains("missing"));
+        assert!(!md.contains_bin("missing-bin"));
+        assert!(!md.contains("grpc-timeout"));
+        assert!(!md.contains_bin("grpc-status-details-bin"));
     }
 
     #[test]
