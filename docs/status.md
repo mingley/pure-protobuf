@@ -134,7 +134,9 @@ See `docs/upb.md`. Short list:
   wrapping `Service`, generated `FooServer::intercept`, and
   `Router::intercept` reject before the body is read and stack in
   declaration order on every call shape. `FooServer::intercept` then
-  `add_service` keeps that reject on every mount and every call shape. Generated handlers see
+  `add_service` keeps that reject on every mount and every call shape.
+  The same `add_service` keeps `max_decoding_message_size` on every mount
+  and every call shape. Generated handlers see
   `:authority` / `:scheme` / `Request` parts, a deadline Instant that
   elapses, TCP local/remote, Unix `peer_cred`, and `Incoming::peer`
   stamps on every call shape. Handler `Err` (nonzero `grpc-status` and

@@ -26,9 +26,9 @@ use common::{greeter_client, name_of, req, serve_at, spawn_greeter, until_ok, Ec
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, Code, ConnectionInfo, Empty, Incoming, InteropTestService,
-    MessageLimits, Outgoing, PeerCred, PeerIdentity, Request, Response, Router, Rpc, Server,
-    ServerConfig, Service, ServiceExt, Status, StreamingOutputCallRequest, TestServiceClient,
-    TestServiceServer,
+    MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity, Request, Response, Router, Rpc,
+    Server, ServerConfig, Service, ServiceExt, SimpleRequest, Status, StreamingInputCallRequest,
+    StreamingOutputCallRequest, TestServiceClient, TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -2743,6 +2743,8 @@ async fn config_flows_from_the_generated_server_to_the_router() {
         },
     }
 
+    assert_test_oversize_every_shape(&TestServiceClient::new(channel(addr).await)).await;
+
     task.abort();
 }
 
@@ -4621,6 +4623,54 @@ async fn echo_test_every_shape(client: &TestServiceClient) {
         inbound.message().await.expect("end").is_none(),
         "empty FullDuplexCall must end"
     );
+}
+
+fn fat_test_payload() -> Payload {
+    let mut p = Payload::new();
+    p.set_body(vec![0u8; 64]);
+    p
+}
+
+async fn assert_test_oversize_every_shape(client: &TestServiceClient) {
+    // EmptyCall is smaller than the 16-byte cap; UnaryCall is the payload-bearing unary.
+    let mut unary = SimpleRequest::new();
+    unary.set_payload(fat_test_payload());
+    let err = client
+        .unary_call(Request::new(unary))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let mut out = StreamingOutputCallRequest::new();
+    out.set_payload(fat_test_payload());
+    match client.streaming_output_call(Request::new(out)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream over the server cap must fail"),
+        },
+    }
+
+    let mut input = StreamingInputCallRequest::new();
+    input.set_payload(fat_test_payload());
+    let (tx, call) = client.streaming_input_call(Request::new(()));
+    tx.send(input).await.expect("send");
+    tx.close();
+    let err = call.await.expect_err("client-stream over the server cap");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let mut bidi = StreamingOutputCallRequest::new();
+    bidi.set_payload(fat_test_payload());
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    tx.send(bidi).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi over the server cap must fail"),
+        },
+    }
 }
 
 async fn wait_then_complete_every_shape(

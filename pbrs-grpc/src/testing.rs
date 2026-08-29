@@ -201,15 +201,24 @@ impl TestService for InteropTestService {
         let mut inbound = request.into_inner();
         let (tx, stream) = Streaming::channel(8);
         drop(tokio::spawn(async move {
-            while let Ok(Some(req)) = inbound.message().await {
-                if req.has_response_status() {
-                    let st = req.response_status();
-                    tx.fail(echoed_status(st.code(), st.message().to_string()))
-                        .await;
-                    return;
-                }
-                if !emit_plan(&tx, response_plan(&req)).await {
-                    return;
+            loop {
+                match inbound.message().await {
+                    Ok(Some(req)) => {
+                        if req.has_response_status() {
+                            let st = req.response_status();
+                            tx.fail(echoed_status(st.code(), st.message().to_string()))
+                                .await;
+                            return;
+                        }
+                        if !emit_plan(&tx, response_plan(&req)).await {
+                            return;
+                        }
+                    }
+                    Ok(None) => return,
+                    Err(status) => {
+                        tx.fail(status).await;
+                        return;
+                    }
                 }
             }
         }));

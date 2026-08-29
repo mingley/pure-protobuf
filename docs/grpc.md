@@ -1071,6 +1071,9 @@ GreeterServer::new(MyGreeter)
     .max_concurrent_streams(1024)
 ```
 
+`FooServer::max_decoding_message_size` then `add_service` keeps that cap on
+every mounted service, on every call shape of those mounts.
+
 Lifting the inbound cap entirely is possible and is only appropriate when
 every peer is trusted:
 
