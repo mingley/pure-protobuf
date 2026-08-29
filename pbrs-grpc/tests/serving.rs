@@ -502,7 +502,7 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::serve_connection and Router::serve_connection must name every call shape"
     );
     assert!(
-        src.contains("listener-side work fails. Applies to every call shape."),
+        src.contains("listener-side work fails.\n    /// Applies to every call shape."),
         "Server::serve_with_incoming must name every call shape"
     );
     assert!(

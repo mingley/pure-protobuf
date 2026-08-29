@@ -1724,8 +1724,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve connections from `incoming` until it is exhausted or the
-    /// listener-side work fails. Applies to every call shape.
-    /// See [`Incoming`].
+    /// listener-side work fails.
+    /// Applies to every call shape. See [`Incoming`].
     ///
     /// Override [`Incoming::peer`] to fill [`Rpc::local_addr`],
     /// [`Rpc::peer_identity`], [`Rpc::peer_cred`], or a transport
