@@ -1571,8 +1571,9 @@ let _ = inbound.message().await?;
 
 This is not a second-class path. The in-tree `TestService` implementation and
 the hostile-peer tests both use it. A hand-written `Service` is first-class on
-every `Channel` call shape, including `send_compressed` gzip and interceptor
-`with_error_details` over TLS, Unix, and `from_io`.
+every `Channel` call shape, including `send_compressed` gzip over TLS, mTLS,
+Unix, and `from_io`, and interceptor `with_error_details` over TLS, Unix, and
+`from_io`.
 
 ## What is not here
 

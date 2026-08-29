@@ -56,6 +56,24 @@ fn client_identity() -> Identity {
 /// A service written without any generated code, mounted on the public API.
 struct Reverser {
     seen: Arc<AtomicUsize>,
+    /// When `Some`, every call must expose this leaf on `Rpc` and `Request`.
+    want_leaf: Option<Arc<[u8]>>,
+}
+
+impl Reverser {
+    fn new(seen: Arc<AtomicUsize>) -> Self {
+        Self {
+            seen,
+            want_leaf: None,
+        }
+    }
+
+    fn mtls(seen: Arc<AtomicUsize>, leaf: impl Into<Arc<[u8]>>) -> Self {
+        Self {
+            seen,
+            want_leaf: Some(leaf.into()),
+        }
+    }
 }
 
 fn reversed_hello(name: &str) -> HelloReply {
@@ -77,9 +95,18 @@ fn check_peer<T>(
     peer: Option<SocketAddr>,
     local: Option<SocketAddr>,
     tls_id: Option<&PeerIdentity>,
+    want_leaf: Option<&[u8]>,
 ) -> Result<(), Status> {
-    if tls_id.is_some() || request.peer_identity().is_some() {
-        return Err(Status::internal("expected no TLS client certificate"));
+    let rpc_leaf = tls_id.and_then(PeerIdentity::leaf);
+    let req_leaf = request.peer_identity().and_then(PeerIdentity::leaf);
+    match (want_leaf, rpc_leaf, req_leaf) {
+        (None, None, None) => {}
+        (Some(want), Some(rpc_leaf), Some(req_leaf)) if rpc_leaf == want && req_leaf == want => {}
+        _ => {
+            return Err(Status::internal(
+                "peer_identity did not match the transport",
+            ));
+        }
     }
     if let Some(cred) = request.peer_cred() {
         if peer.is_some()
@@ -118,6 +145,7 @@ impl Service for Reverser {
 
     async fn call(&self, rpc: Rpc) {
         let seen = Arc::clone(&self.seen);
+        let want_leaf = self.want_leaf.clone();
         let peer = rpc.remote_addr();
         let local = rpc.local_addr();
         let tls_id = rpc.peer_identity().cloned();
@@ -125,7 +153,7 @@ impl Service for Reverser {
             "Reverse" => {
                 rpc.unary(move |request: Request<HelloRequest>| async move {
                     seen.fetch_add(1, Ordering::Relaxed);
-                    check_peer(&request, peer, local, tls_id.as_ref())?;
+                    check_peer(&request, peer, local, tls_id.as_ref(), want_leaf.as_deref())?;
                     Ok(Response::new(reversed_hello(&name_of_request(
                         request.get_ref(),
                     ))))
@@ -135,7 +163,7 @@ impl Service for Reverser {
             "Server" => {
                 rpc.server_streaming(move |request: Request<HelloRequest>| async move {
                     seen.fetch_add(1, Ordering::Relaxed);
-                    check_peer(&request, peer, local, tls_id.as_ref())?;
+                    check_peer(&request, peer, local, tls_id.as_ref(), want_leaf.as_deref())?;
                     Ok(reversed_stream(name_of_request(request.get_ref())))
                 })
                 .await;
@@ -144,7 +172,7 @@ impl Service for Reverser {
                 rpc.client_streaming(
                     move |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
                         seen.fetch_add(1, Ordering::Relaxed);
-                        check_peer(&request, peer, local, tls_id.as_ref())?;
+                        check_peer(&request, peer, local, tls_id.as_ref(), want_leaf.as_deref())?;
                         let mut inbound = request.into_inner();
                         let msg = inbound
                             .message()
@@ -159,7 +187,7 @@ impl Service for Reverser {
                 rpc.bidi_streaming(
                     move |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
                         seen.fetch_add(1, Ordering::Relaxed);
-                        check_peer(&request, peer, local, tls_id.as_ref())?;
+                        check_peer(&request, peer, local, tls_id.as_ref(), want_leaf.as_deref())?;
                         let mut inbound = request.into_inner();
                         let (tx, stream) = pbrs_grpc::Streaming::channel(1);
                         drop(tokio::spawn(async move {
@@ -236,9 +264,7 @@ async fn tls_channel(addr: SocketAddr) -> Channel {
 async fn a_hand_written_service_serves_without_generated_code() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
@@ -1287,10 +1313,7 @@ async fn test_service_from_io_client_interceptor_sees_every_shape_context() {
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(require_bearer);
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_bearer);
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
@@ -1309,10 +1332,8 @@ async fn service_ext_intercept_wraps_a_hand_written_service() {
 async fn service_ext_intercept_rejects_with_typed_status() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
+    let service =
+        Reverser::new(Arc::clone(&seen)).intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
@@ -1327,9 +1348,7 @@ async fn service_ext_intercept_rejects_with_typed_status() {
 async fn a_client_interceptor_rejects_reverser_with_typed_status() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
@@ -1347,10 +1366,7 @@ async fn a_client_interceptor_rejects_reverser_with_typed_status() {
 async fn a_client_interceptor_sees_reverser_context() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(require_stamped_context);
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_context);
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
@@ -1365,9 +1381,7 @@ async fn a_client_interceptor_sees_reverser_context() {
 async fn reverser_send_compressed_gzips_every_shape() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service)
             .send_compressed()
@@ -1385,9 +1399,7 @@ async fn reverser_tls_send_compressed_gzips_every_shape() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service)
             .send_compressed()
@@ -1401,14 +1413,34 @@ async fn reverser_tls_send_compressed_gzips_every_shape() {
 }
 
 #[tokio::test]
+async fn reverser_mtls_send_compressed_gzips_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    );
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    gzip_reverser_every_shape(&tls_channel_with(addr, client_tls).await.send_compressed()).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
 async fn reverser_tls_interceptor_rejects_with_typed_status() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
+    let service =
+        Reverser::new(Arc::clone(&seen)).intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
     let task = tokio::spawn(async move {
         Server::new(service)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
@@ -1425,9 +1457,7 @@ async fn reverser_tls_client_interceptor_rejects_with_typed_status() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
@@ -1447,10 +1477,7 @@ async fn reverser_tls_client_interceptor_sees_every_shape_context() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(require_stamped_context);
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_context);
     let task = tokio::spawn(async move {
         Server::new(service)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
@@ -1468,9 +1495,7 @@ async fn reverser_unix_send_compressed_gzips_every_shape() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service)
             .send_compressed()
@@ -1495,10 +1520,8 @@ async fn reverser_unix_interceptor_rejects_with_typed_status() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
+    let service =
+        Reverser::new(Arc::clone(&seen)).intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
     let task = tokio::spawn(async move {
         Server::new(service)
             .serve_unix_listener(listener)
@@ -1517,9 +1540,7 @@ async fn reverser_unix_client_interceptor_rejects_with_typed_status() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service)
             .serve_unix_listener(listener)
@@ -1541,10 +1562,7 @@ async fn reverser_unix_client_interceptor_sees_every_shape_context() {
     let (path, _guard) = unix_test_path();
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(require_stamped_context);
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_context);
     let task = tokio::spawn(async move {
         Server::new(service)
             .serve_unix_listener(listener)
@@ -1566,9 +1584,7 @@ async fn reverser_unix_client_interceptor_sees_every_shape_context() {
 async fn reverser_from_io_send_compressed_gzips_every_shape() {
     let (client_io, server_io) = duplex_pair();
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service)
             .send_compressed()
@@ -1591,10 +1607,8 @@ async fn reverser_from_io_send_compressed_gzips_every_shape() {
 async fn reverser_from_io_interceptor_rejects_with_typed_status() {
     let (client_io, server_io) = duplex_pair();
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
+    let service =
+        Reverser::new(Arc::clone(&seen)).intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
     let task = tokio::spawn(async move {
         Server::new(service).serve_connection(server_io).await.ok();
     });
@@ -1612,9 +1626,7 @@ async fn reverser_from_io_interceptor_rejects_with_typed_status() {
 async fn reverser_from_io_client_interceptor_rejects_with_typed_status() {
     let (client_io, server_io) = duplex_pair();
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    };
+    let service = Reverser::new(Arc::clone(&seen));
     let task = tokio::spawn(async move {
         Server::new(service).serve_connection(server_io).await.ok();
     });
@@ -1631,10 +1643,7 @@ async fn reverser_from_io_client_interceptor_rejects_with_typed_status() {
 async fn reverser_from_io_client_interceptor_sees_every_shape_context() {
     let (client_io, server_io) = duplex_pair();
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(require_stamped_context);
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_context);
     let task = tokio::spawn(async move {
         Server::new(service).serve_connection(server_io).await.ok();
     });
@@ -1657,16 +1666,14 @@ async fn service_ext_interceptors_stack_in_declaration_order() {
     // wrapping would run require_bearer first and return Unauthenticated.
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser {
-        seen: Arc::clone(&seen),
-    }
-    .intercept(|rpc: &mut Rpc| {
-        if rpc.metadata().get("x-trace").is_none() {
-            return Err(Status::invalid_argument("missing x-trace"));
-        }
-        Ok(())
-    })
-    .intercept(require_bearer);
+    let service = Reverser::new(Arc::clone(&seen))
+        .intercept(|rpc: &mut Rpc| {
+            if rpc.metadata().get("x-trace").is_none() {
+                return Err(Status::invalid_argument("missing x-trace"));
+            }
+            Ok(())
+        })
+        .intercept(require_bearer);
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
