@@ -4542,6 +4542,11 @@ async fn the_server_gzips_when_configured_and_the_client_accepts() {
         reply.compressed(),
         "server send_compressed plus client grpc-accept-encoding: gzip"
     );
+    assert_eq!(
+        reply.encoding(),
+        Some("gzip"),
+        "received unary must surface grpc-encoding"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
     task.abort();
 }
@@ -4560,6 +4565,11 @@ async fn server_send_compressed_gzips_streaming_send() {
         .server_hello(Request::new(req("ada")))
         .await
         .expect("stream");
+    assert_eq!(
+        reply.encoding(),
+        Some("gzip"),
+        "received stream must surface grpc-encoding"
+    );
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
     assert!(

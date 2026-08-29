@@ -953,12 +953,14 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
     let trailers_md = trailers
         .map(Metadata::from_owned_headers)
         .unwrap_or_default();
+    let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
     Ok(crate::request::Response::from_parts_compress(
         framed.message,
         Metadata::from_owned_headers(parts.headers),
         trailers_md,
         framed.compressed,
-    ))
+    )
+    .with_encoding(encoding))
 }
 
 pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
@@ -977,11 +979,13 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
             return Err(status);
         }
     }
+    let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
     Ok(crate::request::Response::from_parts(
         Streaming::from_wire(WireStream::<Resp>::new(body, limits, deadline)),
         Metadata::from_owned_headers(parts.headers),
         Metadata::new(),
-    ))
+    )
+    .with_encoding(encoding))
 }
 
 /// Percent-encode a `grpc-message` value.

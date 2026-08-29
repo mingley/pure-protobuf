@@ -1203,6 +1203,7 @@ pub struct Response<T> {
     metadata: Metadata,
     trailers: Metadata,
     compress: Option<bool>,
+    encoding: Option<String>,
 }
 
 impl<T> Response<T> {
@@ -1214,6 +1215,7 @@ impl<T> Response<T> {
             metadata: Metadata::new(),
             trailers: Metadata::new(),
             compress: None,
+            encoding: None,
         }
     }
 
@@ -1236,6 +1238,7 @@ impl<T> Response<T> {
                 metadata: self.metadata,
                 trailers: self.trailers,
                 compress: self.compress,
+                encoding: self.encoding,
             },
         )
     }
@@ -1248,6 +1251,7 @@ impl<T> Response<T> {
             metadata: parts.metadata,
             trailers: parts.trailers,
             compress: parts.compress,
+            encoding: parts.encoding,
         }
     }
 
@@ -1337,12 +1341,28 @@ impl<T> Response<T> {
         self.compress.unwrap_or(false)
     }
 
+    /// The `grpc-encoding` token on a received reply, if any.
+    ///
+    /// `Some("gzip")` when the peer advertised gzip on this response.
+    /// `None` means identity, or a response you built to send — outbound
+    /// intent is [`Self::set_compress`], not this header. Distinct from
+    /// [`Self::compressed`]: that is the unary Compressed-Flag (and
+    /// outbound intent); this is the HTTP header that applies to the whole
+    /// call. Streaming payloads still report the per-message flag on
+    /// [`crate::Framed`]. Bind it before [`Self::metadata_mut`]:
+    /// `let enc = response.encoding();`.
+    #[must_use]
+    pub fn encoding(&self) -> Option<&str> {
+        self.encoding.as_deref()
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
             metadata,
             trailers,
             compress: Some(false),
+            encoding: None,
         }
     }
 
@@ -1357,7 +1377,13 @@ impl<T> Response<T> {
             metadata,
             trailers,
             compress: Some(compress),
+            encoding: None,
         }
+    }
+
+    pub(crate) fn with_encoding(mut self, encoding: Option<String>) -> Self {
+        self.encoding = encoding;
+        self
     }
 
     pub(crate) fn split(self) -> (T, Metadata, Metadata, Option<bool>) {
@@ -1373,6 +1399,7 @@ pub struct ResponseParts {
     metadata: Metadata,
     trailers: Metadata,
     compress: Option<bool>,
+    encoding: Option<String>,
 }
 
 impl ResponseParts {
@@ -1428,6 +1455,13 @@ impl ResponseParts {
     pub fn compressed(&self) -> bool {
         self.compress.unwrap_or(false)
     }
+
+    /// The `grpc-encoding` token on a received reply, if any.
+    /// See [`Response::encoding`].
+    #[must_use]
+    pub fn encoding(&self) -> Option<&str> {
+        self.encoding.as_deref()
+    }
 }
 
 impl<T: fmt::Debug> fmt::Debug for Response<T> {
@@ -1437,6 +1471,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("metadata", &self.metadata)
             .field("trailers", &self.trailers)
             .field("compress", &self.compress)
+            .field("encoding", &self.encoding)
             .finish()
     }
 }
@@ -1736,6 +1771,7 @@ mod tests {
         let (n, mut parts) = mapped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
+        assert!(parts.encoding().is_none());
         parts.set_compress(false);
         assert!(!parts.compress());
         assert!(parts.compress_is_set());
@@ -1743,8 +1779,18 @@ mod tests {
         assert!(!rebuilt.compressed());
         assert!(!rebuilt.compress());
         assert!(rebuilt.compress_is_set());
+        assert!(rebuilt.encoding().is_none());
         assert_eq!(rebuilt.metadata().get("h"), Some("v"));
         assert_eq!(rebuilt.into_inner(), 42);
+        let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
+        assert_eq!(stamped.encoding(), Some("gzip"));
+        let shown = format!("{stamped:?}");
+        assert!(shown.contains("encoding: Some("), "{shown}");
+        let (_, parts) = stamped.into_message_and_parts();
+        assert_eq!(parts.encoding(), Some("gzip"));
+        let rebuilt = Response::from_message_and_parts(1u32, parts);
+        assert_eq!(rebuilt.encoding(), Some("gzip"));
+        assert!(Response::new(0u32).encoding().is_none());
     }
 
     #[test]

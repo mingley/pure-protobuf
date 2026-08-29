@@ -903,11 +903,13 @@ frames. `set_compress(false)` opts those frames out of `Server::send_compressed`
 `request.compressed()` is the unary first-frame Compressed-Flag.
 Client- and bidi-streaming requests leave it `false`; each message's flag
 is on `Framed`. `request.encoding()` is the call's `grpc-encoding` header
-(`Some("gzip")` or `None` for identity). `request.accepts_gzip()` is
+(`Some("gzip")` or `None` for identity). `response.encoding()` is the same
+header on a received reply (`None` on a response you built). `grpc-*` keys
+stay off `Metadata`. `request.accepts_gzip()` is
 whether the peer listed gzip in `grpc-accept-encoding` — a handler that
 calls `Response::set_compress(true)` still only gzips when this is true.
 `Parts` keeps all three across `into_message_and_parts`. `ResponseParts`
-keeps the gzip flag the same way.
+keeps the gzip flag and received `encoding` the same way.
 
 To gzip every response a client advertised `gzip` for:
 
