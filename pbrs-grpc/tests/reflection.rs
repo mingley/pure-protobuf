@@ -17,10 +17,12 @@ mod common;
 use common::{Echo, ServerGuard};
 use pbrs_grpc::hello::{GreeterServer, FILE_DESCRIPTOR_SET};
 use pbrs_grpc::reflection::{
-    service, ExtensionRequest, ServerReflectionClient, ServerReflectionRequest,
-    ServerReflectionResponse,
+    service, ExtensionRequest, ServerReflection, ServerReflectionClient, ServerReflectionRequest,
+    ServerReflectionResponse, ServerReflectionServer,
 };
-use pbrs_grpc::{Channel, ClientTls, Code, Identity, Outgoing, Request, Router, ServerTls, Status};
+use pbrs_grpc::{
+    Channel, ClientTls, Code, Identity, Outgoing, Request, Response, Router, ServerTls, Status,
+};
 use std::net::SocketAddr;
 #[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -393,6 +395,23 @@ fn assert_interceptor_blocked(err: &Status) {
         .expect("ErrorInfo");
     assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
     assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+struct FailReflection;
+
+impl ServerReflection for FailReflection {
+    async fn server_reflection_info(
+        &self,
+        _: Request<pbrs_grpc::Streaming<ServerReflectionRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<ServerReflectionResponse>>, Status> {
+        Err(interceptor_blocked())
+    }
+}
+
+async fn assert_reflection_blocked(client: &ServerReflectionClient) {
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
 }
 
 #[tokio::test]
@@ -974,4 +993,89 @@ async fn reflection_mtls_client_interceptor_sees_list_services_context() {
         .await
         .intercept(stamp_outgoing_context);
     echo_reflection_list(&client).await;
+}
+
+#[tokio::test]
+async fn reflection_handlers_return_typed_status() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(FailReflection)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_blocked(&client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_tls_handlers_return_typed_status() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(FailReflection)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_blocked(&tls_client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_mtls_handlers_return_typed_status() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::mtls(identity, CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(FailReflection)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reflection_blocked(&tls_client_with(addr, client_tls).await).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_handlers_return_typed_status() {
+    let path = unix_sock("typed-handler");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(FailReflection)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_blocked(&unix_client(&path).await).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn reflection_from_io_handlers_return_typed_status() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(FailReflection)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_reflection_blocked(&client).await;
 }

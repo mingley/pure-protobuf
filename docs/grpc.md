@@ -892,7 +892,8 @@ and `from_io`. A client interceptor sees path, service, method, `:authority`,
 and `:scheme` on that method, including over TLS, mTLS, Unix, and `from_io`. An
 interceptor `Err(Status::with_error_details(...))` unpacks as `Status::rpc` /
 `Status::error_details` on that bidi method, including over TLS, mTLS, Unix, and
-`from_io`.
+`from_io`. A handler `Err(Status::with_error_details(...))` unpacks the same
+way on that method, including over TLS, mTLS, Unix, and `from_io`.
 
 ## Graceful shutdown
 
