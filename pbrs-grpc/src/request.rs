@@ -221,7 +221,8 @@ impl<T> Request<T> {
     /// [`Self::timeout`], this Instant does not depend on how long the
     /// handler has already run, so forwarding
     /// `deadline.saturating_duration_since(tokio::time::Instant::now())`
-    /// onto a downstream call preserves the remaining budget.
+    /// onto a downstream call preserves the remaining budget. Stamped on
+    /// every call shape.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.deadline
@@ -841,7 +842,7 @@ impl<'a> Outgoing<'a> {
     ///
     /// Computed when you call this, so an interceptor that just set
     /// [`Self::set_timeout`] sees the new Instant. Same contract as
-    /// [`crate::Rpc::deadline`].
+    /// [`crate::Rpc::deadline`]. Visible on every call shape.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.timeout.map(|d| tokio::time::Instant::now() + d)

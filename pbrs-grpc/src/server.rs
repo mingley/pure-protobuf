@@ -452,7 +452,8 @@ impl Rpc {
     ///
     /// Computed when you call this, so an interceptor that just tightened
     /// [`Self::set_timeout`] sees the new Instant. The handler's
-    /// [`Request::deadline`] is stamped once when dispatch starts.
+    /// [`Request::deadline`] is stamped once when dispatch starts. Visible
+    /// on every call shape.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.effective_timeout()

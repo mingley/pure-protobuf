@@ -1224,11 +1224,7 @@ async fn a_client_interceptor_sees_a_deadline_instant() {
             }
             Ok(())
         });
-    let reply = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, None).await;
 
     task.abort();
 }
@@ -1858,6 +1854,45 @@ async fn a_server_interceptor_can_tighten_the_deadline() {
 
 #[tokio::test]
 async fn a_handler_sees_the_interceptor_deadline_on_request() {
+    fn take_cap<T>(request: Request<T>) -> Result<T, Status> {
+        let timeout = request
+            .timeout()
+            .ok_or_else(|| Status::internal("missing timeout duration"))?;
+        if timeout != Duration::from_millis(20) {
+            return Err(Status::internal(format!(
+                "stamped timeout {timeout:?} is not the interceptor cap"
+            )));
+        }
+        let peer = request
+            .peer_timeout()
+            .ok_or_else(|| Status::internal("missing client grpc-timeout"))?;
+        if peer != Duration::from_secs(5) {
+            return Err(Status::internal(format!(
+                "peer timeout {peer:?} is not the client's 5s"
+            )));
+        }
+        let (msg, parts) = request.into_message_and_parts();
+        if parts.timeout() != Some(timeout) {
+            return Err(Status::internal("parts timeout must match Request"));
+        }
+        if parts.peer_timeout() != Some(peer) {
+            return Err(Status::internal("parts peer_timeout must match Request"));
+        }
+        if parts.rpc_timeout().is_some() {
+            return Err(Status::internal("no server timeout overlay on this test"));
+        }
+        let deadline = parts
+            .deadline()
+            .ok_or_else(|| Status::internal("missing deadline Instant"))?;
+        let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if left > Duration::from_millis(50) {
+            return Err(Status::internal(format!(
+                "remaining {left:?} looks like the client 5s, not the interceptor cap"
+            )));
+        }
+        Ok(msg)
+    }
+
     struct SeesCap;
 
     impl Greeter for SeesCap {
@@ -1865,63 +1900,32 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
             &self,
             request: Request<HelloRequest>,
         ) -> Result<Response<HelloReply>, Status> {
-            let timeout = request
-                .timeout()
-                .ok_or_else(|| Status::internal("missing timeout duration"))?;
-            if timeout != Duration::from_millis(20) {
-                return Err(Status::internal(format!(
-                    "stamped timeout {timeout:?} is not the interceptor cap"
-                )));
-            }
-            let peer = request
-                .peer_timeout()
-                .ok_or_else(|| Status::internal("missing client grpc-timeout"))?;
-            if peer != Duration::from_secs(5) {
-                return Err(Status::internal(format!(
-                    "peer timeout {peer:?} is not the client's 5s"
-                )));
-            }
-            let (msg, parts) = request.into_message_and_parts();
-            if parts.timeout() != Some(timeout) {
-                return Err(Status::internal("parts timeout must match Request"));
-            }
-            if parts.peer_timeout() != Some(peer) {
-                return Err(Status::internal("parts peer_timeout must match Request"));
-            }
-            if parts.rpc_timeout().is_some() {
-                return Err(Status::internal("no server timeout overlay on this test"));
-            }
-            let deadline = parts
-                .deadline()
-                .ok_or_else(|| Status::internal("missing deadline Instant"))?;
-            let left = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if left > Duration::from_millis(50) {
-                return Err(Status::internal(format!(
-                    "remaining {left:?} looks like the client 5s, not the interceptor cap"
-                )));
-            }
+            let msg = take_cap(request)?;
             Ok(Response::new(common::reply(common::name_of_request(&msg))))
         }
 
         async fn client_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<HelloReply>, Status> {
-            Err(Status::unimplemented("sees-cap"))
+            let _ = take_cap(request)?;
+            Ok(Response::new(common::reply("ok")))
         }
 
         async fn server_hello(
             &self,
-            _request: Request<HelloRequest>,
+            request: Request<HelloRequest>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-cap"))
+            let _ = take_cap(request)?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
 
         async fn stream_hello(
             &self,
-            _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
         ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            Err(Status::unimplemented("sees-cap"))
+            let _ = take_cap(request)?;
+            Ok(Response::new(pbrs_grpc::Streaming::empty()))
         }
     }
 
@@ -1940,13 +1944,27 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
             .await
             .ok();
     });
+    let client = GreeterClient::new(channel(addr).await);
     let mut request = Request::new(req("ada"));
     request.set_timeout(Duration::from_secs(5));
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(request)
-        .await
-        .expect("rpc");
+    let reply = client.say_hello(request).await.expect("unary");
     assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(5));
+    let _ = client.server_hello(request).await.expect("server-stream");
+
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_secs(5));
+    let (tx, call) = client.client_hello(request);
+    tx.close();
+    let _ = call.await.expect("client-stream");
+
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_secs(5));
+    let (tx, call) = client.stream_hello(request);
+    tx.close();
+    let _ = call.await.expect("bidi");
     task.abort();
 }
 
@@ -2192,10 +2210,7 @@ async fn a_server_interceptor_sees_the_client_deadline() {
             .ok();
     });
     let client = GreeterClient::new(channel(addr).await);
-    let mut request = Request::new(req("ada"));
-    request.set_timeout(Duration::from_secs(5));
-    let reply = client.say_hello(request).await.expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    echo_every_shape(&client, Some(Duration::from_secs(5))).await;
     task.abort();
 }
 
@@ -2223,11 +2238,8 @@ async fn a_server_interceptor_sees_a_missing_deadline() {
             .await
             .ok();
     });
-    let reply = GreeterClient::new(channel(addr).await)
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect("rpc");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    let client = GreeterClient::new(channel(addr).await);
+    echo_every_shape(&client, None).await;
     task.abort();
 }
 
@@ -4523,6 +4535,52 @@ async fn assert_deadline_on_every_shape(
     let (tx, call) = client.stream_hello(Request::new(()));
     assert_deadline_dropped_spawned(call, started, finished, child_done).await;
     drop(tx);
+}
+
+fn stamp_timeout<T>(mut request: Request<T>, timeout: Option<Duration>) -> Request<T> {
+    if let Some(timeout) = timeout {
+        request.set_timeout(timeout);
+    }
+    request
+}
+
+async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
+    let reply = client
+        .say_hello(stamp_timeout(Request::new(req("ada")), timeout))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let mut stream = client
+        .server_hello(stamp_timeout(Request::new(req("ada")), timeout))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(stream.message().await.expect("end").is_none());
+
+    let (tx, call) = client.client_hello(stamp_timeout(Request::new(()), timeout));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.stream_hello(stamp_timeout(Request::new(()), timeout));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(inbound.message().await.expect("end").is_none());
 }
 
 async fn wait_half_close_drained<T: std::fmt::Debug>(call: &mut Call<T>, drained: &AtomicUsize) {
