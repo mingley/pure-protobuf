@@ -136,9 +136,12 @@ See `docs/upb.md`. Short list:
   Reflection
   `ServerReflectionInfo` retries until listen on those dialers; reflection
   is one bidi method. Opt-out and a waiting Call's deadline apply on those
-  reflection dialers too, including mTLS. Official TestService EmptyCall / StreamingOutputCall /
+  reflection dialers too, including mTLS.   Official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall retry until listen on those dialers.
-  Hand-written Reverser `Channel` methods retry until listen on those dialers. `clear_compress` then `set_compress(compresses_outbound())`
+  Opt-out and a waiting Call's deadline apply on those TestService dialers
+  too, including mTLS. Hand-written Reverser `Channel` methods retry until
+  listen on those dialers. Opt-out and a waiting Call's deadline apply on
+  those Reverser dialers too, including mTLS. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
   without details; nothing is sent. A packed `google.rpc.Status` on that

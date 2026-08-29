@@ -5877,6 +5877,232 @@ async fn unix_wait_for_ready_times_out_when_nothing_is_listening() {
     drop(tx);
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client = TestServiceClient::connect_lazy(addr)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_test_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client = TestServiceClient::connect_lazy(addr).expect("lazy");
+    assert_test_wait_deadline(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_tls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_test_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_tls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_test_wait_deadline(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_mtls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_test_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_mtls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_test_wait_deadline(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_unix_request_can_opt_out_of_channel_wait_for_ready() {
+    let (path, _guard) = unix_test_path();
+    let client = TestServiceClient::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_test_opt_out(&client))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_unix_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (path, _guard) = unix_test_path();
+    let client = TestServiceClient::connect_unix_lazy(&path).expect("lazy");
+    assert_test_wait_deadline(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reverser_opt_out(&channel))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = Channel::connect_lazy(addr).expect("lazy");
+    assert_reverser_wait_deadline(&channel).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_tls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = Channel::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reverser_opt_out(&channel))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_tls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_reverser_wait_deadline(&channel).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_mtls_request_can_opt_out_of_channel_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reverser_opt_out(&channel))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_mtls_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
+    assert_reverser_wait_deadline(&channel).await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_unix_request_can_opt_out_of_channel_wait_for_ready() {
+    let (path, _guard) = unix_test_path();
+    let channel = Channel::connect_unix_lazy(&path)
+        .expect("lazy")
+        .wait_for_ready();
+    let started = Instant::now();
+    tokio::time::timeout(Duration::from_secs(2), assert_reverser_opt_out(&channel))
+        .await
+        .expect("opt-out hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "opt-out fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn reverser_unix_wait_for_ready_times_out_when_nothing_is_listening() {
+    let (path, _guard) = unix_test_path();
+    let channel = Channel::connect_unix_lazy(&path).expect("lazy");
+    assert_reverser_wait_deadline(&channel).await;
+}
+
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn serve_unix_fails_on_a_leftover_socket() {
@@ -8147,6 +8373,123 @@ async fn assert_opt_out_every_shape(client: &GreeterClient) {
     let (tx, call) = client.stream_hello(stamp_opt_out(Request::new(())));
     let err = call.await.expect_err("bidi");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+}
+
+async fn assert_test_opt_out(client: &TestServiceClient) {
+    let err = client
+        .empty_call(stamp_opt_out(Request::new(Empty::new())))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .streaming_output_call(stamp_opt_out(Request::new(
+            StreamingOutputCallRequest::new(),
+        )))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let (tx, call) = client.streaming_input_call(stamp_opt_out(Request::new(())));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+    let (tx, call) = client.full_duplex_call(stamp_opt_out(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+}
+
+async fn assert_test_wait_deadline(client: &TestServiceClient) {
+    let timeout = Duration::from_millis(80);
+    let min = Duration::from_millis(50);
+    let max = Duration::from_secs(2);
+    assert_deadline_in(
+        client.empty_call(stamp_wait_deadline(Request::new(Empty::new()), timeout)),
+        min,
+        max,
+    )
+    .await;
+    assert_deadline_in(
+        client.streaming_output_call(stamp_wait_deadline(
+            Request::new(StreamingOutputCallRequest::new()),
+            timeout,
+        )),
+        min,
+        max,
+    )
+    .await;
+    let (tx, call) = client.streaming_input_call(stamp_wait_deadline(Request::new(()), timeout));
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
+    let (tx, call) = client.full_duplex_call(stamp_wait_deadline(Request::new(()), timeout));
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
+}
+
+async fn assert_reverser_opt_out(channel: &Channel) {
+    let err = channel
+        .unary::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Reverse",
+            stamp_opt_out(Request::new(req("nope"))),
+        )
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            stamp_opt_out(Request::new(req("nope"))),
+        )
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let (tx, call) = channel.client_streaming::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Client",
+        stamp_opt_out(Request::new(())),
+    );
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+    let (tx, call) = channel
+        .bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", stamp_opt_out(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(tx);
+}
+
+async fn assert_reverser_wait_deadline(channel: &Channel) {
+    let timeout = Duration::from_millis(80);
+    let min = Duration::from_millis(50);
+    let max = Duration::from_secs(2);
+    assert_deadline_in(
+        channel.unary::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Reverse",
+            stamp_wait_deadline(Request::new(req("x")), timeout),
+        ),
+        min,
+        max,
+    )
+    .await;
+    assert_deadline_in(
+        channel.server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            stamp_wait_deadline(Request::new(req("x")), timeout),
+        ),
+        min,
+        max,
+    )
+    .await;
+    let (tx, call) = channel.client_streaming::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Client",
+        stamp_wait_deadline(Request::new(()), timeout),
+    );
+    assert_deadline_in(call, min, max).await;
+    drop(tx);
+    let (tx, call) = channel.bidi::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Bidi",
+        stamp_wait_deadline(Request::new(()), timeout),
+    );
+    assert_deadline_in(call, min, max).await;
     drop(tx);
 }
 

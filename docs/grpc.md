@@ -562,9 +562,12 @@ too, including mTLS. Reflection `ServerReflectionInfo` retries until listen on t
 dialers; reflection is one bidi method. Opt-out and a waiting Call's deadline
 apply on those reflection dialers too, including mTLS. Official TestService EmptyCall,
 StreamingOutputCall, StreamingInputCall, and FullDuplexCall retry until
-listen on the same dialers. A hand-written `Service` on `Channel::unary` /
-`server_streaming` / `client_streaming` / `bidi` (Reverser Reverse / Server /
-Client / Bidi) retries until listen on those dialers.
+listen on the same dialers. Opt-out and a waiting Call's deadline apply on
+those TestService dialers too, including mTLS. A hand-written `Service` on
+`Channel::unary` / `server_streaming` / `client_streaming` / `bidi`
+(Reverser Reverse / Server / Client / Bidi) retries until listen on those
+dialers. Opt-out and a waiting Call's deadline apply on those Reverser
+dialers too, including mTLS.
 
 `Channel::waits_for_ready` / `FooClient::waits_for_ready` read the overlay
 (`wait_for_ready` sets it).
