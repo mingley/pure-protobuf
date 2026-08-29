@@ -345,6 +345,7 @@ async fn generated_servers_accept_configuration() {
         StoreServer::new(MemStore)
             .send_compressed()
             .max_decoding_message_size(16)
+            .max_concurrent_rpcs(32)
             .serve_listener(listener)
             .await
             .ok();

@@ -28,7 +28,8 @@ use http::{HeaderMap, HeaderName, HeaderValue};
 /// Reserved keys (`content-type`, `grpc-status`, `grpc-status-details-bin`,
 /// `grpc-timeout`, HTTP/2 pseudo-headers, ...) are invisible here and are
 /// never written out, so echoing received metadata back cannot corrupt the
-/// protocol framing.
+/// protocol framing. [`Self::insert`] and [`Self::insert_bin`] reject them
+/// rather than storing a value you cannot read back.
 ///
 /// The total size a peer can send is bounded by
 /// [`ServerConfig::max_header_list_size`](crate::ServerConfig::max_header_list_size),
@@ -60,12 +61,19 @@ impl Metadata {
             .count()
     }
 
-    /// Add an ASCII entry. The key must not end in `-bin`.
+    /// Add an ASCII entry. The key must not end in `-bin` and must not be a
+    /// reserved protocol key (`grpc-status`, `grpc-timeout`, `content-type`,
+    /// ...).
     ///
     /// Repeated keys accumulate rather than replace, matching gRPC's
     /// comma-joined multi-value semantics.
     pub fn insert(&mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<(), Status> {
         let key = key.as_ref();
+        if is_reserved(key) {
+            return Err(Status::invalid_argument(format!(
+                "reserved metadata key {key:?}"
+            )));
+        }
         if key.ends_with("-bin") {
             return Err(Status::invalid_argument(
                 "ascii metadata key must not end in -bin",
@@ -78,13 +86,18 @@ impl Metadata {
         Ok(())
     }
 
-    /// Add a binary entry. The key must end in `-bin`.
+    /// Add a binary entry. The key must end in `-bin` and must not be reserved.
     pub fn insert_bin(
         &mut self,
         key: impl AsRef<str>,
         value: impl AsRef<[u8]>,
     ) -> Result<(), Status> {
         let key = key.as_ref();
+        if is_reserved(key) {
+            return Err(Status::invalid_argument(format!(
+                "reserved metadata key {key:?}"
+            )));
+        }
         if !key.ends_with("-bin") {
             return Err(Status::invalid_argument(
                 "binary metadata key must end in -bin",
@@ -292,8 +305,17 @@ mod tests {
         assert_eq!(md.get("x-trace"), None);
         assert!(md.remove_bin("x-blob-bin"));
         assert_eq!(md.get_bin("x-blob-bin"), None);
-        md.insert("grpc-status", "5").ok();
+        assert!(md.insert("grpc-status", "5").is_err());
         assert!(!md.remove("grpc-status"));
+    }
+
+    #[test]
+    fn insert_rejects_reserved_keys() {
+        let mut md = Metadata::new();
+        assert!(md.insert("grpc-timeout", "1S").is_err());
+        assert!(md.insert("content-type", "application/grpc").is_err());
+        assert!(md.insert_bin("grpc-status-details-bin", [1u8]).is_err());
+        assert!(md.is_empty());
     }
 
     #[test]

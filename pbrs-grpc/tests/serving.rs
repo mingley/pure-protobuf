@@ -782,6 +782,61 @@ async fn a_server_interceptor_can_tighten_the_deadline() {
 }
 
 #[tokio::test]
+async fn a_server_interceptor_sees_the_client_deadline() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                let peer = rpc.peer_timeout();
+                if peer != Some(Duration::from_secs(5)) {
+                    return Err(Status::internal(format!("peer timeout {peer:?}")));
+                }
+                rpc.set_timeout(Duration::from_secs(1));
+                let effective = rpc.effective_timeout();
+                if effective != Some(Duration::from_secs(1)) {
+                    return Err(Status::internal(format!("effective {effective:?}")));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(5));
+    let reply = client.say_hello(request).await.expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_server_interceptor_sees_a_missing_deadline() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.peer_timeout().is_some() {
+                    return Err(Status::internal("unexpected peer timeout"));
+                }
+                if rpc.effective_timeout().is_some() {
+                    return Err(Status::internal("unexpected effective timeout"));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_server_interceptor_can_reject_with_typed_status_details() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -836,7 +891,7 @@ async fn extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
-            .config(ServerConfig::new().max_concurrent_rpcs(1))
+            .max_concurrent_rpcs(1)
             .serve_listener(listener)
             .await
             .ok();

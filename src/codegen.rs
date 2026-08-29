@@ -4001,6 +4001,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Cap how many RPCs the process will run at once. See [`{G}::ServerConfig::max_concurrent_rpcs`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {{ self.config = self.config.max_concurrent_rpcs(n); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// gzip responses when the client advertises gzip. See [`{G}::ServerConfig::send_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");

@@ -13,9 +13,9 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::tls::ServerTls;
 use crate::wire::{
-    accepts_gzip, check_request, effective_timeout, encode_msg, grpc_trailers, gzip_outbound,
-    let_producer_catch_up, read_one_message, reject, send_bytes, send_ok_headers,
-    send_trailers_only, soonest, wrap_timeout, OutBatch, WireStream,
+    accepts_gzip, check_request, encode_msg, grpc_trailers, gzip_outbound, let_producer_catch_up,
+    read_one_message, reject, send_bytes, send_ok_headers, send_trailers_only, wrap_timeout,
+    OutBatch, WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -228,10 +228,31 @@ impl Rpc {
     /// Deadline cap an interceptor set with [`Self::set_timeout`], if any.
     ///
     /// This is not the effective deadline: that also includes the client's
-    /// `grpc-timeout` and [`ServerConfig::timeout`].
+    /// `grpc-timeout` and [`ServerConfig::timeout`]. See
+    /// [`Self::effective_timeout`].
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+
+    /// The client's `grpc-timeout`, if it sent one.
+    ///
+    /// Independent of [`Self::timeout`], which is only an interceptor cap.
+    /// [`Self::effective_timeout`] is the soonest of this, the server cap,
+    /// and the interceptor cap.
+    #[must_use]
+    pub fn peer_timeout(&self) -> Option<Duration> {
+        crate::wire::timeout_from_headers(self.request.headers())
+    }
+
+    /// Deadline the handler will run under: the soonest of the client's
+    /// `grpc-timeout`, [`ServerConfig::timeout`], and [`Self::set_timeout`].
+    #[must_use]
+    pub fn effective_timeout(&self) -> Option<Duration> {
+        crate::wire::soonest(
+            crate::wire::effective_timeout(self.request.headers(), self.config.rpc_timeout()),
+            self.timeout,
+        )
     }
 
     /// Effective message caps for this RPC.
@@ -444,6 +465,7 @@ impl Rpc {
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
+        let timeout = self.effective_timeout();
         let Self {
             request,
             mut respond,
@@ -451,17 +473,13 @@ impl Rpc {
             remote_addr,
             extensions,
             metadata,
-            timeout: interceptor_timeout,
+            timeout: _,
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
             reject(&mut respond, status);
             return None;
         }
-        let timeout = soonest(
-            effective_timeout(request.headers(), config.rpc_timeout()),
-            interceptor_timeout,
-        );
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
@@ -500,6 +518,7 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<T, Status>>,
     {
+        let timeout = self.effective_timeout();
         let Self {
             request,
             mut respond,
@@ -507,17 +526,13 @@ impl Rpc {
             remote_addr,
             extensions,
             metadata,
-            timeout: interceptor_timeout,
+            timeout: _,
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
             reject(&mut respond, status);
             return None;
         }
-        let timeout = soonest(
-            effective_timeout(request.headers(), config.rpc_timeout()),
-            interceptor_timeout,
-        );
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
@@ -787,13 +802,23 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Cap how many RPCs the process will run at once. See
+    /// [`ServerConfig::max_concurrent_rpcs`].
+    #[must_use]
+    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
+        self.config = self.config.max_concurrent_rpcs(n);
+        self
+    }
+
     /// Run `interceptor` before this service sees any RPC.
     ///
     /// Closures implement [`crate::Interceptor`], so
     /// `server.intercept(|rpc| { ... })` is the usual form. The interceptor
     /// can mutate [`Rpc::metadata_mut`], cap the deadline with
-    /// [`Rpc::set_timeout`], attach typed state on [`Rpc::extensions_mut`],
-    /// or return `Err` (including [`Status::with_error_details`]) to reject.
+    /// [`Rpc::set_timeout`], inspect [`Rpc::peer_timeout`] /
+    /// [`Rpc::effective_timeout`], attach typed state on
+    /// [`Rpc::extensions_mut`], or return `Err` (including
+    /// [`Status::with_error_details`]) to reject.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
@@ -1036,6 +1061,14 @@ impl Router {
     #[must_use]
     pub fn config(mut self, config: ServerConfig) -> Self {
         self.config = config;
+        self
+    }
+
+    /// Cap how many RPCs the process will run at once. See
+    /// [`ServerConfig::max_concurrent_rpcs`].
+    #[must_use]
+    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
+        self.config = self.config.max_concurrent_rpcs(n);
         self
     }
 

@@ -153,8 +153,8 @@ pub(crate) fn timeout_from_headers(headers: &HeaderMap) -> Option<Duration> {
         .and_then(crate::timeout::parse_timeout)
 }
 
-/// The deadline the handler actually runs under: the sooner of the client's
-/// `grpc-timeout` and the server's configured cap.
+/// The deadline from the request headers and the server cap. An interceptor
+/// cap is applied on top by [`crate::Rpc::effective_timeout`].
 pub(crate) fn effective_timeout(headers: &HeaderMap, server: Option<Duration>) -> Option<Duration> {
     soonest(timeout_from_headers(headers), server)
 }

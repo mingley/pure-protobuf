@@ -310,8 +310,8 @@ you do not parse.
 
 Reserved keys (`grpc-status`, `grpc-status-details-bin`, `grpc-timeout`,
 `content-type`, HTTP/2 pseudo-headers, ...) are invisible through `Metadata`
-and are never written out, so forwarding received metadata cannot corrupt
-the protocol framing.
+and are never written out. `insert` / `insert_bin` reject them, so forwarding
+received metadata cannot corrupt the protocol framing.
 
 ## Errors and status codes
 
@@ -364,9 +364,11 @@ match client.say_hello(req).await {
 
 On the server, `request.timeout()` reports the effective deadline: the soonest
 of the client's `grpc-timeout`, [`ServerConfig::timeout`] when the server sets
-one, and [`Rpc::set_timeout`] from an interceptor. A client that omits
-`grpc-timeout` can otherwise pin a handler forever; the server cap closes that
-hole. An interceptor can only tighten that deadline, not extend it.
+one, and [`Rpc::set_timeout`] from an interceptor. An interceptor reads the
+client value with `Rpc::peer_timeout` and the combined value with
+`Rpc::effective_timeout`. A client that omits `grpc-timeout` can otherwise pin
+a handler forever; the server cap closes that hole. An interceptor can only
+tighten that deadline, not extend it.
 
 To cancel from elsewhere, take a handle before awaiting:
 
@@ -896,9 +898,10 @@ GreeterServer::new(MyGreeter)
 ```
 
 The handler sees the mutated metadata on `request.metadata()`, including
-injected keys and without stripped ones. `set_timeout` is a cap: the effective
-deadline is the soonest of the client's `grpc-timeout`, `ServerConfig::timeout`,
-and this value. Returning `Err(Status::with_error_details(...))` ships
+injected keys and without stripped ones. `Rpc::peer_timeout` is the client's
+`grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
+cap, and `set_timeout`. An interceptor can only tighten the deadline, not
+extend it. Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
