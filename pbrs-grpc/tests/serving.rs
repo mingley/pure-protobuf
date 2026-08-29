@@ -5512,6 +5512,39 @@ async fn failing_a_bidi_stream_before_headers_is_that_status_not_unavailable() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn failing_a_bidi_stream_after_headers_is_unavailable_not_that_status() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    tx.fail(stream_abort_status()).await;
+    let err = stream.message().await.expect_err("reset after fail");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert_ne!(
+        err.message(),
+        "gone",
+        "fail after headers must not surface the request status on Streaming: {err}"
+    );
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_call_handle_cancels_a_bidi_stream_before_headers() {
     let left = Arc::new(AtomicUsize::new(0));
     let (addr, listener) = bind().await;
