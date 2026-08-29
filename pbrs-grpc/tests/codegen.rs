@@ -681,7 +681,9 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "server-streaming trait methods must name cancelled/closed"
     );
     assert!(
-        src.contains("Dropping the received [`::pbrs_grpc::Streaming`] before the end resets the RPC."),
+        src.contains(
+            "Dropping the received [`::pbrs_grpc::Streaming`] before the end resets the RPC."
+        ),
         "server-streaming client methods must name stream drop"
     );
     assert!(
