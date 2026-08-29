@@ -15,7 +15,7 @@ use crate::tls::ServerTls;
 use crate::wire::{
     accepts_gzip, check_request, effective_timeout, encode_msg, grpc_trailers, gzip_outbound,
     let_producer_catch_up, read_one_message, reject, send_bytes, send_ok_headers,
-    send_trailers_only, wrap_timeout, OutBatch, WireStream,
+    send_trailers_only, soonest, wrap_timeout, OutBatch, WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -27,6 +27,7 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
+use std::time::Duration;
 use tokio::net::TcpListener;
 #[cfg(unix)]
 use tokio::net::{UnixListener, UnixStream};
@@ -145,12 +146,18 @@ pub trait Incoming: Send {
 /// [`Self::client_streaming`], [`Self::server_streaming`],
 /// [`Self::bidi_streaming`], or [`Self::unimplemented`]. Each one owns the
 /// full response: headers, message frames, and `grpc-status` trailers.
+///
+/// An [`crate::Interceptor`] may mutate [`Self::metadata_mut`], cap the
+/// deadline with [`Self::set_timeout`], attach typed state on
+/// [`Self::extensions_mut`], or turn the RPC away with [`Self::reject`].
 pub struct Rpc {
     request: http::Request<RecvStream>,
     respond: h2::server::SendResponse<Bytes>,
     config: ServerConfig,
     remote_addr: Option<SocketAddr>,
     extensions: http::Extensions,
+    metadata: Metadata,
+    timeout: Option<Duration>,
 }
 
 impl std::fmt::Debug for Rpc {
@@ -187,10 +194,44 @@ impl Rpc {
         self.remote_addr
     }
 
-    /// Request headers as gRPC metadata.
+    /// Request metadata the handler will see.
+    ///
+    /// Same map as [`Request::metadata`] after an interceptor returns `Ok`.
+    /// Bind it if you need more than one lookup: `let md = rpc.metadata()`.
     #[must_use]
-    pub fn metadata(&self) -> Metadata {
-        Metadata::from_headers(self.request.headers())
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    /// Mutate inbound metadata the handler will see.
+    ///
+    /// Insert, or strip with [`Metadata::remove`] / [`Metadata::remove_bin`].
+    /// Reserved keys (`grpc-timeout`, `grpc-encoding`, `content-type`, ...)
+    /// stay on the HTTP request for the kernel; they cannot be inserted or
+    /// removed here.
+    pub fn metadata_mut(&mut self) -> &mut Metadata {
+        &mut self.metadata
+    }
+
+    /// Cap this RPC's deadline. Combined with the client's `grpc-timeout` and
+    /// [`ServerConfig::timeout`] as the soonest of the three; an interceptor
+    /// can only tighten, not extend. Calling this twice keeps the sooner
+    /// value. Values below 1 ms are raised to 1 ms.
+    pub fn set_timeout(&mut self, timeout: Duration) {
+        let timeout = timeout.max(Duration::from_millis(1));
+        self.timeout = Some(match self.timeout {
+            Some(prev) => prev.min(timeout),
+            None => timeout,
+        });
+    }
+
+    /// Deadline cap an interceptor set with [`Self::set_timeout`], if any.
+    ///
+    /// This is not the effective deadline: that also includes the client's
+    /// `grpc-timeout` and [`ServerConfig::timeout`].
+    #[must_use]
+    pub fn timeout(&self) -> Option<Duration> {
+        self.timeout
     }
 
     /// Effective message caps for this RPC.
@@ -230,7 +271,8 @@ impl Rpc {
     ///
     /// This is how an [`crate::Interceptor`] or a wrapping [`Service`] turns
     /// away an RPC it will not delegate, for example on failed authentication.
-    /// Any trailing metadata on `status` is delivered.
+    /// Trailing metadata on `status` and `grpc-status-details-bin` (see
+    /// [`Status::with_error_details`]) both ship.
     ///
     /// ```
     /// use pbrs_grpc::{Rpc, Service, Status};
@@ -408,20 +450,25 @@ impl Rpc {
             config,
             remote_addr,
             extensions,
+            metadata,
+            timeout: interceptor_timeout,
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
             reject(&mut respond, status);
             return None;
         }
-        let timeout = effective_timeout(request.headers(), config.rpc_timeout());
+        let timeout = soonest(
+            effective_timeout(request.headers(), config.rpc_timeout()),
+            interceptor_timeout,
+        );
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
-        let (parts, mut recv) = request.into_parts();
+        let mut recv = request.into_body();
         let outcome = wrap_timeout(timeout, async {
             let framed = read_one_message::<Req>(&mut recv, limits).await?;
-            let mut req = Request::from_wire(framed.message, parts.headers, remote_addr)
+            let mut req = Request::from_metadata(framed.message, metadata, remote_addr)
                 .with_extensions(extensions);
             req.set_compressed(framed.compressed);
             if let Some(d) = timeout {
@@ -459,22 +506,27 @@ impl Rpc {
             config,
             remote_addr,
             extensions,
+            metadata,
+            timeout: interceptor_timeout,
         } = self;
         let limits = config.limits();
         if let Err(status) = check_request(&request) {
             reject(&mut respond, status);
             return None;
         }
-        let timeout = effective_timeout(request.headers(), config.rpc_timeout());
+        let timeout = soonest(
+            effective_timeout(request.headers(), config.rpc_timeout()),
+            interceptor_timeout,
+        );
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let peer_accepts_gzip = accepts_gzip(request.headers());
         let prefer_gzip = config.compresses_outbound();
-        let (parts, recv) = request.into_parts();
+        let recv = request.into_body();
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
         let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits, deadline));
         let mut req =
-            Request::from_wire(stream, parts.headers, remote_addr).with_extensions(extensions);
+            Request::from_metadata(stream, metadata, remote_addr).with_extensions(extensions);
         if let Some(d) = timeout {
             req.set_timeout(d);
         }
@@ -738,8 +790,12 @@ impl<S: Service> Server<S> {
     /// Run `interceptor` before this service sees any RPC.
     ///
     /// Closures implement [`crate::Interceptor`], so
-    /// `server.intercept(|rpc| { ... })` is the usual form. Generated servers
-    /// expose the same method: `GreeterServer::new(svc).intercept(auth).serve(addr)`.
+    /// `server.intercept(|rpc| { ... })` is the usual form. The interceptor
+    /// can mutate [`Rpc::metadata_mut`], cap the deadline with
+    /// [`Rpc::set_timeout`], attach typed state on [`Rpc::extensions_mut`],
+    /// or return `Err` (including [`Status::with_error_details`]) to reject.
+    /// Generated servers expose the same method:
+    /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
     /// service, or wrap one service with [`crate::Intercepted`].
     #[must_use]
@@ -806,8 +862,7 @@ impl<S: Service> Server<S> {
         self.serve_unix_listener(bind_unix(path)?).await
     }
 
-    /// [`Self::serve_unix`], removing a leftover socket file first if bind
-    /// fails with address-in-use.
+    /// [`Self::serve_unix`], after unlinking a crash leftover.
     ///
     /// A crash leaves a socket inode that is not accepting. This unlinks that
     /// leftover and binds. If another process is actually listening on `path`,
@@ -1040,8 +1095,8 @@ impl Router {
         self.serve_unix_listener(bind_unix(path)?).await
     }
 
-    /// [`Self::serve_unix`], removing a leftover socket file first if bind
-    /// fails with address-in-use. See [`Server::serve_unix_unlink`].
+    /// [`Self::serve_unix`], after unlinking a crash leftover. A live listener
+    /// is left alone. See [`Server::serve_unix_unlink`].
     #[cfg(unix)]
     pub async fn serve_unix_unlink(self, path: impl AsRef<std::path::Path>) -> Result<(), Status> {
         self.serve_unix_listener(bind_unix_unlink(path).await?)
@@ -1180,6 +1235,15 @@ fn connection_slots(config: ServerConfig) -> Option<Arc<Semaphore>> {
         .map(|n| Arc::new(Semaphore::new(n)))
 }
 
+/// Returns `None` when `max_concurrent_rpcs` is unset. Otherwise a semaphore
+/// of that many permits, created once per accept loop so every connection
+/// shares the process-wide budget.
+fn rpc_slots(config: ServerConfig) -> Option<Arc<Semaphore>> {
+    config
+        .concurrent_rpc_limit()
+        .map(|n| Arc::new(Semaphore::new(n)))
+}
+
 /// `None` means refuse this peer. `Some(None)` means unlimited. `Some(Some(p))`
 /// is a live slot held until the connection task drops it.
 fn take_connection_slot(
@@ -1204,6 +1268,7 @@ async fn accept_loop<D: Dispatch>(
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
     let (goaway_tx, goaway_rx) = watch::channel(false);
     let slots = connection_slots(config);
+    let rpcs = rpc_slots(config);
     let shutdown = std::pin::pin!(shutdown);
     let mut shutdown = Some(shutdown);
     let mut result = Ok(());
@@ -1239,11 +1304,12 @@ async fn accept_loop<D: Dispatch>(
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
                 let tls = tls.clone();
+                let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
                     crate::tcp::tune(&tcp, config.tcp_keepalive_period()).ok();
                     match tls {
                         None => {
-                            drop(serve_io(dispatch, tcp, Some(peer), config, goaway).await);
+                            drop(serve_io(dispatch, tcp, Some(peer), config, goaway, rpcs).await);
                         }
                         Some(tls) => {
                             let accept = tokio::time::timeout(
@@ -1251,7 +1317,9 @@ async fn accept_loop<D: Dispatch>(
                                 tls.accept(tcp),
                             );
                             if let Ok(Ok(io)) = accept.await {
-                                drop(serve_io(dispatch, io, Some(peer), config, goaway).await);
+                                drop(
+                                    serve_io(dispatch, io, Some(peer), config, goaway, rpcs).await,
+                                );
                             }
                         }
                     }
@@ -1285,6 +1353,7 @@ async fn accept_unix_loop<D: Dispatch>(
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
     let (goaway_tx, goaway_rx) = watch::channel(false);
     let slots = connection_slots(config);
+    let rpcs = rpc_slots(config);
     let shutdown = std::pin::pin!(shutdown);
     let mut shutdown = Some(shutdown);
     let mut result = Ok(());
@@ -1319,8 +1388,9 @@ async fn accept_unix_loop<D: Dispatch>(
                 let dispatch = Arc::clone(&dispatch);
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
+                let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, None, config, goaway).await);
+                    drop(serve_io(dispatch, io, None, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -1350,6 +1420,7 @@ async fn accept_incoming<D: Dispatch, I: Incoming>(
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
     let (goaway_tx, goaway_rx) = watch::channel(false);
     let slots = connection_slots(config);
+    let rpcs = rpc_slots(config);
     let shutdown = std::pin::pin!(shutdown);
     let mut shutdown = Some(shutdown);
     let mut result = Ok(());
@@ -1387,8 +1458,9 @@ async fn accept_incoming<D: Dispatch, I: Incoming>(
                 let dispatch = Arc::clone(&dispatch);
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
+                let rpcs = rpcs.clone();
                 drop(tokio::spawn(async move {
-                    drop(serve_io(dispatch, io, peer, config, goaway).await);
+                    drop(serve_io(dispatch, io, peer, config, goaway, rpcs).await);
                     drop(permit);
                     drop(drain);
                 }));
@@ -1417,9 +1489,27 @@ where
     IO: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
     let (goaway_tx, goaway_rx) = watch::channel(false);
-    let result = serve_io(dispatch, io, peer, config, goaway_rx).await;
+    let result = serve_io(dispatch, io, peer, config, goaway_rx, rpc_slots(config)).await;
     drop(goaway_tx);
     result
+}
+
+fn incoming_rpc(
+    request: http::Request<RecvStream>,
+    respond: h2::server::SendResponse<Bytes>,
+    config: ServerConfig,
+    remote_addr: Option<SocketAddr>,
+) -> Rpc {
+    let metadata = Metadata::from_headers(request.headers());
+    Rpc {
+        request,
+        respond,
+        config,
+        remote_addr,
+        extensions: http::Extensions::new(),
+        metadata,
+        timeout: None,
+    }
 }
 
 async fn serve_io<D, IO>(
@@ -1428,6 +1518,7 @@ async fn serve_io<D, IO>(
     peer: Option<SocketAddr>,
     config: ServerConfig,
     goaway: watch::Receiver<bool>,
+    rpc_slots: Option<Arc<Semaphore>>,
 ) -> Result<(), Status>
 where
     D: Dispatch,
@@ -1472,22 +1563,30 @@ where
         tokio::select! {
             biased;
             accepted = std::future::poll_fn(|cx| conn.poll_accept(cx)) => {
-                let Some(Ok((request, respond))) = accepted else {
+                let Some(Ok((request, mut respond))) = accepted else {
                     break;
                 };
                 occupied = true;
+                let permit = match &rpc_slots {
+                    None => None,
+                    Some(slots) => match slots.clone().try_acquire_owned() {
+                        Ok(permit) => Some(permit),
+                        Err(_) => {
+                            reject(
+                                &mut respond,
+                                Status::resource_exhausted("too many concurrent RPCs"),
+                            );
+                            continue;
+                        }
+                    },
+                };
                 let lease = busy.start();
                 let dispatch = Arc::clone(&dispatch);
                 drop(tokio::spawn(async move {
                     let _lease = lease;
+                    let _permit = permit;
                     dispatch
-                        .dispatch(Rpc {
-                            request,
-                            respond,
-                            config,
-                            remote_addr: peer,
-                            extensions: http::Extensions::new(),
-                        })
+                        .dispatch(incoming_rpc(request, respond, config, peer))
                         .await;
                 }));
             }

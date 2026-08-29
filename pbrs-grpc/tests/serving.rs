@@ -662,6 +662,204 @@ async fn a_client_interceptor_can_set_a_deadline() {
 }
 
 #[tokio::test]
+async fn a_server_interceptor_injects_metadata_the_handler_sees() {
+    struct ActorEcho;
+
+    impl Service for ActorEcho {
+        const NAME: &'static str = "demo.ActorEcho";
+
+        async fn call(&self, rpc: Rpc) {
+            rpc.unary(|request: Request<HelloRequest>| async move {
+                let actor = request.metadata().get("x-actor").unwrap_or("").to_owned();
+                let mut reply = HelloReply::new();
+                reply.set_message(actor);
+                Ok(Response::new(reply))
+            })
+            .await;
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(ActorEcho.intercept(|rpc: &mut Rpc| {
+            rpc.metadata_mut().insert("x-actor", "kernel")?;
+            Ok(())
+        }))
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+
+    let reply = channel(addr)
+        .await
+        .unary::<HelloRequest, HelloReply>("/demo.ActorEcho/Ping", Request::new(req("ignored")))
+        .await
+        .expect("injected")
+        .into_inner();
+    assert_eq!(name_of(&reply), "kernel");
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_server_interceptor_strips_metadata_before_the_handler() {
+    struct SeesAuth;
+
+    impl Service for SeesAuth {
+        const NAME: &'static str = "demo.SeesAuth";
+
+        async fn call(&self, rpc: Rpc) {
+            rpc.unary(|request: Request<HelloRequest>| async move {
+                if request.metadata().get("authorization").is_some() {
+                    return Err(Status::internal("authorization leaked to handler"));
+                }
+                let mut reply = HelloReply::new();
+                reply.set_message(request.get_ref().name());
+                Ok(Response::new(reply))
+            })
+            .await;
+        }
+    }
+
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(SeesAuth.intercept(|rpc: &mut Rpc| {
+            rpc.metadata_mut().remove("authorization");
+            Ok(())
+        }))
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+
+    let mut tagged = Request::new(req("ada"));
+    tagged
+        .metadata_mut()
+        .insert("authorization", "Bearer secret")
+        .expect("metadata");
+    let reply = channel(addr)
+        .await
+        .unary::<HelloRequest, HelloReply>("/demo.SeesAuth/Ping", tagged)
+        .await
+        .expect("stripped")
+        .into_inner();
+    assert_eq!(name_of(&reply), "ada");
+
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_server_interceptor_can_tighten_the_deadline() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(|rpc: &mut Rpc| {
+                rpc.set_timeout(Duration::from_secs(5));
+                Ok(())
+            })
+            .intercept(|rpc: &mut Rpc| {
+                rpc.set_timeout(Duration::from_millis(20));
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(5));
+    let started = Instant::now();
+    let err = client.say_hello(request).await.expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "interceptor cap should win: {:?}",
+        started.elapsed()
+    );
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_server_interceptor_can_reject_with_typed_status_details() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|_rpc: &mut Rpc| {
+                let mut info = pbrs_grpc::pb::ErrorInfo::new();
+                info.set_reason("API_DISABLED");
+                info.set_domain("example.com");
+                Err(Status::with_error_details(
+                    Code::FailedPrecondition,
+                    "api disabled",
+                    [pbrs_grpc::Any::pack(&info)?],
+                )?)
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let err = GreeterClient::new(channel(addr).await)
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("details");
+    assert_eq!(err.code(), Code::FailedPrecondition);
+    assert_eq!(err.message(), "api disabled");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let details = err.error_details().expect("ErrorDetails");
+    assert_eq!(
+        details
+            .error_info
+            .expect("ErrorInfo")
+            .reason()
+            .to_str()
+            .unwrap_or(""),
+        "API_DISABLED"
+    );
+
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn extra_rpcs_are_refused_when_the_process_cap_is_hit() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .config(ServerConfig::new().max_concurrent_rpcs(1))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let (a, b) = tokio::join!(
+        client.say_hello(Request::new(req("a"))),
+        client.say_hello(Request::new(req("b"))),
+    );
+    let codes = [
+        a.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+        b.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+    ];
+    assert!(
+        codes.contains(&Code::Ok) && codes.contains(&Code::ResourceExhausted),
+        "one Ok and one RESOURCE_EXHAUSTED, got {codes:?}"
+    );
+
+    task.abort();
+}
+
+#[tokio::test]
 async fn outbound_rpcs_send_a_kernel_user_agent() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {

@@ -10,8 +10,12 @@ use std::sync::Arc;
 ///
 /// Return `Err` to reject without reading the body; `Ok` to proceed.
 /// Closures with this signature implement the trait, so most interceptors
-/// are one function. Insert typed values with [`Rpc::extensions_mut`] for
-/// the handler to read from [`crate::Request::extensions`].
+/// are one function. Mutate inbound metadata with [`Rpc::metadata_mut`]
+/// (strip with [`crate::Metadata::remove`]), cap the deadline with
+/// [`Rpc::set_timeout`], or insert typed values with [`Rpc::extensions_mut`]
+/// for the handler to read from [`crate::Request::extensions`]. `Err` may
+/// carry [`crate::Status::with_error_details`]; those trailers reach the
+/// client.
 ///
 /// ```
 /// use pbrs_grpc::{Rpc, Service, ServiceExt, Status};
@@ -20,6 +24,8 @@ use std::sync::Arc;
 ///     if rpc.metadata().get("authorization") != Some("Bearer secret") {
 ///         return Err(Status::unauthenticated("bad or missing token"));
 ///     }
+///     rpc.metadata_mut().remove("authorization");
+///     rpc.metadata_mut().insert("x-actor", "gateway")?;
 ///     Ok(())
 /// }
 ///

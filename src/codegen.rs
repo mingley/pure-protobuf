@@ -4010,7 +4010,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline, or reject."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4066,7 +4066,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Bind `path`, unlinking a leftover socket file if bind fails with address-in-use."
+        "    /// Bind `path` after unlinking a crash leftover. A live listener is left alone and this fails with UNAVAILABLE."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(

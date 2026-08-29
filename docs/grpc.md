@@ -362,10 +362,11 @@ match client.say_hello(req).await {
 }
 ```
 
-On the server, `request.timeout()` reports the effective deadline: the minimum
-of the client's `grpc-timeout` and [`ServerConfig::timeout`], when the server
-sets one. A client that omits `grpc-timeout` can otherwise pin a handler
-forever; the server cap closes that hole.
+On the server, `request.timeout()` reports the effective deadline: the soonest
+of the client's `grpc-timeout`, [`ServerConfig::timeout`] when the server sets
+one, and [`Rpc::set_timeout`] from an interceptor. A client that omits
+`grpc-timeout` can otherwise pin a handler forever; the server cap closes that
+hole. An interceptor can only tighten that deadline, not extend it.
 
 To cancel from elsewhere, take a handle before awaiting:
 
@@ -751,10 +752,15 @@ guards is committed.
 | Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
+| Unbounded handler concurrency | Refuse further RPCs with `RESOURCE_EXHAUSTED` before the handler runs | opt-in |
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 |
 | Client RST after the request is read | Drop the handler; do not run it to completion | always |
+
+`max_concurrent_rpcs` is a process-wide handler budget, distinct from HTTP/2
+`max_concurrent_streams` (per connection) and `max_concurrent_connections`
+(accept-loop sockets).
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
@@ -877,6 +883,9 @@ fn require_token(rpc: &mut Rpc) -> Result<(), Status> {
     if rpc.metadata().get("authorization") != Some("Bearer secret") {
         return Err(Status::unauthenticated("bad or missing token"));
     }
+    rpc.metadata_mut().remove("authorization");
+    rpc.metadata_mut().insert("x-actor", "gateway")?;
+    rpc.set_timeout(Duration::from_secs(5));
     Ok(())
 }
 
@@ -885,6 +894,12 @@ GreeterServer::new(MyGreeter)
     .serve(addr)
     .await?;
 ```
+
+The handler sees the mutated metadata on `request.metadata()`, including
+injected keys and without stripped ones. `set_timeout` is a cap: the effective
+deadline is the soonest of the client's `grpc-timeout`, `ServerConfig::timeout`,
+and this value. Returning `Err(Status::with_error_details(...))` ships
+`grpc-status-details-bin` to the client the same way a handler error does.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
 id), insert it on the `Rpc` and read it from the `Request`:
@@ -923,9 +938,10 @@ let client = GreeterClient::new(channel).intercept(|call| {
 
 A wrapping `Service` is still valid when the interceptor needs state the
 closure form does not hold easily — `Rpc::reject` is the same turn-away path
-either way, and `NAME` is inherited so the wrapper mounts where the inner
-service would. There is no `tower` layer; use `protobuf-tonic` if you need
-tonic's middleware stack.
+either way (trailing metadata and `grpc-status-details-bin` both ship), and
+`NAME` is inherited so the wrapper mounts where the inner service would.
+There is no `tower` layer; use `protobuf-tonic` if you need tonic's
+middleware stack.
 
 For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, and the peer address there.

@@ -13,9 +13,10 @@ use tokio::sync::watch;
 /// A message plus the metadata, deadline, and compression choice around it.
 ///
 /// The same type is used to build an outbound request and to read an inbound
-/// one, so a proxy can forward what it received. Server interceptors attach
-/// typed values through [`Self::extensions_mut`]; the handler reads them
-/// with [`Self::extensions`].
+/// one, so a proxy can forward what it received. Server interceptors mutate
+/// inbound metadata through [`crate::Rpc::metadata_mut`] and attach typed
+/// values through [`crate::Rpc::extensions_mut`]; the handler reads both
+/// from this type.
 ///
 /// ```
 /// use pbrs_grpc::Request;
@@ -124,7 +125,7 @@ impl<T> Request<T> {
     }
 
     /// Set the deadline. Outbound this becomes `grpc-timeout`; inbound it
-    /// reports the deadline the peer asked for.
+    /// reports the effective deadline (client, server cap, interceptor).
     pub fn set_timeout(&mut self, timeout: Duration) {
         self.timeout = Some(timeout);
     }
@@ -188,15 +189,14 @@ impl<T> Request<T> {
         (self.message, self.metadata, self.timeout, self.compress)
     }
 
-    /// Build a server-side request straight from the received header map.
-    pub(crate) fn from_wire(
+    pub(crate) fn from_metadata(
         message: T,
-        headers: http::HeaderMap,
+        metadata: Metadata,
         remote_addr: Option<SocketAddr>,
     ) -> Self {
         Self {
             message,
-            metadata: Metadata::from_owned_headers(headers),
+            metadata,
             timeout: None,
             compress: false,
             compressed: false,

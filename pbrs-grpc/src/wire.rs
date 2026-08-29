@@ -156,10 +156,14 @@ pub(crate) fn timeout_from_headers(headers: &HeaderMap) -> Option<Duration> {
 /// The deadline the handler actually runs under: the sooner of the client's
 /// `grpc-timeout` and the server's configured cap.
 pub(crate) fn effective_timeout(headers: &HeaderMap, server: Option<Duration>) -> Option<Duration> {
-    match (timeout_from_headers(headers), server) {
-        (Some(peer), Some(cap)) => Some(peer.min(cap)),
-        (Some(peer), None) => Some(peer),
-        (None, cap) => cap,
+    soonest(timeout_from_headers(headers), server)
+}
+
+pub(crate) fn soonest(a: Option<Duration>, b: Option<Duration>) -> Option<Duration> {
+    match (a, b) {
+        (Some(x), Some(y)) => Some(x.min(y)),
+        (Some(x), None) | (None, Some(x)) => Some(x),
+        (None, None) => None,
     }
 }
 
@@ -934,7 +938,7 @@ fn percent_decode(s: &str) -> String {
 mod tests {
     use super::{
         accepts_gzip, effective_timeout, grpc_request, gzip_outbound, percent_decode,
-        percent_encode, FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
+        percent_encode, soonest, FrameReader, DEFAULT_UA, PBRS_GRPC_UA,
     };
     use crate::codec;
     use crate::gzip;
@@ -1025,6 +1029,18 @@ mod tests {
             Some(Duration::from_secs(5))
         );
         assert_eq!(effective_timeout(&HeaderMap::new(), None), None);
+        assert_eq!(
+            soonest(
+                Some(Duration::from_millis(20)),
+                Some(Duration::from_secs(5))
+            ),
+            Some(Duration::from_millis(20))
+        );
+        assert_eq!(
+            soonest(None, Some(Duration::from_secs(1))),
+            Some(Duration::from_secs(1))
+        );
+        assert_eq!(soonest(None, None), None);
     }
 
     #[test]

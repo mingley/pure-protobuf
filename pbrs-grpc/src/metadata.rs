@@ -98,6 +98,29 @@ impl Metadata {
         Ok(())
     }
 
+    /// Remove every ASCII entry for `key`. Reserved keys and `-bin` keys are
+    /// left alone. Returns whether anything was removed.
+    pub fn remove(&mut self, key: &str) -> bool {
+        if is_reserved(key) || key.ends_with("-bin") {
+            return false;
+        }
+        let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
+            return false;
+        };
+        self.map.remove(name).is_some()
+    }
+
+    /// Remove every `-bin` entry for `key`. Returns whether anything was removed.
+    pub fn remove_bin(&mut self, key: &str) -> bool {
+        if is_reserved(key) || !key.ends_with("-bin") {
+            return false;
+        }
+        let Ok(name) = HeaderName::from_bytes(key.to_ascii_lowercase().as_bytes()) else {
+            return false;
+        };
+        self.map.remove(name).is_some()
+    }
+
     /// First ASCII value for `key`, matched case-insensitively.
     #[must_use]
     pub fn get(&self, key: &str) -> Option<&str> {
@@ -257,6 +280,20 @@ mod tests {
         assert_eq!(md.get("k"), Some("1"));
         let values: Vec<_> = md.iter().collect();
         assert_eq!(values, vec![("k", "1"), ("k", "2")]);
+    }
+
+    #[test]
+    fn remove_drops_user_keys_and_ignores_reserved() {
+        let mut md = Metadata::new();
+        md.insert("x-trace", "a").expect("ascii");
+        md.insert_bin("x-blob-bin", [1u8]).expect("bin");
+        assert!(md.remove("x-trace"));
+        assert!(!md.remove("x-trace"));
+        assert_eq!(md.get("x-trace"), None);
+        assert!(md.remove_bin("x-blob-bin"));
+        assert_eq!(md.get_bin("x-blob-bin"), None);
+        md.insert("grpc-status", "5").ok();
+        assert!(!md.remove("grpc-status"));
     }
 
     #[test]

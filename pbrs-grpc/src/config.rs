@@ -91,6 +91,7 @@ pub struct ServerConfig {
     max_connection_age_grace: Duration,
     timeout: Option<Duration>,
     max_concurrent_connections: Option<usize>,
+    max_concurrent_rpcs: Option<usize>,
     send_compressed: bool,
 }
 
@@ -113,6 +114,7 @@ impl Default for ServerConfig {
             max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
             timeout: None,
             max_concurrent_connections: None,
+            max_concurrent_rpcs: None,
             send_compressed: false,
         }
     }
@@ -273,8 +275,9 @@ impl ServerConfig {
 
     /// Cap every RPC to this duration even when the client omits `grpc-timeout`.
     ///
-    /// The effective deadline is the minimum of this and the client's, when
-    /// both are set. Disabled by default. Values below 1 ms are raised to 1 ms.
+    /// The effective deadline is the soonest of this, the client's, and any
+    /// [`crate::Rpc::set_timeout`] from an interceptor. Disabled by default.
+    /// Values below 1 ms are raised to 1 ms.
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.timeout = Some(timeout.max(Duration::from_millis(1)));
@@ -289,6 +292,20 @@ impl ServerConfig {
     #[must_use]
     pub fn max_concurrent_connections(mut self, n: usize) -> Self {
         self.max_concurrent_connections = Some(n);
+        self
+    }
+
+    /// Cap how many RPCs the process will run at once, across every
+    /// connection.
+    ///
+    /// Further RPCs are refused with [`crate::Code::ResourceExhausted`]
+    /// before the handler runs. Distinct from
+    /// [`Self::max_concurrent_streams`] (per HTTP/2 connection) and
+    /// [`Self::max_concurrent_connections`] (accept-loop sockets). Disabled
+    /// by default.
+    #[must_use]
+    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
+        self.max_concurrent_rpcs = Some(n.max(1));
         self
     }
 
@@ -328,6 +345,12 @@ impl ServerConfig {
     #[must_use]
     pub fn connection_limit(self) -> Option<usize> {
         self.max_concurrent_connections
+    }
+
+    /// Configured process-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
+    #[must_use]
+    pub fn concurrent_rpc_limit(self) -> Option<usize> {
+        self.max_concurrent_rpcs
     }
 
     /// Whether responses are gzipped when the client accepts gzip.
@@ -828,6 +851,7 @@ mod tests {
         assert_eq!(config.send_buffer_size(), 1024 * 1024);
         assert_eq!(config.rpc_timeout(), None);
         assert_eq!(config.connection_limit(), None);
+        assert_eq!(config.concurrent_rpc_limit(), None);
         assert_eq!(config.tcp_keepalive_period(), None);
         assert_eq!(config.keep_alive_ping_interval(), None);
         assert_eq!(config.stream_window(), super::DEFAULT_WINDOW_SIZE);
@@ -853,9 +877,11 @@ mod tests {
     fn server_timeout_and_connection_cap_round_trip() {
         let config = ServerConfig::new()
             .timeout(Duration::from_millis(0))
-            .max_concurrent_connections(4);
+            .max_concurrent_connections(4)
+            .max_concurrent_rpcs(0);
         assert_eq!(config.rpc_timeout(), Some(Duration::from_millis(1)));
         assert_eq!(config.connection_limit(), Some(4));
+        assert_eq!(config.concurrent_rpc_limit(), Some(1));
     }
 
     #[test]
