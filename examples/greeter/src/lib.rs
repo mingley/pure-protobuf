@@ -3,8 +3,8 @@
 //! `proto/hello.proto` is compiled by `build.rs` with
 //! [`pbrs::codegen::Config::emit_kernel_stubs`]. The binary serves the greeter
 //! together with `grpc.health.v1` and `grpc.reflection.v1` on loopback, then
-//! calls `SayHello`. Tests cover all four RPC shapes, health `Check`, and
-//! reflection `list_services`.
+//! calls `SayHello`. Tests cover all four RPC shapes, health `Check` and
+//! `Watch`, and reflection `list_services`.
 
 #![allow(
     missing_docs,
@@ -253,6 +253,41 @@ mod tests {
             .into_inner()
             .status();
         assert_eq!(status, ServingStatus::Serving);
+    }
+
+    #[tokio::test]
+    async fn dropping_a_health_watch_releases_the_subscription() {
+        use pbrs_grpc::health::{HealthCheckRequest, HealthClient, ServingStatus};
+
+        let live = serve().await.unwrap();
+        let _ready = greeter(live.addr).await.unwrap();
+        let client = HealthClient::connect(live.addr).await.unwrap();
+        assert_eq!(live.reporter.watchers(), 0);
+        let mut req = HealthCheckRequest::new();
+        req.set_service(GreeterServer::<MyGreeter>::NAME);
+        let mut stream = client
+            .watch(Request::new(req))
+            .await
+            .unwrap()
+            .into_inner();
+        let first = stream.message().await.unwrap().unwrap();
+        assert_eq!(first.status(), ServingStatus::Serving);
+        assert!(
+            live.reporter.watchers() >= 1,
+            "Watch must hold a subscription while the stream is live"
+        );
+        drop(stream);
+        for _ in 0..80 {
+            if live.reporter.watchers() == 0 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+        assert_eq!(
+            live.reporter.watchers(),
+            0,
+            "Watch must not wait for the next status change after the client leaves"
+        );
     }
 
     #[tokio::test]

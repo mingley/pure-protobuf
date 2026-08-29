@@ -12,5 +12,6 @@ cargo run -p pbrs-grpc-example-greeter
 # prints: hello world
 ```
 
-`src/lib.rs` is the whole service. Tests cover every shape, health `Check`,
-and reflection `list_services`.
+`src/lib.rs` is the whole service. Tests cover every shape, health `Check`
+and `Watch` (dropping the stream ends the subscription), and reflection
+`list_services`.
