@@ -2770,19 +2770,7 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_dead_channel_redials_the_same_address() {
     let (addr, client, guard) = spawn_greeter(Echo).await.expect("spawn");
-    let before = client
-        .say_hello(Request::new(req("before")))
-        .await
-        .expect("before");
-    assert_eq!(name_of(before.get_ref()), "before");
-    let mut before_stream = client
-        .server_hello(Request::new(req("before")))
-        .await
-        .expect("before stream")
-        .into_inner();
-    let first = before_stream.message().await.expect("item").expect("first");
-    assert_eq!(name_of(&first), "before");
-    assert!(before_stream.message().await.expect("end").is_none());
+    echo_every_shape(&client, None).await;
 
     drop(guard);
     let _guard = serve_at(addr, Echo, ServerConfig::default())
@@ -2797,14 +2785,7 @@ async fn a_dead_channel_redials_the_same_address() {
     })
     .await;
     assert_eq!(name_of(after.get_ref()), "after");
-    let mut after_stream = until_ok("server-stream after", || {
-        client.server_hello(Request::new(req("after")))
-    })
-    .await
-    .into_inner();
-    let first = after_stream.message().await.expect("item").expect("first");
-    assert_eq!(name_of(&first), "after");
-    assert!(after_stream.message().await.expect("end").is_none());
+    echo_every_shape(&client, None).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -3699,7 +3680,7 @@ async fn extra_connections_are_refused_when_the_cap_is_hit() {
     .expect_err("second connection should be refused");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
     drop(first);
-    let _ = channel(addr).await;
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
     task.abort();
 }
 

@@ -338,9 +338,10 @@ Rich errors travel as `grpc-status-details-bin`. The spec puts a serialized
 plus a repeated `google.protobuf.Any`. `Status::with_error_details` builds
 that protobuf from packed `Any` values; `Status::from_error_details` does
 the same from an `ErrorDetails` bag of the standard `google.rpc` messages.
-`Status::rpc` / `Status::error_details` parse it back. `from_rpc` /
-`with_error_details` mint a fresh status (empty trailers). To change the
-Anys while keeping `x-retry-after`, use `set_rpc` / `set_error_details` /
+`Status::rpc` / `Status::error_details` parse it back. A handler or interceptor
+`Err` built this way is that protobuf on the client for every call shape.
+`from_rpc` / `with_error_details` mint a fresh status (empty trailers). To change
+the Anys while keeping `x-retry-after`, use `set_rpc` / `set_error_details` /
 `set_from_error_details`. The key is invisible through `Metadata`, so
 forwarding received metadata cannot inject it.
 

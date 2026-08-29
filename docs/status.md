@@ -135,7 +135,9 @@ See `docs/upb.md`. Short list:
   `:authority` / `:scheme` / `Request` parts, a deadline Instant that
   elapses, TCP local/remote, Unix `peer_cred`, and `Incoming::peer`
   stamps on every call shape. Handler `Err` (nonzero `grpc-status` and
-  custom details) is that status on every call shape. A
+  custom details) is that status on every call shape. A packed
+  `google.rpc.Status` from `with_error_details` is `Status::rpc` /
+  `Status::error_details` on every call shape. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

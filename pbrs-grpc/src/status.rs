@@ -445,6 +445,9 @@ impl Status {
     /// present. A peer can send a protobuf whose code or message disagrees
     /// with the ASCII half. [`Self::set_code`] / [`Self::set_message`] only
     /// rewrite the protobuf when it still matches.
+    ///
+    /// A handler or interceptor [`Err`] built with [`Self::with_error_details`]
+    /// is this protobuf on the client for every call shape.
     pub fn rpc(&self) -> Result<crate::pb::Status, Self> {
         if self.details().is_empty() {
             return Ok(crate::pb::Status::with_details(
@@ -482,6 +485,9 @@ impl Status {
     /// assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
     /// # Ok::<(), Status>(())
     /// ```
+    ///
+    /// Ships as trailers on every call shape, including a client-interceptor
+    /// `Err` that never opens a stream.
     pub fn with_error_details(
         code: Code,
         message: impl Into<String>,

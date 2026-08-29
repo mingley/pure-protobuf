@@ -312,13 +312,7 @@ async fn failing_rpc_carries_status_details() {
     .await;
 }
 
-#[tokio::test]
-async fn failing_rpc_carries_typed_google_rpc_status() {
-    let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("details");
+fn assert_typed_fail(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition);
     assert_eq!(err.message(), "api disabled");
     let info = err
@@ -331,17 +325,22 @@ async fn failing_rpc_carries_typed_google_rpc_status() {
         .expect("ErrorInfo");
     assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
     assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let details = err.error_details().expect("ErrorDetails");
+    assert_eq!(
+        details
+            .error_info
+            .expect("ErrorInfo")
+            .reason()
+            .to_str()
+            .unwrap_or(""),
+        "API_DISABLED"
+    );
 }
 
-fn assert_typed_fail(err: &Status) {
-    assert_eq!(err.code(), Code::FailedPrecondition);
-    assert_eq!(err.message(), "api disabled");
-    let info = err
-        .error_details()
-        .expect("ErrorDetails")
-        .error_info
-        .expect("ErrorInfo");
-    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+#[tokio::test]
+async fn failing_rpc_carries_typed_google_rpc_status() {
+    let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
+    each_shape_err(&client, assert_typed_fail).await;
 }
 
 async fn each_shape_err(client: &GreeterClient, check: impl Fn(&Status)) {
@@ -425,28 +424,7 @@ impl Greeter for TypedAfterHeaders {
 #[tokio::test]
 async fn typed_google_rpc_status_on_every_call_shape() {
     let (_addr, client, _guard) = spawn_greeter(TypedFail).await.expect("spawn");
-
-    assert_typed_fail(
-        &client
-            .say_hello(Request::new(req("ada")))
-            .await
-            .expect_err("unary"),
-    );
-
-    let (tx, call) = client.client_hello(Request::new(()));
-    tx.close();
-    assert_typed_fail(&call.await.expect_err("client-stream"));
-
-    assert_typed_fail(
-        &client
-            .server_hello(Request::new(req("ada")))
-            .await
-            .expect_err("server-stream"),
-    );
-
-    let (tx, call) = client.stream_hello(Request::new(()));
-    tx.close();
-    assert_typed_fail(&call.await.expect_err("bidi"));
+    each_shape_err(&client, assert_typed_fail).await;
 }
 
 #[tokio::test]
