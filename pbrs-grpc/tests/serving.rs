@@ -852,6 +852,62 @@ async fn service_ext_intercept_wraps_a_hand_written_service() {
 }
 
 #[tokio::test]
+async fn service_ext_intercept_rejects_with_typed_status() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked()));
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+
+    assert_reverser_blocked_every_shape(&channel(addr).await).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_rejects_reverser_with_typed_status() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+
+    let ch = channel(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+    assert_reverser_blocked_every_shape(&ch).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_sees_reverser_context() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser {
+        seen: Arc::clone(&seen),
+    }
+    .intercept(require_stamped_context);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+
+    echo_reverser_every_shape(&channel(addr).await.intercept(stamp_outgoing_context)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_interceptors_stack_in_declaration_order() {
     // Same contract as generated_server_interceptors_stack_in_declaration_order,
     // but wrapping the Service itself. Intercepted::intercept is inherent, so
@@ -1739,6 +1795,59 @@ fn assert_interceptor_blocked(err: &Status) {
         .expect("ErrorInfo");
     assert_eq!(unpacked.reason().to_str().unwrap_or(""), "BLOCKED");
     assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+fn stamp_outgoing_context(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let path = call.path();
+    call.metadata_mut().insert("x-path", path)?;
+    let service = call.service();
+    call.metadata_mut().set("x-service", service)?;
+    let method = call.method();
+    call.metadata_mut().set("x-method", method)?;
+    let authority = call.authority();
+    call.metadata_mut().insert("x-authority", authority)?;
+    let scheme = call.scheme();
+    call.metadata_mut().set("x-scheme", scheme)?;
+    Ok(())
+}
+
+fn require_stamped_context(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-path") != Some(rpc.path()) {
+        return Err(Status::invalid_argument(format!(
+            "x-path {:?} path {}",
+            rpc.metadata().get("x-path"),
+            rpc.path()
+        )));
+    }
+    if rpc.metadata().get("x-service") != Some(rpc.service()) {
+        return Err(Status::invalid_argument(format!(
+            "x-service {:?} service {}",
+            rpc.metadata().get("x-service"),
+            rpc.service()
+        )));
+    }
+    if rpc.metadata().get("x-method") != Some(rpc.method()) {
+        return Err(Status::invalid_argument(format!(
+            "x-method {:?} method {}",
+            rpc.metadata().get("x-method"),
+            rpc.method()
+        )));
+    }
+    if rpc.metadata().get("x-authority") != rpc.authority() {
+        return Err(Status::invalid_argument(format!(
+            "x-authority {:?} authority {:?}",
+            rpc.metadata().get("x-authority"),
+            rpc.authority()
+        )));
+    }
+    if rpc.metadata().get("x-scheme") != rpc.scheme() {
+        return Err(Status::invalid_argument(format!(
+            "x-scheme {:?} scheme {:?}",
+            rpc.metadata().get("x-scheme"),
+            rpc.scheme()
+        )));
+    }
+    Ok(())
 }
 
 #[tokio::test]
@@ -5416,6 +5525,30 @@ async fn assert_reverser_err_every_shape(channel: &Channel, want: Code) {
         channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
     let err = call.await.expect_err("bidi");
     assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+}
+
+async fn assert_reverser_blocked_every_shape(channel: &Channel) {
+    let err = channel
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect_err("unary");
+    assert_interceptor_blocked(&err);
+    let err = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(req("stressed")),
+        )
+        .await
+        .expect_err("server-stream");
+    assert_interceptor_blocked(&err);
+    let (tx, call) = channel
+        .client_streaming::<HelloRequest, HelloReply>("/demo.Reverser/Client", Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
     drop(tx);
 }
 

@@ -193,7 +193,9 @@ See `docs/upb.md`. Short list:
   Watch / PutAll / Sync. A packed `google.rpc.Status` from interceptor
   `Err(with_error_details)` unpacks on those Store shapes the same way.
   A generated Store handler `Err(with_error_details)` unpacks on Get /
-  Watch / PutAll / Sync too.
+  Watch / PutAll / Sync too. A wrapping `Service` interceptor
+  `Err(with_error_details)` unpacks on every hand-written Reverser Channel
+  API, and a client interceptor stamps Outgoing path facts on those APIs.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
