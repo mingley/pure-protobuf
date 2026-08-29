@@ -4672,7 +4672,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// `user-agent`, metadata, deadline, wait-for-ready, compression, extensions."
+        "    /// `user-agent`, message caps, metadata, deadline, wait-for-ready, compression, extensions."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");

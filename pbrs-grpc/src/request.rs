@@ -391,12 +391,14 @@ impl<T> Request<T> {
         authority: &'a str,
         https: bool,
         user_agent: &'a str,
+        limits: MessageLimits,
     ) -> Outgoing<'a> {
         Outgoing {
             path,
             authority,
             scheme: if https { "https" } else { "http" },
             user_agent,
+            limits,
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -412,8 +414,8 @@ impl<T> Request<T> {
 /// already built it, and object-safe interceptors cannot be generic over it.
 /// Everything else an interceptor typically stamps — metadata, deadline,
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
-/// `:authority`, `:scheme`, `user-agent`, and the service/method halves of
-/// the path, which the interceptor cannot otherwise see. Typed values the
+/// `:authority`, `:scheme`, `user-agent`, message caps, and the service/method
+/// halves of the path, which the interceptor cannot otherwise see. Typed values the
 /// caller inserted on [`crate::Request::extensions_mut`] are on this map.
 ///
 /// ```
@@ -445,6 +447,7 @@ pub struct Outgoing<'a> {
     authority: &'a str,
     scheme: &'static str,
     user_agent: &'a str,
+    limits: MessageLimits,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -480,6 +483,20 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn user_agent(&self) -> &'a str {
         self.user_agent
+    }
+
+    /// Message caps this channel will enforce on this RPC.
+    ///
+    /// Same value as [`crate::ChannelConfig::limits`] after overlays
+    /// ([`crate::Channel::message_limits`],
+    /// [`crate::Channel::max_decoding_message_size`],
+    /// [`crate::Channel::max_encoding_message_size`]). An interceptor cannot
+    /// raise them; the kernel applies them when encoding and decoding.
+    /// Distinct from [`crate::Request::limits`], which is `None` on a request
+    /// you built to send.
+    #[must_use]
+    pub fn limits(&self) -> MessageLimits {
+        self.limits
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`.
@@ -590,6 +607,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("authority", &self.authority)
             .field("scheme", &self.scheme)
             .field("user_agent", &self.user_agent)
+            .field("limits", &self.limits)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("wait_for_ready", &self.wait_for_ready)
@@ -1052,9 +1070,16 @@ mod tests {
         req.metadata_mut().insert("x-trace", "abc").expect("insert");
         req.set_timeout(Duration::from_secs(1));
         let shown = {
-            let call = req.outgoing("/svc/Method", "127.0.0.1:1", false, "pbrs-grpc/test");
+            let call = req.outgoing(
+                "/svc/Method",
+                "127.0.0.1:1",
+                false,
+                "pbrs-grpc/test",
+                crate::MessageLimits::default(),
+            );
             assert_eq!(call.service(), "svc");
             assert_eq!(call.method(), "Method");
+            assert_eq!(call.limits(), crate::MessageLimits::default());
             format!("{call:?}")
         };
         assert!(shown.contains("/svc/Method"), "{shown}");
@@ -1065,7 +1090,13 @@ mod tests {
         assert!(shown.contains("pbrs-grpc/test"), "{shown}");
         assert!(shown.contains("x-trace"), "{shown}");
         assert!(shown.contains("abc"), "{shown}");
-        let https = req.outgoing("/svc/Method", "127.0.0.1:1", true, "pbrs-grpc/test");
+        let https = req.outgoing(
+            "/svc/Method",
+            "127.0.0.1:1",
+            true,
+            "pbrs-grpc/test",
+            crate::MessageLimits::default(),
+        );
         assert!(format!("{https:?}").contains("https"));
     }
 }

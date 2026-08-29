@@ -138,7 +138,7 @@ impl<S: Service> ServiceExt for S {}
 /// Attach one with [`crate::Channel::intercept`] or the generated
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
 /// runs first. The interceptor sees the method path, service, method,
-/// `:authority`, `:scheme`, and `user-agent`, and can set a deadline,
+/// `:authority`, `:scheme`, `user-agent`, and message caps, and can set a deadline,
 /// wait-for-ready, compression, or typed extensions — not only metadata.
 ///
 /// Typed context the caller put on [`crate::Request::extensions_mut`] is

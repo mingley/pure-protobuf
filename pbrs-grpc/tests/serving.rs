@@ -1353,6 +1353,31 @@ async fn a_client_interceptor_sees_the_user_agent() {
 }
 
 #[tokio::test]
+async fn a_client_interceptor_sees_message_limits() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let want = MessageLimits::new()
+        .with_max_decoding(16)
+        .with_max_encoding(32);
+    let client =
+        GreeterClient::new(channel_with(addr, ChannelConfig::new().message_limits(want)).await)
+            .intercept(move |call: &mut Outgoing<'_>| {
+                if call.limits() != want {
+                    return Err(Status::internal(format!("limits {:?}", call.limits())));
+                }
+                Ok(())
+            });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn client_interceptors_stack_and_share_extensions() {
     #[derive(Clone, Copy)]
     struct Trace(&'static str);

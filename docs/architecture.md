@@ -59,7 +59,7 @@ age/idle) are enforced before the memory they guard is committed.
 
 `Channel` pools HTTP/2 connections to one authority. A client interceptor
 sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
-`user-agent`, metadata, deadline, wait-for-ready, compression,
+`user-agent`, message caps, metadata, deadline, wait-for-ready, compression,
 extensions). Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. `from_io` cannot redial.
 

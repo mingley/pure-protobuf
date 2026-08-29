@@ -1091,7 +1091,7 @@ Returning `Err(Status::with_error_details(...))` ships
 (default 4 MiB inbound, unlimited outbound). An interceptor cannot raise
 them. Generated handlers see the same caps on `Request::limits`; a request
 you built to send has `None` — the channel's `message_limits` applies at
-send time.
+send time. A client interceptor reads that overlay with `Outgoing::limits`.
 
 To pass typed state into the handler (a parsed identity, a tenant, a trace
 id), insert it on the `Rpc` and read it from the `Request`:
@@ -1123,7 +1123,8 @@ runs before the stream opens. Closures take `Outgoing`: the method path,
 service and method halves (`Outgoing::service` / `Outgoing::method`, same
 split as `Rpc`), `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https` when the
 channel was built with `ClientTls`), `user-agent` (including a
-`Channel::user_agent` prefix), metadata, deadline, wait-for-ready,
+`Channel::user_agent` prefix), message caps (`Outgoing::limits`, the
+channel overlay the kernel will enforce), metadata, deadline, wait-for-ready,
 compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost`. Inserting `user-agent` into metadata does not change the
 header: that name is reserved.
