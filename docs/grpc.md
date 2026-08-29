@@ -294,6 +294,11 @@ On a unary response the client reads that map with `Response::trailers()`.
 On a stream, `Streaming::trailers().await` waits until the RPC ends, then
 returns the same map.
 
+A reply you want to rewrite without losing headers splits the same way as a
+request: `Response::into_message_and_parts` yields `ResponseParts` (initial
+headers, trailers, and the gzip flag). Rebuild with
+`from_message_and_parts`.
+
 To attach metadata to an *error*, put it on the `Status`; error responses have
 no separate trailers:
 
@@ -400,8 +405,10 @@ A deadline set on a request travels as `grpc-timeout` and is enforced on both
 ends: the server wraps the handler in a timeout, and the client stops waiting
 and resets the stream. `Channel::timeout` / generated `FooClient::timeout`
 fill that in when the request omits one, matching tonic's client timeout and
-grpc-go's default call option. A request that already has a deadline is left
-alone; a client interceptor can still replace or clear it.
+grpc-go's default call option. `Channel::rpc_timeout` /
+`FooClient::rpc_timeout` read that overlay (`timeout` sets it). A request
+that already has a deadline is left alone; a client interceptor can still
+replace or clear it.
 
 ```rust
 let mut req = Request::new(payload);
@@ -421,6 +428,9 @@ same instant the kernel is actually racing — forward
 `deadline.saturating_duration_since(Instant::now())` onto a downstream RPC
 instead of copying `timeout()`. An interceptor reads the client value with
 `Rpc::peer_timeout` and the combined value with `Rpc::effective_timeout`.
+`Rpc::deadline` is that combined duration as an `Instant`, computed when you
+call it so a just-tightened `set_timeout` is visible. The handler's
+`request.deadline()` is stamped once when dispatch starts.
 Generated handlers see the same client duration on `Request::peer_timeout`
 / `Parts::peer_timeout`, distinct from the tightened `request.timeout()`.
 A client that omits `grpc-timeout` can otherwise pin a handler forever; the
@@ -471,6 +481,9 @@ let reply = client.say_hello(req).await?;
 
 Per-RPC `Request::set_wait_for_ready(false)` opts out of a channel default.
 `set_wait_for_ready(true)` on a request that did not inherit still works.
+
+`Channel::waits_for_ready` / `FooClient::waits_for_ready` read the overlay
+(`wait_for_ready` sets it).
 
 `connect_lazy` does not dial. Invalid authority still fails at construction.
 A closed port, a name that does not resolve, or a refused TLS handshake
@@ -870,7 +883,8 @@ is on `Framed`. `request.encoding()` is the call's `grpc-encoding` header
 (`Some("gzip")` or `None` for identity). `request.accepts_gzip()` is
 whether the peer listed gzip in `grpc-accept-encoding` — a handler that
 calls `Response::set_compress(true)` still only gzips when this is true.
-`Parts` keeps all three across `into_message_and_parts`.
+`Parts` keeps all three across `into_message_and_parts`. `ResponseParts`
+keeps the gzip flag the same way.
 
 To gzip every response a client advertised `gzip` for:
 
@@ -887,6 +901,9 @@ ChannelConfig::new().send_compressed(true)
 // or, after connect:
 channel.send_compressed()
 ```
+
+`Channel::compresses_outbound` / `FooClient::compresses_outbound` read that
+overlay.
 
 A peer that omitted `gzip` from `grpc-accept-encoding` is never sent a
 compressed frame, even if the handler or the config asked. Successful
@@ -1091,9 +1108,11 @@ injected keys and without stripped ones. `set` / `set_bin` replace a hop the
 interceptor owns (a peer-supplied `x-actor` does not survive). `retain` keeps
 a subset of names. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
-cap, and `set_timeout`. An interceptor can only tighten the deadline, not
-extend it. The handler's `request.timeout()` / `request.deadline()` are that
-tightened cap, not the original client value. That original duration is
+cap, and `set_timeout`. `Rpc::deadline` is that same duration as an
+`Instant`, computed at the call so a just-tightened cap is visible. An
+interceptor can only tighten the deadline, not extend it. The handler's
+`request.timeout()` / `request.deadline()` are that tightened cap, not the
+original client value. The handler Instant is stamped once at dispatch. That original duration is
 `Request::peer_timeout` / `Parts::peer_timeout`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
 the transport so a peer cannot claim TLS on cleartext. The default `Incoming`

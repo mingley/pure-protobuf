@@ -46,7 +46,8 @@ deadline, `:authority` / `:scheme`, path / service / method, peer identity
 / cred, and `Rpc::limits`. `Router` splits on the service half of the path.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, and gzip accept/encoding. Dumping
-`Rpc` prints service/method, both timeout views, gzip facts, and `limits`.
+`Rpc` prints service/method, both timeout views, `deadline`, gzip facts, and
+`limits`.
 Dumping `Request` prints path / service / method, `peer_timeout`, and gzip.
 Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
 after the response is written / the stream drains).
@@ -72,6 +73,8 @@ a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on
 `Outgoing::scheme`. `FooClient::authority` and `FooClient::grpc_user_agent`
 are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
+`FooClient::rpc_timeout`, `waits_for_ready`, and `compresses_outbound` read
+the same overlays as the channel (the setter names cannot collide).
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
 after headers does not end the stream.
 
@@ -79,8 +82,8 @@ after headers does not end the stream.
 
 Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
 The first registered runs first. Closures see `Rpc` (path, service/method,
-metadata, both timeout views, gzip accept/encoding, peer, `:authority` /
-`:scheme`, limits).
+metadata, both timeout views, `deadline`, gzip accept/encoding, peer,
+`:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, and gzip.

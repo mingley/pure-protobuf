@@ -1977,6 +1977,18 @@ async fn a_server_interceptor_sees_the_client_deadline() {
                 if effective != Some(Duration::from_secs(1)) {
                     return Err(Status::internal(format!("effective {effective:?}")));
                 }
+                let Some(deadline) = rpc.deadline() else {
+                    return Err(Status::internal("missing deadline"));
+                };
+                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                if remaining > Duration::from_secs(1) {
+                    return Err(Status::internal(format!(
+                        "remaining too long {remaining:?}"
+                    )));
+                }
+                if remaining.is_zero() {
+                    return Err(Status::internal("deadline already passed"));
+                }
                 Ok(())
             })
             .serve_listener(listener)
@@ -2002,6 +2014,9 @@ async fn a_server_interceptor_sees_a_missing_deadline() {
                 }
                 if rpc.effective_timeout().is_some() {
                     return Err(Status::internal("unexpected effective timeout"));
+                }
+                if rpc.deadline().is_some() {
+                    return Err(Status::internal("unexpected deadline"));
                 }
                 Ok(())
             })
@@ -4613,6 +4628,8 @@ async fn a_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
     });
     let identity = GreeterClient::new(channel(addr).await);
     let gzip = GreeterClient::new(channel(addr).await.send_compressed());
+    assert!(!identity.compresses_outbound());
+    assert!(gzip.compresses_outbound());
 
     let reply = identity
         .say_hello(Request::new(req("ada")))

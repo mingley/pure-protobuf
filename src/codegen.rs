@@ -4638,6 +4638,33 @@ fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn config(&self) -> {G}::ChannelConfig {{ self.channel.config() }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Default per-RPC deadline when the request omits one. Distinct from [`Self::timeout`], which sets it. See [`{G}::Channel::rpc_timeout`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn rpc_timeout(&self) -> ::core::option::Option<::std::time::Duration> {{ self.channel.rpc_timeout() }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Whether this client waits for a connection instead of failing fast. See [`{G}::Channel::waits_for_ready`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn waits_for_ready(&self) -> bool {{ self.channel.waits_for_ready() }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Whether this client gzips outbound payloads. See [`{G}::Channel::compresses_outbound`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn compresses_outbound(&self) -> bool {{ self.channel.compresses_outbound() }}"
+    );
 }
 
 fn emit_kernel_client(
@@ -4663,7 +4690,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from."
+        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], and [`Self::compresses_outbound`] read that overlay without colliding with the setters."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");

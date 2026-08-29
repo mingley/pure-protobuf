@@ -566,6 +566,11 @@ fn generated_client_debug_and_into_inner() {
     assert_eq!(client.channel().config().stream_buffer_size(), 64);
     assert_eq!(client.channel().config().limits().max_decoding(), None);
     assert_eq!(client.config(), client.channel().config());
+    assert_eq!(client.rpc_timeout(), Some(Duration::from_secs(5)));
+    assert!(client.waits_for_ready());
+    assert!(!client.compresses_outbound());
+    assert_eq!(client.rpc_timeout(), client.channel().rpc_timeout());
+    assert_eq!(client.waits_for_ready(), client.channel().waits_for_ready());
     let _ = client.into_inner();
 }
 

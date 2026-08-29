@@ -225,9 +225,10 @@ impl Endpoint {
 /// [`Self::send_compressed`], the two message-size caps /
 /// [`Self::message_limits`], [`Self::stream_buffer`], and
 /// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
-/// Keepalive, idle, TCP keepalive, connection count, HTTP/2 windows, and
-/// the rapid-reset cap are set at handshake ([`ChannelConfig`] /
-/// [`Self::connect_with`]).
+/// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
+/// [`Self::compresses_outbound`], and [`Self::config`]. Keepalive, idle, TCP
+/// keepalive, connection count, HTTP/2 windows, and the rapid-reset cap are
+/// set at handshake ([`ChannelConfig`] / [`Self::connect_with`]).
 ///
 /// [`Debug`] prints the authority, pool size, and config. It does not dump
 /// live HTTP/2 state.
@@ -538,6 +539,27 @@ impl Channel {
     pub fn wait_for_ready(mut self) -> Self {
         self.config = self.config.wait_for_ready(true);
         self
+    }
+
+    /// Default per-RPC deadline when the request omits one.
+    /// Distinct from [`Self::timeout`], which sets it.
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.config.rpc_timeout()
+    }
+
+    /// Whether this clone waits for a connection instead of failing fast.
+    /// See [`Self::wait_for_ready`].
+    #[must_use]
+    pub fn waits_for_ready(&self) -> bool {
+        self.config.waits_for_ready()
+    }
+
+    /// Whether this clone gzips outbound payloads.
+    /// See [`Self::send_compressed`].
+    #[must_use]
+    pub fn compresses_outbound(&self) -> bool {
+        self.config.compresses_outbound()
     }
 
     /// How many messages sit between a client-streaming caller and the wire.
@@ -1623,5 +1645,31 @@ mod tests {
             .expect("lazy")
             .stream_buffer(64);
         assert_eq!(channel.config().stream_buffer_size(), 64);
+    }
+
+    #[test]
+    fn overlay_getters_read_timeout_wait_for_ready_and_gzip() {
+        use std::time::Duration;
+
+        let channel = super::Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+        assert_eq!(channel.rpc_timeout(), None);
+        assert!(!channel.waits_for_ready());
+        assert!(!channel.compresses_outbound());
+        let channel = channel
+            .timeout(Duration::from_secs(5))
+            .wait_for_ready()
+            .send_compressed();
+        assert_eq!(channel.rpc_timeout(), Some(Duration::from_secs(5)));
+        assert!(channel.waits_for_ready());
+        assert!(channel.compresses_outbound());
+        assert_eq!(channel.rpc_timeout(), channel.config().rpc_timeout());
+        assert_eq!(
+            channel.waits_for_ready(),
+            channel.config().waits_for_ready()
+        );
+        assert_eq!(
+            channel.compresses_outbound(),
+            channel.config().compresses_outbound()
+        );
     }
 }

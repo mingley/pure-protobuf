@@ -266,6 +266,7 @@ impl std::fmt::Debug for Rpc {
             .field("timeout", &self.timeout)
             .field("peer_timeout", &self.peer_timeout())
             .field("effective_timeout", &self.effective_timeout())
+            .field("deadline", &self.deadline())
             .field("limits", &self.limits())
             .field("accepts_gzip", &self.accepts_gzip())
             .field("encoding", &self.encoding())
@@ -426,6 +427,17 @@ impl Rpc {
             crate::wire::effective_timeout(self.request.headers(), self.config.rpc_timeout()),
             self.timeout,
         )
+    }
+
+    /// Absolute Instant matching [`Self::effective_timeout`].
+    ///
+    /// Computed when you call this, so an interceptor that just tightened
+    /// [`Self::set_timeout`] sees the new Instant. The handler's
+    /// [`Request::deadline`] is stamped once when dispatch starts.
+    #[must_use]
+    pub fn deadline(&self) -> Option<tokio::time::Instant> {
+        self.effective_timeout()
+            .map(|d| tokio::time::Instant::now() + d)
     }
 
     /// Effective message caps for this RPC.

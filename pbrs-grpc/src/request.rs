@@ -1048,6 +1048,13 @@ impl fmt::Debug for Parts {
 /// let mut resp = Response::new(42);
 /// resp.metadata_mut().insert("x-cache", "miss")?;
 /// resp.trailers_mut().insert("x-rows-scanned", "17")?;
+/// resp.set_compress(true);
+/// let (n, mut parts) = resp.into_message_and_parts();
+/// assert_eq!(parts.metadata().get("x-cache"), Some("miss"));
+/// assert!(parts.compressed());
+/// parts.set_compress(false);
+/// let resp = Response::from_message_and_parts(n, parts);
+/// assert!(!resp.compressed());
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
 #[derive(Clone)]
@@ -1076,6 +1083,34 @@ impl<T> Response<T> {
         self.message
     }
 
+    /// Split into message and envelope, keeping headers, trailers, and
+    /// compression.
+    ///
+    /// Same idea as [`Request::into_message_and_parts`]. Rebuild with
+    /// [`Self::from_message_and_parts`].
+    #[must_use]
+    pub fn into_message_and_parts(self) -> (T, ResponseParts) {
+        (
+            self.message,
+            ResponseParts {
+                metadata: self.metadata,
+                trailers: self.trailers,
+                compress: self.compress,
+            },
+        )
+    }
+
+    /// Rebuild a [`Response`] from [`Self::into_message_and_parts`].
+    #[must_use]
+    pub fn from_message_and_parts(message: T, parts: ResponseParts) -> Self {
+        Self {
+            message,
+            metadata: parts.metadata,
+            trailers: parts.trailers,
+            compress: parts.compress,
+        }
+    }
+
     /// Borrow the message.
     #[must_use]
     pub fn get_ref(&self) -> &T {
@@ -1090,12 +1125,8 @@ impl<T> Response<T> {
     /// Replace the message, keeping headers and trailers.
     #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Response<U> {
-        Response {
-            message: f(self.message),
-            metadata: self.metadata,
-            trailers: self.trailers,
-            compress: self.compress,
-        }
+        let (message, parts) = self.into_message_and_parts();
+        Response::from_message_and_parts(f(message), parts)
     }
 
     /// Initial headers, sent before the first message.
@@ -1159,7 +1190,53 @@ impl<T> Response<T> {
     }
 
     pub(crate) fn split(self) -> (T, Metadata, Metadata, bool) {
-        (self.message, self.metadata, self.trailers, self.compress)
+        let (message, parts) = self.into_message_and_parts();
+        (message, parts.metadata, parts.trailers, parts.compress)
+    }
+}
+
+/// A [`Response`] envelope without its message. See
+/// [`Response::into_message_and_parts`].
+#[derive(Clone, Debug)]
+pub struct ResponseParts {
+    metadata: Metadata,
+    trailers: Metadata,
+    compress: bool,
+}
+
+impl ResponseParts {
+    /// Initial headers, sent before the first message.
+    #[must_use]
+    pub fn metadata(&self) -> &Metadata {
+        &self.metadata
+    }
+
+    /// Mutable initial headers.
+    pub fn metadata_mut(&mut self) -> &mut Metadata {
+        &mut self.metadata
+    }
+
+    /// Trailing metadata, sent alongside `grpc-status`.
+    #[must_use]
+    pub fn trailers(&self) -> &Metadata {
+        &self.trailers
+    }
+
+    /// Mutable trailing metadata.
+    pub fn trailers_mut(&mut self) -> &mut Metadata {
+        &mut self.trailers
+    }
+
+    /// gzip this payload and set the Compressed-Flag.
+    /// See [`Response::set_compress`].
+    pub fn set_compress(&mut self, compress: bool) {
+        self.compress = compress;
+    }
+
+    /// Whether this payload is gzipped. See [`Response::compressed`].
+    #[must_use]
+    pub fn compressed(&self) -> bool {
+        self.compress
     }
 }
 
@@ -1430,10 +1507,20 @@ mod tests {
     #[test]
     fn response_map_keeps_metadata() {
         let mut resp = Response::new(2u32);
+        resp.metadata_mut().insert("h", "v").expect("insert");
         resp.trailers_mut().insert("t", "1").expect("insert");
+        resp.set_compress(true);
         let mapped = resp.map(|n| n * 21);
+        assert_eq!(mapped.metadata().get("h"), Some("v"));
         assert_eq!(mapped.trailers().get("t"), Some("1"));
-        assert_eq!(mapped.into_inner(), 42);
+        assert!(mapped.compressed());
+        let (n, mut parts) = mapped.into_message_and_parts();
+        assert_eq!(n, 42);
+        parts.set_compress(false);
+        let rebuilt = Response::from_message_and_parts(n, parts);
+        assert!(!rebuilt.compressed());
+        assert_eq!(rebuilt.metadata().get("h"), Some("v"));
+        assert_eq!(rebuilt.into_inner(), 42);
     }
 
     #[test]
