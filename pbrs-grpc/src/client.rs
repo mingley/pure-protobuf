@@ -1545,41 +1545,42 @@ where
         live: true,
     };
     let result = {
-        let pump = pump_outbound(&mut send.stream, rx, cancel_rx.clone(), wire);
-        tokio::pin!(pump);
-        let fut = async {
-            let response = resp_fut.await.map_err(Status::from_h2)?;
-            finish_unary::<Resp>(response, wire.limits).await
-        };
-        tokio::pin!(fut);
-        let until_deadline = async {
-            match deadline {
-                Some(at) => tokio::time::sleep_until(at).await,
-                None => std::future::pending().await,
-            }
-        };
-        tokio::pin!(until_deadline);
-        let mut cancelled = cancel_rx;
-        let mut half_closed = false;
         let mut failed = false;
-        let result = loop {
-            tokio::select! {
-                biased;
-                () = &mut until_deadline => break Err(Status::deadline_exceeded()),
-                _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
-                end = &mut pump, if !half_closed => {
-                    match end {
-                        PumpEnd::Failed(status) => {
-                            failed = true;
-                            break Err(status);
-                        }
-                        PumpEnd::HalfClosed | PumpEnd::Reset => half_closed = true,
-                    }
+        let result = {
+            let pump = pump_outbound(&mut send.stream, rx, cancel_rx.clone(), wire);
+            tokio::pin!(pump);
+            let fut = async {
+                let response = resp_fut.await.map_err(Status::from_h2)?;
+                finish_unary::<Resp>(response, wire.limits).await
+            };
+            tokio::pin!(fut);
+            let until_deadline = async {
+                match deadline {
+                    Some(at) => tokio::time::sleep_until(at).await,
+                    None => std::future::pending().await,
                 }
-                result = &mut fut => break result,
+            };
+            tokio::pin!(until_deadline);
+            let mut cancelled = cancel_rx;
+            let mut half_closed = false;
+            loop {
+                tokio::select! {
+                    biased;
+                    () = &mut until_deadline => break Err(Status::deadline_exceeded()),
+                    _ = cancelled.wait_for(|v| *v) => break Err(Status::cancelled()),
+                    end = &mut pump, if !half_closed => {
+                        match end {
+                            PumpEnd::Failed(status) => {
+                                failed = true;
+                                break Err(status);
+                            }
+                            PumpEnd::HalfClosed | PumpEnd::Reset => half_closed = true,
+                        }
+                    }
+                    result = &mut fut => break result,
+                }
             }
         };
-        drop(pump);
         if failed
             || matches!(
                 &result,
