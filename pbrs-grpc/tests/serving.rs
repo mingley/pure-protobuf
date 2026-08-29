@@ -1207,3 +1207,69 @@ async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
     );
     drop(listener);
 }
+
+#[tokio::test]
+async fn a_server_timeout_expires_when_the_client_sends_none() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .config(ServerConfig::new().timeout(Duration::from_millis(50)))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_server_timeout_caps_a_longer_client_deadline() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .config(ServerConfig::new().timeout(Duration::from_millis(50)))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_secs(5));
+    let started = Instant::now();
+    let err = client.say_hello(request).await.expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "server cap should win: {:?}",
+        started.elapsed()
+    );
+    task.abort();
+}
+
+#[tokio::test]
+async fn extra_connections_are_refused_when_the_cap_is_hit() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .config(ServerConfig::new().max_concurrent_connections(1))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let first = channel(addr).await;
+    let err = Channel::connect_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_millis(300)),
+    )
+    .await
+    .expect_err("second connection should be refused");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(first);
+    let _ = channel(addr).await;
+    task.abort();
+}

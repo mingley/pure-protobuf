@@ -27,6 +27,7 @@
 
 use pbrs_grpc::{Channel, Code, Request, Response, Status, Streaming};
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 
@@ -423,4 +424,29 @@ impl pbrs_grpc::Greeter for EchoGreeter {
     ) -> Result<Response<Streaming<pbrs_grpc::HelloReply>>, Status> {
         Err(Status::unimplemented("codegen test"))
     }
+}
+
+#[test]
+fn generated_server_shares_an_arc_and_unwraps_it() {
+    let inner = Arc::new(MemStore);
+    let server = StoreServer::from_arc(Arc::clone(&inner));
+    assert!(format!("{server:?}").contains("kv.Store"), "{server:?}");
+    assert!(Arc::ptr_eq(&server.into_inner(), &inner));
+}
+
+#[test]
+fn generated_server_into_router_keeps_the_name() {
+    let names: Vec<_> = StoreServer::new(MemStore)
+        .into_router()
+        .service_names()
+        .collect();
+    assert_eq!(names, ["kv.Store"]);
+}
+
+#[test]
+fn generated_client_debug_and_into_inner() {
+    let channel = Channel::connect_lazy("127.0.0.1:1").expect("lazy");
+    let client = StoreClient::new(channel);
+    assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
+    let _ = client.into_inner();
 }

@@ -110,6 +110,16 @@ pub(crate) fn timeout_from_headers(headers: &HeaderMap) -> Option<Duration> {
         .and_then(crate::timeout::parse_timeout)
 }
 
+/// The deadline the handler actually runs under: the sooner of the client's
+/// `grpc-timeout` and the server's configured cap.
+pub(crate) fn effective_timeout(headers: &HeaderMap, server: Option<Duration>) -> Option<Duration> {
+    match (timeout_from_headers(headers), server) {
+        (Some(peer), Some(cap)) => Some(peer.min(cap)),
+        (Some(peer), None) => Some(peer),
+        (None, cap) => cap,
+    }
+}
+
 /// Serialize straight into the framed buffer: one allocation, no intermediate
 /// `Vec`, and the length prefix is known before encoding starts.
 fn frame_from_msg<T: Serialize>(msg: &T, len: usize) -> Result<Bytes, Status> {
@@ -831,7 +841,7 @@ fn percent_decode(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{grpc_request, percent_decode, percent_encode, FrameReader};
+    use super::{effective_timeout, grpc_request, percent_decode, percent_encode, FrameReader};
     use crate::codec;
     use crate::gzip;
     use crate::limits::MessageLimits;
@@ -851,6 +861,28 @@ mod tests {
                 .and_then(|v| v.to_str().ok()),
             Some("pbrs-grpc/0.1.0")
         );
+    }
+
+    #[test]
+    fn effective_timeout_picks_the_sooner_deadline() {
+        use http::{HeaderMap, HeaderValue};
+        use std::time::Duration;
+
+        let mut headers = HeaderMap::new();
+        headers.insert("grpc-timeout", HeaderValue::from_static("10S"));
+        assert_eq!(
+            effective_timeout(&headers, Some(Duration::from_secs(3))),
+            Some(Duration::from_secs(3))
+        );
+        assert_eq!(
+            effective_timeout(&headers, Some(Duration::from_secs(30))),
+            Some(Duration::from_secs(10))
+        );
+        assert_eq!(
+            effective_timeout(&HeaderMap::new(), Some(Duration::from_secs(5))),
+            Some(Duration::from_secs(5))
+        );
+        assert_eq!(effective_timeout(&HeaderMap::new(), None), None);
     }
 
     #[test]

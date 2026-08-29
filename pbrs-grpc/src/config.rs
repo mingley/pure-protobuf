@@ -80,6 +80,8 @@ pub struct ServerConfig {
     max_connection_age: Option<Duration>,
     max_connection_idle: Option<Duration>,
     max_connection_age_grace: Duration,
+    timeout: Option<Duration>,
+    max_concurrent_connections: Option<usize>,
 }
 
 impl Default for ServerConfig {
@@ -98,6 +100,8 @@ impl Default for ServerConfig {
             max_connection_age: None,
             max_connection_idle: None,
             max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
+            timeout: None,
+            max_concurrent_connections: None,
         }
     }
 }
@@ -233,6 +237,27 @@ impl ServerConfig {
         self
     }
 
+    /// Cap every RPC to this duration even when the client omits `grpc-timeout`.
+    ///
+    /// The effective deadline is the minimum of this and the client's, when
+    /// both are set. Disabled by default. Values below 1 ms are raised to 1 ms.
+    #[must_use]
+    pub fn timeout(mut self, timeout: Duration) -> Self {
+        self.timeout = Some(timeout.max(Duration::from_millis(1)));
+        self
+    }
+
+    /// Cap how many TCP/Unix connections the accept loop will serve at once.
+    ///
+    /// Further accepts are dropped immediately (the peer sees a reset), so an
+    /// accept storm cannot pin an unbounded number of handshake tasks.
+    /// Disabled by default.
+    #[must_use]
+    pub fn max_concurrent_connections(mut self, n: usize) -> Self {
+        self.max_concurrent_connections = Some(n);
+        self
+    }
+
     /// Configured message caps.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -243,6 +268,19 @@ impl ServerConfig {
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
+    }
+
+    /// Configured per-RPC timeout, if any. See [`Self::timeout`].
+    #[must_use]
+    pub fn rpc_timeout(self) -> Option<Duration> {
+        self.timeout
+    }
+
+    /// Configured accept-loop connection cap, if any.
+    /// See [`Self::max_concurrent_connections`].
+    #[must_use]
+    pub fn connection_limit(self) -> Option<usize> {
+        self.max_concurrent_connections
     }
 
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
@@ -540,6 +578,17 @@ mod tests {
         let config = ServerConfig::new();
         assert_eq!(config.limits().max_decoding(), Some(4 * 1024 * 1024));
         assert_eq!(config.send_buffer_size(), 1024 * 1024);
+        assert_eq!(config.rpc_timeout(), None);
+        assert_eq!(config.connection_limit(), None);
+    }
+
+    #[test]
+    fn server_timeout_and_connection_cap_round_trip() {
+        let config = ServerConfig::new()
+            .timeout(Duration::from_millis(0))
+            .max_concurrent_connections(4);
+        assert_eq!(config.rpc_timeout(), Some(Duration::from_millis(1)));
+        assert_eq!(config.connection_limit(), Some(4));
     }
 
     #[test]

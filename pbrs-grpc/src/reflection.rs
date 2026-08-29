@@ -27,6 +27,7 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use pbrs::DescriptorPool;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::sync::Arc;
 
 /// Builds a [`ServerReflection`] service from encoded `FileDescriptorSet`s.
@@ -36,6 +37,14 @@ use std::sync::Arc;
 #[derive(Clone, Default)]
 pub struct Builder {
     sets: Vec<Vec<u8>>,
+}
+
+impl fmt::Debug for Builder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Builder")
+            .field("sets", &self.sets.len())
+            .finish()
+    }
 }
 
 impl Builder {
@@ -68,6 +77,15 @@ impl Builder {
 #[derive(Clone)]
 pub struct Reflection {
     inner: Arc<Registry>,
+}
+
+impl fmt::Debug for Reflection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Reflection")
+            .field("services", &self.inner.services.len())
+            .field("files", &self.inner.files.len())
+            .finish()
+    }
 }
 
 struct FileEnt {

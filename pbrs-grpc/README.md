@@ -6,11 +6,12 @@ no C or C++ compiled into the build, no tonic. TLS uses rustls with Graviola
 
 ```toml
 [dependencies]
-pbrs = "0.1"
-pbrs-grpc = "0.1"
+# until these crates are on crates.io:
+pbrs = { git = "https://github.com/mingley/pure-protobuf" }
+pbrs-grpc = { git = "https://github.com/mingley/pure-protobuf" }
 
 [build-dependencies]
-pbrs = "0.1"
+pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 ```
 
 ```rust

@@ -48,13 +48,14 @@ Add the dependencies and a build script:
 
 ```toml
 # Cargo.toml
+# until these crates are on crates.io:
 [dependencies]
-pbrs = "0.1"
-pbrs-grpc = "0.1"
+pbrs = { git = "https://github.com/mingley/pure-protobuf" }
+pbrs-grpc = { git = "https://github.com/mingley/pure-protobuf" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 [build-dependencies]
-pbrs = "0.1"
+pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 ```
 
 ```rust
@@ -358,8 +359,10 @@ match client.say_hello(req).await {
 }
 ```
 
-On the server, `request.timeout()` reports what the caller asked for, which is
-what you want when deciding whether to start expensive work.
+On the server, `request.timeout()` reports the effective deadline: the minimum
+of the client's `grpc-timeout` and [`ServerConfig::timeout`], when the server
+sets one. A client that omits `grpc-timeout` can otherwise pin a handler
+forever; the server cap closes that hole.
 
 To cancel from elsewhere, take a handle before awaiting:
 
@@ -657,6 +660,8 @@ guards is committed.
 | Reserved metadata injection | `grpc-status`, `grpc-status-details-bin`, and friends are never read from or written to user metadata | always |
 | Long-lived connection hold | `GOAWAY` after age or idle, then force-close; PINGs do not reset idle | opt-in |
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
+| Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
+| Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
@@ -855,8 +860,9 @@ async fn greets() {
 }
 ```
 
-`Request`, `Response`, `Status`, `Streaming`, and `Rpc` all implement `Debug`,
-so `expect_err` and assertion failures print something useful.
+`Request`, `Response`, `Status`, `Streaming`, `Rpc`, `Channel`, `Outgoing`,
+and `Intercepted` all implement `Debug`, so `expect_err` and assertion
+failures print something useful. Generated `FooServer` / `FooClient` do too.
 
 For interop against other implementations, the crate ships the official
 `grpc.testing.TestService` and its test cases. `scripts/grpc-interop.sh` runs
@@ -961,6 +967,9 @@ Deliberate omissions, with what to do instead.
 | Retries and hedging | Retry at the call site; `Code::Unavailable` and `Code::DeadlineExceeded` are the retryable ones. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
+| grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
+| GCP-auth and ORCA | Out of scope. |
+| crates.io publish | Path or git dependency until a registry version exists. `pbrs-grpc` has `publish = false`. |
 
 `pbrs` does not depend on this crate, and this crate does not depend on tonic
 or `protobuf-tonic`. Use one, the other, or neither.

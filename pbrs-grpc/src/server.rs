@@ -13,9 +13,9 @@ use crate::status::{Code, Status};
 use crate::stream::Streaming;
 use crate::tls::ServerTls;
 use crate::wire::{
-    check_request, encode_msg, grpc_trailers, let_producer_catch_up, read_one_message, reject,
-    send_bytes, send_ok_headers, send_trailers_only, timeout_from_headers, wrap_timeout, OutBatch,
-    WireStream,
+    check_request, effective_timeout, encode_msg, grpc_trailers, let_producer_catch_up,
+    read_one_message, reject, send_bytes, send_ok_headers, send_trailers_only, wrap_timeout,
+    OutBatch, WireStream,
 };
 use bytes::Bytes;
 use h2::RecvStream;
@@ -30,7 +30,7 @@ use std::task::Poll;
 use tokio::net::TcpListener;
 #[cfg(unix)]
 use tokio::net::UnixListener;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, watch, Semaphore};
 
 /// A gRPC service that can be served.
 ///
@@ -338,7 +338,7 @@ impl Rpc {
             reject(&mut respond, status);
             return None;
         }
-        let timeout = timeout_from_headers(request.headers());
+        let timeout = effective_timeout(request.headers(), config.rpc_timeout());
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let (parts, mut recv) = request.into_parts();
         let outcome = wrap_timeout(timeout, async {
@@ -381,7 +381,7 @@ impl Rpc {
             reject(&mut respond, status);
             return None;
         }
-        let timeout = timeout_from_headers(request.headers());
+        let timeout = effective_timeout(request.headers(), config.rpc_timeout());
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
         let (parts, recv) = request.into_parts();
         // Decoded on the handler's task: no pump task, no queue, and reading
@@ -570,6 +570,21 @@ impl<S: Service> std::fmt::Debug for Server<S> {
 }
 
 impl<S: Service> Server<S> {
+    /// Wrap an existing `Arc` without adding another layer.
+    #[must_use]
+    pub fn from_arc(service: Arc<S>) -> Self {
+        Self {
+            service,
+            config: ServerConfig::default(),
+        }
+    }
+
+    /// Take the inner `Arc` back.
+    #[must_use]
+    pub fn into_inner(self) -> Arc<S> {
+        self.service
+    }
+
     /// Serve `service` with default configuration.
     #[must_use]
     pub fn new(service: S) -> Self {
@@ -907,6 +922,23 @@ fn bind_unix(path: impl AsRef<std::path::Path>) -> Result<UnixListener, Status> 
     UnixListener::bind(path.as_ref()).map_err(|e| Status::unavailable(e.to_string()))
 }
 
+fn connection_slots(config: ServerConfig) -> Option<Arc<Semaphore>> {
+    config
+        .connection_limit()
+        .map(|n| Arc::new(Semaphore::new(n)))
+}
+
+/// `None` means refuse this peer. `Some(None)` means unlimited. `Some(Some(p))`
+/// is a live slot held until the connection task drops it.
+fn take_connection_slot(
+    slots: &Option<Arc<Semaphore>>,
+) -> Option<Option<tokio::sync::OwnedSemaphorePermit>> {
+    match slots {
+        None => Some(None),
+        Some(sem) => sem.clone().try_acquire_owned().ok().map(Some),
+    }
+}
+
 /// Accept connections until `shutdown` resolves, then drain in-flight work.
 async fn accept_loop<D: Dispatch>(
     dispatch: Arc<D>,
@@ -919,6 +951,7 @@ async fn accept_loop<D: Dispatch>(
     // task has finished.
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
     let (goaway_tx, goaway_rx) = watch::channel(false);
+    let slots = connection_slots(config);
     let shutdown = std::pin::pin!(shutdown);
     let mut shutdown = Some(shutdown);
     let mut result = Ok(());
@@ -946,6 +979,10 @@ async fn accept_loop<D: Dispatch>(
         };
         match accepted {
             Ok((tcp, peer)) => {
+                let Some(permit) = take_connection_slot(&slots) else {
+                    drop(tcp);
+                    continue;
+                };
                 let dispatch = Arc::clone(&dispatch);
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
@@ -964,6 +1001,7 @@ async fn accept_loop<D: Dispatch>(
                             }
                         }
                     }
+                    drop(permit);
                     drop(drain);
                 }));
             }
@@ -992,6 +1030,7 @@ async fn accept_unix_loop<D: Dispatch>(
 ) -> Result<(), Status> {
     let (drain_tx, mut drain_rx) = mpsc::channel::<()>(1);
     let (goaway_tx, goaway_rx) = watch::channel(false);
+    let slots = connection_slots(config);
     let shutdown = std::pin::pin!(shutdown);
     let mut shutdown = Some(shutdown);
     let mut result = Ok(());
@@ -1019,11 +1058,16 @@ async fn accept_unix_loop<D: Dispatch>(
         };
         match accepted {
             Ok((io, _peer)) => {
+                let Some(permit) = take_connection_slot(&slots) else {
+                    drop(io);
+                    continue;
+                };
                 let dispatch = Arc::clone(&dispatch);
                 let goaway = goaway_rx.clone();
                 let drain = drain_tx.clone();
                 drop(tokio::spawn(async move {
                     serve_io(dispatch, io, None, config, goaway).await;
+                    drop(permit);
                     drop(drain);
                 }));
             }

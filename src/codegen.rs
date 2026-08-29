@@ -3917,6 +3917,44 @@ fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(src, "}}");
 
+    let _ = writeln!(src, "impl<T> {server}<T> {{");
+    let _ = writeln!(
+        src,
+        "    /// Wrap an existing `Arc` without adding another layer."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn from_arc(inner: ::std::sync::Arc<T>) -> Self {{"
+    );
+    let _ = writeln!(src, "        Self {{");
+    let _ = writeln!(src, "            inner,");
+    let _ = writeln!(
+        src,
+        "            config: <{G}::ServerConfig as ::core::default::Default>::default(),"
+    );
+    let _ = writeln!(src, "        }}");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(src, "    /// Take the inner `Arc` back.");
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn into_inner(self) -> ::std::sync::Arc<T> {{ self.inner }}"
+    );
+    let _ = writeln!(src, "}}");
+
+    let _ = writeln!(src, "impl<T> ::core::fmt::Debug for {server}<T> {{");
+    let _ = writeln!(
+        src,
+        "    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {{"
+    );
+    let _ = writeln!(
+        src,
+        "        f.debug_struct(\"{server}\").field(\"service\", &\"{full_name}\").field(\"config\", &self.config).finish()"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(src, "}}");
+
     let _ = writeln!(src, "impl<T: {trait_name}> {server}<T> {{");
     let _ = writeln!(src, "    /// Fully qualified proto service name.");
     let _ = writeln!(src, "    pub const NAME: &'static str = \"{full_name}\";");
@@ -3980,6 +4018,15 @@ fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    pub fn add_service<S: {G}::Service>(self, service: S) -> {G}::Router {{ self.into_server().add_service(service) }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Move this service into a [`{G}::Router`], keeping the configuration."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn into_router(self) -> {G}::Router {{ self.into_server().into_router() }}"
     );
     let _ = writeln!(
         src,
@@ -4092,6 +4139,17 @@ fn emit_kernel_client(
     let _ = writeln!(src, "pub struct {client} {{");
     let _ = writeln!(src, "    channel: {G}::Channel,");
     let _ = writeln!(src, "}}");
+    let _ = writeln!(src, "impl ::core::fmt::Debug for {client} {{");
+    let _ = writeln!(
+        src,
+        "    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {{"
+    );
+    let _ = writeln!(
+        src,
+        "        f.debug_struct(\"{client}\").field(\"channel\", &self.channel).finish()"
+    );
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(src, "}}");
     let _ = writeln!(src, "impl {client} {{");
     let _ = writeln!(src, "    /// Fully qualified proto service name.");
     let _ = writeln!(src, "    pub const NAME: &'static str = \"{full_name}\";");
@@ -4100,6 +4158,12 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    pub fn new(channel: {G}::Channel) -> Self {{ Self {{ channel }} }}"
+    );
+    let _ = writeln!(src, "    /// Take the channel back.");
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn into_inner(self) -> {G}::Channel {{ self.channel }}"
     );
     let _ = writeln!(
         src,

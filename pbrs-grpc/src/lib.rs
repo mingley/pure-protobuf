@@ -134,9 +134,8 @@
 //!
 //! # Safety
 //!
-//! The crate forbids `unsafe` outright, so no invariant here is upheld by
-//! convention. What remains is resource safety against a peer that is trying
-//! to hurt you.
+//! The crate forbids `unsafe` in every hand-written module. What remains is
+//! resource safety against a peer that is trying to hurt you.
 //!
 //! ## Threat model
 //!
@@ -158,6 +157,8 @@
 //! | Impersonation | WebPKI roots or a CA you pin; mTLS via [`ServerTls::mtls`] | opt-in |
 //! | Long-lived connection hold | GOAWAY after age or idle, then force-close; keepalive PINGs do not reset idle | opt-in [`ServerConfig::max_connection_age`] / [`ServerConfig::max_connection_idle`] |
 //! | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s ([`ChannelConfig::connect_timeout`] / [`ServerConfig::handshake_timeout`]) |
+//! | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in [`ServerConfig::max_concurrent_connections`] |
+//! | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in [`ServerConfig::timeout`] |
 //!
 //! h2c (cleartext prior-knowledge HTTP/2) remains the default, because that is
 //! what a loopback test and a mesh sidecar speak. Production that is not

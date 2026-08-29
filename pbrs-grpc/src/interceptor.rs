@@ -3,6 +3,7 @@
 
 use crate::server::{Rpc, Service};
 use crate::status::Status;
+use std::fmt;
 use std::sync::Arc;
 
 /// Inspect an inbound RPC before the handler runs.
@@ -68,6 +69,14 @@ impl<S, I> Intercepted<S, I> {
     /// Wrap an existing `Arc` without adding another layer of indirection.
     pub(crate) fn from_arc(inner: Arc<S>, interceptor: I) -> Self {
         Self { inner, interceptor }
+    }
+}
+
+impl<S: Service, I> fmt::Debug for Intercepted<S, I> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Intercepted")
+            .field("service", &S::NAME)
+            .finish_non_exhaustive()
     }
 }
 

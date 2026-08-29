@@ -20,6 +20,7 @@ use crate::request::{Request, Response};
 use crate::status::Status;
 use crate::stream::Streaming;
 use std::collections::HashMap;
+use std::fmt;
 use std::sync::Arc;
 use tokio::sync::watch;
 
@@ -30,6 +31,14 @@ type Snapshot = Arc<HashMap<String, ServingStatus>>;
 #[derive(Clone)]
 pub struct HealthReporter {
     tx: watch::Sender<Snapshot>,
+}
+
+impl fmt::Debug for HealthReporter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HealthReporter")
+            .field("services", &self.tx.borrow().len())
+            .finish()
+    }
 }
 
 impl HealthReporter {
@@ -87,6 +96,14 @@ impl HealthReporter {
 #[derive(Clone)]
 pub struct HealthService {
     reporter: HealthReporter,
+}
+
+impl fmt::Debug for HealthService {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HealthService")
+            .field("reporter", &self.reporter)
+            .finish()
+    }
 }
 
 impl Health for HealthService {

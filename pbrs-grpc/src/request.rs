@@ -105,6 +105,13 @@ impl<T> Request<T> {
         }
     }
 
+    /// Replace the message, keeping metadata, deadline, and extensions.
+    #[must_use]
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Request<U> {
+        let (message, parts) = self.into_message_and_parts();
+        Request::<U>::from_message_and_parts(f(message), parts)
+    }
+
     /// Request headers, as gRPC metadata.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
@@ -316,6 +323,17 @@ impl<'a> Outgoing<'a> {
     /// Insert typed values for later interceptors.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         self.extensions
+    }
+}
+
+impl fmt::Debug for Outgoing<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Outgoing")
+            .field("path", &self.path)
+            .field("timeout", &self.timeout)
+            .field("wait_for_ready", &self.wait_for_ready)
+            .field("compress", &self.compress)
+            .finish_non_exhaustive()
     }
 }
 
@@ -613,6 +631,17 @@ mod tests {
         assert!(rebuilt.wait_for_ready());
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(7));
         assert_eq!(rebuilt.into_inner(), "swapped");
+    }
+
+    #[test]
+    fn request_map_keeps_metadata() {
+        let mut req = Request::new(1u32);
+        req.set_timeout(Duration::from_millis(7));
+        req.metadata_mut().insert("k", "v").expect("insert");
+        let mapped = req.map(|n| n + 1);
+        assert_eq!(mapped.timeout(), Some(Duration::from_millis(7)));
+        assert_eq!(mapped.metadata().get("k"), Some("v"));
+        assert_eq!(mapped.into_inner(), 2);
     }
 
     #[test]
