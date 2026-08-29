@@ -97,7 +97,8 @@ end does reset it, including bidi while the send half is still held. A
 `CallHandle` taken before await still cancels that live stream after
 headers, still cancels a bidi call waiting for headers, and still cancels a
 client-streaming call after the sender is closed. A bidi deadline RSTs the
-send half so a Ready `Call` does not park `SendStream`. Spawned handler work
+send half before headers and after a half-close; after server-streaming or
+bidi headers that deadline still RSTs the parked send half. Spawned handler work
 awaiting `Request::cancelled` sees that RST. A [`Call`] is fused after it yields
 `Ready` (`futures_core::future::FusedFuture`). Client-streaming and bidi
 return a `(StreamSender, Call)` pair that is `must_use`: dropping it resets

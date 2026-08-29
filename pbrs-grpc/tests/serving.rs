@@ -4794,6 +4794,41 @@ async fn a_call_handle_cancels_a_live_server_stream_after_headers() {
     task.abort();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_deadline_cancels_a_live_server_stream_after_headers() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_millis(80));
+    let mut stream = client
+        .server_hello(request)
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "0");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait until the deadline"
+    );
+    wait_flag(&left).await;
+    drop(stream);
+    drop(client);
+    task.abort();
+}
+
 /// Echoes one bidi message, then waits until the client leaves.
 struct BidiWaitAfterFirst {
     left: Arc<AtomicUsize>,
@@ -4949,6 +4984,40 @@ async fn a_call_handle_cancels_a_bidi_stream_after_the_sender_closes() {
         "producer must wait until cancel"
     );
     handle.cancel();
+    wait_flag(&left).await;
+    drop(stream);
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_deadline_cancels_a_bidi_stream_after_the_sender_closes() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_millis(80));
+    let (tx, call) = client.stream_hello(request);
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait until the deadline"
+    );
     wait_flag(&left).await;
     drop(stream);
     drop(client);

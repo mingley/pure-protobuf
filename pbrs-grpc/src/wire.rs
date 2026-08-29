@@ -964,15 +964,29 @@ pub(crate) async fn pump_outbound<T: Serialize>(
 /// After a server-streaming request or a bidi sender is half-closed, keep
 /// `send` so a [`crate::CallHandle`] (or dropping the received [`Streaming`]
 /// before the end) can still `RST_STREAM`. RecvStream drop is not a last-ref
-/// reset while this handle lives. Client-streaming keeps the send half on
-/// the Call task instead.
+/// reset while this handle lives. The deadline RSTs too: the [`crate::Call`]
+/// is already Ready, so it will not set `cancel_rx`. Client-streaming keeps
+/// the send half on the Call task instead.
 pub(crate) fn reset_on_cancel(
     mut send: SendStream<Bytes>,
     mut cancel_rx: tokio::sync::watch::Receiver<bool>,
+    deadline: Option<tokio::time::Instant>,
 ) {
     drop(tokio::spawn(async move {
-        if cancel_rx.wait_for(|v| *v).await.is_ok() {
-            send.send_reset(Reason::CANCEL);
+        let until_deadline = async {
+            match deadline {
+                Some(at) => tokio::time::sleep_until(at).await,
+                None => std::future::pending().await,
+            }
+        };
+        tokio::select! {
+            biased;
+            result = cancel_rx.wait_for(|v| *v) => {
+                if result.is_ok() {
+                    send.send_reset(Reason::CANCEL);
+                }
+            }
+            () = until_deadline => send.send_reset(Reason::CANCEL),
         }
     }));
 }

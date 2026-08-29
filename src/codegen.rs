@@ -4918,6 +4918,10 @@ fn emit_kernel_client(
                 src,
                 "    /// A [`{G}::CallHandle`] taken before await still cancels that live stream after headers."
             );
+            let _ = writeln!(
+                src,
+                "    /// Letting the deadline fire after headers RSTs the send half the same way."
+            );
         }
         if m.client_streaming && !m.server_streaming {
             let _ = writeln!(

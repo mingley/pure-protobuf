@@ -786,7 +786,8 @@ impl Channel {
     /// the [`Call`] without awaiting resets the stream, the same as dropping a
     /// unary [`Call`]. A [`crate::CallHandle`] taken before await still cancels
     /// that live stream after headers. Dropping the received [`Streaming`]
-    /// before the end does the same.
+    /// before the end does the same. Letting the deadline fire after headers
+    /// RSTs the send half, matching [`Self::bidi`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -949,9 +950,9 @@ impl Channel {
     /// before await still cancels while waiting for headers, and still
     /// cancels that live stream after headers, including after the sender is
     /// closed. Dropping the received [`Streaming`] before the end does the
-    /// same. Letting the deadline fire RSTs the send half, so a [`Call`]
-    /// that is already Ready with [`crate::Code::DeadlineExceeded`] does not
-    /// leave the stream parked.
+    /// same. Letting the deadline fire RSTs the send half before headers and
+    /// after a half-close, so a Ready [`Call`] does not leave the stream
+    /// parked.
     ///
     /// [`crate::StreamSender::fail`] before headers resolves the [`Call`] with
     /// that status; after headers the reset surfaces on the received
@@ -1505,7 +1506,7 @@ where
     .await?;
     // Half-closed send would otherwise drop here, so RecvStream-last-ref
     // was the only RST after headers and CallHandle was a no-op.
-    reset_on_cancel(send_stream, cancel_rx);
+    reset_on_cancel(send_stream, cancel_rx, deadline);
     Ok(response)
 }
 
@@ -1679,7 +1680,7 @@ where
                     fail_tx.send(status).ok();
                     send.send_reset(Reason::CANCEL);
                 }
-                Some(PumpEnd::HalfClosed) => reset_on_cancel(send, cancel_rx),
+                Some(PumpEnd::HalfClosed) => reset_on_cancel(send, cancel_rx, deadline),
                 Some(PumpEnd::Reset) => {}
             }
         }

@@ -1645,7 +1645,8 @@ impl<T> Call<T> {
     /// sender is closed, it still cancels while the unary response is pending.
     /// Dropping the [`Call`] or letting its deadline fire after that half-close
     /// resets the same way. A bidi deadline RSTs the send half whether or not
-    /// headers have arrived.
+    /// headers have arrived. After server-streaming or bidi headers, that
+    /// deadline still RSTs the parked send half.
     ///
     /// ```no_run
     /// # async fn demo(call: pbrs_grpc::Call<u32>) {
@@ -1711,7 +1712,8 @@ impl<T> fmt::Debug for Call<T> {
 /// client-streaming sender is closed, it still resets while the unary
 /// response is pending. Dropping that [`Call`] or letting its deadline fire
 /// after the half-close resets the same way. A bidi deadline RSTs the send
-/// half whether or not headers have arrived.
+/// half whether or not headers have arrived. After server-streaming or bidi
+/// headers, that deadline still RSTs the parked send half.
 #[derive(Clone, Debug)]
 pub struct CallHandle {
     cancel: watch::Sender<bool>,
