@@ -342,11 +342,13 @@ impl<T> Request<T> {
         path: &'static str,
         authority: &'a str,
         https: bool,
+        user_agent: &'a str,
     ) -> Outgoing<'a> {
         Outgoing {
             path,
             authority,
             scheme: if https { "https" } else { "http" },
+            user_agent,
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -362,9 +364,9 @@ impl<T> Request<T> {
 /// already built it, and object-safe interceptors cannot be generic over it.
 /// Everything else an interceptor typically stamps — metadata, deadline,
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
-/// `:authority` and `:scheme`, which the interceptor cannot otherwise see.
-/// Typed values the caller inserted on [`crate::Request::extensions_mut`]
-/// are on this map.
+/// `:authority`, `:scheme`, and `user-agent`, which the interceptor cannot
+/// otherwise see. Typed values the caller inserted on
+/// [`crate::Request::extensions_mut`] are on this map.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -377,6 +379,8 @@ impl<T> Request<T> {
 ///     call.metadata_mut().insert("x-authority", authority)?;
 ///     let scheme = call.scheme();
 ///     call.metadata_mut().set("x-scheme", scheme)?;
+///     let user_agent = call.user_agent();
+///     call.metadata_mut().set("x-ua", user_agent)?;
 ///     if call.timeout().is_none() {
 ///         call.set_timeout(Duration::from_secs(5));
 ///     }
@@ -388,6 +392,7 @@ pub struct Outgoing<'a> {
     path: &'static str,
     authority: &'a str,
     scheme: &'static str,
+    user_agent: &'a str,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -412,6 +417,17 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn scheme(&self) -> &'static str {
         self.scheme
+    }
+
+    /// The `user-agent` this channel sends, including the kernel suffix.
+    ///
+    /// Same value as [`crate::Channel::grpc_user_agent`]. A prefix set with
+    /// [`crate::Channel::user_agent`] is visible here. Inserting `user-agent`
+    /// into metadata does not change it: that name is reserved, and the
+    /// kernel writes this value after user metadata.
+    #[must_use]
+    pub fn user_agent(&self) -> &'a str {
+        self.user_agent
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`.
@@ -501,6 +517,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("path", &self.path)
             .field("authority", &self.authority)
             .field("scheme", &self.scheme)
+            .field("user_agent", &self.user_agent)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("wait_for_ready", &self.wait_for_ready)
@@ -932,15 +949,16 @@ mod tests {
         req.metadata_mut().insert("x-trace", "abc").expect("insert");
         req.set_timeout(Duration::from_secs(1));
         let shown = {
-            let call = req.outgoing("/svc/Method", "127.0.0.1:1", false);
+            let call = req.outgoing("/svc/Method", "127.0.0.1:1", false, "pbrs-grpc/test");
             format!("{call:?}")
         };
         assert!(shown.contains("/svc/Method"), "{shown}");
         assert!(shown.contains("127.0.0.1:1"), "{shown}");
         assert!(shown.contains("http"), "{shown}");
+        assert!(shown.contains("pbrs-grpc/test"), "{shown}");
         assert!(shown.contains("x-trace"), "{shown}");
         assert!(shown.contains("abc"), "{shown}");
-        let https = req.outgoing("/svc/Method", "127.0.0.1:1", true);
+        let https = req.outgoing("/svc/Method", "127.0.0.1:1", true, "pbrs-grpc/test");
         assert!(format!("{https:?}").contains("https"));
     }
 }

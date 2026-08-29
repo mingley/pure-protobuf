@@ -854,7 +854,9 @@ let channel = Channel::connect(addr).await?.user_agent("inventory/2.1")?;
 // sends: inventory/2.1 pbrs-grpc/0.1.0
 ```
 
-`user-agent` in request metadata cannot replace that value.
+`user-agent` in request metadata cannot replace that value. A client
+interceptor reads the value the kernel will send with `Outgoing::user_agent`. A client
+interceptor reads the value the kernel will send with `Outgoing::user_agent`.
 
 ## Limits and the threat model
 
@@ -1071,9 +1073,11 @@ onion-style.
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs before the stream opens. Closures take `Outgoing`: the method path,
 `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https` when the
-channel was built with `ClientTls`), metadata, deadline, wait-for-ready,
+channel was built with `ClientTls`), `user-agent` (including a
+`Channel::user_agent` prefix), metadata, deadline, wait-for-ready,
 compression, and typed extensions. TCP `:authority` is `host:port`; Unix is
-`localhost`.
+`localhost`. Inserting `user-agent` into metadata does not change the
+header: that name is reserved.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor. Calling `intercept` twice stacks — the first interceptor runs
@@ -1099,6 +1103,8 @@ let client = GreeterClient::connect(addr).await?
         call.metadata_mut().insert("x-authority", authority)?;
         let scheme = call.scheme();
         call.metadata_mut().set("x-scheme", scheme)?;
+        let user_agent = call.user_agent();
+        call.metadata_mut().set("x-ua", user_agent)?;
         if call.timeout().is_none() {
             call.set_timeout(Duration::from_secs(5));
         }

@@ -1283,6 +1283,46 @@ async fn a_client_interceptor_sees_the_h2c_scheme() {
 }
 
 #[tokio::test]
+async fn a_client_interceptor_sees_the_user_agent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                let ua = rpc.metadata().get("user-agent").unwrap_or("");
+                let stamped = rpc.metadata().get("x-ua").unwrap_or("");
+                if stamped != ua || !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/")
+                {
+                    return Err(Status::internal(format!("ua {ua:?} x-ua {stamped:?}")));
+                }
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        channel(addr)
+            .await
+            .user_agent("inventory/2.1")
+            .expect("user-agent"),
+    )
+    .intercept(|call: &mut Outgoing<'_>| {
+        let ua = call.user_agent();
+        if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+            return Err(Status::internal(format!("user-agent {ua}")));
+        }
+        call.metadata_mut().set("x-ua", ua)?;
+        Ok(())
+    });
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("rpc");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    task.abort();
+}
+
+#[tokio::test]
 async fn client_interceptors_stack_and_share_extensions() {
     #[derive(Clone, Copy)]
     struct Trace(&'static str);
