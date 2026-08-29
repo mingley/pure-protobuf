@@ -260,8 +260,9 @@ let local = request.local_addr();
 `get` / `get_bin` return the first value. `insert` / `insert_bin` append, so a
 peer that sends two `x-forwarded-for` entries (or an interceptor that adds a
 second) is visible with `get_all` / `get_all_bin`. `contains` / `contains_bin`
-match `get`. Reserved protocol keys (`grpc-*`, `content-type`, ...) are
-invisible on every read path.
+match `get`. `keys` lists unique ASCII and `-bin` names in first-insertion
+order, still skipping reserved names. Reserved protocol keys (`grpc-*`,
+`content-type`, ...) are invisible on every read path.
 
 Reading it costs nothing until you read it: `Metadata` wraps the received
 header map rather than copying every entry into owned strings.
@@ -995,6 +996,9 @@ injected keys and without stripped ones. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::effective_timeout` is the soonest of that, the server
 cap, and `set_timeout`. An interceptor can only tighten the deadline, not
 extend it. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
+`Rpc::scheme` is `http` on h2c and `https` on TLS.
+`Rpc::local_addr` is the TCP interface that accepted the socket; Unix,
+`Incoming`, and `serve_connection` leave it `None`.
 `Rpc::peer_identity` is the mTLS client certificate chain when the handshake
 included one. Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.

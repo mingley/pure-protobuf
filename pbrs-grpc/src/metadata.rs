@@ -25,6 +25,7 @@ use std::fmt;
 /// assert_eq!(md.get_all("x-request-id").collect::<Vec<_>>(), vec!["abc123"]);
 /// assert_eq!(md.get_bin("x-trace-bin").as_deref(), Some(&[0xde, 0xad][..]));
 /// assert!(md.contains_bin("x-trace-bin"));
+/// assert_eq!(md.keys().collect::<Vec<_>>(), vec!["x-request-id", "x-trace-bin"]);
 /// assert!(md.insert("bad-bin", "not base64").is_err());
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
@@ -216,6 +217,22 @@ impl Metadata {
     #[must_use]
     pub fn contains_bin(&self, key: &str) -> bool {
         self.get_bin(key).is_some()
+    }
+
+    /// Unique non-reserved keys, ASCII and `-bin`, in first-insertion order.
+    ///
+    /// Repeats of the same key appear once; use [`Self::get_all`] /
+    /// [`Self::get_all_bin`] for the values. Reserved protocol names are
+    /// omitted, matching every other read path.
+    pub fn keys(&self) -> impl Iterator<Item = &str> + '_ {
+        self.map.keys().filter_map(|name| {
+            let key = name.as_str();
+            if is_reserved(key) {
+                None
+            } else {
+                Some(key)
+            }
+        })
     }
 
     /// Every ASCII entry, skipping reserved and `-bin` keys.
@@ -450,6 +467,35 @@ mod tests {
         assert!(md.insert_bin("grpc-status-details-bin", [1u8]).is_err());
         assert!(md.insert_bin("grpc-retry-pushback-ms", [1u8]).is_err());
         assert!(md.is_empty());
+    }
+
+    #[test]
+    fn keys_lists_unique_user_names() {
+        let mut md = Metadata::new();
+        md.insert("x-tenant", "acme").expect("ascii");
+        md.insert("x-tenant", "other").expect("repeat");
+        md.insert_bin("x-trace-bin", [1u8]).expect("bin");
+        assert_eq!(
+            md.keys().collect::<Vec<_>>(),
+            vec!["x-tenant", "x-trace-bin"]
+        );
+
+        let mut raw = HeaderMap::new();
+        raw.insert(
+            HeaderName::from_static("grpc-status"),
+            HeaderValue::from_static("0"),
+        );
+        raw.insert(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_static("application/grpc"),
+        );
+        raw.insert(
+            HeaderName::from_static("x-real"),
+            HeaderValue::from_static("v"),
+        );
+        let md = Metadata::from_headers(&raw);
+        assert_eq!(md.keys().collect::<Vec<_>>(), vec!["x-real"]);
+        assert!(Metadata::new().keys().next().is_none());
     }
 
     #[test]
