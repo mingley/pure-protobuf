@@ -42,6 +42,8 @@ and `Parts` (the peer's `:scheme` / `:authority` still apply, including
 after `https_scheme`). `Server::max_connection_age` / `max_connection_idle`
 send GOAWAY; the next RPC of every call shape redials, including over TLS,
 mTLS, and Unix. `from_io` cannot redial.
+`Server::max_concurrent_connections` caps the accept loop on TCP, TLS, mTLS,
+and Unix; a second dial is `UNAVAILABLE` while the cap is full.
 
 ### Dispatch
 

@@ -1163,7 +1163,10 @@ guards is committed.
 
 `max_concurrent_rpcs` is a process-wide handler budget, distinct from HTTP/2
 `max_concurrent_streams` (per connection) and `max_concurrent_connections`
-(accept-loop sockets).
+(accept-loop sockets, including TLS, mTLS, and Unix; `from_io` is one duplex
+and is not an accept loop). A second TCP, TLS, mTLS, or Unix dial is
+`UNAVAILABLE` while the cap is full; dropping a live connection lets the next
+dial in, and every Greeter call shape still serves.
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service

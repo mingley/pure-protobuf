@@ -3652,6 +3652,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated max_concurrent_rpcs rustdoc must name every call shape"
     );
     assert!(
+        src.contains(
+            "Cap how many TCP/Unix connections the accept loop will serve at once, including TLS and mTLS listeners. Applies to every call shape."
+        ),
+        "generated max_concurrent_connections rustdoc must name TLS and mTLS"
+    );
+    assert!(
         src.contains("Concurrent RPCs allowed per HTTP/2 connection. Applies to every call shape."),
         "generated max_concurrent_streams rustdoc must name every call shape"
     );

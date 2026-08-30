@@ -4080,7 +4080,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Cap how many TCP/Unix connections the accept loop will serve at once. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_connections`]."
+        "    /// Cap how many TCP/Unix connections the accept loop will serve at once, including TLS and mTLS listeners. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_connections`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

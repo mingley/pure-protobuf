@@ -335,8 +335,8 @@ impl ServerConfig {
         self
     }
 
-    /// Cap how many TCP/Unix connections the accept loop will serve at once.
-    /// Applies to every call shape.
+    /// Cap how many TCP/Unix connections the accept loop will serve at once,
+    /// including TLS and mTLS listeners. Applies to every call shape.
     ///
     /// Further accepts are dropped immediately (the peer sees a reset), so an
     /// accept storm cannot pin an unbounded number of handshake tasks.

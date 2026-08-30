@@ -1336,8 +1336,9 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// Cap how many TCP/Unix connections the accept loop will serve at once.
-    /// Applies to every call shape. See [`ServerConfig::max_concurrent_connections`].
+    /// Cap how many TCP/Unix connections the accept loop will serve at once,
+    /// including TLS and mTLS listeners. Applies to every call shape. See
+    /// [`ServerConfig::max_concurrent_connections`].
     #[must_use]
     pub fn max_concurrent_connections(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_connections(n);
@@ -1891,8 +1892,9 @@ impl Router {
         self
     }
 
-    /// Cap how many TCP/Unix connections the accept loop will serve at once.
-    /// Applies to every call shape. See [`ServerConfig::max_concurrent_connections`].
+    /// Cap how many TCP/Unix connections the accept loop will serve at once,
+    /// including TLS and mTLS listeners. Applies to every call shape. See
+    /// [`ServerConfig::max_concurrent_connections`].
     #[must_use]
     pub fn max_concurrent_connections(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_connections(n);
