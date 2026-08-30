@@ -1276,6 +1276,118 @@ async fn a_reflection_unix_client_interceptor_can_opt_out_of_channel_wait_for_re
     let _ = std::fs::remove_file(&path);
 }
 
+fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if call.rpc_timeout() != Some(Duration::from_secs(5)) {
+        return Err(Status::internal(format!(
+            "rpc_timeout {:?}",
+            call.rpc_timeout()
+        )));
+    }
+    if !call.waits_for_ready() {
+        return Err(Status::internal("waits_for_ready overlay"));
+    }
+    if !call.compresses_outbound() {
+        return Err(Status::internal("compresses_outbound overlay"));
+    }
+    if call.timeout() != Some(Duration::from_secs(5)) {
+        return Err(Status::internal(format!("timeout {:?}", call.timeout())));
+    }
+    if !call.wait_for_ready_is_set() || !call.wait_for_ready() {
+        return Err(Status::internal("wait-for-ready not filled"));
+    }
+    if !call.compress_is_set() || !call.compress() {
+        return Err(Status::internal("compress not filled"));
+    }
+    call.clear_timeout();
+    call.clear_wait_for_ready();
+    call.clear_compress();
+    if call.rpc_timeout() != Some(Duration::from_secs(5))
+        || !call.waits_for_ready()
+        || !call.compresses_outbound()
+    {
+        return Err(Status::internal("overlays vanished after clear"));
+    }
+    Ok(())
+}
+
+fn overlay_after_clear_reflection(client: ServerReflectionClient) -> ServerReflectionClient {
+    client
+        .timeout(Duration::from_secs(5))
+        .wait_for_ready()
+        .send_compressed()
+        .intercept(overlays_survive_clear)
+}
+
+async fn assert_cleared_wait_fails_fast_reflection(client: &ServerReflectionClient) {
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_reflection_unavailable(client),
+    )
+    .await
+    .expect("cleared wait-for-ready hung");
+}
+
+#[tokio::test]
+async fn a_reflection_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client =
+        overlay_after_clear_reflection(ServerReflectionClient::connect_lazy(addr).expect("lazy"));
+    assert_cleared_wait_fails_fast_reflection(&client).await;
+}
+
+#[tokio::test]
+async fn a_reflection_tls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = overlay_after_clear_reflection(
+        ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy"),
+    );
+    assert_cleared_wait_fails_fast_reflection(&client).await;
+}
+
+#[tokio::test]
+async fn a_reflection_mtls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind_reflection().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = overlay_after_clear_reflection(
+        ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy"),
+    );
+    assert_cleared_wait_fails_fast_reflection(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reflection_unix_client_interceptor_sees_channel_overlays_after_clear() {
+    let path = unix_sock("reflect-overlay-clear");
+    let client = overlay_after_clear_reflection(
+        ServerReflectionClient::connect_unix_lazy(&path).expect("lazy"),
+    );
+    assert_cleared_wait_fails_fast_reflection(&client).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_reflection_from_io_client_interceptor_sees_channel_overlays_after_clear() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection.serve_connection(server_io).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = overlay_after_clear_reflection(
+        ServerReflectionClient::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    echo_reflection_list(&client).await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind_reflection().await;
