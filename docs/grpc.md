@@ -1628,7 +1628,7 @@ acceptor when the server must not trust the peer's `:scheme`.
 `Call`, and `Intercepted` all implement `Debug`, so `expect_err` and assertion
 failures print something useful. Generated `FooServer` / `FooClient` do too.
 A `Call` is fused after it resolves (`FusedFuture`), distinct from
-`is_cancelled`.
+`is_cancelled`. A finished `Streaming` is fused after end-of-stream or error (`FusedStream`).
 
 For interop against other implementations, the crate ships the official
 `grpc.testing.TestService` and its test cases. `scripts/grpc-interop.sh` runs
@@ -1817,7 +1817,6 @@ Deliberate omissions, with what to do instead.
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
 | GCP-auth and ORCA | Out of scope. |
-| `FusedStream` on `Streaming` | A `Call` is fused after it resolves. A finished stream yields `None`; wrap it if a combinator needs `FusedStream`. |
 | `from_io` TLS handshake | `connect_tls` / `serve_tls`. `from_io` is already-connected bytes; `https_scheme` labels an encrypted stream. |
 | `Status` as `std::error::Error` source | `Status` is the error. There is no `Error::source` chain. |
 | `Outgoing::set_user_agent` | Prefix with `Channel::user_agent`. Interceptors read `Outgoing::user_agent`. |

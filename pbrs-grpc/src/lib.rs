@@ -108,7 +108,7 @@
 //! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Parts`], [`Response`], [`ResponseParts`], [`Metadata`], [`Status`], [`Code`], [`ParseCodeError`], [`Any`] |
 //! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`Status::set_rpc`], [`pb::bad_request`] |
-//! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`] |
+//! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`], [`FusedStream`] |
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
 //!
@@ -300,6 +300,9 @@ pub use config::{
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by
 /// combinators that honour termination.
 pub use futures_core::future::FusedFuture;
+/// `futures_core::stream::FusedStream`, so a finished [`Streaming`] is skipped by
+/// combinators that honour termination.
+pub use futures_core::stream::FusedStream;
 /// `futures_core::Stream`, so [`Streaming`] can be driven with `StreamExt`.
 pub use futures_core::Stream;
 /// Per-RPC typed bag: insert in an interceptor, read in the handler.

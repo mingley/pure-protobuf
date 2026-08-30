@@ -25,9 +25,9 @@ mod common;
 use common::{name_of, name_of_request, req, serve_at, spawn_greeter, until_ok, Echo};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
-    Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, Identity, Incoming,
-    InteropTestService, MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity, Request,
-    Response, ResponseParameters, Router, Rpc, Server, ServerConfig, ServerTls, Service,
+    Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, FusedStream, Identity,
+    Incoming, InteropTestService, MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity,
+    Request, Response, ResponseParameters, Router, Rpc, Server, ServerConfig, ServerTls, Service,
     ServiceExt, SimpleRequest, SimpleResponse, Status, StreamingInputCallRequest,
     StreamingInputCallResponse, StreamingOutputCallRequest, StreamingOutputCallResponse,
     TestService, TestServiceClient, TestServiceServer,
@@ -630,6 +630,14 @@ fn channel_call_apis_document_hand_written_services() {
             "dropping the client after headers still lets you read to the end,\n/// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
         ),
         "Streaming rustdoc must name drop-Channel live stream on every transport"
+    );
+    assert!(
+        stream.contains("(`futures_core::stream::FusedStream`): combinators that skip terminated"),
+        "Streaming rustdoc must name FusedStream after end-of-stream or error"
+    );
+    assert!(
+        stream.contains("A subsequent [`Self::message`] is `Ok(None)`"),
+        "Streaming rustdoc must name fused subsequent message as Ok(None)"
     );
     assert!(
         stream.contains(
@@ -1241,6 +1249,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         crate_src.contains("does not take the accept loop down."),
         "crate docs must Distinct unfinished HEADERS from taking the accept loop down"
     );
+    assert!(
+        crate_src.contains("so a finished [`Streaming`] is skipped by"),
+        "crate docs must re-export FusedStream for a finished Streaming"
+    );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
@@ -1259,6 +1271,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("does not take the accept loop down."),
         "guide must Distinct unfinished HEADERS from taking the accept loop down"
+    );
+    assert!(
+        guide.contains("A finished `Streaming` is fused after end-of-stream or error"),
+        "guide must name Streaming FusedStream after end-of-stream or error"
+    );
+    assert!(
+        !guide.contains("wrap it if a combinator needs `FusedStream`"),
+        "guide must not list FusedStream as an omission"
     );
     assert!(
         guide
@@ -16760,6 +16780,10 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
     assert!(stream.message().await.expect("end").is_none());
+    assert!(
+        stream.is_terminated(),
+        "server-stream fused after end-of-stream"
+    );
 
     let (tx, call) = client.client_hello(stamp_timeout(Request::new(()), timeout));
     tx.send(req("ada")).await.expect("send");
@@ -16778,6 +16802,10 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
     assert!(inbound.message().await.expect("end").is_none());
+    assert!(
+        inbound.is_terminated(),
+        "bidi inbound fused after end-of-stream"
+    );
 }
 
 async fn echo_test_every_shape(client: &TestServiceClient) {
@@ -16795,6 +16823,10 @@ async fn echo_test_every_shape(client: &TestServiceClient) {
         stream.message().await.expect("end").is_none(),
         "empty StreamingOutputCall plan must end"
     );
+    assert!(
+        stream.is_terminated(),
+        "StreamingOutputCall fused after end-of-stream"
+    );
 
     let (tx, call) = client.streaming_input_call(Request::new(()));
     tx.close();
@@ -16806,6 +16838,10 @@ async fn echo_test_every_shape(client: &TestServiceClient) {
     assert!(
         inbound.message().await.expect("end").is_none(),
         "empty FullDuplexCall must end"
+    );
+    assert!(
+        inbound.is_terminated(),
+        "FullDuplexCall fused after end-of-stream"
     );
 }
 

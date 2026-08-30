@@ -3711,6 +3711,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "client methods must name fused Call"
     );
     assert!(
+        src.contains("After end-of-stream or error that stream is fused"),
+        "server-streaming and bidi methods must name fused Streaming"
+    );
+    assert!(
         src.contains(
             "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default)"
         ),

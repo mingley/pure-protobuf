@@ -4995,6 +4995,10 @@ fn emit_kernel_client(
             );
             let _ = writeln!(
                 src,
+                "    /// After end-of-stream or error that stream is fused (`{G}::FusedStream`)."
+            );
+            let _ = writeln!(
+                src,
                 "    /// A [`{G}::CallHandle`] taken before await still cancels while waiting for headers, and still cancels that live stream after headers."
             );
             let _ = writeln!(

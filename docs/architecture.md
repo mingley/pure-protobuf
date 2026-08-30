@@ -151,7 +151,9 @@ deadline still RSTs the parked send half. An expired deadline is never a
 clean end of stream (`DEADLINE_EXCEEDED`, not `Ok(None)`), including over
 TLS, mTLS, Unix, and `from_io`. Spawned handler work
 awaiting `Request::cancelled` sees that RST. A [`Call`] is fused after it yields
-`Ready` (`futures_core::future::FusedFuture`). Client-streaming and bidi
+`Ready` (`futures_core::future::FusedFuture`). A finished [`Streaming`] is
+fused after end-of-stream or error (`futures_core::stream::FusedStream`).
+Client-streaming and bidi
 return a `(StreamSender, Call)` pair that is `must_use`: dropping it resets
 the stream.
 

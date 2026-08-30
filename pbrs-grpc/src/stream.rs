@@ -8,6 +8,7 @@
 use crate::limits::MessageLimits;
 use crate::metadata::Metadata;
 use crate::status::Status;
+use futures_core::stream::FusedStream;
 use futures_core::Stream;
 use std::future::poll_fn;
 use std::pin::Pin;
@@ -74,6 +75,14 @@ enum Source<T> {
 /// (`Item = Result<T, Status>`). Both paths are the same poll: there is no
 /// extra buffer and no extra task.
 ///
+/// After [`Self::message`] yields `Ok(None)` or `Err`, or
+/// [`Stream::poll_next`] yields `None` or `Some(Err)`, the stream is terminated
+/// (`futures_core::stream::FusedStream`): combinators that skip terminated
+/// streams will not poll it again. A subsequent [`Self::message`] is `Ok(None)`
+/// and a subsequent [`Stream::poll_next`] is `None`. Distinct from a
+/// [`crate::Call`]: that future fuses after it resolves; this stream fuses
+/// after end-of-stream or error.
+///
 /// A stream received from a [`crate::Channel`] holds the HTTP/2 driver, so
 /// dropping the client after headers still lets you read to the end,
 /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
@@ -108,6 +117,9 @@ pub struct Streaming<T> {
     /// resets the RPC, including bidi while the send half is still held.
     /// `None` on application channels and server-inbound streams.
     reset: Option<watch::Sender<bool>>,
+    /// Set when [`Self::poll_framed`] yields end-of-stream or `Err`, so
+    /// combinators that honour [`FusedStream`] skip further polls.
+    terminated: bool,
 }
 
 impl<T> Streaming<T> {
@@ -154,6 +166,7 @@ impl<T> Streaming<T> {
                 lease: None,
                 driver: None,
                 reset: None,
+                terminated: false,
             },
         )
     }
@@ -171,6 +184,7 @@ impl<T> Streaming<T> {
             lease: None,
             driver: None,
             reset: None,
+            terminated: false,
         }
     }
 
@@ -208,7 +222,10 @@ impl<T> Streaming<T> {
     }
 
     fn poll_framed(&mut self, cx: &mut Context<'_>) -> Poll<Result<Option<Framed<T>>, Status>> {
-        match &mut self.source {
+        if self.terminated {
+            return Poll::Ready(Ok(None));
+        }
+        let poll = match &mut self.source {
             Source::Channel(rx) => match rx.poll_recv(cx) {
                 Poll::Pending => Poll::Pending,
                 Poll::Ready(None) => Poll::Ready(Ok(None)),
@@ -216,7 +233,11 @@ impl<T> Streaming<T> {
                 Poll::Ready(Some(Err(status))) => Poll::Ready(Err(status)),
             },
             Source::Wire(wire) => wire.poll_next(cx),
+        };
+        if matches!(&poll, Poll::Ready(Ok(None) | Err(_))) {
+            self.terminated = true;
         }
+        poll
     }
 
     /// Collect the whole stream. Fails on the first error status.
@@ -246,13 +267,20 @@ impl<T> Streaming<T> {
     /// trailers: this returns empty metadata without consuming remaining
     /// messages.
     pub async fn trailers(&mut self) -> Result<Metadata, Status> {
-        match &mut self.source {
-            Source::Channel(_) => Ok(Metadata::new()),
-            Source::Wire(wire) => {
-                while wire.next().await?.is_some() {}
-                Ok(wire.trailers().clone())
+        let result = {
+            let Source::Wire(wire) = &mut self.source else {
+                return Ok(Metadata::new());
+            };
+            loop {
+                match wire.next().await {
+                    Ok(Some(_)) => {}
+                    Ok(None) => break Ok(wire.trailers().clone()),
+                    Err(status) => break Err(status),
+                }
             }
-        }
+        };
+        self.terminated = true;
+        result
     }
 
     /// Wait for at least one message, then take up to `limit` in total.
@@ -306,6 +334,7 @@ impl<T> std::fmt::Debug for Streaming<T> {
             .field("busy", &self.lease.is_some())
             .field("driver", &self.driver.is_some())
             .field("reset", &self.reset.is_some())
+            .field("terminated", &self.terminated)
             .finish_non_exhaustive()
     }
 }
@@ -330,6 +359,12 @@ impl<T> Stream for Streaming<T> {
             Poll::Ready(Ok(Some(framed))) => Poll::Ready(Some(Ok(framed.message))),
             Poll::Ready(Err(status)) => Poll::Ready(Some(Err(status))),
         }
+    }
+}
+
+impl<T> FusedStream for Streaming<T> {
+    fn is_terminated(&self) -> bool {
+        self.terminated
     }
 }
 
@@ -494,6 +529,7 @@ mod tests {
     use super::{Framed, Streaming};
     use crate::hello::HelloReply;
     use crate::status::{Code, Status};
+    use futures_core::stream::FusedStream;
 
     fn reply(message: &str) -> HelloReply {
         let mut r = HelloReply::new();
@@ -527,6 +563,8 @@ mod tests {
         assert!(second.compressed);
         assert_eq!(text(&second.message), "two");
         assert!(stream.message().await.expect("end").is_none());
+        assert!(stream.is_terminated());
+        assert!(stream.message().await.expect("fused").is_none());
     }
 
     #[tokio::test]
@@ -543,6 +581,10 @@ mod tests {
             .expect("item")
             .expect("ok");
         assert_eq!(text(&first), "one");
+        assert!(poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
+            .await
+            .is_none());
+        assert!(stream.is_terminated());
         assert!(poll_fn(|cx| Pin::new(&mut stream).poll_next(cx))
             .await
             .is_none());
@@ -563,13 +605,18 @@ mod tests {
         tx.fail(Status::not_found("gone")).await;
         let err = stream.message().await.expect_err("status");
         assert_eq!(err.code(), Code::NotFound);
+        assert!(stream.is_terminated());
+        assert!(stream.message().await.expect("fused after err").is_none());
     }
 
     #[tokio::test]
     async fn empty_stream_ends_immediately() {
         let mut stream = Streaming::<HelloReply>::empty();
+        assert!(!stream.is_terminated());
         assert!(stream.message().await.expect("end").is_none());
+        assert!(stream.is_terminated());
         assert!(stream.trailers().await.expect("trailers").is_empty());
+        assert!(stream.is_terminated());
     }
 
     #[tokio::test]
@@ -620,5 +667,58 @@ mod tests {
         assert!(!Framed::new(1u32).compressed);
         assert!(Framed::compressed(1u32).compressed);
         assert_eq!(Framed::new(7u32).into_inner(), 7);
+    }
+
+    #[tokio::test]
+    async fn streaming_is_fused_after_end() {
+        use futures_core::stream::FusedStream;
+        use futures_core::Stream;
+        use std::future::poll_fn;
+        use std::pin::Pin;
+
+        let mut empty = Streaming::<HelloReply>::empty();
+        assert!(!empty.is_terminated());
+        let shown = format!("{empty:?}");
+        assert!(shown.contains("terminated: false"), "{shown}");
+        assert!(empty.message().await.expect("end").is_none());
+        assert!(empty.is_terminated());
+        let shown = format!("{empty:?}");
+        assert!(shown.contains("terminated: true"), "{shown}");
+        assert!(empty.message().await.expect("fused").is_none());
+        assert!(poll_fn(|cx| Pin::new(&mut empty).poll_next(cx))
+            .await
+            .is_none());
+
+        let (tx, mut stream) = Streaming::<HelloReply>::channel(1);
+        tx.close();
+        assert!(!stream.is_terminated());
+        assert!(stream.message().await.expect("end").is_none());
+        assert!(stream.is_terminated());
+        assert!(stream.message().await.expect("fused").is_none());
+
+        let (tx, mut fail) = Streaming::<HelloReply>::channel(1);
+        tx.fail(Status::not_found("gone")).await;
+        assert!(!fail.is_terminated());
+        let err = fail.message().await.expect_err("status");
+        assert_eq!(err.code(), Code::NotFound);
+        assert!(fail.is_terminated());
+        let shown = format!("{fail:?}");
+        assert!(shown.contains("terminated: true"), "{shown}");
+        assert!(fail.message().await.expect("fused after err").is_none());
+        assert!(poll_fn(|cx| Pin::new(&mut fail).poll_next(cx))
+            .await
+            .is_none());
+
+        let (tx, mut via_stream) = Streaming::<HelloReply>::channel(1);
+        tx.fail(Status::internal("boom")).await;
+        let err = poll_fn(|cx| Pin::new(&mut via_stream).poll_next(cx))
+            .await
+            .expect("item")
+            .expect_err("status");
+        assert_eq!(err.code(), Code::Internal);
+        assert!(via_stream.is_terminated());
+        assert!(poll_fn(|cx| Pin::new(&mut via_stream).poll_next(cx))
+            .await
+            .is_none());
     }
 }
