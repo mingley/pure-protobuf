@@ -881,6 +881,17 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "[`TestServiceServer::initial_stream_window_size`] /
+//! [`TestServiceServer::initial_connection_window_size`] still serve EmptyCall /
+//! StreamingOutputCall / StreamingInputCall / FullDuplexCall at a 64 KiB stream
+//! / 128 KiB connection window, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server."
+        ),
+        "testing crate rustdoc must name HTTP/2 window still-serves on every TestService shape"
+    );
+    assert!(
+        testing.contains(
             "A [`TestServiceClient`] pool larger than
 //! [`TestServiceServer::max_concurrent_connections`] fails the whole dial as
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
@@ -26083,6 +26094,165 @@ async fn from_io_reverser_send_buffer_still_serves_every_shape() {
     let (client_io, server_io) = duplex_pair();
     let server = tokio::spawn(async move {
         reverser_send_buffer()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_reverser_every_shape(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
+}
+
+fn test_window_size() -> TestServiceServer<InteropTestService> {
+    TestServiceServer::new(InteropTestService)
+        .initial_stream_window_size(64 * 1024)
+        .initial_connection_window_size(128 * 1024)
+}
+
+#[tokio::test]
+async fn test_service_window_size_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_window_size().serve_listener(listener).await.ok();
+    });
+    echo_test_every_shape(&TestServiceClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_test_service_window_size_still_serves_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_window_size()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&TestServiceClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_test_service_window_size_still_serves_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_window_size()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_test_every_shape(&TestServiceClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_test_service_window_size_still_serves_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        test_window_size().serve_unix(sock).await.ok();
+    });
+    echo_test_every_shape(&TestServiceClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_test_service_window_size_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        test_window_size().serve_connection(server_io).await.ok();
+    });
+    echo_test_every_shape(&TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+fn reverser_window_size() -> Server<Reverser> {
+    Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+        .initial_stream_window_size(64 * 1024)
+        .initial_connection_window_size(128 * 1024)
+}
+
+fn reverser_mtls_window_size() -> Server<Reverser> {
+    Server::new(Reverser::mtls(
+        Arc::new(AtomicUsize::new(0)),
+        client_identity().certificates().next().expect("leaf"),
+    ))
+    .initial_stream_window_size(64 * 1024)
+    .initial_connection_window_size(128 * 1024)
+}
+
+#[tokio::test]
+async fn reverser_window_size_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_window_size().serve_listener(listener).await.ok();
+    });
+    echo_reverser_every_shape(&channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_reverser_window_size_still_serves_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_window_size()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_reverser_every_shape(&tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_reverser_window_size_still_serves_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_mtls_window_size()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reverser_every_shape(&tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_reverser_window_size_still_serves_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        reverser_window_size().serve_unix(sock).await.ok();
+    });
+    echo_reverser_every_shape(&unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_reverser_window_size_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        reverser_window_size()
             .serve_connection(server_io)
             .await
             .ok();

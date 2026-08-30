@@ -31,6 +31,12 @@
 //! buffer, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
 //! server.
+//! [`TestServiceServer::initial_stream_window_size`] /
+//! [`TestServiceServer::initial_connection_window_size`] still serve EmptyCall /
+//! StreamingOutputCall / StreamingInputCall / FullDuplexCall at a 64 KiB stream
+//! / 128 KiB connection window, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server.
 //! A [`TestServiceClient`] pool larger than
 //! [`TestServiceServer::max_concurrent_connections`] fails the whole dial as
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
