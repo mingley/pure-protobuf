@@ -677,6 +677,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::connected must name the Channel snapshot at interceptor time"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::connected`]: that is a live snapshot; this still queues when a slot is empty."
+        ),
+        "Outgoing::set_wait_for_ready must Distinct the live-socket snapshot"
+    );
+    assert!(
         outgoing.contains("Distinct from [`Self::wait_for_ready`]: that queues"),
         "Outgoing::connected must Distinct wait-for-ready queueing from a live socket"
     );

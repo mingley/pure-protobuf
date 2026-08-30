@@ -1213,6 +1213,7 @@ impl<'a> Outgoing<'a> {
 
     /// Queue this RPC until the channel is connected. Applies to every call
     /// shape.
+    /// Distinct from [`Self::connected`]: that is a live snapshot; this still queues when a slot is empty.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
         *self.wait_for_ready = Some(wait);
     }
