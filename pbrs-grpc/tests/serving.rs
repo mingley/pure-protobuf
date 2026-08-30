@@ -3134,20 +3134,40 @@ fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
     Ok(())
 }
 
+fn overlay_after_clear_channel(channel: Channel) -> Channel {
+    channel
+        .timeout(Duration::from_secs(5))
+        .wait_for_ready()
+        .send_compressed()
+        .intercept(overlays_survive_clear)
+}
+
 fn overlay_after_clear_client(channel: Channel) -> GreeterClient {
-    GreeterClient::new(
-        channel
-            .timeout(Duration::from_secs(5))
-            .wait_for_ready()
-            .send_compressed(),
-    )
-    .intercept(overlays_survive_clear)
+    GreeterClient::new(overlay_after_clear_channel(channel))
 }
 
 async fn assert_cleared_wait_fails_fast(client: &GreeterClient) {
     tokio::time::timeout(
         Duration::from_secs(2),
         assert_err_on_every_shape(client, Code::Unavailable),
+    )
+    .await
+    .expect("cleared wait-for-ready hung");
+}
+
+async fn assert_cleared_wait_fails_fast_test(client: &TestServiceClient) {
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_test_every_shape(client, Code::Unavailable),
+    )
+    .await
+    .expect("cleared wait-for-ready hung");
+}
+
+async fn assert_cleared_wait_fails_fast_reverser(channel: &Channel) {
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_reverser_err_every_shape(channel, Code::Unavailable),
     )
     .await
     .expect("cleared wait-for-ready hung");
@@ -3198,6 +3218,126 @@ async fn a_from_io_client_interceptor_sees_channel_overlays_after_clear() {
             .expect("from_io"),
     );
     echo_every_shape(&client, None).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_test_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client = TestServiceClient::new(overlay_after_clear_channel(
+        Channel::connect_lazy(addr).expect("lazy"),
+    ));
+    assert_cleared_wait_fails_fast_test(&client).await;
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = TestServiceClient::new(overlay_after_clear_channel(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+    ));
+    assert_cleared_wait_fails_fast_test(&client).await;
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::new(overlay_after_clear_channel(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+    ));
+    assert_cleared_wait_fails_fast_test(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_sees_channel_overlays_after_clear() {
+    let (path, _guard) = unix_test_path();
+    let client = TestServiceClient::new(overlay_after_clear_channel(
+        Channel::connect_unix_lazy(&path).expect("lazy"),
+    ));
+    assert_cleared_wait_fails_fast_test(&client).await;
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_sees_channel_overlays_after_clear() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(overlay_after_clear_channel(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ));
+    echo_test_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let channel = overlay_after_clear_channel(Channel::connect_lazy(addr).expect("lazy"));
+    assert_cleared_wait_fails_fast_reverser(&channel).await;
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel =
+        overlay_after_clear_channel(Channel::connect_tls_lazy(addr, client_tls).expect("lazy"));
+    assert_cleared_wait_fails_fast_reverser(&channel).await;
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel =
+        overlay_after_clear_channel(Channel::connect_tls_lazy(addr, client_tls).expect("lazy"));
+    assert_cleared_wait_fails_fast_reverser(&channel).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_sees_channel_overlays_after_clear() {
+    let (path, _guard) = unix_test_path();
+    let channel = overlay_after_clear_channel(Channel::connect_unix_lazy(&path).expect("lazy"));
+    assert_cleared_wait_fails_fast_reverser(&channel).await;
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_sees_channel_overlays_after_clear() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    let channel = overlay_after_clear_channel(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    echo_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
     server.abort();
 }
 

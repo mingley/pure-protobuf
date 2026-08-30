@@ -1054,7 +1054,9 @@ call shape, on h2c, TLS (including mTLS), Unix, and `from_io`. Channel overlays
 (`rpc_timeout`, `waits_for_ready`, `compresses_outbound`) stay visible after
 `clear_*` on those dialers. On a lazy channel that is not listening,
 `clear_wait_for_ready` fail-fasts; `from_io` is already connected so the RPC
-still runs. Client- and bidi-streaming `StreamSender::send` is stamped
+still runs. Official TestService EmptyCall / StreamingOutputCall /
+StreamingInputCall / FullDuplexCall and hand-written Reverser `Channel`
+methods see that same overlay-after-clear contract. Client- and bidi-streaming `StreamSender::send` is stamped
 after overlays and interceptors run, so `Outgoing::set_compress` on that
 RPC is the same flag `send()` consults, on h2c, TLS (including mTLS), Unix,
 and `from_io`. Unary and server-streaming have no request `StreamSender`.
