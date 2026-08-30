@@ -4145,6 +4145,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ResponseParts::send_buffer_size in on_response closures"
     );
     assert!(
+        architecture.contains("A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`."),
+        "architecture must Distinct Channel::on_response from Channel overlays on a received reply"
+    );
+    assert!(
         guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
         "guide must name Response::path as kernel-stamped for on_response"
     );
