@@ -697,6 +697,7 @@ impl Channel {
 
     /// Whether this clone gzips outbound payloads.
     /// See [`Self::send_compressed`]. Applies to every call shape.
+    /// Distinct from [`Self::send_compressed`], which sets it.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()

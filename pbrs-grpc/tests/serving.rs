@@ -2081,6 +2081,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::waits_for_ready must Distinct the setter"
     );
     assert!(
+        src.contains("Distinct from [`Self::send_compressed`], which sets it."),
+        "Channel::compresses_outbound must Distinct the setter"
+    );
+    assert!(
         src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
         "Channel::wait_for_ready must name interceptor set/clear"
     );
@@ -3164,6 +3168,39 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src
+            .contains("[`Outgoing::compresses_outbound`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::compresses_outbound as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::compress`]"),
+        "crate docs must Distinct Outgoing::compresses_outbound from per-RPC compress"
+    );
+    assert!(
+        crate_src.contains("[`Rpc::compresses_outbound`] is that overlay in a server interceptor"),
+        "crate docs must name Rpc::compresses_outbound as the server interceptor overlay"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Channel::compresses_outbound`] reads the outbound gzip overlay without colliding with [`Channel::send_compressed`]"
+        ),
+        "crate docs must name Channel::compresses_outbound as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::compresses_outbound`]"),
+        "crate docs must Distinct Channel::compresses_outbound as the same overlay as Outgoing::compresses_outbound"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Server::compresses_outbound`] reads the outbound gzip overlay without colliding with [`Server::send_compressed`]"
+        ),
+        "crate docs must name Server::compresses_outbound as the live-server overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Rpc::compresses_outbound`]"),
+        "crate docs must Distinct Server::compresses_outbound as the same overlay as Rpc::compresses_outbound"
+    );
+    assert!(
+        crate_src
             .contains("[`Outgoing::accepts_compressed`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::accepts_compressed as the interceptor overlay"
     );
@@ -3853,6 +3890,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it."
         ),
         "guide must Distinct Rpc::gzip_level from Rpc::compresses_outbound"
+    );
+    assert!(
+        guide.contains("`Outgoing::compresses_outbound` is that overlay in a client interceptor. Distinct from `compress` (per-RPC). An interceptor cannot change it."),
+        "guide must name Outgoing::compresses_outbound as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Rpc::compresses_outbound` is that overlay in a server interceptor. Distinct from `Outgoing::compresses_outbound` (client)."),
+        "guide must name Rpc::compresses_outbound as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Channel::compresses_outbound` reads the outbound gzip overlay without colliding with `send_compressed`. Same overlay as `Outgoing::compresses_outbound`."),
+        "guide must name Channel::compresses_outbound as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Server::compresses_outbound` reads the outbound gzip overlay without colliding with `send_compressed`. Same overlay as `Rpc::compresses_outbound`."),
+        "guide must name Server::compresses_outbound as the live-server overlay"
     );
     assert!(
         guide.contains("`Outgoing::accepts_compressed` is that overlay in a client interceptor. Distinct from `gzip_level` (deflate effort). An interceptor cannot change it."),
