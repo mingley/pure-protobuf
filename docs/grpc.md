@@ -1143,6 +1143,10 @@ channel.send_compressed()
 0 stores; 9 is best. Values above 9 clamp to 9. Unused when outbound
 compression is off. Distinct from `send_compressed`, which is on or off.
 
+`header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
+Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
+Handshake-only on the client; not a live `Channel` overlay.
+
 ```rust
 GreeterServer::new(svc)
     .send_compressed()
@@ -1437,7 +1441,7 @@ Received streams are decoded inline on the reading task, so they have no queue
 to size in either direction.
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
-`max_send_buffer_size`, `max_header_list_size`,
+`max_send_buffer_size`, `max_header_list_size`, `header_table_size`,
 `max_pending_accept_reset_streams`, `max_local_error_reset_streams` — is
 available on `Server` / `Router` / generated `FooServer` as well as
 `ServerConfig` and `ChannelConfig`, and is more likely to be a safety

@@ -208,6 +208,10 @@ See `docs/upb.md`. Short list:
   `ChannelConfig::max_header_list_size`
   refuses oversize response headers or trailers as `UNAVAILABLE` over TLS, mTLS,
   Unix, and `from_io`, distinct from the server inbound cap.
+  `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic
+  table, default 4096). Distinct from `max_header_list_size`. Handshake-only
+  on the client. A well-behaved peer still completes every call shape at a
+  smaller table (including 0).
   `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /
   generated `FooServer::max_concurrent_streams` /
   `ServerConfig::max_concurrent_streams` serialize extra RPCs on the same

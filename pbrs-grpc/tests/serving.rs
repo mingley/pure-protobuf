@@ -1106,6 +1106,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must name protocol-error RST cap as handshake-only"
     );
     assert!(
+        channel.contains("the HPACK table"),
+        "Channel rustdoc must name HPACK table as handshake-only"
+    );
+    assert!(
         channel.contains("[`Self::send_compressed`], [`Self::gzip_compression_level`]"),
         "Channel rustdoc must overlay gzip_compression_level with send_compressed"
     );
@@ -1416,6 +1420,34 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::max_local_error_reset_streams must name client handshake Distinct from server still-serves"
     );
     assert_eq!(
+        src.matches(
+            "HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "ServerConfig and ChannelConfig header_table_size must name HPACK table default 4096"
+    );
+    assert_eq!(
+        src.matches(
+            "[`Self::max_header_list_size`], which caps uncompressed header-block\n    /// bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`)."
+        )
+        .count(),
+        2,
+        "ServerConfig and ChannelConfig header_table_size must Distinct from max_header_list_size"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`ServerConfig::header_table_size`], which still serves\n    /// when the server advertises a smaller table."
+        ),
+        "ChannelConfig::header_table_size must name client handshake Distinct from server still-serves"
+    );
+    assert_eq!(
+        src.matches("Applied at handshake, not as a live overlay.")
+            .count(),
+        3,
+        "ChannelConfig header_table_size / pending-reset / local-error RST must be handshake-only"
+    );
+    assert_eq!(
         src.matches("Distinct from [`Self::send_compressed`], which is on or off.")
             .count(),
         2,
@@ -1543,6 +1575,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("Distinct from `send_compressed`, which is on or off"),
         "crate docs must Distinct gzip_compression_level from send_compressed"
+    );
+    assert!(
+        crate_src.contains("HPACK dynamic table, default 4096"),
+        "crate docs must name header_table_size default 4096"
+    );
+    assert!(
+        crate_src.contains("Distinct from `max_header_list_size`, which caps uncompressed"),
+        "crate docs must Distinct header_table_size from max_header_list_size"
     );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
@@ -1755,6 +1795,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from `add_service`, which always mounts"),
         "guide must Distinct add_optional_service None from always-mount"
+    );
+    assert!(
+        guide.contains("`header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096)."),
+        "guide must name header_table_size as HPACK table"
+    );
+    assert!(
+        guide.contains(
+            "Distinct from `max_header_list_size`, which caps uncompressed header-block bytes."
+        ),
+        "guide must Distinct header_table_size from max_header_list_size"
     );
     let benches = include_str!("../../docs/benchmarks.md");
     assert!(
@@ -2032,6 +2082,22 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server and Router max_local_error_reset_streams must Distinct library RSTs from rapid reset"
+    );
+    assert_eq!(
+        src.matches(
+            "HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::header_table_size and Router::header_table_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "[`Self::max_header_list_size`], which caps uncompressed header-block\n    /// bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`)."
+        )
+        .count(),
+        2,
+        "Server and Router header_table_size must Distinct from max_header_list_size"
     );
     assert_eq!(
         src.matches(
@@ -13165,13 +13231,15 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
         .max_header_list_size(4096)
         .max_send_buffer_size(123_456)
         .max_pending_accept_reset_streams(3)
-        .max_local_error_reset_streams(7);
+        .max_local_error_reset_streams(7)
+        .header_table_size(2048);
     let dbg = format!("{router:?}");
     assert!(dbg.contains("7340032"), "{dbg}");
     assert!(dbg.contains("4096"), "{dbg}");
     assert!(dbg.contains("123456"), "{dbg}");
     assert!(dbg.contains("max_pending_accept_reset_streams: 3"), "{dbg}");
     assert!(dbg.contains("max_local_error_reset_streams: 7"), "{dbg}");
+    assert!(dbg.contains("header_table_size: 2048"), "{dbg}");
 }
 
 async fn assert_dead_channel_redials(client: &GreeterClient) {
@@ -24677,6 +24745,17 @@ fn server_and_router_config_is_readable_and_cloneable() {
     assert_eq!(svc.gzip_level(), pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL);
     assert_eq!(svc.clone().gzip_compression_level(9).gzip_level(), 9);
     assert_eq!(svc.clone().gzip_compression_level(10).gzip_level(), 9);
+    assert_eq!(
+        svc.server_config().header_table(),
+        pbrs_grpc::DEFAULT_HEADER_TABLE_SIZE
+    );
+    assert_eq!(
+        svc.clone()
+            .header_table_size(0)
+            .server_config()
+            .header_table(),
+        0
+    );
     assert!(svc.accepts_compressed());
     assert!(svc.clone().send_compressed().compresses_outbound());
     assert!(!svc.clone().accept_compressed(false).accepts_compressed());
@@ -24692,6 +24771,14 @@ fn server_and_router_config_is_readable_and_cloneable() {
         pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL
     );
     assert_eq!(server.clone().gzip_compression_level(9).gzip_level(), 9);
+    assert_eq!(
+        server
+            .clone()
+            .header_table_size(2048)
+            .server_config()
+            .header_table(),
+        2048
+    );
     assert!(!server.clone().accept_compressed(false).accepts_compressed());
     assert_eq!(
         server.clone().server_config().rpc_timeout(),
@@ -24711,6 +24798,14 @@ fn server_and_router_config_is_readable_and_cloneable() {
         pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL
     );
     assert_eq!(router.clone().gzip_compression_level(9).gzip_level(), 9);
+    assert_eq!(
+        router
+            .clone()
+            .header_table_size(0)
+            .server_config()
+            .header_table(),
+        0
+    );
     assert!(router.accepts_compressed());
     assert!(router.clone().send_compressed().compresses_outbound());
     assert!(!router.clone().accept_compressed(false).accepts_compressed());
@@ -30030,6 +30125,100 @@ async fn from_io_client_local_error_reset_still_serves_every_shape() {
     echo_every_shape(
         &GreeterClient::new(
             Channel::from_io_with(client_io, "localhost", client_local_error_reset())
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+fn header_table_server() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).header_table_size(0)
+}
+
+fn header_table_config() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).config(ServerConfig::new().header_table_size(0))
+}
+
+fn header_table_router() -> Router {
+    Router::new()
+        .header_table_size(0)
+        .add_service(GreeterServer::new(Echo))
+}
+
+fn client_header_table() -> ChannelConfig {
+    ChannelConfig::new().header_table_size(0)
+}
+
+#[tokio::test]
+async fn header_table_size_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        header_table_server().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_header_table_size_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        header_table_server().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn header_table_config_and_router_still_serve_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        header_table_config().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        header_table_router().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_header_table_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(channel_cfg(addr, client_header_table()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_header_table_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        echo_uncapped().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io_with(client_io, "localhost", client_header_table())
                 .await
                 .expect("from_io"),
         ),

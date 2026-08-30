@@ -219,6 +219,10 @@
 //! [`ServerConfig::gzip_compression_level`] /
 //! [`ChannelConfig::gzip_compression_level`] is deflate effort (default 1).
 //! Distinct from `send_compressed`, which is on or off.
+//! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
+//! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
+//! Distinct from `max_header_list_size`, which caps uncompressed header-block
+//! bytes. Handshake-only on the client.
 //! Inbound gzip is on by default; [`ServerConfig::accept_compressed`]`(false)`
 //! / [`ChannelConfig::accept_compressed`]`(false)` refuses it.
 //! A received reply surfaces the peer's `grpc-encoding` on [`Response::encoding`]
@@ -303,10 +307,10 @@ pub mod codegen_support {
 pub use client::{Channel, Target};
 pub use config::{
     ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_GZIP_COMPRESSION_LEVEL,
-    DEFAULT_KEEP_ALIVE_TIMEOUT, DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONNECTION_AGE_GRACE,
-    DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
-    DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
-    DEFAULT_WINDOW_SIZE,
+    DEFAULT_HEADER_TABLE_SIZE, DEFAULT_KEEP_ALIVE_TIMEOUT, DEFAULT_MAX_CONCURRENT_STREAMS,
+    DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE,
+    DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
+    DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
 };
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by
 /// combinators that honour termination.

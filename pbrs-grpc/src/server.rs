@@ -1448,6 +1448,18 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096.
+    /// Applies to every call shape. See [`ServerConfig::header_table_size`].
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_header_list_size`], which caps uncompressed header-block
+    /// bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`).
+    #[must_use]
+    pub fn header_table_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.header_table_size(bytes);
+        self
+    }
+
     /// Per-connection HTTP/2 send buffer. Applies to every call shape.
     /// See [`ServerConfig::max_send_buffer_size`].
     /// Write backpressure still completes every call shape, including over
@@ -2149,6 +2161,18 @@ impl Router {
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_header_list_size(bytes);
+        self
+    }
+
+    /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096.
+    /// Applies to every call shape. See [`ServerConfig::header_table_size`].
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_header_list_size`], which caps uncompressed header-block
+    /// bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`).
+    #[must_use]
+    pub fn header_table_size(mut self, bytes: u32) -> Self {
+        self.config = self.config.header_table_size(bytes);
         self
     }
 

@@ -1374,6 +1374,7 @@ async fn generated_servers_accept_configuration() {
             .initial_connection_window_size(2 * 1024 * 1024)
             .max_frame_size(32 * 1024)
             .max_header_list_size(8 * 1024)
+            .header_table_size(0)
             .max_send_buffer_size(512 * 1024)
             .max_pending_accept_reset_streams(3)
             .max_local_error_reset_streams(8)
@@ -1672,6 +1673,18 @@ fn generated_server_config_is_readable_after_overlays() {
         pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL
     );
     assert_eq!(server.clone().gzip_compression_level(9).gzip_level(), 9);
+    assert_eq!(
+        server.server_config().header_table(),
+        pbrs_grpc::DEFAULT_HEADER_TABLE_SIZE
+    );
+    assert_eq!(
+        server
+            .clone()
+            .header_table_size(0)
+            .server_config()
+            .header_table(),
+        0
+    );
     assert!(server.accepts_compressed());
     assert!(server.clone().send_compressed().compresses_outbound());
     assert!(!server.clone().accept_compressed(false).accepts_compressed());
@@ -4030,6 +4043,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Distinct from [`Self::max_pending_accept_reset_streams`], which caps remotely-reset streams (rapid reset). This caps RSTs we send after an invalid frame. A well-behaved client never triggers one; every call shape still completes, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated max_local_error_reset_streams rustdoc must Distinct library RSTs from rapid reset on every transport"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::max_header_list_size`], which caps uncompressed header-block bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`). A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated header_table_size rustdoc must Distinct HPACK table from header-list cap on every transport"
     );
     assert!(
         src.contains(

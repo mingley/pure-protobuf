@@ -4162,6 +4162,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096. Applies to every call shape. Distinct from [`Self::max_header_list_size`], which caps uncompressed header-block bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`). A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::header_table_size`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn header_table_size(mut self, bytes: u32) -> Self {{ self.config = self.config.header_table_size(bytes); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Per-connection HTTP/2 send buffer. Applies to every call shape. See [`{G}::ServerConfig::max_send_buffer_size`]."
     );
     let _ = writeln!(
