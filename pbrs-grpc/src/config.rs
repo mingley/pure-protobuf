@@ -777,6 +777,11 @@ impl ChannelConfig {
 
     /// Bytes buffered per connection before writes apply backpressure.
     /// Default 1 MiB. Applies to every call shape.
+    /// HTTP/2 send buffer the client applies on outbound frames. Distinct from
+    /// [`ServerConfig::max_send_buffer_size`], which still serves when the
+    /// server advertises a small buffer. A well-behaved server still completes
+    /// every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;

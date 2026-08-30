@@ -232,7 +232,9 @@ See `docs/upb.md`. Short list:
   `ServerConfig::max_send_buffer_size` still serve every Greeter and Store shape
   at a 16 KiB send buffer over TLS, mTLS, Unix, and `serve_connection`, distinct
   from wrapping only the generated Greeter setter, from frame-size still-serves,
-  and from window still-serves. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  and from window still-serves. `ChannelConfig::max_send_buffer_size` applies
+  client outbound backpressure and still serves every Greeter shape when a
+  well-behaved server completes over TLS, mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
