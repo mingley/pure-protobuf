@@ -4772,6 +4772,10 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::on_response rustdoc example must attach a closure"
     );
     assert!(
+        src.contains("router.on_response(|parts: &mut pbrs_grpc::ResponseParts| {"),
+        "Router::on_response rustdoc example must attach a closure"
+    );
+    assert!(
         src.contains("///         parts.path(),"),
         "Server::on_response rustdoc example must read path"
     );

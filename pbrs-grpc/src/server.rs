@@ -2793,6 +2793,27 @@ impl Router {
     /// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
     /// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
     /// Same surface as [`Server::on_response`].
+    ///
+    /// ```
+    /// # fn demo(router: pbrs_grpc::Router) -> pbrs_grpc::Router {
+    /// router.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
+    ///     let _ = (
+    ///         parts.path(),
+    ///         parts.gzip_level(),
+    ///         parts.compresses_outbound(),
+    ///         parts.accepts_gzip(),
+    ///         parts.deadline(),
+    ///         parts.timeout(),
+    ///         parts.limits(),
+    ///         parts.peer_timeout(),
+    ///         parts.rpc_timeout(),
+    ///         parts.accepts_compressed(),
+    ///         parts.send_buffer_size(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {
         self.response_interceptor = Some(match self.response_interceptor {
