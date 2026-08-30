@@ -118,6 +118,9 @@ See `docs/upb.md`. Short list:
   redials the same TCP, TLS, mTLS, or Unix address on the next RPC of every
   call shape and fails fast when nothing is listening, including
   `connect_tls_lazy` / `connect_unix_lazy`. `from_io` cannot redial.
+  `Channel::connect_timeout` fails with `UNAVAILABLE` when a TCP, TLS, mTLS,
+  or Unix peer accepts and never speaks, and still fails immediately on a
+  closed port or missing Unix path. `from_io` is already connected.
   `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /

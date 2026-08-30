@@ -721,6 +721,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "never speaks HTTP/2\n    /// (or never finishes TLS, including mTLS) fails with\n    /// [`crate::Code::Unavailable`] instead of hanging [`crate::Channel::connect`]\n    /// / [`crate::Channel::connect_tls`] / [`crate::Channel::connect_unix`] forever."
+        ),
+        "ChannelConfig::connect_timeout must name TLS, mTLS, and Unix hang"
+    );
+    assert!(
+        src.contains(
+            "Connection refused still fails immediately on those dialers; this bound is\n    /// for the hang, not the bounce."
+        ),
+        "ChannelConfig::connect_timeout must name refused-connect fail-fast on TLS and Unix"
+    );
+    assert!(
+        src.contains(
             "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape."
         ),
         "ChannelConfig::connections must name every call shape"
@@ -11579,16 +11591,7 @@ async fn wait_for_ready_times_out_when_nothing_is_listening() {
     drop(tx);
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn connect_times_out_when_the_peer_never_speaks_http2() {
-    let (addr, listener) = bind().await;
-    let started = Instant::now();
-    let err = Channel::connect_with(
-        addr,
-        ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
-    )
-    .await
-    .expect_err("handshake should time out");
+fn assert_handshake_timed_out(err: &Status, started: Instant) {
     assert_eq!(err.code(), Code::Unavailable, "{err}");
     assert!(
         err.message().contains("timed out"),
@@ -11604,6 +11607,58 @@ async fn connect_times_out_when_the_peer_never_speaks_http2() {
         "timed out too slow: {:?}",
         started.elapsed()
     );
+}
+
+fn assert_connect_refused_fast(err: &Status, started: Instant) {
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "refused connect took {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn connect_times_out_when_the_peer_never_speaks_http2() {
+    let (addr, listener) = bind().await;
+    let started = Instant::now();
+    let err = Channel::connect_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
+    )
+    .await
+    .expect_err("handshake should time out");
+    assert_handshake_timed_out(&err, started);
+    drop(listener);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_connect_times_out_when_the_peer_never_speaks() {
+    let (addr, listener) = bind().await;
+    let started = Instant::now();
+    let err = Channel::connect_tls_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
+        ClientTls::ca("localhost", CA).expect("client tls"),
+    )
+    .await
+    .expect_err("handshake should time out");
+    assert_handshake_timed_out(&err, started);
+    drop(listener);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_connect_times_out_when_the_peer_never_speaks() {
+    let (addr, listener) = bind().await;
+    let started = Instant::now();
+    let err = Channel::connect_tls_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_millis(80)),
+        ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client"),
+    )
+    .await
+    .expect_err("handshake should time out");
+    assert_handshake_timed_out(&err, started);
     drop(listener);
 }
 
@@ -11618,12 +11673,51 @@ async fn connect_to_a_closed_port_fails_fast() {
     )
     .await
     .expect_err("closed port");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
-    assert!(
-        started.elapsed() < Duration::from_secs(1),
-        "refused connect took {:?}",
-        started.elapsed()
-    );
+    assert_connect_refused_fast(&err, started);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_connect_to_a_closed_port_fails_fast() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let started = Instant::now();
+    let err = Channel::connect_tls_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_secs(20)),
+        ClientTls::ca("localhost", CA).expect("client tls"),
+    )
+    .await
+    .expect_err("closed port");
+    assert_connect_refused_fast(&err, started);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_connect_to_a_closed_port_fails_fast() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let started = Instant::now();
+    let err = Channel::connect_tls_with(
+        addr,
+        ChannelConfig::new().connect_timeout(Duration::from_secs(20)),
+        ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client"),
+    )
+    .await
+    .expect_err("closed port");
+    assert_connect_refused_fast(&err, started);
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_connect_to_a_missing_path_fails_fast() {
+    let (path, _guard) = unix_test_path();
+    let started = Instant::now();
+    let err = Channel::connect_unix_with(
+        &path,
+        ChannelConfig::new().connect_timeout(Duration::from_secs(20)),
+    )
+    .await
+    .expect_err("missing path");
+    assert_connect_refused_fast(&err, started);
 }
 
 async fn assert_mute_does_not_stop<M>(client: GreeterClient, mute: M) {
@@ -13490,16 +13584,7 @@ async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
     )
     .await
     .expect_err("handshake should time out");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
-    assert!(
-        err.message().contains("timed out"),
-        "expected timeout status, got {err}"
-    );
-    assert!(
-        started.elapsed() >= Duration::from_millis(50),
-        "timed out too fast: {:?}",
-        started.elapsed()
-    );
+    assert_handshake_timed_out(&err, started);
     drop(listener);
 }
 

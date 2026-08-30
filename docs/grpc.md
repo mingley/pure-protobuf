@@ -599,13 +599,14 @@ listening; wait-for-ready keeps trying.
 ## Connect timeout
 
 `Channel::connect` does not hang forever on a peer that accepts TCP (or a
-Unix socket) and never speaks HTTP/2. The whole dial — connect, optional
-TLS, and the peer's HTTP/2 `SETTINGS` — is bounded by
+Unix socket) and never speaks HTTP/2, including a TLS or mTLS peer that
+never finishes the handshake. The whole dial — connect, optional TLS, and
+the peer's HTTP/2 `SETTINGS` — is bounded by
 `ChannelConfig::connect_timeout`, default 20 s. This is a dial bound, not
 an RPC overlay: every call shape uses the same bound when the channel
 actually dials (eager connect, a lazy first RPC, or a reconnect).
-Connection refused still fails immediately; the bound is for the hang, not
-the bounce.
+Connection refused still fails immediately on TCP, TLS, mTLS, and Unix;
+the bound is for the hang, not the bounce. `from_io` is already connected.
 
 ```rust
 Channel::connect_with(

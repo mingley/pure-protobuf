@@ -799,9 +799,11 @@ impl ChannelConfig {
     /// dial happens.
     ///
     /// Always on. A peer that accepts the socket and never speaks HTTP/2
-    /// fails with [`crate::Code::Unavailable`] instead of hanging
-    /// [`crate::Channel::connect`] forever. Connection refused still fails
-    /// immediately; this bound is for the hang, not the bounce.
+    /// (or never finishes TLS, including mTLS) fails with
+    /// [`crate::Code::Unavailable`] instead of hanging [`crate::Channel::connect`]
+    /// / [`crate::Channel::connect_tls`] / [`crate::Channel::connect_unix`] forever.
+    /// Connection refused still fails immediately on those dialers; this bound is
+    /// for the hang, not the bounce.
     ///
     /// Wait-for-ready treats the timeout as `UNAVAILABLE` and retries with
     /// backoff. An RPC deadline still races the dial.

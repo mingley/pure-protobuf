@@ -46,6 +46,10 @@ mTLS, and Unix. `from_io` cannot redial.
 and Unix; a second dial is `UNAVAILABLE` while the cap is full.
 A mute TCP, TLS, mTLS, or Unix peer that never finishes the handshake is
 dropped by `handshake_timeout` so the accept loop keeps serving.
+`Channel::connect_timeout` bounds the client dial the same way: a peer
+that accepts and never speaks (including TLS and mTLS) is `UNAVAILABLE`;
+a closed port or missing Unix path still fails immediately. `from_io` is
+already connected.
 `max_concurrent_rpcs` refuses extra RPCs with `RESOURCE_EXHAUSTED` before the
 handler runs, on every call shape, including over TLS, mTLS, Unix, and
 `from_io`.
