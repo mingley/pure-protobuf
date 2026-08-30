@@ -1184,6 +1184,8 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Server::rpc_timeout` reads the deadline overlay without colliding with `timeout`. Same overlay as `Rpc::rpc_timeout`.
 `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
 `Channel::stream_buffer_size` reads the stream-queue overlay without colliding with `stream_buffer`. Same overlay as `Outgoing::stream_buffer_size`.
+`Outgoing::limits` is that overlay in a client interceptor. Distinct from `send_buffer_size` (HTTP/2). An interceptor cannot change it.
+`Rpc::limits` is that overlay in a server interceptor. Distinct from `Outgoing::limits` (client).
 `Channel::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Outgoing::limits`.
 `Server::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Rpc::limits`.
 `Channel::send_buffer_size` reads the HTTP/2 send buffer overlay without colliding with `max_send_buffer_size`. Same overlay as `Outgoing::send_buffer_size`.

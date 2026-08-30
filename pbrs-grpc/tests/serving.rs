@@ -3379,6 +3379,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Channel::stream_buffer_size as the same overlay as Outgoing::stream_buffer_size"
     );
     assert!(
+        crate_src.contains("[`Outgoing::limits`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::limits as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("[`Rpc::limits`] is that overlay in a server interceptor"),
+        "crate docs must name Rpc::limits as the server interceptor overlay"
+    );
+    assert!(
         crate_src.contains(
             "[`Channel::limits`] reads the message-cap overlay without colliding with [`Channel::message_limits`]"
         ),
@@ -4052,6 +4060,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Channel::stream_buffer_size` reads the stream-queue overlay without colliding with `stream_buffer`. Same overlay as `Outgoing::stream_buffer_size`."),
         "guide must name Channel::stream_buffer_size as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Outgoing::limits` is that overlay in a client interceptor. Distinct from `send_buffer_size` (HTTP/2). An interceptor cannot change it."),
+        "guide must name Outgoing::limits as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Rpc::limits` is that overlay in a server interceptor. Distinct from `Outgoing::limits` (client)."),
+        "guide must name Rpc::limits as the server interceptor overlay"
     );
     assert!(
         guide.contains("`Channel::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Outgoing::limits`."),
