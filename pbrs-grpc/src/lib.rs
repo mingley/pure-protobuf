@@ -111,6 +111,7 @@
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
 //!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
+//! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!
 //! # Safety
 //!

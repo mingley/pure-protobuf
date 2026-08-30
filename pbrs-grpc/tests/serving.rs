@@ -2950,6 +2950,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must point at the compiling hello intercept and on_response overlay dumps"
     );
     assert!(
+        crate_src.contains("Compiling ConnectionInfo peer dumps live on [`Incoming`]."),
+        "crate docs must point at the compiling Incoming ConnectionInfo peer dump"
+    );
+    assert!(
         crate_src.contains("including a rapid-reset flood that exceeds"),
         "crate docs must name the hostile rapid-reset flood"
     );
