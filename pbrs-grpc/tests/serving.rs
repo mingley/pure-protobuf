@@ -2505,6 +2505,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::rpc_timeout must Distinct the setter"
     );
     assert!(
+        src.contains("Distinct from [`Self::send_compressed`], which sets it."),
+        "ChannelConfig::compresses_outbound must Distinct the setter"
+    );
+    assert!(
         src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),

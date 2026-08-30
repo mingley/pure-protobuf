@@ -1601,6 +1601,7 @@ impl ChannelConfig {
 
     /// Whether request payloads are gzipped. See [`Self::send_compressed`].
     /// Applies to every call shape.
+    /// Distinct from [`Self::send_compressed`], which sets it.
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed
