@@ -852,7 +852,7 @@ impl<T> Request<T> {
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
 /// `:authority`, `:scheme`, `user-agent`, message caps, timeout / wait-for-ready
 /// / gzip overlays ([`Self::rpc_timeout`] / [`Self::waits_for_ready`] /
-/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`] / [`Self::concurrent_rpc_limit`] / [`Self::stream_buffer_size`] / [`Self::send_buffer_size`]), and the service/method halves of the path,
+/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`] / [`Self::concurrent_rpc_limit`] / [`Self::stream_buffer_size`] / [`Self::send_buffer_size`] / [`Self::limits`]), and the service/method halves of the path,
 /// which the interceptor cannot otherwise see. Those overlays fill in before
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
 /// [`Self::clear_compress`] opt out of an already-applied default.
@@ -900,6 +900,7 @@ impl<T> Request<T> {
 ///         call.concurrent_rpc_limit(),
 ///         call.stream_buffer_size(),
 ///         call.send_buffer_size(),
+///         call.limits(),
 ///         call.connected(),
 ///     );
 ///     Ok(())

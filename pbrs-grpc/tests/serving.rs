@@ -792,6 +792,16 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::limits must name the Channel::limits overlay"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::send_buffer_size`] / [`Self::limits`]), and the service/method halves of the path,"
+        ),
+        "Outgoing rustdoc must name limits next to the interceptor-visible overlays"
+    );
+    assert!(
+        outgoing.contains("        call.limits(),"),
+        "Outgoing rustdoc example must read limits"
+    );
+    assert!(
         outgoing.contains("Channel [`crate::Channel::max_send_buffer_size`] overlay."),
         "Outgoing::send_buffer_size must name the channel max_send_buffer_size overlay"
     );
