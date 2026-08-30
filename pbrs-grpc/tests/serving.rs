@@ -1808,6 +1808,91 @@ async fn test_service_from_io_handlers_return_typed_status_on_every_shape() {
 }
 
 #[tokio::test]
+async fn test_service_typed_google_rpc_status_after_a_streamed_message() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(TypedAfterHeadersTest)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_typed_status_after_streamed_message(&TestServiceClient::new(channel(addr).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_tls_typed_google_rpc_status_after_a_streamed_message() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(TypedAfterHeadersTest)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_test_typed_status_after_streamed_message(&TestServiceClient::new(
+        tls_channel(addr).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_mtls_typed_google_rpc_status_after_a_streamed_message() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(TypedAfterHeadersTest)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_test_typed_status_after_streamed_message(&TestServiceClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_typed_google_rpc_status_after_a_streamed_message() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(TypedAfterHeadersTest)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_test_typed_status_after_streamed_message(&TestServiceClient::new(
+        unix_channel(&path).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_typed_google_rpc_status_after_a_streamed_message() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(TypedAfterHeadersTest)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_test_typed_status_after_streamed_message(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
@@ -6466,6 +6551,109 @@ impl TestService for FailTestService {
     async fn unimplemented_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
         Err(interceptor_blocked())
     }
+}
+
+fn fail_test_after_one() -> pbrs_grpc::Streaming<StreamingOutputCallResponse> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut reply = StreamingOutputCallResponse::new();
+        let mut payload = Payload::new();
+        payload.set_body(b"ada".to_vec());
+        reply.set_payload(payload);
+        tx.send(reply).await.ok();
+        tx.fail(typed_after_headers_status()).await;
+    }));
+    stream
+}
+
+/// Server-streaming and bidi only: EmptyCall / StreamingInputCall have no
+/// response DATA then trailers.
+struct TypedAfterHeadersTest;
+
+impl TestService for TypedAfterHeadersTest {
+    async fn empty_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn cacheable_unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn streaming_output_call(
+        &self,
+        _: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Ok(Response::new(fail_test_after_one()))
+    }
+
+    async fn streaming_input_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingInputCallRequest>>,
+    ) -> Result<Response<StreamingInputCallResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn full_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Ok(Response::new(fail_test_after_one()))
+    }
+
+    async fn half_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn unimplemented_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+}
+
+async fn assert_test_typed_status_after_streamed_message(client: &TestServiceClient) {
+    let mut stream = client
+        .streaming_output_call(Request::new(StreamingOutputCallRequest::new()))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let mut stream = client
+        .streaming_output_call(Request::new(StreamingOutputCallRequest::new()))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
+
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(first.payload().body().as_ref(), b"ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
 }
 
 struct FailReverser;

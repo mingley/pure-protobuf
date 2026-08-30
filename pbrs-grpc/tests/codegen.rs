@@ -178,6 +178,114 @@ impl Store for TypedFailStore {
     }
 }
 
+fn typed_after_headers_status() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("API_DISABLED");
+    info.set_domain("example.com");
+    let mut status = Status::with_error_details(
+        Code::FailedPrecondition,
+        "api disabled",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("encode");
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
+fn assert_typed_after_headers(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "api disabled");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+    assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+}
+
+fn fail_store_after_one() -> Streaming<Event> {
+    let (tx, stream) = Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        tx.send(event(Kind::Put, "ada")).await.ok();
+        tx.fail(typed_after_headers_status()).await;
+    }));
+    stream
+}
+
+/// Watch and Sync only: Get / PutAll have no response DATA then trailers.
+struct TypedAfterHeadersStore;
+
+impl Store for TypedAfterHeadersStore {
+    async fn get(&self, _: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn put_all(&self, _: Request<Streaming<Entry>>) -> Result<Response<PutSummary>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn watch(&self, _: Request<WatchRequest>) -> Result<Response<Streaming<Event>>, Status> {
+        Ok(Response::new(fail_store_after_one()))
+    }
+
+    async fn sync(
+        &self,
+        _: Request<Streaming<Entry>>,
+    ) -> Result<Response<Streaming<Event>>, Status> {
+        Ok(Response::new(fail_store_after_one()))
+    }
+}
+
+async fn assert_store_typed_status_after_streamed_message(client: &StoreClient) {
+    let mut stream = client
+        .watch(Request::new(WatchRequest::new()))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(key_of(first.entry()), "ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let mut stream = client
+        .watch(Request::new(WatchRequest::new()))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(key_of(first.entry()), "ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
+
+    let (tx, call) = client.sync(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(key_of(first.entry()), "ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let (tx, call) = client.sync(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(key_of(first.entry()), "ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
+}
+
 async fn serve() -> (SocketAddr, tokio::task::JoinHandle<()>) {
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
         .await
@@ -915,6 +1023,92 @@ async fn generated_from_io_handlers_return_typed_status_on_every_shape() {
         .await
         .expect("from_io");
     assert_store_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_typed_google_rpc_status_after_a_streamed_message() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedAfterHeadersStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_typed_status_after_streamed_message(&client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_typed_google_rpc_status_after_a_streamed_message() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedAfterHeadersStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_typed_status_after_streamed_message(&tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_typed_google_rpc_status_after_a_streamed_message() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::mtls(identity, CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedAfterHeadersStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_typed_status_after_streamed_message(&tls_client_with(addr, client_tls).await)
+        .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_typed_google_rpc_status_after_a_streamed_message() {
+    let path = unix_sock("typed-after-headers");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedAfterHeadersStore)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_store_typed_status_after_streamed_message(&unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_typed_google_rpc_status_after_a_streamed_message() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedAfterHeadersStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io");
+    assert_store_typed_status_after_streamed_message(&client).await;
     server.abort();
 }
 

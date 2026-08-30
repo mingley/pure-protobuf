@@ -208,7 +208,9 @@ See `docs/upb.md`. Short list:
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
   server-streaming and bidi over h2c, TLS (including mTLS), Unix, and
-  `from_io` (unary and client-streaming have no response DATA then trailers).
+  `from_io` (unary and client-streaming have no response DATA then trailers),
+  including official TestService StreamingOutputCall / FullDuplexCall and
+  generated Store Watch / Sync.
   On a client request sender it resets CANCEL
   (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
   `Call` that has not yet seen headers, resolves with that status, not
