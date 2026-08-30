@@ -390,6 +390,7 @@ Or `status.error_info()` for the reason and domain without unpacking the bag. Di
 Or `status.bad_request()` for field violations without unpacking the bag. Distinct from `status.error_info()`. `BadRequest::with_field` builds that payload.
 Or `status.quota_failure()` for quota subjects without unpacking the bag. Distinct from `status.is_retryable()`. `QuotaFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 Or `status.precondition_failure()` for precondition type and subject without unpacking the bag. Distinct from `status.quota_failure()`. `PreconditionFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
+Or `status.help()` for documentation links without unpacking the bag. Distinct from `status.precondition_failure()`. `Help::with_link` builds that payload. Links can sit next to a retryable UNAVAILABLE.
 
 Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `PreconditionFailure.Violation`, `Help.Link` — live in modules named after the parent:
@@ -398,6 +399,7 @@ Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `BadRequest::with_field` builds one field violation.
 `QuotaFailure::with_violation` builds one quota subject.
 `PreconditionFailure::with_violation` builds one precondition type and subject.
+`Help::with_link` builds one documentation link.
 
 Raw bytes still work (`Status::set_details`) when you are forwarding a trailer
 you do not parse.

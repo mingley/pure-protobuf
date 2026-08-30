@@ -347,6 +347,59 @@ impl PreconditionFailure {
     }
 }
 
+impl help::Link {
+    /// A documentation `description` and `url`.
+    ///
+    /// Packed as part of [`Help::with_link`]. Distinct from
+    /// [`quota_failure::Violation::with_subject`]: that is a quota subject, not a
+    /// docs URL. Distinct from [`precondition_failure::Violation::with_type`]:
+    /// that is a precondition type, not a docs URL. Distinct from
+    /// [`FieldViolation::with_field`]: that is a request field path.
+    #[must_use]
+    pub fn with_url(description: impl Into<String>, url: impl Into<String>) -> Self {
+        let mut link = Self::new();
+        link.set_description(description.into());
+        link.set_url(url.into());
+        link
+    }
+}
+
+impl Help {
+    /// `Help` with one [`help::Link`].
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::help`]. Distinct from
+    /// [`crate::Status::is_retryable`]: documentation links can sit next to a retryable [`crate::Code::Unavailable`].
+    /// Distinct from [`crate::Status::precondition_failure`]: that is a type and subject, not a docs URL.
+    /// Distinct from [`crate::Status::quota_failure`]: that is a quota subject, not a docs URL.
+    /// Distinct from [`crate::Status::bad_request`]: that is a field path, not a docs URL.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, Help};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     help: Some(Help::with_link("quota docs", "https://example.com/quota")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Unavailable, "backend", &details)?;
+    /// assert!(status.is_retryable());
+    /// let help = status.help().expect("Help");
+    /// assert_eq!(
+    ///     help.links().get(0).expect("link").url().to_str().unwrap_or(""),
+    ///     "https://example.com/quota"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_link(description: impl Into<String>, url: impl Into<String>) -> Self {
+        let link = help::Link::with_url(description, url);
+        let mut out = Self::new();
+        out.set_links([link]);
+        out
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -799,5 +852,33 @@ mod tests {
         assert!(status.retry_delay().is_none());
         assert!(status.quota_failure().is_none());
         assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn help_with_link_round_trips() {
+        let link = help::Link::with_url("quota docs", "https://example.com/quota");
+        assert_eq!(link.description().to_str().unwrap_or(""), "quota docs");
+        assert_eq!(
+            link.url().to_str().unwrap_or(""),
+            "https://example.com/quota"
+        );
+        let packed = Help::with_link("retry", "https://example.com/retry");
+        let details = ErrorDetails {
+            help: Some(packed),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::Unavailable, "backend", &details)
+            .expect("encode");
+        assert!(status.is_retryable());
+        let got = status.help().expect("Help");
+        let link = got.links().get(0).expect("link");
+        assert_eq!(link.description().to_str().unwrap_or(""), "retry");
+        assert_eq!(
+            link.url().to_str().unwrap_or(""),
+            "https://example.com/retry"
+        );
+        assert!(status.retry_delay().is_none());
+        assert!(status.precondition_failure().is_none());
+        assert!(status.quota_failure().is_none());
     }
 }

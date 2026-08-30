@@ -774,6 +774,45 @@ impl Status {
         self.error_details().ok()?.precondition_failure
     }
 
+    /// Packed `google.rpc.Help`, if this status carries one.
+    ///
+    /// Distinct from [`Self::is_retryable`]: documentation links can sit next to a retryable [`Code::Unavailable`].
+    /// Distinct from [`Self::precondition_failure`]: that is a type and subject, not a docs URL.
+    /// Distinct from [`Self::quota_failure`]: that is a quota subject, not a docs URL.
+    /// Distinct from [`Self::bad_request`]: that is a field path, not a docs URL.
+    /// Distinct from [`Self::error_info`]: that is reason and domain, not a documentation link.
+    /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
+    /// Corrupt bytes are `None`. Build the payload with
+    /// [`crate::pb::Help::with_link`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, Help};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     help: Some(Help::with_link("quota docs", "https://example.com/quota")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Unavailable, "backend", &details)?;
+    /// assert!(status.is_retryable());
+    /// let help = status.help().expect("Help");
+    /// assert_eq!(
+    ///     help.links()
+    ///         .get(0)
+    ///         .expect("link")
+    ///         .url()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "https://example.com/quota"
+    /// );
+    /// assert!(Status::unavailable("backend").help().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn help(&self) -> Option<crate::pb::Help> {
+        self.error_details().ok()?.help
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1726,6 +1765,78 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .precondition_failure()
+        .is_none());
+    }
+
+    #[test]
+    fn help_reads_packed_documentation_links() {
+        let delay = std::time::Duration::from_millis(25);
+        let details = crate::pb::ErrorDetails {
+            help: Some(crate::pb::Help::with_link(
+                "quota docs",
+                "https://example.com/quota",
+            )),
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(delay)),
+            precondition_failure: Some(crate::pb::PreconditionFailure::with_violation(
+                "TOS",
+                "google.com/cloud",
+                "unsigned",
+            )),
+            quota_failure: Some(crate::pb::QuotaFailure::with_violation(
+                "project:1",
+                "tokens",
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status =
+            Status::from_error_details(Code::Unavailable, "backend", &details).expect("encode");
+        assert!(status.is_retryable());
+        assert_eq!(status.retry_delay(), Some(delay));
+        let help = status.help().expect("Help");
+        let link = help.links().get(0).expect("link");
+        assert_eq!(link.description().to_str().unwrap_or(""), "quota docs");
+        assert_eq!(
+            link.url().to_str().unwrap_or(""),
+            "https://example.com/quota"
+        );
+        assert!(status.precondition_failure().is_some());
+        assert!(status.quota_failure().is_some());
+
+        let retry_only = crate::pb::ErrorDetails {
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(delay)),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let retry_status =
+            Status::from_error_details(Code::Unavailable, "backend", &retry_only).expect("encode");
+        assert!(retry_status.help().is_none());
+        assert_eq!(retry_status.retry_delay(), Some(delay));
+        assert!(retry_status.is_retryable());
+
+        let pre_only = crate::pb::ErrorDetails {
+            precondition_failure: Some(crate::pb::PreconditionFailure::with_violation(
+                "TOS",
+                "google.com/cloud",
+                "unsigned",
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let pre_status =
+            Status::from_error_details(Code::FailedPrecondition, "tos", &pre_only).expect("encode");
+        assert!(pre_status.help().is_none());
+        assert!(pre_status.precondition_failure().is_some());
+        assert!(!pre_status.is_retryable());
+
+        assert!(Status::unavailable("backend").help().is_none());
+        assert!(Status::unavailable("backend")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .help()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .help()
         .is_none());
     }
 

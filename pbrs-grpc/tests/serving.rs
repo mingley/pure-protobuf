@@ -1766,6 +1766,39 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "PreconditionFailure::with_violation must Distinct quota subject from precondition type"
     );
     assert!(
+        crate_src.contains("[`Status::help`]"),
+        "crate map must name Status::help"
+    );
+    assert!(
+        crate_src.contains("[`pb::Help::with_link`]"),
+        "crate map must name Help::with_link"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.Help`, if this status carries one."),
+        "Status::help must name packed Help"
+    );
+    assert!(
+        status_src
+            .contains("documentation links can sit next to a retryable [`Code::Unavailable`]"),
+        "Status::help must Distinct retryable UNAVAILABLE from failure classifications"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::precondition_failure`]: that is a type and subject, not a docs"
+        ),
+        "Status::help must Distinct precondition type from docs URL"
+    );
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::help`]"),
+        "Help::with_link must name Status::help unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "documentation links can sit next to a retryable [`crate::Code::Unavailable`]"
+        ),
+        "Help::with_link must Distinct retryable UNAVAILABLE from failure classifications"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
@@ -2034,6 +2067,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from `status.quota_failure()`."),
         "guide must Distinct precondition_failure from quota_failure"
+    );
+    assert!(
+        guide.contains("`status.help()` for documentation links"),
+        "guide must name Status::help as documentation links"
+    );
+    assert!(
+        guide.contains("`Help::with_link` builds that payload"),
+        "guide must name Help::with_link as the builder"
+    );
+    assert!(
+        guide.contains("Links can sit next to a retryable UNAVAILABLE."),
+        "guide must Distinct Help from failure classifications"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),

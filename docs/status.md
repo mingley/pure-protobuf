@@ -510,7 +510,10 @@ See `docs/upb.md`. Short list:
   and from `bad_request`. `QuotaFailure::with_violation` builds that payload.
   `Status::precondition_failure` is packed type and subject.
   Distinct from `quota_failure` (`FAILED_PRECONDITION` is never A6-retryable)
-  and from `bad_request`. `PreconditionFailure::with_violation` builds that payload. A
+  and from `bad_request`. `PreconditionFailure::with_violation` builds that payload.
+  `Status::help` is packed documentation links. Distinct from failure
+  classifications: links can sit next to a retryable UNAVAILABLE.
+  `Help::with_link` builds that payload. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

@@ -260,7 +260,9 @@ is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `bad_request`. `QuotaFailure::with_violation` builds that payload.
 `Status::precondition_failure` is packed type and subject. Distinct from
 `quota_failure`. Distinct from `bad_request`. `PreconditionFailure::with_violation`
-builds that payload. `set_code` / `set_message` rewrite a packed protobuf
+builds that payload. `Status::help` is packed documentation links. Distinct from
+failure classifications: links can sit next to a retryable UNAVAILABLE.
+`Help::with_link` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details`
 replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing
