@@ -3942,6 +3942,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must Distinct connected from wait-for-ready"
     );
     assert!(
+        src.contains(
+            "[`::pbrs_grpc::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay"
+        ),
+        "generated intercept rustdoc must name Outgoing::concurrent_rpc_limit"
+    );
+    assert!(
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),
         "generated server intercept rustdoc must name the server timeout overlay"
     );
@@ -3950,8 +3956,16 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server intercept rustdoc must name gzip_level overlay"
     );
     assert!(
-        src.contains("`gzip_level` / `accepts_compressed`, attach extensions"),
+        src.contains(
+            "`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`, attach extensions"
+        ),
         "generated server intercept rustdoc must name accepts_compressed overlay"
+    );
+    assert!(
+        src.contains(
+            "`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`, attach extensions"
+        ),
+        "generated server intercept rustdoc must name concurrent_rpc_limit overlay"
     );
     assert!(
         src.contains(
@@ -4016,6 +4030,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Cap how many RPCs the process will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated max_concurrent_rpcs rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Configured process-wide RPC cap, if any. Distinct from [`Self::max_concurrent_rpcs`], which sets it. See [`::pbrs_grpc::Server::concurrent_rpc_limit`]."
+        ),
+        "generated server concurrent_rpc_limit rustdoc must Distinct the setter"
     );
     assert!(
         src.contains(

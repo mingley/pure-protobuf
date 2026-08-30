@@ -58,6 +58,7 @@ pub struct Request<T> {
     compresses_outbound: bool,
     gzip_level: u32,
     accepts_compressed: bool,
+    concurrent_rpc_limit: Option<usize>,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -92,6 +93,7 @@ impl<T> Request<T> {
             compresses_outbound: false,
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             accepts_compressed: true,
+            concurrent_rpc_limit: None,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -147,6 +149,7 @@ impl<T> Request<T> {
                 compresses_outbound: self.compresses_outbound,
                 gzip_level: self.gzip_level,
                 accepts_compressed: self.accepts_compressed,
+                concurrent_rpc_limit: self.concurrent_rpc_limit,
                 encoding: self.encoding,
                 cancel: self.cancel,
                 extensions: self.extensions,
@@ -184,6 +187,7 @@ impl<T> Request<T> {
             compresses_outbound: parts.compresses_outbound,
             gzip_level: parts.gzip_level,
             accepts_compressed: parts.accepts_compressed,
+            concurrent_rpc_limit: parts.concurrent_rpc_limit,
             encoding: parts.encoding,
             cancel: parts.cancel,
             extensions: parts.extensions,
@@ -526,6 +530,23 @@ impl<T> Request<T> {
         self.accepts_compressed
     }
 
+    /// Server [`crate::Server::max_concurrent_rpcs`] overlay, when the kernel dispatched this call.
+    ///
+    /// Same overlay as [`crate::Rpc::concurrent_rpc_limit`] / [`crate::Server::concurrent_rpc_limit`].
+    /// Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay.
+    /// Distinct from [`Self::limits`]: that is message size, not how many RPCs.
+    /// `None` on a request you built to send, and `None` when the server omitted a cap.
+    /// An interceptor cannot change this; extras are [`crate::Code::ResourceExhausted`] before the handler runs.
+    ///
+    /// ```
+    /// let req = pbrs_grpc::Request::new(());
+    /// assert_eq!(req.concurrent_rpc_limit(), None);
+    /// ```
+    #[must_use]
+    pub fn concurrent_rpc_limit(&self) -> Option<usize> {
+        self.concurrent_rpc_limit
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
@@ -690,6 +711,7 @@ impl<T> Request<T> {
             compresses_outbound: false,
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             accepts_compressed: true,
+            concurrent_rpc_limit: None,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -749,6 +771,10 @@ impl<T> Request<T> {
         self.accepts_compressed = accept;
     }
 
+    pub(crate) fn set_concurrent_rpc_limit(&mut self, n: Option<usize>) {
+        self.concurrent_rpc_limit = n;
+    }
+
     pub(crate) fn set_encoding(&mut self, encoding: Option<String>) {
         self.encoding = encoding;
     }
@@ -778,6 +804,7 @@ impl<T> Request<T> {
             compresses_outbound: config.compresses_outbound(),
             accepts_compressed: config.accepts_compressed(),
             gzip_level: config.gzip_level(),
+            concurrent_rpc_limit: config.concurrent_rpc_limit(),
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -796,7 +823,7 @@ impl<T> Request<T> {
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
 /// `:authority`, `:scheme`, `user-agent`, message caps, timeout / wait-for-ready
 /// / gzip overlays ([`Self::rpc_timeout`] / [`Self::waits_for_ready`] /
-/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`]), and the service/method halves of the path,
+/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`] / [`Self::concurrent_rpc_limit`]), and the service/method halves of the path,
 /// which the interceptor cannot otherwise see. Those overlays fill in before
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
 /// [`Self::clear_compress`] opt out of an already-applied default.
@@ -841,6 +868,7 @@ impl<T> Request<T> {
 ///         call.compresses_outbound(),
 ///         call.accepts_compressed(),
 ///         call.gzip_level(),
+///         call.concurrent_rpc_limit(),
 ///         call.connected(),
 ///     );
 ///     Ok(())
@@ -859,6 +887,7 @@ pub struct Outgoing<'a> {
     compresses_outbound: bool,
     accepts_compressed: bool,
     gzip_level: u32,
+    concurrent_rpc_limit: Option<usize>,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -1014,6 +1043,17 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn gzip_level(&self) -> u32 {
         self.gzip_level
+    }
+
+    /// Channel [`crate::Channel::max_concurrent_rpcs`] overlay.
+    ///
+    /// Distinct from [`Self::waits_for_ready`]: that waits for a connection; this refuses extras.
+    /// Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits.
+    /// `None` when unset. An interceptor cannot change this; the kernel refuses extras with [`crate::Code::ResourceExhausted`] before the stream opens.
+    /// Same value as [`crate::Channel::concurrent_rpc_limit`]. Applies to every call shape.
+    #[must_use]
+    pub fn concurrent_rpc_limit(&self) -> Option<usize> {
+        self.concurrent_rpc_limit
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`. Visible on every
@@ -1215,6 +1255,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("compresses_outbound", &self.compresses_outbound)
             .field("accepts_compressed", &self.accepts_compressed)
             .field("gzip_level", &self.gzip_level)
+            .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline())
@@ -1252,6 +1293,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("compresses_outbound", &self.compresses_outbound)
             .field("gzip_level", &self.gzip_level)
             .field("accepts_compressed", &self.accepts_compressed)
+            .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -1284,6 +1326,7 @@ pub struct Parts {
     compresses_outbound: bool,
     gzip_level: u32,
     accepts_compressed: bool,
+    concurrent_rpc_limit: Option<usize>,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -1495,6 +1538,12 @@ impl Parts {
         self.accepts_compressed
     }
 
+    /// Server process RPC cap overlay. See [`Request::concurrent_rpc_limit`].
+    #[must_use]
+    pub fn concurrent_rpc_limit(&self) -> Option<usize> {
+        self.concurrent_rpc_limit
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     /// See [`Request::encoding`].
     #[must_use]
@@ -1578,6 +1627,7 @@ impl fmt::Debug for Parts {
             .field("compresses_outbound", &self.compresses_outbound)
             .field("gzip_level", &self.gzip_level)
             .field("accepts_compressed", &self.accepts_compressed)
+            .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -2138,6 +2188,7 @@ mod tests {
         req.set_compresses_outbound(true);
         req.set_gzip_level(9);
         req.set_accepts_compressed(false);
+        req.set_concurrent_rpc_limit(Some(4));
         req.set_encoding(Some("gzip".into()));
         let (message, mut parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
@@ -2160,6 +2211,7 @@ mod tests {
         assert!(parts.compresses_outbound());
         assert_eq!(parts.gzip_level(), 9);
         assert!(!parts.accepts_compressed());
+        assert_eq!(parts.concurrent_rpc_limit(), Some(4));
         assert_eq!(parts.encoding(), Some("gzip"));
         assert!(parts.peer_cred().is_none());
         assert!(parts.limits().is_none());
@@ -2194,6 +2246,10 @@ mod tests {
             shown_parts.contains("accepts_compressed: false"),
             "{shown_parts}"
         );
+        assert!(
+            shown_parts.contains("concurrent_rpc_limit: Some(4)"),
+            "{shown_parts}"
+        );
         assert!(shown_parts.contains("encoding: Some("), "{shown_parts}");
         assert!(shown_parts.contains("user_agent: Some("), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
@@ -2218,6 +2274,7 @@ mod tests {
         assert!(rebuilt.compresses_outbound());
         assert_eq!(rebuilt.gzip_level(), 9);
         assert!(!rebuilt.accepts_compressed());
+        assert_eq!(rebuilt.concurrent_rpc_limit(), Some(4));
         assert_eq!(rebuilt.encoding(), Some("gzip"));
         assert!(rebuilt.peer_cred().is_none());
         assert!(rebuilt.limits().is_none());
@@ -2238,6 +2295,7 @@ mod tests {
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("accepts_compressed: false"), "{shown}");
+        assert!(shown.contains("concurrent_rpc_limit: Some(4)"), "{shown}");
         assert!(shown.contains("encoding: Some("), "{shown}");
         assert!(shown.contains("user_agent: Some("), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
@@ -2256,6 +2314,7 @@ mod tests {
         assert!(Request::new(0u32).rpc_timeout().is_none());
         assert!(!Request::new(0u32).accepts_gzip());
         assert!(!Request::new(0u32).compresses_outbound());
+        assert!(Request::new(0u32).concurrent_rpc_limit().is_none());
         assert!(Request::new(0u32).encoding().is_none());
         assert!(Request::new(0u32).user_agent().is_none());
         assert!(!Request::new(0u32).user_agent_is_set());
@@ -2392,6 +2451,7 @@ mod tests {
             assert!(!call.waits_for_ready());
             assert!(!call.compresses_outbound());
             assert!(call.accepts_compressed());
+            assert!(call.concurrent_rpc_limit().is_none());
             assert!(!call.connected());
             format!("{call:?}")
         };
@@ -2482,7 +2542,8 @@ mod tests {
             .timeout(Duration::from_secs(5))
             .wait_for_ready(true)
             .send_compressed(true)
-            .accept_compressed(false);
+            .accept_compressed(false)
+            .max_concurrent_rpcs(4);
         let mut call = req.outgoing(
             "/svc/Method",
             "127.0.0.1:1",
@@ -2494,6 +2555,7 @@ mod tests {
         assert!(call.waits_for_ready());
         assert!(call.compresses_outbound());
         assert!(!call.accepts_compressed());
+        assert_eq!(call.concurrent_rpc_limit(), Some(4));
         // Overlays are not copied onto the per-RPC fields until prepare_outbound.
         assert!(call.timeout().is_none());
         assert!(!call.wait_for_ready_is_set());
@@ -2514,6 +2576,7 @@ mod tests {
         assert!(shown.contains("rpc_timeout"), "{shown}");
         assert!(shown.contains("waits_for_ready: true"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
+        assert!(shown.contains("concurrent_rpc_limit: Some(4)"), "{shown}");
     }
 
     #[test]

@@ -1163,6 +1163,8 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Outgoing::gzip_level` is that overlay in a client interceptor. Distinct from `compresses_outbound` (on or off). An interceptor cannot change it.
 `Rpc::gzip_level` is that overlay in a server interceptor. Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it.
 `Rpc::accepts_compressed` is that overlay in a server interceptor. Distinct from `Rpc::accepts_gzip` (peer advertisement). An interceptor cannot change it.
+`Outgoing::concurrent_rpc_limit` is that overlay in a client interceptor. Distinct from `waits_for_ready` (connection). An interceptor cannot change it.
+`Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
@@ -1246,6 +1248,8 @@ and refuses a gzip reply the same way, including over TLS, mTLS, Unix, and
 `from_io`. `Outgoing::accepts_compressed` is that overlay; interceptors
 cannot change it. `Rpc::accepts_compressed` is the server overlay a handler
 sees on `Request::accepts_compressed`. Distinct from `Rpc::accepts_gzip`.
+`Outgoing::concurrent_rpc_limit` is the client process-cap overlay. Distinct from `waits_for_ready` (connection).
+`Rpc::concurrent_rpc_limit` is the server overlay a handler sees on `Request::concurrent_rpc_limit`. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
 Distinct from tonic's `accept_compressed`, which starts
 opt-in.
 
@@ -1610,7 +1614,8 @@ request you built). `Rpc::gzip_level` is that same deflate effort, stamped
 onto `Request::gzip_level` / `Parts::gzip_level` at dispatch. `Rpc::accepts_compressed`
 is the server's inbound gzip overlay; generated handlers see it on
 `Request::accepts_compressed` / `Parts::accepts_compressed`. Distinct from
-`Rpc::accepts_gzip`. `Rpc::rpc_timeout` is the server's `timeout` overlay;
+`Rpc::accepts_gzip`. `Rpc::concurrent_rpc_limit` is the server's process cap overlay; generated handlers see it on `Request::concurrent_rpc_limit` / `Parts::concurrent_rpc_limit`. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`.
+`Rpc::rpc_timeout` is the server's `timeout` overlay;
 generated handlers see it on `Request::rpc_timeout` / `Parts::rpc_timeout`.
 `grpc-*` keys stay off `Metadata`.
 

@@ -791,6 +791,8 @@ impl Channel {
     /// the already-applied default.
     /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
     /// (default on).
+    /// [`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay.
+    /// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
     /// [`crate::Outgoing::connected`] is the live-socket snapshot
     /// ([`crate::Channel::connected`]), taken when this interceptor runs.
     /// Distinct from wait-for-ready: a lazy first RPC sees `false` even when

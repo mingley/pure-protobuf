@@ -28,15 +28,16 @@ use std::sync::Arc;
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
 /// message caps with [`Rpc::limits`], gzip accept/encoding with
 /// [`Rpc::accepts_gzip`] / [`Rpc::encoding`] / [`Rpc::compresses_outbound`]
-/// / [`Rpc::gzip_level`] / [`Rpc::accepts_compressed`] (`encoding` is `None` for identity).
+/// / [`Rpc::gzip_level`] / [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`] (`encoding` is `None` for identity).
 /// Distinct from [`Rpc::compresses_outbound`]: that is on or off; [`Rpc::gzip_level`] is deflate effort.
 /// Distinct from [`Rpc::accepts_gzip`]: that is the peer's `grpc-accept-encoding`; [`Rpc::accepts_compressed`] is this overlay.
+/// Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits; [`Rpc::concurrent_rpc_limit`] is this overlay.
 /// Read the TCP interface with
 /// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`] / [`crate::Parts::extensions`] (including
 /// over TLS, mTLS, Unix, and [`crate::Channel::from_io`]). Generated handlers see the same path,
-/// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, deflate effort, inbound-gzip overlay, peer, and caps on
+/// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, deflate effort, inbound-gzip overlay, process RPC cap, peer, and caps on
 /// [`crate::Request`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
 ///
@@ -333,6 +334,8 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Outgoing::compresses_outbound`] (on or off). An interceptor cannot change it.
 /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
 /// (default on).
+/// [`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay.
+/// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
 /// [`crate::Outgoing::connected`] is the live-socket snapshot
 /// ([`crate::Channel::connected`]), taken when this interceptor runs.
 /// Distinct from wait-for-ready: a lazy first RPC sees `false` even when

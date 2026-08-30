@@ -721,6 +721,33 @@ fn channel_call_apis_document_hand_written_services() {
         "Request::accepts_compressed must Distinct client interceptor overlay from inbound dispatch"
     );
     assert!(
+        outgoing.contains("Channel [`crate::Channel::max_concurrent_rpcs`] overlay."),
+        "Outgoing::concurrent_rpc_limit must name the channel max_concurrent_rpcs overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::waits_for_ready`]: that waits for a connection; this refuses extras."
+        ),
+        "Outgoing::concurrent_rpc_limit must Distinct wait-for-ready from refusing extras"
+    );
+    assert!(
+        outgoing.contains(
+            "Server [`crate::Server::max_concurrent_rpcs`] overlay, when the kernel dispatched this call."
+        ),
+        "Request::concurrent_rpc_limit must name the server max_concurrent_rpcs overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay."
+        ),
+        "Request::concurrent_rpc_limit must Distinct client interceptor overlay from inbound dispatch"
+    );
+    assert!(
+        outgoing
+            .contains("Distinct from [`Self::limits`]: that is message size, not how many RPCs."),
+        "Request::concurrent_rpc_limit must Distinct message size from the process RPC cap"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -861,6 +888,17 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must name Outgoing::accepts_compressed"
     );
     assert!(
+        intercept
+            .contains("[`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay"),
+        "ClientInterceptor rustdoc must name Outgoing::concurrent_rpc_limit"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras."
+        ),
+        "ClientInterceptor rustdoc must Distinct concurrent_rpc_limit from waits_for_ready"
+    );
+    assert!(
         intercept.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
         "ClientInterceptor rustdoc must name Outgoing::connected"
     );
@@ -883,6 +921,12 @@ fn channel_call_apis_document_hand_written_services() {
             "Distinct from [`Rpc::accepts_gzip`]: that is the peer's `grpc-accept-encoding`; [`Rpc::accepts_compressed`] is this overlay."
         ),
         "Interceptor rustdoc must Distinct Rpc::accepts_compressed from peer accepts_gzip"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits; [`Rpc::concurrent_rpc_limit`] is this overlay."
+        ),
+        "Interceptor rustdoc must Distinct Rpc::concurrent_rpc_limit from SETTINGS wait"
     );
     assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
@@ -1002,6 +1046,16 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
+    );
+    assert!(
+        src.contains("[`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay"),
+        "Channel::intercept rustdoc must name Outgoing::concurrent_rpc_limit"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras."
+        ),
+        "Channel::intercept rustdoc must Distinct concurrent_rpc_limit from waits_for_ready"
     );
     assert!(
         src.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
@@ -2070,6 +2124,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Rpc::accepts_compressed from peer accepts_gzip"
     );
     assert!(
+        crate_src
+            .contains("[`Outgoing::concurrent_rpc_limit`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::concurrent_rpc_limit as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::waits_for_ready`]"),
+        "crate docs must Distinct Outgoing::concurrent_rpc_limit from waits_for_ready"
+    );
+    assert!(
+        crate_src.contains("[`Rpc::concurrent_rpc_limit`] is that overlay in a server interceptor"),
+        "crate docs must name Rpc::concurrent_rpc_limit as the server interceptor overlay"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2454,6 +2521,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must Distinct Rpc::accepts_compressed from peer advertisement"
     );
     assert!(
+        guide.contains("`Outgoing::concurrent_rpc_limit` is that overlay in a client interceptor. Distinct from `waits_for_ready` (connection). An interceptor cannot change it."),
+        "guide must name Outgoing::concurrent_rpc_limit as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits)."),
+        "guide must name Rpc::concurrent_rpc_limit as the server interceptor overlay"
+    );
+    assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
         "guide must name add_optional_service as Some-only mount"
     );
@@ -2572,6 +2647,12 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::accepts_compressed and Router::accepts_compressed must name every call shape"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`Self::max_concurrent_rpcs`], which sets it.")
+            .count(),
+        2,
+        "Server::concurrent_rpc_limit and Router::concurrent_rpc_limit must Distinct the setter"
     );
     assert!(
         src.contains(
@@ -3017,6 +3098,16 @@ fn server_and_router_config_document_every_call_shape() {
             "Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this overlay."
         ),
         "Rpc::accepts_compressed must Distinct peer accepts_gzip from inbound overlay"
+    );
+    assert!(
+        src.contains("Generated handlers see the same value on [`Request::concurrent_rpc_limit`]."),
+        "Rpc::concurrent_rpc_limit must name the Request stamp"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay."
+        ),
+        "Rpc::concurrent_rpc_limit must Distinct client interceptor overlay"
     );
     assert!(
         src.contains("0 stores; 9 is best"),
@@ -13319,12 +13410,27 @@ async fn assert_rpc_cap(client: &GreeterClient) {
     );
 }
 
+fn require_server_rpc_cap(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.concurrent_rpc_limit() != Some(1) {
+        return Err(Status::internal("rpc concurrent_rpc_limit"));
+    }
+    Ok(())
+}
+
+fn require_client_rpc_cap(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if call.concurrent_rpc_limit() != Some(1) {
+        return Err(Status::internal("outgoing concurrent_rpc_limit"));
+    }
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
             .max_concurrent_rpcs(1)
+            .intercept(require_server_rpc_cap)
             .serve_listener(listener)
             .await
             .ok();
@@ -13340,6 +13446,7 @@ async fn tls_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
             .max_concurrent_rpcs(1)
+            .intercept(require_server_rpc_cap)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
@@ -13355,6 +13462,7 @@ async fn mtls_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
             .max_concurrent_rpcs(1)
+            .intercept(require_server_rpc_cap)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
@@ -13375,6 +13483,7 @@ async fn unix_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
             .max_concurrent_rpcs(1)
+            .intercept(require_server_rpc_cap)
             .serve_unix(sock)
             .await
             .ok();
@@ -13389,6 +13498,7 @@ async fn from_io_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     let server = tokio::spawn(async move {
         GreeterServer::new(Slow)
             .max_concurrent_rpcs(1)
+            .intercept(require_server_rpc_cap)
             .serve_connection(server_io)
             .await
             .ok();
@@ -13436,7 +13546,7 @@ async fn channel_config_max_concurrent_rpcs_refuses_extras() {
         GreeterServer::new(Slow).serve_listener(listener).await.ok();
     });
     let ch = channel_cfg(addr, ChannelConfig::new().max_concurrent_rpcs(1)).await;
-    assert_rpc_cap(&GreeterClient::new(ch)).await;
+    assert_rpc_cap(&GreeterClient::new(ch).intercept(require_client_rpc_cap)).await;
     task.abort();
 }
 
@@ -13446,7 +13556,9 @@ async fn client_rpc_cap_releases_after_the_call_finishes() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-    let client = GreeterClient::new(channel(addr).await).max_concurrent_rpcs(1);
+    let client = GreeterClient::new(channel(addr).await)
+        .max_concurrent_rpcs(1)
+        .intercept(require_client_rpc_cap);
     client
         .say_hello(Request::new(req("a")))
         .await

@@ -70,7 +70,7 @@ connection.
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
 / cred, `Rpc::limits`, gzip accept/encoding, `compresses_outbound`,
-`gzip_level`, and `accepts_compressed`.
+`gzip_level`, `accepts_compressed`, and `concurrent_rpc_limit`.
 `Router` splits on the service half of the path. An unmounted service, or a
 method a mounted service does not have, is `UNIMPLEMENTED` on every call
 shape, including over TLS, mTLS, Unix, and `from_io`. Remounting the same
@@ -79,13 +79,13 @@ Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
 gzip accept/encoding, the
-`compresses_outbound` overlay, `gzip_level`, and `accepts_compressed`. Dumping
+`compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, and `concurrent_rpc_limit`. Dumping
 `Rpc` prints service/method, interceptor `timeout` / server `rpc_timeout` /
 `peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
-encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed`, and `limits`.
+encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`, and `limits`.
 Dumping `Request` prints path / service / method, `timeout` / `rpc_timeout` /
 `peer_timeout`,
-`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, peer,
+`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, peer,
 `:authority` / `:scheme`, wait-for-ready, `limits`, and cancel.
 Dumping `Response` prints metadata, trailers, compress intent, and received
 `encoding`.
@@ -113,7 +113,7 @@ sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 `user-agent`, message caps, metadata, timeout / deadline Instant,
 wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
-`gzip_level`),
+`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`),
 extensions). Those Outgoing getters apply to every call shape. The next RPC of every call shape redials a dead slot, including over TLS,
 mTLS, and Unix. Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. Client-streaming and bidi retry once
@@ -202,7 +202,7 @@ per-service hook and does not cover other mounts; a Server / Router hook
 still runs first. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
-`compresses_outbound`, `gzip_level`, `accepts_compressed`, peer, `:authority` / `:scheme`, limits).
+`compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).
 `metadata_mut().set` / `remove` / `retain` reach the handler on every call
@@ -211,7 +211,7 @@ survive `into_message_and_parts`. TLS `:authority` is
 the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
-gzip, the `compresses_outbound` overlay, `gzip_level`, and `accepts_compressed`. `Server::timeout` / `Router::timeout`
+gzip, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, and `concurrent_rpc_limit`. `Server::timeout` / `Router::timeout`
 expire Slow handlers when the client omits a deadline and cap a longer client
 deadline, including over TLS, mTLS, Unix, and `from_io`.
 `Server::send_compressed` / `Router::send_compressed`
@@ -230,7 +230,7 @@ Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 `Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,
 limits, metadata, timeout / deadline Instant, wait-for-ready
 (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays
-(`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level`), extensions).
+(`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`), extensions).
 Overlays (timeout, wait-for-ready, send_compressed, gzip_compression_level, message caps,
 `https_scheme`) fill in before interceptors run; `clear_*` opts out of that
 already-applied default while the overlay getters stay. `Channel::timeout` /

@@ -288,7 +288,7 @@ impl Config {
     /// `https_scheme` for already-encrypted `from_io` streams. Read those
     /// overlays with `scheme` / `authority` / `grpc_user_agent` /
     /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
-    /// `gzip_level` / `accepts_compressed` / `config`.
+    /// `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `config`.
     /// Methods you omit on the generated `Foo` trait answer `UNIMPLEMENTED`.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
@@ -4088,6 +4088,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Configured process-wide RPC cap, if any. Distinct from [`Self::max_concurrent_rpcs`], which sets it. See [`{G}::Server::concurrent_rpc_limit`]. Applies to every call shape."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn concurrent_rpc_limit(&self) -> ::core::option::Option<usize> {{ self.config.concurrent_rpc_limit() }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap how many TCP/Unix connections the accept loop will serve at once, including TLS and mTLS listeners. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_connections`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4368,7 +4377,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline (`set_timeout` / `deadline` Instant), inspect path / service / method, `:authority` / `:scheme` / `peer_timeout` / `rpc_timeout` / `effective_timeout` / `local_addr` / `remote_addr` / `peer_identity` / `peer_cred` / message caps / gzip accept and encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed`, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first. Applies to every call shape; `Err` rejects before the body is read, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. `Err` may carry [`{G}::Status::with_error_details`]; those trailers reach the client."
+        "    /// Run `interceptor` before `{trait_name}` methods. It may mutate metadata, cap the deadline (`set_timeout` / `deadline` Instant), inspect path / service / method, `:authority` / `:scheme` / `peer_timeout` / `rpc_timeout` / `effective_timeout` / `local_addr` / `remote_addr` / `peer_identity` / `peer_cred` / message caps / gzip accept and encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`, attach extensions, or reject. Generated handlers see the same values on [`{G}::Request`]. Calling this twice stacks: the first interceptor runs first. Applies to every call shape; `Err` rejects before the body is read, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. `Err` may carry [`{G}::Status::with_error_details`]; those trailers reach the client."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4964,7 +4973,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], [`Self::gzip_level`], and [`Self::accepts_compressed`] read that overlay without colliding with the setters."
+        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`], and [`Self::concurrent_rpc_limit`] read that overlay without colliding with the setters."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
@@ -5038,7 +5047,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), extensions, `connected` (same snapshot as [`{G}::Channel::connected`]). [`{G}::Outgoing::set_user_agent`] prefixes this RPC. [`{G}::Request::set_user_agent`] is the same prefix at the call site. [`{G}::Outgoing::connected`] is the live-socket snapshot. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), extensions, `connected` (same snapshot as [`{G}::Channel::connected`]). [`{G}::Outgoing::set_user_agent`] prefixes this RPC. [`{G}::Request::set_user_agent`] is the same prefix at the call site. [`{G}::Outgoing::connected`] is the live-socket snapshot. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on. [`{G}::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay. Distinct from [`{G}::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");

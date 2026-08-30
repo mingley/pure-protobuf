@@ -276,6 +276,7 @@ impl std::fmt::Debug for Rpc {
             .field("compresses_outbound", &self.compresses_outbound())
             .field("gzip_level", &self.gzip_level())
             .field("accepts_compressed", &self.accepts_compressed())
+            .field("concurrent_rpc_limit", &self.concurrent_rpc_limit())
             .field("encoding", &self.encoding())
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
@@ -531,6 +532,19 @@ impl Rpc {
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
         self.config.accepts_compressed()
+    }
+
+    /// Configured process-wide RPC cap, if any.
+    ///
+    /// Same overlay as [`crate::Server::concurrent_rpc_limit`].
+    /// Generated handlers see the same value on [`Request::concurrent_rpc_limit`].
+    /// Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay.
+    /// Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits.
+    /// `None` when the server omitted a cap. An interceptor cannot change this; extras are [`Code::ResourceExhausted`] before the handler runs.
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn concurrent_rpc_limit(&self) -> Option<usize> {
+        self.config.concurrent_rpc_limit()
     }
 
     /// The peer's `grpc-encoding` token, if it sent a non-identity coding.
@@ -899,6 +913,7 @@ impl Rpc {
             req.set_compresses_outbound(prefer_gzip);
             req.set_gzip_level(config.gzip_level());
             req.set_accepts_compressed(config.accepts_compressed());
+            req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
             req.set_encoding(encoding);
             req.set_cancel(cancel_rx);
             if let Some(d) = timeout {
@@ -977,6 +992,7 @@ impl Rpc {
         req.set_compresses_outbound(prefer_gzip);
         req.set_gzip_level(config.gzip_level());
         req.set_accepts_compressed(config.accepts_compressed());
+        req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
         req.set_encoding(encoding);
         if let Some(d) = timeout {
             req.set_timeout(d);
@@ -1410,6 +1426,14 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Configured process-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::max_concurrent_rpcs`], which sets it.
+    #[must_use]
+    pub fn concurrent_rpc_limit(&self) -> Option<usize> {
+        self.config.concurrent_rpc_limit()
+    }
+
     /// Cap how many TCP/Unix connections the accept loop will serve at once,
     /// including TLS and mTLS listeners. Applies to every call shape. See
     /// [`ServerConfig::max_concurrent_connections`].
@@ -1729,12 +1753,12 @@ impl<S: Service> Server<S> {
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
     /// [`Rpc::peer_cred`] / [`Rpc::limits`] / [`Rpc::accepts_gzip`] /
     /// [`Rpc::encoding`] / [`Rpc::compresses_outbound`] / [`Rpc::gzip_level`] /
-    /// [`Rpc::accepts_compressed`],
+    /// [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject before the body
     /// is read. Generated handlers see the same path, peer, caps, client
     /// timeout, server timeout overlay, gzip facts, response-gzip overlay,
-    /// deflate effort, and inbound-gzip overlay on [`Request`].
+    /// deflate effort, inbound-gzip overlay, and process RPC cap on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
@@ -2172,6 +2196,14 @@ impl Router {
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);
         self
+    }
+
+    /// Configured process-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::max_concurrent_rpcs`], which sets it.
+    #[must_use]
+    pub fn concurrent_rpc_limit(&self) -> Option<usize> {
+        self.config.concurrent_rpc_limit()
     }
 
     /// Cap how many TCP/Unix connections the accept loop will serve at once,
