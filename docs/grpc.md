@@ -943,11 +943,13 @@ Router::new()
 
 `list_services` reports every service in those sets. `file_containing_symbol`
 and `file_by_filename` return the serialized `FileDescriptorProto` plus
-whatever transitive imports were in the set. `file_containing_extension` and
-`all_extension_numbers_of_type` answer from the same sets; a missing extension
-is a `NOT_FOUND` on the stream, and extension-number listing is best-effort
-(empty when the type has none). A missing symbol is a `NOT_FOUND` on the
-stream (`ErrorResponse`), not a broken RPC. An inbound message over the
+whatever transitive imports were in the set, including over TLS, mTLS, Unix,
+and `from_io`. `file_containing_extension` and
+`all_extension_numbers_of_type` answer from the same sets on those
+transports; a missing extension is a `NOT_FOUND` on the stream, and
+extension-number listing is best-effort (empty when the type has none). A
+missing symbol is a `NOT_FOUND` on the stream (`ErrorResponse`), not a broken
+RPC, including over those transports. An inbound message over the
 decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
 OK end. Unix, TLS, and `from_io` serve that method. `send_compressed` gzips
 that bidi method when the client advertises gzip, including over TLS, mTLS, Unix,

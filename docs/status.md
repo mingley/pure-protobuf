@@ -104,7 +104,10 @@ See `docs/upb.md`. Short list:
   Check of a never-set name is `NOT_FOUND`, Watch of that name is
   `SERVICE_UNKNOWN`, Watch streams `set_not_serving` / `shutdown` / `resume`,
   and dropping a Watch releases the subscription, including over TLS, mTLS,
-  Unix, and `from_io`. TLS
+  Unix, and `from_io`. There is still no Health `List`. Reflection
+  `file_containing_symbol` / `file_by_filename` / `file_containing_extension`
+  / `all_extension_numbers_of_type` run on the one bidi method, including
+  over TLS, mTLS, Unix, and `from_io`. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent

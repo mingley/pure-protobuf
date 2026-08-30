@@ -346,6 +346,18 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name typed Status after streamed DATA"
     );
+    assert!(
+        src.contains(
+            "`file_containing_symbol` and `file_by_filename` return the\n//! registered `FileDescriptorProto` on that method, including over TLS, mTLS,\n//! Unix, and [`crate::Channel::from_io`]. A missing symbol is `NOT_FOUND` on\n//! the stream."
+        ),
+        "reflection crate rustdoc must name file lookups on every transport"
+    );
+    assert!(
+        src.contains(
+            "`file_containing_extension` and `all_extension_numbers_of_type`\n//! answer from the same method on those transports; a missing extension is\n//! `NOT_FOUND` on the stream."
+        ),
+        "reflection crate rustdoc must name extension lookups on every transport"
+    );
 }
 
 #[tokio::test]
@@ -3038,4 +3050,210 @@ async fn reflection_from_io_typed_google_rpc_status_after_a_streamed_message() {
         .await
         .expect("from_io");
     assert_reflection_typed_status_after_streamed_message(&client).await;
+}
+
+async fn assert_reflection_file_lookups(client: &ServerReflectionClient) {
+    let resp = ask(client, symbol_req("helloworld.Greeter")).await;
+    assert!(
+        resp.has_file_descriptor_response(),
+        "expected file, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let files = resp.file_descriptor_response().file_descriptor_proto();
+    assert!(!files.is_empty(), "missing FileDescriptorProto");
+    let joined: Vec<u8> = files.iter().flat_map(|b| b.as_bytes().to_vec()).collect();
+    let haystack = String::from_utf8_lossy(&joined);
+    assert!(
+        haystack.contains("Greeter") || haystack.contains("helloworld"),
+        "descriptor should name the service"
+    );
+
+    let missing = ask(client, symbol_req("nope.Missing")).await;
+    assert!(missing.has_error_response());
+    assert_eq!(
+        missing.error_response().error_code(),
+        Code::NotFound.to_i32()
+    );
+
+    let by_symbol = ask(client, symbol_req("helloworld.HelloRequest")).await;
+    assert!(by_symbol.has_file_descriptor_response());
+    let first = by_symbol
+        .file_descriptor_response()
+        .file_descriptor_proto()
+        .get(0)
+        .expect("file");
+    let by_name = ask(client, filename_req("hello.proto")).await;
+    assert!(
+        by_name.has_file_descriptor_response(),
+        "hello.proto: {:?}",
+        by_name.error_response().error_message()
+    );
+    assert!(!by_name
+        .file_descriptor_response()
+        .file_descriptor_proto()
+        .is_empty());
+    assert!(!first.as_bytes().is_empty());
+}
+
+async fn assert_reflection_extensions(client: &ServerReflectionClient) {
+    let resp = ask(client, ext_req("demo.ext.Host", 100)).await;
+    assert!(
+        resp.has_file_descriptor_response(),
+        "expected file, got error {:?}",
+        resp.error_response().error_message()
+    );
+    assert!(!resp
+        .file_descriptor_response()
+        .file_descriptor_proto()
+        .is_empty());
+
+    let missing = ask(client, ext_req("demo.ext.Host", 199)).await;
+    assert!(missing.has_error_response());
+    assert_eq!(
+        missing.error_response().error_code(),
+        Code::NotFound.to_i32()
+    );
+
+    let nums = ask(client, ext_numbers_req("demo.ext.Host")).await;
+    assert!(
+        nums.has_all_extension_numbers_response(),
+        "expected numbers, got error {:?}",
+        nums.error_response().error_message()
+    );
+    let tags: Vec<i32> = nums
+        .all_extension_numbers_response()
+        .extension_number()
+        .iter()
+        .collect();
+    assert_eq!(tags, vec![100]);
+}
+
+#[tokio::test]
+async fn reflection_tls_file_lookups() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_file_lookups(&tls_client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_mtls_file_lookups() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reflection_file_lookups(&tls_client_with(addr, client_tls).await).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_file_lookups() {
+    let path = unix_sock("file-lookup");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection.serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_file_lookups(&unix_client(&path).await).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn reflection_from_io_file_lookups() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection.serve_connection(server_io).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_reflection_file_lookups(&client).await;
+}
+
+#[tokio::test]
+async fn reflection_tls_extension_lookups() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let reflection = service([ext::FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_extensions(&tls_client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_mtls_extension_lookups() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let reflection = service([ext::FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reflection_extensions(&tls_client_with(addr, client_tls).await).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_extension_lookups() {
+    let path = unix_sock("ext-lookup");
+    let reflection = service([ext::FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection.serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_extensions(&unix_client(&path).await).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn reflection_from_io_extension_lookups() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([ext::FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection.serve_connection(server_io).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_reflection_extensions(&client).await;
 }

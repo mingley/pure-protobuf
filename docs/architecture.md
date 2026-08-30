@@ -243,9 +243,14 @@ Received ASCII
 ### Health and reflection
 
 `grpc.health.v1` is an ordinary service plus `HealthReporter`
-(`Check` / `Watch` only). `Watch` ends when the client cancels or drops the
+(`Check` / `Watch` only). Check of a never-set name is `NOT_FOUND`; Watch of
+that name is `SERVICE_UNKNOWN`; Watch streams `set_not_serving` /
+`shutdown` / `resume`; dropping Watch releases the subscription, including
+over TLS, mTLS, Unix, and `from_io`. `Watch` ends when the client cancels or drops the
 stream, without waiting for a later status change. `grpc.reflection.v1` is built from registered
-`FILE_DESCRIPTOR_SET`s.
+`FILE_DESCRIPTOR_SET`s. `file_containing_symbol` / `file_by_filename` /
+`file_containing_extension` / `all_extension_numbers_of_type` run on that
+one bidi method, including over TLS, mTLS, Unix, and `from_io`.
 
 ## Parse / encode
 

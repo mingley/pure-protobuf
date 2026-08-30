@@ -26,7 +26,12 @@
 //! `connect_unix`), TLS (`serve_tls` /
 //! `connect_tls`),
 //! and [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
-//! the bidi method. [`ServerReflectionServer::send_compressed`] gzips that
+//! the bidi method. `file_containing_symbol` and `file_by_filename` return the
+//! registered `FileDescriptorProto` on that method, including over TLS, mTLS,
+//! Unix, and [`crate::Channel::from_io`]. A missing symbol is `NOT_FOUND` on
+//! the stream. `file_containing_extension` and `all_extension_numbers_of_type`
+//! answer from the same method on those transports; a missing extension is
+//! `NOT_FOUND` on the stream. [`ServerReflectionServer::send_compressed`] gzips that
 //! method when the client advertises gzip. [`ServerReflectionClient::connect_lazy`],
 //! [`ServerReflectionClient::connect_tls_lazy`] (including mTLS), and
 //! [`ServerReflectionClient::connect_unix_lazy`] retry that method until listen
