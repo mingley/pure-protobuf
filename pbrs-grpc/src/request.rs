@@ -724,6 +724,7 @@ impl<T> Request<T> {
             waits_for_ready: config.waits_for_ready(),
             compresses_outbound: config.compresses_outbound(),
             accepts_compressed: config.accepts_compressed(),
+            gzip_level: config.gzip_level(),
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -742,7 +743,7 @@ impl<T> Request<T> {
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
 /// `:authority`, `:scheme`, `user-agent`, message caps, timeout / wait-for-ready
 /// / gzip overlays ([`Self::rpc_timeout`] / [`Self::waits_for_ready`] /
-/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`]), and the service/method halves of the path,
+/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`]), and the service/method halves of the path,
 /// which the interceptor cannot otherwise see. Those overlays fill in before
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
 /// [`Self::clear_compress`] opt out of an already-applied default.
@@ -786,6 +787,7 @@ impl<T> Request<T> {
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
 ///         call.accepts_compressed(),
+///         call.gzip_level(),
 ///         call.connected(),
 ///     );
 ///     Ok(())
@@ -803,6 +805,7 @@ pub struct Outgoing<'a> {
     waits_for_ready: bool,
     compresses_outbound: bool,
     accepts_compressed: bool,
+    gzip_level: u32,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -947,6 +950,17 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
         self.accepts_compressed
+    }
+
+    /// Channel [`crate::Channel::gzip_compression_level`] overlay.
+    ///
+    /// Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort.
+    /// Distinct from [`Self::compress`]: that is the per-RPC Compressed-Flag after overlay and interceptor mutation.
+    /// An interceptor cannot change this; the kernel applies it when encoding.
+    /// Same value as [`crate::Channel::gzip_level`]. Applies to every call shape.
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.gzip_level
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`. Visible on every
@@ -1147,6 +1161,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("waits_for_ready", &self.waits_for_ready)
             .field("compresses_outbound", &self.compresses_outbound)
             .field("accepts_compressed", &self.accepts_compressed)
+            .field("gzip_level", &self.gzip_level)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline())

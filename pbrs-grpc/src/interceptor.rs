@@ -324,8 +324,10 @@ impl<S: Service> ServiceExt for S {}
 /// extensions — not only metadata. [`crate::Request::set_user_agent`] is the
 /// same prefix at the call site; an interceptor
 /// [`crate::Outgoing::set_user_agent`] that runs after wins. Channel overlays (`rpc_timeout`,
-/// `waits_for_ready`, `compresses_outbound`) stay visible after `clear_*`
+/// `waits_for_ready`, `compresses_outbound`, `gzip_level`) stay visible after `clear_*`
 /// opts out of the already-applied default.
+/// [`crate::Outgoing::gzip_level`] is deflate effort. Distinct from
+/// [`crate::Outgoing::compresses_outbound`] (on or off). An interceptor cannot change it.
 /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
 /// (default on).
 /// [`crate::Outgoing::connected`] is the live-socket snapshot
@@ -386,6 +388,7 @@ impl<S: Service> ServiceExt for S {}
 ///         call.rpc_timeout(),
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
+///         call.gzip_level(),
 ///         call.connected(),
 ///     );
 ///     Ok(())

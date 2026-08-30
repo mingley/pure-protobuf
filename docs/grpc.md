@@ -1154,6 +1154,7 @@ channel.send_compressed()
 `gzip_compression_level` is deflate effort (default 1, `flate2` fast).
 0 stores; 9 is best. Values above 9 clamp to 9. Unused when outbound
 compression is off. Distinct from `send_compressed`, which is on or off.
+`Outgoing::gzip_level` is that overlay in a client interceptor. Distinct from `compresses_outbound` (on or off). An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
@@ -1191,7 +1192,7 @@ and `from_io`. An interceptor can still `Outgoing::set_compress(false)`
 (or `true`) on h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_compress` then
 `set_compress(compresses_outbound())` reapplies the channel overlay on every
 call shape, on h2c, TLS (including mTLS), Unix, and `from_io`. Channel overlays
-(`rpc_timeout`, `waits_for_ready`, `compresses_outbound`) stay visible after
+(`rpc_timeout`, `waits_for_ready`, `compresses_outbound`, `gzip_level`) stay visible after
 `clear_*` on those dialers. On a lazy channel that is not listening,
 `clear_wait_for_ready` fail-fasts; `from_io` is already connected so the RPC
 still runs. Official TestService EmptyCall / StreamingOutputCall /
@@ -1677,7 +1678,8 @@ already-applied default), compression (`Outgoing::compress` is
 `false` when unset; `compress_is_set` is the same fill-if-unset pattern, and
 `Request::set_compress(false)` opts out of `Channel::send_compressed` on
 h2c, TLS (including mTLS), Unix, and `from_io`. A client interceptor
-`set_compress(true)` gzips on h2c, TLS (including mTLS), Unix, and `from_io`), and typed extensions. TCP `:authority` is `host:port`; Unix is
+`set_compress(true)` gzips on h2c, TLS (including mTLS), Unix, and `from_io`;
+`Outgoing::gzip_level` is deflate effort. Distinct from `compresses_outbound` (on or off). An interceptor cannot change it), and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
 for every call shape; nothing is sent. The Call's `Status::rpc` /
 `Status::error_details` unpack that packed protobuf, the same as a handler

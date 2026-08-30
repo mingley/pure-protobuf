@@ -681,6 +681,21 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::connected must Distinct wait-for-ready queueing from a live socket"
     );
     assert!(
+        outgoing.contains("Channel [`crate::Channel::gzip_compression_level`] overlay."),
+        "Outgoing::gzip_level must name the channel gzip_compression_level overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort."
+        ),
+        "Outgoing::gzip_level must Distinct deflate effort from on/off"
+    );
+    assert!(
+        outgoing
+            .contains("An interceptor cannot change this; the kernel applies it when encoding."),
+        "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
+    );
+    assert!(
         src.contains(
             "OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`\n    /// trailer must not appear as a header, including over TLS, mTLS, Unix,\n    /// and [`Self::from_io`]."
         ),
@@ -818,6 +833,10 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         intercept.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
         "ClientInterceptor rustdoc must name Outgoing::connected"
+    );
+    assert!(
+        intercept.contains("[`crate::Outgoing::gzip_level`] is deflate effort"),
+        "ClientInterceptor rustdoc must name Outgoing::gzip_level as deflate effort"
     );
     assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
@@ -1882,6 +1901,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct gzip_compression_level from send_compressed"
     );
     assert!(
+        crate_src.contains("[`Outgoing::gzip_level`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::gzip_level as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::compresses_outbound`]"),
+        "crate docs must Distinct Outgoing::gzip_level from compresses_outbound"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2210,6 +2237,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from `send_compressed`, which is on or off"),
         "guide must Distinct gzip_compression_level from send_compressed on/off"
+    );
+    assert!(
+        guide.contains("`Outgoing::gzip_level` is that overlay in a client interceptor"),
+        "guide must name Outgoing::gzip_level as the interceptor overlay"
+    );
+    assert!(
+        guide.contains(
+            "Distinct from `compresses_outbound` (on or off). An interceptor cannot change it."
+        ),
+        "guide must Distinct Outgoing::gzip_level from compresses_outbound"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -7906,6 +7943,12 @@ fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
     if !call.compresses_outbound() {
         return Err(Status::internal("compresses_outbound overlay"));
     }
+    if call.gzip_level() != 9 {
+        return Err(Status::internal(format!(
+            "gzip_level {}",
+            call.gzip_level()
+        )));
+    }
     if call.timeout() != Some(Duration::from_secs(5)) {
         return Err(Status::internal(format!("timeout {:?}", call.timeout())));
     }
@@ -7921,6 +7964,7 @@ fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
     if call.rpc_timeout() != Some(Duration::from_secs(5))
         || !call.waits_for_ready()
         || !call.compresses_outbound()
+        || call.gzip_level() != 9
     {
         return Err(Status::internal("overlays vanished after clear"));
     }
@@ -7932,6 +7976,7 @@ fn overlay_after_clear_channel(channel: Channel) -> Channel {
         .timeout(Duration::from_secs(5))
         .wait_for_ready()
         .send_compressed()
+        .gzip_compression_level(9)
         .intercept(overlays_survive_clear)
 }
 
