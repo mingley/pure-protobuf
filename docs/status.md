@@ -206,8 +206,10 @@ See `docs/upb.md`. Short list:
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.
   `Outgoing::clear_timeout` opts out of a channel timeout on those transports plus
-  `from_io`. A
-  wrapping `Service` `Rpc::reject` turns the call away before the inner
+  `from_io`. `Channel::timeout` / `ChannelConfig::timeout` expire the RPC when
+  the request omits a deadline, on those transports; a request timeout wins
+  over the channel default.
+  A wrapping `Service` `Rpc::reject` turns the call away before the inner
   `call` on every call shape, including over TLS, mTLS, Unix, and `from_io`.
   Generated `FooServer::intercept`, `Router::intercept`, and
   `ServiceExt::intercept` reject before the

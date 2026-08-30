@@ -171,7 +171,10 @@ limits, metadata, timeout / deadline Instant, wait-for-ready
 (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`), extensions).
 Overlays (timeout, wait-for-ready, send_compressed, message caps,
 `https_scheme`) fill in before interceptors run; `clear_*` opts out of that
-already-applied default while the overlay getters stay. `clear_compress` then
+already-applied default while the overlay getters stay. `Channel::timeout` /
+`ChannelConfig::timeout` fill `grpc-timeout` when the request omits one,
+including over TLS, mTLS, Unix, and `from_io`; a request timeout wins over
+that default. `clear_compress` then
 `set_compress(compresses_outbound())` reapplies channel gzip on every call
 shape. Interceptors run when the
 RPC method is invoked, not when the `Call` is first polled. `Err` fails that

@@ -3793,9 +3793,9 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Default per-RPC deadline when the request omits one. See [`::pbrs_grpc::Channel::timeout`]. Applies to every call shape."
+            "Default per-RPC deadline when the request omits one. See [`::pbrs_grpc::Channel::timeout`]. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
         ),
-        "generated timeout rustdoc must name every call shape"
+        "generated timeout rustdoc must name every transport"
     );
     assert!(
         src.contains(

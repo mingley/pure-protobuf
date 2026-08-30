@@ -542,7 +542,8 @@ impl Channel {
     }
 
     /// Default per-RPC deadline when the request omits one. Applies to every
-    /// call shape. See [`ChannelConfig::timeout`].
+    /// call shape, including over TLS, mTLS, Unix, and [`Self::from_io`].
+    /// See [`ChannelConfig::timeout`].
     ///
     /// A request that already called [`crate::Request::set_timeout`] is left
     /// alone. Interceptors run after this fill and can still set or

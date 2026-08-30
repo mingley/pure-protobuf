@@ -841,7 +841,8 @@ impl ChannelConfig {
     }
 
     /// Default per-RPC deadline when the request omits `grpc-timeout`.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
     ///
     /// Distinct from [`Self::connect_timeout`], which bounds the dial. Disabled
     /// by default. Values below 1 ms are raised to 1 ms. A request that already

@@ -444,10 +444,11 @@ A deadline set on a request travels as `grpc-timeout` and is enforced on both
 ends: the server wraps the handler in a timeout, and the client stops waiting
 and resets the stream. `Channel::timeout` / generated `FooClient::timeout`
 fill that in when the request omits one, matching tonic's client timeout and
-grpc-go's default call option. `Channel::rpc_timeout` /
+grpc-go's default call option, including over TLS, mTLS, Unix, and `from_io`.
+`ChannelConfig::timeout` is the same overlay at connect. `Channel::rpc_timeout` /
 `FooClient::rpc_timeout` read that overlay (`timeout` sets it). A request
-that already has a deadline is left alone; a client interceptor can still
-replace or clear it.
+that already has a deadline is left alone (it wins over the channel default)
+on those transports; a client interceptor can still replace or clear it.
 
 ```rust
 let mut req = Request::new(payload);

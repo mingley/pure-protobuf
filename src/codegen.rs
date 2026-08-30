@@ -4874,7 +4874,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Default per-RPC deadline when the request omits one. See [`{G}::Channel::timeout`]. Applies to every call shape. Interceptors run after this fill and can still set or [`{G}::Outgoing::clear_timeout`]."
+        "    /// Default per-RPC deadline when the request omits one. See [`{G}::Channel::timeout`]. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. Interceptors run after this fill and can still set or [`{G}::Outgoing::clear_timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
