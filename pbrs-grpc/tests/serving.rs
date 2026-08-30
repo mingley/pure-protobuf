@@ -1528,10 +1528,36 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ServerConfig and ChannelConfig max_concurrent_reset_streams must still-serve at this memory cap"
     );
     assert_eq!(
+        src.matches("How long locally-reset HTTP/2 stream IDs are remembered.")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig reset_stream_duration must name how long IDs are remembered"
+    );
+    assert!(
+        src.contains("After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`."),
+        "ServerConfig::reset_stream_duration must Distinct expiry from ENHANCE_YOUR_CALM"
+    );
+    assert!(
+        src.contains("Frames on a forgotten ID are a connection `PROTOCOL_ERROR`"),
+        "ServerConfig::reset_stream_duration must name PROTOCOL_ERROR after expiry"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`ServerConfig::reset_stream_duration`], which still\n    /// serves when the server remembers reset stream IDs for less time."
+        ),
+        "ChannelConfig::reset_stream_duration must name client handshake Distinct from server still-serves"
+    );
+    assert_eq!(
+        src.matches("at this reset duration")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig reset_stream_duration must still-serve at this reset duration"
+    );
+    assert_eq!(
         src.matches("Applied at handshake, not as a live overlay.")
             .count(),
-        5,
-        "ChannelConfig header_table_size / data_frame_budget / pending-reset / local-error RST / concurrent-reset memory must be handshake-only"
+        6,
+        "ChannelConfig header_table_size / data_frame_budget / pending-reset / local-error RST / concurrent-reset memory / reset duration must be handshake-only"
     );
     assert_eq!(
         src.matches("Distinct from [`Self::send_compressed`], which is on or off.")
@@ -1743,6 +1769,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("[`ChannelConfig::max_concurrent_reset_streams`] is the client handshake cap."),
         "crate docs must Distinct ChannelConfig concurrent-reset memory as the client handshake cap"
+    );
+    assert!(
+        crate_src.contains("that is how long an ID is remembered"),
+        "crate docs must Distinct reset_stream_duration as time, not count"
+    );
+    assert!(
+        crate_src.contains("[`ChannelConfig::reset_stream_duration`] is the"),
+        "crate docs must Distinct ChannelConfig reset_stream_duration as the client handshake duration"
     );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
@@ -2023,6 +2057,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`ChannelConfig::max_concurrent_reset_streams` is the"),
         "guide must Distinct ChannelConfig concurrent-reset memory as the client handshake cap"
+    );
+    assert!(
+        guide.contains("`reset_stream_duration` is how long locally-reset HTTP/2 stream IDs are remembered (default 1 s)."),
+        "guide must name reset_stream_duration as how long IDs are remembered"
+    );
+    assert!(
+        guide.contains("After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`"),
+        "guide must Distinct reset_stream_duration expiry from ENHANCE_YOUR_CALM"
+    );
+    assert!(
+        guide.contains("`ChannelConfig::reset_stream_duration` is"),
+        "guide must Distinct ChannelConfig reset_stream_duration as the client handshake duration"
     );
     let benches = include_str!("../../docs/benchmarks.md");
     assert!(
@@ -2339,6 +2385,17 @@ fn server_and_router_config_document_every_call_shape() {
         src.matches("at this memory cap").count(),
         2,
         "Server and Router max_concurrent_reset_streams must still-serve at this memory cap"
+    );
+    assert_eq!(
+        src.matches("How long locally-reset HTTP/2 stream IDs are remembered.")
+            .count(),
+        2,
+        "Server::reset_stream_duration and Router::reset_stream_duration must name how long IDs are remembered"
+    );
+    assert_eq!(
+        src.matches("at this reset duration").count(),
+        2,
+        "Server and Router reset_stream_duration must still-serve at this reset duration"
     );
     assert_eq!(
         src.matches(
@@ -13474,6 +13531,7 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
         .max_pending_accept_reset_streams(3)
         .max_local_error_reset_streams(7)
         .max_concurrent_reset_streams(5)
+        .reset_stream_duration(Duration::from_secs(10))
         .header_table_size(2048)
         .data_frame_budget(512);
     let dbg = format!("{router:?}");
@@ -13483,6 +13541,7 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
     assert!(dbg.contains("max_pending_accept_reset_streams: 3"), "{dbg}");
     assert!(dbg.contains("max_local_error_reset_streams: 7"), "{dbg}");
     assert!(dbg.contains("max_concurrent_reset_streams: 5"), "{dbg}");
+    assert!(dbg.contains("reset_stream_duration: 10s"), "{dbg}");
     assert!(dbg.contains("header_table_size: 2048"), "{dbg}");
     assert!(dbg.contains("data_frame_budget: 512"), "{dbg}");
 }
@@ -25126,6 +25185,17 @@ fn server_and_router_config_is_readable_and_cloneable() {
             .concurrent_reset_streams(),
         1
     );
+    assert_eq!(
+        svc.server_config().reset_stream_ttl(),
+        pbrs_grpc::DEFAULT_RESET_STREAM_DURATION
+    );
+    assert_eq!(
+        svc.clone()
+            .reset_stream_duration(Duration::from_secs(10))
+            .server_config()
+            .reset_stream_ttl(),
+        Duration::from_secs(10)
+    );
     assert!(svc.accepts_compressed());
     assert!(svc.clone().send_compressed().compresses_outbound());
     assert!(!svc.clone().accept_compressed(false).accepts_compressed());
@@ -30801,6 +30871,113 @@ async fn from_io_client_reset_stream_memory_still_serves_every_shape() {
     echo_every_shape(
         &GreeterClient::new(
             Channel::from_io_with(client_io, "localhost", client_reset_stream_memory())
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+fn reset_stream_duration_server() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).reset_stream_duration(Duration::from_secs(10))
+}
+
+fn reset_stream_duration_config() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo)
+        .config(ServerConfig::new().reset_stream_duration(Duration::from_secs(10)))
+}
+
+fn reset_stream_duration_router() -> Router {
+    Router::new()
+        .reset_stream_duration(Duration::from_secs(10))
+        .add_service(GreeterServer::new(Echo))
+}
+
+fn client_reset_stream_duration() -> ChannelConfig {
+    ChannelConfig::new().reset_stream_duration(Duration::from_secs(10))
+}
+
+#[tokio::test]
+async fn reset_stream_duration_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reset_stream_duration_server()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_reset_stream_duration_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        reset_stream_duration_server()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn reset_stream_duration_config_and_router_still_serve_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reset_stream_duration_config()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reset_stream_duration_router()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_reset_stream_duration_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(channel_cfg(addr, client_reset_stream_duration()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_reset_stream_duration_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        echo_uncapped().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io_with(client_io, "localhost", client_reset_stream_duration())
                 .await
                 .expect("from_io"),
         ),

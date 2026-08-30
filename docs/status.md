@@ -222,6 +222,9 @@ See `docs/upb.md`. Short list:
   oldest ID, not `ENHANCE_YOUR_CALM`. Frames on a purged ID are a
   connection `PROTOCOL_ERROR`. A well-behaved peer still completes every
   call shape at this memory cap.
+  `reset_stream_duration` is how long those IDs are remembered (default
+  1 s). Distinct from the count cap. Handshake-only on the client. After
+  that duration the ID is forgotten, not `ENHANCE_YOUR_CALM`.
   `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /
   generated `FooServer::max_concurrent_streams` /
   `ServerConfig::max_concurrent_streams` serialize extra RPCs on the same
@@ -293,6 +296,9 @@ See `docs/upb.md`. Short list:
   ID; it is not `ENHANCE_YOUR_CALM`. Distinct from rapid-reset GOAWAY and
   protocol-error RST GOAWAY. `Server` / `Router` / generated `FooServer` /
   `ChannelConfig` still serve at that memory cap on h2c and `from_io`.
+  `ServerConfig::reset_stream_duration` (default 1 s) is how long those
+  IDs stay in memory. Distinct from the count cap. After that duration
+  the ID is forgotten, not `ENHANCE_YOUR_CALM`.
   The gRPC guide Distincts that well-behaved still-serves from the raw flood,
   and Distincts `ChannelConfig::max_pending_accept_reset_streams` as the
   client accept queue, not the server cap.

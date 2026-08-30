@@ -1162,6 +1162,12 @@ Distinct from `max_pending_accept_reset_streams` (rapid-reset GOAWAY) and
 `max_local_error_reset_streams` (protocol-error RST GOAWAY).
 Handshake-only on the client; not a live `Channel` overlay.
 
+`reset_stream_duration` is how long locally-reset HTTP/2 stream IDs are remembered (default 1 s).
+After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`.
+Frames on a forgotten ID are a connection `PROTOCOL_ERROR`.
+Distinct from `max_concurrent_reset_streams`, which is how many IDs (count). This is how long (time).
+Handshake-only on the client; not a live `Channel` overlay.
+
 ```rust
 GreeterServer::new(svc)
     .send_compressed()
@@ -1324,6 +1330,14 @@ is not `ENHANCE_YOUR_CALM`. Frames on a purged ID are a connection
 `PROTOCOL_ERROR`. `ChannelConfig::max_concurrent_reset_streams` is the
 client handshake cap, not the server cap.
 
+A well-behaved client never needs locally-reset stream IDs remembered
+beyond the default duration; every call shape still completes over TLS,
+mTLS, Unix, and `from_io` at this reset duration. Distinct from the
+count cap (`max_concurrent_reset_streams`). After this duration the ID
+is forgotten, not `ENHANCE_YOUR_CALM`. Frames on a forgotten ID are a
+connection `PROTOCOL_ERROR`. `ChannelConfig::reset_stream_duration` is
+the client handshake duration, not the server cap.
+
 A well-behaved client never trips the small-DATA framing budget; every call
 shape still completes over TLS, mTLS, Unix, and `from_io`. Distinct from a
 raw HTTP/2 peer that sends too many tiny DATA frames: that connection drops
@@ -1480,7 +1494,7 @@ Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size`, `header_table_size`,
 `data_frame_budget`,
 `max_pending_accept_reset_streams`, `max_local_error_reset_streams`,
-`max_concurrent_reset_streams` — is
+`max_concurrent_reset_streams`, `reset_stream_duration` — is
 available on `Server` / `Router` / generated `FooServer` as well as
 `ServerConfig` and `ChannelConfig`, and is more likely to be a safety
 decision than a performance one.

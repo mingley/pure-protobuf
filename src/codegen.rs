@@ -4224,6 +4224,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// How long locally-reset HTTP/2 stream IDs are remembered. Default 1 s. After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`. Frames on a forgotten ID are a connection `PROTOCOL_ERROR`. Distinct from [`Self::max_concurrent_reset_streams`], which is how many IDs are remembered (count). This is how long (time). A well-behaved client still completes every call shape at this reset duration, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::reset_stream_duration`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn reset_stream_duration(mut self, dur: ::std::time::Duration) -> Self {{ self.config = self.config.reset_stream_duration(dur); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");

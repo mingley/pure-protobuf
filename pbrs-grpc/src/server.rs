@@ -1531,6 +1531,21 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// How long locally-reset HTTP/2 stream IDs are remembered.
+    /// Default 1 s. Applies to every call shape. See
+    /// [`ServerConfig::reset_stream_duration`].
+    /// After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`.
+    /// Frames on a forgotten ID are a connection `PROTOCOL_ERROR`.
+    /// Distinct from [`Self::max_concurrent_reset_streams`], which is how many
+    /// IDs are remembered (count). This is how long (time).
+    /// A well-behaved client still completes every call shape at this reset duration,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn reset_stream_duration(mut self, dur: Duration) -> Self {
+        self.config = self.config.reset_stream_duration(dur);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. Applies to
     /// every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::serve_connection`]. See [`ServerConfig::timeout`].
@@ -2276,6 +2291,21 @@ impl Router {
     #[must_use]
     pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_reset_streams(n);
+        self
+    }
+
+    /// How long locally-reset HTTP/2 stream IDs are remembered.
+    /// Default 1 s. Applies to every call shape. See
+    /// [`ServerConfig::reset_stream_duration`].
+    /// After this duration the ID is forgotten, not `ENHANCE_YOUR_CALM`.
+    /// Frames on a forgotten ID are a connection `PROTOCOL_ERROR`.
+    /// Distinct from [`Self::max_concurrent_reset_streams`], which is how many
+    /// IDs are remembered (count). This is how long (time).
+    /// A well-behaved client still completes every call shape at this reset duration,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn reset_stream_duration(mut self, dur: Duration) -> Self {
+        self.config = self.config.reset_stream_duration(dur);
         self
     }
 

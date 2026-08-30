@@ -174,6 +174,11 @@
 //! oldest remembered ID; it is not `ENHANCE_YOUR_CALM`. Frames on a
 //! purged ID are a connection `PROTOCOL_ERROR`.
 //! [`ChannelConfig::max_concurrent_reset_streams`] is the client handshake cap.
+//! Distinct from [`ServerConfig::reset_stream_duration`] (default
+//! [`DEFAULT_RESET_STREAM_DURATION`]): that is how long an ID is remembered,
+//! not how many. After that duration the ID is forgotten, not
+//! `ENHANCE_YOUR_CALM`. [`ChannelConfig::reset_stream_duration`] is the
+//! client handshake duration.
 //! A raw peer that sends more CONTINUATION frames than the header-list cap
 //! allows also drops that connection (`ENHANCE_YOUR_CALM`); an unfinished
 //! HEADERS frame (no `END_HEADERS`) does not take the accept loop down.
@@ -246,6 +251,11 @@
 //! pending-reset and protocol-error RST (those GOAWAY). Handshake-only
 //! on the client. Exceeding this evicts the oldest ID, not
 //! `ENHANCE_YOUR_CALM`.
+//! [`ServerConfig::reset_stream_duration`] /
+//! [`ChannelConfig::reset_stream_duration`]
+//! is how long those IDs are remembered (default 1 s). Distinct from the
+//! count cap. Handshake-only on the client. After that duration the ID is
+//! forgotten, not `ENHANCE_YOUR_CALM`.
 //! Inbound gzip is on by default; [`ServerConfig::accept_compressed`]`(false)`
 //! / [`ChannelConfig::accept_compressed`]`(false)` refuses it.
 //! A received reply surfaces the peer's `grpc-encoding` on [`Response::encoding`]
@@ -334,7 +344,8 @@ pub use config::{
     DEFAULT_MAX_CONCURRENT_RESET_STREAMS, DEFAULT_MAX_CONCURRENT_STREAMS,
     DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE,
     DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
-    DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
+    DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_RESET_STREAM_DURATION, DEFAULT_STREAM_BUFFER,
+    DEFAULT_WINDOW_SIZE,
 };
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by
 /// combinators that honour termination.

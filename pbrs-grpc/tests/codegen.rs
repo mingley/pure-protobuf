@@ -1380,6 +1380,7 @@ async fn generated_servers_accept_configuration() {
             .max_pending_accept_reset_streams(3)
             .max_local_error_reset_streams(8)
             .max_concurrent_reset_streams(1)
+            .reset_stream_duration(Duration::from_secs(10))
             .serve_listener(listener)
             .await
             .ok();
@@ -1710,6 +1711,18 @@ fn generated_server_config_is_readable_after_overlays() {
             .server_config()
             .concurrent_reset_streams(),
         1
+    );
+    assert_eq!(
+        server.server_config().reset_stream_ttl(),
+        pbrs_grpc::DEFAULT_RESET_STREAM_DURATION
+    );
+    assert_eq!(
+        server
+            .clone()
+            .reset_stream_duration(Duration::from_secs(10))
+            .server_config()
+            .reset_stream_ttl(),
+        Duration::from_secs(10)
     );
     assert!(server.accepts_compressed());
     assert!(server.clone().send_compressed().compresses_outbound());
@@ -4097,6 +4110,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST GOAWAY). A well-behaved client still completes every call shape at this memory cap, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated max_concurrent_reset_streams rustdoc must Distinct eviction from pending-reset and local-error RST GOAWAY"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::max_concurrent_reset_streams`], which is how many IDs are remembered (count). This is how long (time). A well-behaved client still completes every call shape at this reset duration, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated reset_stream_duration rustdoc must Distinct time from count on every transport"
     );
     assert!(
         src.contains(
