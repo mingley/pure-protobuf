@@ -864,6 +864,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Applies to every call shape, including when set on\n    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]\n    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live\n    /// [`crate::Channel`] with [`crate::Channel::max_decoding_message_size`]."
+        ),
+        "ChannelConfig::max_decoding_message_size must name dial-time overlay on every transport"
+    );
+    assert!(
+        src.contains(
+            "Applies to every call shape, including when set on\n    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]\n    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live\n    /// [`crate::Channel`] with [`crate::Channel::max_encoding_message_size`]."
+        ),
+        "ChannelConfig::max_encoding_message_size must name dial-time overlay on every transport"
+    );
+    assert!(
+        src.contains(
             "Messages queued between a client-streaming caller and the wire.\n    /// Default 16. Applies to client-streaming and bidi request streams."
         ),
         "ChannelConfig::stream_buffer must name the streaming shapes it queues"
@@ -22440,4 +22452,106 @@ async fn from_io_raw_status_details_round_trip() {
         .expect("from_io");
     assert_raw_status_details_every_shape(&GreeterClient::new(channel)).await;
     server.abort();
+}
+
+fn dial_encode_cap() -> ChannelConfig {
+    ChannelConfig::new().max_encoding_message_size(16)
+}
+
+fn dial_decode_cap() -> ChannelConfig {
+    ChannelConfig::new().max_decoding_message_size(16)
+}
+
+async fn assert_dial_message_caps(encode: Channel, decode: Channel) {
+    assert_client_encode_cap_every_shape(&GreeterClient::new(encode)).await;
+    assert_client_decode_cap_every_shape(&GreeterClient::new(decode)).await;
+}
+
+#[tokio::test]
+async fn channel_config_message_caps_are_resource_exhausted() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    assert_dial_message_caps(
+        channel_cfg(addr, dial_encode_cap()).await,
+        channel_cfg(addr, dial_decode_cap()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_channel_config_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_dial_message_caps(
+        tls_channel_cfg(addr, client_tls.clone(), dial_encode_cap()).await,
+        tls_channel_cfg(addr, client_tls, dial_decode_cap()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_channel_config_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_dial_message_caps(
+        tls_channel_cfg(addr, client_tls.clone(), dial_encode_cap()).await,
+        tls_channel_cfg(addr, client_tls, dial_decode_cap()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_channel_config_message_caps_are_resource_exhausted() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    assert_dial_message_caps(
+        unix_channel_with(&path, dial_encode_cap()).await,
+        unix_channel_with(&path, dial_decode_cap()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_channel_config_message_caps_are_resource_exhausted() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_connection(s1).await.ok();
+    });
+    let encode = Channel::from_io_with(c1, "localhost", dial_encode_cap())
+        .await
+        .expect("from_io encode");
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_connection(s2).await.ok();
+    });
+    let decode = Channel::from_io_with(c2, "localhost", dial_decode_cap())
+        .await
+        .expect("from_io decode");
+    assert_dial_message_caps(encode, decode).await;
+    server1.abort();
+    server2.abort();
 }

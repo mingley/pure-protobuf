@@ -4349,3 +4349,168 @@ async fn generated_from_io_client_message_caps_are_resource_exhausted() {
     assert_store_client_message_caps(client).await;
     server.abort();
 }
+
+fn store_dial_encode_cap() -> ChannelConfig {
+    ChannelConfig::new().max_encoding_message_size(16)
+}
+
+fn store_dial_decode_cap() -> ChannelConfig {
+    ChannelConfig::new().max_decoding_message_size(16)
+}
+
+async fn assert_store_dial_message_caps(encode: StoreClient, decode: StoreClient) {
+    assert_store_client_encode_cap_every_shape(&encode).await;
+    assert_store_client_decode_cap_every_shape(&decode).await;
+}
+
+#[tokio::test]
+async fn generated_channel_config_message_caps_are_resource_exhausted() {
+    let (addr, server) = serve().await;
+    let mut last = None;
+    let encode = {
+        let mut found = None;
+        for _ in 0..80 {
+            match StoreClient::connect_with(addr, store_dial_encode_cap()).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect encode: {last:?}"))
+    };
+    last = None;
+    let decode = {
+        let mut found = None;
+        for _ in 0..80 {
+            match StoreClient::connect_with(addr, store_dial_decode_cap()).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect decode: {last:?}"))
+    };
+    assert_store_dial_message_caps(encode, decode).await;
+    server.abort();
+}
+
+async fn tls_store_cfg(addr: SocketAddr, client_tls: ClientTls, cfg: ChannelConfig) -> StoreClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match StoreClient::connect_tls_with(addr, cfg, client_tls.clone()).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[tokio::test]
+async fn generated_tls_channel_config_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_store_dial_message_caps(
+        tls_store_cfg(addr, client_tls.clone(), store_dial_encode_cap()).await,
+        tls_store_cfg(addr, client_tls, store_dial_decode_cap()).await,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_channel_config_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_dial_message_caps(
+        tls_store_cfg(addr, client_tls.clone(), store_dial_encode_cap()).await,
+        tls_store_cfg(addr, client_tls, store_dial_decode_cap()).await,
+    )
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+async fn unix_store_cfg(path: &std::path::Path, cfg: ChannelConfig) -> StoreClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match StoreClient::connect_unix_with(path, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_channel_config_message_caps_are_resource_exhausted() {
+    let path = unix_sock("dial-caps");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    assert_store_dial_message_caps(
+        unix_store_cfg(&path, store_dial_encode_cap()).await,
+        unix_store_cfg(&path, store_dial_decode_cap()).await,
+    )
+    .await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_channel_config_message_caps_are_resource_exhausted() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let server1 = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_connection(s1).await.ok();
+    });
+    let encode = StoreClient::from_io_with(c1, "localhost", store_dial_encode_cap())
+        .await
+        .expect("from_io encode");
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let server2 = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_connection(s2).await.ok();
+    });
+    let decode = StoreClient::from_io_with(c2, "localhost", store_dial_decode_cap())
+        .await
+        .expect("from_io decode");
+    assert_store_dial_message_caps(encode, decode).await;
+    server1.abort();
+    server2.abort();
+}

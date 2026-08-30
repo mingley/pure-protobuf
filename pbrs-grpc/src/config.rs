@@ -656,7 +656,10 @@ impl ChannelConfig {
     }
 
     /// Cap inbound messages at `limit` uncompressed bytes. Default 4 MiB.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including when set on
+    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]
+    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live
+    /// [`crate::Channel`] with [`crate::Channel::max_decoding_message_size`].
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_decoding(limit);
@@ -664,7 +667,10 @@ impl ChannelConfig {
     }
 
     /// Cap outbound messages at `limit` uncompressed bytes. Default unlimited.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including when set on
+    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]
+    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live
+    /// [`crate::Channel`] with [`crate::Channel::max_encoding_message_size`].
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.limits = self.limits.with_max_encoding(limit);

@@ -124,7 +124,10 @@ See `docs/upb.md`. Short list:
   `from_io` cannot pool. A handler `Status::set_details` blob round-trips as
   `Status::details()` with trailing metadata on every call shape over TLS,
   mTLS, Unix, and `from_io`; `grpc-status-details-bin` is not a metadata key.
-  Distinct from packed `google.rpc.Status`. TLS
+  Distinct from packed `google.rpc.Status`. `ChannelConfig::max_encoding_message_size`
+  / `max_decoding_message_size` at `connect_tls_with` / `connect_unix_with` /
+  `from_io_with` is `RESOURCE_EXHAUSTED` on every call shape, distinct from
+  wrapping a live Channel or generated client after connect. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
