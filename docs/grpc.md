@@ -126,8 +126,8 @@ println!("{}", reply.get_ref().message());
 `Target`: a `SocketAddr`, or a `host:port`
 string that goes through DNS. The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
-redials that slot, so a server restart on the same address does not require
-a new client. A received `Streaming` holds the HTTP/2 driver, so
+redials that slot, including over TLS, mTLS, and Unix, so a server restart
+on the same address does not require a new client. `from_io` cannot redial. A received `Streaming` holds the HTTP/2 driver, so
 `call.await?.into_inner()` does not require keeping the client around to
 finish the stream. Dropping that `Streaming` before the end resets the RPC
 (dropping the `Channel` does not), including a bidi call whose send half is
@@ -781,11 +781,13 @@ PING sees a half-open HTTP/2 session. TCP keepalive sees a half-open socket
 when there is no HTTP/2 traffic, including when PING is off. Use both when
 the path has a NAT.
 
-A `Channel` also redials after a peer `GOAWAY` or a TCP reset, so restarting
-the server on the same address does not require constructing a new client.
-Unary and server-streaming RPCs retry that redial once when the death
-races `SendRequest::ready`. Healthy connections waiting only on
-`SETTINGS_MAX_CONCURRENT_STREAMS` are left alone.
+A `Channel` also redials after a peer `GOAWAY` or a TCP reset, including
+over TLS, mTLS, and Unix, so restarting the server on the same address does
+not require constructing a new client. `from_io` cannot redial. Unary and
+server-streaming RPCs retry that redial once when the death races
+`SendRequest::ready`. Healthy connections waiting only on
+`SETTINGS_MAX_CONCURRENT_STREAMS` are left alone. A closed port fails fast
+on `connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`.
 
 ## Unix domain sockets
 

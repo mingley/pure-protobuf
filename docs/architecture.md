@@ -50,7 +50,11 @@ dropped by `handshake_timeout` so the accept loop keeps serving.
 handler runs, on every call shape, including over TLS, mTLS, Unix, and
 `from_io`.
 Graceful drain finishes in-flight RPCs and refuses new connections on TLS,
-mTLS, and Unix; `from_io` has no accept loop.
+mTLS, and Unix; `from_io` has no accept loop. A dead Channel slot redials
+the same TCP, TLS, mTLS, or Unix address on the next RPC of every call
+shape and fails fast when nothing is listening; `from_io` cannot redial.
+`Incoming::peer` stamps connection facts onto every call shape on that
+connection.
 
 ### Dispatch
 
@@ -100,7 +104,8 @@ sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 `user-agent`, message caps, metadata, timeout / deadline Instant,
 wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`),
-extensions). Those Outgoing getters apply to every call shape. Unary and server-streaming retry once when the connection
+extensions). Those Outgoing getters apply to every call shape. The next RPC of every call shape redials a dead slot, including over TLS,
+mTLS, and Unix. Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. `from_io` cannot redial.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /

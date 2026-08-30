@@ -4409,7 +4409,7 @@ fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Serve connections from `incoming` until it is exhausted. Applies to every call shape."
+        "    /// Serve connections from `incoming` until it is exhausted. Applies to every call shape. Override [`{G}::Incoming::peer`] to stamp connection facts."
     );
     let _ = writeln!(
         src,

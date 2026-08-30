@@ -3695,7 +3695,7 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Serve connections from `incoming` until it is exhausted. Applies to every call shape."
+            "Serve connections from `incoming` until it is exhausted. Applies to every call shape. Override [`::pbrs_grpc::Incoming::peer`] to stamp connection facts."
         ),
         "generated serve_with_incoming rustdoc must name every call shape"
     );

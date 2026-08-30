@@ -582,6 +582,18 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::from_io must name every call shape"
     );
     assert!(
+        src.contains(
+            "next RPC on that slot dials again, including over TLS, mTLS, and Unix.\n/// [`Self::from_io`] cannot redial."
+        ),
+        "Channel rustdoc must name redial on TLS, mTLS, and Unix"
+    );
+    assert!(
+        src.contains(
+            "RPC as [`Code::Unavailable`] (including over TLS, mTLS, and Unix), or\n    /// waits until the deadline if that RPC"
+        ),
+        "Channel::connect_lazy must name fail-fast on TLS, mTLS, and Unix"
+    );
+    assert!(
         src.contains("[`Self::from_io`] with `config`. Applies to every call shape."),
         "Channel::from_io_with must name every call shape"
     );
@@ -1012,6 +1024,26 @@ fn server_and_router_config_document_every_call_shape() {
     assert!(
         src.contains("listener-side work fails.\n    /// Applies to every call shape."),
         "Server::serve_with_incoming must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Override [`Incoming::peer`] to fill [`Rpc::local_addr`],\n    /// [`Rpc::peer_identity`], [`Rpc::peer_cred`], or a transport\n    /// [`Rpc::scheme`] without changing [`IncomingAccept`]."
+        )
+        .count(),
+        2,
+        "Server::serve_with_incoming and Router::serve_with_incoming must name Incoming::peer"
+    );
+    assert!(
+        src.contains(
+            "you accepted yourself). Applies to every call shape on that\n    /// connection."
+        ),
+        "Incoming::peer must name every call shape on that connection"
+    );
+    assert!(
+        src.contains(
+            "[`Incoming::peer`] is how a custom acceptor supplies a local address,\n/// mTLS identity, Unix credentials, or a transport `:scheme`. The default\n/// keeps the `SocketAddr` from [`IncomingAccept`] and does not override\n/// `:scheme`. [`Server::serve_connection`] leaves every field unset.\n/// Applies to every call shape on that connection."
+        ),
+        "ConnectionInfo rustdoc must name Incoming::peer on every call shape"
     );
     assert!(
         src.contains(
@@ -11039,16 +11071,7 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
     assert!(dbg.contains("max_pending_accept_reset_streams: 3"), "{dbg}");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_dead_channel_redials_the_same_address() {
-    let (addr, client, guard) = spawn_greeter(Echo).await.expect("spawn");
-    echo_every_shape(&client, None).await;
-
-    drop(guard);
-    let _guard = serve_at(addr, Echo, ServerConfig::default())
-        .await
-        .expect("rebind");
-
+async fn assert_dead_channel_redials(client: &GreeterClient) {
     // The first attempt can still land on the dying connection (`ready`
     // succeeded, then GOAWAY). Unary and server-streaming retry that redial
     // once; this loop covers a rebound listener that is not yet accepting.
@@ -11057,7 +11080,112 @@ async fn a_dead_channel_redials_the_same_address() {
     })
     .await;
     assert_eq!(name_of(after.get_ref()), "after");
+    echo_every_shape(client, None).await;
+}
+
+async fn assert_dead_channel_fails_fast(client: &GreeterClient) {
+    tokio::time::timeout(Duration::from_secs(2), assert_gone_on_every_shape(client))
+        .await
+        .expect("reconnect to a closed port hung");
+}
+
+async fn assert_lazy_fails_fast(client: GreeterClient) {
+    let started = Instant::now();
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_every_shape(&client, Code::Unavailable),
+    )
+    .await
+    .expect("fail-fast hung");
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "fail-fast took {:?}",
+        started.elapsed()
+    );
+}
+
+#[cfg(unix)]
+async fn serve_unix_echo_unlink(path: std::path::PathBuf) -> tokio::task::JoinHandle<()> {
+    let mut last = Status::unavailable("bind");
+    for _ in 0..100 {
+        let sock = path.clone();
+        let handle = tokio::spawn(async move {
+            GreeterServer::new(Echo).serve_unix_unlink(sock).await.ok();
+        });
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        if !handle.is_finished() {
+            return handle;
+        }
+        last = Status::unavailable("unix unlink bind failed");
+    }
+    panic!("unix rebind: {last}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_dead_channel_redials_the_same_address() {
+    let (addr, client, guard) = spawn_greeter(Echo).await.expect("spawn");
     echo_every_shape(&client, None).await;
+    drop(guard);
+    let _guard = serve_at(addr, Echo, ServerConfig::default())
+        .await
+        .expect("rebind");
+    assert_dead_channel_redials(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_a_dead_channel_redials_the_same_address() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let tls = tls.clone();
+        async move {
+            GreeterServer::new(Echo)
+                .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                .await
+                .ok();
+        }
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+    let _rebind = serve_tls_at(addr, tls).await.expect("rebind");
+    assert_dead_channel_redials(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_a_dead_channel_redials_the_same_address() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let tls = tls.clone();
+        async move {
+            GreeterServer::new(Echo)
+                .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+                .await
+                .ok();
+        }
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+    let _rebind = serve_tls_at(addr, tls).await.expect("rebind");
+    assert_dead_channel_redials(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_a_dead_channel_redials_the_same_path() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+    let _rebind = serve_unix_echo_unlink(path).await;
+    assert_dead_channel_redials(&client).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -11074,37 +11202,123 @@ async fn a_dead_channel_fails_fast_when_nothing_is_listening() {
     });
     let client = GreeterClient::new(channel(addr).await);
     echo_every_shape(&client, None).await;
-
     shutdown_tx.send(()).expect("signal");
     tokio::time::timeout(Duration::from_secs(5), served)
         .await
         .expect("drain must finish")
         .expect("join");
+    assert_dead_channel_fails_fast(&client).await;
+}
 
-    tokio::time::timeout(Duration::from_secs(2), assert_gone_on_every_shape(&client))
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_a_dead_channel_fails_fast_when_nothing_is_listening() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(
+                listener,
+                async {
+                    shutdown_rx.await.ok();
+                },
+                tls,
+            )
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    echo_every_shape(&client, None).await;
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
         .await
-        .expect("reconnect to a closed port hung");
+        .expect("drain must finish")
+        .expect("join");
+    assert_dead_channel_fails_fast(&client).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_a_dead_channel_fails_fast_when_nothing_is_listening() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(
+                listener,
+                async {
+                    shutdown_rx.await.ok();
+                },
+                tls,
+            )
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    echo_every_shape(&client, None).await;
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("drain must finish")
+        .expect("join");
+    assert_dead_channel_fails_fast(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_a_dead_channel_fails_fast_when_nothing_is_listening() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_unix_until_shutdown(sock, async {
+                shutdown_rx.await.ok();
+            })
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    echo_every_shape(&client, None).await;
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("drain must finish")
+        .expect("join");
+    assert_dead_channel_fails_fast(&client).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn connect_lazy_fails_fast_when_nothing_is_listening() {
     let (addr, listener) = bind().await;
     drop(listener);
+    assert_lazy_fails_fast(GreeterClient::new(
+        Channel::connect_lazy(addr).expect("lazy"),
+    ))
+    .await;
+}
 
-    let channel = Channel::connect_lazy(addr).expect("lazy");
-    let client = GreeterClient::new(channel);
-    let started = Instant::now();
-    tokio::time::timeout(
-        Duration::from_secs(2),
-        assert_err_on_every_shape(&client, Code::Unavailable),
-    )
-    .await
-    .expect("fail-fast hung");
-    assert!(
-        started.elapsed() < Duration::from_secs(1),
-        "fail-fast took {:?}",
-        started.elapsed()
-    );
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_connect_lazy_fails_fast_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_lazy_fails_fast(GreeterClient::new(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+    ))
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_connect_lazy_fails_fast_when_nothing_is_listening() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_lazy_fails_fast(GreeterClient::new(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+    ))
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -12205,14 +12419,10 @@ async fn a_client_interceptor_sees_unix_localhost_authority() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_lazy_fails_fast_when_nothing_is_listening() {
     let (path, _guard) = unix_test_path();
-    let channel = Channel::connect_unix_lazy(&path).expect("lazy");
-    let client = GreeterClient::new(channel);
-    tokio::time::timeout(
-        Duration::from_secs(2),
-        assert_err_on_every_shape(&client, Code::Unavailable),
-    )
-    .await
-    .expect("fail-fast hung");
+    assert_lazy_fails_fast(GreeterClient::new(
+        Channel::connect_unix_lazy(&path).expect("lazy"),
+    ))
+    .await;
 }
 
 #[cfg(unix)]

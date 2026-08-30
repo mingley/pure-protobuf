@@ -2237,6 +2237,10 @@ impl Router {
 
     /// Serve connections from `incoming` until it is exhausted.
     /// Applies to every call shape. See [`Server::serve_with_incoming`].
+    ///
+    /// Override [`Incoming::peer`] to fill [`Rpc::local_addr`],
+    /// [`Rpc::peer_identity`], [`Rpc::peer_cred`], or a transport
+    /// [`Rpc::scheme`] without changing [`IncomingAccept`].
     pub async fn serve_with_incoming<I: Incoming>(self, incoming: I) -> Result<(), Status> {
         self.serve_with_incoming_shutdown(incoming, std::future::pending())
             .await

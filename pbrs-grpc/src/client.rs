@@ -179,7 +179,8 @@ impl Endpoint {
 /// clone after headers still lets you read the stream to the end.
 ///
 /// If a connection dies — peer `GOAWAY`, TCP reset, keepalive timeout — the
-/// next RPC on that slot dials again. Unary and server-streaming calls that
+/// next RPC on that slot dials again, including over TLS, mTLS, and Unix.
+/// [`Self::from_io`] cannot redial. Unary and server-streaming calls that
 /// observe the death after the slot still looked live (a raced `GOAWAY`)
 /// retry that redial once on the same RPC, matching gRPC transparent retry.
 /// Client-streaming and bidi do not: the caller already holds the send half.
@@ -341,9 +342,9 @@ impl Channel {
     ///
     /// Invalid `target` still fails immediately. A closed port, a name that
     /// does not resolve, or a TLS handshake the peer refuses surfaces on the
-    /// RPC as [`Code::Unavailable`], or waits until the deadline if that RPC
-    /// set [`Request::set_wait_for_ready`] or this channel used
-    /// [`Self::wait_for_ready`].
+    /// RPC as [`Code::Unavailable`] (including over TLS, mTLS, and Unix), or
+    /// waits until the deadline if that RPC set [`Request::set_wait_for_ready`]
+    /// or this channel used [`Self::wait_for_ready`].
     pub fn connect_lazy(target: impl Into<Target>) -> Result<Self, Status> {
         Self::connect_lazy_with(target, ChannelConfig::default())
     }

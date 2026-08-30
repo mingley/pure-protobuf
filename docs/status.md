@@ -114,7 +114,11 @@ See `docs/upb.md`. Short list:
   not an accept loop). A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
-  on TLS, mTLS, and Unix (`from_io` has no accept loop). `Channel::https_scheme` sends `:scheme https` on a
+  on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
+  redials the same TCP, TLS, mTLS, or Unix address on the next RPC of every
+  call shape and fails fast when nothing is listening, including
+  `connect_tls_lazy` / `connect_unix_lazy`. `from_io` cannot redial.
+  `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible
