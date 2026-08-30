@@ -1613,9 +1613,12 @@ Interceptor extensions inserted on `Rpc` are visible on the handler
 `Request` and `Parts` after `into_message_and_parts` for every call shape
 (`Rpc::unary` / `client_streaming` / `server_streaming` / `bidi_streaming`),
 including over TLS, mTLS, Unix, and `from_io`. There is no `tower` layer; use
-`protobuf-tonic` if you need tonic's middleware stack. Interceptors run
-before the handler (or before the stream opens on the client). They cannot
-see or rewrite the final `Status`; do that in the method.
+`protobuf-tonic` if you need tonic's middleware stack. Request interceptors
+run before the handler (or before the stream opens on the client) and cannot
+see the handler result. `Server::on_response` / `ServiceExt::on_response`
+run after `Ok`; a handler `Err` skips them. `Channel::on_response` runs
+after a successful receive; a non-OK peer status skips it. Rewriting a
+non-OK `Status` still happens in the method.
 
 For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, `:authority` / `:scheme`, the

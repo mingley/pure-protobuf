@@ -1488,6 +1488,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ServiceExt::on_response as the per-service response hook"
     );
     assert!(
+        !guide.contains("see or rewrite the final `Status`"),
+        "guide must not claim interceptors cannot rewrite after Ok"
+    );
+    assert!(
+        guide.contains("Request interceptors run before the handler"),
+        "guide must Distinct request interceptors from on_response"
+    );
+    assert!(
         guide.contains("`Channel::on_response` (and the generated"),
         "guide must name Channel::on_response as the client response interceptor hook"
     );
