@@ -3839,6 +3839,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must name Outgoing::set_user_agent"
     );
     assert!(
+        src.contains(
+            "[`::pbrs_grpc::Request::set_user_agent`] is the same prefix at the call site."
+        ),
+        "generated intercept rustdoc must Distinct Request::set_user_agent at the call site"
+    );
+    assert!(
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),
         "generated server intercept rustdoc must name the server timeout overlay"
     );

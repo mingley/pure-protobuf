@@ -387,7 +387,9 @@ See `docs/upb.md`. Short list:
   Outgoing getters apply to every call shape. Kernel `user-agent` (and a
   `Channel::user_agent` prefix) is sent on every shape, including over h2c, TLS
   (including mTLS), Unix, and `from_io`; inserting `user-agent`
-  into metadata cannot override it.   Caller extensions on `Request::extensions_mut`
+  into metadata cannot override it. `Request::set_user_agent` prefixes this RPC
+  (kernel suffix stays); an interceptor `Outgoing::set_user_agent` that runs
+  after the call site wins.   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
   interceptor on those transports plus `from_io`, including official TestService
   methods and hand-written Reverser `Channel` APIs, generated Store Get / Watch /

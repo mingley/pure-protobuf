@@ -633,6 +633,7 @@ impl Channel {
     /// [`Self::from_io`]. Inserting `user-agent` into request metadata cannot
     /// replace this value on those transports. Distinct from
     /// [`crate::Outgoing::set_user_agent`], which prefixes this RPC.
+    /// [`crate::Request::set_user_agent`] is the same prefix at the call site.
     ///
     /// `user_agent("my-app/1.0")` sends `my-app/1.0 pbrs-grpc/<version>`.
     /// The kernel suffix is always present so a peer can identify the stack.
@@ -684,7 +685,9 @@ impl Channel {
     /// reapplies channel gzip on every call shape. [`crate::Outgoing::set_compress`]
     /// stamps [`crate::StreamSender::compress`] on client-streaming and bidi
     /// request streams. Outgoing getters apply to
-    /// every call shape.
+    /// every call shape. [`crate::Request::set_user_agent`] is the same prefix
+    /// at the call site; an interceptor [`crate::Outgoing::set_user_agent`]
+    /// that runs after wins.
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();

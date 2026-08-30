@@ -4894,7 +4894,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), extensions. [`{G}::Outgoing::set_user_agent`] prefixes this RPC."
+        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), extensions. [`{G}::Outgoing::set_user_agent`] prefixes this RPC. [`{G}::Request::set_user_agent`] is the same prefix at the call site."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");

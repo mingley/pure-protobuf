@@ -665,6 +665,14 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::set_user_agent must Distinct metadata overwrite"
     );
     assert!(
+        outgoing.contains("the override only, like [`Self::timeout`]"),
+        "Request::user_agent must Distinct the override from Outgoing's effective value"
+    );
+    assert!(
+        outgoing.contains("that runs after the call site wins."),
+        "Request::set_user_agent must Distinct interceptor win after the call site"
+    );
+    assert!(
         src.contains(
             "OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`\n    /// trailer must not appear as a header, including over TLS, mTLS, Unix,\n    /// and [`Self::from_io`]."
         ),
@@ -774,6 +782,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must name Outgoing::set_user_agent"
     );
     assert!(
+        intercept.contains("same prefix at the call site; an interceptor"),
+        "ClientInterceptor rustdoc must Distinct Request::set_user_agent at the call site"
+    );
+    assert!(
         intercept.contains(
             "stamps [`crate::StreamSender::compress`] on client-streaming and bidi\n/// request streams."
         ),
@@ -818,6 +830,10 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("[`crate::Outgoing::set_user_agent`], which prefixes this RPC."),
         "Channel::user_agent must Distinct Outgoing::set_user_agent as the per-RPC prefix"
+    );
+    assert!(
+        src.contains("[`crate::Request::set_user_agent`] is the same prefix at the call site."),
+        "Channel::user_agent must Distinct Request::set_user_agent as the call-site prefix"
     );
     assert!(
         src.contains("user-agent prefix ([`crate::Outgoing::set_user_agent`]), a"),
@@ -1328,6 +1344,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Outgoing::set_user_agent` prefixes this RPC the same way"),
         "guide must name Outgoing::set_user_agent as a per-RPC prefix"
+    );
+    assert!(
+        guide.contains("`Request::set_user_agent` prefixes this RPC"),
+        "guide must name Request::set_user_agent as a call-site prefix"
     );
     assert!(
         !guide.contains("Prefix with `Channel::user_agent`. Interceptors read"),
@@ -7800,6 +7820,48 @@ fn override_ua_channel(channel: Channel) -> Channel {
         .intercept(interceptor_set_user_agent)
 }
 
+fn stamp_ua<T>(mut request: Request<T>) -> Request<T> {
+    request.set_user_agent("call-site/1.0").expect("user-agent");
+    request
+}
+
+fn interceptor_see_call_site_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if !call.user_agent_is_set() {
+        return Err(Status::internal("user-agent not set"));
+    }
+    let ua = call.user_agent();
+    if !ua.starts_with("call-site/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    Ok(())
+}
+
+fn require_call_site_user_agent(rpc: &mut Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    if !ua.starts_with("call-site/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua}")));
+    }
+    Ok(())
+}
+
+fn call_site_ua_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(channel.user_agent("inventory/2.1").expect("user-agent"))
+        .intercept(interceptor_see_call_site_user_agent)
+}
+
+fn interceptor_wins_over_request(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if !call.user_agent_is_set() {
+        return Err(Status::internal("expected request override"));
+    }
+    call.set_user_agent("override/1.0")?;
+    Ok(())
+}
+
+fn interceptor_wins_ua_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(channel.user_agent("inventory/2.1").expect("user-agent"))
+        .intercept(interceptor_wins_over_request)
+}
+
 #[tokio::test]
 async fn a_tls_client_interceptor_sees_the_user_agent() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
@@ -8122,6 +8184,68 @@ async fn a_from_io_client_interceptor_sets_the_user_agent() {
     )
     .await;
     server.abort();
+}
+
+#[tokio::test]
+async fn a_request_sets_the_user_agent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_call_site_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_ua_every_shape(&call_site_ua_client(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_request_sets_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_call_site_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_ua_every_shape(&call_site_ua_client(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_request_sets_the_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_call_site_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_ua_every_shape(&call_site_ua_client(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn an_interceptor_user_agent_wins_over_the_request() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_override_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_ua_every_shape(&interceptor_wins_ua_client(channel(addr).await)).await;
+    task.abort();
 }
 
 #[tokio::test]
@@ -17169,6 +17293,53 @@ async fn echo_every_shape(client: &GreeterClient, timeout: Option<Duration>) {
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(stamp_timeout(Request::new(()), timeout));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(inbound.message().await.expect("end").is_none());
+    assert!(
+        inbound.is_terminated(),
+        "bidi inbound fused after end-of-stream"
+    );
+}
+
+async fn echo_ua_every_shape(client: &GreeterClient) {
+    let reply = client
+        .say_hello(stamp_ua(Request::new(req("ada"))))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let mut stream = client
+        .server_hello(stamp_ua(Request::new(req("ada"))))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(stream.message().await.expect("end").is_none());
+    assert!(
+        stream.is_terminated(),
+        "server-stream fused after end-of-stream"
+    );
+
+    let (tx, call) = client.client_hello(stamp_ua(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let (tx, call) = client.stream_hello(stamp_ua(Request::new(())));
     tx.send(req("ada")).await.expect("send");
     tx.close();
     let mut inbound = call.await.expect("bidi").into_inner();

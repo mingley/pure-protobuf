@@ -126,6 +126,8 @@ The kernel `user-agent` (and a `Channel::user_agent` prefix) is the header
 the peer sees on every call shape, including over TLS, mTLS, Unix, and
 `from_io`; inserting `user-agent` into metadata cannot replace it.
 `Outgoing::set_user_agent` prefixes this RPC (kernel suffix stays).
+`Request::set_user_agent` is the same prefix at the call site; an interceptor
+that then calls `Outgoing::set_user_agent` wins.
 `FooClient::rpc_timeout`, `waits_for_ready`, and `compresses_outbound` read
 the same overlays as the channel (the setter names cannot collide).
 `Channel::unary` / `server_streaming` / `client_streaming` / `bidi` are

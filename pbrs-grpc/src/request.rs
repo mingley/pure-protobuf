@@ -59,8 +59,8 @@ pub struct Request<T> {
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
-    /// Interceptor [`Outgoing::set_user_agent`] override. `None` uses the
-    /// channel value.
+    /// Call-site [`Request::set_user_agent`] / interceptor
+    /// [`Outgoing::set_user_agent`] override. `None` uses the channel value.
     user_agent: Option<http::HeaderValue>,
 }
 
@@ -117,7 +117,7 @@ impl<T> Request<T> {
     }
 
     /// Split into message and envelope, keeping metadata, deadline, cancel,
-    /// compression choice, and method path.
+    /// compression choice, method path, and a [`Self::set_user_agent`] override.
     #[must_use]
     pub fn into_message_and_parts(self) -> (T, Parts) {
         (
@@ -144,6 +144,7 @@ impl<T> Request<T> {
                 encoding: self.encoding,
                 cancel: self.cancel,
                 extensions: self.extensions,
+                user_agent: self.user_agent,
             },
         )
     }
@@ -151,7 +152,8 @@ impl<T> Request<T> {
     /// Rebuild a request around a different message, keeping the envelope.
     ///
     /// This is how a proxy or interceptor rewrites a payload without losing
-    /// the caller's metadata, deadline, gzip choice, or method path.
+    /// the caller's metadata, deadline, gzip choice, method path, or
+    /// [`Self::set_user_agent`] override.
     #[must_use]
     pub fn from_message_and_parts<U>(message: U, parts: Parts) -> Request<U> {
         Request {
@@ -177,12 +179,12 @@ impl<T> Request<T> {
             encoding: parts.encoding,
             cancel: parts.cancel,
             extensions: parts.extensions,
-            user_agent: None,
+            user_agent: parts.user_agent,
         }
     }
 
-    /// Replace the message, keeping metadata, deadline, compression, and
-    /// extensions.
+    /// Replace the message, keeping metadata, deadline, compression,
+    /// extensions, and a [`Self::set_user_agent`] override.
     #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Request<U> {
         let (message, parts) = self.into_message_and_parts();
@@ -322,6 +324,51 @@ impl<T> Request<T> {
     #[must_use]
     pub fn compress_is_set(&self) -> bool {
         self.compress.is_some()
+    }
+
+    /// The `user-agent` prefix override on this request, if any.
+    ///
+    /// `None` uses the channel [`crate::Channel::grpc_user_agent`]. Distinct
+    /// from [`crate::Outgoing::user_agent`], which is the effective header
+    /// this RPC will send (channel or override). The override only, like
+    /// [`Self::timeout`]. Bind it before [`Self::metadata_mut`]:
+    /// `let ua = request.user_agent();`.
+    #[must_use]
+    pub fn user_agent(&self) -> Option<&str> {
+        self.user_agent
+            .as_ref()
+            .and_then(|value| value.to_str().ok())
+    }
+
+    /// Prefix the kernel `user-agent` on this RPC.
+    ///
+    /// Same construction as [`crate::Channel::user_agent`] /
+    /// [`crate::Outgoing::set_user_agent`]: `prefix pbrs-grpc/<version>`.
+    /// Empty prefix is the kernel identity alone. Invalid HTTP is
+    /// [`crate::Code::InvalidArgument`]. Distinct from inserting `user-agent`
+    /// into metadata, which the kernel overwrites. Distinct from
+    /// [`crate::Outgoing::user_agent`], which is the effective value; this
+    /// getter is the override only, like [`Self::timeout`]. An interceptor
+    /// [`crate::Outgoing::set_user_agent`] that runs after the call site wins.
+    /// [`Self::clear_user_agent`] restores the channel value. Applies to
+    /// every call shape.
+    pub fn set_user_agent(&mut self, prefix: impl AsRef<str>) -> Result<(), Status> {
+        self.user_agent = Some(crate::wire::user_agent_value(prefix.as_ref())?);
+        Ok(())
+    }
+
+    /// Whether [`Self::set_user_agent`] has already overridden the channel
+    /// value. Distinct from [`crate::Outgoing::user_agent_is_set`], which is
+    /// the same flag after interceptors run. Applies to every call shape.
+    #[must_use]
+    pub fn user_agent_is_set(&self) -> bool {
+        self.user_agent.is_some()
+    }
+
+    /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
+    /// [`crate::Channel::grpc_user_agent`] again. Applies to every call shape.
+    pub fn clear_user_agent(&mut self) {
+        self.user_agent = None;
     }
 
     /// Whether the received unary first frame had the Compressed-Flag set.
@@ -699,7 +746,8 @@ impl<T> Request<T> {
 /// [`Self::clear_compress`] opt out of an already-applied default.
 /// [`Self::set_user_agent`] prefixes this RPC's `user-agent` (kernel suffix
 /// stays). Distinct from inserting `user-agent` into metadata, which the
-/// kernel overwrites. Typed values
+/// kernel overwrites. [`crate::Request::set_user_agent`] is the same prefix
+/// at the call site; this method wins if an interceptor runs after. Typed values
 /// the caller inserted on [`crate::Request::extensions_mut`] are on this map.
 /// Applies to every call shape.
 ///
@@ -806,7 +854,9 @@ impl<'a> Outgoing<'a> {
     /// `prefix pbrs-grpc/<version>`. Empty prefix is the kernel identity
     /// alone. Invalid HTTP is [`crate::Code::InvalidArgument`]. Distinct from
     /// inserting `user-agent` into metadata, which the kernel overwrites.
-    /// [`Self::clear_user_agent`] restores the channel value. Applies to
+    /// [`crate::Request::set_user_agent`] is the same prefix at the call site;
+    /// this method wins if an interceptor runs after. [`Self::clear_user_agent`]
+    /// restores the channel value. Applies to
     /// every call shape.
     pub fn set_user_agent(&mut self, prefix: impl AsRef<str>) -> Result<(), Status> {
         *self.user_agent = Some(crate::wire::user_agent_value(prefix.as_ref())?);
@@ -1092,6 +1142,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
+            .field("user_agent", &self.user_agent())
             .finish_non_exhaustive()
     }
 }
@@ -1121,6 +1172,7 @@ pub struct Parts {
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
+    user_agent: Option<http::HeaderValue>,
 }
 
 impl Parts {
@@ -1219,6 +1271,35 @@ impl Parts {
     /// See [`Request::clear_wait_for_ready`].
     pub fn clear_wait_for_ready(&mut self) {
         self.wait_for_ready = None;
+    }
+
+    /// The `user-agent` prefix override on this envelope, if any.
+    /// See [`Request::user_agent`]. The override only, like [`Self::timeout`].
+    #[must_use]
+    pub fn user_agent(&self) -> Option<&str> {
+        self.user_agent
+            .as_ref()
+            .and_then(|value| value.to_str().ok())
+    }
+
+    /// Prefix the kernel `user-agent` on this envelope.
+    /// See [`Request::set_user_agent`].
+    pub fn set_user_agent(&mut self, prefix: impl AsRef<str>) -> Result<(), Status> {
+        self.user_agent = Some(crate::wire::user_agent_value(prefix.as_ref())?);
+        Ok(())
+    }
+
+    /// Whether [`Self::set_user_agent`] has already overridden the channel
+    /// value. See [`Request::user_agent_is_set`].
+    #[must_use]
+    pub fn user_agent_is_set(&self) -> bool {
+        self.user_agent.is_some()
+    }
+
+    /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
+    /// value again. See [`Request::clear_user_agent`].
+    pub fn clear_user_agent(&mut self) {
+        self.user_agent = None;
     }
 
     /// Typed values an interceptor attached to this RPC. See [`Request::extensions`].
@@ -1371,6 +1452,7 @@ impl fmt::Debug for Parts {
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
+            .field("user_agent", &self.user_agent())
             .finish_non_exhaustive()
     }
 }
@@ -1864,6 +1946,7 @@ mod tests {
         req.set_wait_for_ready(true);
         req.set_compress(true);
         req.set_compressed(true);
+        req.set_user_agent("call-site/1.0").expect("user-agent");
         req.extensions_mut().insert(7u8);
         req.metadata_mut().insert("k", "v").expect("insert");
         req = req.with_http(
@@ -1884,6 +1967,15 @@ mod tests {
         assert!(parts.wait_for_ready_is_set());
         assert!(parts.compress());
         assert!(parts.compressed());
+        assert!(parts.user_agent_is_set());
+        assert!(
+            parts
+                .user_agent()
+                .expect("override")
+                .starts_with("call-site/1.0 "),
+            "{:?}",
+            parts.user_agent()
+        );
         assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(5)));
         assert_eq!(parts.rpc_timeout(), Some(Duration::from_secs(9)));
         assert!(parts.accepts_gzip());
@@ -1901,6 +1993,7 @@ mod tests {
         parts.set_timeout(Duration::from_millis(3));
         parts.set_compress(false);
         parts.clear_wait_for_ready();
+        parts.set_user_agent("parts/1.0").expect("parts user-agent");
         assert!(!parts.wait_for_ready_is_set());
         let shown_parts = format!("{parts:?}");
         assert!(
@@ -1917,6 +2010,7 @@ mod tests {
             "{shown_parts}"
         );
         assert!(shown_parts.contains("encoding: Some("), "{shown_parts}");
+        assert!(shown_parts.contains("user_agent: Some("), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
         assert_eq!(rebuilt.timeout(), Some(Duration::from_millis(3)));
         assert_eq!(rebuilt.metadata().get("k"), Some("v"));
@@ -1924,6 +2018,15 @@ mod tests {
         assert!(!rebuilt.compress());
         assert!(rebuilt.compress_is_set());
         assert!(rebuilt.compressed());
+        assert!(rebuilt.user_agent_is_set());
+        assert!(
+            rebuilt
+                .user_agent()
+                .expect("override")
+                .starts_with("parts/1.0 "),
+            "{:?}",
+            rebuilt.user_agent()
+        );
         assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(5)));
         assert_eq!(rebuilt.rpc_timeout(), Some(Duration::from_secs(9)));
         assert!(rebuilt.accepts_gzip());
@@ -1946,6 +2049,8 @@ mod tests {
         assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
+        assert!(shown.contains("encoding: Some("), "{shown}");
+        assert!(shown.contains("user_agent: Some("), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
         assert!(shown.contains("SayHello"), "{shown}");
@@ -1953,6 +2058,7 @@ mod tests {
         assert_eq!(cloned.peer_timeout(), Some(Duration::from_secs(5)));
         assert_eq!(cloned.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(cloned.encoding(), Some("gzip"));
+        assert!(cloned.user_agent_is_set());
         assert_eq!(rebuilt.into_inner(), "swapped");
         assert!(Request::new(0u32).path().is_none());
         assert!(Request::new(0u32).service().is_none());
@@ -1962,6 +2068,8 @@ mod tests {
         assert!(!Request::new(0u32).accepts_gzip());
         assert!(!Request::new(0u32).compresses_outbound());
         assert!(Request::new(0u32).encoding().is_none());
+        assert!(Request::new(0u32).user_agent().is_none());
+        assert!(!Request::new(0u32).user_agent_is_set());
         let garbage = Request::new(0u32).with_http(None, None, Some("/nomethod".into()));
         assert_eq!(garbage.path(), Some("/nomethod"));
         assert_eq!(garbage.service(), Some(""));
@@ -1979,6 +2087,10 @@ mod tests {
         inherit.clear_compress();
         assert!(!inherit.compress());
         assert!(!inherit.compress_is_set());
+        inherit.set_user_agent("call-site/1.0").expect("set");
+        inherit.clear_user_agent();
+        assert!(inherit.user_agent().is_none());
+        assert!(!inherit.user_agent_is_set());
         assert!(!Request::new(0u32).is_cancelled());
         let (tx, rx) = tokio::sync::watch::channel(false);
         let mut flagged = Request::new(0u32);
@@ -1999,6 +2111,7 @@ mod tests {
         let mut req = Request::new(1u32);
         req.set_timeout(Duration::from_millis(7));
         req.set_compress(true);
+        req.set_user_agent("call-site/1.0").expect("user-agent");
         req.metadata_mut().insert("k", "v").expect("insert");
         let mapped = req
             .with_http(
@@ -2010,6 +2123,11 @@ mod tests {
         assert_eq!(mapped.timeout(), Some(Duration::from_millis(7)));
         assert_eq!(mapped.metadata().get("k"), Some("v"));
         assert!(mapped.compress());
+        assert!(mapped.user_agent_is_set());
+        assert!(mapped
+            .user_agent()
+            .expect("override")
+            .starts_with("call-site/1.0 "));
         assert_eq!(mapped.authority(), Some("svc"));
         assert_eq!(mapped.scheme(), Some("https"));
         assert_eq!(mapped.path(), Some("/svc/Ping"));
@@ -2211,6 +2329,43 @@ mod tests {
         assert!(!call.user_agent_is_set());
         assert_eq!(call.user_agent(), "inventory/2.1 pbrs-grpc/test");
         let err = call.set_user_agent("bad\nagent").expect_err("http");
+        assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+    }
+
+    #[test]
+    fn request_set_user_agent_prefixes_this_rpc() {
+        let mut req = Request::new(());
+        assert!(req.user_agent().is_none());
+        assert!(!req.user_agent_is_set());
+        req.set_user_agent("call-site/1.0").expect("set");
+        let override_ua = req.user_agent().expect("override");
+        assert!(override_ua.starts_with("call-site/1.0 "), "{override_ua}");
+        assert!(override_ua.contains("pbrs-grpc/"), "{override_ua}");
+        assert!(req.user_agent_is_set());
+        {
+            let mut call = req.outgoing(
+                "/svc/Method",
+                "127.0.0.1:1",
+                false,
+                "inventory/2.1 pbrs-grpc/test",
+                crate::ChannelConfig::default(),
+            );
+            assert!(call.user_agent_is_set());
+            assert!(call.user_agent().starts_with("call-site/1.0 "));
+            assert_ne!(call.user_agent(), "inventory/2.1 pbrs-grpc/test");
+            call.set_user_agent("override/1.0").expect("interceptor");
+            assert!(call.user_agent().starts_with("override/1.0 "));
+            call.clear_user_agent();
+            assert!(!call.user_agent_is_set());
+            assert_eq!(call.user_agent(), "inventory/2.1 pbrs-grpc/test");
+        }
+        assert!(!req.user_agent_is_set());
+        assert!(req.user_agent().is_none());
+        req.set_user_agent("").expect("empty");
+        assert!(req.user_agent_is_set());
+        assert!(req.user_agent().expect("kernel").starts_with("pbrs-grpc/"));
+        req.clear_user_agent();
+        let err = req.set_user_agent("bad\nagent").expect_err("http");
         assert_eq!(err.code(), crate::status::Code::InvalidArgument);
     }
 
