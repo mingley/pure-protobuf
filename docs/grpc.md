@@ -1117,7 +1117,7 @@ guards is committed.
 | Slow-reader amplification | Capacity is released only after a chunk is handed on | always |
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
-| Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata. A client interceptor `insert` of `grpc-previous-rpc-attempts` or `connection` is `INVALID_ARGUMENT` on h2c, TLS (including mTLS), Unix, and `from_io` | always |
+| Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata. A client interceptor `insert` of `grpc-previous-rpc-attempts` or `connection` is `INVALID_ARGUMENT` on h2c, TLS (including mTLS), Unix, and `from_io`, including official TestService methods and hand-written Reverser `Channel` APIs. A local interceptor `Err` before the stream opens is that status on those same paths | always |
 | Impersonation | WebPKI roots or a CA you pin; mTLS; verified client chain on `Rpc::peer_identity` | opt-in |
 | Unauthenticated Unix peer | Connecting process uid/gid/pid on `Rpc::peer_cred` from `SO_PEERCRED` | Unix accept loop |
 | Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
@@ -1387,7 +1387,9 @@ already-applied default), compression (`Outgoing::compress` is
 for every call shape; nothing is sent. The Call's `Status::rpc` /
 `Status::error_details` unpack that packed protobuf, the same as a handler
 `Err`. A local `Err` before the stream opens
-is that status on every shape, including without details. `Outgoing::set_timeout` is that Call's
+is that status on every shape, including without details, on official TestService
+methods and hand-written Reverser `Channel` APIs over h2c, TLS (including mTLS),
+Unix, and `from_io`. `Outgoing::set_timeout` is that Call's
 deadline on every call shape, including when a client interceptor stamps it
 over h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_timeout`
 opts out of a channel timeout on those transports plus `from_io`. Outgoing getters (`authority`, `scheme`,

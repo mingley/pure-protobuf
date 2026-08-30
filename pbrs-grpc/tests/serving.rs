@@ -2596,6 +2596,14 @@ fn interceptor_reserved_metadata(call: &mut Outgoing<'_>) -> Result<(), Status> 
     Ok(())
 }
 
+fn reserved_test(channel: Channel) -> TestServiceClient {
+    TestServiceClient::new(channel).intercept(interceptor_reserved_metadata)
+}
+
+fn reserved_channel(channel: Channel) -> Channel {
+    channel.intercept(interceptor_reserved_metadata)
+}
+
 #[tokio::test]
 async fn a_tls_client_interceptor_cannot_insert_reserved_metadata() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
@@ -2663,6 +2671,191 @@ async fn a_from_io_client_interceptor_cannot_insert_reserved_metadata() {
 }
 
 #[tokio::test]
+async fn a_test_client_interceptor_cannot_insert_reserved_metadata() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(&reserved_test(channel(addr).await), Code::InvalidArgument)
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &reserved_test(tls_channel(addr).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_err_on_test_every_shape(
+        &reserved_test(tls_channel_with(addr, client_tls).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_cannot_insert_reserved_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &reserved_test(unix_channel(&path).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_cannot_insert_reserved_metadata() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &reserved_test(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_cannot_insert_reserved_metadata() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &reserved_channel(channel(addr).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &reserved_channel(tls_channel(addr).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reverser_err_every_shape(
+        &reserved_channel(tls_channel_with(addr, client_tls).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_cannot_insert_reserved_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &reserved_channel(unix_channel(&path).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_cannot_insert_reserved_metadata() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &reserved_channel(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_cannot_insert_hop_by_hop_headers() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -2676,6 +2869,14 @@ async fn a_client_interceptor_cannot_insert_hop_by_hop_headers() {
 fn interceptor_hop_by_hop(call: &mut Outgoing<'_>) -> Result<(), Status> {
     call.metadata_mut().insert("connection", "close")?;
     Ok(())
+}
+
+fn hop_test(channel: Channel) -> TestServiceClient {
+    TestServiceClient::new(channel).intercept(interceptor_hop_by_hop)
+}
+
+fn hop_channel(channel: Channel) -> Channel {
+    channel.intercept(interceptor_hop_by_hop)
 }
 
 #[tokio::test]
@@ -2743,6 +2944,176 @@ async fn a_from_io_client_interceptor_cannot_insert_hop_by_hop_headers() {
 }
 
 #[tokio::test]
+async fn a_test_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(&hop_test(channel(addr).await), Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(&hop_test(tls_channel(addr).await), Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_err_on_test_every_shape(
+        &hop_test(tls_channel_with(addr, client_tls).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(&hop_test(unix_channel(&path).await), Code::InvalidArgument)
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &hop_test(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(&hop_channel(channel(addr).await), Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(&hop_channel(tls_channel(addr).await), Code::InvalidArgument)
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reverser_err_every_shape(
+        &hop_channel(tls_channel_with(addr, client_tls).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &hop_channel(unix_channel(&path).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &hop_channel(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -2755,6 +3126,14 @@ async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
 
 fn interceptor_fail_before_open(_: &mut Outgoing<'_>) -> Result<(), Status> {
     Err(Status::failed_precondition("blocked locally"))
+}
+
+fn fail_open_test(channel: Channel) -> TestServiceClient {
+    TestServiceClient::new(channel).intercept(interceptor_fail_before_open)
+}
+
+fn fail_open_channel(channel: Channel) -> Channel {
+    channel.intercept(interceptor_fail_before_open)
 }
 
 #[tokio::test]
@@ -2820,6 +3199,194 @@ async fn a_from_io_client_interceptor_can_fail_the_rpc_before_the_stream_opens()
     )
     .intercept(interceptor_fail_before_open);
     assert_err_on_every_shape(&client, Code::FailedPrecondition).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_test_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &fail_open_test(channel(addr).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &fail_open_test(tls_channel(addr).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_err_on_test_every_shape(
+        &fail_open_test(tls_channel_with(addr, client_tls).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &fail_open_test(unix_channel(&path).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_err_on_test_every_shape(
+        &fail_open_test(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        Code::FailedPrecondition,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &fail_open_channel(channel(addr).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &fail_open_channel(tls_channel(addr).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reverser_err_every_shape(
+        &fail_open_channel(tls_channel_with(addr, client_tls).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &fail_open_channel(unix_channel(&path).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_reverser_err_every_shape(
+        &fail_open_channel(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        Code::FailedPrecondition,
+    )
+    .await;
     server.abort();
 }
 
