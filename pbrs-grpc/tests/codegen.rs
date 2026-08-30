@@ -3862,6 +3862,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated max_connection_idle rustdoc must name redial on TLS, mTLS, and Unix"
     );
     assert!(
+        src.contains(
+            "Drop a client that never finishes TLS or the HTTP/2 preface. Applies to every call shape, including over TLS, mTLS, and Unix."
+        ),
+        "generated handshake_timeout rustdoc must name TLS, mTLS, and Unix"
+    );
+    assert!(
         src.contains("Serve h2c on an existing Unix listener. Applies to every call shape."),
         "generated serve_unix_listener rustdoc must name every call shape"
     );

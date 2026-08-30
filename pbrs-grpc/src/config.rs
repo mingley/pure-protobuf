@@ -262,7 +262,7 @@ impl ServerConfig {
 
     /// How long TLS accept (if any) and the HTTP/2 preface may each take.
     /// Default 20 s. Values below 1 ms are raised to 1 ms.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, and Unix.
     ///
     /// A client that opens a socket and never speaks is dropped, so it cannot
     /// pin a connection task forever. A completed handshake is not subject to

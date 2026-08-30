@@ -44,6 +44,8 @@ send GOAWAY; the next RPC of every call shape redials, including over TLS,
 mTLS, and Unix. `from_io` cannot redial.
 `Server::max_concurrent_connections` caps the accept loop on TCP, TLS, mTLS,
 and Unix; a second dial is `UNAVAILABLE` while the cap is full.
+A mute TCP, TLS, mTLS, or Unix peer that never finishes the handshake is
+dropped by `handshake_timeout` so the accept loop keeps serving.
 
 ### Dispatch
 

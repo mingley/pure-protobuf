@@ -4242,7 +4242,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Drop a client that never finishes TLS or the HTTP/2 preface. Applies to every call shape. See [`{G}::ServerConfig::handshake_timeout`]."
+        "    /// Drop a client that never finishes TLS or the HTTP/2 preface. Applies to every call shape, including over TLS, mTLS, and Unix. See [`{G}::ServerConfig::handshake_timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

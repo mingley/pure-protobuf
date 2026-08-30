@@ -1490,7 +1490,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Drop a client that never finishes TLS or the HTTP/2 preface.
-    /// Applies to every call shape. See [`ServerConfig::handshake_timeout`].
+    /// Applies to every call shape, including over TLS, mTLS, and Unix. See
+    /// [`ServerConfig::handshake_timeout`].
     #[must_use]
     pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.handshake_timeout(timeout);
@@ -2046,7 +2047,8 @@ impl Router {
     }
 
     /// Drop a client that never finishes TLS or the HTTP/2 preface.
-    /// Applies to every call shape. See [`ServerConfig::handshake_timeout`].
+    /// Applies to every call shape, including over TLS, mTLS, and Unix. See
+    /// [`ServerConfig::handshake_timeout`].
     #[must_use]
     pub fn handshake_timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.handshake_timeout(timeout);

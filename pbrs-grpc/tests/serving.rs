@@ -813,6 +813,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ServerConfig::max_concurrent_connections must name TLS and mTLS"
     );
+    assert!(
+        src.contains(
+            "How long TLS accept (if any) and the HTTP/2 preface may each take.\n    /// Default 20 s. Values below 1 ms are raised to 1 ms.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix."
+        ),
+        "ServerConfig::handshake_timeout must name TLS, mTLS, and Unix"
+    );
 }
 
 #[test]
@@ -895,6 +901,14 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::max_concurrent_connections and Router::max_concurrent_connections must name TLS and mTLS"
+    );
+    assert_eq!(
+        src.matches(
+            "Drop a client that never finishes TLS or the HTTP/2 preface.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix."
+        )
+        .count(),
+        2,
+        "Server::handshake_timeout and Router::handshake_timeout must name TLS, mTLS, and Unix"
     );
     assert_eq!(
         src.matches("fails. Applies to every call shape.").count(),
@@ -11107,6 +11121,11 @@ async fn connect_to_a_closed_port_fails_fast() {
     );
 }
 
+async fn assert_mute_does_not_stop<M>(client: GreeterClient, mute: M) {
+    echo_every_shape(&client, None).await;
+    drop(mute);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_mute_tcp_peer_does_not_stop_the_server_serving() {
     let (addr, listener) = bind().await;
@@ -11121,9 +11140,84 @@ async fn a_mute_tcp_peer_does_not_stop_the_server_serving() {
         .await
         .expect("mute connect");
     tokio::time::sleep(Duration::from_millis(150)).await;
-    let client = GreeterClient::new(channel(addr).await);
-    echo_every_shape(&client, None).await;
-    drop(mute);
+    assert_mute_does_not_stop(GreeterClient::new(channel(addr).await), mute).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_mute_tls_peer_does_not_stop_the_server_serving() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .handshake_timeout(Duration::from_millis(80))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let mute = tokio::net::TcpStream::connect(addr)
+        .await
+        .expect("mute connect");
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert_mute_does_not_stop(GreeterClient::new(tls_channel(addr).await), mute).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_mute_mtls_peer_does_not_stop_the_server_serving() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .handshake_timeout(Duration::from_millis(80))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let mute = tokio::net::TcpStream::connect(addr)
+        .await
+        .expect("mute connect");
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_mute_does_not_stop(
+        GreeterClient::new(tls_channel_with(addr, client_tls).await),
+        mute,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_mute_unix_peer_does_not_stop_the_server_serving() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .handshake_timeout(Duration::from_millis(80))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let mut last = None;
+    let mute = {
+        let mut found = None;
+        for _ in 0..80 {
+            match tokio::net::UnixStream::connect(&path).await {
+                Ok(stream) => {
+                    found = Some(stream);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("mute unix: {last:?}"))
+    };
+    tokio::time::sleep(Duration::from_millis(150)).await;
+    assert_mute_does_not_stop(GreeterClient::new(unix_channel(&path).await), mute).await;
     task.abort();
 }
 
@@ -13098,12 +13192,12 @@ fn refuse_connect_cfg() -> ChannelConfig {
 async fn assert_cap_refuses_then_echo(
     first: Channel,
     second: Result<Channel, Status>,
-    reconnect: Channel,
+    reconnect: impl std::future::Future<Output = Channel>,
 ) {
     let err = second.expect_err("second connection should be refused");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
     drop(first);
-    echo_every_shape(&GreeterClient::new(reconnect), None).await;
+    echo_every_shape(&GreeterClient::new(reconnect.await), None).await;
 }
 
 #[tokio::test]
@@ -13120,7 +13214,7 @@ async fn extra_connections_are_refused_when_the_cap_is_hit() {
     assert_cap_refuses_then_echo(
         first,
         Channel::connect_with(addr, refuse_connect_cfg()).await,
-        channel(addr).await,
+        channel(addr),
     )
     .await;
     task.abort();
@@ -13142,7 +13236,7 @@ async fn tls_extra_connections_are_refused_when_the_cap_is_hit() {
     assert_cap_refuses_then_echo(
         first,
         Channel::connect_tls_with(addr, refuse_connect_cfg(), client_tls.clone()).await,
-        tls_channel_with(addr, client_tls).await,
+        tls_channel_with(addr, client_tls),
     )
     .await;
     task.abort();
@@ -13164,7 +13258,7 @@ async fn mtls_extra_connections_are_refused_when_the_cap_is_hit() {
     assert_cap_refuses_then_echo(
         first,
         Channel::connect_tls_with(addr, refuse_connect_cfg(), client_tls.clone()).await,
-        tls_channel_with(addr, client_tls).await,
+        tls_channel_with(addr, client_tls),
     )
     .await;
     task.abort();
@@ -13186,7 +13280,7 @@ async fn unix_extra_connections_are_refused_when_the_cap_is_hit() {
     assert_cap_refuses_then_echo(
         first,
         Channel::connect_unix_with(&path, refuse_connect_cfg()).await,
-        unix_channel(&path).await,
+        unix_channel(&path),
     )
     .await;
     task.abort();
