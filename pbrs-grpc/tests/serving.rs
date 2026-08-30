@@ -3756,6 +3756,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Request send_buffer_size"
     );
     assert!(
+        architecture
+            .contains("Dumping `Parts` prints the same facts as `Request` without the message:"),
+        "architecture must dump Parts without the message"
+    );
+    assert!(
         architecture.contains("`rpc_timeout`, `limits`, and `send_buffer_size`."),
         "architecture must dump Response send_buffer_size"
     );
