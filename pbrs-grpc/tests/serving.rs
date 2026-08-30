@@ -3159,6 +3159,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Server::gzip_level as the same overlay as Rpc::gzip_level"
     );
     assert!(
+        crate_src
+            .contains("[`Outgoing::accepts_compressed`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::accepts_compressed as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::gzip_level`]"),
+        "crate docs must Distinct Outgoing::accepts_compressed from gzip_level"
+    );
+    assert!(
         crate_src.contains("[`Rpc::accepts_compressed`] is that overlay in a server interceptor"),
         "crate docs must name Rpc::accepts_compressed as the server interceptor overlay"
     );
@@ -3822,6 +3831,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it."
         ),
         "guide must Distinct Rpc::gzip_level from Rpc::compresses_outbound"
+    );
+    assert!(
+        guide.contains("`Outgoing::accepts_compressed` is that overlay in a client interceptor. Distinct from `gzip_level` (deflate effort). An interceptor cannot change it."),
+        "guide must name Outgoing::accepts_compressed as the interceptor overlay"
     );
     assert!(
         guide.contains("`Rpc::accepts_compressed` is that overlay in a server interceptor"),

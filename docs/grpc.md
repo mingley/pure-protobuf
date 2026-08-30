@@ -1164,6 +1164,7 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Rpc::gzip_level` is that overlay in a server interceptor. Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it.
 `Channel::gzip_level` reads the deflate overlay without colliding with `gzip_compression_level`. Same overlay as `Outgoing::gzip_level`.
 `Server::gzip_level` reads the deflate overlay without colliding with `gzip_compression_level`. Same overlay as `Rpc::gzip_level`.
+`Outgoing::accepts_compressed` is that overlay in a client interceptor. Distinct from `gzip_level` (deflate effort). An interceptor cannot change it.
 `Rpc::accepts_compressed` is that overlay in a server interceptor. Distinct from `Rpc::accepts_gzip` (peer advertisement). An interceptor cannot change it.
 `Channel::accepts_compressed` reads the inbound gzip overlay without colliding with `accept_compressed`. Same overlay as `Outgoing::accepts_compressed`.
 `Server::accepts_compressed` reads the inbound gzip overlay without colliding with `accept_compressed`. Same overlay as `Rpc::accepts_compressed`.

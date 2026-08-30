@@ -245,6 +245,8 @@
 //! Same overlay as [`Outgoing::gzip_level`].
 //! [`Server::gzip_level`] reads the deflate overlay without colliding with [`Server::gzip_compression_level`].
 //! Same overlay as [`Rpc::gzip_level`].
+//! [`Outgoing::accepts_compressed`] is that overlay in a client interceptor.
+//! Distinct from [`Outgoing::gzip_level`].
 //! [`Rpc::accepts_compressed`] is that overlay in a server interceptor.
 //! Distinct from [`Rpc::accepts_gzip`].
 //! [`Channel::accepts_compressed`] reads the inbound gzip overlay without colliding with [`Channel::accept_compressed`].
