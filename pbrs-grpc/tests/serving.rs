@@ -1111,6 +1111,100 @@ async fn a_wrapping_service_can_reject_before_the_body_is_read() {
     task.abort();
 }
 
+#[tokio::test]
+async fn a_tls_wrapping_service_can_reject_before_the_body_is_read() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let guard = RequireAuth {
+        inner: Arc::new(GreeterServer::new(Echo)),
+        token: "Bearer letmein".to_owned(),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(guard)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_err_on_every_shape(
+        &GreeterClient::new(tls_channel(addr).await),
+        Code::Unauthenticated,
+    )
+    .await;
+    let allowed = GreeterClient::new(tls_channel(addr).await).intercept(inject_bearer);
+    echo_every_shape(&allowed, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_wrapping_service_can_reject_before_the_body_is_read() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let guard = RequireAuth {
+        inner: Arc::new(GreeterServer::new(Echo)),
+        token: "Bearer letmein".to_owned(),
+    };
+    let task = tokio::spawn(async move {
+        Server::new(guard)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_err_on_every_shape(
+        &GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        Code::Unauthenticated,
+    )
+    .await;
+    let allowed =
+        GreeterClient::new(tls_channel_with(addr, client_tls).await).intercept(inject_bearer);
+    echo_every_shape(&allowed, None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_wrapping_service_can_reject_before_the_body_is_read() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        Server::new(RequireAuth {
+            inner: Arc::new(GreeterServer::new(Echo)),
+            token: "Bearer letmein".to_owned(),
+        })
+        .serve_unix(sock)
+        .await
+        .ok();
+    });
+    assert_err_on_every_shape(
+        &GreeterClient::new(unix_channel(&path).await),
+        Code::Unauthenticated,
+    )
+    .await;
+    let allowed = GreeterClient::new(unix_channel(&path).await).intercept(inject_bearer);
+    echo_every_shape(&allowed, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_wrapping_service_can_reject_before_the_body_is_read() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Server::new(RequireAuth {
+            inner: Arc::new(GreeterServer::new(Echo)),
+            token: "Bearer letmein".to_owned(),
+        })
+        .serve_connection(server_io)
+        .await
+        .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_err_on_every_shape(&GreeterClient::new(ch.clone()), Code::Unauthenticated).await;
+    echo_every_shape(&GreeterClient::new(ch).intercept(inject_bearer), None).await;
+    server.abort();
+}
+
 fn require_bearer(rpc: &mut Rpc) -> Result<(), Status> {
     if rpc.metadata().get("authorization") != Some("Bearer letmein") {
         return Err(Status::unauthenticated("bad or missing token"));
@@ -1122,6 +1216,62 @@ fn inject_bearer(call: &mut Outgoing<'_>) -> Result<(), Status> {
     call.metadata_mut()
         .insert("authorization", "Bearer letmein")?;
     Ok(())
+}
+
+fn interceptor_require_trace(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-trace").is_none() {
+        return Err(Status::invalid_argument("missing x-trace"));
+    }
+    Ok(())
+}
+
+fn interceptor_inject_trace_and_bearer(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.metadata_mut().insert("x-trace", "1")?;
+    call.metadata_mut()
+        .insert("authorization", "Bearer letmein")?;
+    Ok(())
+}
+
+fn only_auth<T>(mut request: Request<T>) -> Request<T> {
+    request
+        .metadata_mut()
+        .insert("authorization", "Bearer letmein")
+        .expect("metadata");
+    request
+}
+
+async fn assert_stack_rejects_auth_without_trace(client: &GreeterClient) {
+    assert_err_on_every_shape(client, Code::InvalidArgument).await;
+    let err = client
+        .say_hello(only_auth(Request::new(req("ada"))))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let err = client
+        .server_hello(only_auth(Request::new(req("ada"))))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let (tx, call) = client.client_hello(only_auth(Request::new(())));
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    drop(tx);
+    let (tx, call) = client.stream_hello(only_auth(Request::new(())));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    drop(tx);
+}
+
+async fn assert_add_service_bearer(
+    denied_g: &GreeterClient,
+    denied_t: &TestServiceClient,
+    allowed_g: &GreeterClient,
+    allowed_t: &TestServiceClient,
+) {
+    assert_err_on_every_shape(denied_g, Code::Unauthenticated).await;
+    assert_err_on_test_every_shape(denied_t, Code::Unauthenticated).await;
+    echo_every_shape(allowed_g, None).await;
+    echo_test_every_shape(allowed_t).await;
 }
 
 #[tokio::test]
@@ -1316,56 +1466,112 @@ async fn generated_server_interceptors_stack_in_declaration_order() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                if rpc.metadata().get("x-trace").is_none() {
-                    return Err(Status::invalid_argument("missing x-trace"));
-                }
-                Ok(())
-            })
+            .intercept(interceptor_require_trace)
             .intercept(require_bearer)
             .serve_listener(listener)
             .await
             .ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await);
-    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
-
-    fn only_auth<T>(mut request: Request<T>) -> Request<T> {
-        request
-            .metadata_mut()
-            .insert("authorization", "Bearer letmein")
-            .expect("metadata");
-        request
-    }
-    let err = client
-        .say_hello(only_auth(Request::new(req("ada"))))
-        .await
-        .expect_err("unary");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    let err = client
-        .server_hello(only_auth(Request::new(req("ada"))))
-        .await
-        .expect_err("server-stream");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    let (tx, call) = client.client_hello(only_auth(Request::new(())));
-    let err = call.await.expect_err("client-stream");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    drop(tx);
-    let (tx, call) = client.stream_hello(only_auth(Request::new(())));
-    let err = call.await.expect_err("bidi");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    drop(tx);
-
-    let authed = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        call.metadata_mut().insert("x-trace", "1")?;
-        call.metadata_mut()
-            .insert("authorization", "Bearer letmein")?;
-        Ok(())
-    });
-    echo_every_shape(&authed, None).await;
-
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(channel(addr).await)).await;
+    echo_every_shape(
+        &GreeterClient::new(channel(addr).await).intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_generated_server_interceptors_stack_in_declaration_order() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(tls_channel(addr).await)).await;
+    echo_every_shape(
+        &GreeterClient::new(tls_channel(addr).await).intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_generated_server_interceptors_stack_in_declaration_order() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(
+        tls_channel_with(addr, client_tls.clone()).await,
+    ))
+    .await;
+    echo_every_shape(
+        &GreeterClient::new(tls_channel_with(addr, client_tls).await)
+            .intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_generated_server_interceptors_stack_in_declaration_order() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(unix_channel(&path).await)).await;
+    echo_every_shape(
+        &GreeterClient::new(unix_channel(&path).await)
+            .intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_generated_server_interceptors_stack_in_declaration_order() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(ch.clone())).await;
+    echo_every_shape(
+        &GreeterClient::new(ch).intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -1379,20 +1585,107 @@ async fn intercept_on_a_generated_server_survives_add_service() {
             .await
             .ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await);
-    assert_err_on_every_shape(&client, Code::Unauthenticated).await;
-    assert_err_on_test_every_shape(
+    assert_add_service_bearer(
+        &GreeterClient::new(channel(addr).await),
         &TestServiceClient::new(channel(addr).await),
-        Code::Unauthenticated,
+        &GreeterClient::new(channel(addr).await).intercept(inject_bearer),
+        &TestServiceClient::new(channel(addr).await).intercept(inject_bearer),
     )
     .await;
-
-    let allowed = GreeterClient::new(channel(addr).await).intercept(inject_bearer);
-    echo_every_shape(&allowed, None).await;
-    echo_test_every_shape(&TestServiceClient::new(allowed.channel().clone())).await;
-
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_intercept_on_a_generated_server_survives_add_service() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_add_service_bearer(
+        &GreeterClient::new(tls_channel(addr).await),
+        &TestServiceClient::new(tls_channel(addr).await),
+        &GreeterClient::new(tls_channel(addr).await).intercept(inject_bearer),
+        &TestServiceClient::new(tls_channel(addr).await).intercept(inject_bearer),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_intercept_on_a_generated_server_survives_add_service() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_add_service_bearer(
+        &GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        &TestServiceClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        &GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await)
+            .intercept(inject_bearer),
+        &TestServiceClient::new(tls_channel_with(addr, client_tls).await).intercept(inject_bearer),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_intercept_on_a_generated_server_survives_add_service() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_add_service_bearer(
+        &GreeterClient::new(unix_channel(&path).await),
+        &TestServiceClient::new(unix_channel(&path).await),
+        &GreeterClient::new(unix_channel(&path).await).intercept(inject_bearer),
+        &TestServiceClient::new(unix_channel(&path).await).intercept(inject_bearer),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_intercept_on_a_generated_server_survives_add_service() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_add_service_bearer(
+        &GreeterClient::new(ch.clone()),
+        &TestServiceClient::new(ch.clone()),
+        &GreeterClient::new(ch.clone()).intercept(inject_bearer),
+        &TestServiceClient::new(ch).intercept(inject_bearer),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -2674,56 +2967,117 @@ async fn router_interceptors_stack_in_declaration_order() {
     let task = tokio::spawn(async move {
         Router::new()
             .add_service(GreeterServer::new(Echo))
-            .intercept(|rpc: &mut Rpc| {
-                if rpc.metadata().get("x-trace").is_none() {
-                    return Err(Status::invalid_argument("missing x-trace"));
-                }
-                Ok(())
-            })
+            .intercept(interceptor_require_trace)
             .intercept(require_bearer)
             .serve_listener(listener)
             .await
             .ok();
     });
 
-    let client = GreeterClient::new(channel(addr).await);
-    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
-
-    fn only_auth<T>(mut request: Request<T>) -> Request<T> {
-        request
-            .metadata_mut()
-            .insert("authorization", "Bearer letmein")
-            .expect("metadata");
-        request
-    }
-    let err = client
-        .say_hello(only_auth(Request::new(req("ada"))))
-        .await
-        .expect_err("unary");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    let err = client
-        .server_hello(only_auth(Request::new(req("ada"))))
-        .await
-        .expect_err("server-stream");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    let (tx, call) = client.client_hello(only_auth(Request::new(())));
-    let err = call.await.expect_err("client-stream");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    drop(tx);
-    let (tx, call) = client.stream_hello(only_auth(Request::new(())));
-    let err = call.await.expect_err("bidi");
-    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
-    drop(tx);
-
-    let authed = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        call.metadata_mut().insert("x-trace", "1")?;
-        call.metadata_mut()
-            .insert("authorization", "Bearer letmein")?;
-        Ok(())
-    });
-    echo_every_shape(&authed, None).await;
-
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(channel(addr).await)).await;
+    echo_every_shape(
+        &GreeterClient::new(channel(addr).await).intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_router_interceptors_stack_in_declaration_order() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(tls_channel(addr).await)).await;
+    echo_every_shape(
+        &GreeterClient::new(tls_channel(addr).await).intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_router_interceptors_stack_in_declaration_order() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(
+        tls_channel_with(addr, client_tls.clone()).await,
+    ))
+    .await;
+    echo_every_shape(
+        &GreeterClient::new(tls_channel_with(addr, client_tls).await)
+            .intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_router_interceptors_stack_in_declaration_order() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(unix_channel(&path).await)).await;
+    echo_every_shape(
+        &GreeterClient::new(unix_channel(&path).await)
+            .intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_router_interceptors_stack_in_declaration_order() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .intercept(interceptor_require_trace)
+            .intercept(require_bearer)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_stack_rejects_auth_without_trace(&GreeterClient::new(ch.clone())).await;
+    echo_every_shape(
+        &GreeterClient::new(ch).intercept(interceptor_inject_trace_and_bearer),
+        None,
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

@@ -1374,10 +1374,13 @@ let tenant = request.extensions().get::<String>().cloned();
 
 `Router::intercept` and `Server::intercept` (and the generated
 `FooServer::intercept`) run before every RPC on that server, on every call
-shape, and `Err` rejects before the body is read. Calling any of
-them twice stacks: the first interceptor runs first. `FooServer::intercept`
+shape, including over TLS, mTLS, Unix, and `from_io`, and `Err` rejects before
+the body is read. Calling any of
+them twice stacks: the first interceptor runs first, on those transports
+too. `FooServer::intercept`
 then `add_service` keeps that interceptor on every mounted service, on
-every call shape of those mounts. Per-service wrapping is
+every call shape of those mounts, including over TLS, mTLS, Unix, and
+`from_io`. Per-service wrapping is
 `Intercepted::new` or `ServiceExt::intercept` when you do not want the
 generated server's `.serve()` chain. Chaining `ServiceExt::intercept` is
 first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
@@ -1475,7 +1478,8 @@ let client = GreeterClient::connect(addr).await?
 A wrapping `Service` is still valid when the interceptor needs state the
 closure form does not hold easily — `Rpc::reject` is the same turn-away path
 either way (trailing metadata and `grpc-status-details-bin` both ship), and
-`NAME` is inherited so the wrapper mounts where the inner service would.
+`NAME` is inherited so the wrapper mounts where the inner service would,
+including over TLS, mTLS, Unix, and `from_io`.
 Interceptor extensions inserted on `Rpc` are visible on the handler
 `Request` for every call shape (`Rpc::unary` / `client_streaming` /
 `server_streaming` / `bidi_streaming`). There is no `tower` layer; use

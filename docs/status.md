@@ -198,11 +198,15 @@ See `docs/upb.md`. Short list:
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.
   `Outgoing::clear_timeout` opts out of a channel timeout on those transports plus
   `from_io`. A
-  wrapping `Service`, generated `FooServer::intercept`, and
-  `Router::intercept` reject before the body is read and stack in
-  declaration order on every call shape. Interceptor extensions on a
+  wrapping `Service` `Rpc::reject` turns the call away before the inner
+  `call` on every call shape, including over TLS, mTLS, Unix, and `from_io`.
+  Generated `FooServer::intercept` and `Router::intercept` reject before the
+  body is read and stack in declaration order on every call shape, including
+  over those transports (a later hop without the first interceptor's required
+  metadata is `INVALID_ARGUMENT`, not `UNAUTHENTICATED`). Interceptor extensions on a
   wrapping `Service` reach the handler `Request` on every call shape. `FooServer::intercept` then
-  `add_service` keeps that reject on every mount and every call shape.
+  `add_service` keeps that reject on every mount and every call shape,
+  including over TLS, mTLS, Unix, and `from_io`.
   The same `add_service` keeps `max_decoding_message_size` on every mount
   and every call shape.   Generated handlers see
   `:authority` / `:scheme` / `Request` parts, a deadline Instant that

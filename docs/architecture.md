@@ -116,7 +116,10 @@ the stream.
 
 Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
 `Intercepted` is `Clone` when the interceptor is.
-The first registered runs first. Closures see `Rpc` (path, service/method,
+The first registered runs first, including over TLS, mTLS, Unix, and
+`from_io`. `FooServer::intercept` then `add_service` keeps that reject on
+every mount on those transports. A wrapping `Service` `Rpc::reject` turns
+the call away before the inner `call` on those transports too. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
