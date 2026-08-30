@@ -1420,6 +1420,7 @@ impl ChannelConfig {
     ///
     /// [`crate::Channel::wait_for_ready`] and generated `FooClient::wait_for_ready`
     /// set this without building a [`ChannelConfig`].
+    /// Distinct from [`crate::Channel::connected`]: that is a live snapshot; this overlay still queues when a slot is empty.
     #[must_use]
     pub fn wait_for_ready(mut self, wait: bool) -> Self {
         self.wait_for_ready = wait;

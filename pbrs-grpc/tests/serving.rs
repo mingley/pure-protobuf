@@ -2480,6 +2480,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`crate::Channel::connected`]: that is a live snapshot; this overlay still queues when a slot is empty."
+        ),
+        "ChannelConfig::wait_for_ready must Distinct the live-socket snapshot"
+    );
+    assert!(
+        src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
         "ServerConfig::keep_alive_interval must name Unix and mTLS"
