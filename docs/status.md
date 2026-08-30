@@ -105,7 +105,9 @@ See `docs/upb.md`. Short list:
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
   `ConnectionInfo`. TLS `:scheme https` and mTLS `peer_identity` apply to
-  every call shape. `Channel::https_scheme` sends `:scheme https` on a
+  every call shape. HTTP/2 PING keepalive still serves every Greeter shape
+  after PINGs fire on h2c, TLS (including mTLS), Unix, and `from_io`. TCP
+  `SO_KEEPALIVE` is TCP-only. `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible
@@ -141,7 +143,6 @@ See `docs/upb.md`. Short list:
   TestService methods, hand-written Reverser `Channel` APIs, generated Store
   Get / Watch / PutAll / Sync, Health Check and Watch, and reflection
   `ServerReflectionInfo`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
-  reapplies channel gzip on those transports plus `from_io`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
   overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, a client interceptor `set_wait_for_ready(false)`, and a waiting Call's deadline, including mTLS.
   Official TestService EmptyCall / StreamingOutputCall /
@@ -160,13 +161,12 @@ See `docs/upb.md`. Short list:
   `ServerReflectionInfo` retries until listen on those dialers; reflection
   is one bidi method. A client interceptor `set_wait_for_ready(true)` retries
   that method until listen on those dialers too. Opt-out and a waiting Call's deadline apply on those
-  reflection dialers too, including mTLS.   Official TestService EmptyCall / StreamingOutputCall /
+  reflection dialers too, including mTLS. Official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall retry until listen on those dialers.
   Opt-out and a waiting Call's deadline apply on those TestService dialers
   too, including mTLS. Hand-written Reverser `Channel` methods retry until
   listen on those dialers. Opt-out and a waiting Call's deadline apply on
-  those Reverser dialers too, including mTLS. `clear_compress` then `set_compress(compresses_outbound())`
-  reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
+  those Reverser dialers too, including mTLS. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
   without details on h2c, TLS (including mTLS), Unix, and `from_io`, including
   official TestService methods, hand-written Reverser `Channel` APIs, generated
@@ -203,9 +203,12 @@ See `docs/upb.md`. Short list:
   `Status::error_details` on every call shape. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
-  metadata. `StreamSender::fail` after headers ships those trailers and
+  metadata.   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
-  server response stream. On a client request sender it resets CANCEL
+  server response stream, including after a streamed DATA frame on
+  server-streaming and bidi over h2c, TLS (including mTLS), Unix, and
+  `from_io` (unary and client-streaming have no response DATA then trailers).
+  On a client request sender it resets CANCEL
   (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
   `Call` that has not yet seen headers, resolves with that status, not
   `UNAVAILABLE` from the reset. After bidi headers the received `Streaming`

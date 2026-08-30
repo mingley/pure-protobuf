@@ -642,6 +642,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         src.contains("a later interceptor\n    /// can still set or clear it."),
         "ChannelConfig::wait_for_ready must name interceptor set/clear"
     );
+    assert!(
+        src.contains(
+            "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
+        ),
+        "ServerConfig::keep_alive_interval must name Unix and mTLS"
+    );
+    assert!(
+        src.contains(
+            "PINGs run on Unix sockets, TLS (including\n    /// mTLS), and [`crate::Channel::from_io`]."
+        ),
+        "ChannelConfig::keep_alive_interval must name Unix, mTLS, and from_io"
+    );
 }
 
 #[test]
@@ -6282,6 +6294,126 @@ impl Greeter for FailGreeter {
     }
 }
 
+fn typed_after_headers_status() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("API_DISABLED");
+    info.set_domain("example.com");
+    let mut status = Status::with_error_details(
+        Code::FailedPrecondition,
+        "api disabled",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("encode");
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
+fn assert_typed_after_headers(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "api disabled");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+    assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+}
+
+fn fail_after_one() -> pbrs_grpc::Streaming<HelloReply> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut reply = HelloReply::new();
+        reply.set_message("ada");
+        tx.send(reply).await.ok();
+        tx.fail(typed_after_headers_status()).await;
+    }));
+    stream
+}
+
+/// Server-streaming and bidi only: unary and client-streaming have no
+/// response DATA then trailers.
+struct TypedAfterHeaders;
+
+impl Greeter for TypedAfterHeaders {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one()))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one()))
+    }
+}
+
+async fn assert_typed_status_after_streamed_message(client: &GreeterClient) {
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
+}
+
 struct FailTestService;
 
 impl TestService for FailTestService {
@@ -9838,6 +9970,29 @@ async fn tls_keepalive_still_serves() {
     task.abort();
 }
 
+#[tokio::test]
+async fn mtls_keepalive_still_serves() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .keep_alive_interval(Duration::from_millis(50))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = tls_channel_cfg(
+        addr,
+        client_tls,
+        ChannelConfig::new().keep_alive_interval(Duration::from_millis(50)),
+    )
+    .await;
+    tokio::time::sleep(Duration::from_millis(120)).await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
 #[cfg(unix)]
 #[tokio::test]
 async fn unix_keepalive_still_serves() {
@@ -10098,6 +10253,72 @@ async fn from_io_handlers_return_typed_status_on_every_shape() {
             .ok();
     });
     assert_greeter_blocked_every_shape(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn tls_typed_google_rpc_status_after_a_streamed_message() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TypedAfterHeaders)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_typed_status_after_streamed_message(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_typed_google_rpc_status_after_a_streamed_message() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TypedAfterHeaders)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_typed_status_after_streamed_message(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_typed_google_rpc_status_after_a_streamed_message() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TypedAfterHeaders)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_typed_status_after_streamed_message(&GreeterClient::new(unix_channel(&path).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_typed_google_rpc_status_after_a_streamed_message() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(TypedAfterHeaders)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_typed_status_after_streamed_message(&GreeterClient::new(
         Channel::from_io(client_io, "localhost")
             .await
             .expect("from_io"),

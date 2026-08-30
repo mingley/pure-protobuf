@@ -225,10 +225,11 @@ impl ServerConfig {
     /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
     /// the next RPC. Disabled by default.
     ///
-    /// This is not TCP keepalive. PINGs run on Unix sockets and on TLS; they
-    /// do not reset [`Self::max_connection_idle`] (idle is outstanding RPCs,
-    /// not bytes on the wire). For `SO_KEEPALIVE` on TCP sockets, see
-    /// [`Self::tcp_keepalive`]. Applies to every call shape.
+    /// This is not TCP keepalive. PINGs run on Unix sockets and TLS
+    /// (including mTLS); they do not reset [`Self::max_connection_idle`]
+    /// (idle is outstanding RPCs, not bytes on the wire). For `SO_KEEPALIVE`
+    /// on TCP sockets, see [`Self::tcp_keepalive`]. Applies to every call
+    /// shape.
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);
@@ -752,8 +753,9 @@ impl ChannelConfig {
     /// as while RPCs are in flight. They do not reset
     /// [`Self::max_connection_idle`].
     ///
-    /// This is not TCP keepalive. For `SO_KEEPALIVE` on TCP sockets, see
-    /// [`Self::tcp_keepalive`]. Applies to every call shape.
+    /// This is not TCP keepalive. PINGs run on Unix sockets, TLS (including
+    /// mTLS), and [`crate::Channel::from_io`]. For `SO_KEEPALIVE` on TCP
+    /// sockets, see [`Self::tcp_keepalive`]. Applies to every call shape.
     #[must_use]
     pub fn keep_alive_interval(mut self, interval: Duration) -> Self {
         self.keep_alive_interval = Some(interval);

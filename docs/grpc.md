@@ -733,7 +733,7 @@ older or more exotic targets stay on h2c.
 Two independent knobs. They are both off by default.
 
 **HTTP/2 PING.** An application-level ping on the HTTP/2 connection, including
-Unix sockets, TLS, and `from_io`. Turn it on when a NAT or load balancer will drop idle
+Unix sockets, TLS (including mTLS), and `from_io`. Turn it on when a NAT or load balancer will drop idle
 connections, or when you want a dead peer noticed before the next RPC:
 
 ```rust
