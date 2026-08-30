@@ -374,6 +374,8 @@ See `docs/upb.md`. Short list:
   `compresses_outbound` (on or off). An interceptor cannot change it.
   `Rpc::gzip_level` is that overlay in a server interceptor. Distinct from
   `Rpc::compresses_outbound` (on or off). An interceptor cannot change it.
+  `Channel::gzip_level` reads the deflate overlay without colliding with `gzip_compression_level`. Same overlay as `Outgoing::gzip_level`.
+  `Server::gzip_level` reads the deflate overlay without colliding with `gzip_compression_level`. Same overlay as `Rpc::gzip_level`.
   `Rpc::accepts_compressed` is that overlay in a server interceptor. Distinct from `Rpc::accepts_gzip` (peer advertisement). An interceptor cannot change it.
   `Outgoing::concurrent_rpc_limit` is that overlay in a client interceptor. Distinct from `waits_for_ready` (connection). An interceptor cannot change it.
   `Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).

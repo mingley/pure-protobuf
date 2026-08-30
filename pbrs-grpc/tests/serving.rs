@@ -3107,6 +3107,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Rpc::gzip_level from compresses_outbound"
     );
     assert!(
+        crate_src.contains(
+            "[`Channel::gzip_level`] reads the deflate overlay without colliding with [`Channel::gzip_compression_level`]"
+        ),
+        "crate docs must name Channel::gzip_level as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::gzip_level`]"),
+        "crate docs must Distinct Channel::gzip_level as the same overlay as Outgoing::gzip_level"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Server::gzip_level`] reads the deflate overlay without colliding with [`Server::gzip_compression_level`]"
+        ),
+        "crate docs must name Server::gzip_level as the live-server overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Rpc::gzip_level`]"),
+        "crate docs must Distinct Server::gzip_level as the same overlay as Rpc::gzip_level"
+    );
+    assert!(
         crate_src.contains("[`Rpc::accepts_compressed`] is that overlay in a server interceptor"),
         "crate docs must name Rpc::accepts_compressed as the server interceptor overlay"
     );
@@ -3702,6 +3722,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Rpc::gzip_level` is that overlay in a server interceptor"),
         "guide must name Rpc::gzip_level as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Channel::gzip_level` reads the deflate overlay without colliding with `gzip_compression_level`. Same overlay as `Outgoing::gzip_level`."),
+        "guide must name Channel::gzip_level as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Server::gzip_level` reads the deflate overlay without colliding with `gzip_compression_level`. Same overlay as `Rpc::gzip_level`."),
+        "guide must name Server::gzip_level as the live-server overlay"
     );
     assert!(
         guide.contains(
