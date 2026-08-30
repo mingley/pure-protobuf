@@ -3941,6 +3941,17 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name connected on both interceptor-visible Outgoing inventories"
     );
     assert!(
+        architecture.contains("`stream_buffer_size` / `send_buffer_size` / `limits`),"),
+        "architecture interceptor Outgoing overlay list must name limits"
+    );
+    assert_eq!(
+        architecture
+            .matches("`stream_buffer_size` / `send_buffer_size` / `limits`)")
+            .count(),
+        2,
+        "architecture must name limits on both interceptor-visible Outgoing overlay inventories"
+    );
+    assert!(
         architecture.contains(
             "`accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /"
         ),
