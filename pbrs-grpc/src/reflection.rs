@@ -35,7 +35,10 @@
 //! from wrapping a live client. [`ServerReflectionServer::max_header_list_size`]
 //! refuses oversize metadata on the one bidi method, including over TLS, mTLS,
 //! Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping only a
-//! Greeter server. An interceptor `Err` may carry
+//! Greeter server. A [`ServerReflectionClient`] pool larger than
+//! [`ServerReflectionServer::max_concurrent_connections`] fails the whole dial
+//! as `UNAVAILABLE` on TLS, mTLS, and Unix.
+//! [`ServerReflectionClient::from_io_with`] cannot pool. An interceptor `Err` may carry
 //! [`crate::Status::with_error_details`]; those trailers reach the client.
 //! A handler `Err` may carry the same packed status; those trailers reach
 //! the client. [`crate::StreamSender::fail`] after a streamed DATA frame on

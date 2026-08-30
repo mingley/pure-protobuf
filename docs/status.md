@@ -178,9 +178,10 @@ See `docs/upb.md`. Short list:
   `SO_KEEPALIVE` is TCP-only and still serves every Greeter shape on h2c, TLS,
   and mTLS. `Server::max_concurrent_connections` refuses a second TCP, TLS,
   mTLS, or Unix dial with `UNAVAILABLE` while the cap is full (`from_io` is
-  not an accept loop). A `ChannelConfig::connections` pool larger than that
+  not an accept loop).   A `ChannelConfig::connections` pool larger than that
   cap fails the whole dial as `UNAVAILABLE` on TLS, mTLS, and Unix (`from_io`
-  cannot pool).   Oversize metadata against `Server::max_header_list_size` /
+  cannot pool), including Health Check/Watch and reflection
+  `ServerReflectionInfo`.   Oversize metadata against `Server::max_header_list_size` /
   `Router::max_header_list_size` / `ServerConfig::max_header_list_size` /
   generated `FooServer::max_header_list_size` is refused over TLS, mTLS, Unix,
   and `serve_connection`, distinct from a raw HTTP/2 peer and from wrapping

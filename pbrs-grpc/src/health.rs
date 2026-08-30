@@ -16,7 +16,10 @@
 //! [`HealthServer::max_header_list_size`] refuses oversize metadata on Check
 //! and Watch, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server. An interceptor
+//! server. A [`HealthClient`] pool larger than
+//! [`HealthServer::max_concurrent_connections`] fails the whole dial as
+//! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]
+//! cannot pool. An interceptor
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
 //! the client on both methods. A handler `Err` may carry the same packed
 //! status; those trailers reach the client on both methods. Watch

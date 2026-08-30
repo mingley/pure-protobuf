@@ -554,6 +554,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must name header-list flood on Check and Watch"
     );
+    assert!(
+        src.contains(
+            "A [`HealthClient`] pool larger than\n//! [`HealthServer::max_concurrent_connections`] fails the whole dial as\n//! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]\n//! cannot pool."
+        ),
+        "Health crate rustdoc must name pool-vs-cap UNAVAILABLE on TLS, mTLS, and Unix"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
@@ -3960,4 +3966,135 @@ async fn health_from_io_header_list_cap_refuses_oversize_metadata() {
     assert_health_header_flood_then_echo(flood, healthy).await;
     handle1.abort();
     handle2.abort();
+}
+
+fn health_serving() -> HealthServer<impl Health> {
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    reporter.set_serving("helloworld.Greeter");
+    svc
+}
+
+fn health_conn_cap() -> HealthServer<impl Health> {
+    health_serving().max_concurrent_connections(1)
+}
+
+fn health_pool_against_cap() -> ChannelConfig {
+    ChannelConfig::new()
+        .connect_timeout(Duration::from_millis(300))
+        .connections(2)
+}
+
+fn health_pool_cfg() -> ChannelConfig {
+    ChannelConfig::new().connections(2)
+}
+
+async fn assert_health_cap_refuses_then_echo(
+    first: HealthClient,
+    second: Result<HealthClient, Status>,
+    reconnect: impl std::future::Future<Output = HealthClient>,
+) {
+    let err = second.expect_err("pool larger than the accept-loop cap should fail");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(first);
+    echo_health_check_and_watch(&reconnect.await).await;
+}
+
+#[tokio::test]
+async fn health_pool_against_cap_is_unavailable() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_conn_cap().serve_listener(listener).await.ok();
+    });
+    let first = client(addr).await;
+    assert_health_cap_refuses_then_echo(
+        first,
+        HealthClient::connect_with(addr, health_pool_against_cap()).await,
+        client(addr),
+    )
+    .await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn tls_health_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let first = tls_client_with(addr, client_tls.clone()).await;
+    assert_health_cap_refuses_then_echo(
+        first,
+        HealthClient::connect_tls_with(addr, health_pool_against_cap(), client_tls.clone()).await,
+        tls_client_with(addr, client_tls),
+    )
+    .await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn mtls_health_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let first = tls_client_with(addr, client_tls.clone()).await;
+    assert_health_cap_refuses_then_echo(
+        first,
+        HealthClient::connect_tls_with(addr, health_pool_against_cap(), client_tls.clone()).await,
+        tls_client_with(addr, client_tls),
+    )
+    .await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_health_pool_against_cap_is_unavailable() {
+    let path = unix_sock("pool-cap");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_conn_cap().serve_unix(sock).await.ok();
+    });
+    let first = unix_client(&path).await;
+    assert_health_cap_refuses_then_echo(
+        first,
+        HealthClient::connect_unix_with(&path, health_pool_against_cap()).await,
+        unix_client(&path),
+    )
+    .await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn from_io_health_pool_config_is_still_one_duplex() {
+    let (c, s) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        health_serving().serve_connection(s).await.ok();
+    });
+    let client = HealthClient::from_io_with(c, "localhost", health_pool_cfg())
+        .await
+        .expect("from_io");
+    echo_health_check_and_watch(&client).await;
+    handle.abort();
 }

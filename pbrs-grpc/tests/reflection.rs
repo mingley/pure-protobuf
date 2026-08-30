@@ -394,6 +394,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name header-list flood on ServerReflectionInfo"
     );
+    assert!(
+        src.contains(
+            "A [`ServerReflectionClient`] pool larger than\n//! [`ServerReflectionServer::max_concurrent_connections`] fails the whole dial\n//! as `UNAVAILABLE` on TLS, mTLS, and Unix.\n//! [`ServerReflectionClient::from_io_with`] cannot pool."
+        ),
+        "reflection crate rustdoc must name pool-vs-cap UNAVAILABLE on TLS, mTLS, and Unix"
+    );
 }
 
 #[tokio::test]
@@ -3906,4 +3912,129 @@ async fn reflection_from_io_header_list_cap_refuses_oversize_metadata() {
         .await
         .expect("from_io healthy");
     assert_reflection_header_flood_then_echo(flood, healthy).await;
+}
+
+fn reflection_conn_cap() -> ServerReflectionServer<impl ServerReflection> {
+    reflection_server().max_concurrent_connections(1)
+}
+
+fn reflection_pool_against_cap() -> ChannelConfig {
+    ChannelConfig::new()
+        .connect_timeout(Duration::from_millis(300))
+        .connections(2)
+}
+
+fn reflection_pool_cfg() -> ChannelConfig {
+    ChannelConfig::new().connections(2)
+}
+
+async fn assert_reflection_cap_refuses_then_echo(
+    first: ServerReflectionClient,
+    second: Result<ServerReflectionClient, Status>,
+    reconnect: impl std::future::Future<Output = ServerReflectionClient>,
+) {
+    let err = second.expect_err("pool larger than the accept-loop cap should fail");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(first);
+    echo_reflection_list(&reconnect.await).await;
+}
+
+#[tokio::test]
+async fn reflection_pool_against_cap_is_unavailable() {
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_conn_cap().serve_listener(listener).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let first = client(addr).await;
+    assert_reflection_cap_refuses_then_echo(
+        first,
+        ServerReflectionClient::connect_with(addr, reflection_pool_against_cap()).await,
+        client(addr),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn tls_reflection_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let first = tls_client_with(addr, client_tls.clone()).await;
+    assert_reflection_cap_refuses_then_echo(
+        first,
+        ServerReflectionClient::connect_tls_with(
+            addr,
+            reflection_pool_against_cap(),
+            client_tls.clone(),
+        )
+        .await,
+        tls_client_with(addr, client_tls),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn mtls_reflection_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let first = tls_client_with(addr, client_tls.clone()).await;
+    assert_reflection_cap_refuses_then_echo(
+        first,
+        ServerReflectionClient::connect_tls_with(
+            addr,
+            reflection_pool_against_cap(),
+            client_tls.clone(),
+        )
+        .await,
+        tls_client_with(addr, client_tls),
+    )
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_reflection_pool_against_cap_is_unavailable() {
+    let path = unix_sock("pool-cap");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection_conn_cap().serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let first = unix_client(&path).await;
+    assert_reflection_cap_refuses_then_echo(
+        first,
+        ServerReflectionClient::connect_unix_with(&path, reflection_pool_against_cap()).await,
+        unix_client(&path),
+    )
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn from_io_reflection_pool_config_is_still_one_duplex() {
+    let (c, s) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        reflection_server().serve_connection(s).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io_with(c, "localhost", reflection_pool_cfg())
+        .await
+        .expect("from_io");
+    echo_reflection_list(&client).await;
 }
