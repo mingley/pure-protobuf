@@ -1081,6 +1081,7 @@ idle does not. New RPCs of every call shape redial, including over TLS, mTLS,
 and Unix. `from_io` cannot redial after that close.
 `Channel::connected` is a snapshot of live sockets. Distinct from gRPC
 `GetState`: it does not dial, wait, or remember a failed attempt.
+`Outgoing::connected` is that same snapshot when a client interceptor runs.
 
 ## Compression
 
@@ -1644,8 +1645,9 @@ Unix, and `from_io`. `Outgoing::set_timeout` is that Call's
 deadline on every call shape, including when a client interceptor stamps it
 over h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_timeout`
 opts out of a channel timeout on those transports plus `from_io`. Outgoing getters (`authority`, `scheme`,
-`user_agent`, `limits`, overlays, `service` / `method`, metadata, timeout)
-apply to every call shape. Generated Greeter stamps those Outgoing facts over
+`user_agent`, `limits`, overlays, `service` / `method`, metadata, timeout,
+`connected`)
+apply to every call shape. `Outgoing::connected` is the same live-socket snapshot as `Channel::connected`, taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on. Generated Greeter stamps those Outgoing facts over
 TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape. `Outgoing::set_user_agent` prefixes this RPC the same way (kernel suffix stays). `Request::set_user_agent` prefixes this RPC the same way at the call site. An interceptor `Outgoing::set_user_agent` that runs after the call site wins.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
@@ -1934,7 +1936,7 @@ Deliberate omissions, with what to do instead.
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Application retries stay at the call site. `Code::is_retryable` / `Status::is_retryable` is the gRPC A6 default (`UNAVAILABLE` only). Packed `RetryInfo` is `Status::retry_delay`, a wait hint, not a larger retryable set. `RESOURCE_EXHAUSTED` from `max_concurrent_rpcs` is not retryable. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
-| Channel connectivity state | `Channel::connected` is a snapshot of live sockets. There is no `GetState` / `WaitForStateChange`. |
+| Channel connectivity state | `Channel::connected` is a snapshot of live sockets (`Outgoing::connected` is that snapshot in a client interceptor). There is no `GetState` / `WaitForStateChange`. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |

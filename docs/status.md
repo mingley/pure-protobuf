@@ -321,6 +321,8 @@ See `docs/upb.md`. Short list:
   are in flight; in-flight get grace, then the driver stops. Distinct from idle.
   Keepalive PINGs do not postpone age.
   `Channel::connected` is a snapshot of live sockets. Distinct from gRPC GetState.
+  `Outgoing::connected` is that same snapshot when a client interceptor runs.
+  Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
   `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /

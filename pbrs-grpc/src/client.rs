@@ -549,6 +549,7 @@ impl Channel {
     /// [`ChannelConfig::max_connection_age`], this is `false` until the next
     /// RPC redials. [`Self::from_io`] stays `false` after that close.
     /// Applies to every call shape, including over TLS, mTLS, and Unix.
+    /// Client interceptors see the same snapshot as [`crate::Outgoing::connected`].
     #[must_use]
     pub fn connected(&self) -> bool {
         let mut contended = false;
@@ -789,6 +790,10 @@ impl Channel {
     /// the already-applied default.
     /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
     /// (default on).
+    /// [`crate::Outgoing::connected`] is the live-socket snapshot
+    /// ([`crate::Channel::connected`]), taken when this interceptor runs.
+    /// Distinct from wait-for-ready: a lazy first RPC sees `false` even when
+    /// that overlay is on.
     /// Values the caller put on [`crate::Request::extensions_mut`] are
     /// visible; stacked interceptors share that map.
     ///
@@ -869,13 +874,17 @@ impl Channel {
         req: &mut Request<T>,
     ) -> Result<(), Status> {
         for hook in self.interceptors.iter() {
-            hook.intercept(&mut req.outgoing(
-                path,
-                self.authority(),
-                self.https,
-                self.grpc_user_agent(),
-                self.config,
-            ))?;
+            hook.intercept(
+                &mut req
+                    .outgoing(
+                        path,
+                        self.authority(),
+                        self.https,
+                        self.grpc_user_agent(),
+                        self.config,
+                    )
+                    .with_connected(self.connected()),
+            )?;
         }
         Ok(())
     }

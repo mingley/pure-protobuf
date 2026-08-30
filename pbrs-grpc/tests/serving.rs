@@ -673,6 +673,14 @@ fn channel_call_apis_document_hand_written_services() {
         "Request::set_user_agent must Distinct interceptor win after the call site"
     );
     assert!(
+        outgoing.contains("Same snapshot as [`crate::Channel::connected`], taken when this"),
+        "Outgoing::connected must name the Channel snapshot at interceptor time"
+    );
+    assert!(
+        outgoing.contains("Distinct from [`Self::wait_for_ready`]: that queues"),
+        "Outgoing::connected must Distinct wait-for-ready queueing from a live socket"
+    );
+    assert!(
         src.contains(
             "OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`\n    /// trailer must not appear as a header, including over TLS, mTLS, Unix,\n    /// and [`Self::from_io`]."
         ),
@@ -733,6 +741,12 @@ fn channel_call_apis_document_hand_written_services() {
             "RPC redials. [`Self::from_io`] stays `false` after that close.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix."
         ),
         "Channel::connected must name idle/age redial on TLS, mTLS, and Unix"
+    );
+    assert!(
+        src.contains(
+            "Client interceptors see the same snapshot as [`crate::Outgoing::connected`]."
+        ),
+        "Channel::connected must name the interceptor snapshot"
     );
     assert!(
         src.contains(
@@ -800,6 +814,14 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         intercept.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "ClientInterceptor rustdoc must name Outgoing::accepts_compressed"
+    );
+    assert!(
+        intercept.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
+        "ClientInterceptor rustdoc must name Outgoing::connected"
+    );
+    assert!(
+        intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
+        "ClientInterceptor rustdoc must Distinct connected from wait-for-ready"
     );
     assert!(
         intercept.contains(
@@ -915,6 +937,14 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
+    );
+    assert!(
+        src.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
+        "Channel::intercept rustdoc must name Outgoing::connected"
+    );
+    assert!(
+        src.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
+        "Channel::intercept rustdoc must Distinct connected from wait-for-ready"
     );
     assert!(
         src.contains(
@@ -1774,6 +1804,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Channel::connected` is a snapshot of live sockets"),
         "guide must name Channel::connected as a live-socket snapshot"
+    );
+    assert!(
+        guide.contains(
+            "`Outgoing::connected` is the same live-socket snapshot as `Channel::connected`"
+        ),
+        "guide must name Outgoing::connected as the interceptor snapshot"
+    );
+    assert!(
+        guide.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
+        "guide must Distinct Outgoing::connected from wait-for-ready"
     );
     assert!(
         guide.contains("There is no `GetState` / `WaitForStateChange`."),
@@ -15784,6 +15824,109 @@ async fn a_from_io_age_clears_connected() {
         "from_io age must drop the socket without redial"
     );
     server.abort();
+}
+
+fn interceptor_require_connected(want: bool) -> impl Fn(&mut Outgoing<'_>) -> Result<(), Status> {
+    move |call| {
+        if call.connected() != want {
+            return Err(Status::internal(if call.connected() {
+                "connected"
+            } else {
+                "not connected"
+            }));
+        }
+        Ok(())
+    }
+}
+
+fn interceptor_lazy_disconnected_wait_for_ready(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if call.connected() {
+        return Err(Status::internal("lazy first RPC must not see a socket"));
+    }
+    if !call.wait_for_ready() {
+        return Err(Status::internal(
+            "wait-for-ready overlay must still be visible",
+        ));
+    }
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn interceptor_sees_eager_channel_connected() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel_with(addr, ChannelConfig::new()).await)
+        .intercept(interceptor_require_connected(true));
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn interceptor_sees_lazy_disconnected_despite_wait_for_ready() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let channel = Channel::connect_lazy(addr).expect("lazy");
+    assert!(!channel.connected(), "connect_lazy must not hold a socket");
+    let first = GreeterClient::new(channel.clone().wait_for_ready())
+        .intercept(interceptor_lazy_disconnected_wait_for_ready);
+    first
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("lazy first RPC");
+    assert!(channel.connected(), "first RPC must leave a live socket");
+    let reuse = GreeterClient::new(channel).intercept(interceptor_require_connected(true));
+    reuse
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("reuse");
+    task.abort();
+}
+
+#[tokio::test]
+async fn interceptor_sees_from_io_connected() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_require_connected(true));
+    echo_every_shape(&client, None).await;
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn interceptor_sees_idle_clear_before_redial() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let channel = channel_with(addr, client_idle_cfg()).await;
+    let client = GreeterClient::new(channel.clone());
+    echo_every_shape(&client, None).await;
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    assert!(!channel.connected(), "idle must drop the socket");
+    let redial =
+        GreeterClient::new(channel.clone()).intercept(interceptor_require_connected(false));
+    redial
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("redial");
+    assert!(
+        channel.connected(),
+        "next RPC redials after the interceptor"
+    );
+    task.abort();
 }
 
 #[cfg(unix)]

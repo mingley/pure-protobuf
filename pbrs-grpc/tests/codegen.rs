@@ -3906,6 +3906,16 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must Distinct Request::set_user_agent at the call site"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::Outgoing::connected`] is the live-socket snapshot"),
+        "generated intercept rustdoc must name Outgoing::connected"
+    );
+    assert!(
+        src.contains(
+            "Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "generated intercept rustdoc must Distinct connected from wait-for-ready"
+    );
+    assert!(
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),
         "generated server intercept rustdoc must name the server timeout overlay"
     );
@@ -4240,6 +4250,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`::pbrs_grpc::Channel::connected`]. Applies to every call shape."
         ),
         "generated connected rustdoc must Distinct GetState"
+    );
+    assert!(
+        src.contains(
+            "Client interceptors see the same snapshot as [`::pbrs_grpc::Outgoing::connected`]."
+        ),
+        "generated connected rustdoc must name the interceptor snapshot"
     );
     assert!(
         src.contains(

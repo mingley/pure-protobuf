@@ -123,6 +123,8 @@ close. `ChannelConfig::max_connection_age` closes the client socket even while
 RPCs are in flight; in-flight get grace, then the driver stops. Distinct from idle.
 Keepalive PINGs do not postpone age.
 `Channel::connected` is a snapshot of live sockets. Distinct from gRPC GetState.
+`Outgoing::connected` is that same snapshot when a client interceptor runs.
+Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on

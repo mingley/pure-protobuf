@@ -328,6 +328,10 @@ impl<S: Service> ServiceExt for S {}
 /// opts out of the already-applied default.
 /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
 /// (default on).
+/// [`crate::Outgoing::connected`] is the live-socket snapshot
+/// ([`crate::Channel::connected`]), taken when this interceptor runs.
+/// Distinct from wait-for-ready: a lazy first RPC sees `false` even when
+/// that overlay is on.
 ///
 /// Typed context the caller put on [`crate::Request::extensions_mut`] is
 /// visible here, so an interceptor can stamp metadata from a trace id or
@@ -382,6 +386,7 @@ impl<S: Service> ServiceExt for S {}
 ///         call.rpc_timeout(),
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
+///         call.connected(),
 ///     );
 ///     Ok(())
 /// }

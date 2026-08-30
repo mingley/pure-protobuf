@@ -729,6 +729,7 @@ impl<T> Request<T> {
             wait_for_ready: &mut self.wait_for_ready,
             compress: &mut self.compress,
             extensions: &mut self.extensions,
+            connected: false,
         }
     }
 }
@@ -750,7 +751,9 @@ impl<T> Request<T> {
 /// kernel overwrites. [`crate::Request::set_user_agent`] is the same prefix
 /// at the call site; this method wins if an interceptor runs after. Typed values
 /// the caller inserted on [`crate::Request::extensions_mut`] are on this map.
-/// Applies to every call shape.
+/// [`Self::connected`] is whether a pool slot holds a live socket (same
+/// snapshot as [`crate::Channel::connected`]), taken when this interceptor
+/// runs. Applies to every call shape.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
@@ -783,6 +786,7 @@ impl<T> Request<T> {
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
 ///         call.accepts_compressed(),
+///         call.connected(),
 ///     );
 ///     Ok(())
 /// }
@@ -804,9 +808,15 @@ pub struct Outgoing<'a> {
     wait_for_ready: &'a mut Option<bool>,
     compress: &'a mut Option<bool>,
     extensions: &'a mut http::Extensions,
+    connected: bool,
 }
 
 impl<'a> Outgoing<'a> {
+    pub(crate) fn with_connected(mut self, connected: bool) -> Self {
+        self.connected = connected;
+        self
+    }
+
     /// The HTTP/2 `:authority` this channel sends, e.g. `127.0.0.1:50051`
     /// or `localhost` on a Unix socket.
     ///
@@ -1050,6 +1060,22 @@ impl<'a> Outgoing<'a> {
         *self.wait_for_ready = None;
     }
 
+    /// Whether any pool slot currently holds a live HTTP/2 connection.
+    ///
+    /// Same snapshot as [`crate::Channel::connected`], taken when this
+    /// interceptor runs. Distinct from [`Self::wait_for_ready`]: that queues
+    /// until a dial; this is whether a socket is already live. A lazy first
+    /// RPC sees `false` even when wait-for-ready is on — interceptors run
+    /// before the stream opens. An eager [`crate::Channel::connect`] or a
+    /// live [`crate::Channel::from_io`] duplex sees `true`. After
+    /// [`crate::ChannelConfig::max_connection_idle`] or
+    /// [`crate::ChannelConfig::max_connection_age`] this is `false` until
+    /// the next RPC redials. Applies to every call shape.
+    #[must_use]
+    pub fn connected(&self) -> bool {
+        self.connected
+    }
+
     /// Whether the request payload will be gzipped.
     ///
     /// `false` when unset. Use [`Self::compress_is_set`] to tell `None`
@@ -1125,6 +1151,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline())
             .field("wait_for_ready", &self.wait_for_ready)
+            .field("connected", &self.connected)
             .field("compress", &self.compress)
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
@@ -2266,6 +2293,7 @@ mod tests {
             assert!(!call.waits_for_ready());
             assert!(!call.compresses_outbound());
             assert!(call.accepts_compressed());
+            assert!(!call.connected());
             format!("{call:?}")
         };
         assert!(shown.contains("/svc/Method"), "{shown}");
@@ -2278,6 +2306,18 @@ mod tests {
         assert!(shown.contains("abc"), "{shown}");
         assert!(shown.contains("max_decoding"), "{shown}");
         assert!(shown.contains("deadline"), "{shown}");
+        assert!(shown.contains("connected: false"), "{shown}");
+        let live = req
+            .outgoing(
+                "/svc/Method",
+                "127.0.0.1:1",
+                false,
+                "pbrs-grpc/test",
+                crate::ChannelConfig::default(),
+            )
+            .with_connected(true);
+        assert!(live.connected());
+        assert!(format!("{live:?}").contains("connected: true"), "{live:?}");
         let https = req.outgoing(
             "/svc/Method",
             "127.0.0.1:1",

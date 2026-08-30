@@ -4860,7 +4860,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`{G}::Channel::connected`]. Applies to every call shape."
+        "    /// Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`{G}::Channel::connected`]. Applies to every call shape. Client interceptors see the same snapshot as [`{G}::Outgoing::connected`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -5020,7 +5020,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), extensions. [`{G}::Outgoing::set_user_agent`] prefixes this RPC. [`{G}::Request::set_user_agent`] is the same prefix at the call site."
+        "    /// `user-agent`, message caps, metadata, timeout / deadline Instant, wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default), extensions, `connected` (same snapshot as [`{G}::Channel::connected`]). [`{G}::Outgoing::set_user_agent`] prefixes this RPC. [`{G}::Request::set_user_agent`] is the same prefix at the call site. [`{G}::Outgoing::connected`] is the live-socket snapshot. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
