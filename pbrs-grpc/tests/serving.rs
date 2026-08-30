@@ -850,6 +850,12 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Server::add_service must name decode and encode caps on every mount and transport"
     );
+    assert!(
+        src.contains(
+            "A path whose service is not mounted, or a method a mounted service does\n/// not have, is [`crate::Code::Unimplemented`] on every call shape, including\n/// over TLS, mTLS, Unix, and [`Server::serve_connection`]."
+        ),
+        "Router rustdoc must name UNIMPLEMENTED on every mount miss and transport"
+    );
 }
 
 #[test]
@@ -863,30 +869,129 @@ fn request_deadline_documents_every_transport() {
     );
 }
 
+fn greeter_and_test_router() -> Router {
+    Router::new()
+        .add_service(GreeterServer::new(Echo))
+        .add_service(TestServiceServer::new(InteropTestService))
+}
+
+async fn assert_unimplemented_path(channel: &Channel, path: &'static str) {
+    let err = channel
+        .unary::<HelloRequest, HelloReply>(path, Request::new(req("x")))
+        .await
+        .expect_err("unary unimplemented");
+    assert_eq!(err.code(), Code::Unimplemented, "{path} unary {err}");
+    match channel
+        .server_streaming::<HelloRequest, HelloReply>(path, Request::new(req("x")))
+        .await
+    {
+        Err(err) => assert_eq!(
+            err.code(),
+            Code::Unimplemented,
+            "{path} server-stream {err}"
+        ),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => {
+                assert_eq!(
+                    err.code(),
+                    Code::Unimplemented,
+                    "{path} server-stream {err}"
+                )
+            }
+            Ok(_) => panic!("{path} server-stream must be unimplemented"),
+        },
+    }
+    let (tx, call) = channel.client_streaming::<HelloRequest, HelloReply>(path, Request::new(()));
+    let err = call.await.expect_err("client-stream unimplemented");
+    assert_eq!(
+        err.code(),
+        Code::Unimplemented,
+        "{path} client-stream {err}"
+    );
+    drop(tx);
+    let (tx, call) = channel.bidi::<HelloRequest, HelloReply>(path, Request::new(()));
+    let err = call.await.expect_err("bidi unimplemented");
+    assert_eq!(err.code(), Code::Unimplemented, "{path} bidi {err}");
+    drop(tx);
+}
+
+async fn assert_router_dispatches(channel: Channel) {
+    echo_every_shape(&GreeterClient::new(channel.clone()), None).await;
+    echo_test_every_shape(&TestServiceClient::new(channel.clone())).await;
+    assert_unimplemented_path(&channel, "/nope.Absent/Method").await;
+    assert_unimplemented_path(&channel, "/helloworld.Greeter/Nope").await;
+}
+
 #[tokio::test]
 async fn a_router_dispatches_between_two_services() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        Router::new()
-            .add_service(GreeterServer::new(Echo))
-            .add_service(TestServiceServer::new(InteropTestService))
+        greeter_and_test_router()
             .serve_listener(listener)
             .await
             .ok();
     });
-
-    let channel = channel(addr).await;
-
-    echo_every_shape(&GreeterClient::new(channel.clone()), None).await;
-    echo_test_every_shape(&TestServiceClient::new(channel.clone())).await;
-
-    let missing = channel
-        .unary::<HelloRequest, HelloReply>("/nope.Absent/Method", Request::new(req("x")))
-        .await
-        .expect_err("unmounted service");
-    assert_eq!(missing.code(), Code::Unimplemented);
-
+    assert_router_dispatches(channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_router_dispatches_between_two_services() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_and_test_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_router_dispatches(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_router_dispatches_between_two_services() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_and_test_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_router_dispatches(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_router_dispatches_between_two_services() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_and_test_router().serve_unix(sock).await.ok();
+    });
+    assert_router_dispatches(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_router_dispatches_between_two_services() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        greeter_and_test_router()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_router_dispatches(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

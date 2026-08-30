@@ -49,7 +49,9 @@ after `https_scheme`).
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
 / cred, `Rpc::limits`, gzip accept/encoding, and `compresses_outbound`.
-`Router` splits on the service half of the path.
+`Router` splits on the service half of the path. An unmounted service, or a
+method a mounted service does not have, is `UNIMPLEMENTED` on every call
+shape, including over TLS, mTLS, Unix, and `from_io`.
 Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,

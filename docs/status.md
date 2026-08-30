@@ -284,6 +284,9 @@ See `docs/upb.md`. Short list:
   headers.
   Generated method rustdoc names
   inbound/received `encoding` and interceptor timing. Methods omitted on generated traits answer `UNIMPLEMENTED`.
+  `Router::new().add_service` path dispatch is `UNIMPLEMENTED` for an unmounted
+  service and for a method a mounted service does not have, on every call
+  shape, including over TLS, mTLS, Unix, and `from_io`.
   Generated `FooClient::connect_tls_with` / `connect_lazy_with` /
   `connect_tls_lazy` / `connect_tls_lazy_with` / `connect_unix_lazy_with`
   and `Channel::connect_tls_with` apply to every call shape. Generated

@@ -1779,6 +1779,10 @@ impl<S: Service> Dispatch for Single<S> {
 /// Routing is a hash lookup on the `/<service>/` prefix plus one boxed future
 /// per RPC. Use [`Server`] when you have a single service and want neither.
 ///
+/// A path whose service is not mounted, or a method a mounted service does
+/// not have, is [`crate::Code::Unimplemented`] on every call shape, including
+/// over TLS, mTLS, Unix, and [`Server::serve_connection`].
+///
 /// ```no_run
 /// use pbrs_grpc::Router;
 /// # use pbrs_grpc::{Rpc, Service};

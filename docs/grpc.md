@@ -661,7 +661,8 @@ GreeterServer::new(MyGreeter)
 ```
 
 A request for a service that is not mounted, or a method the service does not
-have, gets `UNIMPLEMENTED`. Routing costs one hash lookup plus one boxed
+have, gets `UNIMPLEMENTED` on every call shape, including over TLS, mTLS, Unix,
+and `from_io`. Routing costs one hash lookup plus one boxed
 future per RPC; `Server` avoids both.
 
 ## TLS
