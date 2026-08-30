@@ -13220,6 +13220,45 @@ fn assert_stream_abort(err: &Status) {
     assert_eq!(info.reason().to_str().unwrap_or(""), "STREAM_ABORTED");
 }
 
+/// Client-streaming: no request-side `grpc-status`; the Call gets `status`.
+async fn assert_client_stream_sender_fail(client: &GreeterClient) {
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.fail(stream_abort_status()).await;
+    assert_stream_abort(&call.await.expect_err("fail"));
+}
+
+/// Bidi before headers: the Call gets `status`, not `UNAVAILABLE` from RST.
+async fn assert_bidi_sender_fail_before_headers(client: &GreeterClient) {
+    for _ in 0..24 {
+        let (tx, call) = client.stream_hello(Request::new(()));
+        tx.send(req("ada")).await.expect("send");
+        tx.fail(stream_abort_status()).await;
+        assert_stream_abort(&call.await.expect_err("fail"));
+    }
+}
+
+/// Bidi after headers: inbound Streaming sees CANCELLED, not `status`.
+async fn assert_bidi_sender_fail_after_headers(client: &GreeterClient) {
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    tx.fail(stream_abort_status()).await;
+    let err = stream.message().await.expect_err("reset after fail");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    assert_ne!(
+        err.message(),
+        "gone",
+        "fail after headers must not surface the request status on Streaming: {err}"
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn failing_a_bidi_stream_before_headers_is_that_status_not_unavailable() {
     let left = Arc::new(AtomicUsize::new(0));
@@ -13274,6 +13313,169 @@ async fn failing_a_bidi_stream_after_headers_is_cancelled_not_that_status() {
     wait_flag(&left).await;
     drop(client);
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_failing_a_request_stream_is_that_status_or_cancelled() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamFailAfterOne {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_client_stream_sender_fail(&client).await;
+    assert_bidi_sender_fail_before_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_bidi_sender_fail_after_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_failing_a_request_stream_is_that_status_or_cancelled() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamFailAfterOne {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_client_stream_sender_fail(&client).await;
+    assert_bidi_sender_fail_before_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_bidi_sender_fail_after_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_failing_a_request_stream_is_that_status_or_cancelled() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = ClientStreamFailAfterOne {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_client_stream_sender_fail(&client).await;
+    assert_bidi_sender_fail_before_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_bidi_sender_fail_after_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_failing_a_request_stream_is_that_status_or_cancelled() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = ClientStreamFailAfterOne {
+        left: Arc::clone(&left),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_client_stream_sender_fail(&client).await;
+    assert_bidi_sender_fail_before_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    server.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_bidi_sender_fail_after_headers(&client).await;
+    wait_flag(&left).await;
+    drop(client);
+    server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

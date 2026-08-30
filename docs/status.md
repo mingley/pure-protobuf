@@ -203,7 +203,7 @@ See `docs/upb.md`. Short list:
   `Status::error_details` on every call shape. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
-  metadata.   `StreamSender::fail` after headers ships those trailers and
+  metadata. `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
   server-streaming and bidi over h2c, TLS (including mTLS), Unix, and
@@ -211,8 +211,9 @@ See `docs/upb.md`. Short list:
   On a client request sender it resets CANCEL
   (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
   `Call` that has not yet seen headers, resolves with that status, not
-  `UNAVAILABLE` from the reset. After bidi headers the received `Streaming`
-  sees `CANCELLED`, not that status. A `Call`
+  `UNAVAILABLE` from the reset, including over TLS, mTLS, Unix, and
+  `from_io`. After bidi headers the received `Streaming`
+  sees `CANCELLED`, not that status, including over those transports. A `Call`
   is fused after `Ready`. Client-streaming and bidi
   `(StreamSender, Call)` pairs are `must_use`. `Health::watch` ends when the
   client leaves, without waiting for the next status change. A server-streaming
