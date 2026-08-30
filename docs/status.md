@@ -77,7 +77,8 @@
   `interop/server` (`--use_tls=false`) and the four gzip cases
   kernel-vs-kernel. Loopback `rpc-bench` latency is process-gated
   (kernel median ns strictly below tonic 0.14 on empty_unary and
-  large_unary). QPS is reported, not gated (empty/large at
+  large_unary). Server-streaming and bidi ping-pong throughput are gated at
+  90% of tonic 0.14 (same noise band). QPS is reported, not gated (empty/large at
   conc=1/conns=1 and conc=16/conns=4). Nonzero RPC errors still fail
   the process.   `Channel::connect_pool` opens independent h2 driver
   tasks.   `Channel`, `GreeterClient` / `TestServiceClient`, and

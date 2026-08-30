@@ -5,7 +5,7 @@
 //! only difference under test is the gRPC transport, so a delta here is a
 //! transport delta and not a serialization one.
 //!
-//! Four axes:
+//! Five axes:
 //!
 //! | Axis | Shape | Reports |
 //! |---|---|---|
@@ -13,6 +13,7 @@
 //! | `large_unary` | 271828-byte request, 314159-byte reply | p50 / p99 latency |
 //! | `qps` | sustained unary, low and high concurrency | requests per second |
 //! | `stream` | one server-streaming RPC of many messages | messages per second |
+//! | `ping_pong` | one bidi RPC of empty request/response pairs | round-trips per second |
 //!
 //! Gates, in decreasing strictness:
 //!
@@ -25,6 +26,10 @@
 //!   a strictly-faster gate would fail on noise. 90% still catches a real
 //!   regression: before batching, inline inbound decoding, and yielding to a
 //!   saturated producer, the kernel sat at 0.24x.
+//! - Ping-pong throughput: the same 90% band. One bidi `FullDuplexCall`
+//!   exchanging empty pairs is noisier than unary: each round-trip waits for
+//!   a response before the next request, so scheduler luck shows up as RTT
+//!   rather than queueing. A strictly-faster gate would fail on that noise.
 //! - Sustained QPS: reported, not gated. It moves with core count and
 //!   scheduler luck.
 #![allow(
@@ -49,7 +54,8 @@ mod tonic_gen {
 }
 
 use pbrs_grpc::{
-    Empty, InteropTestService, Request as KReq, SimpleRequest, TestServiceClient, TestServiceServer,
+    Empty, InteropTestService, Request as KReq, ResponseParameters, SimpleRequest,
+    StreamingOutputCallRequest, TestServiceClient, TestServiceServer,
 };
 use tonic::transport::{Channel, Server};
 use tonic::{Request, Response, Status};
@@ -71,6 +77,10 @@ const STREAM_SIZE: i32 = 1024;
 const STREAM_ROUNDS: usize = 9;
 /// The kernel must reach at least this fraction of tonic's stream throughput.
 const STREAM_PARITY: f64 = 0.9;
+/// Empty request/response pairs in one bidi `FullDuplexCall`.
+const PING_PONGS: u64 = 256;
+/// Same band as stream: bidi ping-pong is noisier than unary latency.
+const PING_PONG_PARITY: f64 = 0.9;
 
 struct TonicInterop;
 
@@ -145,11 +155,38 @@ impl tonic_gen::TestService for TonicInterop {
         Result<tonic_gen::StreamingOutputCallResponse, Status>,
     >;
 
+    /// Mirrors the kernel's `InteropTestService`: for each inbound request,
+    /// emit one reply per requested `ResponseParameters`.
     async fn full_duplex_call(
         &self,
-        _req: Request<tonic::Streaming<tonic_gen::StreamingOutputCallRequest>>,
+        req: Request<tonic::Streaming<tonic_gen::StreamingOutputCallRequest>>,
     ) -> Result<Response<Self::FullDuplexCallStream>, Status> {
-        Err(Status::unimplemented("bench"))
+        let mut inbound = req.into_inner();
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        tokio::spawn(async move {
+            loop {
+                match inbound.message().await {
+                    Ok(Some(msg)) => {
+                        let sizes: Vec<i32> =
+                            msg.response_parameters().iter().map(|p| p.size()).collect();
+                        for size in sizes {
+                            let mut out = tonic_gen::StreamingOutputCallResponse::new();
+                            let mut payload = tonic_gen::Payload::new();
+                            payload.set_body(vec![0u8; usize::try_from(size.max(0)).unwrap_or(0)]);
+                            out.set_payload(payload);
+                            if tx.send(Ok(out)).await.is_err() {
+                                return;
+                            }
+                        }
+                    }
+                    Ok(None) => return,
+                    Err(_) => return,
+                }
+            }
+        });
+        Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(
+            rx,
+        )))
     }
 
     type HalfDuplexCallStream = tokio_stream::wrappers::ReceiverStream<
@@ -484,6 +521,82 @@ async fn stream_tonic(addr: SocketAddr) -> u64 {
     best
 }
 
+fn ping_pong_kernel_req() -> StreamingOutputCallRequest {
+    let mut req = StreamingOutputCallRequest::new();
+    let mut p = ResponseParameters::new();
+    p.set_size(0);
+    req.response_parameters_mut().push(p);
+    req
+}
+
+fn ping_pong_tonic_req() -> tonic_gen::StreamingOutputCallRequest {
+    let mut req = tonic_gen::StreamingOutputCallRequest::new();
+    let mut p = tonic_gen::ResponseParameters::new();
+    p.set_size(0);
+    req.response_parameters_mut().push(p);
+    req
+}
+
+/// Round-trips per second on one bidi RPC of `PING_PONGS` empty pairs.
+async fn ping_pong_kernel(addr: SocketAddr) -> u64 {
+    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+    let req = ping_pong_kernel_req();
+    let mut best = 0u64;
+    for round in 0..STREAM_ROUNDS {
+        let t = Instant::now();
+        let (tx, call) = client.full_duplex_call(KReq::new(()));
+        tx.send(req.clone()).await.unwrap();
+        let mut inbound = call.await.unwrap().into_inner();
+        assert!(
+            inbound.message().await.unwrap().is_some(),
+            "kernel ping_pong missing first reply"
+        );
+        for _ in 1..PING_PONGS {
+            tx.send(req.clone()).await.unwrap();
+            assert!(
+                inbound.message().await.unwrap().is_some(),
+                "kernel ping_pong ended early"
+            );
+        }
+        tx.close();
+        while inbound.message().await.unwrap().is_some() {}
+        if round > 0 {
+            best = best.max(rate(PING_PONGS, t.elapsed()));
+        }
+    }
+    best
+}
+
+async fn ping_pong_tonic(addr: SocketAddr) -> u64 {
+    let mut client = tonic_gen::TestServiceClient::new(tonic_channel(addr).await);
+    let req = ping_pong_tonic_req();
+    let mut best = 0u64;
+    for round in 0..STREAM_ROUNDS {
+        let t = Instant::now();
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let mut inbound = client
+            .full_duplex_call(Request::new(tokio_stream::wrappers::ReceiverStream::new(
+                rx,
+            )))
+            .await
+            .unwrap()
+            .into_inner();
+        for _ in 0..PING_PONGS {
+            tx.send(req.clone()).await.unwrap();
+            assert!(
+                inbound.message().await.unwrap().is_some(),
+                "tonic ping_pong ended early"
+            );
+        }
+        drop(tx);
+        while inbound.message().await.unwrap().is_some() {}
+        if round > 0 {
+            best = best.max(rate(PING_PONGS, t.elapsed()));
+        }
+    }
+    best
+}
+
 fn rate(count: u64, dur: Duration) -> u64 {
     (count as f64 / dur.as_secs_f64()).round() as u64
 }
@@ -567,6 +680,13 @@ async fn main() {
         t_stream * bytes_per_msg / (1024 * 1024)
     );
 
+    let k_ping = ping_pong_kernel(k_addr).await;
+    let t_ping = ping_pong_tonic(t_addr).await;
+    println!(
+        "ping_pong pairs={PING_PONGS} kernel_round_trips_per_s={k_ping} \
+         tonic_round_trips_per_s={t_ping}"
+    );
+
     let mut failed = false;
     if !k_empty.beats(t_empty) {
         eprintln!(
@@ -588,6 +708,14 @@ async fn main() {
             "perf gate failed: stream kernel {k_stream} vs tonic {t_stream} msgs/s \
              (must be within {}%)",
             ((1.0 - STREAM_PARITY) * 100.0).round()
+        );
+        failed = true;
+    }
+    if (k_ping as f64) < (t_ping as f64) * PING_PONG_PARITY {
+        eprintln!(
+            "perf gate failed: ping_pong kernel {k_ping} vs tonic {t_ping} round-trips/s \
+             (must be within {}%)",
+            ((1.0 - PING_PONG_PARITY) * 100.0).round()
         );
         failed = true;
     }

@@ -1245,6 +1245,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "guide must name the hostile.rs rapid-reset flood"
     );
+    let benches = include_str!("../../docs/benchmarks.md");
+    assert!(
+        benches.contains("### Bidi ping-pong throughput (loopback)"),
+        "benchmarks.md must keep ping_pong as a loopback axis, not a Xeon table replacement"
+    );
+    assert!(
+        benches.contains("it is not the 4-core Xeon unary/QPS/stream"),
+        "benchmarks.md ping_pong must Distinct loopback from the Xeon tables"
+    );
 }
 
 #[test]

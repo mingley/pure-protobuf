@@ -298,6 +298,15 @@ Closing it would mean polling active response streams from the accept loop,
 which is a different architecture rather than a tuning change; the batching
 above is what makes that hop cheap enough not to decide the result.
 
+### Bidi ping-pong throughput (loopback)
+
+One bidi `FullDuplexCall` of 256 empty request/response pairs, best of eight
+rounds after warmup, reported as round-trips/s. Process-gated at 90% of tonic,
+the same band as server-streaming: each round-trip waits for a response
+before the next request, so scheduler luck shows up as RTT. This axis is a
+loopback capture in `rpc-bench`; it is not the 4-core Xeon unary/QPS/stream
+tables above.
+
 ### Re-run
 
 ```bash
