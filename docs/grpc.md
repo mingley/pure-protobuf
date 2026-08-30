@@ -1401,7 +1401,9 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor on h2c, TLS (including mTLS), Unix, and `from_io`, including official
 TestService methods and hand-written Reverser `Channel` APIs. Stacked
-interceptors share that map on those transports too. A
+interceptors share that map on those transports too, including generated Store
+Get / Watch / PutAll / Sync, Health Check and Watch, and reflection
+`ServerReflectionInfo`. A
 `Channel::user_agent` prefix is `Outgoing::user_agent` on those transports
 too, and `Outgoing::limits` is the channel `MessageLimits` overlay — the same
 TestService and Reverser paths lock both facts. Calling `intercept` twice stacks — the first interceptor runs

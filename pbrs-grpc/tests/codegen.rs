@@ -2075,6 +2075,128 @@ async fn a_generated_from_io_client_interceptor_can_reapply_channel_gzip_after_c
     server.abort();
 }
 
+#[derive(Clone, Copy)]
+struct Trace(&'static str);
+
+fn interceptor_insert_trace(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.extensions_mut().insert(Trace("abc"));
+    Ok(())
+}
+
+fn interceptor_stamp_trace(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let Some(trace) = call.extensions().get::<Trace>().copied() else {
+        return Err(Status::internal("first interceptor did not run"));
+    };
+    call.metadata_mut().insert("x-trace", trace.0)?;
+    Ok(())
+}
+
+fn require_trace(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-trace") != Some("abc") {
+        return Err(Status::invalid_argument("missing trace"));
+    }
+    Ok(())
+}
+
+fn stacked_trace_store(client: StoreClient) -> StoreClient {
+    client
+        .intercept(interceptor_insert_trace)
+        .intercept(interceptor_stamp_trace)
+}
+
+#[tokio::test]
+async fn generated_client_interceptors_stack_and_share_extensions() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_trace)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&stacked_trace_store(client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_trace)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&stacked_trace_store(tls_client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_trace)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_store_every_shape(&stacked_trace_store(
+        tls_client_with(addr, client_tls).await,
+    ))
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_client_interceptors_stack_and_share_extensions() {
+    let path = unix_sock("store-stack-trace");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_trace)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&stacked_trace_store(unix_client(&path).await)).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_client_interceptors_stack_and_share_extensions() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_trace)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&stacked_trace_store(
+        StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind_store().await;
