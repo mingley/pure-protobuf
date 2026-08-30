@@ -186,7 +186,13 @@ See `docs/upb.md`. Short list:
   and `serve_connection`, distinct from a raw HTTP/2 peer and from wrapping
   only the generated Greeter server setter. `ChannelConfig::max_header_list_size`
   refuses oversize response headers or trailers as `UNAVAILABLE` over TLS, mTLS,
-  Unix, and `from_io`, distinct from the server inbound cap. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  Unix, and `from_io`, distinct from the server inbound cap.
+  `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /
+  generated `FooServer::max_concurrent_streams` /
+  `ServerConfig::max_concurrent_streams` serialize extra RPCs on the same
+  HTTP/2 connection (a well-behaved client waits; both still complete) over
+  TLS, mTLS, Unix, and `serve_connection`, distinct from
+  `max_concurrent_rpcs` which refuses extras as `RESOURCE_EXHAUSTED`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

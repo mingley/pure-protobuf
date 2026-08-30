@@ -185,6 +185,11 @@ impl ServerConfig {
 
     /// Concurrent RPCs allowed per connection. Default 256.
     /// Applies to every call shape.
+    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from
+    /// [`Self::max_concurrent_rpcs`], which refuses extras as
+    /// [`crate::Code::ResourceExhausted`]. A well-behaved client waits; both
+    /// RPCs still complete, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`].
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.max_concurrent_streams = streams;

@@ -1192,7 +1192,9 @@ guards is committed.
 (accept-loop sockets, including TLS, mTLS, and Unix; `from_io` is one duplex
 and is not an accept loop). Extra RPCs are `RESOURCE_EXHAUSTED` before the
 handler runs, on every call shape, including over TLS, mTLS, Unix, and
-`from_io`. A second TCP, TLS, mTLS, or Unix dial is
+`from_io`. A well-behaved client hitting `SETTINGS_MAX_CONCURRENT_STREAMS`
+waits on that connection; both RPCs still complete over TLS, mTLS, Unix, and
+`from_io`. That wait is not `RESOURCE_EXHAUSTED`. A second TCP, TLS, mTLS, or Unix dial is
 `UNAVAILABLE` while the connection cap is full; dropping a live connection lets the next
 dial in, and every Greeter call shape still serves.
 

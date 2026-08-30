@@ -127,7 +127,7 @@
 //! | Huge declared message length | Refused from the 5-byte frame header, before the payload is buffered | 4 MiB ([`MessageLimits`]) |
 //! | Decompression bomb | Bounded inflate that stops one byte past the cap | 4 MiB ([`gzip::decode_limited`]) |
 //! | Metadata flood | HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE` | 16 KiB ([`ServerConfig::max_header_list_size`]) |
-//! | Stream flood | HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` | 256 ([`ServerConfig::max_concurrent_streams`]) |
+//! | Stream flood | HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`; extras wait, they are not `RESOURCE_EXHAUSTED` | 256 ([`ServerConfig::max_concurrent_streams`]) |
 //! | Unbounded buffering | Per-connection window and send buffer | 16 MiB / 1 MiB |
 //! | Slow reader amplification | Capacity is released only after a chunk is handed on, so a slow handler throttles the peer | always on |
 //! | Deeply nested protobuf | Recursion limit in [`pbrs`] | always on |

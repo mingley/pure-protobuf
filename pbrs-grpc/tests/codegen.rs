@@ -3771,6 +3771,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated max_concurrent_streams rustdoc must name every call shape"
     );
     assert!(
+        src.contains(
+            "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from [`Self::max_concurrent_rpcs`], which refuses extras as `RESOURCE_EXHAUSTED`. A well-behaved client waits; both RPCs still complete, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated max_concurrent_streams rustdoc must name serialize vs RESOURCE_EXHAUSTED on every transport"
+    );
+    assert!(
         src.contains("HTTP/2 per-stream receive window. Applies to every call shape."),
         "generated initial_stream_window_size rustdoc must name every call shape"
     );

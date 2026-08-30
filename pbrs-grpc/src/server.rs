@@ -1352,6 +1352,11 @@ impl<S: Service> Server<S> {
 
     /// Concurrent RPCs allowed per HTTP/2 connection. Applies to every call
     /// shape. See [`ServerConfig::max_concurrent_streams`].
+    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from
+    /// [`Self::max_concurrent_rpcs`], which refuses extras as
+    /// [`Code::ResourceExhausted`]. A well-behaved client waits; both RPCs
+    /// still complete, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`].
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.config = self.config.max_concurrent_streams(streams);
@@ -1921,6 +1926,11 @@ impl Router {
 
     /// Concurrent RPCs allowed per HTTP/2 connection. Applies to every call
     /// shape. See [`ServerConfig::max_concurrent_streams`].
+    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from
+    /// [`Self::max_concurrent_rpcs`], which refuses extras as
+    /// [`Code::ResourceExhausted`]. A well-behaved client waits; both RPCs
+    /// still complete, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`].
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.config = self.config.max_concurrent_streams(streams);

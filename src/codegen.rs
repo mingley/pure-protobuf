@@ -4095,6 +4095,10 @@ fn emit_kernel_server(
         src,
         "    /// Concurrent RPCs allowed per HTTP/2 connection. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_streams`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from [`Self::max_concurrent_rpcs`], which refuses extras as `RESOURCE_EXHAUSTED`. A well-behaved client waits; both RPCs still complete, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

@@ -1042,6 +1042,20 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from\n    /// [`Self::max_concurrent_rpcs`], which refuses extras as\n    /// [`crate::Code::ResourceExhausted`]. A well-behaved client waits; both\n    /// RPCs still complete, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
+        ),
+        "ServerConfig::max_concurrent_streams must name serialize vs RESOURCE_EXHAUSTED on every transport"
+    );
+    assert_eq!(
+        src.matches(
+            "A well-behaved client waits; both\n    /// RPCs still complete, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
+        )
+        .count(),
+        1,
+        "ChannelConfig::max_concurrent_streams must not copy the server serialize Distinct"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::max_decoding_message_size`] /\n    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound is\n    /// [`crate::Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::message_limits must name combined-setter oversize on every transport"
@@ -1051,6 +1065,13 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Oversize metadata is refused, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
         ),
         "ServerConfig::max_header_list_size must name oversize metadata on every transport"
+    );
+    let crate_src = include_str!("../src/lib.rs");
+    assert!(
+        crate_src.contains(
+            "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`; extras wait, they are not `RESOURCE_EXHAUSTED`"
+        ),
+        "crate docs must name stream-cap serialize vs RESOURCE_EXHAUSTED"
     );
 }
 
@@ -1199,6 +1220,14 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server::max_concurrent_streams and Router::max_concurrent_streams must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from\n    /// [`Self::max_concurrent_rpcs`], which refuses extras as\n    /// [`Code::ResourceExhausted`]. A well-behaved client waits; both RPCs\n    /// still complete, including over TLS, mTLS, Unix, and\n    /// [`Self::serve_connection`]."
+        )
+        .count(),
+        2,
+        "Server::max_concurrent_streams and Router::max_concurrent_streams must name serialize vs RESOURCE_EXHAUSTED on every transport"
     );
     assert_eq!(
         src.matches("HTTP/2 per-stream receive window. Applies to every call shape.")
@@ -24253,4 +24282,131 @@ async fn from_io_channel_config_header_list_cap_refuses_oversize_response_metada
     assert_client_header_list_cap(capped, healthy).await;
     server1.abort();
     server2.abort();
+}
+
+fn stream_cap_server() -> GreeterServer<Slow> {
+    GreeterServer::new(Slow).max_concurrent_streams(1)
+}
+
+fn both_ok(
+    a: Result<impl std::fmt::Debug, Status>,
+    b: Result<impl std::fmt::Debug, Status>,
+    what: &str,
+) {
+    assert!(
+        a.is_ok() && b.is_ok(),
+        "{what}: both RPCs must complete under the stream cap, got {a:?} {b:?}"
+    );
+}
+
+async fn assert_stream_cap(client: &GreeterClient) {
+    let started = Instant::now();
+    let (a, b) = tokio::join!(
+        client.say_hello(Request::new(req("a"))),
+        client.say_hello(Request::new(req("b"))),
+    );
+    both_ok(a, b, "unary");
+    assert!(
+        started.elapsed() >= Duration::from_millis(300),
+        "stream cap must serialize Slow unary handlers, got {:?}",
+        started.elapsed()
+    );
+
+    let started = Instant::now();
+    let (c, d) = tokio::join!(client.server_hello(Request::new(req("c"))), async {
+        let (tx, call) = client.stream_hello(Request::new(()));
+        drop(tx);
+        call.await
+    });
+    both_ok(c, d, "server-stream/bidi");
+    assert!(
+        started.elapsed() >= Duration::from_millis(300),
+        "stream cap must serialize Slow streaming handlers, got {:?}",
+        started.elapsed()
+    );
+
+    let started = Instant::now();
+    let (e, f) = tokio::join!(
+        async {
+            let (tx, call) = client.client_hello(Request::new(()));
+            drop(tx);
+            call.await
+        },
+        client.say_hello(Request::new(req("g"))),
+    );
+    both_ok(e, f, "client-stream");
+    assert!(
+        started.elapsed() >= Duration::from_millis(300),
+        "stream cap must serialize Slow client-stream handlers, got {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_server().serve_listener(listener).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_stream_cap(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_stream_cap(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        stream_cap_server().serve_unix(sock).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        stream_cap_server().serve_connection(server_io).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
 }
