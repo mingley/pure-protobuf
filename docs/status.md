@@ -484,7 +484,9 @@ See `docs/upb.md`. Short list:
   server interceptors can only tighten that cap, on those transports too. Handler `Err` (nonzero `grpc-status` and
   custom details) is that status on every call shape. A packed
   `google.rpc.Status` from `with_error_details` is `Status::rpc` /
-  `Status::error_details` on every call shape. A
+  `Status::error_details` on every call shape. `Status::error_info` is the
+  packed `ErrorInfo` without unpacking the bag. Distinct from `error_details`.
+  Distinct from `retry_delay` (a wait hint). A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

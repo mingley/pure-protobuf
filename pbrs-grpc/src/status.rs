@@ -624,6 +624,39 @@ impl Status {
         retry.retry_delay().try_to_std().ok()
     }
 
+    /// Packed `google.rpc.ErrorInfo`, if this status carries one.
+    ///
+    /// Distinct from [`Self::error_details`]: this is one typed message, not
+    /// the bag. Distinct from [`Self::retry_delay`]: that is a wait hint.
+    /// Peer trailers unpack `grpc-status-details-bin`; a local
+    /// [`Self::with_cause`] has no packed details. Corrupt bytes are `None`.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let mut info = ErrorInfo::new();
+    /// info.set_reason("API_DISABLED");
+    /// info.set_domain("example.com");
+    /// let details = ErrorDetails {
+    ///     error_info: Some(info),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(
+    ///     Code::FailedPrecondition,
+    ///     "disabled",
+    ///     &details,
+    /// )?;
+    /// let info = status.error_info().expect("ErrorInfo");
+    /// assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    /// assert!(Status::not_found("row").error_info().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn error_info(&self) -> Option<crate::pb::ErrorInfo> {
+        self.error_details().ok()?.error_info
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1349,6 +1382,51 @@ mod tests {
             .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
             .retry_delay()
             .is_none());
+    }
+
+    #[test]
+    fn error_info_reads_packed_error_info() {
+        let mut info = crate::pb::ErrorInfo::new();
+        info.set_reason("API_DISABLED");
+        info.set_domain("example.com");
+        let details = crate::pb::ErrorDetails {
+            error_info: Some(info.clone()),
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(
+                std::time::Duration::from_millis(10),
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status = Status::from_error_details(Code::FailedPrecondition, "disabled", &details)
+            .expect("encode");
+        let got = status.error_info().expect("ErrorInfo");
+        assert_eq!(got.reason().to_str().unwrap_or(""), "API_DISABLED");
+        assert_eq!(got.domain().to_str().unwrap_or(""), "example.com");
+        assert_eq!(
+            status.retry_delay(),
+            Some(std::time::Duration::from_millis(10))
+        );
+
+        let retry_only = crate::pb::ErrorDetails {
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(
+                std::time::Duration::from_millis(10),
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let retry_status =
+            Status::from_error_details(Code::Unavailable, "backoff", &retry_only).expect("encode");
+        assert!(retry_status.error_info().is_none());
+        assert!(retry_status.retry_delay().is_some());
+
+        assert!(Status::not_found("row").error_info().is_none());
+        assert!(Status::not_found("row")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .error_info()
+            .is_none());
+        assert!(
+            Status::with_details(Code::Internal, "junk", Bytes::from_static(b"not-protobuf"))
+                .error_info()
+                .is_none()
+        );
     }
 
     #[test]

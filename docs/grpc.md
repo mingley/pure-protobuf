@@ -386,6 +386,7 @@ if let Some(retry) = details.retry_info {
 ```
 
 Or `status.retry_delay()` for that wait hint without unpacking the bag. Distinct from `status.is_retryable()`: a delay is not permission to retry.
+Or `status.error_info()` for the reason and domain without unpacking the bag. Distinct from `status.error_details()`.
 
 Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `Help.Link` — live in modules named after the parent:

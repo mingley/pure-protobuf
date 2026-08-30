@@ -1556,6 +1556,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         crate_src.contains("keepalive PINGs do not reset idle and do not postpone age"),
         "crate threat table must Distinct keepalive PINGs from postponing age"
     );
+    assert!(
+        crate_src.contains("[`Status::error_info`]"),
+        "crate map must name Status::error_info"
+    );
     let status_src = include_str!("../src/status.rs");
     assert!(
         status_src.contains("A peer can send a protobuf whose code or message disagrees"),
@@ -1576,6 +1580,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),
         "Status::retry_delay must Distinct wait hint from is_retryable"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.ErrorInfo`, if this status carries one."),
+        "Status::error_info must name packed ErrorInfo"
+    );
+    assert!(
+        status_src
+            .contains("Distinct from [`Self::error_details`]: this is one typed message, not"),
+        "Status::error_info must Distinct the bag"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::retry_delay`]: that is a wait hint."),
+        "Status::error_info must Distinct retry_delay wait hint"
     );
     assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
@@ -1774,6 +1791,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Status::retry_delay`, a wait hint"),
         "guide must name Status::retry_delay as a wait hint"
+    );
+    assert!(
+        guide.contains("`status.error_info()` for the reason and domain"),
+        "guide must name Status::error_info as reason and domain"
+    );
+    assert!(
+        guide.contains("Distinct from `status.error_details()`."),
+        "guide must Distinct error_info from the ErrorDetails bag"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),
