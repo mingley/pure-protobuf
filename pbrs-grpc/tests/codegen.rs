@@ -4046,7 +4046,7 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Distinct from [`Self::max_header_list_size`], which caps uncompressed header-block bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`). A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+            "Distinct from [`Self::max_header_list_size`], which caps uncompressed header-block bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`). A well-behaved client still completes every call shape at this table size, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated header_table_size rustdoc must Distinct HPACK table from header-list cap on every transport"
     );

@@ -269,8 +269,9 @@ impl ServerConfig {
 
     /// HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table). Default 4096.
     /// Applies to every call shape.
-    /// A well-behaved client still completes every call shape, including over
-    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
+    /// A well-behaved client still completes every call shape at this table
+    /// size, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`]. Distinct from
     /// [`Self::max_header_list_size`], which caps uncompressed header-block
     /// bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`).
     ///
