@@ -1375,6 +1375,7 @@ async fn generated_servers_accept_configuration() {
             .max_frame_size(32 * 1024)
             .max_header_list_size(8 * 1024)
             .header_table_size(0)
+            .data_frame_budget(8 * 1024)
             .max_send_buffer_size(512 * 1024)
             .max_pending_accept_reset_streams(3)
             .max_local_error_reset_streams(8)
@@ -1684,6 +1685,18 @@ fn generated_server_config_is_readable_after_overlays() {
             .server_config()
             .header_table(),
         0
+    );
+    assert_eq!(
+        server.server_config().data_budget(),
+        pbrs_grpc::DEFAULT_DATA_FRAME_BUDGET
+    );
+    assert_eq!(
+        server
+            .clone()
+            .data_frame_budget(512)
+            .server_config()
+            .data_budget(),
+        512
     );
     assert!(server.accepts_compressed());
     assert!(server.clone().send_compressed().compresses_outbound());
@@ -4049,6 +4062,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Distinct from [`Self::max_header_list_size`], which caps uncompressed header-block bytes (`SETTINGS_MAX_HEADER_LIST_SIZE`). A well-behaved client still completes every call shape at this table size, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated header_table_size rustdoc must Distinct HPACK table from header-list cap on every transport"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::initial_connection_window_size`], which is flow-control bytes, and from [`Self::max_frame_size`], which caps one DATA payload. h2 Auto (half the connection window) is not exposed. A well-behaved client still completes every call shape at this framing budget, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated data_frame_budget rustdoc must Distinct small-DATA budget from windows on every transport"
     );
     assert!(
         src.contains(

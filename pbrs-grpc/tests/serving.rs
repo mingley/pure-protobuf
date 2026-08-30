@@ -1110,6 +1110,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must name HPACK table as handshake-only"
     );
     assert!(
+        channel.contains("the small-DATA budget"),
+        "Channel rustdoc must name small-DATA budget as handshake-only"
+    );
+    assert!(
         channel.contains("[`Self::send_compressed`], [`Self::gzip_compression_level`]"),
         "Channel rustdoc must overlay gzip_compression_level with send_compressed"
     );
@@ -1442,10 +1446,28 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::header_table_size must name client handshake Distinct from server still-serves"
     );
     assert_eq!(
+        src.matches("HTTP/2 small-DATA framing budget. Default 25600.")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig data_frame_budget must name default 25600"
+    );
+    assert_eq!(
+        src.matches("h2 Auto (half the connection window) is not exposed")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig data_frame_budget must not expose h2 Auto"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`ServerConfig::data_frame_budget`], which still serves\n    /// when the server caps small-DATA framing."
+        ),
+        "ChannelConfig::data_frame_budget must name client handshake Distinct from server still-serves"
+    );
+    assert_eq!(
         src.matches("Applied at handshake, not as a live overlay.")
             .count(),
-        3,
-        "ChannelConfig header_table_size / pending-reset / local-error RST must be handshake-only"
+        4,
+        "ChannelConfig header_table_size / data_frame_budget / pending-reset / local-error RST must be handshake-only"
     );
     assert_eq!(
         src.matches("Distinct from [`Self::send_compressed`], which is on or off.")
@@ -1583,6 +1605,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("Distinct from `max_header_list_size`, which caps uncompressed"),
         "crate docs must Distinct header_table_size from max_header_list_size"
+    );
+    assert!(
+        crate_src.contains("HTTP/2 small-DATA flood"),
+        "crate threat table must name small-DATA flood"
+    );
+    assert!(
+        crate_src.contains("h2 Auto (half the window) is not exposed"),
+        "crate docs must not expose h2 Auto small-DATA budget"
+    );
+    assert!(
+        crate_src.contains("too_many_data_frames"),
+        "crate docs must name the hostile small-DATA flood"
     );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
@@ -1805,6 +1839,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from `max_header_list_size`, which caps uncompressed header-block bytes."
         ),
         "guide must Distinct header_table_size from max_header_list_size"
+    );
+    assert!(
+        guide.contains("`data_frame_budget` is the small-DATA framing budget (default 25600)."),
+        "guide must name data_frame_budget as small-DATA framing budget"
+    );
+    assert!(
+        guide.contains("Distinct from the connection window, which is flow-control bytes."),
+        "guide must Distinct data_frame_budget from the connection window"
+    );
+    assert!(
+        guide.contains("a small-DATA flood that exceeds `data_frame_budget`"),
+        "guide must name the hostile.rs small-DATA flood"
     );
     let benches = include_str!("../../docs/benchmarks.md");
     assert!(
@@ -2098,6 +2144,18 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server and Router header_table_size must Distinct from max_header_list_size"
+    );
+    assert_eq!(
+        src.matches("HTTP/2 small-DATA framing budget. Default 25600.")
+            .count(),
+        2,
+        "Server::data_frame_budget and Router::data_frame_budget must name every call shape"
+    );
+    assert_eq!(
+        src.matches("h2 Auto (half the connection window) is not exposed.")
+            .count(),
+        2,
+        "Server and Router data_frame_budget must not expose h2 Auto"
     );
     assert_eq!(
         src.matches(
@@ -13232,7 +13290,8 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
         .max_send_buffer_size(123_456)
         .max_pending_accept_reset_streams(3)
         .max_local_error_reset_streams(7)
-        .header_table_size(2048);
+        .header_table_size(2048)
+        .data_frame_budget(512);
     let dbg = format!("{router:?}");
     assert!(dbg.contains("7340032"), "{dbg}");
     assert!(dbg.contains("4096"), "{dbg}");
@@ -13240,6 +13299,7 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
     assert!(dbg.contains("max_pending_accept_reset_streams: 3"), "{dbg}");
     assert!(dbg.contains("max_local_error_reset_streams: 7"), "{dbg}");
     assert!(dbg.contains("header_table_size: 2048"), "{dbg}");
+    assert!(dbg.contains("data_frame_budget: 512"), "{dbg}");
 }
 
 async fn assert_dead_channel_redials(client: &GreeterClient) {
@@ -24756,6 +24816,17 @@ fn server_and_router_config_is_readable_and_cloneable() {
             .header_table(),
         0
     );
+    assert_eq!(
+        svc.server_config().data_budget(),
+        pbrs_grpc::DEFAULT_DATA_FRAME_BUDGET
+    );
+    assert_eq!(
+        svc.clone()
+            .data_frame_budget(512)
+            .server_config()
+            .data_budget(),
+        512
+    );
     assert!(svc.accepts_compressed());
     assert!(svc.clone().send_compressed().compresses_outbound());
     assert!(!svc.clone().accept_compressed(false).accepts_compressed());
@@ -30219,6 +30290,112 @@ async fn from_io_client_header_table_still_serves_every_shape() {
     echo_every_shape(
         &GreeterClient::new(
             Channel::from_io_with(client_io, "localhost", client_header_table())
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+fn data_frame_budget_server() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).data_frame_budget(8 * 1024)
+}
+
+fn data_frame_budget_config() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).config(ServerConfig::new().data_frame_budget(8 * 1024))
+}
+
+fn data_frame_budget_router() -> Router {
+    Router::new()
+        .data_frame_budget(8 * 1024)
+        .add_service(GreeterServer::new(Echo))
+}
+
+fn client_data_frame_budget() -> ChannelConfig {
+    ChannelConfig::new().data_frame_budget(8 * 1024)
+}
+
+#[tokio::test]
+async fn data_frame_budget_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        data_frame_budget_server()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_data_frame_budget_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        data_frame_budget_server()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn data_frame_budget_config_and_router_still_serve_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        data_frame_budget_config()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        data_frame_budget_router()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_data_frame_budget_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(channel_cfg(addr, client_data_frame_budget()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_data_frame_budget_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        echo_uncapped().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io_with(client_io, "localhost", client_data_frame_budget())
                 .await
                 .expect("from_io"),
         ),

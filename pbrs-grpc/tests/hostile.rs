@@ -3,9 +3,11 @@
 //! These tests speak raw HTTP/2 so they can send bytes no real client would:
 //! oversize length prefixes, gzip bombs, reserved flag values, truncated
 //! frames, wrong content types, an HTTP/2 rapid-reset flood, a protocol-error
-//! RST flood, and a HEADERS block split across CONTINUATION frames. Every
+//! RST flood, a HEADERS block split across CONTINUATION frames, and a
+//! small-DATA flood. Every
 //! case must produce a `Status` (or drop that connection) and leave the
-//! server serving. Rapid reset, protocol-error RST, and CONTINUATION floods
+//! server serving. Rapid reset, protocol-error RST, CONTINUATION, and
+//! small-DATA floods
 //! are h2c-only here; TLS has no raw `h2` peer.
 
 #![allow(
@@ -888,7 +890,41 @@ async fn protocol_error_rst_flood_drops_that_connection() {
     assert_accept_loop_still_serves(addr).await;
 }
 
-/// HEADERS without `END_HEADERS` and without a following CONTINUATION stalls
+/// A raw peer that sends too many tiny DATA frames
+/// ([`ServerConfig::data_frame_budget`]) drops that connection
+/// (`ENHANCE_YOUR_CALM` / `too_many_data_frames`). Distinct from the
+/// connection window (flow-control bytes) and from DATA after `END_STREAM`
+/// (connection `PROTOCOL_ERROR`). A well-behaved client on a fresh
+/// connection still serves. h2c-only (`RawH2`).
+#[tokio::test]
+async fn small_data_flood_drops_that_connection() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new().data_frame_budget(256)).await;
+    let mut peer = RawH2::connect(addr).await;
+    let block = grpc_header_block(&addr.to_string());
+    peer.write_all(&h2_frame(FRAME_HEADERS, FLAG_END_HEADERS, 1, &block))
+        .await;
+    for _ in 0..8 {
+        peer.write_all(&h2_frame(FRAME_DATA, 0, 1, &[0x00])).await;
+    }
+
+    let started = std::time::Instant::now();
+    let dropped = loop {
+        match tokio::time::timeout(Duration::from_millis(200), peer.read_frame()).await {
+            Ok(Ok((FRAME_GOAWAY, _, _, _))) => break true,
+            Ok(Ok(_)) => {
+                if started.elapsed() > Duration::from_millis(800) {
+                    break false;
+                }
+            }
+            Ok(Err(_)) | Err(_) => break true,
+        }
+    };
+    assert!(
+        dropped,
+        "small-DATA flood must trip data_frame_budget and drop that connection"
+    );
+    assert_accept_loop_still_serves(addr).await;
+}
 /// that stream. Distinct from handshake timeout (preface already finished) and
 /// from the CONTINUATION flood above. The accept loop still serves. h2c-only.
 #[tokio::test]

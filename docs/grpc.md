@@ -1147,6 +1147,10 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
 Handshake-only on the client; not a live `Channel` overlay.
 
+`data_frame_budget` is the small-DATA framing budget (default 25600).
+Distinct from the connection window, which is flow-control bytes.
+h2 Auto (half the window) is not exposed.
+
 ```rust
 GreeterServer::new(svc)
     .send_compressed()
@@ -1256,6 +1260,7 @@ guards is committed.
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 (`ServerConfig::max_pending_accept_reset_streams`) |
 | HTTP/2 protocol-error RST flood | Cap locally-reset streams caused by invalid frames | 1024 (`ServerConfig::max_local_error_reset_streams`) |
+| HTTP/2 small-DATA flood | Cap framing overhead of tiny DATA frames | 25600 (`ServerConfig::data_frame_budget`) |
 | HTTP/2 CONTINUATION flood | Cap CONTINUATION frames on an unfinished header block; that connection drops | always (`h2`, scaled from `max_header_list_size`) |
 | Unfinished HEADERS | Header block without `END_HEADERS` stalls that stream only | always |
 | Client RST after the request is read | Drop the handler; abort a stream drain waiting for the next message | always |
@@ -1297,6 +1302,15 @@ Exceeding it is `ENHANCE_YOUR_CALM` (h2 `too_many_internal_resets`). The
 raw flood is h2c-only (`tests/hostile.rs`; no TLS raw peer).
 `ChannelConfig::max_local_error_reset_streams` is the client handshake cap,
 not the server cap. h2's `None` disable is not exposed.
+
+A well-behaved client never trips the small-DATA framing budget; every call
+shape still completes over TLS, mTLS, Unix, and `from_io`. Distinct from a
+raw HTTP/2 peer that sends too many tiny DATA frames: that connection drops
+as `ENHANCE_YOUR_CALM` (`too_many_data_frames`); the accept loop still
+serves a well-behaved client. Distinct from the connection window
+(flow-control bytes). h2 Auto (half the window) is not exposed. The raw
+flood is h2c-only (`tests/hostile.rs`; no TLS raw peer).
+`ChannelConfig::data_frame_budget` is the client handshake cap.
 
 A raw peer that sends more CONTINUATION frames than the header-list cap
 allows drops that connection (`ENHANCE_YOUR_CALM`); an unfinished HEADERS
@@ -1350,7 +1364,8 @@ Two layers of tests enforce this.
 to pass the frame check, reserved compressed-flag values, truncated frames,
 malformed paths, garbage protobuf, `application/grpc+json`, GET/PUT, a
 rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`,
-and a protocol-error RST flood that exceeds `max_local_error_reset_streams`
+and a protocol-error RST flood that exceeds `max_local_error_reset_streams`,
+and a small-DATA flood that exceeds `data_frame_budget`
 — and requires that every case answers with a status (or HTTP 405/415, or
 drops that connection as `ENHANCE_YOUR_CALM`) and leaves the server serving.
 The rapid-reset flood is h2c-only.
@@ -1442,6 +1457,7 @@ to size in either direction.
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size`, `header_table_size`,
+`data_frame_budget`,
 `max_pending_accept_reset_streams`, `max_local_error_reset_streams` — is
 available on `Server` / `Router` / generated `FooServer` as well as
 `ServerConfig` and `ChannelConfig`, and is more likely to be a safety

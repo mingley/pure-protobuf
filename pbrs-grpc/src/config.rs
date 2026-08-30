@@ -31,6 +31,13 @@ pub const DEFAULT_MAX_HEADER_LIST_SIZE: u32 = 16 * 1024;
 /// (`SETTINGS_MAX_HEADER_LIST_SIZE`, uncompressed header-block cap).
 pub const DEFAULT_HEADER_TABLE_SIZE: u32 = 4096;
 
+/// Default HTTP/2 small-DATA framing budget: 25,600 bytes of overhead.
+///
+/// Tiny DATA frames (payload under 256 bytes) consume this budget. h2 Auto
+/// (half the connection window) is not used: the 16 MiB default window would
+/// otherwise raise this to 8 MiB. Distinct from [`DEFAULT_WINDOW_SIZE`].
+pub const DEFAULT_DATA_FRAME_BUDGET: usize = 25_600;
+
 /// Default queue depth between a client-streaming caller and the wire.
 ///
 /// Only outbound streams are queued; received streams are decoded on the
@@ -108,6 +115,7 @@ pub struct ServerConfig {
     max_send_buffer_size: usize,
     max_header_list_size: u32,
     header_table_size: u32,
+    data_frame_budget: usize,
     max_pending_accept_reset_streams: usize,
     max_local_error_reset_streams: usize,
     keep_alive_interval: Option<Duration>,
@@ -136,6 +144,7 @@ impl Default for ServerConfig {
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             header_table_size: DEFAULT_HEADER_TABLE_SIZE,
+            data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
             max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
             max_local_error_reset_streams: DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
             keep_alive_interval: None,
@@ -282,6 +291,29 @@ impl ServerConfig {
     #[must_use]
     pub fn header_table_size(mut self, bytes: u32) -> Self {
         self.header_table_size = bytes;
+        self
+    }
+
+    /// HTTP/2 small-DATA framing budget. Default 25600.
+    /// Applies to every call shape.
+    /// Caps extra memory from tiny DATA frames (payload under 256 bytes).
+    /// Exceeding this is `ENHANCE_YOUR_CALM` (`too_many_data_frames`).
+    /// Distinct from [`Self::initial_connection_window_size`], which is
+    /// flow-control bytes, and from [`Self::max_frame_size`], which caps one
+    /// DATA payload. h2 Auto (half the connection window) is not exposed:
+    /// the 16 MiB default window would otherwise raise this to 8 MiB.
+    /// Empty DATA frames are a separate h2 cap and do not consume this budget.
+    /// A well-behaved client still completes every call shape at this framing
+    /// budget, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`].
+    ///
+    /// [`crate::Server::data_frame_budget`],
+    /// [`crate::Router::data_frame_budget`], and generated
+    /// `FooServer::data_frame_budget` set this without building a
+    /// [`ServerConfig`].
+    #[must_use]
+    pub fn data_frame_budget(mut self, bytes: usize) -> Self {
+        self.data_frame_budget = bytes;
         self
     }
 
@@ -656,6 +688,13 @@ impl ServerConfig {
         self.header_table_size
     }
 
+    /// HTTP/2 small-DATA framing budget. See [`Self::data_frame_budget`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn data_budget(self) -> usize {
+        self.data_frame_budget
+    }
+
     /// Remotely-reset HTTP/2 streams waiting in the accept queue.
     /// See [`Self::max_pending_accept_reset_streams`]. Applies to every call shape.
     #[must_use]
@@ -733,6 +772,7 @@ impl ServerConfig {
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
             .header_table_size(self.header_table_size)
+            .data_frame_budget(self.data_frame_budget)
             .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
             .max_local_error_reset_streams(Some(self.max_local_error_reset_streams));
         builder
@@ -777,6 +817,7 @@ pub struct ChannelConfig {
     max_send_buffer_size: usize,
     max_header_list_size: u32,
     header_table_size: u32,
+    data_frame_budget: usize,
     max_pending_accept_reset_streams: usize,
     max_local_error_reset_streams: usize,
     stream_buffer: usize,
@@ -807,6 +848,7 @@ impl Default for ChannelConfig {
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             header_table_size: DEFAULT_HEADER_TABLE_SIZE,
+            data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
             max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
             max_local_error_reset_streams: DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
             stream_buffer: DEFAULT_STREAM_BUFFER,
@@ -981,6 +1023,25 @@ impl ChannelConfig {
     #[must_use]
     pub fn header_table_size(mut self, bytes: u32) -> Self {
         self.header_table_size = bytes;
+        self
+    }
+
+    /// HTTP/2 small-DATA framing budget. Default 25600.
+    /// Applies to every call shape.
+    /// Applied at handshake, not as a live overlay.
+    /// Caps extra memory from tiny DATA frames (payload under 256 bytes).
+    /// Exceeding this is `ENHANCE_YOUR_CALM` (`too_many_data_frames`).
+    /// Distinct from [`ServerConfig::data_frame_budget`], which still serves
+    /// when the server caps small-DATA framing. Distinct from
+    /// [`Self::initial_connection_window_size`], which is flow-control bytes,
+    /// and from [`Self::max_frame_size`], which caps one DATA payload.
+    /// h2 Auto (half the connection window) is not exposed.
+    /// Empty DATA frames are a separate h2 cap and do not consume this budget.
+    /// A well-behaved server still completes every call shape at this framing
+    /// budget, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    #[must_use]
+    pub fn data_frame_budget(mut self, bytes: usize) -> Self {
+        self.data_frame_budget = bytes;
         self
     }
 
@@ -1337,6 +1398,13 @@ impl ChannelConfig {
         self.header_table_size
     }
 
+    /// HTTP/2 small-DATA framing budget. See [`Self::data_frame_budget`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn data_budget(self) -> usize {
+        self.data_frame_budget
+    }
+
     /// Remotely-reset HTTP/2 streams waiting in the accept queue.
     /// See [`Self::max_pending_accept_reset_streams`]. Applies to every call shape.
     #[must_use]
@@ -1453,6 +1521,7 @@ impl ChannelConfig {
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
             .header_table_size(self.header_table_size)
+            .data_frame_budget(self.data_frame_budget)
             .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
             .max_local_error_reset_streams(Some(self.max_local_error_reset_streams))
             .enable_push(false)
@@ -1506,6 +1575,20 @@ mod tests {
             ChannelConfig::new().header_table_size(8192).header_table(),
             8192
         );
+        assert_eq!(config.data_budget(), super::DEFAULT_DATA_FRAME_BUDGET);
+        assert_eq!(
+            ChannelConfig::new().data_budget(),
+            super::DEFAULT_DATA_FRAME_BUDGET
+        );
+        assert_eq!(
+            ServerConfig::new().data_frame_budget(512).data_budget(),
+            512
+        );
+        assert_eq!(
+            ChannelConfig::new().data_frame_budget(512).data_budget(),
+            512
+        );
+        assert_eq!(ServerConfig::new().data_frame_budget(0).data_budget(), 0);
         assert_eq!(
             config.pending_accept_reset_streams(),
             super::DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS
@@ -1752,6 +1835,7 @@ mod tests {
             .max_concurrent_streams(8)
             .max_header_list_size(32)
             .header_table_size(2048)
+            .data_frame_budget(512)
             .max_pending_accept_reset_streams(3)
             .max_local_error_reset_streams(7);
         assert_eq!(server.stream_window(), 1);
@@ -1760,6 +1844,7 @@ mod tests {
         assert_eq!(server.concurrent_streams(), 8);
         assert_eq!(server.header_list_size(), 32);
         assert_eq!(server.header_table(), 2048);
+        assert_eq!(server.data_budget(), 512);
         assert_eq!(server.pending_accept_reset_streams(), 3);
         assert_eq!(server.local_error_reset_streams(), 7);
 
@@ -1770,6 +1855,7 @@ mod tests {
             .max_concurrent_streams(9)
             .max_header_list_size(64)
             .header_table_size(1024)
+            .data_frame_budget(768)
             .max_pending_accept_reset_streams(11)
             .max_local_error_reset_streams(13);
         assert_eq!(channel.stream_window(), 3);
@@ -1778,6 +1864,7 @@ mod tests {
         assert_eq!(channel.concurrent_streams(), 9);
         assert_eq!(channel.header_list_size(), 64);
         assert_eq!(channel.header_table(), 1024);
+        assert_eq!(channel.data_budget(), 768);
         assert_eq!(channel.pending_accept_reset_streams(), 11);
         assert_eq!(channel.local_error_reset_streams(), 13);
         assert!(!ChannelConfig::new().compresses_outbound());

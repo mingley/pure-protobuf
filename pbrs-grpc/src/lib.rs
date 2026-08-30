@@ -143,6 +143,7 @@
 //! | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in [`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`] |
 //! | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`], override [`ServerConfig::max_pending_accept_reset_streams`]) |
 //! | HTTP/2 protocol-error RST flood | Cap locally-reset streams caused by invalid frames | 1024 ([`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`], override [`ServerConfig::max_local_error_reset_streams`]) |
+//! | HTTP/2 small-DATA flood | Cap framing overhead of tiny DATA frames | 25600 ([`DEFAULT_DATA_FRAME_BUDGET`], override [`ServerConfig::data_frame_budget`]) |
 //! | HTTP/2 CONTINUATION flood | Cap CONTINUATION frames on an unfinished header block; that connection drops | always (`h2`, scaled from [`ServerConfig::max_header_list_size`]) |
 //! | Unfinished HEADERS | Header block without `END_HEADERS` stalls that stream only; the accept loop still serves | always |
 //! | Client RST after the request is read | Signal [`Request::cancelled`], then drop a still-pending handler; abort a stream drain waiting for the next message | always |
@@ -171,6 +172,11 @@
 //! HEADERS frame (no `END_HEADERS`) does not take the accept loop down.
 //! Distinct from one complete oversize HEADERS frame
 //! (`SETTINGS_MAX_HEADER_LIST_SIZE`). Those floods are h2c-only.
+//! A raw peer that sends too many tiny DATA frames drops that connection
+//! (`ENHANCE_YOUR_CALM` / `too_many_data_frames`); the accept loop still
+//! serves a well-behaved client. Distinct from the connection window
+//! (flow-control bytes). h2 Auto (half the window) is not exposed.
+//! [`ChannelConfig::data_frame_budget`] is the client handshake cap.
 //! [`ChannelConfig::max_pending_accept_reset_streams`] is the client accept
 //! queue, not the server cap. Property tests in the wire module cover what
 //! fixed cases cannot: frames survive arbitrary chunk boundaries, arbitrary
@@ -223,6 +229,10 @@
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block
 //! bytes. Handshake-only on the client.
+//! [`ServerConfig::data_frame_budget`] / [`ChannelConfig::data_frame_budget`]
+//! is the small-DATA framing budget (default 25600). Distinct from the
+//! connection window (flow-control bytes). h2 Auto (half the window) is not
+//! exposed.
 //! Inbound gzip is on by default; [`ServerConfig::accept_compressed`]`(false)`
 //! / [`ChannelConfig::accept_compressed`]`(false)` refuses it.
 //! A received reply surfaces the peer's `grpc-encoding` on [`Response::encoding`]
@@ -306,11 +316,12 @@ pub mod codegen_support {
 
 pub use client::{Channel, Target};
 pub use config::{
-    ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_GZIP_COMPRESSION_LEVEL,
-    DEFAULT_HEADER_TABLE_SIZE, DEFAULT_KEEP_ALIVE_TIMEOUT, DEFAULT_MAX_CONCURRENT_STREAMS,
-    DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE,
-    DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
-    DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
+    ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_DATA_FRAME_BUDGET,
+    DEFAULT_GZIP_COMPRESSION_LEVEL, DEFAULT_HEADER_TABLE_SIZE, DEFAULT_KEEP_ALIVE_TIMEOUT,
+    DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE,
+    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
+    DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
+    DEFAULT_WINDOW_SIZE,
 };
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by
 /// combinators that honour termination.

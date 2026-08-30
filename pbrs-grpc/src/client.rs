@@ -264,7 +264,7 @@ impl Endpoint {
 /// [`Self::concurrent_rpc_limit`], and
 /// [`Self::config`]. Keepalive, idle, age, TCP
 /// keepalive, connection count, HTTP/2 windows, the HPACK table, the
-/// rapid-reset cap, and the protocol-error RST cap are set at handshake ([`ChannelConfig`] /
+/// small-DATA budget, the rapid-reset cap, and the protocol-error RST cap are set at handshake ([`ChannelConfig`] /
 /// [`Self::connect_with`]).
 ///
 /// [`Debug`] prints the authority, pool size, and config. It does not dump

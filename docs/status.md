@@ -212,6 +212,10 @@ See `docs/upb.md`. Short list:
   table, default 4096). Distinct from `max_header_list_size`. Handshake-only
   on the client. A well-behaved peer still completes every call shape at a
   smaller table (including 0).
+  `data_frame_budget` is the small-DATA framing budget (default 25600).
+  Distinct from the connection window (flow-control bytes). h2 Auto (half
+  the window) is not exposed. Handshake-only on the client. A well-behaved
+  peer still completes every call shape at this framing budget.
   `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /
   generated `FooServer::max_concurrent_streams` /
   `ServerConfig::max_concurrent_streams` serialize extra RPCs on the same

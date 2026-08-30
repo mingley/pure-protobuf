@@ -4171,6 +4171,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// HTTP/2 small-DATA framing budget. Default 25600. Applies to every call shape. Caps extra memory from tiny DATA frames. Exceeding this is `ENHANCE_YOUR_CALM` (`too_many_data_frames`). Distinct from [`Self::initial_connection_window_size`], which is flow-control bytes, and from [`Self::max_frame_size`], which caps one DATA payload. h2 Auto (half the connection window) is not exposed. A well-behaved client still completes every call shape at this framing budget, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::data_frame_budget`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn data_frame_budget(mut self, bytes: usize) -> Self {{ self.config = self.config.data_frame_budget(bytes); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Per-connection HTTP/2 send buffer. Applies to every call shape. See [`{G}::ServerConfig::max_send_buffer_size`]."
     );
     let _ = writeln!(
