@@ -100,7 +100,11 @@ See `docs/upb.md`. Short list:
   client-streaming) and `Streaming::trailers` (server-streaming and bidi,
   including when called before draining messages); a `-bin` trailer must not
   appear as a header, including over those transports. A non-OK trailing
-  `grpc-status` is `Err` from `Streaming::trailers` on those transports. TLS
+  `grpc-status` is `Err` from `Streaming::trailers` on those transports. Health
+  Check of a never-set name is `NOT_FOUND`, Watch of that name is
+  `SERVICE_UNKNOWN`, Watch streams `set_not_serving` / `shutdown` / `resume`,
+  and dropping a Watch releases the subscription, including over TLS, mTLS,
+  Unix, and `from_io`. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent

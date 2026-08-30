@@ -13,8 +13,8 @@
 )]
 
 use pbrs_grpc::health::{
-    service, Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthServer,
-    ServingStatus,
+    service, Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthReporter,
+    HealthServer, ServingStatus,
 };
 use pbrs_grpc::{
     Channel, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response, Router,
@@ -505,6 +505,18 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
             "Watch\n//! [`crate::StreamSender::fail`] after a streamed DATA frame ships those\n//! trailers the same way (Check is unary: no response DATA then trailers)."
         ),
         "Health crate rustdoc must name Watch typed Status after streamed DATA"
+    );
+    assert!(
+        src.contains(
+            "Check of a never-set name is [`crate::Code::NotFound`]. Watch\n//! of that name streams [`ServingStatus::ServiceUnknown`]. Watch streams later\n//! `set_not_serving` / [`HealthReporter::shutdown`] / [`HealthReporter::resume`]\n//! changes, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "Health crate rustdoc must name Check/Watch protocol on every transport"
+    );
+    assert!(
+        src.contains(
+            "Dropping a Watch releases the subscription without waiting for a status\n//! change on those transports."
+        ),
+        "Health crate rustdoc must name Watch drop on every transport"
     );
 }
 
@@ -3111,5 +3123,176 @@ async fn health_from_io_typed_google_rpc_status_after_a_streamed_message() {
         .await
         .expect("from_io");
     assert_health_typed_status_after_streamed_message(&client).await;
+    handle.abort();
+}
+
+async fn assert_health_protocol(client: &HealthClient, reporter: &HealthReporter) {
+    let missing = client
+        .check(Request::new(req("no.Such")))
+        .await
+        .expect_err("unknown");
+    assert_eq!(missing.code(), Code::NotFound, "{missing}");
+
+    let mut unknown = client
+        .watch(Request::new(req("no.Such")))
+        .await
+        .expect("watch unknown")
+        .into_inner();
+    let first = unknown
+        .message()
+        .await
+        .expect("unknown first")
+        .expect("msg");
+    assert_eq!(first.status(), ServingStatus::ServiceUnknown);
+    drop(unknown);
+
+    let mut stream = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("watch")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::Serving);
+    reporter.set_not_serving("");
+    let second = tokio::time::timeout(Duration::from_secs(2), stream.message())
+        .await
+        .expect("timeout")
+        .expect("second")
+        .expect("msg");
+    assert_eq!(second.status(), ServingStatus::NotServing);
+    drop(stream);
+    reporter.set_serving("");
+
+    let mut stream = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("watch shutdown")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::Serving);
+    reporter.shutdown();
+    let second = tokio::time::timeout(Duration::from_secs(2), stream.message())
+        .await
+        .expect("timeout")
+        .expect("second")
+        .expect("msg");
+    assert_eq!(second.status(), ServingStatus::NotServing);
+    let overall = client
+        .check(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("overall")
+        .into_inner();
+    assert_eq!(overall.status(), ServingStatus::NotServing);
+    let named = client
+        .check(Request::new(req("helloworld.Greeter")))
+        .await
+        .expect("named")
+        .into_inner();
+    assert_eq!(named.status(), ServingStatus::NotServing);
+    let missing = client
+        .check(Request::new(req("no.Such")))
+        .await
+        .expect_err("unknown stays not found");
+    assert_eq!(missing.code(), Code::NotFound, "{missing}");
+    reporter.resume();
+    let third = tokio::time::timeout(Duration::from_secs(2), stream.message())
+        .await
+        .expect("timeout")
+        .expect("third")
+        .expect("msg");
+    assert_eq!(third.status(), ServingStatus::Serving);
+    drop(stream);
+
+    assert_eq!(reporter.watchers(), 0);
+    let mut stream = client
+        .watch(Request::new(HealthCheckRequest::new()))
+        .await
+        .expect("watch drop")
+        .into_inner();
+    let first = stream.message().await.expect("first").expect("msg");
+    assert_eq!(first.status(), ServingStatus::Serving);
+    assert!(
+        reporter.watchers() >= 1,
+        "Watch must hold a subscription while the stream is live"
+    );
+    drop(stream);
+    for _ in 0..80 {
+        if reporter.watchers() == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(
+        reporter.watchers(),
+        0,
+        "Watch must not wait for the next status change after the client leaves"
+    );
+}
+
+#[tokio::test]
+async fn health_tls_check_watch_protocol() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = tls_client_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await;
+    assert_health_protocol(&client, &reporter).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_mtls_check_watch_protocol() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_protocol(&tls_client_with(addr, client_tls).await, &reporter).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_check_watch_protocol() {
+    let path = unix_sock("protocol");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        svc.serve_unix(sock).await.ok();
+    });
+    assert_health_protocol(&unix_client(&path).await, &reporter).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn health_from_io_check_watch_protocol() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.serve_connection(server_io).await.ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_health_protocol(&client, &reporter).await;
     handle.abort();
 }

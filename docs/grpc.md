@@ -896,15 +896,18 @@ Router::new()
 ```
 
 `Check` on the empty name is the process; `Check` on a name you have not
-set returns `NOT_FOUND`. `Watch` streams status changes, and an unknown name
-yields `SERVICE_UNKNOWN` rather than an error, per the health protocol.
+set returns `NOT_FOUND`, including over TLS, mTLS, Unix, and `from_io`.
+`Watch` streams status changes, and an unknown name yields `SERVICE_UNKNOWN`
+rather than an error, per the health protocol, on those transports.
 The Watch producer ends when the client cancels or drops the stream; it
-does not wait for the next status change. `HealthReporter::watchers` is
+does not wait for the next status change, including over TLS, mTLS, Unix,
+and `from_io`. `HealthReporter::watchers` is
 the number of those live subscriptions.
 `HealthReporter::status` reads the same map without an RPC.
 `HealthReporter::names` lists every known name (the process `""` first).
 `HealthReporter::shutdown` marks every known name `NOT_SERVING` so a load
-balancer can drain before `serve_*_until_shutdown`. `HealthReporter::resume`
+balancer can drain before `serve_*_until_shutdown`, including over TLS,
+mTLS, Unix, and `from_io`. `HealthReporter::resume`
 is the inverse: every known name is `SERVING` again, still without creating
 unknown names.
 

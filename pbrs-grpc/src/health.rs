@@ -10,7 +10,12 @@
 //! Unix (`serve_unix` /
 //! `connect_unix`), TLS (`serve_tls` / `connect_tls`), and
 //! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
-//! both methods. [`HealthServer::send_compressed`] gzips Check and Watch when
+//! both methods. Check of a never-set name is [`crate::Code::NotFound`]. Watch
+//! of that name streams [`ServingStatus::ServiceUnknown`]. Watch streams later
+//! `set_not_serving` / [`HealthReporter::shutdown`] / [`HealthReporter::resume`]
+//! changes, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+//! Dropping a Watch releases the subscription without waiting for a status
+//! change on those transports. [`HealthServer::send_compressed`] gzips Check and Watch when
 //! the client advertises gzip. [`HealthClient::connect_lazy`],
 //! [`HealthClient::connect_tls_lazy`] (including mTLS), and
 //! [`HealthClient::connect_unix_lazy`] retry Check and Watch until listen when
