@@ -52,8 +52,9 @@ pub(crate) async fn wait_opt(dead: Option<watch::Receiver<bool>>) {
 
 /// Outstanding RPCs on one HTTP/2 connection.
 ///
-/// Idle close (server GOAWAY, client driver stop) is armed only while
-/// [`Self::count`] is zero. Keepalive PINGs do not touch this.
+/// Idle close (server GOAWAY, client driver stop) and client max-connection-age
+/// wait for [`Self::count`] to reach zero (age also has a grace bound).
+/// Keepalive PINGs do not touch this.
 pub(crate) struct Busy {
     n: AtomicUsize,
     notify: Notify,

@@ -994,6 +994,21 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::max_connection_idle must name client idle redial on TLS, mTLS, and Unix"
     );
     assert!(
+        src.contains("a long-running stream is not idle, but"),
+        "ChannelConfig::max_connection_age must Distinct idle from age"
+    );
+    assert!(
+        src.contains(
+            "shape redial, including over TLS, mTLS, and Unix, except on\n    /// [`crate::Channel::from_io`], which cannot redial and fails with"
+        ),
+        "ChannelConfig::max_connection_age must name client age redial on TLS, mTLS, and Unix"
+    );
+    let channel = include_str!("../src/client.rs");
+    assert!(
+        channel.contains("does not postpone age. The next RPC of every call shape redials"),
+        "Channel rustdoc must name client max_connection_age redial"
+    );
+    assert!(
         src.contains(
             "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix.\n    /// [`crate::Channel::from_io`] cannot pool: [`crate::Channel::from_io_with`]\n    /// forces `connections` to 1."
         ),
@@ -1360,6 +1375,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         !guide.contains("after GOAWAY is unary and server-streaming only."),
         "guide must not claim transparent retry is unary and server-streaming only"
+    );
+    assert!(
+        guide.contains("`ChannelConfig::max_connection_age` closes the client socket"),
+        "guide must name ChannelConfig::max_connection_age as a client close"
+    );
+    assert!(
+        !guide.contains("| Client `max_connection_age` |"),
+        "guide must not list client max_connection_age as an omission"
     );
     assert!(
         guide
@@ -13904,6 +13927,149 @@ async fn from_io_client_idle_holds_a_server_stream() {
     .expect("from_io");
     assert_client_idle_holds_server_stream(GreeterClient::new(channel)).await;
     server.abort();
+}
+
+fn client_age_cfg() -> ChannelConfig {
+    ChannelConfig::new()
+        .max_connection_age(Duration::from_millis(500))
+        .max_connection_age_grace(Duration::from_millis(50))
+        .keep_alive_interval(Duration::from_millis(20))
+}
+
+async fn assert_client_age_closes(client: &GreeterClient, accepts: &AtomicUsize) {
+    assert_eq!(accepts.load(Ordering::Relaxed), 1, "dial is one accept");
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        echo_every_shape(client, Some(Duration::from_secs(5))),
+    )
+    .await
+    .expect("redial hung");
+    assert_eq!(
+        accepts.load(Ordering::Relaxed),
+        2,
+        "age must tear down the socket so the next RPC dials again"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_max_connection_age_closes_the_socket() {
+    let accepts = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let n = Arc::clone(&accepts);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_with_incoming(CountingIncoming { listener, n })
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel_with(addr, client_age_cfg()).await);
+    assert_client_age_closes(&client, &accepts).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_tls_client_max_connection_age_closes_the_socket() {
+    let peers = Arc::new(Mutex::new(HashSet::new()));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::clone(&peers);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(stamp_idle_peer(seen))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = GreeterClient::new(tls_channel_cfg(addr, client_tls, client_age_cfg()).await);
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("stamp");
+    assert_eq!(peers.lock().expect("peers").len(), 1, "dial is one peer");
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        echo_every_shape(&client, Some(Duration::from_secs(5))),
+    )
+    .await
+    .expect("redial hung");
+    assert_eq!(
+        peers.lock().expect("peers").len(),
+        2,
+        "age must tear down the socket so the next RPC dials again"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_from_io_client_max_connection_age_cannot_redial() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io_with(client_io, "localhost", client_age_cfg())
+            .await
+            .expect("from_io"),
+    );
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("before age");
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    let err = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(Request::new(req("ada"))),
+    )
+    .await
+    .expect("from_io age hung")
+    .expect_err("from_io cannot redial after age");
+    assert_eq!(err.code(), Code::Unavailable);
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_max_connection_age_lets_in_flight_rpcs_finish() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let cfg = ChannelConfig::new()
+        .max_connection_age(Duration::from_millis(80))
+        .max_connection_age_grace(Duration::from_secs(2));
+    assert_client_idle_in_flight(GreeterClient::new(channel_with(addr, cfg).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_max_connection_age_resets_a_delayed_stream() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(DelayedStream)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let cfg = ChannelConfig::new()
+        .max_connection_age(Duration::from_millis(80))
+        .max_connection_age_grace(Duration::from_millis(1));
+    let client = GreeterClient::new(channel_with(addr, cfg).await);
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let err = tokio::time::timeout(Duration::from_secs(5), stream.message())
+        .await
+        .expect("age hung")
+        .expect_err("age must reset a delayed stream that idle would hold");
+    assert_ne!(err.code(), Code::Ok);
+    task.abort();
 }
 
 #[cfg(unix)]

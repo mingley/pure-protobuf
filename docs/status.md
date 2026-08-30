@@ -302,6 +302,8 @@ See `docs/upb.md`. Short list:
   after idle even when keepalive PINGs still fire; the next RPC of every call
   shape redials on TLS, mTLS, and Unix. `from_io` cannot redial after that
   close. A long-running server stream is not idle.
+  `ChannelConfig::max_connection_age` closes the client socket even while RPCs
+  are in flight; in-flight get grace, then the driver stops. Distinct from idle.
   `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /

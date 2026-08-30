@@ -1022,7 +1022,9 @@ GreeterServer::new(MyGreeter)
     .max_connection_age_grace(Duration::from_secs(30));
 
 ChannelConfig::new()
-    .max_connection_idle(Duration::from_secs(5 * 60));
+    .max_connection_idle(Duration::from_secs(5 * 60))
+    .max_connection_age(Duration::from_secs(30 * 60))
+    .max_connection_age_grace(Duration::from_secs(30));
 ```
 
 On the server, when either fires the kernel sends `GOAWAY`, waits the grace
@@ -1042,7 +1044,10 @@ On the client, idle actually stops the HTTP/2 driver so the socket goes away.
 Keepalive PINGs do not count as activity. The next RPC of every call shape
 redials that slot, including over TLS, mTLS, and Unix. `Channel::from_io`
 cannot redial: an idle close there makes later RPCs fail with
-`UNAVAILABLE`.
+`UNAVAILABLE`. `ChannelConfig::max_connection_age` closes the client socket
+even while RPCs are in flight (jittered ±10%, then `max_connection_age_grace`);
+idle does not. New RPCs of every call shape redial, including over TLS, mTLS,
+and Unix. `from_io` cannot redial after that close.
 
 ## Compression
 
@@ -1812,7 +1817,6 @@ Deliberate omissions, with what to do instead.
 | Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
 | Response interceptors | Interceptors run before the handler. Inspect or rewrite the result in the method. |
 | Channel connectivity state | A failed RPC is `UNAVAILABLE`. There is no `GetState` / `WaitForStateChange`. |
-| Client `max_connection_age` | Age is a server `GOAWAY`. Clients close unused sockets with `ChannelConfig::max_connection_idle`. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |

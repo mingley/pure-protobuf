@@ -116,7 +116,8 @@ when HEADERS never went out. `from_io` cannot redial.
 `ChannelConfig::max_connection_idle` tears the client socket down after idle
 even when keepalive PINGs still fire; the next RPC redials on TLS, mTLS, and
 Unix. A long-running stream is not idle. `from_io` cannot redial after that
-close.
+close. `ChannelConfig::max_connection_age` closes the client socket even while
+RPCs are in flight; in-flight get grace, then the driver stops. Distinct from idle.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on

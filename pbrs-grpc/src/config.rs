@@ -612,10 +612,12 @@ pub(crate) fn jitter_age(age: Duration, seed: u64) -> Duration {
 /// let config = ChannelConfig::new()
 ///     .connections(4)
 ///     .connect_timeout(Duration::from_secs(5))
-///     .max_connection_idle(Duration::from_secs(5 * 60));
+///     .max_connection_idle(Duration::from_secs(5 * 60))
+///     .max_connection_age(Duration::from_secs(30 * 60));
 /// assert_eq!(config.connection_count(), 4);
 /// assert_eq!(config.dial_timeout(), Duration::from_secs(5));
 /// assert_eq!(config.connection_idle(), Some(Duration::from_secs(5 * 60)));
+/// assert_eq!(config.connection_age(), Some(Duration::from_secs(30 * 60)));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChannelConfig {
@@ -634,6 +636,8 @@ pub struct ChannelConfig {
     tcp_keepalive: Option<Duration>,
     connect_timeout: Duration,
     max_connection_idle: Option<Duration>,
+    max_connection_age: Option<Duration>,
+    max_connection_age_grace: Duration,
     send_compressed: bool,
     timeout: Option<Duration>,
     wait_for_ready: bool,
@@ -657,6 +661,8 @@ impl Default for ChannelConfig {
             tcp_keepalive: None,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_idle: None,
+            max_connection_age: None,
+            max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
             send_compressed: false,
             timeout: None,
             wait_for_ready: false,
@@ -912,6 +918,36 @@ impl ChannelConfig {
         self
     }
 
+    /// Close a connection this long after it was dialed, even while RPCs are
+    /// in flight. Disabled by default. Values below 1 ms are raised to 1 ms.
+    ///
+    /// The actual lifetime is jittered by ±10% so a process with many
+    /// connections does not reconnect in lockstep. Distinct from
+    /// [`Self::max_connection_idle`]: a long-running stream is not idle, but
+    /// it does not postpone age. In-flight RPCs get
+    /// [`Self::max_connection_age_grace`] to finish; new RPCs of every call
+    /// shape redial, including over TLS, mTLS, and Unix, except on
+    /// [`crate::Channel::from_io`], which cannot redial and fails with
+    /// [`crate::Code::Unavailable`].
+    #[must_use]
+    pub fn max_connection_age(mut self, age: Duration) -> Self {
+        self.max_connection_age = Some(age.max(Duration::from_millis(1)));
+        self
+    }
+
+    /// After [`Self::max_connection_age`] fires, wait this long for in-flight
+    /// RPCs before dropping the socket. Default 10 s. Values below 1 ms are
+    /// raised to 1 ms. Applies to every call shape, including over TLS, mTLS,
+    /// Unix, and [`crate::Channel::from_io`].
+    ///
+    /// New RPCs already redial (or fail on `from_io`) when age fires; this
+    /// bound is only the in-flight drain.
+    #[must_use]
+    pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
+        self.max_connection_age_grace = grace.max(Duration::from_millis(1));
+        self
+    }
+
     /// gzip request payloads (and [`crate::StreamSender::send`] on a stream).
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`crate::Channel::from_io`].
@@ -1065,6 +1101,20 @@ impl ChannelConfig {
         self.max_connection_idle
     }
 
+    /// Configured max connection age, if any. See [`Self::max_connection_age`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn connection_age(self) -> Option<Duration> {
+        self.max_connection_age
+    }
+
+    /// Grace after client age. See [`Self::max_connection_age_grace`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn age_grace(self) -> Duration {
+        self.max_connection_age_grace
+    }
+
     /// Whether request payloads are gzipped. See [`Self::send_compressed`].
     /// Applies to every call shape.
     #[must_use]
@@ -1181,6 +1231,11 @@ mod tests {
         assert_eq!(config.age_grace(), super::DEFAULT_MAX_CONNECTION_AGE_GRACE);
         assert!(!config.compresses_outbound());
         assert_eq!(ChannelConfig::new().connection_idle(), None);
+        assert_eq!(ChannelConfig::new().connection_age(), None);
+        assert_eq!(
+            ChannelConfig::new().age_grace(),
+            super::DEFAULT_MAX_CONNECTION_AGE_GRACE
+        );
         assert_eq!(ChannelConfig::new().rpc_timeout(), None);
         assert!(!ChannelConfig::new().waits_for_ready());
         assert!(ChannelConfig::new().wait_for_ready(true).waits_for_ready());
@@ -1289,6 +1344,11 @@ mod tests {
                 .connection_idle(),
             Some(Duration::from_millis(1))
         );
+        let channel_age = ChannelConfig::new()
+            .max_connection_age(Duration::from_millis(0))
+            .max_connection_age_grace(Duration::from_millis(0));
+        assert_eq!(channel_age.connection_age(), Some(Duration::from_millis(1)));
+        assert_eq!(channel_age.age_grace(), Duration::from_millis(1));
     }
 
     #[test]

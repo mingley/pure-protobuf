@@ -102,9 +102,9 @@ impl From<&String> for Target {
 struct ConnSlot {
     gen: u64,
     send: Option<h2::client::SendRequest<Bytes>>,
-    /// Stops the connection driver (idle close, lost-race handshake, drop).
+    /// Stops the connection driver (idle close, age close, lost-race handshake, drop).
     stop: Option<watch::Sender<bool>>,
-    /// Outstanding RPCs; `None` when idle-close is not configured.
+    /// Outstanding RPCs; `None` when neither idle-close nor age is configured.
     busy: Option<Arc<crate::keepalive::Busy>>,
 }
 
@@ -205,6 +205,13 @@ impl Endpoint {
 /// do not keep it. The next RPC of every call shape redials, including over
 /// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with
 /// [`Code::Unavailable`].
+/// A connection is also closed after
+/// [`ChannelConfig::max_connection_age`] when that is set, even while RPCs
+/// are in flight; in-flight RPCs get [`ChannelConfig::max_connection_age_grace`]
+/// to finish. Distinct from idle: a long-running stream is not idle, but it
+/// does not postpone age. The next RPC of every call shape redials, including over
+/// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with
+/// [`Code::Unavailable`].
 ///
 /// [`Self::connect_lazy`] skips the initial dial so a client can exist
 /// before its server. The first RPC fails fast with [`Code::Unavailable`]
@@ -245,7 +252,7 @@ impl Endpoint {
 /// [`Self::message_limits`], [`Self::stream_buffer`], and
 /// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
-/// [`Self::compresses_outbound`], and [`Self::config`]. Keepalive, idle, TCP
+/// [`Self::compresses_outbound`], and [`Self::config`]. Keepalive, idle, age, TCP
 /// keepalive, connection count, HTTP/2 windows, and the rapid-reset cap are
 /// set at handshake ([`ChannelConfig`] / [`Self::connect_with`]).
 ///
@@ -1268,6 +1275,7 @@ fn finish_channel(
     });
     for i in 0..inner.slots.len() {
         spawn_idle_watch(Arc::clone(&inner), i);
+        spawn_age_watch(Arc::clone(&inner), i);
     }
     Channel {
         inner,
@@ -1368,6 +1376,7 @@ impl ChannelInner {
                         let gen = slot.gen;
                         drop(slot);
                         spawn_idle_watch(Arc::clone(self), i);
+                        spawn_age_watch(Arc::clone(self), i);
                         return Ok(LiveConn {
                             send,
                             lease,
@@ -1441,6 +1450,55 @@ fn spawn_idle_watch(inner: Arc<ChannelInner>, i: usize) {
         };
         idle_watch(inner, i, gen, busy, idle).await;
     }));
+}
+
+fn spawn_age_watch(inner: Arc<ChannelInner>, i: usize) {
+    let Some(age) = inner.dial.connection_age() else {
+        return;
+    };
+    let grace = inner.dial.age_grace();
+    drop(tokio::spawn(async move {
+        let gen = {
+            let Ok(slot) = inner.slot(i) else {
+                return;
+            };
+            let slot = slot.lock().await;
+            // Lazy slots have no socket yet; age starts at handshake.
+            if slot.send.is_none() {
+                return;
+            }
+            slot.gen
+        };
+        let seed = (i as u64).wrapping_shl(32).wrapping_add(gen);
+        tokio::time::sleep(crate::config::jitter_age(age, seed)).await;
+        age_close(inner, i, gen, grace).await;
+    }));
+}
+
+async fn age_close(inner: Arc<ChannelInner>, i: usize, gen: u64, grace: Duration) {
+    let (old_stop, old_busy) = {
+        let Ok(lock) = inner.slot(i) else {
+            return;
+        };
+        let mut slot = lock.lock().await;
+        if slot.gen != gen {
+            return;
+        }
+        slot.send = None;
+        let busy = slot.busy.take();
+        let stop = slot.stop.take();
+        slot.gen = slot.gen.wrapping_add(1);
+        (stop, busy)
+    };
+    if let Some(busy) = old_busy {
+        tokio::select! {
+            () = busy.wait_idle() => {}
+            () = tokio::time::sleep(grace) => {}
+        }
+    }
+    if let Some(stop) = old_stop {
+        stop.send(true).ok();
+    }
 }
 
 async fn idle_watch(
@@ -1561,9 +1619,8 @@ where
     })
     .await?;
     let (stop_tx, stop_rx) = watch::channel(false);
-    let busy = config
-        .connection_idle()
-        .map(|_| crate::keepalive::Busy::new());
+    let busy = (config.connection_idle().is_some() || config.connection_age().is_some())
+        .then(crate::keepalive::Busy::new);
     drop(tokio::spawn(async move {
         tokio::select! {
             r = conn => {
