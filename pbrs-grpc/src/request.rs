@@ -59,6 +59,7 @@ pub struct Request<T> {
     gzip_level: u32,
     accepts_compressed: bool,
     concurrent_rpc_limit: Option<usize>,
+    send_buffer_size: usize,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -94,6 +95,7 @@ impl<T> Request<T> {
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             accepts_compressed: true,
             concurrent_rpc_limit: None,
+            send_buffer_size: crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -150,6 +152,7 @@ impl<T> Request<T> {
                 gzip_level: self.gzip_level,
                 accepts_compressed: self.accepts_compressed,
                 concurrent_rpc_limit: self.concurrent_rpc_limit,
+                send_buffer_size: self.send_buffer_size,
                 encoding: self.encoding,
                 cancel: self.cancel,
                 extensions: self.extensions,
@@ -188,6 +191,7 @@ impl<T> Request<T> {
             gzip_level: parts.gzip_level,
             accepts_compressed: parts.accepts_compressed,
             concurrent_rpc_limit: parts.concurrent_rpc_limit,
+            send_buffer_size: parts.send_buffer_size,
             encoding: parts.encoding,
             cancel: parts.cancel,
             extensions: parts.extensions,
@@ -547,6 +551,24 @@ impl<T> Request<T> {
         self.concurrent_rpc_limit
     }
 
+    /// Server [`crate::Server::max_send_buffer_size`] overlay, when the kernel dispatched this call.
+    ///
+    /// Same overlay as [`crate::Rpc::send_buffer_size`] / [`crate::Server::send_buffer_size`].
+    /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay.
+    /// Distinct from [`Self::limits`]: that is message size, not this HTTP/2 send buffer.
+    /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake SETTINGS, not this write-time threshold.
+    /// Default [`crate::DEFAULT_MAX_SEND_BUFFER_SIZE`] on a request you built to send.
+    /// An interceptor cannot change this; the kernel still applies this buffer when writing DATA.
+    ///
+    /// ```
+    /// let req = pbrs_grpc::Request::new(());
+    /// assert_eq!(req.send_buffer_size(), pbrs_grpc::DEFAULT_MAX_SEND_BUFFER_SIZE);
+    /// ```
+    #[must_use]
+    pub fn send_buffer_size(&self) -> usize {
+        self.send_buffer_size
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
@@ -712,6 +734,7 @@ impl<T> Request<T> {
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             accepts_compressed: true,
             concurrent_rpc_limit: None,
+            send_buffer_size: crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -773,6 +796,10 @@ impl<T> Request<T> {
 
     pub(crate) fn set_concurrent_rpc_limit(&mut self, n: Option<usize>) {
         self.concurrent_rpc_limit = n;
+    }
+
+    pub(crate) fn set_send_buffer_size(&mut self, bytes: usize) {
+        self.send_buffer_size = bytes;
     }
 
     pub(crate) fn set_encoding(&mut self, encoding: Option<String>) {
@@ -1327,6 +1354,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("gzip_level", &self.gzip_level)
             .field("accepts_compressed", &self.accepts_compressed)
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
+            .field("send_buffer_size", &self.send_buffer_size)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -1360,6 +1388,7 @@ pub struct Parts {
     gzip_level: u32,
     accepts_compressed: bool,
     concurrent_rpc_limit: Option<usize>,
+    send_buffer_size: usize,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -1577,6 +1606,12 @@ impl Parts {
         self.concurrent_rpc_limit
     }
 
+    /// Server write-time send buffer overlay. See [`Request::send_buffer_size`].
+    #[must_use]
+    pub fn send_buffer_size(&self) -> usize {
+        self.send_buffer_size
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     /// See [`Request::encoding`].
     #[must_use]
@@ -1661,6 +1696,7 @@ impl fmt::Debug for Parts {
             .field("gzip_level", &self.gzip_level)
             .field("accepts_compressed", &self.accepts_compressed)
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
+            .field("send_buffer_size", &self.send_buffer_size)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -1716,6 +1752,7 @@ pub struct Response<T> {
     peer_timeout: Option<Duration>,
     rpc_timeout: Option<Duration>,
     limits: Option<MessageLimits>,
+    send_buffer_size: Option<usize>,
     extensions: http::Extensions,
 }
 
@@ -1739,6 +1776,7 @@ impl<T> Response<T> {
             peer_timeout: None,
             rpc_timeout: None,
             limits: None,
+            send_buffer_size: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -1776,6 +1814,7 @@ impl<T> Response<T> {
                 peer_timeout: self.peer_timeout,
                 rpc_timeout: self.rpc_timeout,
                 limits: self.limits,
+                send_buffer_size: self.send_buffer_size,
                 extensions: self.extensions,
             },
         )
@@ -1800,6 +1839,7 @@ impl<T> Response<T> {
             peer_timeout: parts.peer_timeout,
             rpc_timeout: parts.rpc_timeout,
             limits: parts.limits,
+            send_buffer_size: parts.send_buffer_size,
             extensions: parts.extensions,
         }
     }
@@ -2204,6 +2244,31 @@ impl<T> Response<T> {
         self.limits
     }
 
+    pub(crate) fn with_send_buffer_size(mut self, send_buffer_size: Option<usize>) -> Self {
+        self.send_buffer_size = send_buffer_size;
+        self
+    }
+
+    /// Server [`crate::Server::max_send_buffer_size`] overlay, when the kernel is writing this reply.
+    ///
+    /// Same overlay as [`crate::Rpc::send_buffer_size`] / [`crate::Request::send_buffer_size`].
+    /// Distinct from [`crate::Request::send_buffer_size`]: that is the inbound request.
+    /// Distinct from [`crate::Rpc::send_buffer_size`]: that is a server interceptor before the handler.
+    /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this server stamp.
+    /// Distinct from [`Self::limits`]: that is the encode cap, not this HTTP/2 send buffer.
+    /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer.
+    /// `None` on a response you built or a received reply (the peer send buffer is not on the reply wire).
+    /// An interceptor cannot change this; the kernel still applies this buffer when writing DATA.
+    ///
+    /// ```
+    /// let resp = pbrs_grpc::Response::new(());
+    /// assert!(resp.send_buffer_size().is_none());
+    /// ```
+    #[must_use]
+    pub fn send_buffer_size(&self) -> Option<usize> {
+        self.send_buffer_size
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
@@ -2221,6 +2286,7 @@ impl<T> Response<T> {
             peer_timeout: None,
             rpc_timeout: None,
             limits: None,
+            send_buffer_size: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -2247,6 +2313,7 @@ impl<T> Response<T> {
             peer_timeout: None,
             rpc_timeout: None,
             limits: None,
+            send_buffer_size: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -2281,6 +2348,7 @@ pub struct ResponseParts {
     peer_timeout: Option<Duration>,
     rpc_timeout: Option<Duration>,
     limits: Option<MessageLimits>,
+    send_buffer_size: Option<usize>,
     extensions: http::Extensions,
 }
 
@@ -2417,6 +2485,12 @@ impl ResponseParts {
         self.limits
     }
 
+    /// Write-time send buffer when writing. See [`Response::send_buffer_size`].
+    #[must_use]
+    pub fn send_buffer_size(&self) -> Option<usize> {
+        self.send_buffer_size
+    }
+
     /// Typed values on this envelope. See [`Response::extensions`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
@@ -2449,6 +2523,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("peer_timeout", &self.peer_timeout)
             .field("rpc_timeout", &self.rpc_timeout)
             .field("limits", &self.limits)
+            .field("send_buffer_size", &self.send_buffer_size)
             .field("extensions", &self.extensions.len())
             .finish()
     }
@@ -2646,6 +2721,7 @@ mod tests {
         req.set_gzip_level(9);
         req.set_accepts_compressed(false);
         req.set_concurrent_rpc_limit(Some(4));
+        req.set_send_buffer_size(123_456);
         req.set_encoding(Some("gzip".into()));
         let (message, mut parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
@@ -2669,6 +2745,7 @@ mod tests {
         assert_eq!(parts.gzip_level(), 9);
         assert!(!parts.accepts_compressed());
         assert_eq!(parts.concurrent_rpc_limit(), Some(4));
+        assert_eq!(parts.send_buffer_size(), 123_456);
         assert_eq!(parts.encoding(), Some("gzip"));
         assert!(parts.peer_cred().is_none());
         assert!(parts.limits().is_none());
@@ -2707,6 +2784,10 @@ mod tests {
             shown_parts.contains("concurrent_rpc_limit: Some(4)"),
             "{shown_parts}"
         );
+        assert!(
+            shown_parts.contains("send_buffer_size: 123456"),
+            "{shown_parts}"
+        );
         assert!(shown_parts.contains("encoding: Some("), "{shown_parts}");
         assert!(shown_parts.contains("user_agent: Some("), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
@@ -2732,6 +2813,7 @@ mod tests {
         assert_eq!(rebuilt.gzip_level(), 9);
         assert!(!rebuilt.accepts_compressed());
         assert_eq!(rebuilt.concurrent_rpc_limit(), Some(4));
+        assert_eq!(rebuilt.send_buffer_size(), 123_456);
         assert_eq!(rebuilt.encoding(), Some("gzip"));
         assert!(rebuilt.peer_cred().is_none());
         assert!(rebuilt.limits().is_none());
@@ -2753,6 +2835,7 @@ mod tests {
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("accepts_compressed: false"), "{shown}");
         assert!(shown.contains("concurrent_rpc_limit: Some(4)"), "{shown}");
+        assert!(shown.contains("send_buffer_size: 123456"), "{shown}");
         assert!(shown.contains("encoding: Some("), "{shown}");
         assert!(shown.contains("user_agent: Some("), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
@@ -2772,6 +2855,10 @@ mod tests {
         assert!(!Request::new(0u32).accepts_gzip());
         assert!(!Request::new(0u32).compresses_outbound());
         assert!(Request::new(0u32).concurrent_rpc_limit().is_none());
+        assert_eq!(
+            Request::new(0u32).send_buffer_size(),
+            crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE
+        );
         assert!(Request::new(0u32).encoding().is_none());
         assert!(Request::new(0u32).user_agent().is_none());
         assert!(!Request::new(0u32).user_agent_is_set());
@@ -2866,6 +2953,7 @@ mod tests {
         assert!(mapped.timeout().is_none());
         assert!(mapped.peer_timeout().is_none());
         assert!(mapped.limits().is_none());
+        assert!(mapped.send_buffer_size().is_none());
         let at = tokio::time::Instant::now() + Duration::from_secs(5);
         let stamped = mapped
             .with_path(Some("/helloworld.Greeter/SayHello".into()))
@@ -2877,7 +2965,8 @@ mod tests {
             .with_timeout(Some(Duration::from_secs(5)))
             .with_peer_timeout(Some(Duration::from_secs(30)))
             .with_rpc_timeout(Some(Duration::from_secs(9)))
-            .with_limits(Some(crate::MessageLimits::default()));
+            .with_limits(Some(crate::MessageLimits::default()))
+            .with_send_buffer_size(Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE));
         assert_eq!(stamped.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(stamped.service(), Some("helloworld.Greeter"));
         assert_eq!(stamped.method(), Some("SayHello"));
@@ -2890,6 +2979,10 @@ mod tests {
         assert_eq!(stamped.peer_timeout(), Some(Duration::from_secs(30)));
         assert_eq!(stamped.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(stamped.limits(), Some(crate::MessageLimits::default()));
+        assert_eq!(
+            stamped.send_buffer_size(),
+            Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)
+        );
         let (n, mut parts) = stamped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
@@ -2907,6 +3000,10 @@ mod tests {
         assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(30)));
         assert_eq!(parts.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(parts.limits(), Some(crate::MessageLimits::default()));
+        assert_eq!(
+            parts.send_buffer_size(),
+            Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)
+        );
         parts.set_compress(false);
         parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
@@ -2930,6 +3027,10 @@ mod tests {
         assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(30)));
         assert_eq!(rebuilt.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(rebuilt.limits(), Some(crate::MessageLimits::default()));
+        assert_eq!(
+            rebuilt.send_buffer_size(),
+            Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)
+        );
         let shown = format!("{rebuilt:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
@@ -2943,6 +3044,7 @@ mod tests {
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
         assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("limits: Some("), "{shown}");
+        assert!(shown.contains("send_buffer_size: Some("), "{shown}");
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));
@@ -2964,6 +3066,7 @@ mod tests {
         assert!(Response::new(0u32).peer_timeout().is_none());
         assert!(Response::new(0u32).rpc_timeout().is_none());
         assert!(Response::new(0u32).limits().is_none());
+        assert!(Response::new(0u32).send_buffer_size().is_none());
     }
 
     #[test]

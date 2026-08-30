@@ -895,6 +895,7 @@ impl Channel {
     /// [`crate::Response::peer_timeout`] on a received reply is `None` (the client's `grpc-timeout` is not on the reply wire).
     /// [`crate::Response::rpc_timeout`] on a received reply is `None` (the server overlay is not on the reply wire).
     /// [`crate::Response::accepts_compressed`] on a received reply is `false` (this overlay is not a received-reply field).
+    /// [`crate::Response::send_buffer_size`] on a received reply is `None` (the peer send buffer is not on the reply wire).
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
         let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();

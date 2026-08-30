@@ -1167,6 +1167,8 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
 `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
 `Outgoing::send_buffer_size` is that overlay in a client interceptor. Distinct from `stream_buffer_size` (queue depth). An interceptor cannot change it.
+`Rpc::send_buffer_size` is that overlay in a server interceptor. Distinct from `Outgoing::send_buffer_size` (client). An interceptor cannot change it.
+`Response::send_buffer_size` is that overlay in a response interceptor. Distinct from `Request::send_buffer_size` (inbound). Distinct from `Rpc::send_buffer_size` (before the handler). An interceptor cannot change it.
 `Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it.
 `Response::gzip_level` is that overlay in a response interceptor. Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level` (before the handler). An interceptor cannot change it.
 `Response::compresses_outbound` is that overlay in a response interceptor. Distinct from `compress` (per-RPC). Distinct from `Rpc::compresses_outbound` (before the handler). An interceptor cannot change it.

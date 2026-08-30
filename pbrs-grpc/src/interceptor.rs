@@ -28,16 +28,17 @@ use std::sync::Arc;
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
 /// message caps with [`Rpc::limits`], gzip accept/encoding with
 /// [`Rpc::accepts_gzip`] / [`Rpc::encoding`] / [`Rpc::compresses_outbound`]
-/// / [`Rpc::gzip_level`] / [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`] (`encoding` is `None` for identity).
+/// / [`Rpc::gzip_level`] / [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`] / [`Rpc::send_buffer_size`] (`encoding` is `None` for identity).
 /// Distinct from [`Rpc::compresses_outbound`]: that is on or off; [`Rpc::gzip_level`] is deflate effort.
 /// Distinct from [`Rpc::accepts_gzip`]: that is the peer's `grpc-accept-encoding`; [`Rpc::accepts_compressed`] is this overlay.
 /// Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits; [`Rpc::concurrent_rpc_limit`] is this overlay.
+/// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows, which are handshake; [`Rpc::send_buffer_size`] is this write-time overlay.
 /// Read the TCP interface with
 /// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
 /// [`crate::Request::extensions`] / [`crate::Parts::extensions`] (including
 /// over TLS, mTLS, Unix, and [`crate::Channel::from_io`]). Generated handlers see the same path,
-/// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, deflate effort, inbound-gzip overlay, process RPC cap, peer, and caps on
+/// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, deflate effort, inbound-gzip overlay, process RPC cap, write-time send buffer, peer, and caps on
 /// [`crate::Request`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
 ///
@@ -115,6 +116,8 @@ where
 /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
 /// [`crate::ResponseParts::accepts_compressed`] is the inbound gzip overlay.
 /// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
+/// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
+/// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -596,6 +599,7 @@ mod tests {
         assert!(resp.peer_timeout().is_none());
         assert!(resp.rpc_timeout().is_none());
         assert!(resp.limits().is_none());
+        assert!(resp.send_buffer_size().is_none());
     }
 
     #[test]
@@ -616,6 +620,10 @@ mod tests {
             );
             assert_eq!(parts.rpc_timeout(), Some(std::time::Duration::from_secs(9)));
             assert_eq!(parts.limits(), Some(crate::MessageLimits::default()));
+            assert_eq!(
+                parts.send_buffer_size(),
+                Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)
+            );
             Ok(())
         }
         let at = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -630,7 +638,8 @@ mod tests {
                 .with_timeout(Some(std::time::Duration::from_secs(5)))
                 .with_peer_timeout(Some(std::time::Duration::from_secs(30)))
                 .with_rpc_timeout(Some(std::time::Duration::from_secs(9)))
-                .with_limits(Some(crate::MessageLimits::default())),
+                .with_limits(Some(crate::MessageLimits::default()))
+                .with_send_buffer_size(Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)),
             Some(&require_path),
         )
         .expect("path");
@@ -649,6 +658,10 @@ mod tests {
         );
         assert_eq!(resp.rpc_timeout(), Some(std::time::Duration::from_secs(9)));
         assert_eq!(resp.limits(), Some(crate::MessageLimits::default()));
+        assert_eq!(
+            resp.send_buffer_size(),
+            Some(crate::config::DEFAULT_MAX_SEND_BUFFER_SIZE)
+        );
         let shown = format!("{resp:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
@@ -662,6 +675,7 @@ mod tests {
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
         assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("limits: Some("), "{shown}");
+        assert!(shown.contains("send_buffer_size: Some("), "{shown}");
         assert!(crate::Response::new(0u32).path().is_none());
         assert!(crate::Response::new(0u32).service().is_none());
         assert!(crate::Response::new(0u32).method().is_none());
@@ -677,5 +691,6 @@ mod tests {
         assert!(crate::Response::new(0u32).peer_timeout().is_none());
         assert!(crate::Response::new(0u32).rpc_timeout().is_none());
         assert!(crate::Response::new(0u32).limits().is_none());
+        assert!(crate::Response::new(0u32).send_buffer_size().is_none());
     }
 }

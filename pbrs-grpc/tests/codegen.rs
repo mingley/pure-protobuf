@@ -3979,15 +3979,21 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`, attach extensions"
+            "`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, attach extensions"
         ),
         "generated server intercept rustdoc must name accepts_compressed overlay"
     );
     assert!(
         src.contains(
-            "`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`, attach extensions"
+            "`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, attach extensions"
         ),
         "generated server intercept rustdoc must name concurrent_rpc_limit overlay"
+    );
+    assert!(
+        src.contains(
+            "`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, attach extensions"
+        ),
+        "generated server intercept rustdoc must name send_buffer_size overlay"
     );
     assert!(
         src.contains(
@@ -4296,6 +4302,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     assert!(
         src.contains("[`::pbrs_grpc::Response::accepts_compressed`] on a received reply is `false` (this overlay is not a received-reply field)."),
         "generated client on_response rustdoc must name received accepts_compressed is false"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay. Distinct from [`::pbrs_grpc::ResponseParts::limits`]."),
+        "generated on_response rustdoc must name write-time send buffer overlay"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::send_buffer_size`] on a received reply is `None` (the peer send buffer is not on the reply wire)."),
+        "generated client on_response rustdoc must name received send_buffer_size is None"
     );
     assert!(
         src.contains(
@@ -4634,6 +4648,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Configured write-time HTTP/2 send buffer. Distinct from [`Self::max_send_buffer_size`], which sets it. Distinct from [`Self::stream_buffer_size`]: that is queue depth, not this send buffer."
         ),
         "generated send_buffer_size rustdoc must Distinct the setter and queue depth"
+    );
+    assert!(
+        src.contains(
+            "Configured write-time HTTP/2 send buffer. Distinct from [`Self::max_send_buffer_size`], which sets it. Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer."
+        ),
+        "generated server send_buffer_size rustdoc must Distinct the setter and message size"
     );
 }
 

@@ -645,6 +645,7 @@ impl ServerConfig {
     }
 
     /// Configured per-connection send buffer. Applies to every call shape.
+    /// Server interceptors read this overlay on [`crate::Rpc::send_buffer_size`] / [`crate::Request::send_buffer_size`].
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size

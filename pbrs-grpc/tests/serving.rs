@@ -748,6 +748,30 @@ fn channel_call_apis_document_hand_written_services() {
         "Request::concurrent_rpc_limit must Distinct message size from the process RPC cap"
     );
     assert!(
+        outgoing.contains(
+            "Server [`crate::Server::max_send_buffer_size`] overlay, when the kernel dispatched this call."
+        ),
+        "Request::send_buffer_size must name the server max_send_buffer_size overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay."
+        ),
+        "Request::send_buffer_size must Distinct client interceptor overlay from inbound dispatch"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::limits`]: that is message size, not this HTTP/2 send buffer."
+        ),
+        "Request::send_buffer_size must Distinct message size from the HTTP/2 send buffer"
+    );
+    assert!(
+        outgoing.contains(
+            "An interceptor cannot change this; the kernel still applies this buffer when writing DATA."
+        ),
+        "Request::send_buffer_size must name the write-time DATA apply"
+    );
+    assert!(
         outgoing.contains("Channel [`crate::Channel::stream_buffer`] overlay."),
         "Outgoing::stream_buffer_size must name the channel stream_buffer overlay"
     );
@@ -1258,6 +1282,60 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::accepts_compressed must name grpc-accept-encoding advertisement"
     );
     assert!(
+        outgoing.contains(
+            "Server [`crate::Server::max_send_buffer_size`] overlay, when the kernel is writing this reply."
+        ),
+        "Response::send_buffer_size must name server overlay when writing"
+    );
+    assert!(
+        outgoing.contains(
+            "Same overlay as [`crate::Rpc::send_buffer_size`] / [`crate::Request::send_buffer_size`]."
+        ),
+        "Response::send_buffer_size must name the Request/Rpc overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Request::send_buffer_size`]: that is the inbound request."
+        ),
+        "Response::send_buffer_size must Distinct inbound Request::send_buffer_size"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::send_buffer_size`]: that is a server interceptor before the handler."
+        ),
+        "Response::send_buffer_size must Distinct Rpc overlay before the handler"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this server stamp."
+        ),
+        "Response::send_buffer_size must Distinct Outgoing overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::limits`]: that is the encode cap, not this HTTP/2 send buffer."
+        ),
+        "Response::send_buffer_size must Distinct encode caps from the send buffer"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer."
+        ),
+        "Response::send_buffer_size must Distinct queue depth from the send buffer"
+    );
+    assert!(
+        outgoing.contains(
+            "`None` on a response you built or a received reply (the peer send buffer is not on the reply wire)."
+        ),
+        "Response::send_buffer_size must name None on a received reply"
+    );
+    assert!(
+        outgoing.contains(
+            "An interceptor cannot change this; the kernel still applies this buffer when writing DATA."
+        ),
+        "Response::send_buffer_size must name the write-time DATA apply"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -1463,6 +1541,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor rustdoc must Distinct Rpc::concurrent_rpc_limit from SETTINGS wait"
     );
     assert!(
+        intercept.contains(
+            "Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows, which are handshake; [`Rpc::send_buffer_size`] is this write-time overlay."
+        ),
+        "Interceptor rustdoc must Distinct Rpc::send_buffer_size from handshake SETTINGS"
+    );
+    assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
         "ClientInterceptor rustdoc must Distinct connected from wait-for-ready"
     );
@@ -1646,6 +1730,18 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct accepts_compressed from peer advertisement"
     );
     assert!(
+        intercept.contains(
+            "[`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay."
+        ),
+        "ResponseInterceptor rustdoc must name write-time send buffer overlay"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer."
+        ),
+        "ResponseInterceptor rustdoc must Distinct send_buffer_size from encode caps"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
@@ -1736,6 +1832,12 @@ fn channel_call_apis_document_hand_written_services() {
             "[`crate::Response::accepts_compressed`] on a received reply is `false` (this overlay is not a received-reply field)."
         ),
         "Channel::on_response must name received accepts_compressed is false"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Response::send_buffer_size`] on a received reply is `None` (the peer send buffer is not on the reply wire)."
+        ),
+        "Channel::on_response must name received send_buffer_size is None"
     );
     assert!(
         src.contains(
@@ -2107,6 +2209,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         src.contains("Configured per-connection send buffer. Applies to every call shape."),
         "send_buffer_size getters must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Server interceptors read this overlay on [`crate::Rpc::send_buffer_size`] / [`crate::Request::send_buffer_size`]."
+        ),
+        "ServerConfig::send_buffer_size must name the interceptor overlay"
     );
     assert!(
         src.contains(
@@ -2945,6 +3053,27 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Outgoing::send_buffer_size from stream_buffer_size"
     );
     assert!(
+        crate_src.contains("[`Rpc::send_buffer_size`] is that overlay in a server interceptor"),
+        "crate docs must name Rpc::send_buffer_size as the server interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::send_buffer_size`]"),
+        "crate docs must Distinct Rpc::send_buffer_size from Outgoing::send_buffer_size"
+    );
+    assert!(
+        crate_src
+            .contains("[`Response::send_buffer_size`] is that overlay in a response interceptor"),
+        "crate docs must name Response::send_buffer_size as the response interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Request::send_buffer_size`]"),
+        "crate docs must Distinct Response::send_buffer_size from Request::send_buffer_size"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::send_buffer_size`]"),
+        "crate docs must Distinct Response::send_buffer_size from Rpc::send_buffer_size"
+    );
+    assert!(
         crate_src.contains("[`Response::path`] is kernel-stamped after `Ok` / after receive"),
         "crate docs must name Response::path as kernel-stamped"
     );
@@ -3469,6 +3598,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Outgoing::send_buffer_size as the interceptor overlay"
     );
     assert!(
+        guide.contains("`Rpc::send_buffer_size` is that overlay in a server interceptor. Distinct from `Outgoing::send_buffer_size` (client). An interceptor cannot change it."),
+        "guide must name Rpc::send_buffer_size as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Response::send_buffer_size` is that overlay in a response interceptor. Distinct from `Request::send_buffer_size` (inbound). Distinct from `Rpc::send_buffer_size` (before the handler). An interceptor cannot change it."),
+        "guide must name Response::send_buffer_size as the response interceptor overlay"
+    );
+    assert!(
         guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
         "guide must name Response::path as kernel-stamped for on_response"
     );
@@ -3818,6 +3955,28 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::max_send_buffer_size and Router::max_send_buffer_size must name still-serves Distinct from frame size and windows"
+    );
+    assert_eq!(
+        src.matches(
+            "Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`]."
+        )
+        .count(),
+        2,
+        "Server::send_buffer_size and Router::send_buffer_size must Distinct the setter"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`Self::max_send_buffer_size`], which sets it.")
+            .count(),
+        2,
+        "Server::send_buffer_size and Router::send_buffer_size must Distinct from the setter"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer."
+        )
+        .count(),
+        2,
+        "Server::send_buffer_size and Router::send_buffer_size must Distinct message size from the send buffer"
     );
     assert_eq!(
         src.matches(
@@ -4175,6 +4334,22 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
+            "[`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must name write-time send buffer overlay"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct send_buffer_size from encode caps"
+    );
+    assert_eq!(
+        src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         )
         .count(),
@@ -4292,6 +4467,28 @@ fn server_and_router_config_document_every_call_shape() {
             "Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay."
         ),
         "Rpc::concurrent_rpc_limit must Distinct client interceptor overlay"
+    );
+    assert!(
+        src.contains("Generated handlers see the same value on [`Request::send_buffer_size`]."),
+        "Rpc::send_buffer_size must name the Request stamp"
+    );
+    assert!(
+        src.contains(
+            "Response interceptors see the same value on [`crate::Response::send_buffer_size`]."
+        ),
+        "Rpc::send_buffer_size must name the Response interceptor stamp"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay."
+        ),
+        "Rpc::send_buffer_size must Distinct client interceptor overlay"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::limits`]: that is uncompressed protobuf bytes, not this HTTP/2 send buffer."
+        ),
+        "Rpc::send_buffer_size must Distinct message size from the HTTP/2 send buffer"
     );
     assert!(
         src.contains("0 stores; 9 is best"),
@@ -22297,6 +22494,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         !reply.accepts_compressed(),
         "received reply must not carry peer inbound overlay"
     );
+    assert!(
+        reply.send_buffer_size().is_none(),
+        "received reply must not carry peer send buffer"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let reply = client
@@ -22343,6 +22544,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         !reply.accepts_compressed(),
         "received stream must not carry peer inbound overlay"
+    );
+    assert!(
+        reply.send_buffer_size().is_none(),
+        "received stream must not carry peer send buffer"
     );
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
@@ -22395,6 +22600,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         !reply.accepts_compressed(),
         "received client-stream must not carry peer inbound overlay"
     );
+    assert!(
+        reply.send_buffer_size().is_none(),
+        "received client-stream must not carry peer send buffer"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(Request::new(()));
@@ -22438,6 +22647,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         !reply.accepts_compressed(),
         "received bidi must not carry peer inbound overlay"
+    );
+    assert!(
+        reply.send_buffer_size().is_none(),
+        "received bidi must not carry peer send buffer"
     );
     let mut inbound = reply.into_inner();
     let framed = inbound
@@ -26509,6 +26722,12 @@ fn overlay_gzips<T>(request: &Request<T>) -> Result<(), Status> {
             request.gzip_level()
         )));
     }
+    if request.send_buffer_size() != pbrs_grpc::DEFAULT_MAX_SEND_BUFFER_SIZE {
+        return Err(Status::internal(format!(
+            "request send_buffer_size {}",
+            request.send_buffer_size()
+        )));
+    }
     Ok(())
 }
 
@@ -26572,6 +26791,12 @@ fn interceptor_require_server_gzip(rpc: &mut Rpc) -> Result<(), Status> {
             rpc.gzip_level()
         )));
     }
+    if rpc.send_buffer_size() != pbrs_grpc::DEFAULT_MAX_SEND_BUFFER_SIZE {
+        return Err(Status::internal(format!(
+            "rpc send_buffer_size {}",
+            rpc.send_buffer_size()
+        )));
+    }
     Ok(())
 }
 
@@ -26605,6 +26830,9 @@ fn require_response_gzip_level(parts: &mut ResponseParts) -> Result<(), Status> 
     }
     if !parts.accepts_compressed() {
         return Err(Status::internal("response accepts_compressed overlay"));
+    }
+    if parts.send_buffer_size() != Some(pbrs_grpc::DEFAULT_MAX_SEND_BUFFER_SIZE) {
+        return Err(Status::internal("response send_buffer_size overlay"));
     }
     Ok(())
 }

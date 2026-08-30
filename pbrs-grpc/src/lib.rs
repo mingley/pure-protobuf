@@ -250,6 +250,11 @@
 //! Distinct from [`Outgoing::limits`].
 //! [`Outgoing::send_buffer_size`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::stream_buffer_size`].
+//! [`Rpc::send_buffer_size`] is that overlay in a server interceptor.
+//! Distinct from [`Outgoing::send_buffer_size`].
+//! [`Response::send_buffer_size`] is that overlay in a response interceptor.
+//! Distinct from [`Request::send_buffer_size`].
+//! Distinct from [`Rpc::send_buffer_size`].
 //! [`Response::path`] is kernel-stamped after `Ok` / after receive.
 //! Distinct from [`Request::path`].
 //! Distinct from [`Outgoing::path`].

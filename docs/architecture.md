@@ -70,7 +70,7 @@ connection.
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
 / cred, `Rpc::limits`, gzip accept/encoding, `compresses_outbound`,
-`gzip_level`, `accepts_compressed`, and `concurrent_rpc_limit`.
+`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, and `send_buffer_size`.
 `Router` splits on the service half of the path. An unmounted service, or a
 method a mounted service does not have, is `UNIMPLEMENTED` on every call
 shape, including over TLS, mTLS, Unix, and `from_io`. Remounting the same
@@ -79,13 +79,13 @@ Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
 gzip accept/encoding, the
-`compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, and `concurrent_rpc_limit`. Dumping
+`compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, and `send_buffer_size`. Dumping
 `Rpc` prints service/method, interceptor `timeout` / server `rpc_timeout` /
 `peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
-encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit`, and `limits`.
+encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, and `limits`.
 Dumping `Request` prints path / service / method, `timeout` / `rpc_timeout` /
 `peer_timeout`,
-`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, peer,
+`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, peer,
 `:authority` / `:scheme`, wait-for-ready, `limits`, and cancel.
 Dumping `Response` prints metadata, trailers, compress intent, and received
 `encoding`.
@@ -219,10 +219,12 @@ Distinct from `timeout` (effective). Distinct from `Rpc::peer_timeout`
 Distinct from `timeout` (effective). Distinct from `Rpc::rpc_timeout`
 (before the handler). Closures see `ResponseParts::accepts_compressed` (inbound gzip overlay).
 Distinct from `accepts_gzip` (peer advertisement). Distinct from `Rpc::accepts_compressed`
+(before the handler). Closures see `ResponseParts::send_buffer_size` (write-time HTTP/2 send buffer overlay).
+Distinct from `limits` (encode cap). Distinct from `Rpc::send_buffer_size`
 (before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
-`compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, peer, `:authority` / `:scheme`, limits).
+`compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).
 `metadata_mut().set` / `remove` / `retain` reach the handler on every call
@@ -231,7 +233,7 @@ survive `into_message_and_parts`. TLS `:authority` is
 the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
-gzip, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, and `concurrent_rpc_limit`. `Server::timeout` / `Router::timeout`
+gzip, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, and `send_buffer_size`. `Server::timeout` / `Router::timeout`
 expire Slow handlers when the client omits a deadline and cap a longer client
 deadline, including over TLS, mTLS, Unix, and `from_io`.
 `Server::send_compressed` / `Router::send_compressed`

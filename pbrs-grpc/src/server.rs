@@ -277,6 +277,7 @@ impl std::fmt::Debug for Rpc {
             .field("gzip_level", &self.gzip_level())
             .field("accepts_compressed", &self.accepts_compressed())
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit())
+            .field("send_buffer_size", &self.send_buffer_size())
             .field("encoding", &self.encoding())
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
@@ -556,6 +557,21 @@ impl Rpc {
         self.config.concurrent_rpc_limit()
     }
 
+    /// Configured write-time HTTP/2 send buffer.
+    ///
+    /// Same overlay as [`crate::Server::send_buffer_size`].
+    /// Generated handlers see the same value on [`Request::send_buffer_size`].
+    /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay.
+    /// Distinct from [`Self::limits`]: that is uncompressed protobuf bytes, not this HTTP/2 send buffer.
+    /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake SETTINGS, not this write-time threshold.
+    /// Response interceptors see the same value on [`crate::Response::send_buffer_size`].
+    /// An interceptor cannot change this; the kernel applies it when sending DATA.
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn send_buffer_size(&self) -> usize {
+        self.config.send_buffer_size()
+    }
+
     /// The peer's `grpc-encoding` token, if it sent a non-identity coding.
     ///
     /// Missing, empty, or an explicit `identity` token is `None` — the spec
@@ -690,7 +706,8 @@ impl Rpc {
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits)),
+                        .with_limits(Some(wire.limits))
+                        .with_send_buffer_size(Some(wire.send_buffer)),
                     hook.as_deref(),
                 )
             }) {
@@ -758,7 +775,8 @@ impl Rpc {
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits)),
+                        .with_limits(Some(wire.limits))
+                        .with_send_buffer_size(Some(wire.send_buffer)),
                     hook.as_deref(),
                 )
             }) {
@@ -833,7 +851,8 @@ impl Rpc {
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits)),
+                        .with_limits(Some(wire.limits))
+                        .with_send_buffer_size(Some(wire.send_buffer)),
                     hook.as_deref(),
                 )
             }) {
@@ -915,7 +934,8 @@ impl Rpc {
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
                         .with_rpc_timeout(rpc_timeout)
-                        .with_limits(Some(wire.limits)),
+                        .with_limits(Some(wire.limits))
+                        .with_send_buffer_size(Some(wire.send_buffer)),
                     hook.as_deref(),
                 )
             }) {
@@ -995,6 +1015,7 @@ impl Rpc {
             req.set_gzip_level(config.gzip_level());
             req.set_accepts_compressed(config.accepts_compressed());
             req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
+            req.set_send_buffer_size(config.send_buffer_size());
             req.set_encoding(encoding);
             req.set_cancel(cancel_rx);
             if let Some(d) = timeout {
@@ -1079,6 +1100,7 @@ impl Rpc {
         req.set_gzip_level(config.gzip_level());
         req.set_accepts_compressed(config.accepts_compressed());
         req.set_concurrent_rpc_limit(config.concurrent_rpc_limit());
+        req.set_send_buffer_size(config.send_buffer_size());
         req.set_encoding(encoding);
         if let Some(d) = timeout {
             req.set_timeout(d);
@@ -1642,6 +1664,15 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::max_send_buffer_size`], which sets it.
+    /// Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer.
+    #[must_use]
+    pub fn send_buffer_size(&self) -> usize {
+        self.config.send_buffer_size()
+    }
+
     /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
     /// Applies to every call shape. See
     /// [`ServerConfig::max_pending_accept_reset_streams`].
@@ -1850,12 +1881,13 @@ impl<S: Service> Server<S> {
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
     /// [`Rpc::peer_cred`] / [`Rpc::limits`] / [`Rpc::accepts_gzip`] /
     /// [`Rpc::encoding`] / [`Rpc::compresses_outbound`] / [`Rpc::gzip_level`] /
-    /// [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`],
+    /// [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`] /
+    /// [`Rpc::send_buffer_size`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject before the body
     /// is read. Generated handlers see the same path, peer, caps, client
     /// timeout, server timeout overlay, gzip facts, response-gzip overlay,
-    /// deflate effort, inbound-gzip overlay, and process RPC cap on [`Request`].
+    /// deflate effort, inbound-gzip overlay, process RPC cap, and write-time send buffer on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
@@ -1909,6 +1941,8 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
     /// [`crate::ResponseParts::accepts_compressed`] is the inbound gzip overlay.
     /// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
+    /// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
+    /// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2437,6 +2471,15 @@ impl Router {
         self
     }
 
+    /// Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::max_send_buffer_size`], which sets it.
+    /// Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer.
+    #[must_use]
+    pub fn send_buffer_size(&self) -> usize {
+        self.config.send_buffer_size()
+    }
+
     /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
     /// Applies to every call shape. See
     /// [`ServerConfig::max_pending_accept_reset_streams`].
@@ -2705,6 +2748,8 @@ impl Router {
     /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
     /// [`crate::ResponseParts::accepts_compressed`] is the inbound gzip overlay.
     /// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
+    /// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
+    /// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {
