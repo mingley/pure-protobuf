@@ -524,6 +524,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must name oversize RESOURCE_EXHAUSTED on every transport"
     );
+    assert!(
+        src.contains(
+            "A [`HealthClient`]\n//! `max_encoding_message_size` / `max_decoding_message_size` is\n//! `RESOURCE_EXHAUSTED` on Check and Watch on those transports, distinct from\n//! the server decoding cap."
+        ),
+        "Health crate rustdoc must name client message caps on every transport"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
@@ -3399,5 +3405,116 @@ async fn health_from_io_oversize_request_is_resource_exhausted() {
         .await
         .expect("from_io");
     assert_health_oversize(&client).await;
+    handle.abort();
+}
+
+async fn assert_health_client_encode_cap(client: &HealthClient) {
+    let mut fat = HealthCheckRequest::new();
+    fat.set_service("k".repeat(64));
+    let err = client
+        .check(Request::new(fat.clone()))
+        .await
+        .expect_err("check encode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    match client.watch(Request::new(fat)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(_) => panic!("Watch client encode cap must fail before headers"),
+    }
+}
+
+async fn assert_health_client_decode_cap(client: &HealthClient) {
+    let mut empty = HealthCheckRequest::new();
+    empty.set_service("");
+    let err = client
+        .check(Request::new(empty.clone()))
+        .await
+        .expect_err("check decode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    match client.watch(Request::new(empty)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("Watch client decode cap must fail"),
+        },
+    }
+}
+
+async fn assert_health_client_message_caps(client: HealthClient) {
+    assert_health_client_encode_cap(&client.clone().max_encoding_message_size(16)).await;
+    assert_health_client_decode_cap(&client.max_decoding_message_size(1)).await;
+}
+
+fn health_plain() -> HealthServer<impl Health> {
+    service().0
+}
+
+#[tokio::test]
+async fn health_client_message_caps_are_resource_exhausted() {
+    let (addr, _reporter, handle) = serve().await;
+    assert_health_client_message_caps(client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_tls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        health_plain()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_health_client_message_caps(
+        tls_client_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await,
+    )
+    .await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_mtls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        health_plain()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_client_message_caps(tls_client_with(addr, client_tls).await).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_client_message_caps_are_resource_exhausted() {
+    let path = unix_sock("client-caps");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_plain().serve_unix(sock).await.ok();
+    });
+    assert_health_client_message_caps(unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn health_from_io_client_message_caps_are_resource_exhausted() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        health_plain().serve_connection(server_io).await.ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_health_client_message_caps(client).await;
     handle.abort();
 }

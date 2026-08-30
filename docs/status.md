@@ -127,7 +127,13 @@ See `docs/upb.md`. Short list:
   Distinct from packed `google.rpc.Status`. `ChannelConfig::max_encoding_message_size`
   / `max_decoding_message_size` at `connect_tls_with` / `connect_unix_with` /
   `from_io_with` is `RESOURCE_EXHAUSTED` on every call shape, distinct from
-  wrapping a live Channel or generated client after connect. TLS
+  wrapping a live Channel or generated client after connect. A HealthClient
+  `max_encoding_message_size` / `max_decoding_message_size` is
+  `RESOURCE_EXHAUSTED` on Check and Watch over TLS, mTLS, Unix, and `from_io`,
+  distinct from the Health server decoding cap. A ServerReflectionClient
+  `max_encoding_message_size` / `max_decoding_message_size` is
+  `RESOURCE_EXHAUSTED` on the one bidi method over those transports, distinct
+  from the reflection server decoding cap. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent

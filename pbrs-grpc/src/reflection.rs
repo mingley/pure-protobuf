@@ -19,7 +19,10 @@
 //! [`service`] is the same registration as a one-liner. An inbound message
 //! over the decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers
 //! (`StreamSender::fail`), not a quiet OK end, including over TLS, mTLS, Unix,
-//! and [`crate::Channel::from_io`]. An interceptor `Err` may carry
+//! and [`crate::Channel::from_io`]. A [`ServerReflectionClient`]
+//! `max_encoding_message_size` / `max_decoding_message_size` is
+//! `RESOURCE_EXHAUSTED` on the one bidi method on those transports, distinct
+//! from the server decoding cap. An interceptor `Err` may carry
 //! [`crate::Status::with_error_details`]; those trailers reach the client.
 //! A handler `Err` may carry the same packed status; those trailers reach
 //! the client. [`crate::StreamSender::fail`] after a streamed DATA frame on
