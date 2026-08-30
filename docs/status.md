@@ -121,6 +121,10 @@ See `docs/upb.md`. Short list:
   `Channel::connect_timeout` fails with `UNAVAILABLE` when a TCP, TLS, mTLS,
   or Unix peer accepts and never speaks, and still fails immediately on a
   closed port or missing Unix path. `from_io` is already connected.
+  `ChannelConfig::max_connection_idle` tears down the client HTTP/2 driver
+  after idle even when keepalive PINGs still fire; the next RPC of every call
+  shape redials on TLS, mTLS, and Unix. `from_io` cannot redial after that
+  close. A long-running server stream is not idle.
   `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /

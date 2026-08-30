@@ -819,8 +819,9 @@ impl ChannelConfig {
     /// The socket is actually torn down (the HTTP/2 driver stops), not merely
     /// skipped on the next RPC. A long-running stream does not look idle.
     /// Keepalive PINGs do not count as activity. The next RPC of every call
-    /// shape redials, except on [`crate::Channel::from_io`], which cannot
-    /// redial and fails with [`crate::Code::Unavailable`].
+    /// shape redials, including over TLS, mTLS, and Unix, except on
+    /// [`crate::Channel::from_io`], which cannot redial and fails with
+    /// [`crate::Code::Unavailable`].
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));

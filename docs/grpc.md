@@ -1019,7 +1019,8 @@ lockstep. Idle only arms while no RPC is in flight, so grace is for a race
 with a request that arrives as GOAWAY is written.
 
 On the client, idle actually stops the HTTP/2 driver so the socket goes away.
-The next RPC of every call shape redials that slot. `Channel::from_io`
+Keepalive PINGs do not count as activity. The next RPC of every call shape
+redials that slot, including over TLS, mTLS, and Unix. `Channel::from_io`
 cannot redial: an idle close there makes later RPCs fail with
 `UNAVAILABLE`.
 

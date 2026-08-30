@@ -32,9 +32,10 @@ use pbrs_grpc::{
     StreamingInputCallResponse, StreamingOutputCallRequest, StreamingOutputCallResponse,
     TestService, TestServiceClient, TestServiceServer,
 };
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
@@ -589,6 +590,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "do not keep it. The next RPC of every call shape redials, including over\n/// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with"
+        ),
+        "Channel rustdoc must name client idle redial on TLS, mTLS, and Unix"
+    );
+    assert!(
+        src.contains(
             "RPC as [`Code::Unavailable`] (including over TLS, mTLS, and Unix), or\n    /// waits until the deadline if that RPC"
         ),
         "Channel::connect_lazy must name fail-fast on TLS, mTLS, and Unix"
@@ -730,6 +737,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Connection refused still fails immediately on those dialers; this bound is\n    /// for the hang, not the bounce."
         ),
         "ChannelConfig::connect_timeout must name refused-connect fail-fast on TLS and Unix"
+    );
+    assert!(
+        src.contains(
+            "shape redials, including over TLS, mTLS, and Unix, except on\n    /// [`crate::Channel::from_io`], which cannot redial and fails with"
+        ),
+        "ChannelConfig::max_connection_idle must name client idle redial on TLS, mTLS, and Unix"
     );
     assert!(
         src.contains(
@@ -12062,29 +12075,32 @@ impl Incoming for CountingIncoming {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn client_max_connection_idle_closes_the_socket() {
-    let accepts = Arc::new(AtomicUsize::new(0));
-    let (addr, listener) = bind().await;
-    let n = Arc::clone(&accepts);
-    let task = tokio::spawn(async move {
-        GreeterServer::new(Echo)
-            .serve_with_incoming(CountingIncoming { listener, n })
-            .await
-            .ok();
-    });
-    let cfg = ChannelConfig::new()
+fn client_idle_cfg() -> ChannelConfig {
+    ChannelConfig::new()
         .max_connection_idle(Duration::from_millis(80))
-        .keep_alive_interval(Duration::from_millis(20));
-    let client = GreeterClient::new(channel_with(addr, cfg).await);
-    assert_eq!(accepts.load(Ordering::Relaxed), 1, "dial is one accept");
-    echo_every_shape(&client, None).await;
-    assert_eq!(accepts.load(Ordering::Relaxed), 1, "rpcs reuse the dial");
+        .keep_alive_interval(Duration::from_millis(20))
+}
 
+fn stamp_idle_peer(
+    peers: Arc<Mutex<HashSet<SocketAddr>>>,
+) -> impl Fn(&mut Rpc) -> Result<(), Status> {
+    move |rpc: &mut Rpc| {
+        let Some(addr) = rpc.remote_addr() else {
+            return Err(Status::internal("idle probe missing remote_addr"));
+        };
+        peers.lock().expect("peers").insert(addr);
+        Ok(())
+    }
+}
+
+async fn assert_client_idle_closes(client: &GreeterClient, accepts: &AtomicUsize) {
+    assert_eq!(accepts.load(Ordering::Relaxed), 1, "dial is one accept");
+    echo_every_shape(client, None).await;
+    assert_eq!(accepts.load(Ordering::Relaxed), 1, "rpcs reuse the dial");
     tokio::time::sleep(Duration::from_millis(250)).await;
     tokio::time::timeout(
         Duration::from_secs(5),
-        echo_every_shape(&client, Some(Duration::from_secs(5))),
+        echo_every_shape(client, Some(Duration::from_secs(5))),
     )
     .await
     .expect("redial hung");
@@ -12093,17 +12109,29 @@ async fn client_max_connection_idle_closes_the_socket() {
         2,
         "idle must tear down the socket so the next RPC dials again"
     );
-    task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn client_max_connection_idle_lets_in_flight_rpcs_finish() {
-    let (addr, listener) = bind().await;
-    let task = tokio::spawn(async move {
-        GreeterServer::new(Slow).serve_listener(listener).await.ok();
-    });
-    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
-    let client = GreeterClient::new(channel_with(addr, cfg).await);
+async fn assert_client_idle_closes_peers(
+    client: &GreeterClient,
+    peers: &Mutex<HashSet<SocketAddr>>,
+) {
+    echo_every_shape(client, None).await;
+    assert_eq!(peers.lock().expect("peers").len(), 1, "dial is one peer");
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        echo_every_shape(client, Some(Duration::from_secs(5))),
+    )
+    .await
+    .expect("redial hung");
+    assert_eq!(
+        peers.lock().expect("peers").len(),
+        2,
+        "idle must tear down the socket so the next RPC dials again"
+    );
+}
+
+async fn assert_client_idle_in_flight(client: GreeterClient) {
     let mut call = client.say_hello(Request::new(req("ada")));
     tokio::select! {
         biased;
@@ -12115,7 +12143,181 @@ async fn client_max_connection_idle_lets_in_flight_rpcs_finish() {
         .expect("in-flight RPC hung past client idle")
         .expect("in-flight RPC must complete");
     assert_eq!(name_of(reply.get_ref()), "ada");
+}
+
+#[cfg(unix)]
+struct CountingUnixIncoming {
+    listener: tokio::net::UnixListener,
+    n: Arc<AtomicUsize>,
+}
+
+#[cfg(unix)]
+impl Incoming for CountingUnixIncoming {
+    type Io = tokio::net::UnixStream;
+
+    async fn accept(&mut self) -> pbrs_grpc::IncomingAccept<Self::Io> {
+        match self.listener.accept().await {
+            Ok((io, _)) => {
+                self.n.fetch_add(1, Ordering::Relaxed);
+                Some(Ok((io, None)))
+            }
+            Err(e) => Some(Err(Status::unavailable(e.to_string()))),
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_max_connection_idle_closes_the_socket() {
+    let accepts = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let n = Arc::clone(&accepts);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_with_incoming(CountingIncoming { listener, n })
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel_with(addr, client_idle_cfg()).await);
+    assert_client_idle_closes(&client, &accepts).await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_client_max_connection_idle_closes_the_socket() {
+    let peers = Arc::new(Mutex::new(HashSet::new()));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::clone(&peers);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(stamp_idle_peer(seen))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = GreeterClient::new(tls_channel_cfg(addr, client_tls, client_idle_cfg()).await);
+    assert_client_idle_closes_peers(&client, &peers).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_client_max_connection_idle_closes_the_socket() {
+    let peers = Arc::new(Mutex::new(HashSet::new()));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::clone(&peers);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(stamp_idle_peer(seen))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_cfg(addr, client_tls, client_idle_cfg()).await);
+    assert_client_idle_closes_peers(&client, &peers).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_client_max_connection_idle_closes_the_socket() {
+    let accepts = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let n = Arc::clone(&accepts);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_with_incoming(CountingUnixIncoming { listener, n })
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel_with(&path, client_idle_cfg()).await);
+    assert_client_idle_closes(&client, &accepts).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_max_connection_idle_lets_in_flight_rpcs_finish() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_in_flight(GreeterClient::new(channel_with(addr, cfg).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_client_max_connection_idle_lets_in_flight_rpcs_finish() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_in_flight(GreeterClient::new(
+        tls_channel_cfg(addr, client_tls, cfg).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_client_max_connection_idle_lets_in_flight_rpcs_finish() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_in_flight(GreeterClient::new(
+        tls_channel_cfg(addr, client_tls, cfg).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_client_max_connection_idle_lets_in_flight_rpcs_finish() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_unix(sock).await.ok();
+    });
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_in_flight(GreeterClient::new(unix_channel_with(&path, cfg).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_max_connection_idle_lets_in_flight_rpcs_finish() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io_with(
+        client_io,
+        "localhost",
+        ChannelConfig::new().max_connection_idle(Duration::from_millis(50)),
+    )
+    .await
+    .expect("from_io");
+    assert_client_idle_in_flight(GreeterClient::new(channel)).await;
+    server.abort();
 }
 
 struct DelayedStream;
@@ -12163,17 +12365,7 @@ impl pbrs_grpc::Greeter for DelayedStream {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn client_idle_holds_a_server_stream() {
-    let (addr, listener) = bind().await;
-    let task = tokio::spawn(async move {
-        GreeterServer::new(DelayedStream)
-            .serve_listener(listener)
-            .await
-            .ok();
-    });
-    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
-    let client = GreeterClient::new(channel_with(addr, cfg).await);
+async fn assert_client_idle_holds_server_stream(client: GreeterClient) {
     let mut stream = client
         .server_hello(Request::new(req("ada")))
         .await
@@ -12186,7 +12378,95 @@ async fn client_idle_holds_a_server_stream() {
         .expect("stream status")
         .expect("one message");
     assert_eq!(name_of(&reply), "ada");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_idle_holds_a_server_stream() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(DelayedStream)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_holds_server_stream(GreeterClient::new(channel_with(addr, cfg).await)).await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_client_idle_holds_a_server_stream() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(DelayedStream)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_holds_server_stream(GreeterClient::new(
+        tls_channel_cfg(addr, client_tls, cfg).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_client_idle_holds_a_server_stream() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(DelayedStream)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_holds_server_stream(GreeterClient::new(
+        tls_channel_cfg(addr, client_tls, cfg).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_client_idle_holds_a_server_stream() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(DelayedStream)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let cfg = ChannelConfig::new().max_connection_idle(Duration::from_millis(50));
+    assert_client_idle_holds_server_stream(GreeterClient::new(unix_channel_with(&path, cfg).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_idle_holds_a_server_stream() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(DelayedStream)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io_with(
+        client_io,
+        "localhost",
+        ChannelConfig::new().max_connection_idle(Duration::from_millis(50)),
+    )
+    .await
+    .expect("from_io");
+    assert_client_idle_holds_server_stream(GreeterClient::new(channel)).await;
+    server.abort();
 }
 
 #[cfg(unix)]

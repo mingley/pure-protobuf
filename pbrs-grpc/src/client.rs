@@ -191,8 +191,9 @@ impl Endpoint {
 ///
 /// A connection with no outstanding RPCs is closed after
 /// [`ChannelConfig::max_connection_idle`] when that is set. Keepalive PINGs
-/// do not keep it. The next RPC redials, except [`Self::from_io`], which
-/// cannot redial and fails with [`Code::Unavailable`].
+/// do not keep it. The next RPC of every call shape redials, including over
+/// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with
+/// [`Code::Unavailable`].
 ///
 /// [`Self::connect_lazy`] skips the initial dial so a client can exist
 /// before its server. The first RPC fails fast with [`Code::Unavailable`]
