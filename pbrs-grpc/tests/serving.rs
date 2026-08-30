@@ -1062,6 +1062,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` the client advertises. Distinct\n    /// from [`ServerConfig::max_concurrent_streams`], which serializes extra\n    /// RPCs on the server. Push is disabled, including over TLS, mTLS, Unix,\n    /// and [`crate::Channel::from_io`]."
+        ),
+        "ChannelConfig::max_concurrent_streams must name client SETTINGS Distinct from server serialize"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::max_decoding_message_size`] /\n    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound is\n    /// [`crate::Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::message_limits must name combined-setter oversize on every transport"
@@ -24652,4 +24658,105 @@ async fn test_service_from_io_header_list_cap_refuses_oversize_metadata() {
     assert_test_header_flood_then_echo(flood, healthy).await;
     server1.abort();
     server2.abort();
+}
+
+fn client_stream_settings() -> ChannelConfig {
+    ChannelConfig::new().max_concurrent_streams(1)
+}
+
+fn slow_uncapped() -> GreeterServer<Slow> {
+    GreeterServer::new(Slow)
+}
+
+async fn assert_client_stream_settings_do_not_serialize(client: &GreeterClient) {
+    let started = Instant::now();
+    let (a, b) = tokio::join!(
+        client.say_hello(Request::new(req("a"))),
+        client.say_hello(Request::new(req("b"))),
+    );
+    both_ok(a, b, "unary");
+    assert!(
+        started.elapsed() < Duration::from_millis(350),
+        "client SETTINGS_MAX_CONCURRENT_STREAMS must not serialize Slow unary handlers, got {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn extra_rpcs_do_not_wait_when_client_stream_settings_do_not_serialize() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        slow_uncapped().serve_listener(listener).await.ok();
+    });
+    assert_client_stream_settings_do_not_serialize(&GreeterClient::new(
+        channel_cfg(addr, client_stream_settings()).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_extra_rpcs_do_not_wait_when_client_stream_settings_do_not_serialize() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        slow_uncapped()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_client_stream_settings_do_not_serialize(&GreeterClient::new(
+        tls_channel_cfg(addr, client_tls, client_stream_settings()).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_extra_rpcs_do_not_wait_when_client_stream_settings_do_not_serialize() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        slow_uncapped()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_client_stream_settings_do_not_serialize(&GreeterClient::new(
+        tls_channel_cfg(addr, client_tls, client_stream_settings()).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_extra_rpcs_do_not_wait_when_client_stream_settings_do_not_serialize() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        slow_uncapped().serve_unix(sock).await.ok();
+    });
+    assert_client_stream_settings_do_not_serialize(&GreeterClient::new(
+        unix_channel_with(&path, client_stream_settings()).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_extra_rpcs_do_not_wait_when_client_stream_settings_do_not_serialize() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        slow_uncapped().serve_connection(server_io).await.ok();
+    });
+    assert_client_stream_settings_do_not_serialize(&GreeterClient::new(
+        Channel::from_io_with(client_io, "localhost", client_stream_settings())
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
 }

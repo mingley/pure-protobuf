@@ -197,7 +197,9 @@ See `docs/upb.md`. Short list:
   HTTP/2 connection (a well-behaved client waits; both still complete) over
   TLS, mTLS, Unix, and `serve_connection`, distinct from wrapping only the
   generated Greeter setter and from `max_concurrent_rpcs` which refuses extras
-  as `RESOURCE_EXHAUSTED`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  as `RESOURCE_EXHAUSTED`. `ChannelConfig::max_concurrent_streams` advertises
+  client SETTINGS and does not serialize Slow RPCs (push is disabled) over TLS,
+  mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

@@ -730,6 +730,10 @@ impl ChannelConfig {
 
     /// Concurrent RPCs allowed per connection. Default 256.
     /// Applies to every call shape.
+    /// HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` the client advertises. Distinct
+    /// from [`ServerConfig::max_concurrent_streams`], which serializes extra
+    /// RPCs on the server. Push is disabled, including over TLS, mTLS, Unix,
+    /// and [`crate::Channel::from_io`].
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.max_concurrent_streams = streams;
