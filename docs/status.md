@@ -428,6 +428,12 @@ See `docs/upb.md`. Short list:
   shape, including over TLS, mTLS, Unix, and `from_io`. `FooServer::intercept` then
   `add_service` keeps that reject on every mount and every call shape,
   including over TLS, mTLS, Unix, and `from_io`.
+  `FooServer::on_response` / `Server::on_response` / `Router::on_response`
+  run after the handler returns `Ok`. `Response::extensions` is local;
+  stamp metadata to send a header. `Err` after the handler already ran
+  is trailers-only (including `with_error_details`). A handler `Err`
+  skips this hook. First registered runs first. Applies to every call
+  shape, including over TLS, mTLS, Unix, and `from_io`.
   The same `add_service` keeps `max_decoding_message_size` on every mount
   and every call shape, including over TLS, mTLS, Unix, and `from_io`.
   `max_encoding_message_size` then `add_service` keeps that outbound cap on

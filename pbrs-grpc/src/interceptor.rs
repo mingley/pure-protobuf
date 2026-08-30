@@ -1,5 +1,6 @@
 //! Interceptors: inspect an inbound [`Rpc`] or outbound [`crate::Outgoing`]
-//! before the handler or the wire.
+//! before the handler or the wire, or a [`crate::ResponseParts`] after the
+//! handler returns `Ok`.
 
 use crate::server::{Rpc, Service};
 use crate::status::Status;
@@ -74,6 +75,73 @@ where
 {
     fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status> {
         self(rpc)
+    }
+}
+
+/// Inspect an outbound [`crate::ResponseParts`] after the handler returns
+/// `Ok`, before headers go out.
+///
+/// Return `Err` to replace the response with trailers-only; `Ok` to send
+/// the (possibly mutated) envelope. Closures with this signature implement
+/// the trait, so most hooks are one function. Typed values on
+/// [`crate::Response::extensions`] are visible here — they are not headers
+/// and they are not on the wire. Stamp
+/// [`crate::ResponseParts::metadata_mut`] to send a header, or
+/// [`crate::ResponseParts::trailers_mut`] for trailing metadata that ships
+/// with `grpc-status`. Distinct from [`Interceptor`], which runs before
+/// the handler.
+///
+/// `Err` after the handler already ran; that status is sent trailers-only
+/// instead of the response, including [`crate::Status::with_error_details`].
+/// A handler `Err` skips this hook. On a stream, headers have not gone
+/// out yet, so a rejected envelope never ships DATA. Applies to every
+/// call shape, including over TLS, mTLS, Unix, and
+/// [`crate::Server::serve_connection`].
+///
+/// Attach one with [`crate::Server::on_response`],
+/// [`crate::Router::on_response`], or the generated `FooServer::on_response`.
+/// Calling any of them twice stacks (first interceptor first).
+///
+/// ```
+/// use pbrs_grpc::{ResponseParts, Status};
+///
+/// fn stamp_trace(parts: &mut ResponseParts) -> Result<(), Status> {
+///     if let Some(n) = parts.extensions().get::<u8>().copied() {
+///         parts.metadata_mut().insert("x-trace", n.to_string())?;
+///     }
+///     Ok(())
+/// }
+/// # let _ = stamp_trace;
+/// ```
+pub trait ResponseInterceptor: Send + Sync + 'static {
+    /// Inspect and mutate the envelope. Called after the handler returns
+    /// `Ok`, before headers go out.
+    fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
+}
+
+impl<F> ResponseInterceptor for F
+where
+    F: Fn(&mut crate::ResponseParts) -> Result<(), Status> + Send + Sync + 'static,
+{
+    fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status> {
+        self(parts)
+    }
+}
+
+pub(crate) type ResponseHook = Arc<dyn ResponseInterceptor>;
+
+/// Run `hook` on `response` after the handler returned `Ok`.
+pub(crate) fn intercept_response<T>(
+    response: crate::Response<T>,
+    hook: Option<&dyn ResponseInterceptor>,
+) -> Result<crate::Response<T>, Status> {
+    match hook {
+        None => Ok(response),
+        Some(hook) => {
+            let (msg, mut parts) = response.into_message_and_parts();
+            hook.intercept(&mut parts)?;
+            Ok(crate::Response::from_message_and_parts(msg, parts))
+        }
     }
 }
 
@@ -278,6 +346,28 @@ impl<I: Interceptor> Interceptor for Then<I> {
     }
 }
 
+/// Run `prev` then `next`. Used by [`crate::Server::on_response`] and
+/// [`crate::Router::on_response`] so calling them twice stacks instead of
+/// replacing.
+pub(crate) struct ResponseThen<I> {
+    prev: Arc<dyn ResponseInterceptor>,
+    next: I,
+}
+
+impl<I> ResponseThen<I> {
+    /// Stack `next` after `prev`.
+    pub(crate) fn new(prev: Arc<dyn ResponseInterceptor>, next: I) -> Self {
+        Self { prev, next }
+    }
+}
+
+impl<I: ResponseInterceptor> ResponseInterceptor for ResponseThen<I> {
+    fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status> {
+        self.prev.intercept(parts)?;
+        self.next.intercept(parts)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::ServiceExt;
@@ -302,5 +392,43 @@ mod tests {
         let b = a.clone();
         assert!(format!("{a:?}").contains("dummy.Dummy"));
         assert!(format!("{b:?}").contains("dummy.Dummy"));
+    }
+
+    #[test]
+    fn response_interceptors_stack_first_registered_first() {
+        fn first(parts: &mut crate::ResponseParts) -> Result<(), crate::Status> {
+            parts.metadata_mut().insert("x-stack", "a")?;
+            Ok(())
+        }
+        fn second(parts: &mut crate::ResponseParts) -> Result<(), crate::Status> {
+            let prev = parts.metadata().get("x-stack").unwrap_or("").to_owned();
+            parts.metadata_mut().set("x-stack", format!("{prev}b"))?;
+            Ok(())
+        }
+        let stacked = super::ResponseThen::new(std::sync::Arc::new(first), second);
+        let resp =
+            super::intercept_response(crate::Response::new(1u32), Some(&stacked)).expect("stack");
+        assert_eq!(resp.metadata().get("x-stack"), Some("ab"));
+    }
+
+    #[test]
+    fn response_interceptor_stamps_metadata_from_extensions() {
+        fn stamp(parts: &mut crate::ResponseParts) -> Result<(), crate::Status> {
+            if let Some(n) = parts.extensions().get::<u8>().copied() {
+                parts.metadata_mut().insert("x-from-ext", n.to_string())?;
+            }
+            Ok(())
+        }
+        let mut resp = crate::Response::new(1u32);
+        resp.extensions_mut().insert(7u8);
+        let resp = super::intercept_response(resp, Some(&stamp)).expect("stamp");
+        assert_eq!(resp.metadata().get("x-from-ext"), Some("7"));
+        assert_eq!(resp.extensions().get::<u8>().copied(), Some(7));
+    }
+
+    #[test]
+    fn response_interceptor_none_is_identity() {
+        let resp = super::intercept_response(crate::Response::new(1u32), None).expect("none");
+        assert!(resp.metadata().is_empty());
     }
 }

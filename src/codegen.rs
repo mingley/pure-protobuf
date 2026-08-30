@@ -4297,6 +4297,20 @@ fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
+        "    /// Run `interceptor` after `{trait_name}` methods return `Ok`. It may mutate headers, trailers, compress, and local extensions (`Response::extensions` is not on the wire; stamp metadata here to send it). Calling this twice stacks: the first interceptor runs first. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. `Err` after the handler already ran; that status is sent trailers-only instead of the response, including [`{G}::Status::with_error_details`]. A handler `Err` skips this hook."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn on_response<I>(self, interceptor: I) -> {G}::Server<Self>"
+    );
+    let _ = writeln!(src, "    where");
+    let _ = writeln!(src, "        I: {G}::ResponseInterceptor,");
+    let _ = writeln!(src, "    {{");
+    let _ = writeln!(src, "        self.into_server().on_response(interceptor)");
+    let _ = writeln!(src, "    }}");
+    let _ = writeln!(
+        src,
         "    /// Mount alongside another service. [`Self::max_decoding_message_size`] and [`Self::max_encoding_message_size`] stay in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
     );
     let _ = writeln!(src, "    #[must_use]");

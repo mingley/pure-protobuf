@@ -3991,6 +3991,18 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server intercept rustdoc must name a single intercept reject on every transport"
     );
     assert!(
+        src.contains("`Response::extensions` is not on the wire; stamp metadata here to send it."),
+        "generated on_response rustdoc must Distinct extensions from wire metadata"
+    );
+    assert!(
+        src.contains("`Err` after the handler already ran; that status is sent trailers-only instead of the response"),
+        "generated on_response rustdoc must name trailers-only after the handler"
+    );
+    assert!(
+        src.contains("A handler `Err` skips this hook."),
+        "generated on_response rustdoc must name handler Err skip"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

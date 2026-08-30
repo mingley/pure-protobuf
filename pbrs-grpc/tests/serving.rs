@@ -27,10 +27,10 @@ use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloR
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, FusedStream, Identity,
     Incoming, InteropTestService, MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity,
-    Request, Response, ResponseParameters, Router, Rpc, Server, ServerConfig, ServerTls, Service,
-    ServiceExt, SimpleRequest, SimpleResponse, Status, StreamingInputCallRequest,
-    StreamingInputCallResponse, StreamingOutputCallRequest, StreamingOutputCallResponse,
-    TestService, TestServiceClient, TestServiceServer,
+    Request, Response, ResponseParameters, ResponseParts, Router, Rpc, Server, ServerConfig,
+    ServerTls, Service, ServiceExt, SimpleRequest, SimpleResponse, Status,
+    StreamingInputCallRequest, StreamingInputCallResponse, StreamingOutputCallRequest,
+    StreamingOutputCallResponse, TestService, TestServiceClient, TestServiceServer,
 };
 use std::collections::HashSet;
 use std::net::SocketAddr;
@@ -828,6 +828,23 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::intercept rustdoc must name a single intercept reject on every transport"
     );
     assert!(
+        intercept.contains("`Ok`, before headers go out."),
+        "ResponseInterceptor rustdoc must name after Ok, before headers"
+    );
+    assert!(
+        intercept
+            .contains("`Err` after the handler already ran; that status is sent trailers-only"),
+        "ResponseInterceptor rustdoc must name trailers-only after the handler"
+    );
+    assert!(
+        intercept.contains("A handler `Err` skips this hook."),
+        "ResponseInterceptor rustdoc must name handler Err skip"
+    );
+    assert!(
+        intercept.contains("they are not on the wire. Stamp"),
+        "ResponseInterceptor rustdoc must Distinct extensions from wire metadata"
+    );
+    assert!(
         src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),
@@ -1409,6 +1426,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must not list Response extensions as an omission"
     );
     assert!(
+        guide.contains("`Server::on_response` (and the generated"),
+        "guide must name Server::on_response as the response interceptor hook"
+    );
+    assert!(
+        !guide.contains("| Response interceptors |"),
+        "guide must not list Response interceptors as an omission"
+    );
+    assert!(
         guide.contains("`Channel::connected` is a snapshot of live sockets"),
         "guide must name Channel::connected as a live-socket snapshot"
     );
@@ -1782,6 +1807,22 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
+            "Those extensions are not on the\n    /// wire; stamp [`crate::ResponseParts::metadata_mut`] to send a header."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct extensions from wire metadata"
+    );
+    assert_eq!(
+        src.matches(
+            "`Err` after the handler already ran; that status is sent trailers-only\n    /// instead of the response, including [`Status::with_error_details`].\n    /// A handler `Err` skips this hook."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must name trailers-only after the handler"
+    );
+    assert_eq!(
+        src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         )
         .count(),
@@ -1838,6 +1879,12 @@ fn request_deadline_documents_every_transport() {
     assert!(
         src.contains("A received reply starts empty: the peer\n    /// cannot insert here."),
         "Response::extensions must name that a received reply starts empty"
+    );
+    assert!(
+        src.contains(
+            "A [`crate::ResponseInterceptor`]\n    /// can read this map and stamp [`Self::metadata`] that does go on the\n    /// wire."
+        ),
+        "Response::extensions must name ResponseInterceptor as the wire stamp"
     );
     assert!(
         src.contains(
@@ -14167,6 +14214,313 @@ async fn response_extensions_are_not_on_the_wire() {
         reply.extensions().get::<u8>().is_none(),
         "response extensions must not travel on the wire"
     );
+    task.abort();
+}
+
+fn stamp_from_ext(parts: &mut ResponseParts) -> Result<(), Status> {
+    if let Some(n) = parts.extensions().get::<u8>().copied() {
+        parts.metadata_mut().insert("x-from-ext", n.to_string())?;
+    }
+    Ok(())
+}
+
+fn stamp_hook(parts: &mut ResponseParts) -> Result<(), Status> {
+    parts.metadata_mut().insert("x-hook", "1")?;
+    parts.trailers_mut().insert("x-hook-end", "1")?;
+    Ok(())
+}
+
+fn deny_after_ok(_: &mut ResponseParts) -> Result<(), Status> {
+    Err(Status::permission_denied("hook"))
+}
+
+fn interceptor_stack_a(parts: &mut ResponseParts) -> Result<(), Status> {
+    parts.metadata_mut().insert("x-stack", "a")?;
+    Ok(())
+}
+
+fn interceptor_stack_b(parts: &mut ResponseParts) -> Result<(), Status> {
+    let prev = parts.metadata().get("x-stack").unwrap_or("").to_owned();
+    parts.metadata_mut().set("x-stack", format!("{prev}b"))?;
+    Ok(())
+}
+
+struct CountedEcho {
+    ran: Arc<AtomicUsize>,
+}
+
+impl pbrs_grpc::Greeter for CountedEcho {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        self.ran.fetch_add(1, Ordering::SeqCst);
+        Ok(Response::new(common::reply(name_of_request(
+            request.get_ref(),
+        ))))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("counted-echo"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("counted-echo"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("counted-echo"))
+    }
+}
+
+struct FailHello;
+
+impl pbrs_grpc::Greeter for FailHello {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::internal("nope"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("fail-hello"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("fail-hello"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("fail-hello"))
+    }
+}
+
+async fn echo_hook_every_shape(client: &GreeterClient) {
+    let resp = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(resp.get_ref()), "ada");
+    assert_eq!(resp.metadata().get("x-hook"), Some("1"), "unary header");
+    assert_eq!(
+        resp.trailers().get("x-hook-end"),
+        Some("1"),
+        "unary trailer"
+    );
+
+    let resp = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert_eq!(
+        resp.metadata().get("x-hook"),
+        Some("1"),
+        "server-stream header"
+    );
+    let mut stream = resp.into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(stream.message().await.expect("end").is_none());
+    let trailers = stream.trailers().await.expect("trailers");
+    assert_eq!(
+        trailers.get("x-hook-end"),
+        Some("1"),
+        "server-stream trailer"
+    );
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("client-stream");
+    assert_eq!(name_of(resp.get_ref()), "ada");
+    assert_eq!(
+        resp.metadata().get("x-hook"),
+        Some("1"),
+        "client-stream header"
+    );
+    assert_eq!(
+        resp.trailers().get("x-hook-end"),
+        Some("1"),
+        "client-stream trailer"
+    );
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("bidi");
+    assert_eq!(resp.metadata().get("x-hook"), Some("1"), "bidi header");
+    let mut inbound = resp.into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(inbound.message().await.expect("end").is_none());
+    let trailers = inbound.trailers().await.expect("bidi trailers");
+    assert_eq!(trailers.get("x-hook-end"), Some("1"), "bidi trailer");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_interceptor_stamps_metadata_from_extensions() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(StampExt)
+            .on_response(stamp_from_ext)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel_with(addr, ChannelConfig::new()).await);
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    assert_eq!(reply.metadata().get("x-local"), Some("1"));
+    assert_eq!(reply.metadata().get("x-from-ext"), Some("7"));
+    assert!(
+        reply.extensions().get::<u8>().is_none(),
+        "response extensions must still not travel on the wire"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_interceptor_stamps_every_call_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .on_response(stamp_hook)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_hook_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_interceptor_err_is_trailers_only_after_handler() {
+    let ran = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let ran = Arc::clone(&ran);
+        async move {
+            GreeterServer::new(CountedEcho { ran })
+                .on_response(deny_after_ok)
+                .serve_listener(listener)
+                .await
+                .ok();
+        }
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("hook must replace the response");
+    assert_eq!(err.code(), Code::PermissionDenied);
+    assert_eq!(ran.load(Ordering::SeqCst), 1, "handler must have run");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn handler_err_skips_the_response_interceptor() {
+    let ran = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let ran = Arc::clone(&ran);
+        async move {
+            GreeterServer::new(FailHello)
+                .on_response(move |parts: &mut ResponseParts| {
+                    ran.fetch_add(1, Ordering::SeqCst);
+                    stamp_hook(parts)
+                })
+                .serve_listener(listener)
+                .await
+                .ok();
+        }
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("handler Err");
+    assert_eq!(err.code(), Code::Internal);
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        0,
+        "handler Err must skip the response interceptor"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_interceptors_stack_first_registered_first() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .on_response(interceptor_stack_a)
+            .on_response(interceptor_stack_b)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(reply.metadata().get("x-stack"), Some("ab"));
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn on_response_survives_add_service() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .on_response(stamp_hook)
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let greeter = GreeterClient::new(channel(addr).await);
+    let reply = greeter
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    assert_eq!(reply.metadata().get("x-hook"), Some("1"));
+    let empty = TestServiceClient::new(channel(addr).await)
+        .empty_call(Request::new(Empty::new()))
+        .await
+        .expect("empty");
+    assert_eq!(empty.metadata().get("x-hook"), Some("1"));
     task.abort();
 }
 

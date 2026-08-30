@@ -1602,7 +1602,9 @@ impl<T> Response<T> {
     /// Empty on a reply you built until something inserts into
     /// [`Self::extensions_mut`]. A received reply starts empty: the peer
     /// cannot insert here. Same map on [`ResponseParts::extensions`] after
-    /// [`Self::into_message_and_parts`].
+    /// [`Self::into_message_and_parts`]. A [`crate::ResponseInterceptor`]
+    /// can read this map and stamp [`Self::metadata`] that does go on the
+    /// wire.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions

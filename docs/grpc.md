@@ -330,6 +330,9 @@ request: `Response::into_message_and_parts` yields `ResponseParts` (initial
 headers, trailers, the gzip flag, and local extensions). Rebuild with
 `from_message_and_parts`. `Response::extensions` is local typed context, not
 on the wire. Distinct from metadata. A received reply starts empty.
+A `ResponseInterceptor` (`Server::on_response`, `Router::on_response`,
+generated `FooServer::on_response`) can read that map and stamp metadata
+that does go on the wire.
 
 To attach metadata to an *error*, put it on the `Status`; error responses have
 no separate trailers:
@@ -1494,6 +1497,15 @@ first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
 onion-style. That reject-and-stack contract is the same on every call
 shape, including over TLS, mTLS, Unix, and `from_io`.
 
+`Server::on_response` (and the generated `FooServer::on_response`, and
+`Router::on_response`) runs after the handler returns `Ok`, before headers
+go out. Closures take `ResponseParts`. `Response::extensions` is local typed
+context; stamp metadata here to send a header. Calling it twice stacks:
+the first interceptor runs first. `Err` after the handler already ran; that
+status is sent trailers-only instead of the response. A handler `Err` skips
+this hook. Applies to every call shape, including over TLS, mTLS, Unix, and
+`from_io`.
+
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs when the RPC method is invoked — before the stream opens and before the
 `Call` is polled, for all four call shapes, on h2c, TLS (including mTLS), Unix,
@@ -1818,7 +1830,6 @@ Deliberate omissions, with what to do instead.
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
-| Response interceptors | Interceptors run before the handler. Inspect or rewrite the result in the method. |
 | Channel connectivity state | `Channel::connected` is a snapshot of live sockets. There is no `GetState` / `WaitForStateChange`. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |

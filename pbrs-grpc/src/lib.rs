@@ -105,7 +105,7 @@
 //! | TLS | [`Identity`], [`ServerTls`], [`ClientTls`], [`PeerIdentity`] |
 //! | Health | [`health`] |
 //! | Reflection | [`reflection`] |
-//! | Interceptors | [`Interceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
+//! | Interceptors | [`Interceptor`], [`ResponseInterceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Parts`], [`Response`], [`ResponseParts`], [`Metadata`], [`Status`], [`Code`], [`ParseCodeError`], [`Any`] |
 //! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`Status::set_rpc`], [`pb::bad_request`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`], [`FusedStream`] |
@@ -307,7 +307,9 @@ pub use futures_core::stream::FusedStream;
 pub use futures_core::Stream;
 /// Per-RPC typed bag: insert in an interceptor, read in the handler.
 pub use http::Extensions;
-pub use interceptor::{ClientInterceptor, Intercepted, Interceptor, ServiceExt};
+pub use interceptor::{
+    ClientInterceptor, Intercepted, Interceptor, ResponseInterceptor, ServiceExt,
+};
 pub use limits::{MessageLimits, DEFAULT_MAX_DECODING_MESSAGE_SIZE};
 pub use metadata::Metadata;
 pub use pb::{Any, ErrorDetails};

@@ -181,7 +181,11 @@ StreamingInputCall stay under a 16-byte encode cap). A wrapping `Service` `Rpc::
 the call away before the inner `call` on those transports too.
 Interceptor extensions on `Rpc` reach handler `Request` / `Parts` on those
 transports. `Response::extensions` is local typed context, not on the wire.
-Distinct from metadata. A received reply starts empty. Closures see `Rpc` (path, service/method,
+Distinct from metadata. A received reply starts empty. `Server::on_response` /
+`Router::on_response` / `FooServer::on_response` run after the handler
+returns `Ok`, before headers. Closures see `ResponseParts` and may stamp
+metadata from those extensions. `Err` after the handler already ran is
+trailers-only. A handler `Err` skips this hook. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
@@ -226,8 +230,6 @@ RPC method is invoked, not when the `Call` is first polled. `Err` fails that
 is sent. `Outgoing::set_timeout` is that Call's deadline on every call shape.
 Bind borrowed getters
 before `metadata_mut`.
-
-Response-side interceptors are a documented omission.
 
 ### Status
 

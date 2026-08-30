@@ -250,6 +250,7 @@ pub struct Rpc {
     extensions: http::Extensions,
     metadata: Metadata,
     timeout: Option<Duration>,
+    response_interceptor: Option<crate::interceptor::ResponseHook>,
 }
 
 impl std::fmt::Debug for Rpc {
@@ -599,6 +600,7 @@ impl Rpc {
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<Response<Resp>, Status>>,
     {
+        let hook = self.response_interceptor.clone();
         let Some(Prepared {
             mut respond,
             wire,
@@ -612,7 +614,9 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            match outcome {
+            match outcome.and_then(|response| {
+                crate::interceptor::intercept_response(response, hook.as_deref())
+            }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
                     send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip)
@@ -646,6 +650,7 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Resp>, Status>>,
     {
+        let hook = self.response_interceptor.clone();
         let Some(Prepared {
             mut respond,
             wire,
@@ -659,7 +664,9 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            match outcome {
+            match outcome.and_then(|response| {
+                crate::interceptor::intercept_response(response, hook.as_deref())
+            }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
                     send_unary_response(response, respond, wire, prefer_gzip, peer_accepts_gzip)
@@ -700,6 +707,7 @@ impl Rpc {
         F: FnOnce(Request<Req>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
+        let hook = self.response_interceptor.clone();
         let Some(Prepared {
             mut respond,
             wire,
@@ -713,7 +721,9 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            match outcome {
+            match outcome.and_then(|response| {
+                crate::interceptor::intercept_response(response, hook.as_deref())
+            }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
                     send_stream_response(
@@ -761,6 +771,7 @@ impl Rpc {
         F: FnOnce(Request<Streaming<Req>>) -> Fut,
         Fut: Future<Output = Result<Response<Streaming<Resp>>, Status>>,
     {
+        let hook = self.response_interceptor.clone();
         let Some(Prepared {
             mut respond,
             wire,
@@ -774,7 +785,9 @@ impl Rpc {
             return;
         };
         hold_cancel(cancel, async move {
-            match outcome {
+            match outcome.and_then(|response| {
+                crate::interceptor::intercept_response(response, hook.as_deref())
+            }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
                     send_stream_response(
@@ -821,6 +834,7 @@ impl Rpc {
             extensions,
             metadata,
             timeout: _,
+            response_interceptor: _,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -898,6 +912,7 @@ impl Rpc {
             extensions,
             metadata,
             timeout: _,
+            response_interceptor: _,
         } = self;
         let limits = config.limits();
         let deadline = timeout.map(|d| tokio::time::Instant::now() + d);
@@ -1238,6 +1253,7 @@ pub struct Server<S> {
     service: Arc<S>,
     config: ServerConfig,
     interceptor: Option<Arc<dyn crate::Interceptor>>,
+    response_interceptor: Option<crate::interceptor::ResponseHook>,
 }
 
 impl<S> Clone for Server<S> {
@@ -1246,6 +1262,7 @@ impl<S> Clone for Server<S> {
             service: Arc::clone(&self.service),
             config: self.config,
             interceptor: self.interceptor.clone(),
+            response_interceptor: self.response_interceptor.clone(),
         }
     }
 }
@@ -1256,6 +1273,10 @@ impl<S: Service> std::fmt::Debug for Server<S> {
             .field("service", &S::NAME)
             .field("config", &self.config)
             .field("interceptors", &self.interceptor.is_some())
+            .field(
+                "response_interceptors",
+                &self.response_interceptor.is_some(),
+            )
             .finish()
     }
 }
@@ -1268,6 +1289,7 @@ impl<S: Service> Server<S> {
             service,
             config: ServerConfig::default(),
             interceptor: None,
+            response_interceptor: None,
         }
     }
 
@@ -1284,6 +1306,7 @@ impl<S: Service> Server<S> {
             service: Arc::new(service),
             config: ServerConfig::default(),
             interceptor: None,
+            response_interceptor: None,
         }
     }
 
@@ -1567,11 +1590,38 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Run `interceptor` after the handler returns `Ok`.
+    ///
+    /// Closures implement [`crate::ResponseInterceptor`], so
+    /// `server.on_response(|parts| { ... })` is the usual form. The hook
+    /// sees [`crate::ResponseParts`]: headers, trailers, compress, and local
+    /// [`crate::Response::extensions`]. Those extensions are not on the
+    /// wire; stamp [`crate::ResponseParts::metadata_mut`] to send a header.
+    /// Calling this twice stacks: the first interceptor runs first, matching
+    /// [`Self::intercept`]. Applies to every call shape, including over TLS,
+    /// mTLS, Unix, and [`Self::serve_connection`].
+    /// `Err` after the handler already ran; that status is sent trailers-only
+    /// instead of the response, including [`Status::with_error_details`].
+    /// A handler `Err` skips this hook.
+    /// Generated servers expose the same method:
+    /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
+    /// On a [`Router`], call [`Router::on_response`] to cover every mounted
+    /// service.
+    #[must_use]
+    pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {
+        self.response_interceptor = Some(match self.response_interceptor {
+            None => Arc::new(interceptor),
+            Some(prev) => Arc::new(crate::interceptor::ResponseThen::new(prev, interceptor)),
+        });
+        self
+    }
+
     fn into_single(self) -> (Single<S>, ServerConfig) {
         (
             Single {
                 service: self.service,
                 interceptor: self.interceptor,
+                response_interceptor: self.response_interceptor,
             },
             self.config,
         )
@@ -1594,6 +1644,7 @@ impl<S: Service> Server<S> {
     pub fn into_router(self) -> Router {
         let mut router = Router::new().config(self.config).add_arc(self.service);
         router.interceptor = self.interceptor;
+        router.response_interceptor = self.response_interceptor;
         router
     }
 
@@ -1812,10 +1863,12 @@ impl<S: Service> Server<S> {
 struct Single<S> {
     service: Arc<S>,
     interceptor: Option<Arc<dyn crate::Interceptor>>,
+    response_interceptor: Option<crate::interceptor::ResponseHook>,
 }
 
 impl<S: Service> Dispatch for Single<S> {
     async fn dispatch(&self, mut rpc: Rpc) {
+        rpc.response_interceptor = self.response_interceptor.clone();
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
                 return rpc.reject(status);
@@ -1859,6 +1912,7 @@ pub struct Router {
     routes: HashMap<&'static str, Arc<dyn DynService>>,
     config: ServerConfig,
     interceptor: Option<Arc<dyn crate::Interceptor>>,
+    response_interceptor: Option<crate::interceptor::ResponseHook>,
 }
 
 impl std::fmt::Debug for Router {
@@ -1869,6 +1923,10 @@ impl std::fmt::Debug for Router {
             .field("services", &services)
             .field("config", &self.config)
             .field("interceptors", &self.interceptor.is_some())
+            .field(
+                "response_interceptors",
+                &self.response_interceptor.is_some(),
+            )
             .finish()
     }
 }
@@ -1881,6 +1939,7 @@ impl Router {
             routes: HashMap::new(),
             config: ServerConfig::default(),
             interceptor: None,
+            response_interceptor: None,
         }
     }
 
@@ -2152,6 +2211,28 @@ impl Router {
         self
     }
 
+    /// Run `interceptor` after the handler returns `Ok`.
+    ///
+    /// Closures implement [`crate::ResponseInterceptor`]. The hook sees
+    /// [`crate::ResponseParts`]: headers, trailers, compress, and local
+    /// [`crate::Response::extensions`]. Those extensions are not on the
+    /// wire; stamp [`crate::ResponseParts::metadata_mut`] to send a header.
+    /// Calling this twice stacks: the first interceptor runs first, matching
+    /// [`Self::intercept`]. Applies to every call shape, including over TLS,
+    /// mTLS, Unix, and [`Server::serve_connection`].
+    /// `Err` after the handler already ran; that status is sent trailers-only
+    /// instead of the response, including [`Status::with_error_details`].
+    /// A handler `Err` skips this hook.
+    /// Same surface as [`Server::on_response`].
+    #[must_use]
+    pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {
+        self.response_interceptor = Some(match self.response_interceptor {
+            None => Arc::new(interceptor),
+            Some(prev) => Arc::new(crate::interceptor::ResponseThen::new(prev, interceptor)),
+        });
+        self
+    }
+
     fn add_arc<S: Service>(mut self, service: Arc<S>) -> Self {
         self.routes.insert(S::NAME, service);
         self
@@ -2330,6 +2411,7 @@ impl Router {
 
 impl Dispatch for Router {
     async fn dispatch(&self, mut rpc: Rpc) {
+        rpc.response_interceptor = self.response_interceptor.clone();
         if let Some(interceptor) = &self.interceptor {
             if let Err(status) = interceptor.intercept(&mut rpc) {
                 return rpc.reject(status);
@@ -2868,6 +2950,7 @@ fn incoming_rpc(
         extensions: http::Extensions::new(),
         metadata,
         timeout: None,
+        response_interceptor: None,
     }
 }
 
