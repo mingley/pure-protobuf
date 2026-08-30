@@ -691,6 +691,45 @@ impl Status {
         self.error_details().ok()?.bad_request
     }
 
+    /// Packed `google.rpc.QuotaFailure`, if this status carries one.
+    ///
+    /// Distinct from [`Self::is_retryable`]: [`Code::ResourceExhausted`] is never
+    /// A6-retryable.
+    /// Distinct from [`Self::retry_delay`]: a wait hint can sit next to quota.
+    /// Distinct from [`Self::bad_request`]: that is a field path, not a quota subject.
+    /// Distinct from [`Self::resource_exhausted`], which is the ASCII code with no packed quota.
+    /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
+    /// Corrupt bytes are `None`. Build the payload with
+    /// [`crate::pb::QuotaFailure::with_violation`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     quota_failure: Some(QuotaFailure::with_violation("project:1", "tokens")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
+    /// assert!(!status.is_retryable());
+    /// let quota = status.quota_failure().expect("QuotaFailure");
+    /// assert_eq!(
+    ///     quota.violations()
+    ///         .get(0)
+    ///         .expect("subject")
+    ///         .subject()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "project:1"
+    /// );
+    /// assert!(Status::resource_exhausted("tokens").quota_failure().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn quota_failure(&self) -> Option<crate::pb::QuotaFailure> {
+        self.error_details().ok()?.quota_failure
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1505,6 +1544,64 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .bad_request()
+        .is_none());
+    }
+
+    #[test]
+    fn quota_failure_reads_packed_quota_subjects() {
+        let delay = std::time::Duration::from_millis(25);
+        let details = crate::pb::ErrorDetails {
+            quota_failure: Some(crate::pb::QuotaFailure::with_violation(
+                "project:1",
+                "tokens",
+            )),
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(delay)),
+            bad_request: Some(crate::pb::BadRequest::with_field("name", "required")),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status =
+            Status::from_error_details(Code::ResourceExhausted, "quota", &details).expect("encode");
+        assert!(!status.is_retryable());
+        assert_eq!(status.retry_delay(), Some(delay));
+        let quota = status.quota_failure().expect("QuotaFailure");
+        let subject = quota.violations().get(0).expect("subject");
+        assert_eq!(subject.subject().to_str().unwrap_or(""), "project:1");
+        assert_eq!(subject.description().to_str().unwrap_or(""), "tokens");
+        assert!(status.bad_request().is_some());
+
+        let retry_only = crate::pb::ErrorDetails {
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(delay)),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let retry_status =
+            Status::from_error_details(Code::ResourceExhausted, "quota", &retry_only)
+                .expect("encode");
+        assert!(retry_status.quota_failure().is_none());
+        assert_eq!(retry_status.retry_delay(), Some(delay));
+        assert!(!retry_status.is_retryable());
+
+        let bad_only = crate::pb::ErrorDetails {
+            bad_request: Some(crate::pb::BadRequest::with_field("name", "required")),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let bad_status =
+            Status::from_error_details(Code::InvalidArgument, "bad", &bad_only).expect("encode");
+        assert!(bad_status.quota_failure().is_none());
+        assert!(bad_status.bad_request().is_some());
+
+        assert!(Status::resource_exhausted("tokens")
+            .quota_failure()
+            .is_none());
+        assert!(Status::resource_exhausted("tokens")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .quota_failure()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .quota_failure()
         .is_none());
     }
 

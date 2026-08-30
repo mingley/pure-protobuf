@@ -1684,6 +1684,48 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "BadRequest::with_field must Distinct ASCII invalid_argument"
     );
     assert!(
+        crate_src.contains("[`Status::quota_failure`]"),
+        "crate map must name Status::quota_failure"
+    );
+    assert!(
+        crate_src.contains("[`pb::QuotaFailure::with_violation`]"),
+        "crate map must name QuotaFailure::with_violation"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.QuotaFailure`, if this status carries one."),
+        "Status::quota_failure must name packed QuotaFailure"
+    );
+    assert!(
+        status_src
+            .contains("Distinct from [`Self::is_retryable`]: [`Code::ResourceExhausted`] is never"),
+        "Status::quota_failure must Distinct RESOURCE_EXHAUSTED from A6 retryable"
+    );
+    assert!(
+        status_src.contains("wait hint can sit next to quota"),
+        "Status::quota_failure must Distinct retry_delay wait hint"
+    );
+    assert!(
+        status_src
+            .contains("Distinct from [`Self::bad_request`]: that is a field path, not a quota"),
+        "Status::quota_failure must Distinct field path from quota subject"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::resource_exhausted`], which is"),
+        "Status::quota_failure must Distinct ASCII resource_exhausted"
+    );
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::quota_failure`]"),
+        "QuotaFailure::with_violation must name Status::quota_failure unpack"
+    );
+    assert!(
+        pb_src.contains("never A6-retryable"),
+        "QuotaFailure::with_violation must Distinct RESOURCE_EXHAUSTED from A6 retryable"
+    );
+    assert!(
+        pb_src.contains("Distinct from [`crate::Status::bad_request`]: that is a field path"),
+        "QuotaFailure::with_violation must Distinct field path from quota subject"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
@@ -1924,6 +1966,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from `status.error_info()`."),
         "guide must Distinct bad_request from error_info"
+    );
+    assert!(
+        guide.contains("`status.quota_failure()` for quota subjects"),
+        "guide must name Status::quota_failure as quota subjects"
+    );
+    assert!(
+        guide.contains("`QuotaFailure::with_violation` builds that payload"),
+        "guide must name QuotaFailure::with_violation as the builder"
+    );
+    assert!(
+        guide.contains("Distinct from `status.is_retryable()`."),
+        "guide must Distinct quota_failure from is_retryable"
+    );
+    assert!(
+        guide.contains("Distinct from `status.bad_request()`."),
+        "guide must Distinct quota_failure from bad_request"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),

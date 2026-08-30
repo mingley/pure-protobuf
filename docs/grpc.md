@@ -388,12 +388,14 @@ if let Some(retry) = details.retry_info {
 Or `status.retry_delay()` for that wait hint without unpacking the bag. Distinct from `status.is_retryable()`: a delay is not permission to retry.
 Or `status.error_info()` for the reason and domain without unpacking the bag. Distinct from `status.error_details()`.
 Or `status.bad_request()` for field violations without unpacking the bag. Distinct from `status.error_info()`. `BadRequest::with_field` builds that payload.
+Or `status.quota_failure()` for quota subjects without unpacking the bag. Distinct from `status.is_retryable()`. `QuotaFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 
 Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `Help.Link` — live in modules named after the parent:
 `pb::bad_request::FieldViolation`, `pb::quota_failure::Violation`,
 `pb::help::Link`. `RetryInfo::with_retry_delay` takes a `std::time::Duration`.
 `BadRequest::with_field` builds one field violation.
+`QuotaFailure::with_violation` builds one quota subject.
 
 Raw bytes still work (`Status::set_details`) when you are forwarding a trailer
 you do not parse.

@@ -224,6 +224,58 @@ impl BadRequest {
     }
 }
 
+impl quota_failure::Violation {
+    /// A quota `subject` with `description`.
+    ///
+    /// Packed as part of [`QuotaFailure::with_violation`]. Distinct from
+    /// [`FieldViolation::with_field`]: that is a request field path, not a
+    /// quota subject.
+    #[must_use]
+    pub fn with_subject(subject: impl Into<String>, description: impl Into<String>) -> Self {
+        let mut violation = Self::new();
+        violation.set_subject(subject.into());
+        violation.set_description(description.into());
+        violation
+    }
+}
+
+impl QuotaFailure {
+    /// `QuotaFailure` with one [`quota_failure::Violation`].
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::quota_failure`]. Distinct from
+    /// [`crate::Status::is_retryable`]: [`crate::Code::ResourceExhausted`] is
+    /// never A6-retryable. Distinct from [`crate::Status::retry_delay`]: a
+    /// wait hint can sit next to quota.
+    /// Distinct from [`crate::Status::bad_request`]: that is a field path, not a quota subject.
+    /// Distinct from [`crate::Status::resource_exhausted`], which is the ASCII
+    /// code with no packed quota.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     quota_failure: Some(QuotaFailure::with_violation("project:1", "tokens")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
+    /// assert!(!status.is_retryable());
+    /// let quota = status.quota_failure().expect("QuotaFailure");
+    /// assert_eq!(
+    ///     quota.violations().get(0).expect("subject").subject().to_str().unwrap_or(""),
+    ///     "project:1"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_violation(subject: impl Into<String>, description: impl Into<String>) -> Self {
+        let mut quota = Self::new();
+        quota.set_violations([quota_failure::Violation::with_subject(subject, description)]);
+        quota
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -623,5 +675,26 @@ mod tests {
         let field = got.field_violations().get(0).expect("field");
         assert_eq!(field.field().to_str().unwrap_or(""), "email");
         assert_eq!(field.description().to_str().unwrap_or(""), "invalid");
+    }
+
+    #[test]
+    fn quota_failure_with_violation_round_trips() {
+        let violation = quota_failure::Violation::with_subject("project:1", "tokens");
+        assert_eq!(violation.subject().to_str().unwrap_or(""), "project:1");
+        assert_eq!(violation.description().to_str().unwrap_or(""), "tokens");
+        let quota = QuotaFailure::with_violation("client:9", "qps");
+        let details = ErrorDetails {
+            quota_failure: Some(quota),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::ResourceExhausted, "quota", &details)
+            .expect("encode");
+        assert!(!status.is_retryable());
+        let got = status.quota_failure().expect("QuotaFailure");
+        let subject = got.violations().get(0).expect("subject");
+        assert_eq!(subject.subject().to_str().unwrap_or(""), "client:9");
+        assert_eq!(subject.description().to_str().unwrap_or(""), "qps");
+        assert!(status.retry_delay().is_none());
+        assert!(status.bad_request().is_none());
     }
 }
