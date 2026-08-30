@@ -147,6 +147,19 @@ where
 ///     if let Some(n) = parts.extensions().get::<u8>().copied() {
 ///         parts.metadata_mut().insert("x-trace", n.to_string())?;
 ///     }
+///     let _ = (
+///         parts.path(),
+///         parts.gzip_level(),
+///         parts.compresses_outbound(),
+///         parts.accepts_gzip(),
+///         parts.deadline(),
+///         parts.timeout(),
+///         parts.limits(),
+///         parts.peer_timeout(),
+///         parts.rpc_timeout(),
+///         parts.accepts_compressed(),
+///         parts.send_buffer_size(),
+///     );
 ///     Ok(())
 /// }
 /// # let _ = stamp_trace;

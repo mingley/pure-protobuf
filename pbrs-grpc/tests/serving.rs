@@ -1788,6 +1788,22 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct send_buffer_size from encode caps"
     );
     assert!(
+        intercept.contains("///         parts.path(),"),
+        "ResponseInterceptor rustdoc example must read path"
+    );
+    assert!(
+        intercept.contains("///         parts.gzip_level(),"),
+        "ResponseInterceptor rustdoc example must read gzip_level"
+    );
+    assert!(
+        intercept.contains("///         parts.send_buffer_size(),"),
+        "ResponseInterceptor rustdoc example must read send_buffer_size"
+    );
+    assert!(
+        intercept.contains("///         parts.limits(),"),
+        "ResponseInterceptor rustdoc example must read limits"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
