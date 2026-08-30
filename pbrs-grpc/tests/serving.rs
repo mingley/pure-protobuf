@@ -3433,6 +3433,220 @@ async fn a_from_io_client_interceptor_can_reapply_channel_gzip_after_clear() {
 }
 
 #[tokio::test]
+async fn a_test_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(channel(addr).await.send_compressed())
+        .intercept(reapply_channel_gzip);
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(tls_channel(addr).await.send_compressed())
+        .intercept(reapply_channel_gzip);
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::new(tls_channel_with(addr, client_tls).await.send_compressed())
+        .intercept(reapply_channel_gzip);
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(unix_channel(&path).await.send_compressed())
+        .intercept(reapply_channel_gzip);
+    gzip_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .send_compressed(),
+    )
+    .intercept(reapply_channel_gzip);
+    gzip_test_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    gzip_reverser_every_shape(
+        &channel(addr)
+            .await
+            .send_compressed()
+            .intercept(reapply_channel_gzip),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    gzip_reverser_every_shape(
+        &tls_channel(addr)
+            .await
+            .send_compressed()
+            .intercept(reapply_channel_gzip),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    );
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    gzip_reverser_every_shape(
+        &tls_channel_with(addr, client_tls)
+            .await
+            .send_compressed()
+            .intercept(reapply_channel_gzip),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    gzip_reverser_every_shape(
+        &unix_channel(&path)
+            .await
+            .send_compressed()
+            .intercept(reapply_channel_gzip),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let server = tokio::spawn(async move {
+        Server::new(service)
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    gzip_reverser_every_shape(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .send_compressed()
+            .intercept(reapply_channel_gzip),
+    )
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_reads_caller_extensions() {
     #[derive(Clone)]
     struct Tenant(String);
