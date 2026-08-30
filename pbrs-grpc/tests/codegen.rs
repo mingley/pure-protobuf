@@ -3725,6 +3725,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Mount alongside another service. [`Self::max_decoding_message_size`] stays in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated add_service rustdoc must name decode-cap on every mount and transport"
+    );
+    assert!(
+        src.contains(
             "Cap outbound messages at `limit` bytes. Default unlimited. Applies to every call shape."
         ),
         "generated max_encoding rustdoc must name every call shape"

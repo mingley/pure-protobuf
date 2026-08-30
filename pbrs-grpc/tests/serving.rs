@@ -22,9 +22,7 @@
 
 mod common;
 
-use common::{
-    greeter_client, name_of, name_of_request, req, serve_at, spawn_greeter, until_ok, Echo,
-};
+use common::{name_of, name_of_request, req, serve_at, spawn_greeter, until_ok, Echo};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, Identity, Incoming,
@@ -839,6 +837,12 @@ fn server_and_router_config_document_every_call_shape() {
     assert!(
         src.contains("TLS uses the client's [`crate::Target`], not SNI."),
         "Rpc::authority must name Target, not TLS SNI"
+    );
+    assert!(
+        src.contains(
+            "[`Self::max_decoding_message_size`] stays in effect on every mounted\n    /// service, on every call shape of those mounts, including over TLS, mTLS,\n    /// Unix, and [`Self::serve_connection`]."
+        ),
+        "Server::add_service must name decode-cap on every mount and transport"
     );
 }
 
@@ -9649,47 +9653,90 @@ async fn from_io_handler_that_ignores_its_request_stream_still_answers() {
 async fn config_flows_from_the_generated_server_to_the_router() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        GreeterServer::new(Echo)
-            .max_decoding_message_size(16)
-            .add_service(TestServiceServer::new(InteropTestService))
+        greeter_plus_test_with_decode_cap()
             .serve_listener(listener)
             .await
             .ok();
     });
-
-    let client = greeter_client(addr).await;
-    let oversize = req(&"x".repeat(64));
-    let err = client
-        .say_hello(Request::new(oversize.clone()))
-        .await
-        .expect_err("unary over the server cap");
-    assert_eq!(err.code(), Code::ResourceExhausted);
-    match client.server_hello(Request::new(oversize.clone())).await {
-        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
-        Ok(resp) => match resp.into_inner().message().await {
-            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
-            Ok(_) => panic!("server-stream over the server cap must fail"),
-        },
-    }
-    let (tx, call) = client.client_hello(Request::new(()));
-    tx.send(oversize.clone()).await.expect("send");
-    tx.close();
-    let err = call.await.expect_err("client-stream over the server cap");
-    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
-    let (tx, call) = client.stream_hello(Request::new(()));
-    tx.send(oversize).await.expect("send");
-    tx.close();
-    match call.await {
-        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
-        Ok(resp) => match resp.into_inner().message().await {
-            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
-            Ok(_) => panic!("bidi over the server cap must fail"),
-        },
-    }
-
-    assert_test_oversize_every_shape(&TestServiceClient::new(channel(addr).await)).await;
-
+    assert_add_service_decode_cap(
+        &GreeterClient::new(channel(addr).await),
+        &TestServiceClient::new(channel(addr).await),
+    )
+    .await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_config_flows_from_the_generated_server_to_the_router() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_plus_test_with_decode_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_add_service_decode_cap(
+        &GreeterClient::new(tls_channel(addr).await),
+        &TestServiceClient::new(tls_channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_config_flows_from_the_generated_server_to_the_router() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_plus_test_with_decode_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_add_service_decode_cap(
+        &GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        &TestServiceClient::new(tls_channel_with(addr, client_tls).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_config_flows_from_the_generated_server_to_the_router() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_plus_test_with_decode_cap()
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_add_service_decode_cap(
+        &GreeterClient::new(unix_channel(&path).await),
+        &TestServiceClient::new(unix_channel(&path).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_config_flows_from_the_generated_server_to_the_router() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        greeter_plus_test_with_decode_cap()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_add_service_decode_cap(&GreeterClient::new(ch.clone()), &TestServiceClient::new(ch))
+        .await;
+    server.abort();
 }
 
 #[test]
@@ -13559,6 +13606,50 @@ fn fat_test_payload() -> Payload {
     let mut p = Payload::new();
     p.set_body(vec![0u8; 64]);
     p
+}
+
+fn greeter_plus_test_with_decode_cap() -> Router {
+    GreeterServer::new(Echo)
+        .max_decoding_message_size(16)
+        .add_service(TestServiceServer::new(InteropTestService))
+}
+
+async fn assert_greeter_oversize_every_shape(client: &GreeterClient) {
+    let oversize = req(&"x".repeat(64));
+    let err = client
+        .say_hello(Request::new(oversize.clone()))
+        .await
+        .expect_err("unary over the server cap");
+    assert_eq!(err.code(), Code::ResourceExhausted);
+    match client.server_hello(Request::new(oversize.clone())).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream over the server cap must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(oversize.clone()).await.expect("send");
+    tx.close();
+    let err = call.await.expect_err("client-stream over the server cap");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(oversize).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi over the server cap must fail"),
+        },
+    }
+}
+
+async fn assert_add_service_decode_cap(greeter: &GreeterClient, test: &TestServiceClient) {
+    echo_every_shape(greeter, None).await;
+    echo_test_every_shape(test).await;
+    assert_greeter_oversize_every_shape(greeter).await;
+    assert_test_oversize_every_shape(test).await;
 }
 
 async fn assert_test_oversize_every_shape(client: &TestServiceClient) {

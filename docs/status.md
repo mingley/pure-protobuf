@@ -210,7 +210,8 @@ See `docs/upb.md`. Short list:
   `add_service` keeps that reject on every mount and every call shape,
   including over TLS, mTLS, Unix, and `from_io`.
   The same `add_service` keeps `max_decoding_message_size` on every mount
-  and every call shape.   Generated handlers see
+  and every call shape, including over TLS, mTLS, Unix, and `from_io`.
+  Generated handlers see
   `:authority` / `:scheme` / `Request` parts, a deadline Instant that
   elapses, TCP local/remote, Unix `peer_cred`, and `Incoming::peer`
   stamps on every call shape. A server interceptor `set_timeout` is the

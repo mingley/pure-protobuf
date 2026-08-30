@@ -1531,6 +1531,10 @@ impl<S: Service> Server<S> {
     }
 
     /// Add a second service, switching to path-based routing.
+    ///
+    /// [`Self::max_decoding_message_size`] stays in effect on every mounted
+    /// service, on every call shape of those mounts, including over TLS, mTLS,
+    /// Unix, and [`Self::serve_connection`].
     #[must_use]
     pub fn add_service<T: Service>(self, service: T) -> Router {
         self.into_router().add_service(service)

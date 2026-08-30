@@ -1159,7 +1159,8 @@ GreeterServer::new(MyGreeter)
 ```
 
 `FooServer::max_decoding_message_size` then `add_service` keeps that cap on
-every mounted service, on every call shape of those mounts.
+every mounted service, on every call shape of those mounts, including over
+TLS, mTLS, Unix, and `from_io`.
 
 Lifting the inbound cap entirely is possible and is only appropriate when
 every peer is trusted:
