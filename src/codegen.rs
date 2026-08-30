@@ -4770,6 +4770,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
+        "    /// Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`{G}::Channel::connected`]. Applies to every call shape."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn connected(&self) -> bool {{ self.channel.connected() }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Default per-RPC deadline when the request omits one. Distinct from [`Self::timeout`], which sets it. See [`{G}::Channel::rpc_timeout`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");

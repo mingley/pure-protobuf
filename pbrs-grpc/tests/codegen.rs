@@ -4102,6 +4102,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`::pbrs_grpc::Channel::connected`]. Applies to every call shape."
+        ),
+        "generated connected rustdoc must Distinct GetState"
+    );
+    assert!(
+        src.contains(
             "Open `connections` slots. See [`::pbrs_grpc::Channel::connect_pool`]. Applies to every call shape."
         ),
         "generated connect_pool rustdoc must name every call shape"

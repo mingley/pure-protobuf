@@ -212,6 +212,8 @@ impl Endpoint {
 /// does not postpone age. The next RPC of every call shape redials, including over
 /// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with
 /// [`Code::Unavailable`].
+/// [`Self::connected`] is whether any slot still holds that socket. Distinct
+/// from gRPC `GetState`: it does not dial, wait, or remember a failed attempt.
 ///
 /// [`Self::connect_lazy`] skips the initial dial so a client can exist
 /// before its server. The first RPC fails fast with [`Code::Unavailable`]
@@ -523,6 +525,31 @@ impl Channel {
     #[must_use]
     pub fn config(&self) -> ChannelConfig {
         self.config
+    }
+
+    /// Whether any pool slot currently holds a live HTTP/2 connection.
+    ///
+    /// Distinct from gRPC `GetState` / `WaitForStateChange`: this does not
+    /// dial, wait, or remember `TRANSIENT_FAILURE`. A `true` value can still
+    /// lose the race with a peer `GOAWAY`. After
+    /// [`ChannelConfig::max_connection_idle`] or
+    /// [`ChannelConfig::max_connection_age`], this is `false` until the next
+    /// RPC redials. [`Self::from_io`] stays `false` after that close.
+    /// Applies to every call shape, including over TLS, mTLS, and Unix.
+    #[must_use]
+    pub fn connected(&self) -> bool {
+        let mut contended = false;
+        for slot in &self.inner.slots {
+            match slot.try_lock() {
+                Ok(guard) => {
+                    if guard.send.is_some() {
+                        return true;
+                    }
+                }
+                Err(_) => contended = true,
+            }
+        }
+        contended
     }
 
     /// Cap inbound messages at `limit` bytes. Default 4 MiB.

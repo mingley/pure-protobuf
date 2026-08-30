@@ -1049,6 +1049,8 @@ cannot redial: an idle close there makes later RPCs fail with
 even while RPCs are in flight (jittered ±10%, then `max_connection_age_grace`);
 idle does not. New RPCs of every call shape redial, including over TLS, mTLS,
 and Unix. `from_io` cannot redial after that close.
+`Channel::connected` is a snapshot of live sockets. Distinct from gRPC
+`GetState`: it does not dial, wait, or remember a failed attempt.
 
 ## Compression
 
@@ -1817,7 +1819,7 @@ Deliberate omissions, with what to do instead.
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
 | Response interceptors | Interceptors run before the handler. Inspect or rewrite the result in the method. |
-| Channel connectivity state | A failed RPC is `UNAVAILABLE`. There is no `GetState` / `WaitForStateChange`. |
+| Channel connectivity state | `Channel::connected` is a snapshot of live sockets. There is no `GetState` / `WaitForStateChange`. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |

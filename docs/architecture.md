@@ -118,6 +118,7 @@ even when keepalive PINGs still fire; the next RPC redials on TLS, mTLS, and
 Unix. A long-running stream is not idle. `from_io` cannot redial after that
 close. `ChannelConfig::max_connection_age` closes the client socket even while
 RPCs are in flight; in-flight get grace, then the driver stops. Distinct from idle.
+`Channel::connected` is a snapshot of live sockets. Distinct from gRPC GetState.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on

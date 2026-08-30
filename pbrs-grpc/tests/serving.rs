@@ -724,6 +724,18 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "Distinct from gRPC `GetState` / `WaitForStateChange`: this does not\n    /// dial, wait, or remember `TRANSIENT_FAILURE`."
+        ),
+        "Channel::connected must Distinct gRPC GetState"
+    );
+    assert!(
+        src.contains(
+            "RPC redials. [`Self::from_io`] stays `false` after that close.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix."
+        ),
+        "Channel::connected must name idle/age redial on TLS, mTLS, and Unix"
+    );
+    assert!(
+        src.contains(
             "Run `interceptor` on every outbound RPC before the stream opens.\n    /// Applies to every call shape."
         ),
         "Channel::intercept must name every call shape"
@@ -1395,6 +1407,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         !guide.contains("| Response extensions |"),
         "guide must not list Response extensions as an omission"
+    );
+    assert!(
+        guide.contains("`Channel::connected` is a snapshot of live sockets"),
+        "guide must name Channel::connected as a live-socket snapshot"
+    );
+    assert!(
+        guide.contains("There is no `GetState` / `WaitForStateChange`."),
+        "guide must keep GetState as an omission"
     );
     assert!(
         guide
@@ -14148,6 +14168,72 @@ async fn response_extensions_are_not_on_the_wire() {
         "response extensions must not travel on the wire"
     );
     task.abort();
+}
+
+#[tokio::test]
+async fn a_lazy_channel_is_not_connected() {
+    let channel = Channel::connect_lazy("127.0.0.1:1").expect("lazy");
+    assert!(!channel.connected(), "connect_lazy must not hold a socket");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_connected_after_eager_connect() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let channel = channel_with(addr, ChannelConfig::new()).await;
+    assert!(channel.connected(), "eager connect holds a socket");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_idle_clears_connected() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let channel = channel_with(addr, client_idle_cfg()).await;
+    assert!(channel.connected(), "dial is live");
+    let client = GreeterClient::new(channel.clone());
+    echo_every_shape(&client, None).await;
+    assert!(channel.connected(), "rpcs reuse the dial");
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    assert!(!channel.connected(), "idle must drop the socket");
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        echo_every_shape(&client, Some(Duration::from_secs(5))),
+    )
+    .await
+    .expect("redial hung");
+    assert!(channel.connected(), "next RPC redials");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_from_io_age_clears_connected() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io_with(client_io, "localhost", client_age_cfg())
+        .await
+        .expect("from_io");
+    assert!(channel.connected(), "from_io holds the duplex");
+    let client = GreeterClient::new(channel.clone());
+    client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("before age");
+    tokio::time::sleep(Duration::from_millis(800)).await;
+    assert!(
+        !channel.connected(),
+        "from_io age must drop the socket without redial"
+    );
+    server.abort();
 }
 
 #[cfg(unix)]
