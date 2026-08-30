@@ -1365,6 +1365,11 @@ impl<S: Service> Server<S> {
 
     /// HTTP/2 per-stream receive window. Applies to every call shape.
     /// See [`ServerConfig::initial_stream_window_size`].
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
+    /// extra RPCs.
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_stream_window_size(bytes);
@@ -1373,6 +1378,11 @@ impl<S: Service> Server<S> {
 
     /// HTTP/2 per-connection receive window. Applies to every call shape.
     /// See [`ServerConfig::initial_connection_window_size`].
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
+    /// extra RPCs.
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_connection_window_size(bytes);
@@ -1943,6 +1953,11 @@ impl Router {
 
     /// HTTP/2 per-stream receive window. Applies to every call shape.
     /// See [`ServerConfig::initial_stream_window_size`].
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
+    /// extra RPCs.
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_stream_window_size(bytes);
@@ -1951,6 +1966,11 @@ impl Router {
 
     /// HTTP/2 per-connection receive window. Applies to every call shape.
     /// See [`ServerConfig::initial_connection_window_size`].
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
+    /// extra RPCs.
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.config = self.config.initial_connection_window_size(bytes);

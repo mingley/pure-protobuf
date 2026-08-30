@@ -3785,6 +3785,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated initial_connection_window_size rustdoc must name every call shape"
     );
     assert!(
+        src.contains(
+            "A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
+        ),
+        "generated window rustdoc must name still-serves Distinct from frame size and stream cap"
+    );
+    assert!(
         src.contains("HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape."),
         "generated max_frame_size rustdoc must name every call shape"
     );

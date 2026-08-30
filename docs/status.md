@@ -209,7 +209,10 @@ See `docs/upb.md`. Short list:
   generated Greeter setter, from header-list refuse, and from stream-cap
   serialize. `ChannelConfig::max_frame_size` advertises client SETTINGS and
   still serves every Greeter shape when a well-behaved server splits DATA over
-  TLS, mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  TLS, mTLS, Unix, and `from_io`. Generated `FooServer::initial_stream_window_size`
+  / `initial_connection_window_size` still serve every Greeter shape at a 64 KiB
+  stream / 128 KiB connection window over TLS, mTLS, Unix, and `serve_connection`,
+  distinct from frame-size still-serves and stream-cap serialize. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

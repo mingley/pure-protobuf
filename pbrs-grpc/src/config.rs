@@ -161,6 +161,11 @@ impl ServerConfig {
 
     /// HTTP/2 per-stream receive window. Default 16 MiB.
     /// Applies to every call shape.
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
+    /// extra RPCs.
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.initial_stream_window_size = bytes;
@@ -169,6 +174,11 @@ impl ServerConfig {
 
     /// HTTP/2 per-connection receive window. Default 16 MiB.
     /// Applies to every call shape.
+    /// A well-behaved client still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::max_concurrent_streams`], which serializes
+    /// extra RPCs.
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;

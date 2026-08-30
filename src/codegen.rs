@@ -4108,6 +4108,10 @@ fn emit_kernel_server(
         src,
         "    /// HTTP/2 per-stream receive window. Applies to every call shape. See [`{G}::ServerConfig::initial_stream_window_size`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,
@@ -4116,6 +4120,10 @@ fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    /// HTTP/2 per-connection receive window. Applies to every call shape. See [`{G}::ServerConfig::initial_connection_window_size`]."
+    );
+    let _ = writeln!(
+        src,
+        "    /// A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
