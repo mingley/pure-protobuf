@@ -119,7 +119,8 @@ See `docs/upb.md`. Short list:
   handlers see `MessageLimits` on `Rpc::limits` / `Request::limits` /
   `Parts::limits`, including over TLS, mTLS, Unix, and `from_io`, the
   method path on `Rpc::path` / `Request::path` / `Parts::path`, including
-  over those transports, gzip accept/encoding, and
+  over those transports, gzip accept/encoding (unary Compressed-Flag on
+  identity vs gzip, including over TLS, mTLS, Unix, and `from_io`), and
   the server overlays on `Rpc::compresses_outbound` /
   `Request::compresses_outbound` and `Rpc::rpc_timeout` /
   `Request::rpc_timeout` (the `Server::timeout` cap, distinct from the

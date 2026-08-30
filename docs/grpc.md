@@ -1338,7 +1338,10 @@ send time. A client interceptor reads that overlay with `Outgoing::limits`.
 `Rpc::accepts_gzip` / `Rpc::encoding` are the peer's `grpc-accept-encoding`
 and `grpc-encoding` (`encoding` is `None` for identity, including an
 explicit `identity` token); generated handlers see the same values on
-`Request::accepts_gzip` / `Request::encoding`. `Rpc::compresses_outbound`
+`Request::accepts_gzip` / `Request::encoding` / `Parts` after
+`into_message_and_parts`, including over TLS, mTLS, Unix, and `from_io`.
+Unary `Request::compressed` is the first-frame Compressed-Flag; streaming
+requests leave it false. `Rpc::compresses_outbound`
 is the server's `send_compressed` overlay; generated handlers see it on
 `Request::compresses_outbound` / `Parts::compresses_outbound` (`false` on a
 request you built). `Rpc::rpc_timeout` is the server's `timeout` overlay;

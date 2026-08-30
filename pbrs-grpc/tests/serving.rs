@@ -16893,23 +16893,14 @@ impl pbrs_grpc::Greeter for SeesGzip {
     }
 }
 
-#[tokio::test]
-async fn a_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
-    let (addr, listener) = bind().await;
-    let task = tokio::spawn(async move {
-        GreeterServer::new(SeesGzip)
-            .intercept(|rpc: &mut Rpc| {
-                if !rpc.accepts_gzip() {
-                    return Err(Status::internal("rpc accepts_gzip"));
-                }
-                Ok(())
-            })
-            .serve_listener(listener)
-            .await
-            .ok();
-    });
-    let identity = GreeterClient::new(channel(addr).await);
-    let gzip = GreeterClient::new(channel(addr).await.send_compressed());
+fn interceptor_require_accepts_gzip(rpc: &mut Rpc) -> Result<(), Status> {
+    if !rpc.accepts_gzip() {
+        return Err(Status::internal("rpc accepts_gzip"));
+    }
+    Ok(())
+}
+
+async fn assert_handler_sees_gzip_headers(identity: &GreeterClient, gzip: &GreeterClient) {
     assert!(!identity.compresses_outbound());
     assert!(gzip.compresses_outbound());
 
@@ -16980,7 +16971,109 @@ async fn a_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
     let mut inbound = call.await.expect("gzip bidi").into_inner();
     let reply = inbound.message().await.expect("msg").expect("item");
     assert_eq!(name_of(&reply), "gzip");
+}
+
+#[tokio::test]
+async fn a_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .intercept(interceptor_require_accepts_gzip)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let identity = GreeterClient::new(channel(addr).await);
+    let gzip = GreeterClient::new(channel(addr).await.send_compressed());
+    assert_handler_sees_gzip_headers(&identity, &gzip).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .intercept(interceptor_require_accepts_gzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let identity = GreeterClient::new(tls_channel(addr).await);
+    let gzip = GreeterClient::new(tls_channel(addr).await.send_compressed());
+    assert_handler_sees_gzip_headers(&identity, &gzip).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .intercept(interceptor_require_accepts_gzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let identity = GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await);
+    let gzip = GreeterClient::new(tls_channel_with(addr, client_tls).await.send_compressed());
+    assert_handler_sees_gzip_headers(&identity, &gzip).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .intercept(interceptor_require_accepts_gzip)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let identity = GreeterClient::new(unix_channel(&path).await);
+    let gzip = GreeterClient::new(unix_channel(&path).await.send_compressed());
+    assert_handler_sees_gzip_headers(&identity, &gzip).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
+    let (identity_io, identity_server) = duplex_pair();
+    let identity_task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .intercept(interceptor_require_accepts_gzip)
+            .serve_connection(identity_server)
+            .await
+            .ok();
+    });
+    let identity = GreeterClient::new(
+        Channel::from_io(identity_io, "localhost")
+            .await
+            .expect("from_io identity"),
+    );
+    let (gzip_io, gzip_server) = duplex_pair();
+    let gzip_task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .intercept(interceptor_require_accepts_gzip)
+            .serve_connection(gzip_server)
+            .await
+            .ok();
+    });
+    let gzip = GreeterClient::new(
+        Channel::from_io(gzip_io, "localhost")
+            .await
+            .expect("from_io gzip")
+            .send_compressed(),
+    );
+    assert_handler_sees_gzip_headers(&identity, &gzip).await;
+    identity_task.abort();
+    gzip_task.abort();
 }
 
 #[test]
