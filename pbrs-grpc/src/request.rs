@@ -6,6 +6,7 @@ use crate::server::{split_path, PeerCred};
 use crate::status::Status;
 use crate::tls::PeerIdentity;
 use futures_core::future::FusedFuture;
+use std::borrow::Cow;
 use std::fmt;
 use std::future::Future;
 use std::net::SocketAddr;
@@ -58,6 +59,9 @@ pub struct Request<T> {
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
+    /// Interceptor [`Outgoing::set_user_agent`] override. `None` uses the
+    /// channel value.
+    user_agent: Option<http::HeaderValue>,
 }
 
 impl<T> Request<T> {
@@ -87,6 +91,7 @@ impl<T> Request<T> {
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
+            user_agent: None,
         }
     }
 
@@ -172,6 +177,7 @@ impl<T> Request<T> {
             encoding: parts.encoding,
             cancel: parts.cancel,
             extensions: parts.extensions,
+            user_agent: None,
         }
     }
 
@@ -546,9 +552,23 @@ impl<T> Request<T> {
         self.limits
     }
 
-    pub(crate) fn into_parts(self) -> (T, Metadata, Option<Duration>, bool) {
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        T,
+        Metadata,
+        Option<Duration>,
+        bool,
+        Option<http::HeaderValue>,
+    ) {
         let compress = self.compress.unwrap_or(false);
-        (self.message, self.metadata, self.timeout, compress)
+        (
+            self.message,
+            self.metadata,
+            self.timeout,
+            compress,
+            self.user_agent,
+        )
     }
 
     pub(crate) fn from_metadata(
@@ -581,6 +601,7 @@ impl<T> Request<T> {
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
+            user_agent: None,
         }
     }
 
@@ -649,7 +670,8 @@ impl<T> Request<T> {
             path,
             authority,
             scheme: if https { "https" } else { "http" },
-            user_agent,
+            channel_user_agent: user_agent,
+            user_agent: &mut self.user_agent,
             limits: config.limits(),
             rpc_timeout: config.rpc_timeout(),
             waits_for_ready: config.waits_for_ready(),
@@ -674,7 +696,10 @@ impl<T> Request<T> {
 /// [`Self::compresses_outbound`]), and the service/method halves of the path,
 /// which the interceptor cannot otherwise see. Those overlays fill in before
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
-/// [`Self::clear_compress`] opt out of an already-applied default. Typed values
+/// [`Self::clear_compress`] opt out of an already-applied default.
+/// [`Self::set_user_agent`] prefixes this RPC's `user-agent` (kernel suffix
+/// stays). Distinct from inserting `user-agent` into metadata, which the
+/// kernel overwrites. Typed values
 /// the caller inserted on [`crate::Request::extensions_mut`] are on this map.
 /// Applies to every call shape.
 ///
@@ -717,7 +742,8 @@ pub struct Outgoing<'a> {
     path: &'static str,
     authority: &'a str,
     scheme: &'static str,
-    user_agent: &'a str,
+    channel_user_agent: &'a str,
+    user_agent: &'a mut Option<http::HeaderValue>,
     limits: MessageLimits,
     rpc_timeout: Option<Duration>,
     waits_for_ready: bool,
@@ -752,16 +778,52 @@ impl<'a> Outgoing<'a> {
         self.scheme
     }
 
-    /// The `user-agent` this channel sends, including the kernel suffix.
+    /// The `user-agent` this RPC will send, including the kernel suffix.
     ///
-    /// Same value as [`crate::Channel::grpc_user_agent`]. A prefix set with
-    /// [`crate::Channel::user_agent`] is visible here. Inserting `user-agent`
-    /// into metadata succeeds — that name is not reserved — but the kernel
-    /// overwrites it after user metadata, so a smuggled value cannot win.
-    /// Applies to every call shape.
+    /// Same value as [`crate::Channel::grpc_user_agent`] until
+    /// [`Self::set_user_agent`]. A prefix set with [`crate::Channel::user_agent`]
+    /// is visible here. Inserting `user-agent` into metadata succeeds — that
+    /// name is not reserved — but the kernel overwrites it after user
+    /// metadata, so a smuggled value cannot win. [`Self::set_user_agent`]
+    /// prefixes this RPC. The channel value is borrowed; an override is
+    /// owned so an interceptor can stamp it into metadata without holding
+    /// `&self` across [`Self::metadata_mut`]. Applies to every call shape.
     #[must_use]
-    pub fn user_agent(&self) -> &'a str {
-        self.user_agent
+    pub fn user_agent(&self) -> Cow<'a, str> {
+        match self
+            .user_agent
+            .as_ref()
+            .and_then(|value| value.to_str().ok())
+        {
+            Some(text) => Cow::Owned(text.to_owned()),
+            None => Cow::Borrowed(self.channel_user_agent),
+        }
+    }
+
+    /// Prefix the kernel `user-agent` on this RPC.
+    ///
+    /// Same construction as [`crate::Channel::user_agent`]:
+    /// `prefix pbrs-grpc/<version>`. Empty prefix is the kernel identity
+    /// alone. Invalid HTTP is [`crate::Code::InvalidArgument`]. Distinct from
+    /// inserting `user-agent` into metadata, which the kernel overwrites.
+    /// [`Self::clear_user_agent`] restores the channel value. Applies to
+    /// every call shape.
+    pub fn set_user_agent(&mut self, prefix: impl AsRef<str>) -> Result<(), Status> {
+        *self.user_agent = Some(crate::wire::user_agent_value(prefix.as_ref())?);
+        Ok(())
+    }
+
+    /// Whether [`Self::set_user_agent`] has already overridden the channel
+    /// value. Applies to every call shape.
+    #[must_use]
+    pub fn user_agent_is_set(&self) -> bool {
+        self.user_agent.is_some()
+    }
+
+    /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
+    /// [`crate::Channel::grpc_user_agent`] again. Applies to every call shape.
+    pub fn clear_user_agent(&mut self) {
+        *self.user_agent = None;
     }
 
     /// Message caps this channel will enforce on this RPC.
@@ -988,7 +1050,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("method", &split_path(self.path).1)
             .field("authority", &self.authority)
             .field("scheme", &self.scheme)
-            .field("user_agent", &self.user_agent)
+            .field("user_agent", &self.user_agent())
             .field("limits", &self.limits)
             .field("rpc_timeout", &self.rpc_timeout)
             .field("waits_for_ready", &self.waits_for_ready)
@@ -2121,6 +2183,35 @@ mod tests {
         assert!(shown.contains("rpc_timeout"), "{shown}");
         assert!(shown.contains("waits_for_ready: true"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
+    }
+
+    #[test]
+    fn outgoing_set_user_agent_prefixes_this_rpc() {
+        let mut req = Request::new(());
+        let mut call = req.outgoing(
+            "/svc/Method",
+            "127.0.0.1:1",
+            false,
+            "inventory/2.1 pbrs-grpc/test",
+            crate::ChannelConfig::default(),
+        );
+        assert_eq!(call.user_agent(), "inventory/2.1 pbrs-grpc/test");
+        assert!(!call.user_agent_is_set());
+        call.set_user_agent("override/1.0").expect("set");
+        assert!(call.user_agent().starts_with("override/1.0 "));
+        assert!(call.user_agent().contains("pbrs-grpc/"));
+        assert!(call.user_agent_is_set());
+        let ua = call.user_agent();
+        call.metadata_mut().set("x-ua", ua).expect("stamp");
+        let stamped = call.metadata().get("x-ua").expect("x-ua");
+        assert!(stamped.starts_with("override/1.0 "), "{stamped}");
+        let shown = format!("{call:?}");
+        assert!(shown.contains("override/1.0 "), "{shown}");
+        call.clear_user_agent();
+        assert!(!call.user_agent_is_set());
+        assert_eq!(call.user_agent(), "inventory/2.1 pbrs-grpc/test");
+        let err = call.set_user_agent("bad\nagent").expect_err("http");
+        assert_eq!(err.code(), crate::status::Code::InvalidArgument);
     }
 
     #[test]

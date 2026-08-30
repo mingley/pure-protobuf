@@ -1524,7 +1524,7 @@ over h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_timeout`
 opts out of a channel timeout on those transports plus `from_io`. Outgoing getters (`authority`, `scheme`,
 `user_agent`, `limits`, overlays, `service` / `method`, metadata, timeout)
 apply to every call shape. Generated Greeter stamps those Outgoing facts over
-TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape.
+TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape. `Outgoing::set_user_agent` prefixes this RPC the same way (kernel suffix stays).
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor on h2c, TLS (including mTLS), Unix, and `from_io`, including official
@@ -1818,7 +1818,6 @@ Deliberate omissions, with what to do instead.
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
 | GCP-auth and ORCA | Out of scope. |
 | `from_io` TLS handshake | `connect_tls` / `serve_tls`. `from_io` is already-connected bytes; `https_scheme` labels an encrypted stream. |
-| `Outgoing::set_user_agent` | Prefix with `Channel::user_agent`. Interceptors read `Outgoing::user_agent`. |
 | Response extensions | Request / `Rpc` extensions only. |
 | crates.io publish | Path or git dependency until a registry version exists. `pbrs-grpc` has `publish = false`. |
 

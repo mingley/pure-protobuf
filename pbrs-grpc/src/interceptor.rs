@@ -167,7 +167,8 @@ impl<S: Service> ServiceExt for S {}
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
 /// runs first. The interceptor sees the method path, service, method,
 /// `:authority`, `:scheme`, `user-agent`, and message caps, and can set a
-/// timeout / deadline Instant, wait-for-ready, compression, or typed
+/// timeout / deadline Instant, wait-for-ready, compression, a user-agent
+/// prefix ([`crate::Outgoing::set_user_agent`]), or typed
 /// extensions — not only metadata. Channel overlays (`rpc_timeout`,
 /// `waits_for_ready`, `compresses_outbound`) stay visible after `clear_*`
 /// opts out of the already-applied default.

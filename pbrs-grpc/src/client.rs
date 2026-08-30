@@ -621,7 +621,8 @@ impl Channel {
     /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`]. Inserting `user-agent` into request metadata cannot
-    /// replace this value on those transports.
+    /// replace this value on those transports. Distinct from
+    /// [`crate::Outgoing::set_user_agent`], which prefixes this RPC.
     ///
     /// `user_agent("my-app/1.0")` sends `my-app/1.0 pbrs-grpc/<version>`.
     /// The kernel suffix is always present so a peer can identify the stack.
@@ -652,6 +653,7 @@ impl Channel {
     /// Calling this twice stacks: the first interceptor runs first. The
     /// interceptor sees the method path, service, method, `:authority`,
     /// `:scheme`, `user-agent`, and message caps, and can set metadata, a
+    /// user-agent prefix ([`crate::Outgoing::set_user_agent`]), a
     /// timeout / deadline Instant, wait-for-ready, compression, or typed
     /// extensions. Channel overlays (`rpc_timeout`, `waits_for_ready`,
     /// `compresses_outbound`) are visible even after `clear_*` opts out of
@@ -805,12 +807,12 @@ impl Channel {
                 prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (msg, md, timeout, compress) = req.into_parts();
+                let (msg, md, timeout, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
                 let frame = encode_msg(&msg, compress, wire.limits)?;
                 let https = channel.https;
-                let ua = channel.user_agent.clone();
+                let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
                 let mut retried = false;
                 loop {
                     let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -905,12 +907,12 @@ impl Channel {
                 prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let (msg, md, timeout, compress) = req.into_parts();
+                let (msg, md, timeout, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
                 let frame = encode_msg(&msg, compress, wire.limits)?;
                 let https = channel.https;
-                let ua = channel.user_agent.clone();
+                let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
                 let mut retried = false;
                 loop {
                     let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -1629,7 +1631,8 @@ where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default,
 {
-    let (_, md, timeout, compress) = req.into_parts();
+    let (_, md, timeout, compress, ua) = req.into_parts();
+    let user_agent = ua.unwrap_or(user_agent);
     let deadline = deadline_from(timeout);
     let (resp_fut, send_stream) = open(
         send_req,
@@ -1735,7 +1738,8 @@ where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default + Send + 'static,
 {
-    let (_, md, timeout, compress) = req.into_parts();
+    let (_, md, timeout, compress, ua) = req.into_parts();
+    let user_agent = ua.unwrap_or(user_agent);
     let deadline = deadline_from(timeout);
     let (resp_fut, send_stream) = open(
         send_req,

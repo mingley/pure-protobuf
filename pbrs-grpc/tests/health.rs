@@ -2119,6 +2119,30 @@ fn user_agent_health(client: HealthClient) -> HealthClient {
         .intercept(interceptor_stamp_user_agent)
 }
 
+fn interceptor_set_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.set_user_agent("override/1.0")?;
+    let ua = call.user_agent();
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    Ok(())
+}
+
+fn require_override_user_agent(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua}")));
+    }
+    Ok(())
+}
+
+fn override_ua_health(client: HealthClient) -> HealthClient {
+    client
+        .user_agent("inventory/2.1")
+        .expect("user-agent")
+        .intercept(interceptor_set_user_agent)
+}
+
 fn test_message_limits() -> MessageLimits {
     MessageLimits::new()
         .with_max_decoding(64 * 1024)
@@ -2324,6 +2348,101 @@ async fn a_health_from_io_client_interceptor_sees_the_user_agent() {
             .ok();
     });
     echo_health_check_and_watch(&user_agent_health(
+        HealthClient::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_health_client_interceptor_sets_the_user_agent() {
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        svc.intercept(require_override_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_health_check_and_watch(&override_ua_health(client(addr).await)).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_health_tls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        svc.intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_health_check_and_watch(&override_ua_health(tls_client(addr).await)).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn a_health_mtls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        svc.intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_health_check_and_watch(&override_ua_health(tls_client_with(addr, client_tls).await)).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_health_unix_client_interceptor_sets_the_user_agent() {
+    let path = unix_sock("health-ua-set");
+    let sock = path.clone();
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.intercept(require_override_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_health_check_and_watch(&override_ua_health(unix_client(&path).await)).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_health_from_io_client_interceptor_sets_the_user_agent() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.intercept(require_override_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_health_check_and_watch(&override_ua_health(
         HealthClient::from_io(client_io, "localhost")
             .await
             .expect("from_io"),

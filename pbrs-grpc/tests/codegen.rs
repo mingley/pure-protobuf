@@ -2557,6 +2557,30 @@ fn user_agent_store(client: StoreClient) -> StoreClient {
         .intercept(interceptor_stamp_user_agent)
 }
 
+fn interceptor_set_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.set_user_agent("override/1.0")?;
+    let ua = call.user_agent();
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    Ok(())
+}
+
+fn require_override_user_agent(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua}")));
+    }
+    Ok(())
+}
+
+fn override_ua_store(client: StoreClient) -> StoreClient {
+    client
+        .user_agent("inventory/2.1")
+        .expect("user-agent")
+        .intercept(interceptor_set_user_agent)
+}
+
 fn test_message_limits() -> MessageLimits {
     MessageLimits::new()
         .with_max_decoding(64 * 1024)
@@ -2757,6 +2781,96 @@ async fn a_generated_from_io_client_interceptor_sees_the_user_agent() {
             .ok();
     });
     echo_store_every_shape(&user_agent_store(
+        StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_sets_the_user_agent() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_override_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&override_ua_store(client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&override_ua_store(tls_client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_store_every_shape(&override_ua_store(tls_client_with(addr, client_tls).await)).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_sets_the_user_agent() {
+    let path = unix_sock("store-ua-set");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_override_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&override_ua_store(unix_client(&path).await)).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_sets_the_user_agent() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_override_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&override_ua_store(
         StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
             .await
             .expect("from_io"),
@@ -3719,6 +3833,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default)"
         ),
         "generated intercept rustdoc must name channel overlays and clear_*"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Outgoing::set_user_agent`] prefixes this RPC."),
+        "generated intercept rustdoc must name Outgoing::set_user_agent"
     );
     assert!(
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),

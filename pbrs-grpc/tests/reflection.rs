@@ -1890,6 +1890,30 @@ fn user_agent_reflection(client: ServerReflectionClient) -> ServerReflectionClie
         .intercept(interceptor_stamp_user_agent)
 }
 
+fn interceptor_set_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.set_user_agent("override/1.0")?;
+    let ua = call.user_agent();
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    Ok(())
+}
+
+fn require_override_user_agent(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua}")));
+    }
+    Ok(())
+}
+
+fn override_ua_reflection(client: ServerReflectionClient) -> ServerReflectionClient {
+    client
+        .user_agent("inventory/2.1")
+        .expect("user-agent")
+        .intercept(interceptor_set_user_agent)
+}
+
 fn test_message_limits() -> MessageLimits {
     MessageLimits::new()
         .with_max_decoding(64 * 1024)
@@ -2102,6 +2126,104 @@ async fn a_reflection_from_io_client_interceptor_sees_the_user_agent() {
     });
     let _guard = ServerGuard(handle);
     echo_reflection_list(&user_agent_reflection(
+        ServerReflectionClient::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn a_reflection_client_interceptor_sets_the_user_agent() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_override_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&override_ua_reflection(client(addr).await)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_tls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&override_ua_reflection(tls_client(addr).await)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_mtls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reflection_list(&override_ua_reflection(
+        tls_client_with(addr, client_tls).await,
+    ))
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reflection_unix_client_interceptor_sets_the_user_agent() {
+    let path = unix_sock("reflection-ua-set");
+    let sock = path.clone();
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_override_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&override_ua_reflection(unix_client(&path).await)).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_reflection_from_io_client_interceptor_sets_the_user_agent() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_override_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&override_ua_reflection(
         ServerReflectionClient::from_io(client_io, "localhost")
             .await
             .expect("from_io"),

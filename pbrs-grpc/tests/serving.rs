@@ -651,6 +651,15 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Streaming::trailers rustdoc must name -bin trailers on every transport"
     );
+    let outgoing = include_str!("../src/request.rs");
+    assert!(
+        outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
+        "Outgoing rustdoc must name set_user_agent kernel suffix"
+    );
+    assert!(
+        outgoing.contains("Distinct from inserting `user-agent` into metadata"),
+        "Outgoing::set_user_agent must Distinct metadata overwrite"
+    );
     assert!(
         src.contains(
             "OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`\n    /// trailer must not appear as a header, including over TLS, mTLS, Unix,\n    /// and [`Self::from_io`]."
@@ -757,6 +766,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must name clear_timeout opt-out"
     );
     assert!(
+        intercept.contains("prefix ([`crate::Outgoing::set_user_agent`]), or typed"),
+        "ClientInterceptor rustdoc must name Outgoing::set_user_agent"
+    );
+    assert!(
         intercept.contains(
             "stamps [`crate::StreamSender::compress`] on client-streaming and bidi\n/// request streams."
         ),
@@ -797,6 +810,14 @@ fn channel_call_apis_document_hand_written_services() {
             "Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`Self::from_io`]. Inserting `user-agent` into request metadata cannot\n    /// replace this value on those transports."
         ),
         "Channel::user_agent must name every transport and that metadata cannot override"
+    );
+    assert!(
+        src.contains("[`crate::Outgoing::set_user_agent`], which prefixes this RPC."),
+        "Channel::user_agent must Distinct Outgoing::set_user_agent as the per-RPC prefix"
+    );
+    assert!(
+        src.contains("user-agent prefix ([`crate::Outgoing::set_user_agent`]), a"),
+        "Channel::intercept rustdoc must name Outgoing::set_user_agent"
     );
     assert!(
         src.contains(
@@ -1299,6 +1320,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         !guide.contains("There is no `Error::source` chain"),
         "guide must not list Status Error::source as an omission"
+    );
+    assert!(
+        guide.contains("`Outgoing::set_user_agent` prefixes this RPC the same way"),
+        "guide must name Outgoing::set_user_agent as a per-RPC prefix"
+    );
+    assert!(
+        !guide.contains("Prefix with `Channel::user_agent`. Interceptors read"),
+        "guide must not list Outgoing::set_user_agent as an omission"
     );
     assert!(
         guide
@@ -7725,6 +7754,40 @@ fn user_agent_channel(channel: Channel) -> Channel {
         .intercept(interceptor_stamp_user_agent)
 }
 
+fn interceptor_set_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.set_user_agent("override/1.0")?;
+    let ua = call.user_agent();
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    Ok(())
+}
+
+fn require_override_user_agent(rpc: &mut Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    if !ua.starts_with("override/1.0 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua}")));
+    }
+    Ok(())
+}
+
+fn override_ua_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(channel.user_agent("inventory/2.1").expect("user-agent"))
+        .intercept(interceptor_set_user_agent)
+}
+
+fn override_ua_test(channel: Channel) -> TestServiceClient {
+    TestServiceClient::new(channel.user_agent("inventory/2.1").expect("user-agent"))
+        .intercept(interceptor_set_user_agent)
+}
+
+fn override_ua_channel(channel: Channel) -> Channel {
+    channel
+        .user_agent("inventory/2.1")
+        .expect("user-agent")
+        .intercept(interceptor_set_user_agent)
+}
+
 #[tokio::test]
 async fn a_tls_client_interceptor_sees_the_user_agent() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
@@ -7953,6 +8016,257 @@ async fn a_reverser_from_io_client_interceptor_sees_the_user_agent() {
         Server::new(service).serve_connection(server_io).await.ok();
     });
     echo_reverser_every_shape(&user_agent_channel(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_client_interceptor_sets_the_user_agent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_override_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&override_ua_client(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_every_shape(&override_ua_client(tls_channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_every_shape(
+        &override_ua_client(tls_channel_with(addr, client_tls).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_sets_the_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_override_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_every_shape(&override_ua_client(unix_channel(&path).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_sets_the_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_override_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_every_shape(
+        &override_ua_client(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_test_client_interceptor_sets_the_user_agent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_override_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&override_ua_test(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&override_ua_test(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_override_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_test_every_shape(&override_ua_test(tls_channel_with(addr, client_tls).await)).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_sets_the_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_override_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&override_ua_test(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_sets_the_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_override_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&override_ua_test(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_sets_the_user_agent() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_override_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+    echo_reverser_every_shape(&override_ua_channel(channel(addr).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_override_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_reverser_every_shape(&override_ua_channel(tls_channel(addr).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_sets_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_override_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reverser_every_shape(&override_ua_channel(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_sets_the_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_override_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    echo_reverser_every_shape(&override_ua_channel(unix_channel(&path).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_sets_the_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_override_user_agent);
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    echo_reverser_every_shape(&override_ua_channel(
         Channel::from_io(client_io, "localhost")
             .await
             .expect("from_io"),
