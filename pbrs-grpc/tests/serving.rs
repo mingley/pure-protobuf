@@ -608,6 +608,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Streaming rustdoc must name drop-Channel live stream on every transport"
     );
     assert!(
+        stream.contains(
+            "returns [`crate::Code::DeadlineExceeded`], not `Ok(None)`, including\n/// over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "Streaming rustdoc must name expired deadline is not a clean end on every transport"
+    );
+    assert!(
         src.contains(
             "RPC as [`Code::Unavailable`] (including over TLS, mTLS, and Unix), or\n    /// waits until the deadline if that RPC"
         ),
@@ -1768,17 +1774,7 @@ impl pbrs_grpc::Greeter for QuietUntilDeadline {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn an_expired_deadline_is_never_a_clean_end_of_stream() {
-    let (addr, listener) = bind().await;
-    let task = tokio::spawn(async move {
-        GreeterServer::new(QuietUntilDeadline)
-            .serve_listener(listener)
-            .await
-            .ok();
-    });
-    let client = GreeterClient::new(channel(addr).await);
-
+async fn assert_expired_deadline_is_never_a_clean_end_of_stream(client: &GreeterClient) {
     // Repeat, because the original bug was a coin flip between the deadline
     // firing and the producer stopping.
     for _ in 0..12 {
@@ -1796,8 +1792,91 @@ async fn an_expired_deadline_is_never_a_clean_end_of_stream() {
             Ok(Some(_)) => panic!("the handler sends nothing"),
         }
     }
+}
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_expired_deadline_is_never_a_clean_end_of_stream() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(QuietUntilDeadline)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_expired_deadline_is_never_a_clean_end_of_stream(&GreeterClient::new(
+        channel(addr).await,
+    ))
+    .await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_an_expired_deadline_is_never_a_clean_end_of_stream() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(QuietUntilDeadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_expired_deadline_is_never_a_clean_end_of_stream(&GreeterClient::new(
+        tls_channel(addr).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_an_expired_deadline_is_never_a_clean_end_of_stream() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(QuietUntilDeadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_expired_deadline_is_never_a_clean_end_of_stream(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_an_expired_deadline_is_never_a_clean_end_of_stream() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(QuietUntilDeadline)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_expired_deadline_is_never_a_clean_end_of_stream(&GreeterClient::new(
+        unix_channel(&path).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_an_expired_deadline_is_never_a_clean_end_of_stream() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(QuietUntilDeadline)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_expired_deadline_is_never_a_clean_end_of_stream(&GreeterClient::new(channel)).await;
+    server.abort();
 }
 
 /// The wrapping-service pattern from `docs/grpc.md`: authenticate, then

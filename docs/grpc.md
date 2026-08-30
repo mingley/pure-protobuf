@@ -513,7 +513,9 @@ A handle still cancels a server-streaming or bidi call that is waiting for
 headers. A server-streaming or bidi deadline RSTs the send half before
 headers and after a half-close. After server-streaming or bidi headers,
 that deadline still RSTs the parked send half, so a Ready `Call` does not
-leave the stream parked.
+leave the stream parked. An expired deadline is never a clean end of stream:
+`Streaming::message` returns `DEADLINE_EXCEEDED`, not `Ok(None)`, including
+over TLS, mTLS, Unix, and `from_io`.
 `StreamSender::fail` on a client request sender is the same RST with CANCEL:
 a client-streaming `Call`, or a bidi `Call` that has not yet seen headers,
 resolves with that status, not `UNAVAILABLE` from the reset; after bidi

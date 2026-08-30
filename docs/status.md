@@ -284,9 +284,18 @@ See `docs/upb.md`. Short list:
   is fused after `Ready`. Client-streaming and bidi
   `(StreamSender, Call)` pairs are `must_use`. `Health::watch` ends when the
   client leaves, without waiting for the next status change. A server-streaming
-  drain waiting for the next message ends on client RST. Dropping a received
+  drain waiting for the next message ends on client RST.   Dropping a received
   `Streaming` before the end resets that RPC, including bidi while the send
-  half is still held, over h2c, TLS (including mTLS), Unix, and `from_io`. A `CallHandle` taken before await still cancels that
+  half is still held, over h2c, TLS (including mTLS), Unix, and `from_io`.
+  Dropping the last `Channel` clone after headers still lets that received
+  `Streaming` drain on those transports. A spawned server-streaming producer
+  stays live until that drain; `Request::cancelled` does not fire when the
+  handler returns, on those transports. An expired deadline is never a clean
+  end of stream (`DEADLINE_EXCEEDED`, not `Ok(None)`), including over those
+  transports. Server `max_connection_age` GOAWAY still lets in-flight Slow
+  unary RPCs finish inside the grace window, including over TLS, mTLS, Unix,
+  and `serve_connection`. Server `max_connection_idle` does not arm while an
+  RPC is in flight on those transports. A `CallHandle` taken before await still cancels that
   live stream after headers, still cancels a server-streaming or bidi call
   waiting for headers, and a client-streaming handle still cancels
   after the sender is closed while the unary response is pending (dropping
