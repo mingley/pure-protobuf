@@ -116,7 +116,13 @@ sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size`),
-extensions). Those Outgoing getters apply to every call shape. The next RPC of every call shape redials a dead slot, including over TLS,
+extensions). Those Outgoing getters apply to every call shape.
+Dumping `Outgoing` prints path / service / method, `:authority` / `:scheme`,
+`user-agent`, `limits`, `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
+`accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /
+`send_buffer_size`, metadata, timeout / deadline, wait-for-ready, `connected`,
+compress, and extensions.
+The next RPC of every call shape redials a dead slot, including over TLS,
 mTLS, and Unix. Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. Client-streaming and bidi retry once
 when HEADERS never went out. `from_io` cannot redial.
