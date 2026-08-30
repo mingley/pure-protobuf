@@ -13190,6 +13190,11 @@ async fn a_deadline_cancels_a_server_stream_before_headers() {
     task.abort();
 }
 
+fn interceptor_server_set_timeout(rpc: &mut Rpc) -> Result<(), Status> {
+    rpc.set_timeout(Duration::from_millis(20));
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn spawned_work_stops_when_the_deadline_fires() {
     let started = Arc::new(AtomicUsize::new(0));
@@ -13203,10 +13208,7 @@ async fn spawned_work_stops_when_the_deadline_fires() {
     };
     let task = tokio::spawn(async move {
         GreeterServer::new(hang)
-            .intercept(|rpc: &mut Rpc| {
-                rpc.set_timeout(Duration::from_millis(20));
-                Ok(())
-            })
+            .intercept(interceptor_server_set_timeout)
             .serve_listener(listener)
             .await
             .ok();
@@ -13214,6 +13216,107 @@ async fn spawned_work_stops_when_the_deadline_fires() {
     let client = GreeterClient::new(channel(addr).await);
     assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_spawned_work_stops_when_the_deadline_fires() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .intercept(interceptor_server_set_timeout)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_spawned_work_stops_when_the_deadline_fires() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .intercept(interceptor_server_set_timeout)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_spawned_work_stops_when_the_deadline_fires() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .intercept(interceptor_server_set_timeout)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_spawned_work_stops_when_the_deadline_fires() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .intercept(interceptor_server_set_timeout)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_deadline_on_every_shape(&client, &started, &finished, &child_done).await;
+    server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

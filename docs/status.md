@@ -244,7 +244,8 @@ See `docs/upb.md`. Short list:
   after those headers that deadline still RSTs the parked
   send half, including over TLS, mTLS, Unix, and `from_io`. A request deadline
   before headers also fires on unary and client-streaming on those transports. Spawned handler work awaiting `Request::cancelled` sees the RST, including
-  when the server deadline wins (signalled before trailers). CallHandle cancel
+  when the server deadline wins (signalled before trailers), including when a
+  server interceptor `set_timeout` wins, over TLS, mTLS, Unix, and `from_io`. CallHandle cancel
   of spawned work on every call shape also runs over TLS, mTLS, Unix, and
   `from_io`. Spawned work also observes `Request::cancelled` when the RPC
   completes on those transports. Generated trait
