@@ -236,7 +236,9 @@ See `docs/upb.md`. Short list:
   after a half-close;
   after those headers that deadline still RSTs the parked
   send half. Spawned handler work awaiting `Request::cancelled` sees the RST, including
-  when the server deadline wins (signalled before trailers). Generated trait
+  when the server deadline wins (signalled before trailers). CallHandle cancel
+  of spawned work on every call shape also runs over TLS, mTLS, Unix, and
+  `from_io`. Generated trait
   rustdoc names `Request::cancelled` on every call shape (and
   `StreamSender::closed` on server-streaming); unary `Channel` / generated
   client methods name `CallHandle`. Generated client-streaming and bidi

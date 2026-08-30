@@ -11089,6 +11089,63 @@ async fn assert_deadline_on_every_shape(
     drop(tx);
 }
 
+async fn assert_spawned_cancel_dropped<T: std::fmt::Debug>(
+    mut call: Call<T>,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    started.store(0, Ordering::Relaxed);
+    finished.store(0, Ordering::Relaxed);
+    child_done.store(0, Ordering::Relaxed);
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("SpawnHang returned before cancel: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(40)) => {}
+    }
+    assert!(
+        started.load(Ordering::Relaxed) >= 1,
+        "handler should have started"
+    );
+    call.handle().cancel();
+    let err = call.await.expect_err("cancelled");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    wait_flag(child_done).await;
+    assert_eq!(
+        finished.load(Ordering::Relaxed),
+        0,
+        "handler should have been dropped"
+    );
+}
+
+async fn assert_spawned_cancel_on_every_shape(
+    client: &GreeterClient,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    assert_spawned_cancel_dropped(
+        client.say_hello(Request::new(req("ada"))),
+        started,
+        finished,
+        child_done,
+    )
+    .await;
+    assert_spawned_cancel_dropped(
+        client.server_hello(Request::new(req("ada"))),
+        started,
+        finished,
+        child_done,
+    )
+    .await;
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_spawned_cancel_dropped(call, started, finished, child_done).await;
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_spawned_cancel_dropped(call, started, finished, child_done).await;
+    drop(tx);
+}
+
 fn stamp_timeout<T>(mut request: Request<T>, timeout: Option<Duration>) -> Request<T> {
     if let Some(timeout) = timeout {
         request.set_timeout(timeout);
@@ -12389,6 +12446,100 @@ async fn spawned_bidi_work_stops_when_the_client_cancels() {
     assert_eq!(finished.load(Ordering::Relaxed), 0);
     drop(tx);
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_spawned_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_spawned_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_spawned_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_spawned_work_stops_when_the_client_cancels() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_spawned_cancel_on_every_shape(&client, &started, &finished, &child_done).await;
+    server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
