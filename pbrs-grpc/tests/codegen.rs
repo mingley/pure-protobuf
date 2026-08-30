@@ -3725,9 +3725,9 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Mount alongside another service. [`Self::max_decoding_message_size`] stays in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+            "Mount alongside another service. [`Self::max_decoding_message_size`] and [`Self::max_encoding_message_size`] stay in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
-        "generated add_service rustdoc must name decode-cap on every mount and transport"
+        "generated add_service rustdoc must name decode and encode caps on every mount and transport"
     );
     assert!(
         src.contains(

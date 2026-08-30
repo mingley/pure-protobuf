@@ -1532,7 +1532,8 @@ impl<S: Service> Server<S> {
 
     /// Add a second service, switching to path-based routing.
     ///
-    /// [`Self::max_decoding_message_size`] stays in effect on every mounted
+    /// [`Self::max_decoding_message_size`] and
+    /// [`Self::max_encoding_message_size`] stay in effect on every mounted
     /// service, on every call shape of those mounts, including over TLS, mTLS,
     /// Unix, and [`Self::serve_connection`].
     #[must_use]

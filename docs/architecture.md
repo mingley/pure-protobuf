@@ -124,7 +124,9 @@ The first registered runs first, including over TLS, mTLS, Unix, and
 `ServiceExt::intercept`). `FooServer::intercept` then `add_service` keeps that reject on
 every mount on those transports. `FooServer::max_decoding_message_size`
 then `add_service` keeps that inbound cap on every mount on those
-transports too. A wrapping `Service` `Rpc::reject` turns
+transports too. `FooServer::max_encoding_message_size` then `add_service`
+keeps that outbound cap on every mount on those transports (EmptyCall and
+StreamingInputCall stay under a 16-byte encode cap). A wrapping `Service` `Rpc::reject` turns
 the call away before the inner `call` on those transports too.
 Interceptor extensions on `Rpc` reach handler `Request` / `Parts` on those
 transports. Closures see `Rpc` (path, service/method,

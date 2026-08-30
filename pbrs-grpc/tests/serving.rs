@@ -27,10 +27,10 @@ use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloR
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, Identity, Incoming,
     InteropTestService, MessageLimits, Outgoing, Payload, PeerCred, PeerIdentity, Request,
-    Response, Router, Rpc, Server, ServerConfig, ServerTls, Service, ServiceExt, SimpleRequest,
-    SimpleResponse, Status, StreamingInputCallRequest, StreamingInputCallResponse,
-    StreamingOutputCallRequest, StreamingOutputCallResponse, TestService, TestServiceClient,
-    TestServiceServer,
+    Response, ResponseParameters, Router, Rpc, Server, ServerConfig, ServerTls, Service,
+    ServiceExt, SimpleRequest, SimpleResponse, Status, StreamingInputCallRequest,
+    StreamingInputCallResponse, StreamingOutputCallRequest, StreamingOutputCallResponse,
+    TestService, TestServiceClient, TestServiceServer,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -846,9 +846,9 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
-            "[`Self::max_decoding_message_size`] stays in effect on every mounted\n    /// service, on every call shape of those mounts, including over TLS, mTLS,\n    /// Unix, and [`Self::serve_connection`]."
+            "[`Self::max_decoding_message_size`] and\n    /// [`Self::max_encoding_message_size`] stay in effect on every mounted\n    /// service, on every call shape of those mounts, including over TLS, mTLS,\n    /// Unix, and [`Self::serve_connection`]."
         ),
-        "Server::add_service must name decode-cap on every mount and transport"
+        "Server::add_service must name decode and encode caps on every mount and transport"
     );
 }
 
@@ -9821,6 +9821,96 @@ async fn from_io_config_flows_from_the_generated_server_to_the_router() {
     server.abort();
 }
 
+#[tokio::test]
+async fn encode_config_flows_from_the_generated_server_to_the_router() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_plus_test_with_encode_cap()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_add_service_encode_cap(
+        &GreeterClient::new(channel(addr).await),
+        &TestServiceClient::new(channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_encode_config_flows_from_the_generated_server_to_the_router() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_plus_test_with_encode_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_add_service_encode_cap(
+        &GreeterClient::new(tls_channel(addr).await),
+        &TestServiceClient::new(tls_channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_encode_config_flows_from_the_generated_server_to_the_router() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_plus_test_with_encode_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_add_service_encode_cap(
+        &GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        &TestServiceClient::new(tls_channel_with(addr, client_tls).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_encode_config_flows_from_the_generated_server_to_the_router() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_plus_test_with_encode_cap()
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_add_service_encode_cap(
+        &GreeterClient::new(unix_channel(&path).await),
+        &TestServiceClient::new(unix_channel(&path).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_encode_config_flows_from_the_generated_server_to_the_router() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        greeter_plus_test_with_encode_cap()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_add_service_encode_cap(&GreeterClient::new(ch.clone()), &TestServiceClient::new(ch))
+        .await;
+    server.abort();
+}
+
 #[test]
 fn http2_tuning_knobs_are_fluent_on_server_and_router() {
     let server = GreeterServer::new(Echo)
@@ -13820,6 +13910,64 @@ async fn assert_add_service_decode_cap(greeter: &GreeterClient, test: &TestServi
     echo_test_every_shape(test).await;
     assert_greeter_oversize_every_shape(greeter).await;
     assert_test_oversize_every_shape(test).await;
+}
+
+fn greeter_plus_test_with_encode_cap() -> Router {
+    GreeterServer::new(Echo)
+        .max_encoding_message_size(16)
+        .add_service(TestServiceServer::new(InteropTestService))
+}
+
+fn fat_test_response() -> SimpleRequest {
+    let mut r = SimpleRequest::new();
+    r.set_response_size(64);
+    r
+}
+
+fn fat_test_output_plan() -> StreamingOutputCallRequest {
+    let mut r = StreamingOutputCallRequest::new();
+    let mut p = ResponseParameters::new();
+    p.set_size(64);
+    r.response_parameters_mut().push(p);
+    r
+}
+
+async fn assert_test_oversize_encode_every_shape(client: &TestServiceClient) {
+    // EmptyCall and StreamingInputCall responses stay under the 16-byte cap.
+    let err = client
+        .unary_call(Request::new(fat_test_response()))
+        .await
+        .expect_err("unary encode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    match client
+        .streaming_output_call(Request::new(fat_test_output_plan()))
+        .await
+    {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream over the encode cap must fail"),
+        },
+    }
+
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    tx.send(fat_test_output_plan()).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi over the encode cap must fail"),
+        },
+    }
+}
+
+async fn assert_add_service_encode_cap(greeter: &GreeterClient, test: &TestServiceClient) {
+    echo_every_shape(greeter, None).await;
+    echo_test_every_shape(test).await;
+    assert_greeter_oversize_every_shape(greeter).await;
+    assert_test_oversize_encode_every_shape(test).await;
 }
 
 async fn assert_test_oversize_every_shape(client: &TestServiceClient) {

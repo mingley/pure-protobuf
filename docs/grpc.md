@@ -1163,7 +1163,12 @@ GreeterServer::new(MyGreeter)
 
 `FooServer::max_decoding_message_size` then `add_service` keeps that cap on
 every mounted service, on every call shape of those mounts, including over
-TLS, mTLS, Unix, and `from_io`.
+TLS, mTLS, Unix, and `from_io`. `FooServer::max_encoding_message_size` then
+`add_service` keeps that outbound cap the same way. Oversize encode is
+`RESOURCE_EXHAUSTED` on every Greeter call shape and on TestService
+UnaryCall / StreamingOutputCall / FullDuplexCall (EmptyCall and
+StreamingInputCall responses stay under a 16-byte cap), including over those
+transports.
 
 Lifting the inbound cap entirely is possible and is only appropriate when
 every peer is trusted:

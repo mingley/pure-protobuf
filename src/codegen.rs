@@ -4265,7 +4265,7 @@ fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Mount alongside another service. [`Self::max_decoding_message_size`] stays in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
+        "    /// Mount alongside another service. [`Self::max_decoding_message_size`] and [`Self::max_encoding_message_size`] stay in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
