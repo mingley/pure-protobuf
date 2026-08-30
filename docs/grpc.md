@@ -1493,7 +1493,10 @@ For work that belongs to one method rather than the whole service, do it in the
 handler; you have the metadata, the deadline, `:authority` / `:scheme`, the
 method path (`Request::path` / `Request::service` / `Request::method`), the
 peer address, mTLS identity, Unix `peer_cred`, and `Request::limits` there.
-Those handler-visible facts apply to every call shape.
+Those handler-visible facts apply to every call shape. A client
+`grpc-timeout` is a handler `Request::deadline` Instant that elapses while
+the handler runs (`Request::timeout` stays the duration stamped at
+dispatch), including over TLS, mTLS, Unix, and `from_io`.
 
 ## Testing
 

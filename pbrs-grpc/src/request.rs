@@ -222,7 +222,9 @@ impl<T> Request<T> {
     /// handler has already run, so forwarding
     /// `deadline.saturating_duration_since(tokio::time::Instant::now())`
     /// onto a downstream call preserves the remaining budget. Stamped on
-    /// every call shape.
+    /// every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`]. The Instant elapses while the handler
+    /// runs; [`Self::timeout`] stays the duration stamped at dispatch.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.deadline

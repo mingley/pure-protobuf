@@ -846,6 +846,17 @@ fn server_and_router_config_document_every_call_shape() {
     );
 }
 
+#[test]
+fn request_deadline_documents_every_transport() {
+    let src = include_str!("../src/request.rs");
+    assert!(
+        src.contains(
+            "onto a downstream call preserves the remaining budget. Stamped on\n    /// every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]. The Instant elapses while the handler\n    /// runs; [`Self::timeout`] stays the duration stamped at dispatch."
+        ),
+        "Request::deadline must name every transport and that the Instant elapses"
+    );
+}
+
 #[tokio::test]
 async fn a_router_dispatches_between_two_services() {
     let (addr, listener) = bind().await;
@@ -1397,48 +1408,52 @@ async fn a_generated_handler_sees_authority_scheme_and_parts() {
     task.abort();
 }
 
-#[tokio::test]
-async fn a_handler_deadline_is_an_instant_that_elapses() {
-    struct SeesDeadline;
+struct SeesDeadline;
 
-    impl Greeter for SeesDeadline {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            sees_deadline(&request).await?;
-            Ok(Response::new(common::reply(common::name_of_request(
-                request.get_ref(),
-            ))))
-        }
-
-        async fn client_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<HelloReply>, Status> {
-            sees_deadline(&request).await?;
-            Ok(Response::new(common::reply("ada")))
-        }
-
-        async fn server_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            sees_deadline(&request).await?;
-            Ok(echo_named_stream(common::name_of_request(
-                request.get_ref(),
-            )))
-        }
-
-        async fn stream_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            sees_deadline(&request).await?;
-            Ok(echo_named_stream("ada".into()))
-        }
+impl Greeter for SeesDeadline {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        sees_deadline(&request).await?;
+        Ok(Response::new(common::reply(common::name_of_request(
+            request.get_ref(),
+        ))))
     }
 
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        sees_deadline(&request).await?;
+        Ok(Response::new(common::reply("ada")))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        sees_deadline(&request).await?;
+        Ok(echo_named_stream(common::name_of_request(
+            request.get_ref(),
+        )))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        sees_deadline(&request).await?;
+        Ok(echo_named_stream("ada".into()))
+    }
+}
+
+async fn assert_handler_deadline_elapses(client: &GreeterClient) {
+    echo_every_shape(client, Some(Duration::from_millis(200))).await;
+}
+
+#[tokio::test]
+async fn a_handler_deadline_is_an_instant_that_elapses() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(SeesDeadline)
@@ -1446,9 +1461,70 @@ async fn a_handler_deadline_is_an_instant_that_elapses() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    echo_every_shape(&client, Some(Duration::from_millis(200))).await;
+    assert_handler_deadline_elapses(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_handler_deadline_is_an_instant_that_elapses() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesDeadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_handler_deadline_elapses(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_handler_deadline_is_an_instant_that_elapses() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesDeadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_handler_deadline_elapses(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_handler_deadline_is_an_instant_that_elapses() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesDeadline).serve_unix(sock).await.ok();
+    });
+    assert_handler_deadline_elapses(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_handler_deadline_is_an_instant_that_elapses() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesDeadline)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_handler_deadline_elapses(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
 }
 
 #[tokio::test]
