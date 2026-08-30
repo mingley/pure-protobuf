@@ -14045,6 +14045,97 @@ async fn a_deadline_cancels_a_bidi_stream_before_headers() {
     task.abort();
 }
 
+async fn assert_request_deadline_before_headers_on_every_shape(
+    client: &GreeterClient,
+    started: &AtomicUsize,
+    finished: &AtomicUsize,
+    child_done: &AtomicUsize,
+) {
+    let mut unary = Request::new(req("ada"));
+    unary.set_timeout(Duration::from_millis(80));
+    assert_deadline_dropped_spawned(client.say_hello(unary), started, finished, child_done).await;
+    let mut server = Request::new(req("ada"));
+    server.set_timeout(Duration::from_millis(80));
+    assert_deadline_dropped_spawned(client.server_hello(server), started, finished, child_done)
+        .await;
+    let mut inbound = Request::new(());
+    inbound.set_timeout(Duration::from_millis(80));
+    let (tx, call) = client.client_hello(inbound);
+    assert_deadline_dropped_spawned(call, started, finished, child_done).await;
+    drop(tx);
+    let mut bidi = Request::new(());
+    bidi.set_timeout(Duration::from_millis(80));
+    let (tx, call) = client.stream_hello(bidi);
+    assert_deadline_dropped_spawned(call, started, finished, child_done).await;
+    drop(tx);
+}
+
+async fn assert_deadline_cancels_live_server_stream(client: &GreeterClient, left: &AtomicUsize) {
+    let mut request = Request::new(req("ada"));
+    request.set_timeout(Duration::from_millis(80));
+    let mut stream = client
+        .server_hello(request)
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "0");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait until the deadline"
+    );
+    wait_flag(left).await;
+    drop(stream);
+}
+
+async fn assert_deadline_cancels_bidi_after_close(client: &GreeterClient, left: &AtomicUsize) {
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_millis(80));
+    let (tx, call) = client.stream_hello(request);
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait until the deadline"
+    );
+    wait_flag(left).await;
+    drop(stream);
+}
+
+async fn assert_deadline_cancels_client_stream_after_close(
+    client: &GreeterClient,
+    drained: &AtomicUsize,
+    left: &AtomicUsize,
+) {
+    let mut request = Request::new(());
+    request.set_timeout(Duration::from_millis(200));
+    let (tx, mut call) = client.client_hello(request);
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    wait_half_close_drained(&mut call, drained).await;
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "handler must wait until the deadline"
+    );
+    let err = call.await.expect_err("deadline");
+    assert_eq!(err.code(), Code::DeadlineExceeded, "{err}");
+    wait_flag(left).await;
+}
+
 async fn assert_call_handle_cancels_live_server_stream(client: &GreeterClient, left: &AtomicUsize) {
     let call = client.server_hello(Request::new(req("ada")));
     let handle = call.handle();
@@ -14419,6 +14510,343 @@ async fn from_io_call_handle_cancels_streams() {
             .expect("from_io"),
     );
     assert_call_handle_cancels_client_stream_after_close(&client, &drained, &left).await;
+    drop(client);
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_deadline_rsts_streams_before_and_after_headers() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_request_deadline_before_headers_on_every_shape(
+        &client,
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_deadline_cancels_live_server_stream(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_deadline_cancels_bidi_after_close(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let drained = Arc::new(AtomicUsize::new(0));
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamWaitAfterClose {
+        drained: Arc::clone(&drained),
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_deadline_cancels_client_stream_after_close(&client, &drained, &left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_deadline_rsts_streams_before_and_after_headers() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_request_deadline_before_headers_on_every_shape(
+        &client,
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_deadline_cancels_live_server_stream(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_deadline_cancels_bidi_after_close(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let drained = Arc::new(AtomicUsize::new(0));
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = ClientStreamWaitAfterClose {
+        drained: Arc::clone(&drained),
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_deadline_cancels_client_stream_after_close(&client, &drained, &left).await;
+    drop(client);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_deadline_rsts_streams_before_and_after_headers() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(hang).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_request_deadline_before_headers_on_every_shape(
+        &client,
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_deadline_cancels_live_server_stream(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_deadline_cancels_bidi_after_close(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let drained = Arc::new(AtomicUsize::new(0));
+    let left = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = ClientStreamWaitAfterClose {
+        drained: Arc::clone(&drained),
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_deadline_cancels_client_stream_after_close(&client, &drained, &left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_deadline_rsts_streams_before_and_after_headers() {
+    let started = Arc::new(AtomicUsize::new(0));
+    let finished = Arc::new(AtomicUsize::new(0));
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let hang = SpawnHang {
+        started: Arc::clone(&started),
+        finished: Arc::clone(&finished),
+        child_done: Arc::clone(&child_done),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(hang)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_request_deadline_before_headers_on_every_shape(
+        &client,
+        &started,
+        &finished,
+        &child_done,
+    )
+    .await;
+    drop(client);
+    server.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_deadline_cancels_live_server_stream(&client, &left).await;
+    drop(client);
+    server.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_deadline_cancels_bidi_after_close(&client, &left).await;
+    drop(client);
+    server.abort();
+
+    let drained = Arc::new(AtomicUsize::new(0));
+    let left = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = ClientStreamWaitAfterClose {
+        drained: Arc::clone(&drained),
+        left: Arc::clone(&left),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_deadline_cancels_client_stream_after_close(&client, &drained, &left).await;
     drop(client);
     server.abort();
 }

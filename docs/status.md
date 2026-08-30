@@ -238,7 +238,8 @@ See `docs/upb.md`. Short list:
   A server-streaming or bidi deadline RSTs the send half before headers and
   after a half-close;
   after those headers that deadline still RSTs the parked
-  send half. Spawned handler work awaiting `Request::cancelled` sees the RST, including
+  send half, including over TLS, mTLS, Unix, and `from_io`. A request deadline
+  before headers also fires on unary and client-streaming on those transports. Spawned handler work awaiting `Request::cancelled` sees the RST, including
   when the server deadline wins (signalled before trailers). CallHandle cancel
   of spawned work on every call shape also runs over TLS, mTLS, Unix, and
   `from_io`. Generated trait
