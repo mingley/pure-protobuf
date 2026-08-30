@@ -4215,6 +4215,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Cap remembered locally-reset HTTP/2 stream IDs. Default 50. When the cap is reached, the oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`. Frames on a purged ID are a connection `PROTOCOL_ERROR`. Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST GOAWAY). A well-behaved client still completes every call shape at this memory cap, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::max_concurrent_reset_streams`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {{ self.config = self.config.max_concurrent_reset_streams(n); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");

@@ -1379,6 +1379,7 @@ async fn generated_servers_accept_configuration() {
             .max_send_buffer_size(512 * 1024)
             .max_pending_accept_reset_streams(3)
             .max_local_error_reset_streams(8)
+            .max_concurrent_reset_streams(1)
             .serve_listener(listener)
             .await
             .ok();
@@ -1697,6 +1698,18 @@ fn generated_server_config_is_readable_after_overlays() {
             .server_config()
             .data_budget(),
         512
+    );
+    assert_eq!(
+        server.server_config().concurrent_reset_streams(),
+        pbrs_grpc::DEFAULT_MAX_CONCURRENT_RESET_STREAMS
+    );
+    assert_eq!(
+        server
+            .clone()
+            .max_concurrent_reset_streams(1)
+            .server_config()
+            .concurrent_reset_streams(),
+        1
     );
     assert!(server.accepts_compressed());
     assert!(server.clone().send_compressed().compresses_outbound());
@@ -4078,6 +4091,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Distinct from [`Self::initial_connection_window_size`], which is flow-control bytes, and from [`Self::max_frame_size`], which caps one DATA payload. h2 Auto (half the connection window) is not exposed. A well-behaved client still completes every call shape at this framing budget, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated data_frame_budget rustdoc must Distinct small-DATA budget from windows on every transport"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST GOAWAY). A well-behaved client still completes every call shape at this memory cap, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated max_concurrent_reset_streams rustdoc must Distinct eviction from pending-reset and local-error RST GOAWAY"
     );
     assert!(
         src.contains(

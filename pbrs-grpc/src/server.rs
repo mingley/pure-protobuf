@@ -1515,6 +1515,22 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Cap remembered locally-reset HTTP/2 stream IDs.
+    /// Default 50. Applies to every call shape. See
+    /// [`ServerConfig::max_concurrent_reset_streams`].
+    /// When the cap is reached, the oldest ID is purged from memory, not
+    /// `ENHANCE_YOUR_CALM`. Frames on a purged ID are a connection
+    /// `PROTOCOL_ERROR`. Distinct from
+    /// [`Self::max_pending_accept_reset_streams`] (rapid-reset GOAWAY) and
+    /// [`Self::max_local_error_reset_streams`] (protocol-error RST GOAWAY).
+    /// A well-behaved client still completes every call shape at this memory cap,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {
+        self.config = self.config.max_concurrent_reset_streams(n);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. Applies to
     /// every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::serve_connection`]. See [`ServerConfig::timeout`].
@@ -2244,6 +2260,22 @@ impl Router {
     #[must_use]
     pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
         self.config = self.config.max_local_error_reset_streams(n);
+        self
+    }
+
+    /// Cap remembered locally-reset HTTP/2 stream IDs.
+    /// Default 50. Applies to every call shape. See
+    /// [`ServerConfig::max_concurrent_reset_streams`].
+    /// When the cap is reached, the oldest ID is purged from memory, not
+    /// `ENHANCE_YOUR_CALM`. Frames on a purged ID are a connection
+    /// `PROTOCOL_ERROR`. Distinct from
+    /// [`Self::max_pending_accept_reset_streams`] (rapid-reset GOAWAY) and
+    /// [`Self::max_local_error_reset_streams`] (protocol-error RST GOAWAY).
+    /// A well-behaved client still completes every call shape at this memory cap,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {
+        self.config = self.config.max_concurrent_reset_streams(n);
         self
     }
 

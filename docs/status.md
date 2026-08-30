@@ -216,6 +216,12 @@ See `docs/upb.md`. Short list:
   Distinct from the connection window (flow-control bytes). h2 Auto (half
   the window) is not exposed. Handshake-only on the client. A well-behaved
   peer still completes every call shape at this framing budget.
+  `max_concurrent_reset_streams` is remembered locally-reset HTTP/2 stream
+  IDs (default 50). Distinct from pending-reset and protocol-error RST
+  (those GOAWAY). Handshake-only on the client. Exceeding this evicts the
+  oldest ID, not `ENHANCE_YOUR_CALM`. Frames on a purged ID are a
+  connection `PROTOCOL_ERROR`. A well-behaved peer still completes every
+  call shape at this memory cap.
   `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /
   generated `FooServer::max_concurrent_streams` /
   `ServerConfig::max_concurrent_streams` serialize extra RPCs on the same
@@ -282,6 +288,11 @@ See `docs/upb.md`. Short list:
   self-dependency flood is h2c-only (`RawH2`). `Server` / `Router` /
   generated `FooServer` / `ChannelConfig` still serve at that cap on h2c
   and `from_io`.
+  `ServerConfig::max_concurrent_reset_streams` (default 50) remembers
+  locally-reset stream IDs after we RST. Exceeding it evicts the oldest
+  ID; it is not `ENHANCE_YOUR_CALM`. Distinct from rapid-reset GOAWAY and
+  protocol-error RST GOAWAY. `Server` / `Router` / generated `FooServer` /
+  `ChannelConfig` still serve at that memory cap on h2c and `from_io`.
   The gRPC guide Distincts that well-behaved still-serves from the raw flood,
   and Distincts `ChannelConfig::max_pending_accept_reset_streams` as the
   client accept queue, not the server cap.

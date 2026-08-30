@@ -1144,6 +1144,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must name small-DATA budget as handshake-only"
     );
     assert!(
+        channel.contains("locally-reset stream memory"),
+        "Channel rustdoc must name locally-reset stream memory as handshake-only"
+    );
+    assert!(
         channel.contains("[`Self::send_compressed`], [`Self::gzip_compression_level`]"),
         "Channel rustdoc must overlay gzip_compression_level with send_compressed"
     );
@@ -1494,10 +1498,40 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::data_frame_budget must name client handshake Distinct from server still-serves"
     );
     assert_eq!(
+        src.matches("Cap remembered locally-reset HTTP/2 stream IDs.")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig max_concurrent_reset_streams must name remembered locally-reset stream IDs"
+    );
+    assert!(
+        src.contains("oldest ID is purged from memory"),
+        "ServerConfig::max_concurrent_reset_streams must name eviction, not GOAWAY"
+    );
+    assert!(
+        src.contains("not `ENHANCE_YOUR_CALM`"),
+        "ServerConfig::max_concurrent_reset_streams must Distinct eviction from ENHANCE_YOUR_CALM"
+    );
+    assert!(
+        src.contains("Frames on a purged ID are a connection `PROTOCOL_ERROR`"),
+        "ServerConfig::max_concurrent_reset_streams must name PROTOCOL_ERROR after purge"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`ServerConfig::max_concurrent_reset_streams`], which still\n    /// serves when the server remembers fewer reset stream IDs."
+        ),
+        "ChannelConfig::max_concurrent_reset_streams must name client handshake Distinct from server still-serves"
+    );
+    assert_eq!(
+        src.matches("at this memory cap")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig max_concurrent_reset_streams must still-serve at this memory cap"
+    );
+    assert_eq!(
         src.matches("Applied at handshake, not as a live overlay.")
             .count(),
-        4,
-        "ChannelConfig header_table_size / data_frame_budget / pending-reset / local-error RST must be handshake-only"
+        5,
+        "ChannelConfig header_table_size / data_frame_budget / pending-reset / local-error RST / concurrent-reset memory must be handshake-only"
     );
     assert_eq!(
         src.matches("Distinct from [`Self::send_compressed`], which is on or off.")
@@ -1693,6 +1727,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("too_many_data_frames"),
         "crate docs must name the hostile small-DATA flood"
+    );
+    assert!(
+        crate_src.contains("HTTP/2 locally-reset stream memory"),
+        "crate threat table must name locally-reset stream memory"
+    );
+    assert!(
+        crate_src.contains("oldest purged, not GOAWAY"),
+        "crate threat table must Distinct locally-reset stream memory from GOAWAY"
+    );
+    assert!(
+        crate_src.contains("exceeding that evicts the"),
+        "crate docs must Distinct locally-reset stream memory eviction from GOAWAY floods"
+    );
+    assert!(
+        crate_src.contains("[`ChannelConfig::max_concurrent_reset_streams`] is the client handshake cap."),
+        "crate docs must Distinct ChannelConfig concurrent-reset memory as the client handshake cap"
     );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
@@ -1957,6 +2007,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("a small-DATA flood that exceeds `data_frame_budget`"),
         "guide must name the hostile.rs small-DATA flood"
+    );
+    assert!(
+        guide.contains("HTTP/2 locally-reset stream memory"),
+        "guide threat table must name locally-reset stream memory"
+    );
+    assert!(
+        guide.contains("`max_concurrent_reset_streams` is remembered locally-reset HTTP/2 stream IDs (default 50)."),
+        "guide must name max_concurrent_reset_streams as remembered locally-reset stream IDs"
+    );
+    assert!(
+        guide.contains("the oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`"),
+        "guide must Distinct concurrent-reset memory eviction from ENHANCE_YOUR_CALM"
+    );
+    assert!(
+        guide.contains("`ChannelConfig::max_concurrent_reset_streams` is the"),
+        "guide must Distinct ChannelConfig concurrent-reset memory as the client handshake cap"
     );
     let benches = include_str!("../../docs/benchmarks.md");
     assert!(
@@ -2262,6 +2328,17 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server and Router data_frame_budget must not expose h2 Auto"
+    );
+    assert_eq!(
+        src.matches("Cap remembered locally-reset HTTP/2 stream IDs.")
+            .count(),
+        2,
+        "Server::max_concurrent_reset_streams and Router::max_concurrent_reset_streams must name remembered locally-reset stream IDs"
+    );
+    assert_eq!(
+        src.matches("at this memory cap").count(),
+        2,
+        "Server and Router max_concurrent_reset_streams must still-serve at this memory cap"
     );
     assert_eq!(
         src.matches(
@@ -13396,6 +13473,7 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
         .max_send_buffer_size(123_456)
         .max_pending_accept_reset_streams(3)
         .max_local_error_reset_streams(7)
+        .max_concurrent_reset_streams(5)
         .header_table_size(2048)
         .data_frame_budget(512);
     let dbg = format!("{router:?}");
@@ -13404,6 +13482,7 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
     assert!(dbg.contains("123456"), "{dbg}");
     assert!(dbg.contains("max_pending_accept_reset_streams: 3"), "{dbg}");
     assert!(dbg.contains("max_local_error_reset_streams: 7"), "{dbg}");
+    assert!(dbg.contains("max_concurrent_reset_streams: 5"), "{dbg}");
     assert!(dbg.contains("header_table_size: 2048"), "{dbg}");
     assert!(dbg.contains("data_frame_budget: 512"), "{dbg}");
 }
@@ -25036,6 +25115,17 @@ fn server_and_router_config_is_readable_and_cloneable() {
             .data_budget(),
         512
     );
+    assert_eq!(
+        svc.server_config().concurrent_reset_streams(),
+        pbrs_grpc::DEFAULT_MAX_CONCURRENT_RESET_STREAMS
+    );
+    assert_eq!(
+        svc.clone()
+            .max_concurrent_reset_streams(1)
+            .server_config()
+            .concurrent_reset_streams(),
+        1
+    );
     assert!(svc.accepts_compressed());
     assert!(svc.clone().send_compressed().compresses_outbound());
     assert!(!svc.clone().accept_compressed(false).accepts_compressed());
@@ -30605,6 +30695,112 @@ async fn from_io_client_data_frame_budget_still_serves_every_shape() {
     echo_every_shape(
         &GreeterClient::new(
             Channel::from_io_with(client_io, "localhost", client_data_frame_budget())
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+fn reset_stream_memory_server() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).max_concurrent_reset_streams(1)
+}
+
+fn reset_stream_memory_config() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).config(ServerConfig::new().max_concurrent_reset_streams(1))
+}
+
+fn reset_stream_memory_router() -> Router {
+    Router::new()
+        .max_concurrent_reset_streams(1)
+        .add_service(GreeterServer::new(Echo))
+}
+
+fn client_reset_stream_memory() -> ChannelConfig {
+    ChannelConfig::new().max_concurrent_reset_streams(1)
+}
+
+#[tokio::test]
+async fn reset_stream_memory_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reset_stream_memory_server()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_reset_stream_memory_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        reset_stream_memory_server()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn reset_stream_memory_config_and_router_still_serve_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reset_stream_memory_config()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reset_stream_memory_router()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_reset_stream_memory_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(channel_cfg(addr, client_reset_stream_memory()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_reset_stream_memory_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        echo_uncapped().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io_with(client_io, "localhost", client_reset_stream_memory())
                 .await
                 .expect("from_io"),
         ),

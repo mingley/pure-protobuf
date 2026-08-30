@@ -1155,6 +1155,13 @@ Handshake-only on the client; not a live `Channel` overlay.
 Distinct from the connection window, which is flow-control bytes.
 h2 Auto (half the window) is not exposed.
 
+`max_concurrent_reset_streams` is remembered locally-reset HTTP/2 stream IDs (default 50).
+When the cap is reached, the oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`.
+Frames on a purged ID are a connection `PROTOCOL_ERROR`.
+Distinct from `max_pending_accept_reset_streams` (rapid-reset GOAWAY) and
+`max_local_error_reset_streams` (protocol-error RST GOAWAY).
+Handshake-only on the client; not a live `Channel` overlay.
+
 ```rust
 GreeterServer::new(svc)
     .send_compressed()
@@ -1264,6 +1271,7 @@ guards is committed.
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 (`ServerConfig::max_pending_accept_reset_streams`) |
 | HTTP/2 protocol-error RST flood | Cap locally-reset streams caused by invalid frames | 1024 (`ServerConfig::max_local_error_reset_streams`) |
+| HTTP/2 locally-reset stream memory | Remember stream IDs after we RST; oldest purged, not GOAWAY | 50 (`ServerConfig::max_concurrent_reset_streams`) |
 | HTTP/2 small-DATA flood | Cap framing overhead of tiny DATA frames | 25600 (`ServerConfig::data_frame_budget`) |
 | HTTP/2 CONTINUATION flood | Cap CONTINUATION frames on an unfinished header block; that connection drops | always (`h2`, scaled from `max_header_list_size`) |
 | Unfinished HEADERS | Header block without `END_HEADERS` stalls that stream only | always |
@@ -1306,6 +1314,15 @@ Exceeding it is `ENHANCE_YOUR_CALM` (h2 `too_many_internal_resets`). The
 raw flood is h2c-only (`tests/hostile.rs`; no TLS raw peer).
 `ChannelConfig::max_local_error_reset_streams` is the client handshake cap,
 not the server cap. h2's `None` disable is not exposed.
+
+A well-behaved client never needs locally-reset stream-ID memory beyond
+the default; every call shape still completes over TLS, mTLS, Unix, and
+`from_io` at this memory cap. Distinct from a rapid-reset flood (that
+GOAWAYs as `ENHANCE_YOUR_CALM`) and from a protocol-error RST flood
+(also GOAWAY). Exceeding this cap evicts the oldest remembered ID; it
+is not `ENHANCE_YOUR_CALM`. Frames on a purged ID are a connection
+`PROTOCOL_ERROR`. `ChannelConfig::max_concurrent_reset_streams` is the
+client handshake cap, not the server cap.
 
 A well-behaved client never trips the small-DATA framing budget; every call
 shape still completes over TLS, mTLS, Unix, and `from_io`. Distinct from a
@@ -1462,7 +1479,8 @@ to size in either direction.
 Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size`, `header_table_size`,
 `data_frame_budget`,
-`max_pending_accept_reset_streams`, `max_local_error_reset_streams` — is
+`max_pending_accept_reset_streams`, `max_local_error_reset_streams`,
+`max_concurrent_reset_streams` — is
 available on `Server` / `Router` / generated `FooServer` as well as
 `ServerConfig` and `ChannelConfig`, and is more likely to be a safety
 decision than a performance one.

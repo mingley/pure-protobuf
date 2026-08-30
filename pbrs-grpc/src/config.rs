@@ -79,6 +79,17 @@ pub const DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS: usize = 20;
 /// [`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`] (rapid reset, remote RSTs).
 pub const DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS: usize = 1024;
 
+/// HTTP/2 locally-reset stream-ID memory: how many reset IDs this endpoint
+/// remembers so late frames are ignored (RFC 9113).
+///
+/// h2's default, set explicitly. When the cap is reached, the oldest ID
+/// is purged from memory, not `ENHANCE_YOUR_CALM`. Frames on a purged ID
+/// are a connection `PROTOCOL_ERROR`. Distinct from
+/// [`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`] (rapid reset, remote RSTs)
+/// and [`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`] (protocol-error RSTs we
+/// send). Zero is allowed.
+pub const DEFAULT_MAX_CONCURRENT_RESET_STREAMS: usize = 50;
+
 /// The per-stream settings the wire layer needs: message caps plus how much
 /// the connection will buffer before a write has to wait for flow control.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -118,6 +129,7 @@ pub struct ServerConfig {
     data_frame_budget: usize,
     max_pending_accept_reset_streams: usize,
     max_local_error_reset_streams: usize,
+    max_concurrent_reset_streams: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
@@ -147,6 +159,7 @@ impl Default for ServerConfig {
             data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
             max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
             max_local_error_reset_streams: DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
+            max_concurrent_reset_streams: DEFAULT_MAX_CONCURRENT_RESET_STREAMS,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
@@ -356,6 +369,31 @@ impl ServerConfig {
     #[must_use]
     pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
         self.max_local_error_reset_streams = n;
+        self
+    }
+
+    /// Cap remembered locally-reset HTTP/2 stream IDs.
+    /// Default 50 ([`DEFAULT_MAX_CONCURRENT_RESET_STREAMS`]).
+    /// Applies to every call shape.
+    /// After this endpoint sends `RST_STREAM`, the stream ID is remembered
+    /// so late frames are ignored (RFC 9113). When the cap is reached, the
+    /// oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`.
+    /// Frames on a purged ID are a connection `PROTOCOL_ERROR`.
+    /// Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset
+    /// GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST
+    /// GOAWAY). This memory includes CANCEL after a drop, not only invalid
+    /// frames. Zero is allowed (every local reset is immediately forgotten).
+    /// A well-behaved client still completes every call shape at this memory cap,
+    /// including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`].
+    ///
+    /// [`crate::Server::max_concurrent_reset_streams`],
+    /// [`crate::Router::max_concurrent_reset_streams`], and generated
+    /// `FooServer::max_concurrent_reset_streams` set this without building a
+    /// [`ServerConfig`].
+    #[must_use]
+    pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {
+        self.max_concurrent_reset_streams = n;
         self
     }
 
@@ -709,6 +747,13 @@ impl ServerConfig {
         self.max_local_error_reset_streams
     }
 
+    /// Remembered locally-reset HTTP/2 stream IDs.
+    /// See [`Self::max_concurrent_reset_streams`]. Applies to every call shape.
+    #[must_use]
+    pub fn concurrent_reset_streams(self) -> usize {
+        self.max_concurrent_reset_streams
+    }
+
     /// TLS accept and HTTP/2 preface bound. See [`Self::handshake_timeout`].
     /// Applies to every call shape.
     #[must_use]
@@ -774,7 +819,8 @@ impl ServerConfig {
             .header_table_size(self.header_table_size)
             .data_frame_budget(self.data_frame_budget)
             .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
-            .max_local_error_reset_streams(Some(self.max_local_error_reset_streams));
+            .max_local_error_reset_streams(Some(self.max_local_error_reset_streams))
+            .max_concurrent_reset_streams(self.max_concurrent_reset_streams);
         builder
     }
 }
@@ -820,6 +866,7 @@ pub struct ChannelConfig {
     data_frame_budget: usize,
     max_pending_accept_reset_streams: usize,
     max_local_error_reset_streams: usize,
+    max_concurrent_reset_streams: usize,
     stream_buffer: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
@@ -851,6 +898,7 @@ impl Default for ChannelConfig {
             data_frame_budget: DEFAULT_DATA_FRAME_BUDGET,
             max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
             max_local_error_reset_streams: DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
+            max_concurrent_reset_streams: DEFAULT_MAX_CONCURRENT_RESET_STREAMS,
             stream_buffer: DEFAULT_STREAM_BUFFER,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
@@ -1077,6 +1125,28 @@ impl ChannelConfig {
     #[must_use]
     pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
         self.max_local_error_reset_streams = n;
+        self
+    }
+
+    /// Cap remembered locally-reset HTTP/2 stream IDs.
+    /// Default 50 ([`DEFAULT_MAX_CONCURRENT_RESET_STREAMS`]).
+    /// Applies to every call shape.
+    /// Applied at handshake, not as a live overlay.
+    /// After this endpoint sends `RST_STREAM`, the stream ID is remembered
+    /// so late frames are ignored (RFC 9113). When the cap is reached, the
+    /// oldest ID is purged from memory, not `ENHANCE_YOUR_CALM`.
+    /// Frames on a purged ID are a connection `PROTOCOL_ERROR`.
+    /// Distinct from [`ServerConfig::max_concurrent_reset_streams`], which still
+    /// serves when the server remembers fewer reset stream IDs.
+    /// Distinct from [`Self::max_pending_accept_reset_streams`] (rapid-reset
+    /// GOAWAY) and [`Self::max_local_error_reset_streams`] (protocol-error RST
+    /// GOAWAY). This memory includes CANCEL after a drop, not only invalid
+    /// frames. Zero is allowed (every local reset is immediately forgotten).
+    /// A well-behaved server still completes every call shape at this memory cap,
+    /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    #[must_use]
+    pub fn max_concurrent_reset_streams(mut self, n: usize) -> Self {
+        self.max_concurrent_reset_streams = n;
         self
     }
 
@@ -1419,6 +1489,13 @@ impl ChannelConfig {
         self.max_local_error_reset_streams
     }
 
+    /// Remembered locally-reset HTTP/2 stream IDs.
+    /// See [`Self::max_concurrent_reset_streams`]. Applies to every call shape.
+    #[must_use]
+    pub fn concurrent_reset_streams(self) -> usize {
+        self.max_concurrent_reset_streams
+    }
+
     /// Dial bound: TCP/Unix connect, optional TLS, peer SETTINGS.
     /// See [`Self::connect_timeout`]. Applies to every call shape once that
     /// dial happens.
@@ -1524,6 +1601,7 @@ impl ChannelConfig {
             .data_frame_budget(self.data_frame_budget)
             .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
             .max_local_error_reset_streams(Some(self.max_local_error_reset_streams))
+            .max_concurrent_reset_streams(self.max_concurrent_reset_streams)
             .enable_push(false)
             // h2's handshake future returns after writing the client preface,
             // before the peer speaks. Starting send capacity at 0 lets
@@ -1639,6 +1717,38 @@ mod tests {
             ServerConfig::new()
                 .max_local_error_reset_streams(0)
                 .local_error_reset_streams(),
+            0
+        );
+        assert_eq!(
+            config.concurrent_reset_streams(),
+            super::DEFAULT_MAX_CONCURRENT_RESET_STREAMS
+        );
+        assert_eq!(
+            ChannelConfig::new().concurrent_reset_streams(),
+            super::DEFAULT_MAX_CONCURRENT_RESET_STREAMS
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .max_concurrent_reset_streams(1)
+                .concurrent_reset_streams(),
+            1
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .max_concurrent_reset_streams(1)
+                .concurrent_reset_streams(),
+            1
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .max_concurrent_reset_streams(0)
+                .concurrent_reset_streams(),
+            0
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .max_concurrent_reset_streams(0)
+                .concurrent_reset_streams(),
             0
         );
         assert_eq!(config.handshake_wait(), super::DEFAULT_CONNECT_TIMEOUT);
@@ -1837,7 +1947,8 @@ mod tests {
             .header_table_size(2048)
             .data_frame_budget(512)
             .max_pending_accept_reset_streams(3)
-            .max_local_error_reset_streams(7);
+            .max_local_error_reset_streams(7)
+            .max_concurrent_reset_streams(5);
         assert_eq!(server.stream_window(), 1);
         assert_eq!(server.connection_window(), 2);
         assert_eq!(server.frame_size(), 16_384);
@@ -1847,6 +1958,7 @@ mod tests {
         assert_eq!(server.data_budget(), 512);
         assert_eq!(server.pending_accept_reset_streams(), 3);
         assert_eq!(server.local_error_reset_streams(), 7);
+        assert_eq!(server.concurrent_reset_streams(), 5);
 
         let channel = ChannelConfig::new()
             .initial_stream_window_size(3)
@@ -1857,7 +1969,8 @@ mod tests {
             .header_table_size(1024)
             .data_frame_budget(768)
             .max_pending_accept_reset_streams(11)
-            .max_local_error_reset_streams(13);
+            .max_local_error_reset_streams(13)
+            .max_concurrent_reset_streams(17);
         assert_eq!(channel.stream_window(), 3);
         assert_eq!(channel.connection_window(), 4);
         assert_eq!(channel.frame_size(), 16_384);
@@ -1867,6 +1980,7 @@ mod tests {
         assert_eq!(channel.data_budget(), 768);
         assert_eq!(channel.pending_accept_reset_streams(), 11);
         assert_eq!(channel.local_error_reset_streams(), 13);
+        assert_eq!(channel.concurrent_reset_streams(), 17);
         assert!(!ChannelConfig::new().compresses_outbound());
         assert!(ChannelConfig::new()
             .send_compressed(true)
