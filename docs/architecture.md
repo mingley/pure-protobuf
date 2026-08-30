@@ -87,8 +87,10 @@ Dumping `Request` prints path / service / method, `timeout` / `rpc_timeout` /
 `peer_timeout`,
 `deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, peer,
 `:authority` / `:scheme`, wait-for-ready, `limits`, and cancel.
-Dumping `Response` prints metadata, trailers, compress intent, and received
-`encoding`.
+Dumping `Response` prints metadata, trailers, compress intent, received
+`encoding`, path / service / method, `gzip_level` / `compresses_outbound` /
+`accepts_gzip` / `accepts_compressed`, `deadline` / `timeout` / `peer_timeout` /
+`rpc_timeout`, `limits`, and `send_buffer_size`.
 Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
 after the response is written / the stream drains), including over TLS, mTLS,
 Unix, and `serve_connection`. A drain waiting for the

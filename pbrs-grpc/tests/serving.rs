@@ -3242,6 +3242,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct ChannelConfig reset_stream_duration as the client handshake duration"
     );
     let guide = include_str!("../../docs/grpc.md");
+    let architecture = include_str!("../../docs/architecture.md");
     assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
@@ -3604,6 +3605,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Response::send_buffer_size` is that overlay in a response interceptor. Distinct from `Request::send_buffer_size` (inbound). Distinct from `Rpc::send_buffer_size` (before the handler). An interceptor cannot change it."),
         "guide must name Response::send_buffer_size as the response interceptor overlay"
+    );
+    assert!(
+        architecture.contains("`concurrent_rpc_limit` / `send_buffer_size`, and `limits`."),
+        "architecture must dump Rpc send_buffer_size"
+    );
+    assert!(
+        architecture.contains("`concurrent_rpc_limit`, `send_buffer_size`, peer,"),
+        "architecture must dump Request send_buffer_size"
+    );
+    assert!(
+        architecture.contains("`rpc_timeout`, `limits`, and `send_buffer_size`."),
+        "architecture must dump Response send_buffer_size"
+    );
+    assert!(
+        architecture.contains("Closures see `ResponseParts::send_buffer_size` (write-time HTTP/2 send buffer overlay)."),
+        "architecture must name ResponseParts::send_buffer_size in on_response closures"
     );
     assert!(
         guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
