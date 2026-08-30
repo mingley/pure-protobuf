@@ -1593,6 +1593,18 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor rustdoc must Distinct Rpc::send_buffer_size from handshake SETTINGS"
     );
     assert!(
+        intercept.contains("///         rpc.send_buffer_size(),"),
+        "Interceptor rustdoc example must read send_buffer_size"
+    );
+    assert!(
+        intercept.contains("///         rpc.limits(),"),
+        "Interceptor rustdoc example must read limits"
+    );
+    assert!(
+        intercept.contains("///         rpc.gzip_level(),"),
+        "Interceptor rustdoc example must read gzip_level"
+    );
+    assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
         "ClientInterceptor rustdoc must Distinct connected from wait-for-ready"
     );

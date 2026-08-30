@@ -51,6 +51,18 @@ use std::sync::Arc;
 ///     }
 ///     rpc.metadata_mut().remove("authorization");
 ///     rpc.metadata_mut().set("x-actor", "gateway")?;
+///     let _ = (
+///         rpc.path(),
+///         rpc.peer_timeout(),
+///         rpc.rpc_timeout(),
+///         rpc.effective_timeout(),
+///         rpc.deadline(),
+///         rpc.gzip_level(),
+///         rpc.accepts_compressed(),
+///         rpc.concurrent_rpc_limit(),
+///         rpc.send_buffer_size(),
+///         rpc.limits(),
+///     );
 ///     Ok(())
 /// }
 ///
