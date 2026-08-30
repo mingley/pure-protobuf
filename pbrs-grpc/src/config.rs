@@ -727,6 +727,11 @@ impl ChannelConfig {
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
     /// Applies to every call shape.
+    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE` the client advertises. Distinct
+    /// from [`ServerConfig::max_frame_size`], which still serves every call
+    /// shape when the server advertises a small cap. A well-behaved server
+    /// splits DATA, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.max_frame_size = bytes;

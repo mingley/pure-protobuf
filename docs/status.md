@@ -207,7 +207,9 @@ See `docs/upb.md`. Short list:
   serve every Greeter and Store shape at the HTTP/2 16 KiB SETTINGS minimum over
   TLS, mTLS, Unix, and `serve_connection`, distinct from wrapping only the
   generated Greeter setter, from header-list refuse, and from stream-cap
-  serialize. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  serialize. `ChannelConfig::max_frame_size` advertises client SETTINGS and
+  still serves every Greeter shape when a well-behaved server splits DATA over
+  TLS, mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
