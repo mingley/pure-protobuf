@@ -260,7 +260,9 @@ impl ServerConfig {
     ///
     /// This is not TCP keepalive. PINGs run on Unix sockets and TLS
     /// (including mTLS); they do not reset [`Self::max_connection_idle`]
-    /// (idle is outstanding RPCs, not bytes on the wire). For `SO_KEEPALIVE`
+    /// (idle is outstanding RPCs, not bytes on the wire) and they do not
+    /// postpone [`Self::max_connection_age`] (age is wall-clock from
+    /// accept). For `SO_KEEPALIVE`
     /// on TCP sockets, see [`Self::tcp_keepalive`]. Applies to every call
     /// shape.
     #[must_use]
@@ -844,7 +846,8 @@ impl ChannelConfig {
     /// Send an HTTP/2 PING every `interval` so a dead peer is noticed before
     /// the next RPC. Disabled by default. PINGs are sent while idle as well
     /// as while RPCs are in flight. They do not reset
-    /// [`Self::max_connection_idle`].
+    /// [`Self::max_connection_idle`] and they do not postpone
+    /// [`Self::max_connection_age`] (age is wall-clock from the handshake).
     ///
     /// This is not TCP keepalive. PINGs run on Unix sockets, TLS (including
     /// mTLS), and [`crate::Channel::from_io`]. For `SO_KEEPALIVE` on TCP

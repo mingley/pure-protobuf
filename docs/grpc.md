@@ -1017,7 +1017,7 @@ A connection lives until the peer goes away unless you cap it. Age is measured
 from accept. Idle is measured from the moment outstanding RPCs became zero
 (or from accept, until the first RPC) — keepalive PINGs do not count, so a
 peer that only answers PINGs still looks idle. A long-running stream is not
-idle.
+idle. PINGs do not postpone age.
 
 ```rust
 GreeterServer::new(MyGreeter)
@@ -1192,7 +1192,7 @@ guards is committed.
 | Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata. A client interceptor `insert` of `grpc-previous-rpc-attempts` or `connection` is `INVALID_ARGUMENT` on h2c, TLS (including mTLS), Unix, and `from_io`, including official TestService methods, hand-written Reverser `Channel` APIs, generated Store, Health Check/List/Watch, and reflection `ServerReflectionInfo`. A local interceptor `Err` before the stream opens is that status on those same paths | always |
 | Impersonation | WebPKI roots or a CA you pin; mTLS; verified client chain on `Rpc::peer_identity` | opt-in |
 | Unauthenticated Unix peer | Connecting process uid/gid/pid on `Rpc::peer_cred` from `SO_PEERCRED` | Unix accept loop |
-| Long-lived connection hold | Server `GOAWAY` after age or idle; client close after age or idle; PINGs do not reset idle | opt-in |
+| Long-lived connection hold | Server `GOAWAY` after age or idle; client close after age or idle; PINGs do not reset idle and do not postpone age | opt-in |
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
 | Unbounded handler concurrency | Refuse further RPCs with `RESOURCE_EXHAUSTED` before the handler runs | opt-in |
@@ -1831,7 +1831,7 @@ Deliberate omissions, with what to do instead.
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
 | Channel connectivity state | `Channel::connected` is a snapshot of live sockets. There is no `GetState` / `WaitForStateChange`. |
-| Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. |
+| Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

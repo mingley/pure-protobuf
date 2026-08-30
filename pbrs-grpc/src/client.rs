@@ -212,6 +212,7 @@ impl Endpoint {
 /// does not postpone age. The next RPC of every call shape redials, including over
 /// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with
 /// [`Code::Unavailable`].
+/// Keepalive PINGs do not postpone age.
 /// [`Self::connected`] is whether any slot still holds that socket. Distinct
 /// from gRPC `GetState`: it does not dial, wait, or remember a failed attempt.
 ///

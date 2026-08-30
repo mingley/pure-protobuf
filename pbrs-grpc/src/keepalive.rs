@@ -1,5 +1,6 @@
 //! HTTP/2 PING so a dead peer is noticed before the next RPC, and the
-//! in-flight counter idle close uses to ignore PINGs.
+//! in-flight counter idle close uses to ignore PINGs. Age is wall-clock
+//! from handshake; PINGs do not postpone it.
 //!
 //! TCP `SO_KEEPALIVE` is [`crate::ServerConfig::tcp_keepalive`] /
 //! [`crate::ChannelConfig::tcp_keepalive`], applied in `tcp`.
@@ -54,7 +55,8 @@ pub(crate) async fn wait_opt(dead: Option<watch::Receiver<bool>>) {
 ///
 /// Idle close (server GOAWAY, client driver stop) and client max-connection-age
 /// wait for [`Self::count`] to reach zero (age also has a grace bound).
-/// Keepalive PINGs do not touch this.
+/// Keepalive PINGs do not touch this. Age itself is wall-clock from
+/// handshake; PINGs do not postpone it.
 pub(crate) struct Busy {
     n: AtomicUsize,
     notify: Notify,

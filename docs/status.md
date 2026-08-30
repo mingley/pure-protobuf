@@ -304,6 +304,7 @@ See `docs/upb.md`. Short list:
   close. A long-running server stream is not idle.
   `ChannelConfig::max_connection_age` closes the client socket even while RPCs
   are in flight; in-flight get grace, then the driver stops. Distinct from idle.
+  Keepalive PINGs do not postpone age.
   `Channel::connected` is a snapshot of live sockets. Distinct from gRPC GetState.
   `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);

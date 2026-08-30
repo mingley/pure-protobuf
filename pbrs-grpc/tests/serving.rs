@@ -1038,6 +1038,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must name client max_connection_age redial"
     );
     assert!(
+        channel.contains("Keepalive PINGs do not postpone age."),
+        "Channel rustdoc must Distinct keepalive PINGs from postponing age"
+    );
+    assert!(
         src.contains(
             "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix.\n    /// [`crate::Channel::from_io`] cannot pool: [`crate::Channel::from_io_with`]\n    /// forces `connections` to 1."
         ),
@@ -1138,6 +1142,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "PINGs run on Unix sockets, TLS (including\n    /// mTLS), and [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::keep_alive_interval must name Unix, mTLS, and from_io"
+    );
+    assert!(
+        src.contains("they do not postpone\n    /// [`Self::max_connection_age`]"),
+        "ChannelConfig::keep_alive_interval must name that PINGs do not postpone age"
+    );
+    assert!(
+        src.contains(
+            "postpone [`Self::max_connection_age`] (age is wall-clock from\n    /// accept)."
+        ),
+        "ServerConfig::keep_alive_interval must name that PINGs do not postpone age"
     );
     assert!(
         src.contains(
@@ -1318,6 +1332,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         crate_src.contains("including a rapid-reset flood that exceeds"),
         "crate docs must name the hostile rapid-reset flood"
     );
+    assert!(
+        crate_src.contains("keepalive PINGs do not reset idle and do not postpone age"),
+        "crate threat table must Distinct keepalive PINGs from postponing age"
+    );
     let status_src = include_str!("../src/status.rs");
     assert!(
         status_src.contains("A peer can send a protobuf whose code or message disagrees"),
@@ -1412,6 +1430,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("client close after age or idle"),
         "guide threat table must name client close after age, not only idle"
+    );
+    assert!(
+        guide.contains("PINGs do not reset idle and do not postpone age"),
+        "guide threat table must Distinct keepalive PINGs from postponing age"
+    );
+    assert!(
+        guide.contains("PINGs do not postpone age."),
+        "guide must name that keepalive PINGs do not postpone age"
     );
     assert!(
         !guide.contains("| Client `max_connection_age` |"),
