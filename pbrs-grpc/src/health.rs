@@ -1,7 +1,9 @@
 //! `grpc.health.v1.Health`: the standard health service, generated plus a reporter.
 //!
-//! Check and Watch are the proto methods. There is no `List`. An inbound
-//! request over the decoding cap is `RESOURCE_EXHAUSTED` on both, including
+//! Check, List, and Watch are the proto methods. List is a snapshot of every
+//! known name (the process `""` and names you set); unknown names are omitted,
+//! matching [`HealthReporter::names`]. An inbound Check or Watch over the
+//! decoding cap is `RESOURCE_EXHAUSTED` on both, including
 //! over TLS, mTLS, Unix, and [`crate::Channel::from_io`]. A [`HealthClient`]
 //! `max_encoding_message_size` / `max_decoding_message_size` is
 //! `RESOURCE_EXHAUSTED` on Check and Watch on those transports, distinct from
@@ -16,19 +18,19 @@
 //! [`HealthServer::max_header_list_size`] refuses oversize metadata on Check
 //! and Watch, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server. [`HealthServer::max_frame_size`] still serves Check and Watch at
+//! server. [`HealthServer::max_frame_size`] still serves Check, List, and Watch at
 //! the HTTP/2 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server. [`HealthServer::max_pending_accept_reset_streams`] still serves Check
-//! and Watch at a pending-reset cap of 1, including over TLS, mTLS, Unix, and
+//! server. [`HealthServer::max_pending_accept_reset_streams`] still serves Check,
+//! List, and Watch at a pending-reset cap of 1, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. A well-behaved client never fills that
 //! queue. Distinct from wrapping only a Greeter server.
-//! [`HealthServer::max_send_buffer_size`] still serves Check and Watch at a
+//! [`HealthServer::max_send_buffer_size`] still serves Check, List, and Watch at a
 //! 16 KiB send buffer, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
 //! server.
 //! [`HealthServer::initial_stream_window_size`] /
-//! [`HealthServer::initial_connection_window_size`] still serve Check and Watch
+//! [`HealthServer::initial_connection_window_size`] still serve Check, List, and Watch
 //! at a 64 KiB stream / 128 KiB connection window, including over TLS, mTLS,
 //! Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping only a
 //! Greeter server.
@@ -37,27 +39,27 @@
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]
 //! cannot pool. An interceptor
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
-//! the client on both methods. A handler `Err` may carry the same packed
-//! status; those trailers reach the client on both methods. Watch
+//! the client on Check, List, and Watch. A handler `Err` may carry the same packed
+//! status; those trailers reach the client on Check, List, and Watch. Watch
 //! [`crate::StreamSender::fail`] after a streamed DATA frame ships those
 //! trailers the same way (Check is unary: no response DATA then trailers).
 //! Unix (`serve_unix` /
 //! `connect_unix`), TLS (`serve_tls` / `connect_tls`), and
 //! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
-//! both methods. Check of a never-set name is [`crate::Code::NotFound`]. Watch
+//! Check, List, and Watch. Check of a never-set name is [`crate::Code::NotFound`]. Watch
 //! of that name streams [`ServingStatus::ServiceUnknown`]. Watch streams later
 //! `set_not_serving` / [`HealthReporter::shutdown`] / [`HealthReporter::resume`]
 //! changes, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
 //! Dropping a Watch releases the subscription without waiting for a status
-//! change on those transports. [`HealthServer::send_compressed`] gzips Check and Watch when
-//! the client advertises gzip. [`HealthClient::connect_lazy`],
+//! change on those transports. [`HealthServer::send_compressed`] gzips Check,
+//! List, and Watch when the client advertises gzip. [`HealthClient::connect_lazy`],
 //! [`HealthClient::connect_tls_lazy`] (including mTLS), and
-//! [`HealthClient::connect_unix_lazy`] retry Check and Watch until listen when
+//! [`HealthClient::connect_unix_lazy`] retry Check, List, and Watch until listen when
 //! wait-for-ready is set on the request, the client, or a client interceptor.
 //! `Request::set_wait_for_ready(false)` and a client interceptor
 //! `set_wait_for_ready(false)` opt out of a client default. A waiting Call's
 //! deadline applies on those dialers. A client interceptor sees [`crate::Outgoing`]
-//! path / service / method / `:authority` / `:scheme` on both methods.
+//! path / service / method / `:authority` / `:scheme` on Check, List, and Watch.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {
@@ -125,7 +127,8 @@ impl HealthReporter {
     }
 
     /// Forget `name`. [`Health::check`] then returns `NOT_FOUND`;
-    /// [`Health::watch`] reports [`ServingStatus::ServiceUnknown`].
+    /// [`Health::watch`] reports [`ServingStatus::ServiceUnknown`];
+    /// [`Health::list`] omits the name.
     pub fn clear(&self, name: impl AsRef<str>) {
         let name = name.as_ref();
         self.tx.send_modify(|snap| {
@@ -149,7 +152,8 @@ impl HealthReporter {
     /// Known service names, including the process (`""`).
     ///
     /// Sorted lexicographically, so the empty process name is first. Names
-    /// you never set are omitted. After [`Self::shutdown`] the names are
+    /// you never set are omitted. [`Health::list`] returns the same set.
+    /// After [`Self::shutdown`] the names are
     /// still here, all [`ServingStatus::NotServing`]. After [`Self::resume`]
     /// they are all [`ServingStatus::Serving`].
     #[must_use]
@@ -247,6 +251,19 @@ impl Health for HealthService {
             Some(status) => Ok(Response::new(response(status))),
             None => Err(Status::not_found(format!("unknown service {name:?}"))),
         }
+    }
+
+    async fn list(
+        &self,
+        request: Request<HealthListRequest>,
+    ) -> Result<Response<HealthListResponse>, Status> {
+        drop(request);
+        let snap = self.reporter.snapshot();
+        let mut msg = HealthListResponse::new();
+        for (name, status) in snap.iter() {
+            msg.statuses_mut().insert(name.as_str(), response(*status));
+        }
+        Ok(Response::new(msg))
     }
 
     async fn watch(

@@ -108,7 +108,10 @@ See `docs/upb.md`. Short list:
   Check of a never-set name is `NOT_FOUND`, Watch of that name is
   `SERVICE_UNKNOWN`, Watch streams `set_not_serving` / `shutdown` / `resume`,
   and dropping a Watch releases the subscription, including over TLS, mTLS,
-  Unix, and `from_io`. There is still no Health `List`. Reflection
+  Unix, and `from_io`. `Health::list` returns a snapshot of every known name
+  (the process `""` and names you set); unknown names are omitted, matching
+  `HealthReporter::names`, including over TLS, mTLS, Unix, and `from_io`.
+  Reflection
   `file_containing_symbol` / `file_by_filename` / `file_containing_extension`
   / `all_extension_numbers_of_type` run on the one bidi method, including
   over TLS, mTLS, Unix, and `from_io`. An inbound Health Check or Watch over
@@ -171,7 +174,7 @@ See `docs/upb.md`. Short list:
   `FooServer::message_limits` / `ServerConfig::message_limits` refuse inbound
   or outbound oversize as `RESOURCE_EXHAUSTED` over TLS, mTLS, Unix, and
   `serve_connection`, distinct from the single-cap setters. TLS
-  (rustls + Graviola), `grpc.health.v1` Check/Watch, and
+  (rustls + Graviola), `grpc.health.v1` Check/List/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
   retry) — proven for unary and server-streaming on h2c and TLS.
@@ -189,12 +192,12 @@ See `docs/upb.md`. Short list:
   mTLS, or Unix dial with `UNAVAILABLE` while the cap is full (`from_io` is
   not an accept loop).   A `ChannelConfig::connections` pool larger than that
   cap fails the whole dial as `UNAVAILABLE` on TLS, mTLS, and Unix (`from_io`
-  cannot pool), including Health Check/Watch and reflection
+  cannot pool), including Health Check/List/Watch and reflection
   `ServerReflectionInfo`.   Oversize metadata against `Server::max_header_list_size` /
   `Router::max_header_list_size` / `ServerConfig::max_header_list_size` /
   generated `FooServer::max_header_list_size` is refused over TLS, mTLS, Unix,
   and `serve_connection`, distinct from a raw HTTP/2 peer and from wrapping
-  only the generated Greeter server setter. Health Check/Watch and reflection
+  only the generated Greeter server setter. Health Check/List/Watch and reflection
   `ServerReflectionInfo` refuse the same flood then keep serving a healthy
   client. Official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall refuse the same flood then keep serving
@@ -265,20 +268,20 @@ See `docs/upb.md`. Short list:
   The gRPC guide Distincts that well-behaved still-serves from the raw flood,
   and Distincts `ChannelConfig::max_pending_accept_reset_streams` as the
   client accept queue, not the server cap.
-  `HealthServer::max_pending_accept_reset_streams` still serves Check and Watch
+  `HealthServer::max_pending_accept_reset_streams` still serves Check, List, and Watch
   at a pending-reset cap of 1 over TLS, mTLS, Unix, and `serve_connection`.
   `ServerReflectionServer::max_pending_accept_reset_streams` still serves the
   one bidi method at that cap on those transports.
   Official TestService and hand-written Reverser still serve every shape at a
   pending-reset cap of 1 over TLS, mTLS, Unix, and `from_io` (mTLS Reverser
   uses `Reverser::mtls` with the same leaf).
-  `HealthServer::max_send_buffer_size` still serves Check and Watch at a 16 KiB
+  `HealthServer::max_send_buffer_size` still serves Check, List, and Watch at a 16 KiB
   send buffer over TLS, mTLS, Unix, and `serve_connection`.
   `ServerReflectionServer::max_send_buffer_size` still serves the one bidi
   method at that buffer on those transports. Official TestService and
   hand-written Reverser still serve every shape at a 16 KiB send buffer over
   TLS, mTLS, Unix, and `from_io` (mTLS Reverser uses `Reverser::mtls` with the
-  same leaf). `HealthServer` HTTP/2 windows still serve Check and Watch at
+  same leaf). `HealthServer` HTTP/2 windows still serve Check, List, and Watch at
   64 KiB / 128 KiB over TLS, mTLS, Unix, and `serve_connection`.
   `ServerReflectionServer` windows still serve the one bidi method at those
   sizes on those transports. Official TestService and hand-written Reverser
@@ -304,7 +307,7 @@ See `docs/upb.md`. Short list:
   channel facts. Interceptors run when the RPC method is invoked (all four
   shapes) on h2c, TLS (including mTLS), Unix, and `from_io`, including official
   TestService methods, hand-written Reverser `Channel` APIs, generated Store,
-  Health Check/Watch, and reflection `ServerReflectionInfo`, not on first poll of the `Call`. Interceptors and generated
+  Health Check/List/Watch, and reflection `ServerReflectionInfo`, not on first poll of the `Call`. Interceptors and generated
   handlers see `MessageLimits` on `Rpc::limits` / `Request::limits` /
   `Parts::limits`, including over TLS, mTLS, Unix, and `from_io`, the
   method path on `Rpc::path` / `Request::path` / `Parts::path`, including
@@ -342,11 +345,11 @@ See `docs/upb.md`. Short list:
   after `clear_wait_for_ready`) and on `from_io` (already connected; the RPC
   still runs), including official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall, hand-written Reverser `Channel`
-  methods, generated Store Get / Watch / PutAll / Sync, Health Check and Watch
-  (no List), and reflection `ServerReflectionInfo`. `clear_compress` then `set_compress(compresses_outbound())`
+  methods, generated Store Get / Watch / PutAll / Sync, Health Check, List, and Watch
+  and reflection `ServerReflectionInfo`. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on those transports plus `from_io`, including official
   TestService methods, hand-written Reverser `Channel` APIs, generated Store
-  Get / Watch / PutAll / Sync, Health Check and Watch, and reflection
+  Get / Watch / PutAll / Sync, Health Check, List, and Watch, and reflection
   `ServerReflectionInfo`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
   overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, a client interceptor `set_wait_for_ready(false)`, and a waiting Call's deadline, including mTLS.
@@ -358,9 +361,9 @@ See `docs/upb.md`. Short list:
   Generated `StoreClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
   retry Get / Watch / PutAll / Sync until listen on those transports, from either
   the request flag, `FooClient::wait_for_ready`, or a client interceptor `set_wait_for_ready(true)`; opt-out and a waiting Call's
-  deadline apply on those Store dialers too. Health Check and Watch
-  retry until listen on the same dialers; Health has no List. A client interceptor
-  `set_wait_for_ready(true)` retries Check and Watch until listen on those dialers too. Opt-out and a
+  deadline apply on those Store dialers too. Health Check, List, and Watch
+  retry until listen on the same dialers. A client interceptor
+  `set_wait_for_ready(true)` retries Check, List, and Watch until listen on those dialers too. Opt-out and a
   waiting Call's deadline apply on those Health dialers too, including mTLS.
   Reflection
   `ServerReflectionInfo` retries until listen on those dialers; reflection
@@ -375,7 +378,7 @@ See `docs/upb.md`. Short list:
   every call shape, including `with_error_details` and a local fail-before-open
   without details on h2c, TLS (including mTLS), Unix, and `from_io`, including
   official TestService methods, hand-written Reverser `Channel` APIs, generated
-  Store, Health Check/Watch, and reflection `ServerReflectionInfo`; nothing is sent. A reserved
+  Store, Health Check/List/Watch, and reflection `ServerReflectionInfo`; nothing is sent. A reserved
   `grpc-*` or hop-by-hop interceptor `insert` is `INVALID_ARGUMENT` on those same
   paths. A packed `google.rpc.Status` on that
   local `Err` is `Status::rpc` / `Status::error_details` on the Call.
@@ -386,7 +389,7 @@ See `docs/upb.md`. Short list:
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
   interceptor on those transports plus `from_io`, including official TestService
   methods and hand-written Reverser `Channel` APIs, generated Store Get / Watch /
-  PutAll / Sync, Health Check and Watch, and reflection `ServerReflectionInfo`. A `Channel::user_agent` prefix
+  PutAll / Sync, Health Check, List, and Watch, and reflection `ServerReflectionInfo`. A `Channel::user_agent` prefix
   is `Outgoing::user_agent` on those same paths.   Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape, including over TLS, mTLS, Unix,
   and `from_io` (`set` replaces a peer-smuggled hop, `remove` strips before
@@ -536,16 +539,16 @@ See `docs/upb.md`. Short list:
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
   TLS, mTLS, Unix, and `from_io`. A wrapping `Service` `send_compressed` gzips every
   hand-written Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`. Health
-  `send_compressed` gzips Check and Watch, including over TLS, mTLS, Unix, and
+  `send_compressed` gzips Check, List, and Watch, including over TLS, mTLS, Unix, and
   `from_io`; reflection `send_compressed` gzips the bidi `list_services`
   method, including over TLS, mTLS, Unix, and `from_io`. A client interceptor
   sees Outgoing path / service / method / authority / scheme on Health
-  Check/Watch, the reflection bidi method, and generated Store Get / Watch
+  Check/List/Watch, the reflection bidi method, and generated Store Get / Watch
   / PutAll / Sync, including over TLS, mTLS, Unix, and `from_io`. A packed `google.rpc.Status` from interceptor
   `Err(with_error_details)` unpacks on those Store, Health, and reflection
   methods the same way, including over TLS, mTLS, Unix, and `from_io`. A generated Store handler `Err(with_error_details)`
   unpacks on Get / Watch / PutAll / Sync too, including over TLS, mTLS, Unix, and `from_io`. A Health handler
-  `Err(with_error_details)` unpacks on Check and Watch too, including over TLS, mTLS, Unix, and `from_io`. A reflection
+  `Err(with_error_details)` unpacks on Check, List, and Watch too, including over TLS, mTLS, Unix, and `from_io`. A reflection
   handler `Err(with_error_details)` unpacks on the bidi `list_services` method too, including over TLS, mTLS, Unix,
   and `from_io`. A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written

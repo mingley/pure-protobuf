@@ -1,4 +1,4 @@
-//! Standard `grpc.health.v1.Health` Check and Watch.
+//! Standard `grpc.health.v1.Health` Check, List, and Watch.
 
 #![allow(
     clippy::disallowed_methods,
@@ -13,8 +13,8 @@
 )]
 
 use pbrs_grpc::health::{
-    service, Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthReporter,
-    HealthServer, ServingStatus,
+    service, Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthListRequest,
+    HealthListResponse, HealthReporter, HealthServer, ServingStatus,
 };
 use pbrs_grpc::{
     Channel, ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
@@ -244,6 +244,11 @@ async fn assert_health_opt_out(client: &HealthClient) {
         .await
         .expect_err("watch");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .list(stamp_opt_out(Request::new(HealthListRequest::new())))
+        .await
+        .expect_err("list");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
 }
 
 async fn assert_health_unavailable(client: &HealthClient) {
@@ -256,6 +261,11 @@ async fn assert_health_unavailable(client: &HealthClient) {
         .watch(Request::new(HealthCheckRequest::new()))
         .await
         .expect_err("watch");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect_err("list");
     assert_eq!(err.code(), Code::Unavailable, "{err}");
 }
 
@@ -281,6 +291,15 @@ async fn assert_health_wait_deadline(client: &HealthClient) {
         max,
     )
     .await;
+    assert_deadline_in(
+        client.list(stamp_wait_deadline(
+            Request::new(HealthListRequest::new()),
+            timeout,
+        )),
+        min,
+        max,
+    )
+    .await;
 }
 
 async fn wait_then_complete_health(
@@ -299,11 +318,17 @@ async fn wait_then_complete_health(
         wait_on_request,
         timeout,
     ));
+    let mut list = client.list(stamp_wait_ready(
+        Request::new(HealthListRequest::new()),
+        wait_on_request,
+        timeout,
+    ));
 
     tokio::select! {
         biased;
         result = &mut check => panic!("check finished before the server listened: {result:?}"),
         result = &mut watch => panic!("watch finished before the server listened: {result:?}"),
+        result = &mut list => panic!("list finished before the server listened: {result:?}"),
         () = tokio::time::sleep(Duration::from_millis(80)) => {}
     }
 
@@ -323,6 +348,32 @@ async fn wait_then_complete_health(
         .into_inner();
     let first = stream.message().await.expect("first").expect("msg");
     assert_eq!(first.status(), ServingStatus::Serving);
+
+    let listed = tokio::time::timeout(Duration::from_secs(2), list)
+        .await
+        .expect("list hung after listen")
+        .expect("list")
+        .into_inner();
+    assert_listed_known(&listed, ServingStatus::Serving, ServingStatus::Serving);
+}
+
+fn assert_listed_known(resp: &HealthListResponse, greeter: ServingStatus, overall: ServingStatus) {
+    let statuses = resp.statuses();
+    assert_eq!(
+        statuses.get("").map(|s| s.status()),
+        Some(overall),
+        "List must include the process name"
+    );
+    assert_eq!(
+        statuses.get("helloworld.Greeter").map(|s| s.status()),
+        Some(greeter),
+        "List must include names that have been set"
+    );
+    assert!(
+        statuses.get("no.Such").is_none(),
+        "List must omit unknown names"
+    );
+    assert_eq!(statuses.len(), 2, "List is only known names");
 }
 
 async fn echo_health_check_and_watch(client: &HealthClient) {
@@ -338,6 +389,12 @@ async fn echo_health_check_and_watch(client: &HealthClient) {
         .expect("named")
         .into_inner();
     assert_eq!(named.status(), ServingStatus::Serving);
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list")
+        .into_inner();
+    assert_listed_known(&listed, ServingStatus::Serving, ServingStatus::Serving);
     let mut stream = client
         .watch(Request::new(HealthCheckRequest::new()))
         .await
@@ -364,6 +421,18 @@ async fn gzip_health_check_and_watch(client: &HealthClient) {
     assert_eq!(named.encoding(), Some("gzip"));
     assert_eq!(named.get_ref().status(), ServingStatus::Serving);
 
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list");
+    assert!(listed.compressed(), "list gzip");
+    assert_eq!(listed.encoding(), Some("gzip"));
+    assert_listed_known(
+        listed.get_ref(),
+        ServingStatus::Serving,
+        ServingStatus::Serving,
+    );
+
     let reply = client
         .watch(Request::new(HealthCheckRequest::new()))
         .await
@@ -389,6 +458,12 @@ async fn assert_health_blocked(client: &HealthClient) {
             Ok(_) => panic!("Watch interceptor reject must fail"),
         },
     }
+    assert_interceptor_blocked(
+        &client
+            .list(Request::new(HealthListRequest::new()))
+            .await
+            .expect_err("list"),
+    );
 }
 
 #[test]
@@ -520,7 +595,13 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
-            "request over the decoding cap is `RESOURCE_EXHAUSTED` on both, including\n//! over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
+            "Check, List, and Watch are the proto methods. List is a snapshot of every\n//! known name (the process `\"\"` and names you set); unknown names are omitted,\n//! matching [`HealthReporter::names`]."
+        ),
+        "Health crate rustdoc must name List as a snapshot of known names"
+    );
+    assert!(
+        src.contains(
+            "decoding cap is `RESOURCE_EXHAUSTED` on both, including\n//! over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
         ),
         "Health crate rustdoc must name oversize RESOURCE_EXHAUSTED on every transport"
     );
@@ -556,33 +637,43 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
-            "[`HealthServer::max_frame_size`] still serves Check and Watch at\n//! the HTTP/2 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter\n//! server."
+            "[`HealthServer::max_frame_size`] still serves Check, List, and Watch at\n//! the HTTP/2 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter\n//! server."
         ),
-        "Health crate rustdoc must name max_frame_size still-serves on Check and Watch"
+        "Health crate rustdoc must name max_frame_size still-serves on Check, List, and Watch"
     );
     assert!(
         src.contains(
-            "[`HealthServer::max_pending_accept_reset_streams`] still serves Check\n//! and Watch at a pending-reset cap of 1, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. A well-behaved client never fills that\n//! queue. Distinct from wrapping only a Greeter server."
+            "[`HealthServer::max_pending_accept_reset_streams`] still serves Check,\n//! List, and Watch at a pending-reset cap of 1, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. A well-behaved client never fills that\n//! queue. Distinct from wrapping only a Greeter server."
         ),
-        "Health crate rustdoc must name pending-reset still-serves on Check and Watch"
+        "Health crate rustdoc must name pending-reset still-serves on Check, List, and Watch"
     );
     assert!(
         src.contains(
-            "[`HealthServer::max_send_buffer_size`] still serves Check and Watch at a\n//! 16 KiB send buffer, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter\n//! server."
+            "[`HealthServer::max_send_buffer_size`] still serves Check, List, and Watch at a\n//! 16 KiB send buffer, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter\n//! server."
         ),
-        "Health crate rustdoc must name send-buffer still-serves on Check and Watch"
+        "Health crate rustdoc must name send-buffer still-serves on Check, List, and Watch"
     );
     assert!(
         src.contains(
-            "[`HealthServer::initial_stream_window_size`] /\n//! [`HealthServer::initial_connection_window_size`] still serve Check and Watch\n//! at a 64 KiB stream / 128 KiB connection window, including over TLS, mTLS,\n//! Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping only a\n//! Greeter server."
+            "[`HealthServer::initial_stream_window_size`] /\n//! [`HealthServer::initial_connection_window_size`] still serve Check, List, and Watch\n//! at a 64 KiB stream / 128 KiB connection window, including over TLS, mTLS,\n//! Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping only a\n//! Greeter server."
         ),
-        "Health crate rustdoc must name HTTP/2 window still-serves on Check and Watch"
+        "Health crate rustdoc must name HTTP/2 window still-serves on Check, List, and Watch"
     );
     assert!(
         src.contains(
             "A [`HealthClient`] pool larger than\n//! [`HealthServer::max_concurrent_connections`] fails the whole dial as\n//! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]\n//! cannot pool."
         ),
         "Health crate rustdoc must name pool-vs-cap UNAVAILABLE on TLS, mTLS, and Unix"
+    );
+    assert!(
+        src.contains(
+            "path / service / method / `:authority` / `:scheme` on Check, List, and Watch."
+        ),
+        "Health crate rustdoc must name client interceptor context on Check, List, and Watch"
+    );
+    assert!(
+        src.contains("retry Check, List, and Watch until listen when"),
+        "Health crate rustdoc must name wait-for-ready on Check, List, and Watch"
     );
 }
 
@@ -686,6 +777,13 @@ impl Health for FailHealth {
         &self,
         _: Request<HealthCheckRequest>,
     ) -> Result<Response<HealthCheckResponse>, Status> {
+        Err(interceptor_blocked())
+    }
+
+    async fn list(
+        &self,
+        _: Request<HealthListRequest>,
+    ) -> Result<Response<HealthListResponse>, Status> {
         Err(interceptor_blocked())
     }
 
@@ -807,6 +905,13 @@ async fn check_overall_and_named() {
         .into_inner();
     assert_eq!(named.status(), ServingStatus::Serving);
 
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list")
+        .into_inner();
+    assert_listed_known(&listed, ServingStatus::Serving, ServingStatus::Serving);
+
     let err = client
         .check(Request::new(req("no.Such")))
         .await
@@ -910,6 +1015,16 @@ async fn shutdown_is_visible_to_check_and_watch() {
         .expect("named")
         .into_inner();
     assert_eq!(named.status(), ServingStatus::NotServing);
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list after shutdown")
+        .into_inner();
+    assert_listed_known(
+        &listed,
+        ServingStatus::NotServing,
+        ServingStatus::NotServing,
+    );
     let missing = client
         .check(Request::new(req("no.Such")))
         .await
@@ -935,6 +1050,12 @@ async fn shutdown_is_visible_to_check_and_watch() {
         .expect("named after resume")
         .into_inner();
     assert_eq!(named.status(), ServingStatus::Serving);
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list after resume")
+        .into_inner();
+    assert_listed_known(&listed, ServingStatus::Serving, ServingStatus::Serving);
     let missing = client
         .check(Request::new(req("no.Such")))
         .await
@@ -1937,6 +2058,11 @@ async fn assert_health_err(client: &HealthClient, want: Code) {
         .await
         .expect_err("watch");
     assert_eq!(err.code(), want, "{err}");
+    let err = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect_err("list");
+    assert_eq!(err.code(), want, "{err}");
 }
 
 async fn echo_tenant_health(client: &HealthClient) {
@@ -1952,6 +2078,12 @@ async fn echo_tenant_health(client: &HealthClient) {
         .expect("named")
         .into_inner();
     assert_eq!(named.status(), ServingStatus::Serving);
+    let listed = client
+        .list(with_tenant(Request::new(HealthListRequest::new())))
+        .await
+        .expect("list")
+        .into_inner();
+    assert_listed_known(&listed, ServingStatus::Serving, ServingStatus::Serving);
     let mut stream = client
         .watch(with_tenant(Request::new(HealthCheckRequest::new())))
         .await
@@ -3199,6 +3331,13 @@ async fn assert_health_protocol(client: &HealthClient, reporter: &HealthReporter
         .expect_err("unknown");
     assert_eq!(missing.code(), Code::NotFound, "{missing}");
 
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list")
+        .into_inner();
+    assert_listed_known(&listed, ServingStatus::Serving, ServingStatus::Serving);
+
     let mut unknown = client
         .watch(Request::new(req("no.Such")))
         .await
@@ -3260,6 +3399,16 @@ async fn assert_health_protocol(client: &HealthClient, reporter: &HealthReporter
         .await
         .expect_err("unknown stays not found");
     assert_eq!(missing.code(), Code::NotFound, "{missing}");
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list after shutdown")
+        .into_inner();
+    assert_listed_known(
+        &listed,
+        ServingStatus::NotServing,
+        ServingStatus::NotServing,
+    );
     reporter.resume();
     let third = tokio::time::timeout(Duration::from_secs(2), stream.message())
         .await
@@ -3267,6 +3416,12 @@ async fn assert_health_protocol(client: &HealthClient, reporter: &HealthReporter
         .expect("third")
         .expect("msg");
     assert_eq!(third.status(), ServingStatus::Serving);
+    let listed = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect("list after resume")
+        .into_inner();
+    assert_listed_known(&listed, ServingStatus::Serving, ServingStatus::Serving);
     drop(stream);
     for _ in 0..80 {
         if reporter.watchers() == 0 {
@@ -3491,6 +3646,11 @@ async fn assert_health_client_decode_cap(client: &HealthClient) {
             Ok(_) => panic!("Watch client decode cap must fail"),
         },
     }
+    let err = client
+        .list(Request::new(HealthListRequest::new()))
+        .await
+        .expect_err("list decode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
 }
 
 async fn assert_health_client_message_caps(client: HealthClient) {

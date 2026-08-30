@@ -576,10 +576,10 @@ Generated `FooClient::connect_lazy` / `connect_tls_lazy` / `connect_unix_lazy`
 retry the same way: Store Get, Watch, PutAll, and Sync wait until listen
 on those transports, from either `Request::set_wait_for_ready`,
 `FooClient::wait_for_ready`, or a client interceptor `set_wait_for_ready(true)`. Per-RPC opt-out and a waiting Call's deadline
-apply on those Store dialers too, including mTLS. Health Check and Watch retry until listen on
+apply on those Store dialers too, including mTLS. Health Check, List, and Watch retry until listen on
 the same dialers (`HealthClient::connect_lazy` / `connect_tls_lazy` /
-`connect_unix_lazy`); Health has no List and no client-streaming or bidi
-method. A client interceptor `set_wait_for_ready(true)` retries Check and Watch until listen on those dialers too. Opt-out and a waiting Call's deadline apply on those Health dialers
+`connect_unix_lazy`); Health has no client-streaming or bidi
+method. A client interceptor `set_wait_for_ready(true)` retries Check, List, and Watch until listen on those dialers too. Opt-out and a waiting Call's deadline apply on those Health dialers
 too, including mTLS. Reflection `ServerReflectionInfo` retries until listen on those
 dialers; reflection is one bidi method. A client interceptor `set_wait_for_ready(true)` retries that method until listen on those dialers too. Opt-out and a waiting Call's deadline
 apply on those reflection dialers too, including mTLS. Official TestService EmptyCall,
@@ -911,15 +911,17 @@ mTLS, Unix, and `from_io`. `HealthReporter::resume`
 is the inverse: every known name is `SERVING` again, still without creating
 unknown names.
 
-There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
-`RESOURCE_EXHAUSTED`, including over TLS, mTLS, Unix, and `from_io`. Unix, TLS, and `from_io` serve both methods.
-`send_compressed` gzips Check and Watch when the client advertises gzip,
+`List` returns that same snapshot as `HealthCheckResponse` values keyed by
+name, including over TLS, mTLS, Unix, and `from_io`. Unknown names are
+omitted. An inbound `Check` or `Watch` over the decoding cap is
+`RESOURCE_EXHAUSTED`, including over TLS, mTLS, Unix, and `from_io`. Unix, TLS, and `from_io` serve Check, List, and Watch.
+`send_compressed` gzips Check, List, and Watch when the client advertises gzip,
 including over TLS, mTLS, Unix, and `from_io`. A client interceptor sees path,
-service, method, `:authority`, and `:scheme` on both methods, including over
+service, method, `:authority`, and `:scheme` on Check, List, and Watch, including over
 TLS, mTLS, Unix, and `from_io`. An interceptor `Err(Status::with_error_details(...))`
-unpacks as `Status::rpc` / `Status::error_details` on both methods, including
+unpacks as `Status::rpc` / `Status::error_details` on Check, List, and Watch, including
 over TLS, mTLS, Unix, and `from_io`. A handler `Err(Status::with_error_details(...))`
-unpacks the same way on both methods, including over TLS, mTLS, Unix, and
+unpacks the same way on Check, List, and Watch, including over TLS, mTLS, Unix, and
 `from_io`. Watch `StreamSender::fail` after a streamed DATA frame unpacks the
 same way (Check is unary: no response DATA then trailers), including over TLS,
 mTLS, Unix, and `from_io`.
@@ -1111,10 +1113,10 @@ call shape, on h2c, TLS (including mTLS), Unix, and `from_io`. Channel overlays
 still runs. Official TestService EmptyCall / StreamingOutputCall /
 StreamingInputCall / FullDuplexCall and hand-written Reverser `Channel`
 methods see that same overlay-after-clear contract, as do generated Store
-Get / Watch / PutAll / Sync, Health Check and Watch (no List), and reflection
+Get / Watch / PutAll / Sync, Health Check, List, and Watch, and reflection
 `ServerReflectionInfo`. `clear_compress` then `set_compress(compresses_outbound())`
 reapplies channel gzip on those dialers for Greeter, TestService, Reverser,
-generated Store Get / Watch / PutAll / Sync, Health Check and Watch (no List),
+generated Store Get / Watch / PutAll / Sync, Health Check, List, and Watch,
 and reflection `ServerReflectionInfo`.
 Client- and bidi-streaming `StreamSender::send` is stamped
 after overlays and interceptors run, so `Outgoing::set_compress` on that
@@ -1174,7 +1176,7 @@ guards is committed.
 | Slow-reader amplification | Capacity is released only after a chunk is handed on | always |
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
-| Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata. A client interceptor `insert` of `grpc-previous-rpc-attempts` or `connection` is `INVALID_ARGUMENT` on h2c, TLS (including mTLS), Unix, and `from_io`, including official TestService methods, hand-written Reverser `Channel` APIs, generated Store, Health Check/Watch, and reflection `ServerReflectionInfo`. A local interceptor `Err` before the stream opens is that status on those same paths | always |
+| Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata. A client interceptor `insert` of `grpc-previous-rpc-attempts` or `connection` is `INVALID_ARGUMENT` on h2c, TLS (including mTLS), Unix, and `from_io`, including official TestService methods, hand-written Reverser `Channel` APIs, generated Store, Health Check/List/Watch, and reflection `ServerReflectionInfo`. A local interceptor `Err` before the stream opens is that status on those same paths | always |
 | Impersonation | WebPKI roots or a CA you pin; mTLS; verified client chain on `Rpc::peer_identity` | opt-in |
 | Unauthenticated Unix peer | Connecting process uid/gid/pid on `Rpc::peer_cred` from `SO_PEERCRED` | Unix accept loop |
 | Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
@@ -1519,11 +1521,11 @@ Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor on h2c, TLS (including mTLS), Unix, and `from_io`, including official
 TestService methods and hand-written Reverser `Channel` APIs. Stacked
 interceptors share that map on those transports too, including generated Store
-Get / Watch / PutAll / Sync, Health Check and Watch, and reflection
+Get / Watch / PutAll / Sync, Health Check, List, and Watch, and reflection
 `ServerReflectionInfo`. A
 `Channel::user_agent` prefix is `Outgoing::user_agent` on those transports
 too, and `Outgoing::limits` is the channel `MessageLimits` overlay — the same
-TestService, Reverser, generated Store, Health Check/Watch, and reflection
+TestService, Reverser, generated Store, Health Check/List/Watch, and reflection
 `ServerReflectionInfo` paths lock both facts. Calling `intercept` twice stacks — the first interceptor runs
 first and can insert extensions for the next — the same contract as
 `Router::intercept`.
@@ -1786,7 +1788,6 @@ Deliberate omissions, with what to do instead.
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
 | GCP-auth and ORCA | Out of scope. |
-| `grpc.health.v1` List | `Check` and `Watch` only. |
 | `FusedStream` on `Streaming` | A `Call` is fused after it resolves. A finished stream yields `None`; wrap it if a combinator needs `FusedStream`. |
 | `from_io` TLS handshake | `connect_tls` / `serve_tls`. `from_io` is already-connected bytes; `https_scheme` labels an encrypted stream. |
 | `Status` as `std::error::Error` source | `Status` is the error. There is no `Error::source` chain. |

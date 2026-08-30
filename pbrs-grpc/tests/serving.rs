@@ -1245,6 +1245,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must Distinct ChannelConfig pending-reset as the client queue"
     );
     assert!(
+        guide
+            .contains("`List` returns that same snapshot as `HealthCheckResponse` values keyed by"),
+        "guide must name Health List as a snapshot of known names"
+    );
+    assert!(
         guide.contains(
             "rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`"
         ),

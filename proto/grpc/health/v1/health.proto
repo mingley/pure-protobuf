@@ -18,7 +18,17 @@ message HealthCheckResponse {
   ServingStatus status = 1;
 }
 
+message HealthListRequest {}
+
+message HealthListResponse {
+  // statuses contains all the services and their respective status.
+  map<string, HealthCheckResponse> statuses = 1;
+}
+
 service Health {
   rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+  // List is a non-atomic snapshot of every known name. Unknown names are omitted.
+  // The server may answer RESOURCE_EXHAUSTED if too many services exist.
+  rpc List(HealthListRequest) returns (HealthListResponse);
   rpc Watch(HealthCheckRequest) returns (stream HealthCheckResponse);
 }
