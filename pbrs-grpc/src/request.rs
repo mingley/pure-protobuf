@@ -1747,7 +1747,11 @@ impl<T> fmt::Debug for Call<T> {
 /// same as dropping the received [`crate::Streaming`] before the end. It
 /// also cancels a server-streaming or bidi call that is still waiting for
 /// headers. After a client-streaming sender is closed, it still resets
-/// while the unary response is pending. Dropping that [`Call`] or letting
+/// while the unary response is pending. Cancelling before any request
+/// message (`cancel_after_begin`) is [`crate::Code::Cancelled`], not OK
+/// from a half-close: hold the [`crate::StreamSender`] until the [`Call`]
+/// settles, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+/// Dropping that [`Call`] or letting
 /// its deadline fire after the half-close resets the same way. A
 /// server-streaming or bidi deadline RSTs the send half whether or not
 /// headers have arrived. After those headers, that deadline still RSTs the

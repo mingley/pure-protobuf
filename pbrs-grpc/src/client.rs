@@ -929,8 +929,12 @@ impl Channel {
     /// await the [`Call`]. Dropping the pair without awaiting resets the
     /// stream, the same as dropping a unary [`Call`]. A [`crate::CallHandle`]
     /// taken before await still cancels after the sender is closed, while the
-    /// unary response is pending. Dropping the [`Call`] or letting its deadline
-    /// fire after that half-close resets the same way.
+    /// unary response is pending. Cancelling before any request message
+    /// (`cancel_after_begin`) is [`crate::Code::Cancelled`], not OK from a
+    /// half-close: hold the [`StreamSender`] until the [`Call`] settles,
+    /// including over TLS, mTLS, Unix, and [`Self::from_io`]. Dropping the
+    /// [`Call`] or letting its deadline fire after that half-close resets the
+    /// same way.
     ///
     /// [`crate::StreamSender::fail`] resolves the [`Call`] with that status
     /// (no request-side `grpc-status`; the stream is reset with CANCEL).

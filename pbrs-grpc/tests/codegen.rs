@@ -3566,6 +3566,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "client-streaming client methods must name CallHandle after half-close"
     );
     assert!(
+        src.contains(
+            "Cancelling before any request message (`cancel_after_begin`) is [`::pbrs_grpc::Code::Cancelled`], not OK from a half-close: hold the [`::pbrs_grpc::StreamSender`] until the [`::pbrs_grpc::Call`] settles, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated client-streaming methods must name cancel_after_begin on every transport"
+    );
+    assert!(
         src.contains("Dropping the [`::pbrs_grpc::Call`] or letting its deadline fire after that half-close resets the same way."),
         "client-streaming client methods must name drop and deadline after half-close"
     );

@@ -734,6 +734,12 @@ fn channel_call_apis_document_hand_written_services() {
         src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
         "Channel::wait_for_ready must name interceptor set/clear"
     );
+    assert!(
+        src.contains(
+            "(`cancel_after_begin`) is [`crate::Code::Cancelled`], not OK from a\n    /// half-close: hold the [`StreamSender`] until the [`Call`] settles,\n    /// including over TLS, mTLS, Unix, and [`Self::from_io`]."
+        ),
+        "Channel::client_streaming must name cancel_after_begin on every transport"
+    );
 }
 
 #[test]
@@ -1207,6 +1213,10 @@ fn request_deadline_documents_every_transport() {
             "stays live until that drain, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "Request::cancelled must name spawned producer drain on every transport"
+    );
+    assert!(
+        src.contains("settles, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."),
+        "CallHandle rustdoc must name cancel_after_begin on every transport"
     );
 }
 
@@ -15401,20 +15411,87 @@ impl pbrs_grpc::Greeter for Hang {
     }
 }
 
+async fn assert_cancel_after_begin_is_cancelled_not_ok(client: &GreeterClient) {
+    let (tx, call) = client.client_hello(Request::new(()));
+    let handle = call.handle();
+    handle.cancel();
+    // Hold `tx` until the call settles. Dropping it is a half-close, which
+    // can complete as OK before the RST is observed.
+    let err = call.await.expect_err("cancel_after_begin");
+    assert_eq!(err.code(), Code::Cancelled, "{err}");
+    drop(tx);
+}
+
 #[tokio::test]
 async fn cancel_after_begin_is_cancelled_not_ok() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    let (tx, call) = client.client_hello(Request::new(()));
-    let handle = call.handle();
-    handle.cancel();
-    let err = call.await.expect_err("cancel_after_begin");
-    assert_eq!(err.code(), Code::Cancelled, "{err}");
-    drop(tx);
+    assert_cancel_after_begin_is_cancelled_not_ok(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_cancel_after_begin_is_cancelled_not_ok() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_cancel_after_begin_is_cancelled_not_ok(&GreeterClient::new(tls_channel(addr).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_cancel_after_begin_is_cancelled_not_ok() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_cancel_after_begin_is_cancelled_not_ok(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_cancel_after_begin_is_cancelled_not_ok() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    assert_cancel_after_begin_is_cancelled_not_ok(&GreeterClient::new(unix_channel(&path).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_cancel_after_begin_is_cancelled_not_ok() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_cancel_after_begin_is_cancelled_not_ok(&GreeterClient::new(channel)).await;
+    server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

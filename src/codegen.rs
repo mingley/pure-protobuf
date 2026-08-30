@@ -4949,6 +4949,10 @@ fn emit_kernel_client(
             );
             let _ = writeln!(
                 src,
+                "    /// Cancelling before any request message (`cancel_after_begin`) is [`{G}::Code::Cancelled`], not OK from a half-close: hold the [`{G}::StreamSender`] until the [`{G}::Call`] settles, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
+            );
+            let _ = writeln!(
+                src,
                 "    /// Dropping the [`{G}::Call`] or letting its deadline fire after that half-close resets the same way."
             );
             let _ = writeln!(

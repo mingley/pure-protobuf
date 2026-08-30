@@ -498,7 +498,10 @@ let result = call.await;   // Err(Cancelled) if the handle fired
 ```
 
 `CallHandle::is_cancelled` (and `Call::is_cancelled`) is true after
-`cancel()` fires.
+`cancel()` fires. Official `cancel_after_begin` — cancel a client-streaming
+`Call` before any request message, while still holding the sender — is
+`CANCELLED`, not OK from a half-close, including over TLS, mTLS, Unix, and
+`from_io`. Dropping the sender first is a half-close and can complete as OK.
 
 Cancelling resets the HTTP/2 stream, so the server stops working on it rather
 than finishing into a void. Dropping the `Call` without awaiting does the

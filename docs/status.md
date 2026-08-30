@@ -300,6 +300,9 @@ See `docs/upb.md`. Short list:
   waiting for headers, and a client-streaming handle still cancels
   after the sender is closed while the unary response is pending (dropping
   the `Call` or hitting the deadline after that half-close does the same).
+  Official `cancel_after_begin` (cancel a client-streaming `Call` before any
+  request message, while still holding the sender) is `CANCELLED`, not OK
+  from a half-close, including over TLS, mTLS, Unix, and `from_io`.
   CallHandle cancel of a live server-streaming or bidi stream after headers,
   a bidi Call waiting for headers, and client-streaming after the sender
   closes also run over TLS, mTLS, Unix, and `from_io`.
