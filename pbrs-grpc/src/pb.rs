@@ -276,6 +276,77 @@ impl QuotaFailure {
     }
 }
 
+impl precondition_failure::Violation {
+    /// A precondition `type` and `subject` with `description`.
+    ///
+    /// Packed as part of [`PreconditionFailure::with_violation`]. Distinct from
+    /// [`quota_failure::Violation::with_subject`]: that is a quota subject, not a
+    /// precondition type. Distinct from [`FieldViolation::with_field`]: that is a
+    /// request field path.
+    #[must_use]
+    pub fn with_type(
+        r#type: impl Into<String>,
+        subject: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        let mut violation = Self::new();
+        violation.set_type(r#type.into());
+        violation.set_subject(subject.into());
+        violation.set_description(description.into());
+        violation
+    }
+}
+
+impl PreconditionFailure {
+    /// `PreconditionFailure` with one [`precondition_failure::Violation`].
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::precondition_failure`]. Distinct from
+    /// [`crate::Status::is_retryable`]: [`crate::Code::FailedPrecondition`] is
+    /// never A6-retryable. Distinct from [`crate::Status::retry_delay`]: a
+    /// wait hint can sit next to a precondition.
+    /// Distinct from [`crate::Status::quota_failure`]: that is a quota subject, not a precondition type.
+    /// Distinct from [`crate::Status::bad_request`]: that is a field path, not a precondition type.
+    /// Distinct from [`crate::Status::failed_precondition`], which is the ASCII
+    /// code with no packed violations.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, PreconditionFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     precondition_failure: Some(PreconditionFailure::with_violation(
+    ///         "TOS",
+    ///         "google.com/cloud",
+    ///         "unsigned",
+    ///     )),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "tos", &details)?;
+    /// assert!(!status.is_retryable());
+    /// let pre = status.precondition_failure().expect("PreconditionFailure");
+    /// assert_eq!(
+    ///     pre.violations().get(0).expect("violation").r#type().to_str().unwrap_or(""),
+    ///     "TOS"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_violation(
+        r#type: impl Into<String>,
+        subject: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        let mut pre = Self::new();
+        pre.set_violations([precondition_failure::Violation::with_type(
+            r#type,
+            subject,
+            description,
+        )]);
+        pre
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -695,6 +766,38 @@ mod tests {
         assert_eq!(subject.subject().to_str().unwrap_or(""), "client:9");
         assert_eq!(subject.description().to_str().unwrap_or(""), "qps");
         assert!(status.retry_delay().is_none());
+        assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn precondition_failure_with_violation_round_trips() {
+        let violation =
+            precondition_failure::Violation::with_type("TOS", "google.com/cloud", "unsigned");
+        assert_eq!(violation.r#type().to_str().unwrap_or(""), "TOS");
+        assert_eq!(
+            violation.subject().to_str().unwrap_or(""),
+            "google.com/cloud"
+        );
+        assert_eq!(violation.description().to_str().unwrap_or(""), "unsigned");
+        let pre =
+            PreconditionFailure::with_violation("googleapis.com/iam/resource", "user:9", "missing");
+        let details = ErrorDetails {
+            precondition_failure: Some(pre),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::FailedPrecondition, "tos", &details)
+            .expect("encode");
+        assert!(!status.is_retryable());
+        let got = status.precondition_failure().expect("PreconditionFailure");
+        let violation = got.violations().get(0).expect("violation");
+        assert_eq!(
+            violation.r#type().to_str().unwrap_or(""),
+            "googleapis.com/iam/resource"
+        );
+        assert_eq!(violation.subject().to_str().unwrap_or(""), "user:9");
+        assert_eq!(violation.description().to_str().unwrap_or(""), "missing");
+        assert!(status.retry_delay().is_none());
+        assert!(status.quota_failure().is_none());
         assert!(status.bad_request().is_none());
     }
 }

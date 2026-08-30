@@ -730,6 +730,50 @@ impl Status {
         self.error_details().ok()?.quota_failure
     }
 
+    /// Packed `google.rpc.PreconditionFailure`, if this status carries one.
+    ///
+    /// Distinct from [`Self::is_retryable`]: [`Code::FailedPrecondition`] is never
+    /// A6-retryable.
+    /// Distinct from [`Self::retry_delay`]: a wait hint can sit next to a precondition.
+    /// Distinct from [`Self::quota_failure`]: that is a quota subject, not a precondition type.
+    /// Distinct from [`Self::bad_request`]: that is a field path, not a precondition type.
+    /// Distinct from [`Self::failed_precondition`], which is the ASCII code with no packed violations.
+    /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
+    /// Corrupt bytes are `None`. Build the payload with
+    /// [`crate::pb::PreconditionFailure::with_violation`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, PreconditionFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     precondition_failure: Some(PreconditionFailure::with_violation(
+    ///         "TOS",
+    ///         "google.com/cloud",
+    ///         "unsigned",
+    ///     )),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "tos", &details)?;
+    /// assert!(!status.is_retryable());
+    /// let pre = status.precondition_failure().expect("PreconditionFailure");
+    /// assert_eq!(
+    ///     pre.violations()
+    ///         .get(0)
+    ///         .expect("violation")
+    ///         .r#type()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "TOS"
+    /// );
+    /// assert!(Status::failed_precondition("tos").precondition_failure().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn precondition_failure(&self) -> Option<crate::pb::PreconditionFailure> {
+        self.error_details().ok()?.precondition_failure
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1602,6 +1646,86 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .quota_failure()
+        .is_none());
+    }
+
+    #[test]
+    fn precondition_failure_reads_packed_precondition_types() {
+        let delay = std::time::Duration::from_millis(25);
+        let details = crate::pb::ErrorDetails {
+            precondition_failure: Some(crate::pb::PreconditionFailure::with_violation(
+                "TOS",
+                "google.com/cloud",
+                "unsigned",
+            )),
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(delay)),
+            quota_failure: Some(crate::pb::QuotaFailure::with_violation(
+                "project:1",
+                "tokens",
+            )),
+            bad_request: Some(crate::pb::BadRequest::with_field("name", "required")),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status =
+            Status::from_error_details(Code::FailedPrecondition, "tos", &details).expect("encode");
+        assert!(!status.is_retryable());
+        assert_eq!(status.retry_delay(), Some(delay));
+        let pre = status.precondition_failure().expect("PreconditionFailure");
+        let violation = pre.violations().get(0).expect("violation");
+        assert_eq!(violation.r#type().to_str().unwrap_or(""), "TOS");
+        assert_eq!(
+            violation.subject().to_str().unwrap_or(""),
+            "google.com/cloud"
+        );
+        assert_eq!(violation.description().to_str().unwrap_or(""), "unsigned");
+        assert!(status.quota_failure().is_some());
+        assert!(status.bad_request().is_some());
+
+        let retry_only = crate::pb::ErrorDetails {
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(delay)),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let retry_status = Status::from_error_details(Code::FailedPrecondition, "tos", &retry_only)
+            .expect("encode");
+        assert!(retry_status.precondition_failure().is_none());
+        assert_eq!(retry_status.retry_delay(), Some(delay));
+        assert!(!retry_status.is_retryable());
+
+        let quota_only = crate::pb::ErrorDetails {
+            quota_failure: Some(crate::pb::QuotaFailure::with_violation(
+                "project:1",
+                "tokens",
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let quota_status =
+            Status::from_error_details(Code::ResourceExhausted, "quota", &quota_only)
+                .expect("encode");
+        assert!(quota_status.precondition_failure().is_none());
+        assert!(quota_status.quota_failure().is_some());
+
+        let bad_only = crate::pb::ErrorDetails {
+            bad_request: Some(crate::pb::BadRequest::with_field("name", "required")),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let bad_status =
+            Status::from_error_details(Code::InvalidArgument, "bad", &bad_only).expect("encode");
+        assert!(bad_status.precondition_failure().is_none());
+        assert!(bad_status.bad_request().is_some());
+
+        assert!(Status::failed_precondition("tos")
+            .precondition_failure()
+            .is_none());
+        assert!(Status::failed_precondition("tos")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .precondition_failure()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .precondition_failure()
         .is_none());
     }
 

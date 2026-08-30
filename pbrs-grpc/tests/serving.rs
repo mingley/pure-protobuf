@@ -1726,6 +1726,46 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "QuotaFailure::with_violation must Distinct field path from quota subject"
     );
     assert!(
+        crate_src.contains("[`Status::precondition_failure`]"),
+        "crate map must name Status::precondition_failure"
+    );
+    assert!(
+        crate_src.contains("[`pb::PreconditionFailure::with_violation`]"),
+        "crate map must name PreconditionFailure::with_violation"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.PreconditionFailure`, if this status carries one."),
+        "Status::precondition_failure must name packed PreconditionFailure"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::is_retryable`]: [`Code::FailedPrecondition`] is never"
+        ),
+        "Status::precondition_failure must Distinct FAILED_PRECONDITION from A6 retryable"
+    );
+    assert!(
+        status_src.contains("wait hint can sit next to a precondition"),
+        "Status::precondition_failure must Distinct retry_delay wait hint"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::quota_failure`]: that is a quota subject, not a precondition"
+        ),
+        "Status::precondition_failure must Distinct quota subject from precondition type"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::failed_precondition`], which is"),
+        "Status::precondition_failure must Distinct ASCII failed_precondition"
+    );
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::precondition_failure`]"),
+        "PreconditionFailure::with_violation must name Status::precondition_failure unpack"
+    );
+    assert!(
+        pb_src.contains("Distinct from [`crate::Status::quota_failure`]: that is a quota subject"),
+        "PreconditionFailure::with_violation must Distinct quota subject from precondition type"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
@@ -1982,6 +2022,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from `status.bad_request()`."),
         "guide must Distinct quota_failure from bad_request"
+    );
+    assert!(
+        guide.contains("`status.precondition_failure()` for precondition type and subject"),
+        "guide must name Status::precondition_failure as type and subject"
+    );
+    assert!(
+        guide.contains("`PreconditionFailure::with_violation` builds that payload"),
+        "guide must name PreconditionFailure::with_violation as the builder"
+    );
+    assert!(
+        guide.contains("Distinct from `status.quota_failure()`."),
+        "guide must Distinct precondition_failure from quota_failure"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),

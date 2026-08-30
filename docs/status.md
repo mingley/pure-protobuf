@@ -507,7 +507,10 @@ See `docs/upb.md`. Short list:
   field violations.   Distinct from `error_info`. `BadRequest::with_field` builds
   that payload. `Status::quota_failure` is packed quota subjects.
   Distinct from `is_retryable` (`RESOURCE_EXHAUSTED` is never A6-retryable)
-  and from `bad_request`. `QuotaFailure::with_violation` builds that payload. A
+  and from `bad_request`. `QuotaFailure::with_violation` builds that payload.
+  `Status::precondition_failure` is packed type and subject.
+  Distinct from `quota_failure` (`FAILED_PRECONDITION` is never A6-retryable)
+  and from `bad_request`. `PreconditionFailure::with_violation` builds that payload. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

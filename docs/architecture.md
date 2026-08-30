@@ -255,7 +255,12 @@ and HTTP/2 connection death attach the original error as
 `google.rpc.Status`. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `Status::bad_request` is packed field violations. Distinct from
-`error_info`. `BadRequest::with_field` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
+`error_info`. `BadRequest::with_field` builds that payload. `Status::quota_failure`
+is packed quota subjects. Distinct from `is_retryable`. Distinct from
+`bad_request`. `QuotaFailure::with_violation` builds that payload.
+`Status::precondition_failure` is packed type and subject. Distinct from
+`quota_failure`. Distinct from `bad_request`. `PreconditionFailure::with_violation`
+builds that payload. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details`
 replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing
