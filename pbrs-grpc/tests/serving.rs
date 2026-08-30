@@ -3340,6 +3340,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Channel::waits_for_ready as the same overlay as Outgoing::waits_for_ready"
     );
     assert!(
+        crate_src.contains(
+            "[`Outgoing::connected`] is the live-socket snapshot in a client interceptor"
+        ),
+        "crate docs must name Outgoing::connected as the live-socket snapshot"
+    );
+    assert!(
+        crate_src.contains("[`Channel::connected`] is that same snapshot without an interceptor"),
+        "crate docs must name Channel::connected as the same snapshot without an interceptor"
+    );
+    assert!(
         crate_src.contains("[`Outgoing::rpc_timeout`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::rpc_timeout as the interceptor overlay"
     );
@@ -4048,6 +4058,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Channel::waits_for_ready` reads the wait-for-ready overlay without colliding with `wait_for_ready`. Same overlay as `Outgoing::waits_for_ready`."),
         "guide must name Channel::waits_for_ready as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Outgoing::connected` is the live-socket snapshot in a client interceptor. Distinct from `waits_for_ready` (overlay)."),
+        "guide must name Outgoing::connected as the live-socket snapshot Distinct from the wait-for-ready overlay"
+    );
+    assert!(
+        guide.contains("`Channel::connected` is that same snapshot without an interceptor."),
+        "guide must name Channel::connected as the same snapshot without an interceptor"
     );
     assert!(
         guide.contains("`Outgoing::rpc_timeout` is that overlay in a client interceptor. Distinct from `timeout` (per-RPC). An interceptor cannot change it."),

@@ -271,6 +271,9 @@
 //! Distinct from [`Outgoing::connected`].
 //! [`Channel::waits_for_ready`] reads the wait-for-ready overlay without colliding with [`Channel::wait_for_ready`].
 //! Same overlay as [`Outgoing::waits_for_ready`].
+//! [`Outgoing::connected`] is the live-socket snapshot in a client interceptor.
+//! Distinct from [`Outgoing::waits_for_ready`].
+//! [`Channel::connected`] is that same snapshot without an interceptor.
 //! [`Outgoing::rpc_timeout`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::timeout`].
 //! [`Rpc::rpc_timeout`] is that overlay in a server interceptor.
