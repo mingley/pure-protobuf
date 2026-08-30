@@ -1824,6 +1824,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Intercepted::on_response rustdoc example must attach a closure"
     );
     assert!(
+        intercept.contains("wrapped.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
+        "Intercepted::intercept rustdoc example must attach a closure"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );

@@ -312,6 +312,30 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     /// [`Intercepted`], so `svc.intercept(a).intercept(b)` does not wrap
     /// onion-style (which would run `b` first). A response hook already
     /// attached with [`Self::on_response`] stays.
+    ///
+    /// ```
+    /// # fn demo<S, I>(wrapped: pbrs_grpc::Intercepted<S, I>) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor>
+    /// # where
+    /// #     S: Send + Sync + 'static,
+    /// #     I: pbrs_grpc::Interceptor,
+    /// # {
+    /// wrapped.intercept(|rpc: &mut pbrs_grpc::Rpc| {
+    ///     let _ = (
+    ///         rpc.path(),
+    ///         rpc.peer_timeout(),
+    ///         rpc.rpc_timeout(),
+    ///         rpc.effective_timeout(),
+    ///         rpc.deadline(),
+    ///         rpc.gzip_level(),
+    ///         rpc.accepts_compressed(),
+    ///         rpc.concurrent_rpc_limit(),
+    ///         rpc.send_buffer_size(),
+    ///         rpc.limits(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn intercept<J: Interceptor>(self, next: J) -> Intercepted<S, impl Interceptor> {
         Intercepted {
