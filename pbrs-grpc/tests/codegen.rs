@@ -4003,6 +4003,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated on_response rustdoc must name handler Err skip"
     );
     assert!(
+        src.contains("A received reply starts empty; this is how a client inserts typed context after the peer cannot."),
+        "generated client on_response rustdoc must Distinct receive-side insert from the peer"
+    );
+    assert!(
+        src.contains("A non-OK peer status skips this hook."),
+        "generated client on_response rustdoc must name skip on non-OK peer status"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

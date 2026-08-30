@@ -1604,7 +1604,8 @@ impl<T> Response<T> {
     /// cannot insert here. Same map on [`ResponseParts::extensions`] after
     /// [`Self::into_message_and_parts`]. A [`crate::ResponseInterceptor`]
     /// can read this map and stamp [`Self::metadata`] that does go on the
-    /// wire.
+    /// wire. A [`crate::Channel::on_response`] hook can insert after a
+    /// successful receive; the peer still cannot.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions

@@ -332,7 +332,9 @@ headers, trailers, the gzip flag, and local extensions). Rebuild with
 on the wire. Distinct from metadata. A received reply starts empty.
 A `ResponseInterceptor` (`Server::on_response`, `Router::on_response`,
 generated `FooServer::on_response`) can read that map and stamp metadata
-that does go on the wire.
+that does go on the wire. `Channel::on_response` (generated
+`FooClient::on_response`) inserts typed context after a successful receive;
+the peer still cannot.
 
 To attach metadata to an *error*, put it on the `Status`; error responses have
 no separate trailers:
@@ -1505,6 +1507,12 @@ the first interceptor runs first. `Err` after the handler already ran; that
 status is sent trailers-only instead of the response. A handler `Err` skips
 this hook. Applies to every call shape, including over TLS, mTLS, Unix, and
 `from_io`.
+
+`Channel::on_response` (and the generated `FooClient::on_response`) runs
+after a successful receive, before the `Call` is Ready. A received reply
+starts empty; this hook inserts typed context the peer cannot. `Err` fails
+that Call (the peer already sent OK). A non-OK peer status skips this hook.
+Applies to every call shape, including over TLS, mTLS, Unix, and `from_io`.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs when the RPC method is invoked — before the stream opens and before the

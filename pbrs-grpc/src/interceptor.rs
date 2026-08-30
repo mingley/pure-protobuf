@@ -1,6 +1,6 @@
 //! Interceptors: inspect an inbound [`Rpc`] or outbound [`crate::Outgoing`]
 //! before the handler or the wire, or a [`crate::ResponseParts`] after the
-//! handler returns `Ok`.
+//! handler returns `Ok` or after a successful receive.
 
 use crate::server::{Rpc, Service};
 use crate::status::Status;
@@ -78,19 +78,19 @@ where
     }
 }
 
-/// Inspect an outbound [`crate::ResponseParts`] after the handler returns
-/// `Ok`, before headers go out.
+/// Inspect an outbound or received [`crate::ResponseParts`].
 ///
-/// Return `Err` to replace the response with trailers-only; `Ok` to send
-/// the (possibly mutated) envelope. Closures with this signature implement
-/// the trait, so most hooks are one function. Typed values on
-/// [`crate::Response::extensions`] are visible here — they are not headers
-/// and they are not on the wire. Stamp
+/// Closures with this signature implement the trait, so most hooks are one
+/// function. Typed values on [`crate::Response::extensions`] are visible
+/// here — they are not headers and they are not on the wire. Stamp
 /// [`crate::ResponseParts::metadata_mut`] to send a header, or
 /// [`crate::ResponseParts::trailers_mut`] for trailing metadata that ships
-/// with `grpc-status`. Distinct from [`Interceptor`], which runs before
-/// the handler.
+/// with `grpc-status`. Distinct from [`Interceptor`] / [`ClientInterceptor`],
+/// which run before the handler or before the stream opens.
 ///
+/// On the server, [`crate::Server::on_response`] /
+/// [`crate::Router::on_response`] / generated `FooServer::on_response`
+/// run this after the handler returns `Ok`, before headers go out.
 /// `Err` after the handler already ran; that status is sent trailers-only
 /// instead of the response, including [`crate::Status::with_error_details`].
 /// A handler `Err` skips this hook. On a stream, headers have not gone
@@ -98,9 +98,16 @@ where
 /// call shape, including over TLS, mTLS, Unix, and
 /// [`crate::Server::serve_connection`].
 ///
-/// Attach one with [`crate::Server::on_response`],
-/// [`crate::Router::on_response`], or the generated `FooServer::on_response`.
-/// Calling any of them twice stacks (first interceptor first).
+/// On the client, [`crate::Channel::on_response`] / generated
+/// `FooClient::on_response` run this after a successful receive, before
+/// the [`crate::Call`] is Ready. `Err` fails that Call (the peer already sent OK),
+/// including [`crate::Status::with_error_details`]. A non-OK peer status
+/// skips this hook. On server-streaming and bidi, this envelope
+/// holds initial headers; [`crate::Streaming::trailers`] still come from
+/// the wire after end-of-stream. Applies to every call shape, including
+/// over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+///
+/// Calling either attach point twice stacks (first interceptor first).
 ///
 /// ```
 /// use pbrs_grpc::{ResponseParts, Status};
@@ -114,8 +121,7 @@ where
 /// # let _ = stamp_trace;
 /// ```
 pub trait ResponseInterceptor: Send + Sync + 'static {
-    /// Inspect and mutate the envelope. Called after the handler returns
-    /// `Ok`, before headers go out.
+    /// Inspect and mutate the envelope.
     fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
 }
 
@@ -130,7 +136,8 @@ where
 
 pub(crate) type ResponseHook = Arc<dyn ResponseInterceptor>;
 
-/// Run `hook` on `response` after the handler returned `Ok`.
+/// Run `hook` on `response` after the handler returned `Ok` or after a
+/// successful receive.
 pub(crate) fn intercept_response<T>(
     response: crate::Response<T>,
     hook: Option<&dyn ResponseInterceptor>,
@@ -143,6 +150,17 @@ pub(crate) fn intercept_response<T>(
             Ok(crate::Response::from_message_and_parts(msg, parts))
         }
     }
+}
+
+/// Run every hook in order after a successful receive or handler `Ok`.
+pub(crate) fn intercept_response_all<T>(
+    mut response: crate::Response<T>,
+    hooks: &[ResponseHook],
+) -> Result<crate::Response<T>, Status> {
+    for hook in hooks {
+        response = intercept_response(response, Some(hook.as_ref()))?;
+    }
+    Ok(response)
 }
 
 /// A [`Service`] with an [`Interceptor`] in front of it.
@@ -429,6 +447,30 @@ mod tests {
     #[test]
     fn response_interceptor_none_is_identity() {
         let resp = super::intercept_response(crate::Response::new(1u32), None).expect("none");
+        assert!(resp.metadata().is_empty());
+    }
+
+    #[test]
+    fn intercept_response_all_runs_hooks_in_order() {
+        fn first(parts: &mut crate::ResponseParts) -> Result<(), crate::Status> {
+            parts.metadata_mut().insert("x-stack", "a")?;
+            Ok(())
+        }
+        fn second(parts: &mut crate::ResponseParts) -> Result<(), crate::Status> {
+            let prev = parts.metadata().get("x-stack").unwrap_or("").to_owned();
+            parts.metadata_mut().set("x-stack", format!("{prev}b"))?;
+            Ok(())
+        }
+        let hooks: [super::ResponseHook; 2] =
+            [std::sync::Arc::new(first), std::sync::Arc::new(second)];
+        let resp =
+            super::intercept_response_all(crate::Response::new(1u32), &hooks).expect("stack");
+        assert_eq!(resp.metadata().get("x-stack"), Some("ab"));
+    }
+
+    #[test]
+    fn intercept_response_all_empty_is_identity() {
+        let resp = super::intercept_response_all(crate::Response::new(1u32), &[]).expect("empty");
         assert!(resp.metadata().is_empty());
     }
 }

@@ -845,6 +845,26 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct extensions from wire metadata"
     );
     assert!(
+        intercept.contains("A non-OK peer status skips this hook."),
+        "ResponseInterceptor rustdoc must name client skip on non-OK peer status"
+    );
+    assert!(
+        intercept.contains("the peer already sent OK"),
+        "ResponseInterceptor rustdoc must name client Err after the peer sent OK"
+    );
+    assert!(
+        src.contains("starts empty; this is how a client inserts typed context after the"),
+        "Channel::on_response must Distinct receive-side insert from the peer"
+    );
+    assert!(
+        src.contains("A non-OK peer status skips"),
+        "Channel::on_response must name skip on non-OK peer status"
+    );
+    assert!(
+        src.contains("the peer already sent OK"),
+        "Channel::on_response must name Err after the peer sent OK"
+    );
+    assert!(
         src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),
@@ -1460,6 +1480,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must not list Response interceptors as an omission"
     );
     assert!(
+        guide.contains("`Channel::on_response` (and the generated"),
+        "guide must name Channel::on_response as the client response interceptor hook"
+    );
+    assert!(
         guide.contains("`Channel::connected` is a snapshot of live sockets"),
         "guide must name Channel::connected as a live-socket snapshot"
     );
@@ -1911,6 +1935,10 @@ fn request_deadline_documents_every_transport() {
             "A [`crate::ResponseInterceptor`]\n    /// can read this map and stamp [`Self::metadata`] that does go on the\n    /// wire."
         ),
         "Response::extensions must name ResponseInterceptor as the wire stamp"
+    );
+    assert!(
+        src.contains("A [`crate::Channel::on_response`] hook can insert after a"),
+        "Response::extensions must name Channel::on_response as the receive-side insert"
     );
     assert!(
         src.contains(
@@ -14547,6 +14575,214 @@ async fn on_response_survives_add_service() {
         .await
         .expect("empty");
     assert_eq!(empty.metadata().get("x-hook"), Some("1"));
+    task.abort();
+}
+
+fn insert_local_ext(parts: &mut ResponseParts) -> Result<(), Status> {
+    assert_eq!(parts.metadata().get("x-hook"), Some("1"));
+    parts.extensions_mut().insert(7u8);
+    Ok(())
+}
+
+async fn echo_client_hook_every_shape(client: &GreeterClient) {
+    let resp = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(resp.get_ref()), "ada");
+    assert_eq!(resp.metadata().get("x-hook"), Some("1"), "unary header");
+    assert_eq!(
+        resp.trailers().get("x-hook-end"),
+        Some("1"),
+        "unary trailer"
+    );
+    assert_eq!(
+        resp.extensions().get::<u8>().copied(),
+        Some(7),
+        "unary local ext"
+    );
+
+    let resp = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert_eq!(
+        resp.metadata().get("x-hook"),
+        Some("1"),
+        "server-stream header"
+    );
+    assert_eq!(
+        resp.extensions().get::<u8>().copied(),
+        Some(7),
+        "server-stream local ext"
+    );
+    let mut stream = resp.into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(stream.message().await.expect("end").is_none());
+    let trailers = stream.trailers().await.expect("trailers");
+    assert_eq!(
+        trailers.get("x-hook-end"),
+        Some("1"),
+        "server-stream trailer"
+    );
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("client-stream");
+    assert_eq!(name_of(resp.get_ref()), "ada");
+    assert_eq!(
+        resp.metadata().get("x-hook"),
+        Some("1"),
+        "client-stream header"
+    );
+    assert_eq!(
+        resp.trailers().get("x-hook-end"),
+        Some("1"),
+        "client-stream trailer"
+    );
+    assert_eq!(
+        resp.extensions().get::<u8>().copied(),
+        Some(7),
+        "client-stream local ext"
+    );
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("bidi");
+    assert_eq!(resp.metadata().get("x-hook"), Some("1"), "bidi header");
+    assert_eq!(
+        resp.extensions().get::<u8>().copied(),
+        Some(7),
+        "bidi local ext"
+    );
+    let mut inbound = resp.into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert!(inbound.message().await.expect("end").is_none());
+    let trailers = inbound.trailers().await.expect("bidi trailers");
+    assert_eq!(trailers.get("x-hook-end"), Some("1"), "bidi trailer");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_on_response_inserts_local_extension_after_receive() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .on_response(stamp_hook)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).on_response(insert_local_ext);
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    assert_eq!(reply.metadata().get("x-hook"), Some("1"));
+    assert_eq!(
+        reply.extensions().get::<u8>().copied(),
+        Some(7),
+        "client on_response must insert local extensions the peer cannot"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_on_response_every_greeter_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .on_response(stamp_hook)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_client_hook_every_shape(
+        &GreeterClient::new(channel(addr).await).on_response(insert_local_ext),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_on_response_err_after_peer_ok() {
+    let ran = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let ran = Arc::clone(&ran);
+        async move {
+            GreeterServer::new(CountedEcho { ran })
+                .serve_listener(listener)
+                .await
+                .ok();
+        }
+    });
+    let client = GreeterClient::new(channel(addr).await).on_response(deny_after_ok);
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("hook must fail the Call after peer OK");
+    assert_eq!(err.code(), Code::PermissionDenied);
+    assert_eq!(ran.load(Ordering::SeqCst), 1, "handler must have run");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_on_response_skips_non_ok() {
+    let ran = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(FailHello)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).on_response({
+        let ran = Arc::clone(&ran);
+        move |_: &mut ResponseParts| {
+            ran.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    });
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("handler Err");
+    assert_eq!(err.code(), Code::Internal);
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        0,
+        "non-OK peer status must skip the client response interceptor"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_on_response_stack_is_first_registered_first() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await)
+        .on_response(interceptor_stack_a)
+        .on_response(interceptor_stack_b);
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(reply.metadata().get("x-stack"), Some("ab"));
     task.abort();
 }
 

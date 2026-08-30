@@ -1,7 +1,7 @@
 //! gRPC client: [`Channel`] and the four call shapes.
 
 use crate::config::{ChannelConfig, Wire};
-use crate::interceptor::{ClientHook, ClientInterceptor};
+use crate::interceptor::{ClientHook, ClientInterceptor, ResponseHook};
 use crate::request::{Call, Request, Response};
 use crate::status::{Code, Status};
 use crate::stream::{StreamSender, Streaming};
@@ -288,6 +288,7 @@ pub struct Channel {
     inner: Arc<ChannelInner>,
     config: ChannelConfig,
     interceptors: Arc<[ClientHook]>,
+    response_interceptors: Arc<[ResponseHook]>,
     user_agent: HeaderValue,
     /// `:scheme` this clone sends. TLS channels start `true`; [`Self::from_io`]
     /// starts `false` until [`Self::https_scheme`].
@@ -303,6 +304,7 @@ impl fmt::Debug for Channel {
             .field("tls", &self.inner.tls.is_some())
             .field("https", &self.https)
             .field("interceptors", &self.interceptors.len())
+            .field("response_interceptors", &self.response_interceptors.len())
             .field("config", &self.config)
             .field("user_agent", &self.user_agent)
             .finish()
@@ -733,6 +735,36 @@ impl Channel {
         }
     }
 
+    /// Run `interceptor` after a successful receive, before the [`Call`] is
+    /// Ready.
+    ///
+    /// Closures implement [`crate::ResponseInterceptor`]. The hook sees
+    /// [`crate::ResponseParts`]: headers, unary/client-streaming trailers,
+    /// compress, and local [`crate::Response::extensions`]. A received reply
+    /// starts empty; this is how a client inserts typed context after the
+    /// peer cannot. Distinct from [`Self::intercept`], which runs before the
+    /// stream opens. Calling this twice stacks: the first interceptor runs
+    /// first. Applies to every call shape, including over TLS, mTLS, Unix,
+    /// and [`Self::from_io`].
+    /// `Err` fails that Call (the peer already sent OK), including
+    /// [`crate::Status::with_error_details`]. A non-OK peer status skips
+    /// this hook. On server-streaming and bidi, trailers on this envelope
+    /// do not replace [`crate::Streaming::trailers`]. Generated clients
+    /// expose the same method: `GreeterClient::new(ch).on_response(stamp)`.
+    #[must_use]
+    pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
+        let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();
+        hooks.push(Arc::new(interceptor));
+        Self {
+            response_interceptors: hooks.into(),
+            ..self
+        }
+    }
+
+    fn apply_response_hooks<T>(&self, response: Response<T>) -> Result<Response<T>, Status> {
+        crate::interceptor::intercept_response_all(response, &self.response_interceptors)
+    }
+
     fn prepare_outbound<T>(&self, path: &'static str, req: &mut Request<T>) -> Result<(), Status> {
         if req.timeout().is_none() {
             if let Some(timeout) = self.config.rpc_timeout() {
@@ -942,7 +974,10 @@ impl Channel {
                             retried = true;
                             channel.inner.discard(slot, gen).await;
                         }
-                        result => return result,
+                        result => {
+                            return result
+                                .and_then(|response| channel.apply_response_hooks(response))
+                        }
                     }
                 }
             }),
@@ -1035,7 +1070,8 @@ impl Channel {
                     .await
                     {
                         Ok(response) => {
-                            return Ok(attach_conn(response, lease, driver, Some(reset)))
+                            let response = channel.apply_response_hooks(response)?;
+                            return Ok(attach_conn(response, lease, driver, Some(reset)));
                         }
                         Err(status)
                             if !retried
@@ -1132,7 +1168,10 @@ impl Channel {
                         &user_agent,
                     )
                     .await?;
-                run_client_stream(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout).await
+                let response =
+                    run_client_stream(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout)
+                        .await?;
+                channel.apply_response_hooks(response)
             }),
         );
         (tx, call)
@@ -1219,8 +1258,11 @@ impl Channel {
                         &user_agent,
                     )
                     .await?;
+                let response =
+                    run_bidi(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout).await?;
+                let response = channel.apply_response_hooks(response)?;
                 Ok(attach_conn(
-                    run_bidi(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout).await?,
+                    response,
                     opened.lease,
                     opened.driver,
                     Some(reset),
@@ -1309,6 +1351,7 @@ fn finish_channel(
         inner,
         config,
         interceptors: Arc::from([]),
+        response_interceptors: Arc::from([]),
         user_agent: crate::wire::PBRS_GRPC_UA,
         https,
     }
@@ -2069,6 +2112,7 @@ mod tests {
         assert!(dbg.contains("connections: 1"), "{dbg}");
         assert!(dbg.contains("tls: false"), "{dbg}");
         assert!(dbg.contains("interceptors: 0"), "{dbg}");
+        assert!(dbg.contains("response_interceptors: 0"), "{dbg}");
     }
 
     #[test]

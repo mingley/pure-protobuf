@@ -435,6 +435,11 @@ See `docs/upb.md`. Short list:
   is trailers-only (including `with_error_details`). A handler `Err`
   skips this hook. First registered runs first. Applies to every call
   shape, including over TLS, mTLS, Unix, and `from_io`.
+  `Channel::on_response` / `FooClient::on_response` run after a successful
+  receive. A received reply starts empty; this hook inserts typed context
+  the peer cannot. `Err` fails that Call (the peer already sent OK). A
+  non-OK peer status skips this hook. First registered runs first. Applies
+  to every call shape, including over TLS, mTLS, Unix, and `from_io`.
   The same `add_service` keeps `max_decoding_message_size` on every mount
   and every call shape, including over TLS, mTLS, Unix, and `from_io`.
   `max_encoding_message_size` then `add_service` keeps that outbound cap on

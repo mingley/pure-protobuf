@@ -186,7 +186,11 @@ Distinct from metadata. A received reply starts empty. `Server::on_response` /
 `Router::on_response` / `FooServer::on_response` run after the handler
 returns `Ok`, before headers. Closures see `ResponseParts` and may stamp
 metadata from those extensions. `Err` after the handler already ran is
-trailers-only. A handler `Err` skips this hook. Closures see `Rpc` (path, service/method,
+trailers-only. A handler `Err` skips this hook. `Channel::on_response` /
+`FooClient::on_response` run after a successful receive; a received reply
+starts empty and this hook inserts typed context the peer cannot. `Err`
+fails that Call (the peer already sent OK). A non-OK peer status skips
+this hook. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
