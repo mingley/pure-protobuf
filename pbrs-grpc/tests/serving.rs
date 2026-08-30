@@ -7966,15 +7966,53 @@ async fn from_io_interceptors_and_handlers_see_the_method_path() {
     server.abort();
 }
 
+fn interceptor_see_client_deadline(rpc: &mut Rpc) -> Result<(), Status> {
+    let peer = rpc.peer_timeout();
+    if peer != Some(Duration::from_secs(5)) {
+        return Err(Status::internal(format!("peer timeout {peer:?}")));
+    }
+    rpc.set_timeout(Duration::from_secs(1));
+    let effective = rpc.effective_timeout();
+    if effective != Some(Duration::from_secs(1)) {
+        return Err(Status::internal(format!("effective {effective:?}")));
+    }
+    let Some(deadline) = rpc.deadline() else {
+        return Err(Status::internal("missing deadline"));
+    };
+    let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+    if remaining > Duration::from_secs(1) {
+        return Err(Status::internal(format!(
+            "remaining too long {remaining:?}"
+        )));
+    }
+    if remaining.is_zero() {
+        return Err(Status::internal("deadline already passed"));
+    }
+    Ok(())
+}
+
+fn interceptor_require_no_deadline(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.peer_timeout().is_some() {
+        return Err(Status::internal("unexpected peer timeout"));
+    }
+    if rpc.rpc_timeout().is_some() {
+        return Err(Status::internal("unexpected server timeout overlay"));
+    }
+    if rpc.effective_timeout().is_some() {
+        return Err(Status::internal("unexpected effective timeout"));
+    }
+    if rpc.deadline().is_some() {
+        return Err(Status::internal("unexpected deadline"));
+    }
+    Ok(())
+}
+
 #[tokio::test]
 async fn a_server_interceptor_cannot_extend_the_client_deadline() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
-            .intercept(|rpc: &mut Rpc| {
-                rpc.set_timeout(Duration::from_secs(5));
-                Ok(())
-            })
+            .intercept(interceptor_set_timeout_5s)
             .serve_listener(listener)
             .await
             .ok();
@@ -7990,34 +8028,100 @@ async fn a_server_interceptor_cannot_extend_the_client_deadline() {
 }
 
 #[tokio::test]
+async fn a_tls_server_interceptor_cannot_extend_the_client_deadline() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_millis(50)),
+        Duration::from_millis(150),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_interceptor_cannot_extend_the_client_deadline() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_millis(50)),
+        Duration::from_millis(150),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_interceptor_cannot_extend_the_client_deadline() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_millis(50)),
+        Duration::from_millis(150),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_interceptor_cannot_extend_the_client_deadline() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_millis(50)),
+        Duration::from_millis(150),
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_server_interceptor_sees_the_client_deadline() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                let peer = rpc.peer_timeout();
-                if peer != Some(Duration::from_secs(5)) {
-                    return Err(Status::internal(format!("peer timeout {peer:?}")));
-                }
-                rpc.set_timeout(Duration::from_secs(1));
-                let effective = rpc.effective_timeout();
-                if effective != Some(Duration::from_secs(1)) {
-                    return Err(Status::internal(format!("effective {effective:?}")));
-                }
-                let Some(deadline) = rpc.deadline() else {
-                    return Err(Status::internal("missing deadline"));
-                };
-                let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-                if remaining > Duration::from_secs(1) {
-                    return Err(Status::internal(format!(
-                        "remaining too long {remaining:?}"
-                    )));
-                }
-                if remaining.is_zero() {
-                    return Err(Status::internal("deadline already passed"));
-                }
-                Ok(())
-            })
+            .intercept(interceptor_see_client_deadline)
             .serve_listener(listener)
             .await
             .ok();
@@ -8028,25 +8132,80 @@ async fn a_server_interceptor_sees_the_client_deadline() {
 }
 
 #[tokio::test]
+async fn a_tls_server_interceptor_sees_the_client_deadline() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_see_client_deadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    echo_every_shape(&client, Some(Duration::from_secs(5))).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_interceptor_sees_the_client_deadline() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_see_client_deadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    echo_every_shape(&client, Some(Duration::from_secs(5))).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_interceptor_sees_the_client_deadline() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_see_client_deadline)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    echo_every_shape(&client, Some(Duration::from_secs(5))).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_interceptor_sees_the_client_deadline() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_see_client_deadline)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    echo_every_shape(&client, Some(Duration::from_secs(5))).await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_server_interceptor_sees_a_missing_deadline() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                if rpc.peer_timeout().is_some() {
-                    return Err(Status::internal("unexpected peer timeout"));
-                }
-                if rpc.rpc_timeout().is_some() {
-                    return Err(Status::internal("unexpected server timeout overlay"));
-                }
-                if rpc.effective_timeout().is_some() {
-                    return Err(Status::internal("unexpected effective timeout"));
-                }
-                if rpc.deadline().is_some() {
-                    return Err(Status::internal("unexpected deadline"));
-                }
-                Ok(())
-            })
+            .intercept(interceptor_require_no_deadline)
             .serve_listener(listener)
             .await
             .ok();
@@ -8054,6 +8213,75 @@ async fn a_server_interceptor_sees_a_missing_deadline() {
     let client = GreeterClient::new(channel(addr).await);
     echo_every_shape(&client, None).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_server_interceptor_sees_a_missing_deadline() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_no_deadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_interceptor_sees_a_missing_deadline() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_no_deadline)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_interceptor_sees_a_missing_deadline() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_no_deadline)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_interceptor_sees_a_missing_deadline() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_no_deadline)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    echo_every_shape(&client, None).await;
+    server.abort();
 }
 
 fn check_server_timeout_overlay<T>(request: &Request<T>) -> Result<(), Status> {

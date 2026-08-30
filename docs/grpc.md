@@ -1295,7 +1295,9 @@ a subset of names. `Rpc::peer_timeout` is the client's
 and stays visible after `set_timeout`; `Rpc::effective_timeout` is the soonest of
 that overlay, the client header, and `set_timeout`. `Rpc::deadline` is that same duration as an
 `Instant`, computed at the call so a just-tightened cap is visible. An
-interceptor can only tighten the deadline, not extend it. The handler's
+interceptor can only tighten the deadline, not extend it, including over TLS,
+mTLS, Unix, and `from_io`. A missing client `grpc-timeout` stays absent on
+those transports. The handler's
 `request.timeout()` / `request.deadline()` are that tightened cap, not the
 original client value, including over TLS, mTLS, Unix, and `from_io`.
 Stacked server interceptors can only tighten that cap, on those transports
