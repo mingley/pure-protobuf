@@ -65,16 +65,15 @@ pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 ```rust
 // build.rs
 fn main() {
-    pbrs::codegen::Config::new()
-        .emit_kernel_stubs(true)
-        .compile_protos(&["proto/hello.proto"], &["proto"])
+    pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"])
         .expect("codegen");
 }
 ```
 
-`protoc` must be on `PATH`. `emit_kernel_stubs(true)` is what produces
-`pbrs-grpc` stubs; the default is tonic stubs, and the two are mutually
+`protoc` must be on `PATH`. `compile_protos` emits `pbrs-grpc` stubs by default.
+`emit_tonic_stubs(true)` selects the tonic adapter. The two are mutually
 exclusive because they claim the same `FooClient` / `FooServer` names.
+`emit_kernel_stubs(true)` is still valid and explicit.
 
 Then implement the generated trait:
 

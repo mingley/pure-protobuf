@@ -15,6 +15,7 @@ fn main() {
     let testing = proto_dir.join("grpc/testing/test.proto");
     pbrs::codegen::Config::new()
         .emit_deps(true)
+        .emit_tonic_stubs(true)
         .compile_protos(&[&testing], &[&proto_dir])
         .expect("tonic TestService codegen");
 }

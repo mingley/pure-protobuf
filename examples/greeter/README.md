@@ -1,8 +1,8 @@
 # greeter
 
 A crate that depends on `pbrs-grpc` the way a user would: own proto, `build.rs`
-with `emit_kernel_stubs(true)`, generated `Greeter` trait / server / client,
-plus `grpc.health.v1` and `grpc.reflection.v1`.
+with `compile_protos` (kernel stubs are the default), generated `Greeter`
+trait / server / client, plus `grpc.health.v1` and `grpc.reflection.v1`.
 
 The proto has all four gRPC shapes (`SayHello`, `ClientHello`, `ServerHello`,
 `StreamHello`). `cargo run` still prints the unary path:

@@ -16,9 +16,7 @@ pbrs = { git = "https://github.com/mingley/pure-protobuf" }
 
 ```rust
 // build.rs
-pbrs::codegen::Config::new()
-    .emit_kernel_stubs(true)
-    .compile_protos(&["proto/hello.proto"], &["proto"])?;
+pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"])?;
 ```
 
 That generates a service trait, a server, and a client for every `service` in

@@ -82,3 +82,11 @@ fn main() {
     assert_eq!(out.trim(), "ada");
     println!("{}", out.trim());
 }
+
+#[test]
+fn compile_protos_defaults_to_kernel_stubs() {
+    assert_eq!(
+        pbrs::codegen::Stubs::default(),
+        pbrs::codegen::Stubs::Kernel
+    );
+}

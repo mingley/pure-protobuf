@@ -1,7 +1,7 @@
 //! A gRPC service that depends on [`pbrs_grpc`] as an ordinary crate.
 //!
 //! `proto/hello.proto` is compiled by `build.rs` with
-//! [`pbrs::codegen::Config::emit_kernel_stubs`]. The binary serves the greeter
+//! [`pbrs::codegen::compile_protos`] (kernel stubs are the default). The binary serves the greeter
 //! together with `grpc.health.v1` and `grpc.reflection.v1` on loopback, then
 //! calls `SayHello`. Tests cover all four RPC shapes, health `Check` and
 //! `Watch`, and reflection `list_services`.

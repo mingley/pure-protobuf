@@ -23,7 +23,7 @@ thread_local! {
         const { RefCell::new(std::collections::BTreeMap::new()) };
     static FIELD_RAWS: RefCell<std::collections::BTreeMap<u32, String>> =
         const { RefCell::new(std::collections::BTreeMap::new()) };
-    static STUBS: Cell<Stubs> = const { Cell::new(Stubs::Tonic) };
+    static STUBS: Cell<Stubs> = const { Cell::new(Stubs::Kernel) };
     static EMIT_DEPS: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -36,14 +36,14 @@ thread_local! {
 pub enum Stubs {
     /// Messages only.
     None,
-    /// `tonic` 0.14 stubs over `protobuf_tonic::ProtobufCodec`. The default,
-    /// so existing `protobuf-tonic` users keep working.
-    #[default]
+    /// `tonic` 0.14 stubs over `protobuf_tonic::ProtobufCodec`.
+    /// Select with [`Config::emit_tonic_stubs`].
     Tonic,
-    /// Native `pbrs-grpc` stubs. Requires the generating crate to depend on
-    /// `pbrs-grpc`. `FooClient` dials with `connect` / `connect_tls` /
-    /// `connect_unix` / `from_io`; `FooServer` serves with `serve` /
-    /// `serve_tls` / `serve_unix`.
+    /// Native `pbrs-grpc` stubs. The default. Requires the generating crate
+    /// to depend on `pbrs-grpc`. `FooClient` dials with `connect` /
+    /// `connect_tls` / `connect_unix` / `from_io`; `FooServer` serves with
+    /// `serve` / `serve_tls` / `serve_unix`.
+    #[default]
     Kernel,
 }
 
@@ -260,7 +260,7 @@ impl Config {
         self
     }
 
-    /// Choose which gRPC stub flavour to emit. Default [`Stubs::Tonic`].
+    /// Choose which gRPC stub flavour to emit. Default [`Stubs::Kernel`].
     pub fn stubs(&mut self, stubs: Stubs) -> &mut Self {
         self.stubs = stubs;
         self
@@ -268,8 +268,9 @@ impl Config {
 
     /// Emit tonic `FooClient`/`FooServer` stubs.
     ///
-    /// `false` means messages only. Mutually exclusive with
-    /// [`Self::emit_kernel_stubs`]; the last call wins.
+    /// Needed because the default is [`Stubs::Kernel`]. `false` means
+    /// messages only. Mutually exclusive with [`Self::emit_kernel_stubs`];
+    /// the last call wins.
     pub fn emit_tonic_stubs(&mut self, enable: bool) -> &mut Self {
         self.stubs = if enable { Stubs::Tonic } else { Stubs::None };
         self
@@ -277,20 +278,20 @@ impl Config {
 
     /// Emit native `pbrs-grpc` `FooClient`/`FooServer` stubs.
     ///
-    /// The generating crate must depend on `pbrs-grpc`. `FooClient` gets the
-    /// same dialers as `Channel` (`connect`, `connect_tls`, `connect_unix`,
-    /// `from_io`, and the lazy/`_with` variants) and the same overlays,
-    /// including `https_scheme` for already-encrypted `from_io` streams.
-    /// Read those overlays with `scheme` / `authority` / `grpc_user_agent` /
+    /// This is the default for [`Config::new`] / [`compile_protos`]. Pass
+    /// `true` to be explicit; `false` is messages only. The generating crate
+    /// must depend on `pbrs-grpc`. `FooClient` gets the same dialers as
+    /// `Channel` (`connect`, `connect_tls`, `connect_unix`, `from_io`, and
+    /// the lazy/`_with` variants) and the same overlays, including
+    /// `https_scheme` for already-encrypted `from_io` streams. Read those
+    /// overlays with `scheme` / `authority` / `grpc_user_agent` /
     /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `config`.
     /// Methods you omit on the generated `Foo` trait answer `UNIMPLEMENTED`.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
     /// ```no_run
     /// // build.rs
-    /// pbrs::codegen::Config::new()
-    ///     .emit_kernel_stubs(true)
-    ///     .compile_protos(&["proto/hello.proto"], &["proto"])
+    /// pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"])
     ///     .expect("codegen");
     /// ```
     pub fn emit_kernel_stubs(&mut self, enable: bool) -> &mut Self {

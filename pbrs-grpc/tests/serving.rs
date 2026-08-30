@@ -1500,6 +1500,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Channel::on_response as the client response interceptor hook"
     );
     assert!(
+        guide.contains("`compile_protos` emits `pbrs-grpc` stubs by default."),
+        "guide must name kernel stubs as the compile_protos default"
+    );
+    assert!(
+        !guide.contains("the default is tonic stubs"),
+        "guide must not name tonic stubs as the compile_protos default"
+    );
+    assert!(
         guide.contains("`Channel::connected` is a snapshot of live sockets"),
         "guide must name Channel::connected as a live-socket snapshot"
     );

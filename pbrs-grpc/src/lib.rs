@@ -34,9 +34,7 @@
 //! ```no_run
 //! // build.rs
 //! fn main() {
-//!     pbrs::codegen::Config::new()
-//!         .emit_kernel_stubs(true)
-//!         .compile_protos(&["proto/hello.proto"], &["proto"])
+//!     pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"])
 //!         .expect("codegen");
 //! }
 //! ```

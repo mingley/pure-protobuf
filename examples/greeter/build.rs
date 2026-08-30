@@ -8,8 +8,5 @@
 )]
 
 fn main() {
-    pbrs::codegen::Config::new()
-        .emit_kernel_stubs(true)
-        .compile_protos(&["proto/hello.proto"], &["proto"])
-        .expect("codegen helloworld");
+    pbrs::codegen::compile_protos(&["proto/hello.proto"], &["proto"]).expect("codegen helloworld");
 }
