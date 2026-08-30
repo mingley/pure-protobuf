@@ -400,6 +400,38 @@ impl Help {
     }
 }
 
+impl LocalizedMessage {
+    /// `LocalizedMessage` for `locale` with `message`.
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::localized_message`]. Distinct from
+    /// [`crate::Status::message`]: that is the ASCII `grpc-message`, not a locale.
+    /// Distinct from [`crate::Status::help`]: that is a docs URL, not a locale.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, LocalizedMessage};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     localized_message: Some(LocalizedMessage::with_locale("fr-FR", "introuvable")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::NotFound, "not found", &details)?;
+    /// assert_eq!(status.message(), "not found");
+    /// let local = status.localized_message().expect("LocalizedMessage");
+    /// assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+    /// assert_eq!(local.message().to_str().unwrap_or(""), "introuvable");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_locale(locale: impl Into<String>, message: impl Into<String>) -> Self {
+        let mut local = Self::new();
+        local.set_locale(locale.into());
+        local.set_message(message.into());
+        local
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -568,8 +600,8 @@ fn fill_standard(out: &mut ErrorDetails, any: &Any) -> Result<bool, crate::Statu
 mod tests {
     use super::{
         bad_request, help, precondition_failure, quota_failure, Any, BadRequest, Duration,
-        ErrorDetails, ErrorInfo, FieldViolation, Help, PreconditionFailure, QuotaFailure,
-        RetryInfo, Status, TYPE_URL_PREFIX,
+        ErrorDetails, ErrorInfo, FieldViolation, Help, LocalizedMessage, PreconditionFailure,
+        QuotaFailure, RetryInfo, Status, TYPE_URL_PREFIX,
     };
     use crate::Code;
 
@@ -880,5 +912,24 @@ mod tests {
         assert!(status.retry_delay().is_none());
         assert!(status.precondition_failure().is_none());
         assert!(status.quota_failure().is_none());
+    }
+
+    #[test]
+    fn localized_message_with_locale_round_trips() {
+        let local = LocalizedMessage::with_locale("fr-FR", "introuvable");
+        assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+        assert_eq!(local.message().to_str().unwrap_or(""), "introuvable");
+        let details = ErrorDetails {
+            localized_message: Some(local),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::NotFound, "not found", &details)
+            .expect("encode");
+        assert_eq!(status.message(), "not found");
+        let got = status.localized_message().expect("LocalizedMessage");
+        assert_eq!(got.locale().to_str().unwrap_or(""), "fr-FR");
+        assert_eq!(got.message().to_str().unwrap_or(""), "introuvable");
+        assert!(status.help().is_none());
+        assert!(status.precondition_failure().is_none());
     }
 }

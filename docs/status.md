@@ -513,7 +513,10 @@ See `docs/upb.md`. Short list:
   and from `bad_request`. `PreconditionFailure::with_violation` builds that payload.
   `Status::help` is packed documentation links. Distinct from failure
   classifications: links can sit next to a retryable UNAVAILABLE.
-  `Help::with_link` builds that payload. A
+  `Help::with_link` builds that payload.
+  `Status::localized_message` is packed locale text. Distinct from the ASCII
+  `grpc-message`. Distinct from `help` (a docs URL).
+  `LocalizedMessage::with_locale` builds that payload. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

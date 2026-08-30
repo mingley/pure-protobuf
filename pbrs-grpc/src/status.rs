@@ -813,6 +813,35 @@ impl Status {
         self.error_details().ok()?.help
     }
 
+    /// Packed `google.rpc.LocalizedMessage`, if this status carries one.
+    ///
+    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`, not a locale.
+    /// Distinct from [`Self::help`]: that is a docs URL, not a locale.
+    /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
+    /// Corrupt bytes are `None`. Build the payload with
+    /// [`crate::pb::LocalizedMessage::with_locale`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, LocalizedMessage};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     localized_message: Some(LocalizedMessage::with_locale("fr-FR", "introuvable")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::NotFound, "not found", &details)?;
+    /// assert_eq!(status.message(), "not found");
+    /// let local = status.localized_message().expect("LocalizedMessage");
+    /// assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+    /// assert_eq!(local.message().to_str().unwrap_or(""), "introuvable");
+    /// assert!(Status::not_found("row").localized_message().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn localized_message(&self) -> Option<crate::pb::LocalizedMessage> {
+        self.error_details().ok()?.localized_message
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1837,6 +1866,54 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .help()
+        .is_none());
+    }
+
+    #[test]
+    fn localized_message_reads_packed_locale() {
+        let details = crate::pb::ErrorDetails {
+            localized_message: Some(crate::pb::LocalizedMessage::with_locale(
+                "fr-FR",
+                "introuvable",
+            )),
+            help: Some(crate::pb::Help::with_link(
+                "docs",
+                "https://example.com/not-found",
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status =
+            Status::from_error_details(Code::NotFound, "not found", &details).expect("encode");
+        assert_eq!(status.message(), "not found");
+        let local = status.localized_message().expect("LocalizedMessage");
+        assert_eq!(local.locale().to_str().unwrap_or(""), "fr-FR");
+        assert_eq!(local.message().to_str().unwrap_or(""), "introuvable");
+        assert!(status.help().is_some());
+
+        let help_only = crate::pb::ErrorDetails {
+            help: Some(crate::pb::Help::with_link(
+                "docs",
+                "https://example.com/not-found",
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let help_status =
+            Status::from_error_details(Code::NotFound, "not found", &help_only).expect("encode");
+        assert!(help_status.localized_message().is_none());
+        assert!(help_status.help().is_some());
+        assert_eq!(help_status.message(), "not found");
+
+        assert!(Status::not_found("row").localized_message().is_none());
+        assert!(Status::not_found("row")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .localized_message()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .localized_message()
         .is_none());
     }
 

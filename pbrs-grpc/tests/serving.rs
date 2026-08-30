@@ -1799,6 +1799,38 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Help::with_link must Distinct retryable UNAVAILABLE from failure classifications"
     );
     assert!(
+        crate_src.contains("[`Status::localized_message`]"),
+        "crate map must name Status::localized_message"
+    );
+    assert!(
+        crate_src.contains("[`pb::LocalizedMessage::with_locale`]"),
+        "crate map must name LocalizedMessage::with_locale"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.LocalizedMessage`, if this status carries one."),
+        "Status::localized_message must name packed LocalizedMessage"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::message`]: that is the ASCII `grpc-message`, not a locale."
+        ),
+        "Status::localized_message must Distinct ASCII grpc-message from locale"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::help`]: that is a docs URL, not a locale."),
+        "Status::localized_message must Distinct Help docs URL from locale"
+    );
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::localized_message`]"),
+        "LocalizedMessage::with_locale must name Status::localized_message unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::message`]: that is the ASCII `grpc-message`, not a locale."
+        ),
+        "LocalizedMessage::with_locale must Distinct ASCII grpc-message from locale"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
@@ -2079,6 +2111,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Links can sit next to a retryable UNAVAILABLE."),
         "guide must Distinct Help from failure classifications"
+    );
+    assert!(
+        guide.contains("`status.localized_message()` for a locale"),
+        "guide must name Status::localized_message as a locale"
+    );
+    assert!(
+        guide.contains("`LocalizedMessage::with_locale` builds that payload"),
+        "guide must name LocalizedMessage::with_locale as the builder"
+    );
+    assert!(
+        guide.contains("Distinct from `status.message()`."),
+        "guide must Distinct localized_message from ASCII grpc-message"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),
