@@ -1217,6 +1217,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         crate_src.contains("including a rapid-reset flood that exceeds"),
         "crate docs must name the hostile rapid-reset flood"
     );
+    let status_src = include_str!("../src/status.rs");
+    assert!(
+        status_src.contains("A peer can send a protobuf whose code or message disagrees"),
+        "Status::rpc must Distinct receive-path ASCII from a mismatched packed google.rpc.Status"
+    );
     assert!(
         crate_src.contains(
             "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
@@ -8659,6 +8664,74 @@ impl Greeter for FailGreeter {
     }
 }
 
+fn mismatched_packed_status() -> Status {
+    let packed =
+        Status::with_error_details(Code::NotFound, "gone", Vec::<pbrs_grpc::pb::Any>::new())
+            .expect("pack");
+    let mut status = Status::permission_denied("no");
+    status.set_details(packed.details().to_vec());
+    status
+}
+
+fn assert_ascii_wins_over_mismatched_packed(err: &Status) {
+    assert_eq!(err.code(), Code::PermissionDenied, "{err}");
+    assert_eq!(err.message(), "no");
+    let rpc = err.rpc().expect("google.rpc.Status");
+    assert_eq!(rpc.code(), Code::NotFound.to_i32());
+    assert_eq!(rpc.message().to_str().unwrap_or(""), "gone");
+}
+
+async fn assert_ascii_wins_mismatched_packed_every_shape(client: &GreeterClient) {
+    assert_ascii_wins_over_mismatched_packed(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    match client.server_hello(Request::new(req("ada"))).await {
+        Err(err) => assert_ascii_wins_over_mismatched_packed(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_ascii_wins_over_mismatched_packed(&err),
+            Ok(_) => panic!("server-stream mismatched packed must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_ascii_wins_over_mismatched_packed(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_ascii_wins_over_mismatched_packed(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+struct MismatchGreeter;
+
+impl Greeter for MismatchGreeter {
+    async fn say_hello(&self, _: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+        Err(mismatched_packed_status())
+    }
+
+    async fn client_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(mismatched_packed_status())
+    }
+
+    async fn server_hello(
+        &self,
+        _: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(mismatched_packed_status())
+    }
+
+    async fn stream_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(mismatched_packed_status())
+    }
+}
+
 fn rich_fail() -> Status {
     let mut status = Status::failed_precondition("quota");
     status.set_details(vec![0x08, 0x09]);
@@ -15296,6 +15369,89 @@ async fn from_io_handlers_return_typed_status_on_every_shape() {
             .ok();
     });
     assert_greeter_blocked_every_shape(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+
+    server.abort();
+}
+
+#[tokio::test]
+async fn ascii_wins_over_mismatched_packed_on_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(MismatchGreeter)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_ascii_wins_mismatched_packed_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_ascii_wins_over_mismatched_packed_on_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(MismatchGreeter)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_ascii_wins_mismatched_packed_every_shape(&GreeterClient::new(tls_channel(addr).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_ascii_wins_over_mismatched_packed_on_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(MismatchGreeter)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_ascii_wins_mismatched_packed_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_ascii_wins_over_mismatched_packed_on_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        GreeterServer::new(MismatchGreeter)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    assert_ascii_wins_mismatched_packed_every_shape(&GreeterClient::new(
+        Channel::connect_unix(&path).await.expect("connect"),
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_ascii_wins_over_mismatched_packed_on_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(MismatchGreeter)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_ascii_wins_mismatched_packed_every_shape(&GreeterClient::new(
         Channel::from_io(client_io, "localhost")
             .await
             .expect("from_io"),
