@@ -111,7 +111,8 @@ wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`),
 extensions). Those Outgoing getters apply to every call shape. The next RPC of every call shape redials a dead slot, including over TLS,
 mTLS, and Unix. Unary and server-streaming retry once when the connection
-dies after the stream slot looked live. `from_io` cannot redial.
+dies after the stream slot looked live. Client-streaming and bidi retry once
+when HEADERS never went out. `from_io` cannot redial.
 `ChannelConfig::max_connection_idle` tears the client socket down after idle
 even when keepalive PINGs still fire; the next RPC redials on TLS, mTLS, and
 Unix. A long-running stream is not idle. `from_io` cannot redial after that

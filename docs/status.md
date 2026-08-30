@@ -178,10 +178,12 @@ See `docs/upb.md`. Short list:
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
   retry) — proven for unary and server-streaming on h2c and TLS.
+  Client-streaming and bidi retry once if HEADERS never went out.
   `Server::max_connection_age` / generated `FooServer::max_connection_age`
   name that the next RPC of every call shape redials, including over TLS, mTLS,
   and Unix (`from_io` cannot redial), and that transparent
-  retry of the same in-flight RPC is unary and server-streaming only. Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
+  retry of the same in-flight RPC is unary and server-streaming after request
+  bytes, client-streaming and bidi before HEADERS. Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
   `ConnectionInfo`. TLS `:scheme https` and mTLS `peer_identity` apply to

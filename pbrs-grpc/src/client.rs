@@ -129,6 +129,14 @@ struct LiveConn {
     gen: u64,
 }
 
+/// HEADERS sent; request DATA has not started. Transparent retry stops here.
+struct Opened {
+    lease: Option<crate::keepalive::Lease>,
+    driver: Option<watch::Sender<bool>>,
+    resp_fut: h2::client::ResponseFuture,
+    send: h2::SendStream<Bytes>,
+}
+
 /// Backoff between wait-for-ready handshake attempts, in milliseconds.
 /// Caps at the last entry; see [`ChannelInner::acquire`].
 const WAIT_FOR_READY_BACKOFF_MS: &[u64] = &[20, 40, 80, 160, 320, 640, 1000];
@@ -184,7 +192,9 @@ impl Endpoint {
 /// [`Self::from_io`] cannot redial. Unary and server-streaming calls that
 /// observe the death after the slot still looked live (a raced `GOAWAY`)
 /// retry that redial once on the same RPC, matching gRPC transparent retry.
-/// Client-streaming and bidi do not: the caller already holds the send half.
+/// Client-streaming and bidi retry that same redial once when HEADERS never
+/// went out; after the stream is open they do not, because the caller already
+/// holds the send half.
 /// A healthy connection that is only waiting for a free stream
 /// (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not replaced. Redial is part of
 /// the RPC: it is cancelled if the [`Call`] is cancelled, and it fails with
@@ -763,6 +773,60 @@ impl Channel {
         Ok(grabbed)
     }
 
+    /// Grab a slot and send request HEADERS, retrying once on a raced
+    /// connection death. Distinct from unary / server-streaming: those replay
+    /// the already-encoded request frame after HEADERS. After this returns,
+    /// request DATA may start and this RPC is not retried.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "path, headers, timeout, encoding, and the grab race"
+    )]
+    async fn open_retrying(
+        &self,
+        cancel_rx: watch::Receiver<bool>,
+        deadline: Option<tokio::time::Instant>,
+        wait: bool,
+        path: &'static str,
+        md: &crate::metadata::Metadata,
+        timeout: Option<Duration>,
+        compress: bool,
+        user_agent: &http::HeaderValue,
+    ) -> Result<Opened, Status> {
+        let mut retried = false;
+        loop {
+            let live = self.grab(cancel_rx.clone(), deadline, wait).await?;
+            let (slot, gen, lease, driver) = (live.slot, live.gen, live.lease, live.driver);
+            match open(
+                live.send,
+                &self.inner.authority,
+                path,
+                md,
+                timeout,
+                compress,
+                user_agent,
+                self.https,
+            )
+            .await
+            {
+                Ok((resp_fut, send)) => {
+                    return Ok(Opened {
+                        lease,
+                        driver,
+                        resp_fut,
+                        send,
+                    });
+                }
+                Err(status)
+                    if !retried && status.is_transport() && self.inner.endpoint.can_redial() =>
+                {
+                    retried = true;
+                    self.inner.discard(slot, gen).await;
+                }
+                Err(status) => return Err(status),
+            }
+        }
+    }
+
     /// Issue a unary RPC: one request message, one response message.
     ///
     /// `path` is the full gRPC path, `/<package>.<Service>/<Method>`.
@@ -1016,19 +1080,21 @@ impl Channel {
                 prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                run_client_stream(
-                    live.send,
-                    &channel.inner.authority,
-                    path,
-                    req,
-                    rx,
-                    cancel_rx,
-                    wire,
-                    channel.user_agent.clone(),
-                    channel.https,
-                )
-                .await
+                let (_, md, timeout, compress, ua) = req.into_parts();
+                let user_agent = ua.unwrap_or_else(|| channel.user_agent.clone());
+                let opened = channel
+                    .open_retrying(
+                        cancel_rx.clone(),
+                        deadline,
+                        wait,
+                        path,
+                        &md,
+                        timeout,
+                        compress,
+                        &user_agent,
+                    )
+                    .await?;
+                run_client_stream(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout).await
             }),
         );
         (tx, call)
@@ -1101,22 +1167,24 @@ impl Channel {
                 prepared?;
                 let wait = req.wait_for_ready();
                 let deadline = deadline_from(req.timeout());
-                let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
-                Ok(attach_conn(
-                    run_bidi(
-                        live.send,
-                        &channel.inner.authority,
+                let (_, md, timeout, compress, ua) = req.into_parts();
+                let user_agent = ua.unwrap_or_else(|| channel.user_agent.clone());
+                let opened = channel
+                    .open_retrying(
+                        cancel_rx.clone(),
+                        deadline,
+                        wait,
                         path,
-                        req,
-                        rx,
-                        cancel_rx,
-                        wire,
-                        channel.user_agent.clone(),
-                        channel.https,
+                        &md,
+                        timeout,
+                        compress,
+                        &user_agent,
                     )
-                    .await?,
-                    live.lease,
-                    live.driver,
+                    .await?;
+                Ok(attach_conn(
+                    run_bidi(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout).await?,
+                    opened.lease,
+                    opened.driver,
                     Some(reset),
                 ))
             }),
@@ -1612,39 +1680,19 @@ where
     Ok(response)
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "one transport handle plus request, stream, cancel, and limits"
-)]
 async fn run_client_stream<Req, Resp>(
-    send_req: h2::client::SendRequest<Bytes>,
-    authority: &Authority,
-    path: &'static str,
-    req: Request<()>,
+    resp_fut: h2::client::ResponseFuture,
+    send_stream: h2::SendStream<Bytes>,
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
-    user_agent: HeaderValue,
-    https: bool,
+    timeout: Option<Duration>,
 ) -> Result<Response<Resp>, Status>
 where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default,
 {
-    let (_, md, timeout, compress, ua) = req.into_parts();
-    let user_agent = ua.unwrap_or(user_agent);
     let deadline = deadline_from(timeout);
-    let (resp_fut, send_stream) = open(
-        send_req,
-        authority,
-        path,
-        &md,
-        timeout,
-        compress,
-        &user_agent,
-        https,
-    )
-    .await?;
     // Keep the send half on this stack and RST it if the Call is dropped
     // mid-wait. Harvesting it from a spawned pump lost the RST: cancel can
     // win the same `select!` as JoinHandle Ready, and RecvStream drop is
@@ -1719,39 +1767,19 @@ impl Drop for ResetSend {
     }
 }
 
-#[allow(
-    clippy::too_many_arguments,
-    reason = "one transport handle plus request, stream, cancel, limits, and buffer"
-)]
 async fn run_bidi<Req, Resp>(
-    send_req: h2::client::SendRequest<Bytes>,
-    authority: &Authority,
-    path: &'static str,
-    req: Request<()>,
+    resp_fut: h2::client::ResponseFuture,
+    send_stream: h2::SendStream<Bytes>,
     rx: Streaming<Req>,
     cancel_rx: watch::Receiver<bool>,
     wire: Wire,
-    user_agent: HeaderValue,
-    https: bool,
+    timeout: Option<Duration>,
 ) -> Result<Response<Streaming<Resp>>, Status>
 where
     Req: Serialize + Send + 'static,
     Resp: Parse + Default + Send + 'static,
 {
-    let (_, md, timeout, compress, ua) = req.into_parts();
-    let user_agent = ua.unwrap_or(user_agent);
     let deadline = deadline_from(timeout);
-    let (resp_fut, send_stream) = open(
-        send_req,
-        authority,
-        path,
-        &md,
-        timeout,
-        compress,
-        &user_agent,
-        https,
-    )
-    .await?;
     // A spawned pump can RST before headers; without this channel the Call
     // would see UNAVAILABLE from h2 instead of StreamSender::fail's status.
     // The Call deadline does not set cancel_rx (`is_cancelled` is not

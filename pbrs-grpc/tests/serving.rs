@@ -595,6 +595,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel rustdoc must name redial on TLS, mTLS, and Unix"
     );
     assert!(
+        src.contains("Client-streaming and bidi retry that same redial once when HEADERS never"),
+        "Channel rustdoc must name client-streaming/bidi transparent retry before HEADERS"
+    );
+    assert!(
         src.contains(
             "do not keep it. The next RPC of every call shape redials, including over\n/// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with"
         ),
@@ -1330,6 +1334,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must not list Outgoing::set_user_agent as an omission"
     );
     assert!(
+        guide.contains("client-streaming and bidi retry before HEADERS"),
+        "guide must name client-streaming/bidi transparent retry before HEADERS"
+    );
+    assert!(
+        !guide.contains("after GOAWAY is unary and server-streaming only."),
+        "guide must not claim transparent retry is unary and server-streaming only"
+    );
+    assert!(
         guide
             .contains("`List` returns that same snapshot as `HealthCheckResponse` values keyed by"),
         "guide must name Health List as a snapshot of known names"
@@ -1434,7 +1446,7 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
-            "Send GOAWAY this long after accept. The next RPC of every call shape\n    /// redials, including over TLS, mTLS, and Unix; transparent retry of the\n    /// same in-flight RPC is unary and server-streaming only."
+            "Send GOAWAY this long after accept. The next RPC of every call shape\n    /// redials, including over TLS, mTLS, and Unix; transparent retry of the\n    /// same in-flight RPC is unary and server-streaming after request bytes,"
         )
         .count(),
         2,
@@ -12259,7 +12271,34 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
 async fn assert_dead_channel_redials(client: &GreeterClient) {
     // The first attempt can still land on the dying connection (`ready`
     // succeeded, then GOAWAY). Unary and server-streaming retry that redial
-    // once; this loop covers a rebound listener that is not yet accepting.
+    // after request bytes; client-streaming and bidi retry before HEADERS.
+    // This loop also covers a rebound listener that is not yet accepting.
+    let streamed = until_ok("client-stream after", || {
+        let (tx, call) = client.client_hello(Request::new(()));
+        async move {
+            tx.send(req("after")).await?;
+            tx.close();
+            call.await
+        }
+    })
+    .await;
+    assert_eq!(name_of(streamed.get_ref()), "after");
+    let bidi = until_ok("bidi after", || {
+        let (tx, call) = client.stream_hello(Request::new(()));
+        async move {
+            tx.send(req("after")).await?;
+            tx.close();
+            call.await
+        }
+    })
+    .await;
+    let mut inbound = bidi.into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("bidi item")
+        .expect("bidi first");
+    assert_eq!(name_of(&first), "after");
     let after = until_ok("unary after", || {
         client.say_hello(Request::new(req("after")))
     })

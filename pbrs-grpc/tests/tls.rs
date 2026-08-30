@@ -790,7 +790,34 @@ async fn a_dead_tls_channel_redials() {
 
     // The first attempt can still land on the dying connection (`ready`
     // succeeded, then GOAWAY). Unary and server-streaming retry that redial
-    // once; further attempts cover a rebound listener that is not yet accepting.
+    // after request bytes; client-streaming and bidi retry before HEADERS.
+    // Further attempts cover a rebound listener that is not yet accepting.
+    let streamed = until_ok("tls client-stream after", || {
+        let (tx, call) = client.client_hello(Request::new(()));
+        async move {
+            tx.send(req("after")).await?;
+            tx.close();
+            call.await
+        }
+    })
+    .await;
+    assert_eq!(name_of(streamed.get_ref()), "after");
+    let bidi = until_ok("tls bidi after", || {
+        let (tx, call) = client.stream_hello(Request::new(()));
+        async move {
+            tx.send(req("after")).await?;
+            tx.close();
+            call.await
+        }
+    })
+    .await;
+    let mut inbound = bidi.into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("bidi item")
+        .expect("bidi first");
+    assert_eq!(name_of(&first), "after");
     let after = until_ok("tls unary after", || {
         client.say_hello(Request::new(req("after")))
     })

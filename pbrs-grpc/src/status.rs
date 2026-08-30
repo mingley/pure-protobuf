@@ -690,7 +690,8 @@ impl Status {
     /// Map an HTTP/2 error onto [`Code::Unavailable`].
     ///
     /// Connection death (`GOAWAY`, I/O, `REFUSED_STREAM`) is marked so a
-    /// unary or server-streaming RPC can redial this call once. Stream
+    /// unary or server-streaming RPC can redial this call once, and so
+    /// client-streaming / bidi can redial once before HEADERS. Stream
     /// resets and user errors stay plain `UNAVAILABLE` and are not retried.
     pub(crate) fn from_h2(err: impl Into<h2::Error>) -> Self {
         let err = err.into();

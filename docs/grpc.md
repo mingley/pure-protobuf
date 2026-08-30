@@ -1031,7 +1031,8 @@ RPCs (including over TLS, mTLS, Unix, and `serve_connection`), then drops the
 socket. The next RPC of every call shape redials, including over TLS, mTLS,
 and Unix. `Channel::from_io` cannot redial after that GOAWAY, but an RPC
 already in flight still finishes inside the grace window. Transparent retry
-of the same in-flight RPC after GOAWAY is unary and server-streaming only.
+of the same in-flight RPC after GOAWAY is unary and server-streaming after
+request bytes; client-streaming and bidi retry before HEADERS.
 Age is jittered by ±10% so a process with many connections does not reconnect
 in lockstep. Idle only arms while no RPC is in flight, including over TLS, mTLS, Unix,
 and `serve_connection`, so grace is for a race with a request that arrives
@@ -1808,7 +1809,7 @@ Deliberate omissions, with what to do instead.
 | Missing | Instead |
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
-| Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry). Client-streaming, bidi, and `from_io` do not. Hedging is not implemented. |
+| Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
 | Response interceptors | Interceptors run before the handler. Inspect or rewrite the result in the method. |
 | Channel connectivity state | A failed RPC is `UNAVAILABLE`. There is no `GetState` / `WaitForStateChange`. |
 | Client `max_connection_age` | Age is a server `GOAWAY`. Clients close unused sockets with `ChannelConfig::max_connection_idle`. |

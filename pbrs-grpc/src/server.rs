@@ -1498,7 +1498,8 @@ impl<S: Service> Server<S> {
 
     /// Send GOAWAY this long after accept. The next RPC of every call shape
     /// redials, including over TLS, mTLS, and Unix; transparent retry of the
-    /// same in-flight RPC is unary and server-streaming only. See
+    /// same in-flight RPC is unary and server-streaming after request bytes,
+    /// client-streaming and bidi before HEADERS. See
     /// [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
@@ -2094,7 +2095,8 @@ impl Router {
 
     /// Send GOAWAY this long after accept. The next RPC of every call shape
     /// redials, including over TLS, mTLS, and Unix; transparent retry of the
-    /// same in-flight RPC is unary and server-streaming only. See
+    /// same in-flight RPC is unary and server-streaming after request bytes,
+    /// client-streaming and bidi before HEADERS. See
     /// [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {

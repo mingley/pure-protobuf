@@ -314,9 +314,9 @@ impl ServerConfig {
     /// connections does not reconnect in lockstep. In-flight RPCs get
     /// [`Self::max_connection_age_grace`] to finish; a [`crate::Channel`] on
     /// the other end redials the next RPC of every call shape, including over
-    /// TLS, mTLS, and Unix. Transparent
-    /// retry of the same in-flight RPC after GOAWAY is unary and
-    /// server-streaming only.
+    /// TLS, mTLS, and Unix. Transparent retry of the same in-flight RPC
+    /// after GOAWAY is unary and server-streaming after request bytes;
+    /// client-streaming and bidi retry before HEADERS.
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.max_connection_age = Some(age.max(Duration::from_millis(1)));

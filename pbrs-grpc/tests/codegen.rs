@@ -4154,7 +4154,7 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Send GOAWAY this long after accept. The next RPC of every call shape redials, including over TLS, mTLS, and Unix; transparent retry of the same in-flight RPC is unary and server-streaming only."
+            "Send GOAWAY this long after accept. The next RPC of every call shape redials, including over TLS, mTLS, and Unix; transparent retry of the same in-flight RPC is unary and server-streaming after request bytes, client-streaming and bidi before HEADERS."
         ),
         "generated max_connection_age rustdoc must name redial on TLS, mTLS, and Unix"
     );
