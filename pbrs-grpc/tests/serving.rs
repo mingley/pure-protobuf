@@ -1412,6 +1412,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::wait_for_ready`]: that overlay queues; this is a live snapshot."
+        ),
+        "Channel::connected must Distinct wait-for-ready overlay from the live snapshot"
+    );
+    assert!(
+        src.contains(
             "RPC redials. [`Self::from_io`] stays `false` after that close.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix."
         ),
         "Channel::connected must name idle/age redial on TLS, mTLS, and Unix"

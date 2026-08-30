@@ -552,6 +552,7 @@ impl Channel {
     /// [`ChannelConfig::max_connection_age`], this is `false` until the next
     /// RPC redials. [`Self::from_io`] stays `false` after that close.
     /// Applies to every call shape, including over TLS, mTLS, and Unix.
+    /// Distinct from [`Self::wait_for_ready`]: that overlay queues; this is a live snapshot.
     /// Client interceptors see the same snapshot as [`crate::Outgoing::connected`].
     #[must_use]
     pub fn connected(&self) -> bool {
