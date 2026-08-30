@@ -1118,6 +1118,70 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::peer_timeout must name fold into effective timeout"
     );
     assert!(
+        outgoing.contains(
+            "Server [`crate::Server::timeout`] overlay, when the kernel is writing this reply."
+        ),
+        "Response::rpc_timeout must name server overlay when writing"
+    );
+    assert!(
+        outgoing.contains("Same duration as [`crate::Request::rpc_timeout`] after dispatch."),
+        "Response::rpc_timeout must name the Request duration"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Request::rpc_timeout`]: that is the inbound request."
+        ),
+        "Response::rpc_timeout must Distinct inbound Request::rpc_timeout"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::timeout`]: that is the effective cap; this is the server overlay."
+        ),
+        "Response::rpc_timeout must Distinct effective timeout"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::peer_timeout`]: that is the client's `grpc-timeout`, not the server overlay."
+        ),
+        "Response::rpc_timeout must Distinct peer_timeout client header"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::rpc_timeout`]: that is a server interceptor before the handler."
+        ),
+        "Response::rpc_timeout must Distinct Rpc::rpc_timeout before the handler"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the server overlay."
+        ),
+        "Response::rpc_timeout must Distinct Rpc interceptor cap"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::rpc_timeout`]: that is a client interceptor overlay."
+        ),
+        "Response::rpc_timeout must Distinct Outgoing overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::deadline`]: that is the Instant, not the server overlay."
+        ),
+        "Response::rpc_timeout must Distinct deadline Instant"
+    );
+    assert!(
+        outgoing.contains(
+            "`None` on a response you built or a received reply (the server overlay is not on the reply wire)."
+        ),
+        "Response::rpc_timeout must name None on a received reply"
+    );
+    assert!(
+        outgoing.contains(
+            "An interceptor cannot change this; an interceptor cap only tightens [`Self::timeout`]."
+        ),
+        "Response::rpc_timeout must name interceptor cap only tightens timeout"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -1467,6 +1531,22 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct peer_timeout from effective timeout"
     );
     assert!(
+        intercept.contains("[`crate::ResponseParts::rpc_timeout`] is the server overlay."),
+        "ResponseInterceptor rustdoc must name server overlay"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay."
+        ),
+        "ResponseInterceptor rustdoc must Distinct rpc_timeout from effective timeout"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`."
+        ),
+        "ResponseInterceptor rustdoc must Distinct rpc_timeout from client header"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
@@ -1545,6 +1625,12 @@ fn channel_call_apis_document_hand_written_services() {
             "[`crate::Response::peer_timeout`] on a received reply is `None` (the client's `grpc-timeout` is not on the reply wire)."
         ),
         "Channel::on_response must name received peer_timeout is None"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Response::rpc_timeout`] on a received reply is `None` (the server overlay is not on the reply wire)."
+        ),
+        "Channel::on_response must name received rpc_timeout is None"
     );
     assert!(
         src.contains(
@@ -2806,6 +2892,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Response::peer_timeout from Rpc::peer_timeout"
     );
     assert!(
+        crate_src
+            .contains("[`Response::rpc_timeout`] is the server overlay in a response interceptor"),
+        "crate docs must name Response::rpc_timeout as the server overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Response::peer_timeout`]"),
+        "crate docs must Distinct Response::rpc_timeout from Response::peer_timeout"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::rpc_timeout`]"),
+        "crate docs must Distinct Response::rpc_timeout from Rpc::rpc_timeout"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -3232,6 +3331,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Response::peer_timeout` is the client's `grpc-timeout` in a response interceptor. Distinct from `timeout` (effective). Distinct from `Rpc::peer_timeout` (before the handler). An interceptor cannot change it."),
         "guide must name Response::peer_timeout as client grpc-timeout"
+    );
+    assert!(
+        guide.contains("`Response::rpc_timeout` is the server overlay in a response interceptor. Distinct from `timeout` (effective). Distinct from `Rpc::rpc_timeout` (before the handler). An interceptor cannot change it."),
+        "guide must name Response::rpc_timeout as the server overlay"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -3863,6 +3966,28 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::on_response and Router::on_response must Distinct peer_timeout from effective timeout"
     );
     assert_eq!(
+        src.matches("[`crate::ResponseParts::rpc_timeout`] is the server overlay.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must name server overlay"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct rpc_timeout from effective timeout"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct rpc_timeout from client header"
+    );
+    assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         )
@@ -3949,6 +4074,12 @@ fn server_and_router_config_document_every_call_shape() {
             "Response interceptors see the same duration on [`crate::Response::peer_timeout`]."
         ),
         "Rpc::peer_timeout must name the Response interceptor stamp"
+    );
+    assert!(
+        src.contains(
+            "Response interceptors see the same duration on [`crate::Response::rpc_timeout`]."
+        ),
+        "Rpc::rpc_timeout must name the Response interceptor stamp"
     );
     assert!(
         src.contains("Generated handlers see the same value on [`Request::accepts_compressed`]."),
@@ -21958,6 +22089,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         reply.peer_timeout().is_none(),
         "received reply must not carry client grpc-timeout"
     );
+    assert!(
+        reply.rpc_timeout().is_none(),
+        "received reply must not carry peer server overlay"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let reply = client
@@ -21996,6 +22131,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         reply.peer_timeout().is_none(),
         "received stream must not carry client grpc-timeout"
+    );
+    assert!(
+        reply.rpc_timeout().is_none(),
+        "received stream must not carry peer server overlay"
     );
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
@@ -22040,6 +22179,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         reply.peer_timeout().is_none(),
         "received client-stream must not carry client grpc-timeout"
     );
+    assert!(
+        reply.rpc_timeout().is_none(),
+        "received client-stream must not carry peer server overlay"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(Request::new(()));
@@ -22075,6 +22218,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         reply.peer_timeout().is_none(),
         "received bidi must not carry client grpc-timeout"
+    );
+    assert!(
+        reply.rpc_timeout().is_none(),
+        "received bidi must not carry peer server overlay"
     );
     let mut inbound = reply.into_inner();
     let framed = inbound
@@ -26236,6 +26383,9 @@ fn require_response_gzip_level(parts: &mut ResponseParts) -> Result<(), Status> 
     }
     if parts.peer_timeout().is_some() {
         return Err(Status::internal("response peer_timeout should be absent"));
+    }
+    if parts.rpc_timeout() != Some(Duration::from_secs(5)) {
+        return Err(Status::internal("response rpc_timeout overlay"));
     }
     Ok(())
 }

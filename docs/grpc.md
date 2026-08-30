@@ -1174,6 +1174,7 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Response::timeout` is the duration stamped at dispatch, in a response interceptor. Distinct from `deadline` (Instant). Distinct from `Rpc::timeout` (interceptor cap). An interceptor cannot change it.
 `Response::limits` is the encode cap in a response interceptor. Distinct from `Request::limits` (inbound). Distinct from `Rpc::limits` (before the handler). An interceptor cannot change it.
 `Response::peer_timeout` is the client's `grpc-timeout` in a response interceptor. Distinct from `timeout` (effective). Distinct from `Rpc::peer_timeout` (before the handler). An interceptor cannot change it.
+`Response::rpc_timeout` is the server overlay in a response interceptor. Distinct from `timeout` (effective). Distinct from `Rpc::rpc_timeout` (before the handler). An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.

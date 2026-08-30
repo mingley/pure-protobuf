@@ -435,6 +435,7 @@ impl Rpc {
     /// server policy even after [`Self::set_timeout`]. Same value as
     /// [`crate::Server::rpc_timeout`]. Generated handlers see it on
     /// [`Request::rpc_timeout`].
+    /// Response interceptors see the same duration on [`crate::Response::rpc_timeout`].
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.config.rpc_timeout()
@@ -670,6 +671,7 @@ impl Rpc {
             deadline,
             timeout,
             peer_timeout,
+            rpc_timeout,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -685,6 +687,7 @@ impl Rpc {
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
+                        .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
@@ -735,6 +738,7 @@ impl Rpc {
             deadline,
             timeout,
             peer_timeout,
+            rpc_timeout,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -750,6 +754,7 @@ impl Rpc {
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
+                        .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
@@ -807,6 +812,7 @@ impl Rpc {
             gzip_level,
             timeout,
             peer_timeout,
+            rpc_timeout,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -822,6 +828,7 @@ impl Rpc {
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
+                        .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
@@ -886,6 +893,7 @@ impl Rpc {
             gzip_level,
             timeout,
             peer_timeout,
+            rpc_timeout,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -901,6 +909,7 @@ impl Rpc {
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
+                        .with_rpc_timeout(rpc_timeout)
                         .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
@@ -1005,6 +1014,7 @@ impl Rpc {
             gzip_level: config.gzip_level(),
             timeout,
             peer_timeout,
+            rpc_timeout,
         })
     }
 
@@ -1091,6 +1101,7 @@ impl Rpc {
             gzip_level: config.gzip_level(),
             timeout,
             peer_timeout,
+            rpc_timeout,
         })
     }
 }
@@ -1198,6 +1209,7 @@ struct Prepared<T> {
     gzip_level: u32,
     timeout: Option<Duration>,
     peer_timeout: Option<Duration>,
+    rpc_timeout: Option<Duration>,
 }
 
 async fn send_unary_response<Resp: Serialize>(
@@ -1887,6 +1899,9 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
     /// [`crate::ResponseParts::peer_timeout`] is the client's `grpc-timeout`.
     /// Distinct from [`crate::ResponseParts::timeout`]: that is the effective cap.
+    /// [`crate::ResponseParts::rpc_timeout`] is the server overlay.
+    /// Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay.
+    /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2678,6 +2693,9 @@ impl Router {
     /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
     /// [`crate::ResponseParts::peer_timeout`] is the client's `grpc-timeout`.
     /// Distinct from [`crate::ResponseParts::timeout`]: that is the effective cap.
+    /// [`crate::ResponseParts::rpc_timeout`] is the server overlay.
+    /// Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay.
+    /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {

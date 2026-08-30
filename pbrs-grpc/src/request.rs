@@ -1696,6 +1696,7 @@ pub struct Response<T> {
     deadline: Option<tokio::time::Instant>,
     timeout: Option<Duration>,
     peer_timeout: Option<Duration>,
+    rpc_timeout: Option<Duration>,
     limits: Option<MessageLimits>,
     extensions: http::Extensions,
 }
@@ -1717,6 +1718,7 @@ impl<T> Response<T> {
             deadline: None,
             timeout: None,
             peer_timeout: None,
+            rpc_timeout: None,
             limits: None,
             extensions: http::Extensions::new(),
         }
@@ -1752,6 +1754,7 @@ impl<T> Response<T> {
                 deadline: self.deadline,
                 timeout: self.timeout,
                 peer_timeout: self.peer_timeout,
+                rpc_timeout: self.rpc_timeout,
                 limits: self.limits,
                 extensions: self.extensions,
             },
@@ -1774,6 +1777,7 @@ impl<T> Response<T> {
             deadline: parts.deadline,
             timeout: parts.timeout,
             peer_timeout: parts.peer_timeout,
+            rpc_timeout: parts.rpc_timeout,
             limits: parts.limits,
             extensions: parts.extensions,
         }
@@ -2102,6 +2106,33 @@ impl<T> Response<T> {
         self.peer_timeout
     }
 
+    pub(crate) fn with_rpc_timeout(mut self, rpc_timeout: Option<Duration>) -> Self {
+        self.rpc_timeout = rpc_timeout;
+        self
+    }
+
+    /// Server [`crate::Server::timeout`] overlay, when the kernel is writing this reply.
+    ///
+    /// Same duration as [`crate::Request::rpc_timeout`] after dispatch.
+    /// Distinct from [`crate::Request::rpc_timeout`]: that is the inbound request.
+    /// Distinct from [`Self::timeout`]: that is the effective cap; this is the server overlay.
+    /// Distinct from [`Self::peer_timeout`]: that is the client's `grpc-timeout`, not the server overlay.
+    /// Distinct from [`crate::Rpc::rpc_timeout`]: that is a server interceptor before the handler.
+    /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the server overlay.
+    /// Distinct from [`crate::Outgoing::rpc_timeout`]: that is a client interceptor overlay.
+    /// Distinct from [`Self::deadline`]: that is the Instant, not the server overlay.
+    /// `None` on a response you built or a received reply (the server overlay is not on the reply wire).
+    /// An interceptor cannot change this; an interceptor cap only tightens [`Self::timeout`].
+    ///
+    /// ```
+    /// let resp = pbrs_grpc::Response::new(());
+    /// assert!(resp.rpc_timeout().is_none());
+    /// ```
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.rpc_timeout
+    }
+
     pub(crate) fn with_limits(mut self, limits: Option<MessageLimits>) -> Self {
         self.limits = limits;
         self
@@ -2141,6 +2172,7 @@ impl<T> Response<T> {
             deadline: None,
             timeout: None,
             peer_timeout: None,
+            rpc_timeout: None,
             limits: None,
             extensions: http::Extensions::new(),
         }
@@ -2165,6 +2197,7 @@ impl<T> Response<T> {
             deadline: None,
             timeout: None,
             peer_timeout: None,
+            rpc_timeout: None,
             limits: None,
             extensions: http::Extensions::new(),
         }
@@ -2197,6 +2230,7 @@ pub struct ResponseParts {
     deadline: Option<tokio::time::Instant>,
     timeout: Option<Duration>,
     peer_timeout: Option<Duration>,
+    rpc_timeout: Option<Duration>,
     limits: Option<MessageLimits>,
     extensions: http::Extensions,
 }
@@ -2316,6 +2350,12 @@ impl ResponseParts {
         self.peer_timeout
     }
 
+    /// Server timeout overlay. See [`Response::rpc_timeout`].
+    #[must_use]
+    pub fn rpc_timeout(&self) -> Option<Duration> {
+        self.rpc_timeout
+    }
+
     /// Encode caps when writing. See [`Response::limits`].
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
@@ -2351,6 +2391,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("deadline", &self.deadline)
             .field("timeout", &self.timeout)
             .field("peer_timeout", &self.peer_timeout)
+            .field("rpc_timeout", &self.rpc_timeout)
             .field("limits", &self.limits)
             .field("extensions", &self.extensions.len())
             .finish()
@@ -2777,6 +2818,7 @@ mod tests {
             .with_deadline(Some(at))
             .with_timeout(Some(Duration::from_secs(5)))
             .with_peer_timeout(Some(Duration::from_secs(30)))
+            .with_rpc_timeout(Some(Duration::from_secs(9)))
             .with_limits(Some(crate::MessageLimits::default()));
         assert_eq!(stamped.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(stamped.service(), Some("helloworld.Greeter"));
@@ -2787,6 +2829,7 @@ mod tests {
         assert_eq!(stamped.deadline(), Some(at));
         assert_eq!(stamped.timeout(), Some(Duration::from_secs(5)));
         assert_eq!(stamped.peer_timeout(), Some(Duration::from_secs(30)));
+        assert_eq!(stamped.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(stamped.limits(), Some(crate::MessageLimits::default()));
         let (n, mut parts) = stamped.into_message_and_parts();
         assert_eq!(n, 42);
@@ -2802,6 +2845,7 @@ mod tests {
         assert_eq!(parts.deadline(), Some(at));
         assert_eq!(parts.timeout(), Some(Duration::from_secs(5)));
         assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(30)));
+        assert_eq!(parts.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(parts.limits(), Some(crate::MessageLimits::default()));
         parts.set_compress(false);
         parts.extensions_mut().insert(9u8);
@@ -2823,6 +2867,7 @@ mod tests {
         assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.timeout(), Some(Duration::from_secs(5)));
         assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(30)));
+        assert_eq!(rebuilt.rpc_timeout(), Some(Duration::from_secs(9)));
         assert_eq!(rebuilt.limits(), Some(crate::MessageLimits::default()));
         let shown = format!("{rebuilt:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
@@ -2834,6 +2879,7 @@ mod tests {
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("timeout: Some("), "{shown}");
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
+        assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("limits: Some("), "{shown}");
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
@@ -2853,6 +2899,7 @@ mod tests {
         assert!(Response::new(0u32).deadline().is_none());
         assert!(Response::new(0u32).timeout().is_none());
         assert!(Response::new(0u32).peer_timeout().is_none());
+        assert!(Response::new(0u32).rpc_timeout().is_none());
         assert!(Response::new(0u32).limits().is_none());
     }
 

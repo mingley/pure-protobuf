@@ -110,6 +110,9 @@ where
 /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
 /// [`crate::ResponseParts::peer_timeout`] is the client's `grpc-timeout`.
 /// Distinct from [`crate::ResponseParts::timeout`]: that is the effective cap.
+/// [`crate::ResponseParts::rpc_timeout`] is the server overlay.
+/// Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay.
+/// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -585,6 +588,7 @@ mod tests {
         assert!(resp.deadline().is_none());
         assert!(resp.timeout().is_none());
         assert!(resp.peer_timeout().is_none());
+        assert!(resp.rpc_timeout().is_none());
         assert!(resp.limits().is_none());
     }
 
@@ -603,6 +607,7 @@ mod tests {
                 parts.peer_timeout(),
                 Some(std::time::Duration::from_secs(30))
             );
+            assert_eq!(parts.rpc_timeout(), Some(std::time::Duration::from_secs(9)));
             assert_eq!(parts.limits(), Some(crate::MessageLimits::default()));
             Ok(())
         }
@@ -616,6 +621,7 @@ mod tests {
                 .with_deadline(Some(at))
                 .with_timeout(Some(std::time::Duration::from_secs(5)))
                 .with_peer_timeout(Some(std::time::Duration::from_secs(30)))
+                .with_rpc_timeout(Some(std::time::Duration::from_secs(9)))
                 .with_limits(Some(crate::MessageLimits::default())),
             Some(&require_path),
         )
@@ -632,6 +638,7 @@ mod tests {
             resp.peer_timeout(),
             Some(std::time::Duration::from_secs(30))
         );
+        assert_eq!(resp.rpc_timeout(), Some(std::time::Duration::from_secs(9)));
         assert_eq!(resp.limits(), Some(crate::MessageLimits::default()));
         let shown = format!("{resp:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
@@ -643,6 +650,7 @@ mod tests {
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("timeout: Some("), "{shown}");
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
+        assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("limits: Some("), "{shown}");
         assert!(crate::Response::new(0u32).path().is_none());
         assert!(crate::Response::new(0u32).service().is_none());
@@ -656,6 +664,7 @@ mod tests {
         assert!(crate::Response::new(0u32).deadline().is_none());
         assert!(crate::Response::new(0u32).timeout().is_none());
         assert!(crate::Response::new(0u32).peer_timeout().is_none());
+        assert!(crate::Response::new(0u32).rpc_timeout().is_none());
         assert!(crate::Response::new(0u32).limits().is_none());
     }
 }

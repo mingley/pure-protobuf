@@ -272,6 +272,9 @@
 //! [`Response::peer_timeout`] is the client's `grpc-timeout` in a response interceptor.
 //! Distinct from [`Response::timeout`].
 //! Distinct from [`Rpc::peer_timeout`].
+//! [`Response::rpc_timeout`] is the server overlay in a response interceptor.
+//! Distinct from [`Response::peer_timeout`].
+//! Distinct from [`Rpc::rpc_timeout`].
 //! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block

@@ -215,6 +215,8 @@ Distinct from `deadline` (Instant). Distinct from `Rpc::timeout`
 Distinct from `Request::limits` (inbound). Distinct from `Rpc::limits`
 (before the handler). Closures see `ResponseParts::peer_timeout` (client `grpc-timeout`).
 Distinct from `timeout` (effective). Distinct from `Rpc::peer_timeout`
+(before the handler). Closures see `ResponseParts::rpc_timeout` (server overlay).
+Distinct from `timeout` (effective). Distinct from `Rpc::rpc_timeout`
 (before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
