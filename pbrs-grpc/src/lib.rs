@@ -123,7 +123,7 @@
 //! | Attack | Defence | Default |
 //! |---|---|---|
 //! | Huge declared message length | Refused from the 5-byte frame header, before the payload is buffered | 4 MiB ([`MessageLimits`]) |
-//! | Decompression bomb | Bounded inflate that stops one byte past the cap | 4 MiB ([`gzip::decode_limited`]) |
+//! | Decompression bomb | Bounded inflate that stops one byte past the cap; opt out of inbound gzip entirely | 4 MiB ([`gzip::decode_limited`]); opt-out [`ServerConfig::accept_compressed`] / [`ChannelConfig::accept_compressed`] |
 //! | Metadata flood | HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE` | 16 KiB ([`ServerConfig::max_header_list_size`]) |
 //! | Stream flood | HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`; extras wait, they are not `RESOURCE_EXHAUSTED` | 256 ([`ServerConfig::max_concurrent_streams`]) |
 //! | Unbounded buffering | Per-connection window and send buffer | 16 MiB / 1 MiB |
@@ -210,6 +210,8 @@
 //! [`ServerConfig::send_compressed`] / [`ChannelConfig::send_compressed`]
 //! trade CPU for bandwidth, and at LAN latencies identity framing usually
 //! wins. A peer that did not advertise gzip is never sent a compressed frame.
+//! Inbound gzip is on by default; [`ServerConfig::accept_compressed`]`(false)`
+//! / [`ChannelConfig::accept_compressed`]`(false)` refuses it.
 //! A received reply surfaces the peer's `grpc-encoding` on [`Response::encoding`]
 //! (`None` for identity).
 //!

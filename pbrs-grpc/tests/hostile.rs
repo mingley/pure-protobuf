@@ -398,6 +398,46 @@ async fn an_unsupported_encoding_is_unimplemented_and_advertises_what_works() {
 }
 
 #[tokio::test]
+async fn gzip_is_unimplemented_when_the_server_opts_out_of_inbound_gzip() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new().accept_compressed(false)).await;
+    let peer = RawPeer::connect(addr).await;
+    let mut request = peer.request(SAY_HELLO, "application/grpc");
+    request
+        .headers_mut()
+        .insert("grpc-encoding", HeaderValue::from_static("gzip"));
+
+    let mut send = peer.send.clone().ready().await.expect("ready");
+    let (response, mut stream) = send.send_request(request, false).expect("send_request");
+    stream
+        .send_data(frame(&hello_request()), true)
+        .expect("send_data");
+    let response = response.await.expect("response");
+    assert_eq!(
+        grpc_status(response.headers()).map(Code::from_i32),
+        Some(Code::Unimplemented)
+    );
+    assert_eq!(
+        response
+            .headers()
+            .get("grpc-accept-encoding")
+            .and_then(|v| v.to_str().ok()),
+        Some("identity"),
+        "opt-out must advertise identity only"
+    );
+}
+
+#[tokio::test]
+async fn a_compressed_flag_is_refused_when_inbound_gzip_is_off() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new().accept_compressed(false)).await;
+    let compressed = gzip(&hello_request());
+    let mut peer = RawPeer::connect(addr).await;
+    let body = frame_with_declared_len(1, compressed.len() as u32, &compressed);
+    peer.call(SAY_HELLO, body)
+        .await
+        .expect_code(Code::Unimplemented);
+}
+
+#[tokio::test]
 async fn an_unknown_method_is_unimplemented() {
     let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
     let mut peer = RawPeer::connect(addr).await;

@@ -287,7 +287,8 @@ impl Config {
     /// the lazy/`_with` variants) and the same overlays, including
     /// `https_scheme` for already-encrypted `from_io` streams. Read those
     /// overlays with `scheme` / `authority` / `grpc_user_agent` /
-    /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `config`.
+    /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
+    /// `accepts_compressed` / `config`.
     /// Methods you omit on the generated `Foo` trait answer `UNIMPLEMENTED`.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
@@ -4205,6 +4206,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Inflate inbound gzip. Default `true`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Passing `false` refuses `grpc-encoding: gzip` as `UNIMPLEMENTED` before the handler. Distinct from [`Self::send_compressed`], which is outbound. See [`{G}::ServerConfig::accept_compressed`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn accept_compressed(mut self, accept: bool) -> Self {{ self.config = self.config.accept_compressed(accept); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. Distinct from [`Self::timeout`], which sets it. Interceptors and handlers read the same overlay on [`{G}::Rpc::rpc_timeout`] / [`{G}::Request::rpc_timeout`]. See [`{G}::Server::rpc_timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4220,6 +4230,15 @@ fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    pub fn compresses_outbound(&self) -> bool {{ self.config.compresses_outbound() }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Whether inbound gzip is inflated. Default `true`. Distinct from [`Self::accept_compressed`], which sets it. Distinct from [`{G}::Rpc::accepts_gzip`], which is the peer's `grpc-accept-encoding`. See [`{G}::Server::accepts_compressed`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn accepts_compressed(&self) -> bool {{ self.config.accepts_compressed() }}"
     );
     let _ = writeln!(
         src,
@@ -4823,6 +4842,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
+        "    /// Whether inbound gzip is inflated. Default `true`. Distinct from [`Self::accept_compressed`], which sets it. Distinct from [`{G}::Rpc::accepts_gzip`], which is the peer's `grpc-accept-encoding`. See [`{G}::Channel::accepts_compressed`]. Applies to every call shape."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn accepts_compressed(&self) -> bool {{ self.channel.accepts_compressed() }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Configured channel-wide RPC cap, if any. Distinct from [`Self::max_concurrent_rpcs`], which sets it. See [`{G}::Channel::concurrent_rpc_limit`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4855,7 +4883,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], and [`Self::compresses_outbound`] read that overlay without colliding with the setters."
+        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], and [`Self::accepts_compressed`] read that overlay without colliding with the setters."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
@@ -4979,6 +5007,15 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    pub fn send_compressed(mut self) -> Self {{ self.channel = self.channel.send_compressed(); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Inflate inbound gzip. Default `true`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. Passing `false` omits gzip from `grpc-accept-encoding` and refuses a gzip reply as `UNIMPLEMENTED`. Distinct from [`Self::send_compressed`], which is outbound. See [`{G}::Channel::accept_compressed`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn accept_compressed(mut self, accept: bool) -> Self {{ self.channel = self.channel.accept_compressed(accept); self }}"
     );
     let _ = writeln!(
         src,

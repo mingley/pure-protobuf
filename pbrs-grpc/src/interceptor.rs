@@ -326,6 +326,8 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Outgoing::set_user_agent`] that runs after wins. Channel overlays (`rpc_timeout`,
 /// `waits_for_ready`, `compresses_outbound`) stay visible after `clear_*`
 /// opts out of the already-applied default.
+/// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
+/// (default on).
 ///
 /// Typed context the caller put on [`crate::Request::extensions_mut`] is
 /// visible here, so an interceptor can stamp metadata from a trace id or

@@ -1625,6 +1625,8 @@ fn generated_client_debug_and_into_inner() {
     assert_eq!(client.rpc_timeout(), Some(Duration::from_secs(5)));
     assert!(client.waits_for_ready());
     assert!(!client.compresses_outbound());
+    assert!(client.accepts_compressed());
+    assert!(!client.clone().accept_compressed(false).accepts_compressed());
     assert_eq!(client.rpc_timeout(), client.channel().rpc_timeout());
     assert_eq!(client.waits_for_ready(), client.channel().waits_for_ready());
     let _ = client.into_inner();
@@ -1639,7 +1641,9 @@ fn generated_server_config_is_readable_after_overlays() {
     );
     assert_eq!(server.rpc_timeout(), Some(Duration::from_secs(5)));
     assert!(!server.compresses_outbound());
+    assert!(server.accepts_compressed());
     assert!(server.clone().send_compressed().compresses_outbound());
+    assert!(!server.clone().accept_compressed(false).accepts_compressed());
     let router = server.clone().into_router();
     assert_eq!(
         router.server_config().rpc_timeout(),
@@ -3859,6 +3863,18 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "gzip responses when the client advertises gzip. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated server send_compressed rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Inflate inbound gzip. Default `true`. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated server accept_compressed rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Inflate inbound gzip. Default `true`. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated client accept_compressed rustdoc must name every transport"
     );
     assert!(
         src.contains(

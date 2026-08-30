@@ -1152,16 +1152,30 @@ same flag `send()` consults.
 A peer that omitted `gzip` from `grpc-accept-encoding` is never sent a
 compressed frame, even if the handler or the config asked. Successful
 responses advertise `grpc-accept-encoding: identity,gzip` so the client
-knows what it can send next. Incoming `grpc-encoding` is matched
+knows what it can send next, unless `Server::accept_compressed(false)`
+(or `ServerConfig` / `Router` / generated `FooServer`) opted out: then
+they advertise `identity` only. Incoming `grpc-encoding` is matched
 case-insensitively (`GZIP` is gzip); anything other than identity or gzip
-is `UNIMPLEMENTED` and the response still advertises `identity,gzip`.
+is `UNIMPLEMENTED` and the response still advertises `identity,gzip`, or
+`identity` when inbound gzip is off.
+
+Inbound gzip is on by default so interop and `send_compressed` peers keep
+working. `accept_compressed(false)` refuses `grpc-encoding: gzip` as
+`UNIMPLEMENTED` before a handler runs, does not inflate a Compressed-Flag,
+and is distinct from `send_compressed` (outbound). A channel that called
+`accept_compressed(false)` omits gzip from its request `grpc-accept-encoding`
+and refuses a gzip reply the same way, including over TLS, mTLS, Unix, and
+`from_io`. `Outgoing::accepts_compressed` is that overlay; interceptors
+cannot change it. Distinct from tonic's `accept_compressed`, which starts
+opt-in.
 
 Compression is not free. At LAN latencies, identity framing usually wins:
 gzipping a 300 KiB message costs more CPU time than the saved bytes cost in
 transit. Measure before turning it on.
 
 A peer asking for an encoding the kernel does not implement gets
-`UNIMPLEMENTED` with `grpc-accept-encoding: identity,gzip` attached, so it
+`UNIMPLEMENTED` with `grpc-accept-encoding: identity,gzip` attached (or
+`identity` when inbound gzip is off), so it
 knows what to retry with.
 
 Outbound RPCs send `user-agent: pbrs-grpc/<version>` on every call shape,

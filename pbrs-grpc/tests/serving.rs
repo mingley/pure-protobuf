@@ -798,6 +798,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must Distinct Request::set_user_agent at the call site"
     );
     assert!(
+        intercept.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
+        "ClientInterceptor rustdoc must name Outgoing::accepts_compressed"
+    );
+    assert!(
         intercept.contains(
             "stamps [`crate::StreamSender::compress`] on client-streaming and bidi\n/// request streams."
         ),
@@ -909,10 +913,20 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must name Outgoing::set_user_agent"
     );
     assert!(
+        src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
+        "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
+    );
+    assert!(
         src.contains(
             "Applies to every call shape, including over TLS, mTLS,\n    /// Unix, and [`Self::from_io`]."
         ),
         "Channel::send_compressed must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Passing `false` omits gzip from `grpc-accept-encoding` and refuses a\n    /// `grpc-encoding: gzip` reply as [`Code::Unimplemented`]."
+        ),
+        "Channel::accept_compressed must omit gzip from accept-encoding"
     );
     assert!(
         src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
@@ -1198,6 +1212,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::send_compressed must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Passing `false` omits gzip from `grpc-accept-encoding` and refuses a\n    /// `grpc-encoding: gzip` reply as [`crate::Code::Unimplemented`] without\n    /// inflating."
+        ),
+        "ChannelConfig::accept_compressed must omit gzip from accept-encoding"
+    );
+    assert!(
+        src.contains(
+            "Passing `false` refuses `grpc-encoding: gzip` as\n    /// [`crate::Code::Unimplemented`] before a handler runs, advertises"
+        ),
+        "ServerConfig::accept_compressed must refuse gzip before the handler"
     );
     assert!(
         src.contains(
@@ -1546,8 +1572,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name kernel stubs as the protoc plugin default"
     );
     assert!(
-        guide.contains("`PURE_PROTOBUF_STUBS=tonic`"),
-        "guide must name PURE_PROTOBUF_STUBS=tonic as the plugin tonic opt-in"
+        guide.contains("`accept_compressed(false)` refuses `grpc-encoding: gzip` as"),
+        "guide must name accept_compressed(false) as inbound gzip opt-out"
+    );
+    assert!(
+        guide.contains("Distinct from tonic's `accept_compressed`, which starts"),
+        "guide must Distinct kernel accept_compressed default from tonic opt-in"
     );
     assert!(
         guide.contains(
@@ -1643,6 +1673,14 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::compresses_outbound and Router::compresses_outbound must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Whether inbound gzip is inflated. Default `true`.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::accepts_compressed and Router::accepts_compressed must name every call shape"
     );
     assert!(
         src.contains(
@@ -1954,6 +1992,22 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::send_compressed and Router::send_compressed must name every transport"
+    );
+    assert_eq!(
+        src.matches(
+            "Inflate inbound gzip. Default `true`. Applies to every call shape,\n    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
+        )
+        .count(),
+        2,
+        "Server::accept_compressed and Router::accept_compressed must name every transport"
+    );
+    assert_eq!(
+        src.matches(
+            "Passing `false` refuses `grpc-encoding: gzip` as\n    /// [`Code::Unimplemented`] before the handler runs."
+        )
+        .count(),
+        2,
+        "Server::accept_compressed and Router::accept_compressed must refuse gzip as UNIMPLEMENTED"
     );
     assert_eq!(
         src.matches(
@@ -24036,6 +24090,110 @@ async fn a_from_io_handler_sees_gzip_headers_and_the_unary_compressed_flag() {
     gzip_task.abort();
 }
 
+fn interceptor_see_accept_opt_out(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if call.accepts_compressed() {
+        return Err(Status::internal("accepts_compressed overlay"));
+    }
+    Ok(())
+}
+
+fn interceptor_peer_must_not_advertise_gzip(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.accepts_gzip() {
+        return Err(Status::internal("peer advertised gzip"));
+    }
+    Ok(())
+}
+
+async fn assert_gzip_unimplemented_every_shape(client: &GreeterClient) {
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("unary gzip");
+    assert_eq!(err.code(), Code::Unimplemented, "{err}");
+    assert!(
+        err.message().contains("this server accepts identity"),
+        "{err}"
+    );
+    assert!(
+        !err.message().contains("and gzip"),
+        "opt-out must not advertise gzip: {err}"
+    );
+    assert_err_on_every_shape(client, Code::Unimplemented).await;
+}
+
+#[tokio::test]
+async fn server_accept_compressed_false_refuses_gzip_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .accept_compressed(false)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let gzip = GreeterClient::new(channel(addr).await.send_compressed());
+    assert_gzip_unimplemented_every_shape(&gzip).await;
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_server_accept_compressed_false_refuses_gzip() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .accept_compressed(false)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let gzip = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .send_compressed(),
+    );
+    assert_gzip_unimplemented_every_shape(&gzip).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn channel_config_accept_compressed_false_omits_gzip() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_peer_must_not_advertise_gzip)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let ch = channel_cfg(addr, ChannelConfig::new().accept_compressed(false)).await;
+    assert!(!ch.accepts_compressed());
+    let client = GreeterClient::new(ch).intercept(interceptor_see_accept_opt_out);
+    assert!(!client.accepts_compressed());
+    echo_every_shape(&client, None).await;
+    assert_identity_encoding_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn server_config_accept_compressed_false_refuses_gzip() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .config(ServerConfig::new().accept_compressed(false))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_gzip_unimplemented_every_shape(&GreeterClient::new(
+        channel(addr).await.send_compressed(),
+    ))
+    .await;
+    task.abort();
+}
+
 #[test]
 fn server_and_router_config_is_readable_and_cloneable() {
     let svc = GreeterServer::new(Echo).timeout(Duration::from_secs(3));
@@ -24045,13 +24203,17 @@ fn server_and_router_config_is_readable_and_cloneable() {
     );
     assert_eq!(svc.rpc_timeout(), Some(Duration::from_secs(3)));
     assert!(!svc.compresses_outbound());
+    assert!(svc.accepts_compressed());
     assert!(svc.clone().send_compressed().compresses_outbound());
+    assert!(!svc.clone().accept_compressed(false).accepts_compressed());
     let server = Server::new(svc.clone()).timeout(Duration::from_secs(9));
     assert_eq!(
         server.server_config().rpc_timeout(),
         Some(Duration::from_secs(9))
     );
     assert_eq!(server.rpc_timeout(), Some(Duration::from_secs(9)));
+    assert!(server.accepts_compressed());
+    assert!(!server.clone().accept_compressed(false).accepts_compressed());
     assert_eq!(
         server.clone().server_config().rpc_timeout(),
         Some(Duration::from_secs(9))
@@ -24065,7 +24227,9 @@ fn server_and_router_config_is_readable_and_cloneable() {
     );
     assert_eq!(router.rpc_timeout(), Some(Duration::from_secs(2)));
     assert!(!router.compresses_outbound());
+    assert!(router.accepts_compressed());
     assert!(router.clone().send_compressed().compresses_outbound());
+    assert!(!router.clone().accept_compressed(false).accepts_compressed());
     assert_eq!(
         router.clone().server_config().rpc_timeout(),
         Some(Duration::from_secs(2))

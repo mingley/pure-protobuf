@@ -100,7 +100,8 @@ Length-prefixed protobuf frames on `h2`. Inbound decode is inline on the
 handler task (`WireStream`). Outbound batches (`OutBatch`) so one DATA
 frame can carry many messages. Encode-cap failures on a stream are producer
 status (RESOURCE_EXHAUSTED trailers), not a transport reset. gzip is optional and never sent to a peer
-that omitted it from `grpc-accept-encoding`. Caps (4 MiB inbound default,
+that omitted it from `grpc-accept-encoding`. Inbound gzip is on by default;
+`accept_compressed(false)` refuses it. Caps (4 MiB inbound default,
 16 KiB header list, 256 concurrent streams, rapid reset, connection
 age/idle) are enforced before the memory they guard is committed.
 

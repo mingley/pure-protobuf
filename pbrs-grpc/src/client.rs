@@ -251,12 +251,12 @@ impl Endpoint {
 /// wait-for-ready without touching each call.
 ///
 /// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
-/// [`Self::send_compressed`], the two message-size caps /
+/// [`Self::send_compressed`], [`Self::accept_compressed`], the two message-size caps /
 /// [`Self::message_limits`], [`Self::stream_buffer`],
 /// [`Self::max_concurrent_rpcs`], and
 /// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
-/// [`Self::compresses_outbound`], [`Self::concurrent_rpc_limit`], and
+/// [`Self::compresses_outbound`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], and
 /// [`Self::config`]. Keepalive, idle, age, TCP
 /// keepalive, connection count, HTTP/2 windows, and the rapid-reset cap are
 /// set at handshake ([`ChannelConfig`] / [`Self::connect_with`]).
@@ -610,6 +610,18 @@ impl Channel {
         self
     }
 
+    /// Inflate inbound gzip. Default `true`. Applies to every call shape,
+    /// including over TLS, mTLS, Unix, and [`Self::from_io`].
+    /// Passing `false` omits gzip from `grpc-accept-encoding` and refuses a
+    /// `grpc-encoding: gzip` reply as [`Code::Unimplemented`]. Distinct from
+    /// [`Self::send_compressed`], which is outbound. See
+    /// [`ChannelConfig::accept_compressed`].
+    #[must_use]
+    pub fn accept_compressed(mut self, accept: bool) -> Self {
+        self.config = self.config.accept_compressed(accept);
+        self
+    }
+
     /// Default per-RPC deadline when the request omits one. Applies to every
     /// call shape, including over TLS, mTLS, Unix, and [`Self::from_io`].
     /// See [`ChannelConfig::timeout`].
@@ -654,6 +666,15 @@ impl Channel {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
+    }
+
+    /// Whether inbound gzip is inflated. Default `true`.
+    /// See [`Self::accept_compressed`]. Applies to every call shape.
+    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's
+    /// `grpc-accept-encoding`.
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.config.accepts_compressed()
     }
 
     /// How many messages sit between a client-streaming caller and the wire.
@@ -740,6 +761,8 @@ impl Channel {
     /// extensions. Channel overlays (`rpc_timeout`, `waits_for_ready`,
     /// `compresses_outbound`) are visible even after `clear_*` opts out of
     /// the already-applied default.
+    /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
+    /// (default on).
     /// Values the caller put on [`crate::Request::extensions_mut`] are
     /// visible; stacked interceptors share that map.
     ///
@@ -917,6 +940,7 @@ impl Channel {
                 md,
                 timeout,
                 compress,
+                self.config.accepts_compressed(),
                 user_agent,
                 self.https,
             )
@@ -1806,6 +1830,7 @@ where
         md,
         timeout,
         compress,
+        wire.accept_gzip,
         &user_agent,
         https,
     )
@@ -1814,7 +1839,7 @@ where
     race(
         async {
             let response = resp_fut.await.map_err(Status::from_h2)?;
-            finish_unary::<Resp>(response, wire.limits).await
+            finish_unary::<Resp>(response, wire.limits, wire.accept_gzip).await
         },
         cancel_rx,
         deadline,
@@ -1851,6 +1876,7 @@ where
         md,
         timeout,
         compress,
+        wire.accept_gzip,
         &user_agent,
         https,
     )
@@ -1859,7 +1885,7 @@ where
     let response = race(
         async {
             let response = resp_fut.await.map_err(Status::from_h2)?;
-            finish_stream::<Resp>(response, wire.limits, deadline).await
+            finish_stream::<Resp>(response, wire.limits, deadline, wire.accept_gzip).await
         },
         cancel_rx.clone(),
         deadline,
@@ -1900,7 +1926,7 @@ where
             tokio::pin!(pump);
             let fut = async {
                 let response = resp_fut.await.map_err(Status::from_h2)?;
-                finish_unary::<Resp>(response, wire.limits).await
+                finish_unary::<Resp>(response, wire.limits, wire.accept_gzip).await
             };
             tokio::pin!(fut);
             let until_deadline = async {
@@ -2017,7 +2043,7 @@ where
     let result = {
         let fut = async {
             let response = resp_fut.await.map_err(Status::from_h2)?;
-            finish_stream::<Resp>(response, wire.limits, deadline).await
+            finish_stream::<Resp>(response, wire.limits, deadline, wire.accept_gzip).await
         };
         tokio::pin!(fut);
         let until_deadline = async {
@@ -2062,11 +2088,21 @@ async fn open(
     md: &crate::metadata::Metadata,
     timeout: Option<Duration>,
     send_gzip: bool,
+    accept_gzip: bool,
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<(h2::client::ResponseFuture, h2::SendStream<Bytes>), Status> {
     let mut send_req = send_req.ready().await.map_err(Status::from_h2)?;
-    let http_req = grpc_request(authority, path, md, timeout, send_gzip, user_agent, https)?;
+    let http_req = grpc_request(
+        authority,
+        path,
+        md,
+        timeout,
+        send_gzip,
+        accept_gzip,
+        user_agent,
+        https,
+    )?;
     send_req
         .send_request(http_req, false)
         .map_err(Status::from_h2)

@@ -851,7 +851,8 @@ impl Rpc {
         let (cancel_tx, cancel_rx) = watch::channel(false);
         let on_reset = cancel_tx.clone();
         let outcome = wrap_timeout(timeout, async {
-            let framed = read_one_message::<Req>(&mut recv, limits).await?;
+            let framed =
+                read_one_message::<Req>(&mut recv, limits, config.accepts_compressed()).await?;
             let mut req = Request::from_metadata(
                 framed.message,
                 metadata,
@@ -928,7 +929,12 @@ impl Rpc {
         let recv = request.into_body();
         // Decoded on the handler's task: no pump task, no queue, and reading
         // is what releases HTTP/2 capacity.
-        let stream = Streaming::from_wire(WireStream::<Req>::new(recv, limits, deadline));
+        let stream = Streaming::from_wire(WireStream::<Req>::new(
+            recv,
+            limits,
+            deadline,
+            config.accepts_compressed(),
+        ));
         let mut req =
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
                 .with_extensions(extensions)
@@ -1082,7 +1088,7 @@ async fn send_unary_response<Resp: Serialize>(
             return;
         }
     };
-    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip) else {
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
         return;
     };
     send_bytes(&mut send, frame, false, wire.send_buffer)
@@ -1107,7 +1113,7 @@ async fn send_stream_response<Resp: Serialize + Send>(
     // Headers go out before the first message so a client that only wants
     // initial metadata is not blocked behind handler work.
     let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
-    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip) else {
+    let Ok(mut send) = send_ok_headers(&mut respond, &headers, gzip, wire.accept_gzip) else {
         return;
     };
     let mut status = Status::from_code(Code::Ok);
@@ -1485,6 +1491,18 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Inflate inbound gzip. Default `true`. Applies to every call shape,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    /// Passing `false` refuses `grpc-encoding: gzip` as
+    /// [`Code::Unimplemented`] before the handler runs. Distinct from
+    /// [`Self::send_compressed`], which is outbound. See
+    /// [`ServerConfig::accept_compressed`].
+    #[must_use]
+    pub fn accept_compressed(mut self, accept: bool) -> Self {
+        self.config = self.config.accept_compressed(accept);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`.
     /// Applies to every call shape.
     /// Distinct from [`Self::timeout`], which sets it.
@@ -1501,6 +1519,16 @@ impl<S: Service> Server<S> {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
+    }
+
+    /// Whether inbound gzip is inflated. Default `true`.
+    /// Applies to every call shape.
+    /// Distinct from [`Self::accept_compressed`], which sets it.
+    /// Distinct from [`Rpc::accepts_gzip`], which is the peer's
+    /// `grpc-accept-encoding`.
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.config.accepts_compressed()
     }
 
     /// HTTP/2 PING keepalive. Applies to every call shape.
@@ -2118,6 +2146,18 @@ impl Router {
         self
     }
 
+    /// Inflate inbound gzip. Default `true`. Applies to every call shape,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    /// Passing `false` refuses `grpc-encoding: gzip` as
+    /// [`Code::Unimplemented`] before the handler runs. Distinct from
+    /// [`Self::send_compressed`], which is outbound. See
+    /// [`ServerConfig::accept_compressed`].
+    #[must_use]
+    pub fn accept_compressed(mut self, accept: bool) -> Self {
+        self.config = self.config.accept_compressed(accept);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`.
     /// Applies to every call shape.
     /// Distinct from [`Self::timeout`], which sets it.
@@ -2134,6 +2174,16 @@ impl Router {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
+    }
+
+    /// Whether inbound gzip is inflated. Default `true`.
+    /// Applies to every call shape.
+    /// Distinct from [`Self::accept_compressed`], which sets it.
+    /// Distinct from [`Rpc::accepts_gzip`], which is the peer's
+    /// `grpc-accept-encoding`.
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.config.accepts_compressed()
     }
 
     /// HTTP/2 PING keepalive. Applies to every call shape.
@@ -3017,8 +3067,8 @@ where
                     break;
                 };
                 occupied = true;
-                if let Err(err) = check_request(&request) {
-                    reject_request(&mut respond, err);
+                if let Err(err) = check_request(&request, config.accepts_compressed()) {
+                    reject_request(&mut respond, err, config.accepts_compressed());
                     continue;
                 }
                 let permit = match &rpc_slots {
@@ -3029,6 +3079,7 @@ where
                             reject(
                                 &mut respond,
                                 Status::resource_exhausted("too many concurrent RPCs"),
+                                config.accepts_compressed(),
                             );
                             continue;
                         }

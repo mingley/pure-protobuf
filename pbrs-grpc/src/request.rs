@@ -723,6 +723,7 @@ impl<T> Request<T> {
             rpc_timeout: config.rpc_timeout(),
             waits_for_ready: config.waits_for_ready(),
             compresses_outbound: config.compresses_outbound(),
+            accepts_compressed: config.accepts_compressed(),
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -740,7 +741,7 @@ impl<T> Request<T> {
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
 /// `:authority`, `:scheme`, `user-agent`, message caps, timeout / wait-for-ready
 /// / gzip overlays ([`Self::rpc_timeout`] / [`Self::waits_for_ready`] /
-/// [`Self::compresses_outbound`]), and the service/method halves of the path,
+/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`]), and the service/method halves of the path,
 /// which the interceptor cannot otherwise see. Those overlays fill in before
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
 /// [`Self::clear_compress`] opt out of an already-applied default.
@@ -781,6 +782,7 @@ impl<T> Request<T> {
 ///         call.rpc_timeout(),
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
+///         call.accepts_compressed(),
 ///     );
 ///     Ok(())
 /// }
@@ -796,6 +798,7 @@ pub struct Outgoing<'a> {
     rpc_timeout: Option<Duration>,
     waits_for_ready: bool,
     compresses_outbound: bool,
+    accepts_compressed: bool,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -922,6 +925,18 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.compresses_outbound
+    }
+
+    /// Channel [`crate::Channel::accept_compressed`] overlay.
+    ///
+    /// Default `true`. Distinct from [`crate::Rpc::accepts_gzip`], which is
+    /// the peer's `grpc-accept-encoding`. Same value as
+    /// [`crate::Channel::accepts_compressed`]. An interceptor cannot change
+    /// it; the kernel already stamped `grpc-accept-encoding` from this.
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.accepts_compressed
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`. Visible on every
@@ -1105,6 +1120,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("rpc_timeout", &self.rpc_timeout)
             .field("waits_for_ready", &self.waits_for_ready)
             .field("compresses_outbound", &self.compresses_outbound)
+            .field("accepts_compressed", &self.accepts_compressed)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline())
@@ -2249,6 +2265,7 @@ mod tests {
             assert!(call.rpc_timeout().is_none());
             assert!(!call.waits_for_ready());
             assert!(!call.compresses_outbound());
+            assert!(call.accepts_compressed());
             format!("{call:?}")
         };
         assert!(shown.contains("/svc/Method"), "{shown}");
@@ -2325,7 +2342,8 @@ mod tests {
         let config = crate::ChannelConfig::new()
             .timeout(Duration::from_secs(5))
             .wait_for_ready(true)
-            .send_compressed(true);
+            .send_compressed(true)
+            .accept_compressed(false);
         let mut call = req.outgoing(
             "/svc/Method",
             "127.0.0.1:1",
@@ -2336,6 +2354,7 @@ mod tests {
         assert_eq!(call.rpc_timeout(), Some(Duration::from_secs(5)));
         assert!(call.waits_for_ready());
         assert!(call.compresses_outbound());
+        assert!(!call.accepts_compressed());
         // Overlays are not copied onto the per-RPC fields until prepare_outbound.
         assert!(call.timeout().is_none());
         assert!(!call.wait_for_ready_is_set());

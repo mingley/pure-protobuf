@@ -30,6 +30,7 @@ const USER_AGENT: HeaderName = HeaderName::from_static("user-agent");
 const APPLICATION_GRPC: HeaderValue = HeaderValue::from_static("application/grpc");
 const TRAILERS: HeaderValue = HeaderValue::from_static("trailers");
 const IDENTITY_GZIP: HeaderValue = HeaderValue::from_static("identity,gzip");
+const IDENTITY: HeaderValue = HeaderValue::from_static("identity");
 const GZIP: HeaderValue = HeaderValue::from_static("gzip");
 const STATUS_OK: HeaderValue = HeaderValue::from_static("0");
 
@@ -48,16 +49,30 @@ pub(crate) fn user_agent_value(prefix: &str) -> Result<HeaderValue, Status> {
         .map_err(|_| Status::invalid_argument("user-agent is not valid HTTP"))
 }
 
+/// `grpc-accept-encoding` this process advertises.
+fn accept_encoding_value(gzip: bool) -> HeaderValue {
+    if gzip {
+        IDENTITY_GZIP
+    } else {
+        IDENTITY
+    }
+}
+
 /// Headers a gRPC request or response carries before user metadata, rounded to
 /// what `HeaderMap` will actually allocate. Sizing up front avoids a rehash.
 const HEADER_CAPACITY: usize = 10;
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "gRPC request headers: routing, timeout, gzip offer, identity"
+)]
 pub(crate) fn grpc_request(
     authority: &Authority,
     path: &'static str,
     md: &Metadata,
     timeout: Option<Duration>,
     send_gzip: bool,
+    accept_gzip: bool,
     user_agent: &HeaderValue,
     https: bool,
 ) -> Result<Request<()>, Status> {
@@ -74,7 +89,7 @@ pub(crate) fn grpc_request(
     let headers = req.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
     headers.insert(http::header::TE, TRAILERS);
-    headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP);
+    headers.insert(GRPC_ACCEPT_ENCODING, accept_encoding_value(accept_gzip));
     if send_gzip {
         headers.insert(GRPC_ENCODING, GZIP);
     }
@@ -197,15 +212,29 @@ pub(crate) fn grpc_content_type(ct: &str) -> bool {
     subtype.eq_ignore_ascii_case("grpc") || subtype.eq_ignore_ascii_case("grpc+proto")
 }
 
-/// Whether `grpc-encoding` is identity or gzip.
+/// Whether `grpc-encoding` is identity, or gzip when `gzip` is true.
 ///
 /// HTTP content-codings are case-insensitive. Surrounding whitespace and a
 /// trailing `;parameter` (a `q=` some peers copy from accept-encoding) are
 /// ignored. Anything else is unsupported.
 #[must_use]
 pub(crate) fn grpc_encoding_supported(value: &str) -> bool {
+    grpc_encoding_admitted(value, true)
+}
+
+/// Admit identity always, gzip only when `gzip` is true.
+fn grpc_encoding_admitted(value: &str, gzip: bool) -> bool {
     let token = encoding_token(value);
-    token.eq_ignore_ascii_case("identity") || token.eq_ignore_ascii_case("gzip")
+    token.eq_ignore_ascii_case("identity") || (gzip && token.eq_ignore_ascii_case("gzip"))
+}
+
+/// Trailers-only status for an encoding this process will not inflate.
+fn encoding_not_supported(gzip: bool) -> Status {
+    Status::unimplemented(if gzip {
+        "grpc-encoding not supported; this server accepts identity and gzip"
+    } else {
+        "grpc-encoding not supported; this server accepts identity"
+    })
 }
 
 /// Reject anything that is not a gRPC request we can answer.
@@ -215,7 +244,10 @@ pub(crate) fn grpc_encoding_supported(value: &str) -> bool {
 /// that is not protobuf gRPC (`application/grpc+json`, grpc-web, JSON, a
 /// missing type) is HTTP 415, so a browser does not take HTTP 200 as
 /// success. Unsupported `grpc-encoding` stays a gRPC `UNIMPLEMENTED`.
-pub(crate) fn check_request(request: &Request<RecvStream>) -> Result<(), RequestReject> {
+pub(crate) fn check_request(
+    request: &Request<RecvStream>,
+    accept_gzip: bool,
+) -> Result<(), RequestReject> {
     if request.method() != http::Method::POST {
         return Err(RequestReject::Http(StatusCode::METHOD_NOT_ALLOWED));
     }
@@ -229,11 +261,15 @@ pub(crate) fn check_request(request: &Request<RecvStream>) -> Result<(), Request
         return Err(RequestReject::Http(StatusCode::UNSUPPORTED_MEDIA_TYPE));
     }
     if let Some(enc) = request.headers().get(GRPC_ENCODING) {
-        let supported = enc.to_str().is_ok_and(grpc_encoding_supported);
+        let supported = enc.to_str().is_ok_and(|value| {
+            if accept_gzip {
+                grpc_encoding_supported(value)
+            } else {
+                grpc_encoding_admitted(value, false)
+            }
+        });
         if !supported {
-            return Err(RequestReject::Grpc(Status::unimplemented(
-                "grpc-encoding not supported; this server accepts identity and gzip",
-            )));
+            return Err(RequestReject::Grpc(encoding_not_supported(accept_gzip)));
         }
     }
     Ok(())
@@ -489,11 +525,15 @@ pub(crate) fn send_trailers_only(
 /// The gRPC spec requires `grpc-accept-encoding` on a rejection caused by an
 /// unsupported `grpc-encoding`, so the client knows what to retry with. Sending
 /// it on every rejection costs one header and keeps the logic in one place.
-pub(crate) fn reject(respond: &mut h2::server::SendResponse<Bytes>, status: Status) {
+pub(crate) fn reject(
+    respond: &mut h2::server::SendResponse<Bytes>,
+    status: Status,
+    accept_gzip: bool,
+) {
     let mut res = match Response::builder()
         .status(StatusCode::OK)
         .header(http::header::CONTENT_TYPE, APPLICATION_GRPC)
-        .header(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP)
+        .header(GRPC_ACCEPT_ENCODING, accept_encoding_value(accept_gzip))
         .body(())
     {
         Ok(r) => r,
@@ -508,9 +548,13 @@ pub(crate) fn reject(respond: &mut h2::server::SendResponse<Bytes>, status: Stat
 }
 
 /// Answer [`RequestReject`]: gRPC trailers-only, or a bare HTTP status.
-pub(crate) fn reject_request(respond: &mut h2::server::SendResponse<Bytes>, err: RequestReject) {
+pub(crate) fn reject_request(
+    respond: &mut h2::server::SendResponse<Bytes>,
+    err: RequestReject,
+    accept_gzip: bool,
+) {
     match err {
-        RequestReject::Grpc(status) => reject(respond, status),
+        RequestReject::Grpc(status) => reject(respond, status, accept_gzip),
         RequestReject::Http(code) => send_http(respond, code),
     }
 }
@@ -532,13 +576,14 @@ pub(crate) fn send_ok_headers(
     respond: &mut h2::server::SendResponse<Bytes>,
     md: &Metadata,
     send_gzip: bool,
+    accept_gzip: bool,
 ) -> Result<SendStream<Bytes>, Status> {
     let mut res = Response::new(());
     *res.status_mut() = StatusCode::OK;
     *res.headers_mut() = HeaderMap::with_capacity(HEADER_CAPACITY);
     let headers = res.headers_mut();
     headers.insert(http::header::CONTENT_TYPE, APPLICATION_GRPC);
-    headers.insert(GRPC_ACCEPT_ENCODING, IDENTITY_GZIP);
+    headers.insert(GRPC_ACCEPT_ENCODING, accept_encoding_value(accept_gzip));
     if send_gzip {
         headers.insert(GRPC_ENCODING, GZIP);
     }
@@ -672,8 +717,12 @@ impl FrameReader {
 fn decode_frame<T: Parse + Default>(
     frame: Frame,
     limits: MessageLimits,
+    accept_gzip: bool,
 ) -> Result<Framed<T>, Status> {
     let message = if frame.compressed {
+        if !accept_gzip {
+            return Err(encoding_not_supported(false));
+        }
         let raw = gzip::decode_limited(&frame.payload, limits)?;
         T::parse(&raw).map_err(|e| Status::internal(e.to_string()))?
     } else {
@@ -692,6 +741,7 @@ fn decode_frame<T: Parse + Default>(
 pub(crate) async fn read_one_message<T: Parse + Default>(
     recv: &mut RecvStream,
     limits: MessageLimits,
+    accept_gzip: bool,
 ) -> Result<Framed<T>, Status> {
     let mut reader = FrameReader::new(limits);
     let mut found: Option<Framed<T>> = None;
@@ -703,7 +753,7 @@ pub(crate) async fn read_one_message<T: Parse + Default>(
             if found.is_some() {
                 return Err(Status::internal("unary rpc received more than one message"));
             }
-            found = Some(decode_frame(frame, limits)?);
+            found = Some(decode_frame(frame, limits, accept_gzip)?);
         }
     }
     reader.finish()?;
@@ -727,7 +777,8 @@ pub(crate) struct WireStream<T> {
     limits: MessageLimits,
     /// Bound at construction, where `T: Parse` is known, so the public
     /// [`Streaming`] type needs no `Parse` bound of its own.
-    decode: fn(Frame, MessageLimits) -> Result<Framed<T>, Status>,
+    decode: fn(Frame, MessageLimits, bool) -> Result<Framed<T>, Status>,
+    accept_gzip: bool,
     /// When the RPC's deadline expires. A deadline has to reach the reads, not
     /// just the call setup: a server that answers with headers and then goes
     /// quiet would otherwise hang the reader forever.
@@ -743,12 +794,14 @@ impl<T: Parse + Default> WireStream<T> {
         recv: RecvStream,
         limits: MessageLimits,
         deadline: Option<tokio::time::Instant>,
+        accept_gzip: bool,
     ) -> Self {
         Self {
             recv,
             reader: FrameReader::new(limits),
             limits,
             decode: decode_frame::<T>,
+            accept_gzip,
             deadline,
             sleep: deadline.map(|at| Box::pin(tokio::time::sleep_until(at))),
             ended: false,
@@ -805,7 +858,9 @@ impl<T> WireStream<T> {
             match self.reader.next_frame() {
                 Err(e) => return Poll::Ready(Err(e)),
                 Ok(Some(frame)) => {
-                    return Poll::Ready((self.decode)(frame, self.limits).map(Some));
+                    return Poll::Ready(
+                        (self.decode)(frame, self.limits, self.accept_gzip).map(Some),
+                    );
                 }
                 Ok(None) => {}
             }
@@ -1000,9 +1055,23 @@ pub(crate) async fn wrap_timeout<T>(
     }
 }
 
+/// Refuse a gzip reply when this channel opted out of inbound gzip.
+fn refuse_gzip_reply(headers: &HeaderMap, accept_gzip: bool) -> Result<(), Status> {
+    if accept_gzip {
+        return Ok(());
+    }
+    if grpc_encoding(headers).is_some_and(|token| token.eq_ignore_ascii_case("gzip")) {
+        return Err(Status::unimplemented(
+            "grpc-encoding not supported; this client accepts identity",
+        ));
+    }
+    Ok(())
+}
+
 pub(crate) async fn finish_unary<Resp: Parse + Default>(
     response: http::Response<RecvStream>,
     limits: MessageLimits,
+    accept_gzip: bool,
 ) -> Result<crate::request::Response<Resp>, Status> {
     if response.status() != StatusCode::OK {
         return Err(Status::unknown(format!("http {}", response.status())));
@@ -1015,7 +1084,8 @@ pub(crate) async fn finish_unary<Resp: Parse + Default>(
             return Err(status);
         }
     }
-    let framed = read_one_message::<Resp>(&mut body, limits).await?;
+    refuse_gzip_reply(&parts.headers, accept_gzip)?;
+    let framed = read_one_message::<Resp>(&mut body, limits, accept_gzip).await?;
     let trailers = read_trailers(&mut body).await?;
     let status = status_from(&parts.headers, trailers.as_ref());
     if status.code() != Code::Ok {
@@ -1038,6 +1108,7 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
     response: http::Response<RecvStream>,
     limits: MessageLimits,
     deadline: Option<tokio::time::Instant>,
+    accept_gzip: bool,
 ) -> Result<crate::request::Response<Streaming<Resp>>, Status> {
     if response.status() != StatusCode::OK {
         return Err(Status::unknown(format!("http {}", response.status())));
@@ -1050,9 +1121,10 @@ pub(crate) async fn finish_stream<Resp: Parse + Default + Send + 'static>(
             return Err(status);
         }
     }
+    refuse_gzip_reply(&parts.headers, accept_gzip)?;
     let encoding = grpc_encoding(&parts.headers).map(str::to_owned);
     Ok(crate::request::Response::from_parts(
-        Streaming::from_wire(WireStream::<Resp>::new(body, limits, deadline)),
+        Streaming::from_wire(WireStream::<Resp>::new(body, limits, deadline, accept_gzip)),
         Metadata::from_owned_headers(parts.headers),
         Metadata::new(),
     )
@@ -1140,6 +1212,7 @@ mod tests {
             &Metadata::new(),
             None,
             false,
+            true,
             &PBRS_GRPC_UA,
             false,
         )
@@ -1162,6 +1235,7 @@ mod tests {
             &Metadata::new(),
             None,
             false,
+            true,
             &PBRS_GRPC_UA,
             true,
         )
@@ -1215,6 +1289,49 @@ mod tests {
         for no in ["snappy", "deflate", "gzip,identity", "", "br"] {
             assert!(!grpc_encoding_supported(no), "{no}");
         }
+        assert!(super::grpc_encoding_admitted("identity", false));
+        assert!(!super::grpc_encoding_admitted("gzip", false));
+        assert!(!super::grpc_encoding_admitted("GZIP", false));
+    }
+
+    #[test]
+    fn outbound_requests_can_omit_gzip_from_accept_encoding() {
+        let authority: Authority = "127.0.0.1:1".parse().expect("authority");
+        let gzip = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            false,
+            true,
+            &PBRS_GRPC_UA,
+            false,
+        )
+        .expect("gzip accept");
+        assert_eq!(
+            gzip.headers()
+                .get("grpc-accept-encoding")
+                .and_then(|v| v.to_str().ok()),
+            Some("identity,gzip")
+        );
+        let identity = grpc_request(
+            &authority,
+            "/svc/Method",
+            &Metadata::new(),
+            None,
+            false,
+            false,
+            &PBRS_GRPC_UA,
+            false,
+        )
+        .expect("identity accept");
+        assert_eq!(
+            identity
+                .headers()
+                .get("grpc-accept-encoding")
+                .and_then(|v| v.to_str().ok()),
+            Some("identity")
+        );
     }
 
     #[test]

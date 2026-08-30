@@ -58,6 +58,9 @@ pub const DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS: usize = 20;
 pub(crate) struct Wire {
     pub(crate) limits: MessageLimits,
     pub(crate) send_buffer: usize,
+    /// Inflate inbound gzip. Default on; [`ServerConfig::accept_compressed`] /
+    /// [`ChannelConfig::accept_compressed`]`(false)` opts out.
+    pub(crate) accept_gzip: bool,
 }
 
 /// HTTP/2 and resource settings for a server.
@@ -94,6 +97,7 @@ pub struct ServerConfig {
     max_concurrent_connections: Option<usize>,
     max_concurrent_rpcs: Option<usize>,
     send_compressed: bool,
+    accept_compressed: bool,
 }
 
 impl Default for ServerConfig {
@@ -118,6 +122,7 @@ impl Default for ServerConfig {
             max_concurrent_connections: None,
             max_concurrent_rpcs: None,
             send_compressed: false,
+            accept_compressed: true,
         }
     }
 }
@@ -424,6 +429,25 @@ impl ServerConfig {
         self
     }
 
+    /// Inflate inbound gzip. Default `true`. Applies to every call shape,
+    /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
+    ///
+    /// Passing `false` refuses `grpc-encoding: gzip` as
+    /// [`crate::Code::Unimplemented`] before a handler runs, advertises
+    /// `grpc-accept-encoding: identity` only, and does not inflate a
+    /// Compressed-Flag. Distinct from [`Self::send_compressed`], which is
+    /// outbound. Distinct from tonic's `accept_compressed`, which starts
+    /// opt-in; this kernel starts on so interop gzip keeps working.
+    ///
+    /// [`crate::Server::accept_compressed`], [`crate::Router::accept_compressed`],
+    /// and generated `FooServer::accept_compressed` set this without building
+    /// a [`ServerConfig`].
+    #[must_use]
+    pub fn accept_compressed(mut self, accept: bool) -> Self {
+        self.accept_compressed = accept;
+        self
+    }
+
     /// Configured message caps. Applies to every call shape.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -464,6 +488,15 @@ impl ServerConfig {
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed
+    }
+
+    /// Whether inbound gzip is inflated. Default `true`.
+    /// See [`Self::accept_compressed`]. Applies to every call shape.
+    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's
+    /// `grpc-accept-encoding`.
+    #[must_use]
+    pub fn accepts_compressed(self) -> bool {
+        self.accept_compressed
     }
 
     /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`].
@@ -577,6 +610,7 @@ impl ServerConfig {
         Wire {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
+            accept_gzip: self.accept_compressed,
         }
     }
 
@@ -641,6 +675,7 @@ pub struct ChannelConfig {
     max_connection_age: Option<Duration>,
     max_connection_age_grace: Duration,
     send_compressed: bool,
+    accept_compressed: bool,
     timeout: Option<Duration>,
     wait_for_ready: bool,
     max_concurrent_rpcs: Option<usize>,
@@ -667,6 +702,7 @@ impl Default for ChannelConfig {
             max_connection_age: None,
             max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
             send_compressed: false,
+            accept_compressed: true,
             timeout: None,
             wait_for_ready: false,
             max_concurrent_rpcs: None,
@@ -959,8 +995,9 @@ impl ChannelConfig {
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`crate::Channel::from_io`].
     ///
-    /// Off by default. The kernel always advertises `identity,gzip`, so a
-    /// server that implements gzip will accept these frames. Per-RPC
+    /// Off by default. The kernel advertises `identity,gzip` unless
+    /// [`Self::accept_compressed`]`(false)` opted out, so a server that
+    /// implements gzip will accept these frames. Per-RPC
     /// [`crate::Request::set_compress`] still works when this is off. A
     /// request that already called [`crate::Request::set_compress`] is left
     /// alone, including `set_compress(false)` to opt out of this overlay.
@@ -970,6 +1007,24 @@ impl ChannelConfig {
     #[must_use]
     pub fn send_compressed(mut self, enable: bool) -> Self {
         self.send_compressed = enable;
+        self
+    }
+
+    /// Inflate inbound gzip. Default `true`. Applies to every call shape,
+    /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    ///
+    /// Passing `false` omits gzip from `grpc-accept-encoding` and refuses a
+    /// `grpc-encoding: gzip` reply as [`crate::Code::Unimplemented`] without
+    /// inflating. Distinct from [`Self::send_compressed`], which is outbound.
+    /// Distinct from tonic's `accept_compressed`, which starts opt-in; this
+    /// kernel starts on so interop gzip keeps working.
+    ///
+    /// [`crate::Channel::accept_compressed`] and generated
+    /// `FooClient::accept_compressed` set this without building a
+    /// [`ChannelConfig`].
+    #[must_use]
+    pub fn accept_compressed(mut self, accept: bool) -> Self {
+        self.accept_compressed = accept;
         self
     }
 
@@ -1148,6 +1203,15 @@ impl ChannelConfig {
         self.send_compressed
     }
 
+    /// Whether inbound gzip is inflated. Default `true`.
+    /// See [`Self::accept_compressed`]. Applies to every call shape.
+    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's
+    /// `grpc-accept-encoding`.
+    #[must_use]
+    pub fn accepts_compressed(self) -> bool {
+        self.accept_compressed
+    }
+
     /// Configured default per-RPC deadline, if any. See [`Self::timeout`].
     /// Applies to every call shape.
     #[must_use]
@@ -1183,6 +1247,7 @@ impl ChannelConfig {
         Wire {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
+            accept_gzip: self.accept_compressed,
         }
     }
 
@@ -1263,6 +1328,7 @@ mod tests {
         assert_eq!(config.connection_idle(), None);
         assert_eq!(config.age_grace(), super::DEFAULT_MAX_CONNECTION_AGE_GRACE);
         assert!(!config.compresses_outbound());
+        assert!(config.accepts_compressed());
         assert_eq!(ChannelConfig::new().connection_idle(), None);
         assert_eq!(ChannelConfig::new().connection_age(), None);
         assert_eq!(
@@ -1273,6 +1339,13 @@ mod tests {
         assert_eq!(ChannelConfig::new().concurrent_rpc_limit(), None);
         assert!(!ChannelConfig::new().waits_for_ready());
         assert!(ChannelConfig::new().wait_for_ready(true).waits_for_ready());
+        assert!(ChannelConfig::new().accepts_compressed());
+        assert!(!ChannelConfig::new()
+            .accept_compressed(false)
+            .accepts_compressed());
+        assert!(!ServerConfig::new()
+            .accept_compressed(false)
+            .accepts_compressed());
     }
 
     #[test]
@@ -1431,6 +1504,20 @@ mod tests {
         assert!(ServerConfig::new()
             .send_compressed(true)
             .compresses_outbound());
+        assert!(ChannelConfig::new().wire().accept_gzip);
+        assert!(
+            !ChannelConfig::new()
+                .accept_compressed(false)
+                .wire()
+                .accept_gzip
+        );
+        assert!(ServerConfig::new().wire().accept_gzip);
+        assert!(
+            !ServerConfig::new()
+                .accept_compressed(false)
+                .wire()
+                .accept_gzip
+        );
     }
 
     #[test]
