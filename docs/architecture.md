@@ -121,7 +121,7 @@ sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size`),
-extensions). Those Outgoing getters apply to every call shape.
+extensions, `connected`). Those Outgoing getters apply to every call shape.
 Dumping `Outgoing` prints path / service / method, `:authority` / `:scheme`,
 `user-agent`, `limits`, `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /
@@ -268,7 +268,7 @@ Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 `Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,
 limits, metadata, timeout / deadline Instant, wait-for-ready
 (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays
-(`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size`), extensions).
+(`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size`), extensions, `connected`).
 Overlays (timeout, wait-for-ready, send_compressed, gzip_compression_level, message caps,
 `https_scheme`) fill in before interceptors run; `clear_*` opts out of that
 already-applied default while the overlay getters stay. `Channel::timeout` /

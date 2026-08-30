@@ -3832,6 +3832,17 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "extensions, `connected`). Those Outgoing getters apply to every call shape."
+        ),
+        "architecture must name connected on the interceptor-visible Outgoing inventory"
+    );
+    assert_eq!(
+        architecture.matches("extensions, `connected`).").count(),
+        2,
+        "architecture must name connected on both interceptor-visible Outgoing inventories"
+    );
+    assert!(
+        architecture.contains(
             "`accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /"
         ),
         "architecture must dump Outgoing stream_buffer_size"
