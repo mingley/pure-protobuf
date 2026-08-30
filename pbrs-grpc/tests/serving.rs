@@ -968,6 +968,12 @@ fn request_deadline_documents_every_transport() {
         ),
         "Request::deadline must name every transport and that the Instant elapses"
     );
+    assert!(
+        src.contains(
+            "Passing `false` opts out of a later [`crate::Server::send_compressed`]\n    /// overlay on every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
+        ),
+        "Response::set_compress must name handler opt-out of send_compressed on every transport"
+    );
 }
 
 fn greeter_and_test_router() -> Router {
@@ -18662,25 +18668,100 @@ impl pbrs_grpc::Greeter for OptOutGzip {
     }
 }
 
+fn interceptor_require_server_gzip(rpc: &mut Rpc) -> Result<(), Status> {
+    if !rpc.compresses_outbound() {
+        return Err(Status::internal("server overlay should gzip"));
+    }
+    Ok(())
+}
+
+async fn assert_handler_gzip_opt_out(ch: Channel) {
+    assert_identity_encoding_every_shape(&GreeterClient::new(ch)).await;
+}
+
 #[tokio::test]
 async fn a_handler_can_opt_out_of_server_send_compressed() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
-            .intercept(|rpc: &mut Rpc| {
-                if !rpc.compresses_outbound() {
-                    return Err(Status::internal("server overlay should gzip"));
-                }
-                Ok(())
-            })
+            .intercept(interceptor_require_server_gzip)
             .serve_listener(listener)
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    assert_identity_encoding_every_shape(&client).await;
+    assert_handler_gzip_opt_out(channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_handler_can_opt_out_of_server_send_compressed() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(OptOutGzip)
+            .send_compressed()
+            .intercept(interceptor_require_server_gzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_handler_gzip_opt_out(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_handler_can_opt_out_of_server_send_compressed() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(OptOutGzip)
+            .send_compressed()
+            .intercept(interceptor_require_server_gzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_handler_gzip_opt_out(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_handler_can_opt_out_of_server_send_compressed() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(OptOutGzip)
+            .send_compressed()
+            .intercept(interceptor_require_server_gzip)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_handler_gzip_opt_out(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_handler_can_opt_out_of_server_send_compressed() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(OptOutGzip)
+            .send_compressed()
+            .intercept(interceptor_require_server_gzip)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_handler_gzip_opt_out(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 struct SeesGzip;

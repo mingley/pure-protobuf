@@ -1089,7 +1089,8 @@ response-side overlay; `Rpc::compresses_outbound` is that same bit, stamped
 onto `Request::compresses_outbound` at dispatch so a handler that never
 sees `Rpc` can still read it.
 `Response::set_compress(false)` opts out of `Server::send_compressed` the
-same way. Unset follows the overlay. `Response::compress` /
+same way, on every call shape, including over TLS, mTLS, Unix, and
+`from_io`. Unset follows the overlay. `Response::compress` /
 `compressed()` is the effective outbound intent (and the unary wire flag
 on a received reply). `StreamSender::compress` / `set_compress` is the
 same flag `send()` consults.
