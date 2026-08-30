@@ -680,7 +680,19 @@ Router::new()
 `Router::service_names` lists what is mounted (order is unspecified).
 Mounting the same service twice keeps the last handler; that last mount
 is the one that serves, on every call shape, including over TLS, mTLS,
-Unix, and `from_io`. Reflection
+Unix, and `from_io`. `add_optional_service` mounts when `Some`. `None` is a no-op.
+Distinct from `add_service`, which always mounts. `None` does not replace a
+service already there.
+
+```rust
+Router::new()
+    .add_service(GreeterServer::new(MyGreeter))
+    .add_optional_service(reflection)
+    .serve(addr)
+    .await?;
+```
+
+Reflection
 `list_services` answers from registered file descriptor sets, not from this
 list, so register every proto you serve.
 

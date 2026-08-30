@@ -1708,6 +1708,21 @@ impl<S: Service> Server<S> {
         self.into_router().add_service(service)
     }
 
+    /// Mount `service` when `Some`. `None` is a no-op.
+    /// Applies to every call shape.
+    ///
+    /// Distinct from [`Self::add_service`], which always mounts.
+    /// `None` does not replace a service already there.
+    /// Services that stay mounted still complete every call shape, including
+    /// over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn add_optional_service<T: Service>(self, service: Option<T>) -> Router {
+        match service {
+            Some(service) => self.add_service(service),
+            None => self.into_router(),
+        }
+    }
+
     /// Move this service into a [`Router`], keeping the configuration and any
     /// interceptors.
     #[must_use]
@@ -2323,6 +2338,21 @@ impl Router {
     #[must_use]
     pub fn add_service<S: Service>(self, service: S) -> Self {
         self.add_arc(Arc::new(service))
+    }
+
+    /// Mount `service` when `Some`. `None` is a no-op.
+    /// Applies to every call shape.
+    ///
+    /// Distinct from [`Self::add_service`], which always mounts.
+    /// `None` does not replace a service already there.
+    /// Services that stay mounted still complete every call shape, including
+    /// over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn add_optional_service<S: Service>(self, service: Option<S>) -> Self {
+        match service {
+            Some(service) => self.add_service(service),
+            None => self,
+        }
     }
 
     /// Run `interceptor` before every mounted service. Calling this twice

@@ -1609,6 +1609,25 @@ fn generated_server_into_router_keeps_the_name() {
 }
 
 #[test]
+fn generated_add_optional_service_none_keeps_the_store() {
+    let names: Vec<_> = StoreServer::new(MemStore)
+        .add_optional_service(None::<pbrs_grpc::GreeterServer<EchoGreeter>>)
+        .service_names()
+        .collect();
+    assert_eq!(names, ["kv.Store"]);
+}
+
+#[test]
+fn generated_add_optional_service_some_mounts_greeter() {
+    let mut names: Vec<_> = StoreServer::new(MemStore)
+        .add_optional_service(Some(pbrs_grpc::GreeterServer::new(EchoGreeter)))
+        .service_names()
+        .collect();
+    names.sort_unstable();
+    assert_eq!(names, ["helloworld.Greeter", "kv.Store"]);
+}
+
+#[test]
 fn generated_client_debug_and_into_inner() {
     let client = StoreClient::connect_lazy_with(
         "127.0.0.1:1",
@@ -4091,6 +4110,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Mount alongside another service. [`Self::max_decoding_message_size`] and [`Self::max_encoding_message_size`] stay in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated add_service rustdoc must name decode and encode caps on every mount and transport"
+    );
+    assert!(
+        src.contains(
+            "Mount `service` when `Some`. `None` is a no-op. Distinct from [`Self::add_service`], which always mounts. `None` does not replace a service already there. Services that stay mounted still complete every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated add_optional_service rustdoc must Distinct None from always-mount on every transport"
     );
     assert!(
         src.contains(

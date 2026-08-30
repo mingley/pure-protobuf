@@ -560,7 +560,9 @@ See `docs/upb.md`. Short list:
   service and for a method a mounted service does not have, on every call
   shape, including over TLS, mTLS, Unix, and `from_io`. Remounting the same
   service name keeps the last handler; that last mount serves on every call
-  shape, including over those transports. A hand-written
+  shape, including over those transports. `add_optional_service` mounts when
+  `Some`; `None` is a no-op. Distinct from `add_service`, which always mounts.
+  A hand-written
   `Service` served with `Server::new` answers the same `UNIMPLEMENTED` for
   methods it does not implement, on every call shape and those transports.
   Generated `FooClient::connect_tls_with` / `connect_lazy_with` /

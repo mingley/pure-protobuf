@@ -1748,6 +1748,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         guide.contains("Distinct from `send_compressed`, which is on or off"),
         "guide must Distinct gzip_compression_level from send_compressed on/off"
     );
+    assert!(
+        guide.contains("`add_optional_service` mounts when `Some`"),
+        "guide must name add_optional_service as Some-only mount"
+    );
+    assert!(
+        guide.contains("Distinct from `add_service`, which always mounts"),
+        "guide must Distinct add_optional_service None from always-mount"
+    );
     let benches = include_str!("../../docs/benchmarks.md");
     assert!(
         benches.contains("### Bidi ping-pong throughput (loopback)"),
@@ -2099,6 +2107,26 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Router::add_service must name last-wins remount on every transport"
     );
+    assert_eq!(
+        src.matches(
+            "Mount `service` when `Some`. `None` is a no-op.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::add_optional_service and Router::add_optional_service must name every call shape"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`Self::add_service`], which always mounts.")
+            .count(),
+        2,
+        "Server and Router add_optional_service must Distinct None from always-mount"
+    );
+    assert_eq!(
+        src.matches("`None` does not replace a service already there.")
+            .count(),
+        2,
+        "Server and Router add_optional_service must not replace a mount on None"
+    );
     assert!(
         src.contains(
             "A hand-written [`Service`] is first-class. Unknown methods are\n/// [`crate::Code::Unimplemented`] on every call shape, including over TLS,\n/// mTLS, Unix, and [`Server::serve_connection`]."
@@ -2385,6 +2413,35 @@ async fn mounting_the_same_service_twice_keeps_the_last() {
     assert_eq!(router.service_names().count(), 1);
 }
 
+#[test]
+fn add_optional_service_none_is_a_noop() {
+    let router = Router::new()
+        .add_service(GreeterServer::new(Echo))
+        .add_optional_service(None::<TestServiceServer<InteropTestService>>);
+    let mut names: Vec<&str> = router.service_names().collect();
+    names.sort_unstable();
+    assert_eq!(names, ["helloworld.Greeter"]);
+}
+
+#[test]
+fn add_optional_service_some_mounts() {
+    let router = Router::new()
+        .add_service(GreeterServer::new(Echo))
+        .add_optional_service(Some(TestServiceServer::new(InteropTestService)));
+    let mut names: Vec<&str> = router.service_names().collect();
+    names.sort_unstable();
+    assert_eq!(names, ["grpc.testing.TestService", "helloworld.Greeter"]);
+}
+
+#[test]
+fn add_optional_service_none_does_not_replace() {
+    let router = Router::new()
+        .add_service(GreeterServer::new(Echo))
+        .add_optional_service(None::<GreeterServer<Echo>>);
+    let names: Vec<&str> = router.service_names().collect();
+    assert_eq!(names, ["helloworld.Greeter"]);
+}
+
 fn last_wins_router() -> Router {
     Router::new()
         .add_service(GreeterServer::new(FailGreeter))
@@ -2459,6 +2516,70 @@ async fn a_from_io_router_serves_the_last_mount_of_a_service() {
     )
     .await;
     server.abort();
+}
+
+#[tokio::test]
+async fn add_optional_service_none_leaves_that_service_unimplemented() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .add_optional_service(None::<TestServiceServer<InteropTestService>>)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let ch = channel(addr).await;
+    echo_every_shape(&GreeterClient::new(ch.clone()), None).await;
+    assert_unimplemented_path(&ch, "/grpc.testing.TestService/EmptyCall").await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_add_optional_service_none_leaves_that_service_unimplemented() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Echo))
+            .add_optional_service(None::<TestServiceServer<InteropTestService>>)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    echo_every_shape(&GreeterClient::new(ch.clone()), None).await;
+    assert_unimplemented_path(&ch, "/grpc.testing.TestService/EmptyCall").await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn add_optional_service_some_mounts_and_dispatches() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .add_optional_service(Some(TestServiceServer::new(InteropTestService)))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_router_dispatches(channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn server_add_optional_service_none_keeps_the_original() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .add_optional_service(None::<TestServiceServer<InteropTestService>>)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
 }
 
 /// A handler slow enough that the drain has to wait for it.

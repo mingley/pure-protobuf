@@ -4369,6 +4369,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Mount `service` when `Some`. `None` is a no-op. Distinct from [`Self::add_service`], which always mounts. `None` does not replace a service already there. Services that stay mounted still complete every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn add_optional_service<S: {G}::Service>(self, service: ::core::option::Option<S>) -> {G}::Router {{ self.into_server().add_optional_service(service) }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Move this service into a [`{G}::Router`], keeping the configuration."
     );
     let _ = writeln!(src, "    #[must_use]");
