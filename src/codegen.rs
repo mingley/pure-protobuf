@@ -4160,6 +4160,10 @@ fn emit_kernel_server(
         src,
         "    /// Per-connection HTTP/2 send buffer. Applies to every call shape. See [`{G}::ServerConfig::max_send_buffer_size`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// Write backpressure still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::initial_stream_window_size`], which still serves at a small receive window."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

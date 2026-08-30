@@ -3816,6 +3816,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Write backpressure still completes every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]. Distinct from [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS minimum, and from [`Self::initial_stream_window_size`], which still serves at a small receive window."
+        ),
+        "generated max_send_buffer_size rustdoc must name still-serves Distinct from frame size and windows"
+    );
+    assert!(
+        src.contains(
             "Cap remotely-reset HTTP/2 streams waiting in the accept queue. Applies to every call shape."
         ),
         "generated max_pending_accept_reset_streams rustdoc must name every call shape"

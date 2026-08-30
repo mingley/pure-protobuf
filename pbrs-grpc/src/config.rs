@@ -213,6 +213,11 @@ impl ServerConfig {
 
     /// Bytes buffered per connection before writes apply backpressure.
     /// Default 1 MiB. Applies to every call shape.
+    /// Write backpressure still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::initial_stream_window_size`], which still
+    /// serves at a small receive window.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;

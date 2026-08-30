@@ -1413,6 +1413,11 @@ impl<S: Service> Server<S> {
 
     /// Per-connection HTTP/2 send buffer. Applies to every call shape.
     /// See [`ServerConfig::max_send_buffer_size`].
+    /// Write backpressure still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::initial_stream_window_size`], which still
+    /// serves at a small receive window.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
@@ -2001,6 +2006,11 @@ impl Router {
 
     /// Per-connection HTTP/2 send buffer. Applies to every call shape.
     /// See [`ServerConfig::max_send_buffer_size`].
+    /// Write backpressure still completes every call shape, including over
+    /// TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct from
+    /// [`Self::max_frame_size`], which still serves at the 16 KiB SETTINGS
+    /// minimum, and from [`Self::initial_stream_window_size`], which still
+    /// serves at a small receive window.
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.config = self.config.max_send_buffer_size(bytes);
