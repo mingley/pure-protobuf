@@ -262,6 +262,27 @@ impl<S, I> Intercepted<S, I> {
     /// including [`crate::Status::with_error_details`]. A handler `Err` skips
     /// this hook. Applies to every call shape, including over TLS, mTLS, Unix,
     /// and [`crate::Server::serve_connection`].
+    ///
+    /// ```
+    /// # fn demo<S, I>(wrapped: pbrs_grpc::Intercepted<S, I>) -> pbrs_grpc::Intercepted<S, I> {
+    /// wrapped.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
+    ///     let _ = (
+    ///         parts.path(),
+    ///         parts.gzip_level(),
+    ///         parts.compresses_outbound(),
+    ///         parts.accepts_gzip(),
+    ///         parts.deadline(),
+    ///         parts.timeout(),
+    ///         parts.limits(),
+    ///         parts.peer_timeout(),
+    ///         parts.rpc_timeout(),
+    ///         parts.accepts_compressed(),
+    ///         parts.send_buffer_size(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn on_response<R: ResponseInterceptor>(mut self, interceptor: R) -> Self {
         self.response_interceptor = Some(match self.response_interceptor {
