@@ -860,9 +860,9 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
-            "Serve until `shutdown` resolves, then drain. Applies to every call\n    /// shape."
+            "Serve until `shutdown` resolves, then drain. Applies to every call\n    /// shape. In-flight RPCs finish; new connections are refused. TLS and"
         ),
-        "Server::serve_with_shutdown must name every call shape"
+        "Server::serve_with_shutdown must name TLS and Unix drain"
     );
     assert_eq!(
         src.matches("HTTP/2 PING keepalive. Applies to every call shape.")
@@ -923,11 +923,19 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
-            "Serve over TLS until `shutdown` resolves, then drain.\n    /// Applies to every call shape."
+            "Serve over TLS until `shutdown` resolves, then drain.\n    /// Applies to every call shape, including mTLS. In-flight RPCs finish;\n    /// new connections are refused."
         )
         .count(),
         2,
-        "Server::serve_tls_with_shutdown and Router::serve_tls_with_shutdown must name every call shape"
+        "Server::serve_tls_with_shutdown and Router::serve_tls_with_shutdown must name mTLS drain"
+    );
+    assert_eq!(
+        src.matches(
+            "Serve h2c on a Unix listener until `shutdown` resolves, then drain.\n    /// Applies to every call shape. In-flight RPCs finish; new connections\n    /// are refused."
+        )
+        .count(),
+        2,
+        "Server::serve_unix_with_shutdown and Router::serve_unix_with_shutdown must name drain"
     );
     assert_eq!(
         src.matches("Replace both message caps at once. Applies to every call shape.")
@@ -1364,6 +1372,44 @@ impl pbrs_grpc::Greeter for Slow {
     }
 }
 
+async fn assert_in_flight_finishes(
+    client: GreeterClient,
+    shutdown_tx: tokio::sync::oneshot::Sender<()>,
+    served: tokio::task::JoinHandle<()>,
+) {
+    let mut call = client.say_hello(Request::new(req("ada")));
+    // Drive the call far enough that Slow's 200 ms handler is running, then
+    // signal drain. Creating a Call does not start the RPC; first poll does.
+    tokio::select! {
+        biased;
+        result = &mut call => panic!("Slow returned before shutdown: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(30)) => {}
+    }
+    shutdown_tx.send(()).expect("signal");
+    let reply = call.await.expect("in-flight RPC must complete");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("drain must finish")
+        .expect("join");
+}
+
+async fn assert_drain_closes_listener(
+    client: GreeterClient,
+    shutdown_tx: tokio::sync::oneshot::Sender<()>,
+    served: tokio::task::JoinHandle<()>,
+    refused: impl std::future::Future<Output = bool>,
+) {
+    echo_every_shape(&client, None).await;
+    drop(client);
+    shutdown_tx.send(()).expect("signal");
+    tokio::time::timeout(Duration::from_secs(5), served)
+        .await
+        .expect("drain must finish")
+        .expect("join");
+    assert!(refused.await, "the listener must be closed after drain");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn graceful_shutdown_finishes_in_flight_rpcs() {
     let (addr, listener) = bind().await;
@@ -1376,27 +1422,80 @@ async fn graceful_shutdown_finishes_in_flight_rpcs() {
             .await
             .ok();
     });
+    assert_in_flight_finishes(GreeterClient::new(channel(addr).await), shutdown_tx, served).await;
+}
 
-    let client = GreeterClient::new(channel(addr).await);
-    let mut call = client.say_hello(Request::new(req("ada")));
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_graceful_shutdown_finishes_in_flight_rpcs() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_tls_with_shutdown(
+                listener,
+                async {
+                    shutdown_rx.await.ok();
+                },
+                tls,
+            )
+            .await
+            .ok();
+    });
+    assert_in_flight_finishes(
+        GreeterClient::new(tls_channel(addr).await),
+        shutdown_tx,
+        served,
+    )
+    .await;
+}
 
-    // Drive the call far enough that Slow's 200 ms handler is running, then
-    // signal drain. Creating a Call does not start the RPC; first poll does.
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("Slow returned before shutdown: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(30)) => {}
-    }
-    shutdown_tx.send(()).expect("signal");
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_graceful_shutdown_finishes_in_flight_rpcs() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_tls_with_shutdown(
+                listener,
+                async {
+                    shutdown_rx.await.ok();
+                },
+                tls,
+            )
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_in_flight_finishes(
+        GreeterClient::new(tls_channel_with(addr, client_tls).await),
+        shutdown_tx,
+        served,
+    )
+    .await;
+}
 
-    let reply = call.await.expect("in-flight RPC must complete");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-
-    // Drain finishes on its own once the connection closes.
-    tokio::time::timeout(Duration::from_secs(5), served)
-        .await
-        .expect("drain must finish")
-        .expect("join");
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_graceful_shutdown_finishes_in_flight_rpcs() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_unix_until_shutdown(sock, async {
+                shutdown_rx.await.ok();
+            })
+            .await
+            .ok();
+    });
+    assert_in_flight_finishes(
+        GreeterClient::new(unix_channel(&path).await),
+        shutdown_tx,
+        served,
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -1411,27 +1510,122 @@ async fn graceful_shutdown_stops_accepting_new_connections() {
             .await
             .ok();
     });
+    assert_drain_closes_listener(
+        GreeterClient::new(channel(addr).await),
+        shutdown_tx,
+        served,
+        async {
+            match Channel::connect(addr).await {
+                Err(_) => true,
+                Ok(channel) => GreeterClient::new(channel)
+                    .say_hello(Request::new(req("late")))
+                    .await
+                    .is_err(),
+            }
+        },
+    )
+    .await;
+}
 
-    // Prove the server is up, then shut it down and let the drain complete.
-    let client = GreeterClient::new(channel(addr).await);
-    echo_every_shape(&client, None).await;
-    drop(client);
-    shutdown_tx.send(()).expect("signal");
-    tokio::time::timeout(Duration::from_secs(5), served)
-        .await
-        .expect("drain must finish")
-        .expect("join");
-
-    // A fresh connection now finds nothing listening, or finds a socket that
-    // refuses to carry an RPC.
-    let refused = match Channel::connect(addr).await {
-        Err(_) => true,
-        Ok(channel) => GreeterClient::new(channel)
-            .say_hello(Request::new(req("late")))
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_graceful_shutdown_stops_accepting_new_connections() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(
+                listener,
+                async {
+                    shutdown_rx.await.ok();
+                },
+                tls,
+            )
             .await
-            .is_err(),
-    };
-    assert!(refused, "the listener must be closed after drain");
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_drain_closes_listener(
+        GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        shutdown_tx,
+        served,
+        async {
+            match Channel::connect_tls(addr, client_tls).await {
+                Err(_) => true,
+                Ok(channel) => GreeterClient::new(channel)
+                    .say_hello(Request::new(req("late")))
+                    .await
+                    .is_err(),
+            }
+        },
+    )
+    .await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_graceful_shutdown_stops_accepting_new_connections() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(
+                listener,
+                async {
+                    shutdown_rx.await.ok();
+                },
+                tls,
+            )
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_drain_closes_listener(
+        GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        shutdown_tx,
+        served,
+        async {
+            match Channel::connect_tls(addr, client_tls).await {
+                Err(_) => true,
+                Ok(channel) => GreeterClient::new(channel)
+                    .say_hello(Request::new(req("late")))
+                    .await
+                    .is_err(),
+            }
+        },
+    )
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_graceful_shutdown_stops_accepting_new_connections() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let served = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_unix_until_shutdown(sock, async {
+                shutdown_rx.await.ok();
+            })
+            .await
+            .ok();
+    });
+    assert_drain_closes_listener(
+        GreeterClient::new(unix_channel(&path).await),
+        shutdown_tx,
+        served,
+        async {
+            match Channel::connect_unix(&path).await {
+                Err(_) => true,
+                Ok(channel) => GreeterClient::new(channel)
+                    .say_hello(Request::new(req("late")))
+                    .await
+                    .is_err(),
+            }
+        },
+    )
+    .await;
 }
 
 /// A server-streaming handler whose producer stops as soon as reading the

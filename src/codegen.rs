@@ -4299,7 +4299,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve until `shutdown` resolves, then drain. Applies to every call shape."
+        "    /// Serve until `shutdown` resolves, then drain. Applies to every call shape. In-flight RPCs finish; new connections are refused. TLS and Unix drain the same way (`serve_tls_with_shutdown`, `serve_unix_with_shutdown`)."
     );
     let _ = writeln!(
         src,
@@ -4342,7 +4342,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve h2c on a Unix listener until `shutdown` resolves, then drain. Applies to every call shape."
+        "    /// Serve h2c on a Unix listener until `shutdown` resolves, then drain. Applies to every call shape. In-flight RPCs finish; new connections are refused. See [`{G}::Server::serve_with_shutdown`]."
     );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
@@ -4377,7 +4377,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve over TLS until `shutdown` resolves, then drain. Applies to every call shape."
+        "    /// Serve over TLS until `shutdown` resolves, then drain. Applies to every call shape, including mTLS. In-flight RPCs finish; new connections are refused."
     );
     let _ = writeln!(
         src,

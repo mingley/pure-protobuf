@@ -3872,14 +3872,16 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated serve_unix_listener rustdoc must name every call shape"
     );
     assert!(
-        src.contains("Serve until `shutdown` resolves, then drain. Applies to every call shape."),
-        "generated serve_with_shutdown rustdoc must name every call shape"
+        src.contains(
+            "Serve until `shutdown` resolves, then drain. Applies to every call shape. In-flight RPCs finish; new connections are refused. TLS and Unix drain the same way (`serve_tls_with_shutdown`, `serve_unix_with_shutdown`)."
+        ),
+        "generated serve_with_shutdown rustdoc must name TLS and Unix drain"
     );
     assert!(
         src.contains(
-            "Serve over TLS until `shutdown` resolves, then drain. Applies to every call shape."
+            "Serve over TLS until `shutdown` resolves, then drain. Applies to every call shape, including mTLS. In-flight RPCs finish; new connections are refused."
         ),
-        "generated serve_tls_with_shutdown rustdoc must name every call shape"
+        "generated serve_tls_with_shutdown rustdoc must name mTLS drain"
     );
     assert!(
         src.contains(

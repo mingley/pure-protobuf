@@ -1576,7 +1576,9 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve until `shutdown` resolves, then drain. Applies to every call
-    /// shape.
+    /// shape. In-flight RPCs finish; new connections are refused. TLS and
+    /// Unix drain the same way (`serve_tls_with_shutdown`,
+    /// `serve_unix_with_shutdown`).
     ///
     /// `listener` must already be bound. Draining stops accepting, sends
     /// `GOAWAY` on every live connection, and waits for in-flight RPCs to
@@ -1639,7 +1641,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve h2c on a Unix listener until `shutdown` resolves, then drain.
-    /// Applies to every call shape. See [`Self::serve_with_shutdown`].
+    /// Applies to every call shape. In-flight RPCs finish; new connections
+    /// are refused. See [`Self::serve_with_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix_with_shutdown(
         self,
@@ -1688,7 +1691,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Serve over TLS until `shutdown` resolves, then drain.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including mTLS. In-flight RPCs finish;
+    /// new connections are refused.
     pub async fn serve_tls_with_shutdown(
         self,
         listener: TcpListener,
@@ -2102,7 +2106,9 @@ impl Router {
     }
 
     /// Serve until `shutdown` resolves, then drain. Applies to every call
-    /// shape. See [`Server::serve_with_shutdown`].
+    /// shape. In-flight RPCs finish; new connections are refused. TLS and
+    /// Unix drain the same way (`serve_tls_with_shutdown`,
+    /// `serve_unix_with_shutdown`). See [`Server::serve_with_shutdown`].
     pub async fn serve_with_shutdown(
         self,
         listener: TcpListener,
@@ -2147,7 +2153,8 @@ impl Router {
     }
 
     /// Serve h2c on a Unix listener until `shutdown` resolves, then drain.
-    /// Applies to every call shape.
+    /// Applies to every call shape. In-flight RPCs finish; new connections
+    /// are refused. See [`Server::serve_with_shutdown`].
     #[cfg(unix)]
     pub async fn serve_unix_with_shutdown(
         self,
@@ -2193,7 +2200,8 @@ impl Router {
     }
 
     /// Serve over TLS until `shutdown` resolves, then drain.
-    /// Applies to every call shape. See [`Server::serve_with_shutdown`].
+    /// Applies to every call shape, including mTLS. In-flight RPCs finish;
+    /// new connections are refused. See [`Server::serve_with_shutdown`].
     pub async fn serve_tls_with_shutdown(
         self,
         listener: TcpListener,

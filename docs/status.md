@@ -113,7 +113,8 @@ See `docs/upb.md`. Short list:
   mTLS, or Unix dial with `UNAVAILABLE` while the cap is full (`from_io` is
   not an accept loop). A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
-  serving. `Channel::https_scheme` sends `:scheme https` on a
+  serving. Graceful drain finishes in-flight RPCs and refuses new connections
+  on TLS, mTLS, and Unix (`from_io` has no accept loop). `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible

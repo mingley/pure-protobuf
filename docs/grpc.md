@@ -950,7 +950,8 @@ unpacks the same way, including over TLS, mTLS, Unix, and `from_io`.
 `serve_until_shutdown` binds `addr`, then behaves like
 `serve_with_shutdown` on the resulting listener: it stops accepting, sends
 `GOAWAY` on every live connection, and waits for in-flight RPCs to finish
-before returning. Use `serve_with_shutdown` when you already have a
+before returning, including over TLS, mTLS, and Unix. `from_io` is one duplex
+and has no accept loop to drain. Use `serve_with_shutdown` when you already have a
 `TcpListener`. The TLS forms are `serve_tls_until_shutdown(addr, shutdown, tls)`
 and `serve_tls_with_shutdown(listener, shutdown, tls)`. On Unix the path forms
 are `serve_unix_until_shutdown(path, shutdown)` and

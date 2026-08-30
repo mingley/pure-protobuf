@@ -49,6 +49,8 @@ dropped by `handshake_timeout` so the accept loop keeps serving.
 `max_concurrent_rpcs` refuses extra RPCs with `RESOURCE_EXHAUSTED` before the
 handler runs, on every call shape, including over TLS, mTLS, Unix, and
 `from_io`.
+Graceful drain finishes in-flight RPCs and refuses new connections on TLS,
+mTLS, and Unix; `from_io` has no accept loop.
 
 ### Dispatch
 
