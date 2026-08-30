@@ -4343,6 +4343,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterClient::new(channel).on_response`)."
+        ),
+        "generated client on_response rustdoc must point at the compiling hello overlay dump"
+    );
+    assert!(
+        src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),
         "generated serve_tls rustdoc must name every call shape"
