@@ -811,6 +811,10 @@ impl ChannelConfig {
     /// opens streams and immediately `RST_STREAM`s them sits in that queue
     /// until accepted; exceeding this is `ENHANCE_YOUR_CALM` and the
     /// connection is dropped. Applied at handshake, not as a live overlay.
+    /// Distinct from [`ServerConfig::max_pending_accept_reset_streams`], which
+    /// still serves when the server caps that queue. A well-behaved server
+    /// never fills this client queue; every call shape still completes,
+    /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.max_pending_accept_reset_streams = n;

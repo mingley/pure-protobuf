@@ -247,7 +247,9 @@ See `docs/upb.md`. Short list:
   `FooServer::max_pending_accept_reset_streams` /
   `ServerConfig::max_pending_accept_reset_streams` still serve every Greeter and
   Store shape at that cap, distinct from wrapping only the generated Greeter
-  setter. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  setter. `ChannelConfig::max_pending_accept_reset_streams` caps the client's
+  accept queue and still serves every Greeter shape when a well-behaved server
+  never fills it, over TLS, mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
