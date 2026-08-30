@@ -2552,9 +2552,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
-            "Distinct from [`Self::gzip_compression_level`], which sets it.\n    #[must_use]\n    pub fn gzip_level(self) -> u32 {\n        self.gzip_compression_level\n    }\n\n    /// Whether inbound gzip is inflated. Default `true`.\n    /// See [`Self::accept_compressed`]. Applies to every call shape.\n    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's"
+            "Distinct from [`Self::gzip_compression_level`], which sets it.\n    #[must_use]\n    pub fn gzip_level(self) -> u32 {\n        self.gzip_compression_level\n    }\n\n    /// Whether inbound gzip is inflated. Default `true`.\n    /// See [`Self::accept_compressed`]. Applies to every call shape.\n    /// Distinct from [`Self::accept_compressed`], which sets it.\n    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's"
         ),
         "ServerConfig::gzip_level must Distinct the setter"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::accept_compressed`], which sets it.\n    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's\n    /// `grpc-accept-encoding`.\n    #[must_use]\n    pub fn accepts_compressed(self) -> bool {\n        self.accept_compressed\n    }\n\n    /// Configured HTTP/2 PING interval, if any. See [`Self::keep_alive_interval`]."
+        ),
+        "ServerConfig::accepts_compressed must Distinct the setter"
     );
     assert!(
         src.contains(
