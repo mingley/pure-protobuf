@@ -413,6 +413,12 @@ pub trait ServiceExt: Service + Sized {
     ///         rpc.concurrent_rpc_limit(),
     ///         rpc.send_buffer_size(),
     ///         rpc.limits(),
+    ///         rpc.local_addr(),
+    ///         rpc.remote_addr(),
+    ///         rpc.peer_identity(),
+    ///         rpc.peer_cred(),
+    ///         rpc.authority(),
+    ///         rpc.scheme(),
     ///     );
     ///     Ok(())
     /// })
