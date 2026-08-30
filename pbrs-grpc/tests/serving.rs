@@ -1423,7 +1423,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert_eq!(
         src.matches(
-            "Deflate effort for outbound gzip. Default 1 (`flate2` fast).\n    /// Applies to every call shape."
+            "Deflate effort for outbound gzip. Default 1 (`flate2` fast).\n    /// Applies to every call shape"
         )
         .count(),
         2,
@@ -2153,7 +2153,7 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
-            "Deflate effort for outbound gzip. Default 1 (`flate2` fast).\n    /// Applies to every call shape."
+            "Deflate effort for outbound gzip. Default 1 (`flate2` fast).\n    /// Applies to every call shape"
         )
         .count(),
         2,
