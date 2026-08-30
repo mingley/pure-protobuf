@@ -295,7 +295,9 @@ impl ServerConfig {
     ///
     /// Idle is measured from accept until the first RPC, and from the moment
     /// the last in-flight RPC finishes thereafter. A long-running stream does
-    /// not look idle. Keepalive PINGs do not count as activity. The next RPC
+    /// not look idle, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`]. Keepalive PINGs do not count as
+    /// activity. The next RPC
     /// of every call shape redials, including over TLS, mTLS, and Unix.
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {

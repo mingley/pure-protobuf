@@ -1017,8 +1017,9 @@ and Unix. `Channel::from_io` cannot redial after that GOAWAY, but an RPC
 already in flight still finishes inside the grace window. Transparent retry
 of the same in-flight RPC after GOAWAY is unary and server-streaming only.
 Age is jittered by ±10% so a process with many connections does not reconnect
-in lockstep. Idle only arms while no RPC is in flight, so grace is for a race
-with a request that arrives as GOAWAY is written.
+in lockstep. Idle only arms while no RPC is in flight, including over TLS, mTLS, Unix,
+and `serve_connection`, so grace is for a race with a request that arrives
+as GOAWAY is written.
 
 On the client, idle actually stops the HTTP/2 driver so the socket goes away.
 Keepalive PINGs do not count as activity. The next RPC of every call shape
