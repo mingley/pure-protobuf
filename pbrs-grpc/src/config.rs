@@ -1631,6 +1631,7 @@ impl ChannelConfig {
 
     /// Configured default wait-for-ready. See [`Self::wait_for_ready`].
     /// Applies to every call shape.
+    /// Distinct from [`Self::wait_for_ready`], which sets it.
     #[must_use]
     pub fn waits_for_ready(self) -> bool {
         self.wait_for_ready

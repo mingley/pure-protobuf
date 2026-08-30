@@ -2497,6 +2497,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::wait_for_ready must Distinct the live-socket snapshot"
     );
     assert!(
+        src.contains("Distinct from [`Self::wait_for_ready`], which sets it."),
+        "ChannelConfig::waits_for_ready must Distinct the setter"
+    );
+    assert!(
         src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
