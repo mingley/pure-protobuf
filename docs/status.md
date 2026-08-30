@@ -214,7 +214,9 @@ See `docs/upb.md`. Short list:
   Generated handlers see
   `:authority` / `:scheme` / `Request` parts, a deadline Instant that
   elapses, TCP local/remote, Unix `peer_cred`, and `Incoming::peer`
-  stamps on every call shape. That client `grpc-timeout` Instant elapses
+  stamps on every call shape. `serve_connection` / `from_io` leave peer
+  addrs, identity, and `peer_cred` unset on `Request` and `Parts`; `:scheme`
+  follows the peer, including after `https_scheme`. That client `grpc-timeout` Instant elapses
   while the handler runs, including over TLS, mTLS, Unix, and `from_io`. A server interceptor `set_timeout` is the
   handler `Request` / `Parts` timeout and deadline Instant, not the client
   `peer_timeout`, including over TLS, mTLS, Unix, and `from_io`. Stacked

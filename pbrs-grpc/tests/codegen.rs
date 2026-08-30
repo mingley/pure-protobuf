@@ -3865,6 +3865,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Generated handlers see empty peer facts on [`::pbrs_grpc::Request`] / [`::pbrs_grpc::Parts`]; [`::pbrs_grpc::Rpc::scheme`] is the peer's `:scheme`."
+        ),
+        "generated serve_connection rustdoc must name empty Request/Parts peer facts"
+    );
+    assert!(
+        src.contains(
             "Bind `addr` and serve until the listener fails. Applies to every call shape."
         ),
         "generated serve rustdoc must name every call shape"

@@ -36,7 +36,10 @@ reports `:scheme` `http`. `Incoming::accept` still yields
 credentials, transport scheme). Those facts are copied onto every call
 shape on that connection. TLS reports `:scheme` `https` and, on mTLS, the
 verified client chain on every call shape. The default copies the accept address
-and does not probe `Io`. `serve_connection` leaves those fields unset.
+and does not probe `Io`. `serve_connection` leaves those fields unset
+on `Rpc`, and generated handlers see the same empty facts on `Request`
+and `Parts` (the peer's `:scheme` / `:authority` still apply, including
+after `https_scheme`).
 
 ### Dispatch
 

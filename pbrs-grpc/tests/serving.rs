@@ -817,6 +817,12 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::serve_connection and Router::serve_connection must name every call shape"
     );
     assert!(
+        src.contains(
+            "and [`Rpc::peer_cred`] are `None`. Generated handlers see the same\n    /// empty facts on [`Request`] and [`crate::Parts`]."
+        ),
+        "Server::serve_connection must name empty peer facts on Request/Parts"
+    );
+    assert!(
         src.contains("listener-side work fails.\n    /// Applies to every call shape."),
         "Server::serve_with_incoming must name every call shape"
     );
@@ -12517,6 +12523,94 @@ async fn from_io_https_scheme_is_visible_to_interceptors() {
     server.abort();
 }
 
+struct SeesFromIo {
+    authority: &'static str,
+    scheme: &'static str,
+}
+
+impl Greeter for SeesFromIo {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let msg = sees_from_io(request, self.authority, self.scheme)?;
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let _ = sees_from_io(request, self.authority, self.scheme)?;
+        Ok(Response::new(common::reply("ada")))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let msg = sees_from_io(request, self.authority, self.scheme)?;
+        Ok(echo_named_stream(common::name_of_request(&msg)))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _ = sees_from_io(request, self.authority, self.scheme)?;
+        Ok(echo_named_stream("ada".into()))
+    }
+}
+
+#[tokio::test]
+async fn a_generated_handler_sees_from_io_identity() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesFromIo {
+            authority: "my-svc",
+            scheme: "http",
+        })
+        .serve_connection(server_io)
+        .await
+        .ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "my-svc")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_handler_sees_from_io_https_scheme() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesFromIo {
+            authority: "localhost",
+            scheme: "https",
+        })
+        .serve_connection(server_io)
+        .await
+        .ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        )
+        .https_scheme(),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
 #[tokio::test]
 async fn https_scheme_is_a_noop_on_tcp() {
     let (addr, listener) = bind().await;
@@ -14002,6 +14096,39 @@ fn sees_unix<T>(request: Request<T>) -> Result<T, Status> {
     let (msg, parts) = request.into_message_and_parts();
     if parts.peer_cred() != Some(cred) {
         return Err(Status::internal("parts dropped peer_cred"));
+    }
+    Ok(msg)
+}
+
+fn sees_from_io<T>(request: Request<T>, want_auth: &str, want_scheme: &str) -> Result<T, Status> {
+    if request.remote_addr().is_some() || request.local_addr().is_some() {
+        return Err(Status::internal("from_io must not invent TCP addrs"));
+    }
+    if request.peer_identity().is_some() {
+        return Err(Status::internal("from_io must not invent a TLS identity"));
+    }
+    if request.peer_cred().is_some() {
+        return Err(Status::internal("from_io must not invent unix credentials"));
+    }
+    if request.authority() != Some(want_auth) {
+        return Err(Status::internal(format!(
+            "authority {:?}",
+            request.authority()
+        )));
+    }
+    if request.scheme() != Some(want_scheme) {
+        return Err(Status::internal(format!("scheme {:?}", request.scheme())));
+    }
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.authority() != Some(want_auth) || parts.scheme() != Some(want_scheme) {
+        return Err(Status::internal("parts dropped from_io identity"));
+    }
+    if parts.remote_addr().is_some()
+        || parts.local_addr().is_some()
+        || parts.peer_identity().is_some()
+        || parts.peer_cred().is_some()
+    {
+        return Err(Status::internal("parts invented peer facts"));
     }
     Ok(msg)
 }

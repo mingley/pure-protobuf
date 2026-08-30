@@ -833,6 +833,9 @@ stream, `Channel::https_scheme` (and `FooClient::https_scheme`) sends
 `:scheme https`. `Channel::scheme` / `FooClient::scheme` read that overlay.
 `serve_connection` keeps the peer's `:scheme`; a custom
 acceptor that should not trust the preface uses `Incoming::peer`.
+Generated handlers see that empty peer set (`local_addr` / `remote_addr` /
+`peer_identity` / `peer_cred` are `None`) and the peer's `:authority` /
+`:scheme` on `Request` and `Parts`, including after `https_scheme`.
 
 ```rust
 let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
@@ -1318,7 +1321,9 @@ not TLS SNI (`ClientTls` verifies `localhost` separately) — and matches
 the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
 and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a
 transport scheme.
-Generated handlers see the same values on `Request::authority` / `Request::scheme`.
+Generated handlers see the same values on `Request::authority` / `Request::scheme`,
+including `serve_connection` / `from_io` (empty peer facts on `Request` and
+`Parts`; `:scheme` follows the peer, including after `https_scheme`).
 `Rpc::path` is the full `/<service>/<method>`; `Rpc::service` / `Rpc::method`
 are the two halves (unparseable paths yield empty strings). Generated handlers
 see the same values on `Request::path` / `Request::service` / `Request::method`

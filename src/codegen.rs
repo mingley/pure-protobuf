@@ -4393,7 +4393,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Serve a single already-accepted byte stream until it closes. Applies to every call shape."
+        "    /// Serve a single already-accepted byte stream until it closes. Applies to every call shape. Generated handlers see empty peer facts on [`{G}::Request`] / [`{G}::Parts`]; [`{G}::Rpc::scheme`] is the peer's `:scheme`. See [`{G}::Server::serve_connection`]."
     );
     let _ = writeln!(
         src,

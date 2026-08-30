@@ -1705,7 +1705,8 @@ impl<S: Service> Server<S> {
     ///
     /// No accept loop, no TLS, no TCP options. Pair with [`crate::Channel::from_io`].
     /// [`Rpc::remote_addr`], [`Rpc::local_addr`], [`Rpc::peer_identity`],
-    /// and [`Rpc::peer_cred`] are `None`. [`Rpc::scheme`] is the peer's
+    /// and [`Rpc::peer_cred`] are `None`. Generated handlers see the same
+    /// empty facts on [`Request`] and [`crate::Parts`]. [`Rpc::scheme`] is the peer's
     /// `:scheme`. Use [`Self::serve_with_incoming`] and [`Incoming::peer`]
     /// when a custom acceptor already knows those facts.
     ///
