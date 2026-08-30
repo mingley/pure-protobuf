@@ -2829,14 +2829,19 @@ async fn client_interceptors_run_when_the_call_is_created() {
     drop(listener);
 
     let ran = Arc::new(AtomicUsize::new(0));
-    let flag = ran.clone();
-    let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy")).intercept(
-        move |_: &mut Outgoing<'_>| {
-            flag.fetch_add(1, Ordering::SeqCst);
-            Ok(())
-        },
-    );
+    let client = intercept_counts_create(Channel::connect_lazy(addr).expect("lazy"), &ran);
+    assert_interceptors_run_on_create(&client, &ran);
+}
 
+fn intercept_counts_create(channel: Channel, ran: &Arc<AtomicUsize>) -> GreeterClient {
+    let flag = Arc::clone(ran);
+    GreeterClient::new(channel).intercept(move |_: &mut Outgoing<'_>| {
+        flag.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    })
+}
+
+fn assert_interceptors_run_on_create(client: &GreeterClient, ran: &Arc<AtomicUsize>) {
     let unary = client.say_hello(Request::new(req("ada")));
     assert_eq!(
         ran.load(Ordering::SeqCst),
@@ -2870,6 +2875,63 @@ async fn client_interceptors_run_when_the_call_is_created() {
     );
     drop(call);
     drop(tx);
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = intercept_counts_create(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create(&client, &ran);
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = intercept_counts_create(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create(&client, &ran);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_runs_when_the_call_is_created() {
+    let (path, _guard) = unix_test_path();
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client = intercept_counts_create(Channel::connect_unix_lazy(&path).expect("lazy"), &ran);
+    assert_interceptors_run_on_create(&client, &ran);
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_runs_when_the_call_is_created() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client = intercept_counts_create(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+        &ran,
+    );
+    assert_interceptors_run_on_create(&client, &ran);
+    server.abort();
 }
 
 #[tokio::test]

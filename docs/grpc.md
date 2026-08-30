@@ -1361,7 +1361,8 @@ shape.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs when the RPC method is invoked — before the stream opens and before the
-`Call` is polled, for all four call shapes. Closures take `Outgoing`: the method path,
+`Call` is polled, for all four call shapes, on h2c, TLS (including mTLS), Unix,
+and `from_io`. Closures take `Outgoing`: the method path,
 service and method halves (`Outgoing::service` / `Outgoing::method`, same
 split as `Rpc`), `:authority`, `:scheme` (`http` on h2c/Unix/`from_io`, `https`
 when the channel was built with `ClientTls` or when a `from_io` channel called

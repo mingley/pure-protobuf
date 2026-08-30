@@ -110,7 +110,7 @@ See `docs/upb.md`. Short list:
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible
   channel facts. Interceptors run when the RPC method is invoked (all four
-  shapes), not on first poll of the `Call`. Interceptors and generated
+  shapes) on h2c, TLS (including mTLS), Unix, and `from_io`, not on first poll of the `Call`. Interceptors and generated
   handlers see `MessageLimits` on `Rpc::limits` / `Request::limits`, the
   method path on `Rpc::path` / `Request::path`, gzip accept/encoding, and
   the server overlays on `Rpc::compresses_outbound` /
