@@ -1614,7 +1614,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name TCP_NODELAY always-on for TCP"
     );
     assert!(
-        guide.contains("Distinct from tonic, which defaults Nagle off but lets you turn"),
+        guide.contains("Distinct from tonic, which defaults Nagle off"),
         "guide must Distinct TCP_NODELAY from tonic tcp_nodelay setter"
     );
     assert!(
