@@ -1492,7 +1492,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must not claim interceptors cannot rewrite after Ok"
     );
     assert!(
-        guide.contains("Request interceptors run before the handler"),
+        guide.contains("see the handler result."),
         "guide must Distinct request interceptors from on_response"
     );
     assert!(
