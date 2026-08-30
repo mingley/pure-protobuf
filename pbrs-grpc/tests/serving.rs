@@ -24760,3 +24760,113 @@ async fn from_io_extra_rpcs_do_not_wait_when_client_stream_settings_do_not_seria
     .await;
     server.abort();
 }
+
+fn reverser_header_list_cap() -> Server<Reverser> {
+    Server::new(Reverser::new(Arc::new(AtomicUsize::new(0)))).max_header_list_size(1024)
+}
+
+fn reverser_mtls_header_list_cap() -> Server<Reverser> {
+    Server::new(Reverser::mtls(
+        Arc::new(AtomicUsize::new(0)),
+        client_identity().certificates().next().expect("leaf"),
+    ))
+    .max_header_list_size(1024)
+}
+
+fn flood_reverse() -> Request<HelloRequest> {
+    let mut request = Request::new(req("stressed"));
+    request
+        .metadata_mut()
+        .insert("x-flood", "v".repeat(4096))
+        .expect("meta");
+    request
+}
+
+async fn assert_reverser_header_flood_then_echo(flood: Channel, healthy: Channel) {
+    let _ = tokio::time::timeout(
+        Duration::from_secs(2),
+        flood.unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", flood_reverse()),
+    )
+    .await;
+    echo_reverser_every_shape(&healthy).await;
+}
+
+#[tokio::test]
+async fn reverser_header_list_cap_refuses_oversize_metadata() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_header_list_cap()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_header_flood_then_echo(channel(addr).await, channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_reverser_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_reverser_header_flood_then_echo(tls_channel(addr).await, tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_reverser_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_mtls_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reverser_header_flood_then_echo(
+        tls_channel_with(addr, client_tls.clone()).await,
+        tls_channel_with(addr, client_tls).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_reverser_header_list_cap_refuses_oversize_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        reverser_header_list_cap().serve_unix(sock).await.ok();
+    });
+    assert_reverser_header_flood_then_echo(unix_channel(&path).await, unix_channel(&path).await)
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_reverser_header_list_cap_refuses_oversize_metadata() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        reverser_header_list_cap().serve_connection(s1).await.ok();
+    });
+    let flood = Channel::from_io(c1, "localhost")
+        .await
+        .expect("from_io flood");
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        reverser_header_list_cap().serve_connection(s2).await.ok();
+    });
+    let healthy = Channel::from_io(c2, "localhost")
+        .await
+        .expect("from_io healthy");
+    assert_reverser_header_flood_then_echo(flood, healthy).await;
+    server1.abort();
+    server2.abort();
+}

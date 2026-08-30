@@ -188,7 +188,9 @@ See `docs/upb.md`. Short list:
   `ServerReflectionInfo` refuse the same flood then keep serving a healthy
   client. Official TestService EmptyCall / StreamingOutputCall /
   StreamingInputCall / FullDuplexCall refuse the same flood then keep serving
-  a healthy client. `ChannelConfig::max_header_list_size`
+  a healthy client. Hand-written Reverser `Channel` APIs refuse the same flood
+  then keep serving Reverse / Server / Client / Bidi on a healthy client.
+  `ChannelConfig::max_header_list_size`
   refuses oversize response headers or trailers as `UNAVAILABLE` over TLS, mTLS,
   Unix, and `from_io`, distinct from the server inbound cap.
   `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /
