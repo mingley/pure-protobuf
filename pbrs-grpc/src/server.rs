@@ -454,6 +454,7 @@ impl Rpc {
 
     /// Deadline the handler will run under: the soonest of the client's
     /// `grpc-timeout`, [`ServerConfig::timeout`], and [`Self::set_timeout`].
+    /// Response interceptors see the same duration on [`crate::Response::timeout`].
     #[must_use]
     pub fn effective_timeout(&self) -> Option<Duration> {
         crate::wire::soonest(
@@ -665,6 +666,7 @@ impl Rpc {
             path,
             gzip_level,
             deadline,
+            timeout,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -677,7 +679,8 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
-                        .with_deadline(deadline),
+                        .with_deadline(deadline)
+                        .with_timeout(timeout),
                     hook.as_deref(),
                 )
             }) {
@@ -725,6 +728,7 @@ impl Rpc {
             path,
             gzip_level,
             deadline,
+            timeout,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -737,7 +741,8 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
-                        .with_deadline(deadline),
+                        .with_deadline(deadline)
+                        .with_timeout(timeout),
                     hook.as_deref(),
                 )
             }) {
@@ -792,6 +797,7 @@ impl Rpc {
             cancel,
             path,
             gzip_level,
+            timeout,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -804,7 +810,8 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
-                        .with_deadline(deadline),
+                        .with_deadline(deadline)
+                        .with_timeout(timeout),
                     hook.as_deref(),
                 )
             }) {
@@ -866,6 +873,7 @@ impl Rpc {
             cancel,
             path,
             gzip_level,
+            timeout,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -878,7 +886,8 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
-                        .with_deadline(deadline),
+                        .with_deadline(deadline)
+                        .with_timeout(timeout),
                     hook.as_deref(),
                 )
             }) {
@@ -980,6 +989,7 @@ impl Rpc {
             cancel: CancelOnDrop(cancel_tx),
             path,
             gzip_level: config.gzip_level(),
+            timeout,
         })
     }
 
@@ -1064,6 +1074,7 @@ impl Rpc {
             cancel: CancelOnDrop(cancel_tx),
             path,
             gzip_level: config.gzip_level(),
+            timeout,
         })
     }
 }
@@ -1169,6 +1180,7 @@ struct Prepared<T> {
     /// Kernel-stamped onto the handler [`Response`] before `on_response`.
     path: Option<String>,
     gzip_level: u32,
+    timeout: Option<Duration>,
 }
 
 async fn send_unary_response<Resp: Serialize>(
@@ -1851,6 +1863,8 @@ impl<S: Service> Server<S> {
     /// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
     /// Distinct from [`crate::Request::deadline`]: that is the inbound request.
     /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
+    /// [`crate::ResponseParts::timeout`] is the duration stamped at dispatch.
+    /// Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2635,6 +2649,8 @@ impl Router {
     /// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
     /// Distinct from [`crate::Request::deadline`]: that is the inbound request.
     /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
+    /// [`crate::ResponseParts::timeout`] is the duration stamped at dispatch.
+    /// Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {

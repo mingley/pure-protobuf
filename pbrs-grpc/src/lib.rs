@@ -263,6 +263,9 @@
 //! [`Response::deadline`] is kernel-stamped after `Ok`, when writing.
 //! Distinct from [`Request::deadline`].
 //! Distinct from [`Rpc::deadline`].
+//! [`Response::timeout`] is the duration stamped at dispatch, in a response interceptor.
+//! Distinct from [`Response::deadline`].
+//! Distinct from [`Rpc::timeout`].
 //! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block

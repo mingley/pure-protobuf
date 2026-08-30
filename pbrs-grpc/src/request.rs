@@ -1694,6 +1694,7 @@ pub struct Response<T> {
     compresses_outbound: bool,
     accepts_gzip: bool,
     deadline: Option<tokio::time::Instant>,
+    timeout: Option<Duration>,
     extensions: http::Extensions,
 }
 
@@ -1712,6 +1713,7 @@ impl<T> Response<T> {
             compresses_outbound: false,
             accepts_gzip: false,
             deadline: None,
+            timeout: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -1744,6 +1746,7 @@ impl<T> Response<T> {
                 compresses_outbound: self.compresses_outbound,
                 accepts_gzip: self.accepts_gzip,
                 deadline: self.deadline,
+                timeout: self.timeout,
                 extensions: self.extensions,
             },
         )
@@ -1763,6 +1766,7 @@ impl<T> Response<T> {
             compresses_outbound: parts.compresses_outbound,
             accepts_gzip: parts.accepts_gzip,
             deadline: parts.deadline,
+            timeout: parts.timeout,
             extensions: parts.extensions,
         }
     }
@@ -2036,6 +2040,33 @@ impl<T> Response<T> {
         self.deadline
     }
 
+    pub(crate) fn with_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// Effective timeout duration stamped at dispatch, when the kernel is writing this reply.
+    ///
+    /// Same duration as [`crate::Request::timeout`] after dispatch. This duration does not shrink.
+    /// Distinct from [`crate::Request::timeout`]: that is the inbound request.
+    /// Distinct from [`Self::deadline`]: that is the Instant; this duration does not shrink.
+    /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the effective duration.
+    /// Distinct from [`crate::Rpc::effective_timeout`]: that is computed when that getter runs.
+    /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the effective cap.
+    /// Distinct from [`crate::Request::peer_timeout`]: that is the client's `grpc-timeout`.
+    /// Distinct from [`crate::Outgoing::timeout`]: that is a client interceptor duration.
+    /// `None` on a response you built or a received reply (the peer timeout is not on the reply wire).
+    /// An interceptor cannot change this; the kernel still enforces [`Self::deadline`] when writing.
+    ///
+    /// ```
+    /// let resp = pbrs_grpc::Response::new(());
+    /// assert!(resp.timeout().is_none());
+    /// ```
+    #[must_use]
+    pub fn timeout(&self) -> Option<Duration> {
+        self.timeout
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
@@ -2048,6 +2079,7 @@ impl<T> Response<T> {
             compresses_outbound: false,
             accepts_gzip: false,
             deadline: None,
+            timeout: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -2069,6 +2101,7 @@ impl<T> Response<T> {
             compresses_outbound: false,
             accepts_gzip: false,
             deadline: None,
+            timeout: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -2098,6 +2131,7 @@ pub struct ResponseParts {
     compresses_outbound: bool,
     accepts_gzip: bool,
     deadline: Option<tokio::time::Instant>,
+    timeout: Option<Duration>,
     extensions: http::Extensions,
 }
 
@@ -2204,6 +2238,12 @@ impl ResponseParts {
         self.deadline
     }
 
+    /// Duration stamped at dispatch. See [`Response::timeout`].
+    #[must_use]
+    pub fn timeout(&self) -> Option<Duration> {
+        self.timeout
+    }
+
     /// Typed values on this envelope. See [`Response::extensions`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
@@ -2231,6 +2271,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("compresses_outbound", &self.compresses_outbound)
             .field("accepts_gzip", &self.accepts_gzip)
             .field("deadline", &self.deadline)
+            .field("timeout", &self.timeout)
             .field("extensions", &self.extensions.len())
             .finish()
     }
@@ -2644,13 +2685,15 @@ mod tests {
         assert!(!mapped.compresses_outbound());
         assert!(!mapped.accepts_gzip());
         assert!(mapped.deadline().is_none());
+        assert!(mapped.timeout().is_none());
         let at = tokio::time::Instant::now() + Duration::from_secs(5);
         let stamped = mapped
             .with_path(Some("/helloworld.Greeter/SayHello".into()))
             .with_gzip_level(9)
             .with_compresses_outbound(true)
             .with_accepts_gzip(true)
-            .with_deadline(Some(at));
+            .with_deadline(Some(at))
+            .with_timeout(Some(Duration::from_secs(5)));
         assert_eq!(stamped.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(stamped.service(), Some("helloworld.Greeter"));
         assert_eq!(stamped.method(), Some("SayHello"));
@@ -2658,6 +2701,7 @@ mod tests {
         assert!(stamped.compresses_outbound());
         assert!(stamped.accepts_gzip());
         assert_eq!(stamped.deadline(), Some(at));
+        assert_eq!(stamped.timeout(), Some(Duration::from_secs(5)));
         let (n, mut parts) = stamped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
@@ -2670,6 +2714,7 @@ mod tests {
         assert!(parts.compresses_outbound());
         assert!(parts.accepts_gzip());
         assert_eq!(parts.deadline(), Some(at));
+        assert_eq!(parts.timeout(), Some(Duration::from_secs(5)));
         parts.set_compress(false);
         parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
@@ -2688,6 +2733,7 @@ mod tests {
         assert!(rebuilt.compresses_outbound());
         assert!(rebuilt.accepts_gzip());
         assert_eq!(rebuilt.deadline(), Some(at));
+        assert_eq!(rebuilt.timeout(), Some(Duration::from_secs(5)));
         let shown = format!("{rebuilt:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
@@ -2696,6 +2742,7 @@ mod tests {
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
+        assert!(shown.contains("timeout: Some("), "{shown}");
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));
@@ -2712,6 +2759,7 @@ mod tests {
         assert!(!Response::new(0u32).compresses_outbound());
         assert!(!Response::new(0u32).accepts_gzip());
         assert!(Response::new(0u32).deadline().is_none());
+        assert!(Response::new(0u32).timeout().is_none());
     }
 
     #[test]

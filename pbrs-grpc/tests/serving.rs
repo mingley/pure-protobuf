@@ -941,6 +941,71 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::deadline must name kernel enforcement when writing"
     );
     assert!(
+        outgoing.contains(
+            "Effective timeout duration stamped at dispatch, when the kernel is writing this reply."
+        ),
+        "Response::timeout must name duration stamped at dispatch when writing"
+    );
+    assert!(
+        outgoing.contains(
+            "Same duration as [`crate::Request::timeout`] after dispatch. This duration does not shrink."
+        ),
+        "Response::timeout must name the Request duration"
+    );
+    assert!(
+        outgoing
+            .contains("Distinct from [`crate::Request::timeout`]: that is the inbound request."),
+        "Response::timeout must Distinct inbound Request::timeout"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::deadline`]: that is the Instant; this duration does not shrink."
+        ),
+        "Response::timeout must Distinct deadline Instant"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the effective duration."
+        ),
+        "Response::timeout must Distinct Rpc interceptor cap"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::effective_timeout`]: that is computed when that getter runs."
+        ),
+        "Response::timeout must Distinct Rpc::effective_timeout computed getter"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the effective cap."
+        ),
+        "Response::timeout must Distinct Rpc::rpc_timeout overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Request::peer_timeout`]: that is the client's `grpc-timeout`."
+        ),
+        "Response::timeout must Distinct Request::peer_timeout"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::timeout`]: that is a client interceptor duration."
+        ),
+        "Response::timeout must Distinct Outgoing duration"
+    );
+    assert!(
+        outgoing.contains(
+            "`None` on a response you built or a received reply (the peer timeout is not on the reply wire)."
+        ),
+        "Response::timeout must name None on a received reply"
+    );
+    assert!(
+        outgoing.contains(
+            "An interceptor cannot change this; the kernel still enforces [`Self::deadline`] when writing."
+        ),
+        "Response::timeout must name kernel enforcement of deadline when writing"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -1254,6 +1319,16 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct Rpc::deadline computed getter"
     );
     assert!(
+        intercept
+            .contains("[`crate::ResponseParts::timeout`] is the duration stamped at dispatch."),
+        "ResponseInterceptor rustdoc must name timeout duration stamped at dispatch"
+    );
+    assert!(
+        intercept
+            .contains("Distinct from [`crate::ResponseParts::deadline`]: that is the Instant."),
+        "ResponseInterceptor rustdoc must Distinct timeout from deadline Instant"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
@@ -1314,6 +1389,12 @@ fn channel_call_apis_document_hand_written_services() {
             "[`crate::Response::deadline`] on a received reply is `None` (the peer deadline is not on the wire)."
         ),
         "Channel::on_response must name received deadline is None"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Response::timeout`] on a received reply is `None` (the peer timeout is not on the reply wire)."
+        ),
+        "Channel::on_response must name received timeout is None"
     );
     assert!(
         src.contains(
@@ -2535,6 +2616,20 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Response::deadline from Rpc::deadline"
     );
     assert!(
+        crate_src.contains(
+            "[`Response::timeout`] is the duration stamped at dispatch, in a response interceptor"
+        ),
+        "crate docs must name Response::timeout as duration stamped at dispatch"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Response::deadline`]"),
+        "crate docs must Distinct Response::timeout from Response::deadline"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::timeout`]"),
+        "crate docs must Distinct Response::timeout from Rpc::timeout"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2949,6 +3044,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Response::deadline` is kernel-stamped after `Ok`, when writing. Distinct from `Request::deadline` (inbound). Distinct from `Rpc::deadline` (computed when that getter runs). An interceptor cannot change it."),
         "guide must name Response::deadline as kernel-stamped when writing"
+    );
+    assert!(
+        guide.contains("`Response::timeout` is the duration stamped at dispatch, in a response interceptor. Distinct from `deadline` (Instant). Distinct from `Rpc::timeout` (interceptor cap). An interceptor cannot change it."),
+        "guide must name Response::timeout as duration stamped at dispatch"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -3536,6 +3635,18 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::on_response and Router::on_response must Distinct Rpc::deadline computed getter"
     );
     assert_eq!(
+        src.matches("[`crate::ResponseParts::timeout`] is the duration stamped at dispatch.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must name timeout duration stamped at dispatch"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct timeout from deadline Instant"
+    );
+    assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         )
@@ -3606,6 +3717,12 @@ fn server_and_router_config_document_every_call_shape() {
             "Response interceptors see the same Instant as [`Request::deadline`] on [`crate::Response::deadline`]."
         ),
         "Rpc::deadline must name the Response interceptor stamp"
+    );
+    assert!(
+        src.contains(
+            "Response interceptors see the same duration on [`crate::Response::timeout`]."
+        ),
+        "Rpc::effective_timeout must name the Response interceptor stamp"
     );
     assert!(
         src.contains("Generated handlers see the same value on [`Request::accepts_compressed`]."),
@@ -21603,6 +21720,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         reply.deadline().is_none(),
         "received reply must not carry peer deadline Instant"
     );
+    assert!(
+        reply.timeout().is_none(),
+        "received reply must not carry peer timeout duration"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let reply = client
@@ -21629,6 +21750,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         reply.deadline().is_none(),
         "received stream must not carry peer deadline Instant"
+    );
+    assert!(
+        reply.timeout().is_none(),
+        "received stream must not carry peer timeout duration"
     );
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
@@ -21661,6 +21786,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         reply.deadline().is_none(),
         "received client-stream must not carry peer deadline Instant"
     );
+    assert!(
+        reply.timeout().is_none(),
+        "received client-stream must not carry peer timeout duration"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(Request::new(()));
@@ -21684,6 +21813,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         reply.deadline().is_none(),
         "received bidi must not carry peer deadline Instant"
+    );
+    assert!(
+        reply.timeout().is_none(),
+        "received bidi must not carry peer timeout duration"
     );
     let mut inbound = reply.into_inner();
     let framed = inbound
@@ -25836,6 +25969,9 @@ fn require_response_gzip_level(parts: &mut ResponseParts) -> Result<(), Status> 
     }
     if parts.deadline().is_none() {
         return Err(Status::internal("response deadline Instant"));
+    }
+    if parts.timeout() != Some(Duration::from_secs(5)) {
+        return Err(Status::internal("response timeout duration"));
     }
     Ok(())
 }

@@ -103,6 +103,8 @@ where
 /// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
 /// Distinct from [`crate::Request::deadline`]: that is the inbound request.
 /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
+/// [`crate::ResponseParts::timeout`] is the duration stamped at dispatch.
+/// Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -576,6 +578,7 @@ mod tests {
         assert!(!resp.compresses_outbound());
         assert!(!resp.accepts_gzip());
         assert!(resp.deadline().is_none());
+        assert!(resp.timeout().is_none());
     }
 
     #[test]
@@ -588,6 +591,7 @@ mod tests {
             assert!(parts.compresses_outbound());
             assert!(parts.accepts_gzip());
             assert!(parts.deadline().is_some());
+            assert_eq!(parts.timeout(), Some(std::time::Duration::from_secs(5)));
             Ok(())
         }
         let at = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
@@ -597,7 +601,8 @@ mod tests {
                 .with_gzip_level(9)
                 .with_compresses_outbound(true)
                 .with_accepts_gzip(true)
-                .with_deadline(Some(at)),
+                .with_deadline(Some(at))
+                .with_timeout(Some(std::time::Duration::from_secs(5))),
             Some(&require_path),
         )
         .expect("path");
@@ -608,6 +613,7 @@ mod tests {
         assert!(resp.compresses_outbound());
         assert!(resp.accepts_gzip());
         assert_eq!(resp.deadline(), Some(at));
+        assert_eq!(resp.timeout(), Some(std::time::Duration::from_secs(5)));
         let shown = format!("{resp:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
@@ -616,6 +622,7 @@ mod tests {
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
+        assert!(shown.contains("timeout: Some("), "{shown}");
         assert!(crate::Response::new(0u32).path().is_none());
         assert!(crate::Response::new(0u32).service().is_none());
         assert!(crate::Response::new(0u32).method().is_none());
@@ -626,5 +633,6 @@ mod tests {
         assert!(!crate::Response::new(0u32).compresses_outbound());
         assert!(!crate::Response::new(0u32).accepts_gzip());
         assert!(crate::Response::new(0u32).deadline().is_none());
+        assert!(crate::Response::new(0u32).timeout().is_none());
     }
 }
