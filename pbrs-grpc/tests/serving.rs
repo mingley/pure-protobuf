@@ -22707,3 +22707,146 @@ async fn from_io_channel_call_message_caps_are_resource_exhausted() {
     assert_channel_call_message_caps(channel).await;
     server.abort();
 }
+
+async fn assert_test_client_encode_cap(client: &TestServiceClient) {
+    let mut unary = SimpleRequest::new();
+    unary.set_payload(fat_test_payload());
+    let err = client
+        .unary_call(Request::new(unary))
+        .await
+        .expect_err("unary encode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let mut out = StreamingOutputCallRequest::new();
+    out.set_payload(fat_test_payload());
+    match client.streaming_output_call(Request::new(out)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(_) => panic!("server-stream TestService client encode cap must fail before headers"),
+    }
+
+    let mut input = StreamingInputCallRequest::new();
+    input.set_payload(fat_test_payload());
+    let (tx, call) = client.streaming_input_call(Request::new(()));
+    let err = tx.send(input).await.expect_err("client-stream send");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    drop(call);
+
+    let mut bidi = StreamingOutputCallRequest::new();
+    bidi.set_payload(fat_test_payload());
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    let err = tx.send(bidi).await.expect_err("bidi send");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    drop(call);
+}
+
+async fn assert_test_client_decode_cap(client: &TestServiceClient) {
+    // EmptyCall / StreamingInputCall replies stay under 16 bytes.
+    let err = client
+        .unary_call(Request::new(fat_test_response()))
+        .await
+        .expect_err("unary decode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    match client
+        .streaming_output_call(Request::new(fat_test_output_plan()))
+        .await
+    {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream TestService client decode cap must fail"),
+        },
+    }
+
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    tx.send(fat_test_output_plan()).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi TestService client decode cap must fail"),
+        },
+    }
+}
+
+async fn assert_test_client_message_caps(client: TestServiceClient) {
+    assert_test_client_encode_cap(&client.clone().max_encoding_message_size(16)).await;
+    assert_test_client_decode_cap(&client.max_decoding_message_size(16)).await;
+}
+
+#[tokio::test]
+async fn test_service_client_message_caps_are_resource_exhausted() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_client_message_caps(TestServiceClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_tls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_test_client_message_caps(TestServiceClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_mtls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_test_client_message_caps(TestServiceClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_client_message_caps_are_resource_exhausted() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_test_client_message_caps(TestServiceClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_client_message_caps_are_resource_exhausted() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_test_client_message_caps(TestServiceClient::new(channel)).await;
+    server.abort();
+}

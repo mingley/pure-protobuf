@@ -136,7 +136,11 @@ See `docs/upb.md`. Short list:
   from the reflection server decoding cap. Hand-written `Channel::unary` /
   `server_streaming` / `client_streaming` / `bidi` honor those same client
   caps as `RESOURCE_EXHAUSTED` on every call shape over TLS, mTLS, Unix, and
-  `from_io`, distinct from generated GreeterClient wrappers. TLS
+  `from_io`, distinct from generated GreeterClient wrappers. A TestServiceClient
+  `max_encoding_message_size` / `max_decoding_message_size` is
+  `RESOURCE_EXHAUSTED` on UnaryCall / StreamingOutputCall / StreamingInputCall
+  / FullDuplexCall over those transports, distinct from the TestService server
+  add_service caps. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
