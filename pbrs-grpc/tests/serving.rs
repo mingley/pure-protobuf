@@ -569,7 +569,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
-            "overwrite a hop with [`crate::Metadata::set`]; those mutations reach the\n/// handler on h2c, TLS including mTLS, Unix, and [`crate::Channel::from_io`]"
+            "overwrite a hop with [`crate::Metadata::set`] / [`crate::Metadata::set_bin`];\n/// those mutations reach the\n/// handler on h2c, TLS including mTLS, Unix, and [`crate::Channel::from_io`]"
         ),
         "Interceptor rustdoc must name set/remove/retain on every transport"
     );
@@ -7059,10 +7059,22 @@ fn actor_is_kernel<T>(request: Request<T>) -> Result<T, Status> {
     if actors != ["kernel"] {
         return Err(Status::internal(format!("x-actor {actors:?}")));
     }
+    if request.metadata().get_bin("x-actor-bin").as_deref() != Some(&[9u8][..]) {
+        return Err(Status::internal(format!(
+            "x-actor-bin {:?}",
+            request.metadata().get_bin("x-actor-bin")
+        )));
+    }
     let (msg, parts) = request.into_message_and_parts();
     let actors: Vec<_> = parts.metadata().get_all("x-actor").collect();
     if actors != ["kernel"] {
         return Err(Status::internal(format!("parts x-actor {actors:?}")));
+    }
+    if parts.metadata().get_bin("x-actor-bin").as_deref() != Some(&[9u8][..]) {
+        return Err(Status::internal(format!(
+            "parts x-actor-bin {:?}",
+            parts.metadata().get_bin("x-actor-bin")
+        )));
     }
     Ok(msg)
 }
@@ -7111,6 +7123,7 @@ impl pbrs_grpc::Greeter for ActorEcho {
 
 fn interceptor_inject_actor(rpc: &mut Rpc) -> Result<(), Status> {
     rpc.metadata_mut().set("x-actor", "kernel")?;
+    rpc.metadata_mut().set_bin("x-actor-bin", [9u8])?;
     Ok(())
 }
 
@@ -7119,6 +7132,10 @@ fn smuggled_actor<T>(mut request: Request<T>) -> Request<T> {
         .metadata_mut()
         .insert("x-actor", "smuggled")
         .expect("metadata");
+    request
+        .metadata_mut()
+        .insert_bin("x-actor-bin", [1u8])
+        .expect("bin");
     request
 }
 

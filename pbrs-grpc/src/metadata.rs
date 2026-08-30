@@ -178,7 +178,9 @@ impl Metadata {
 
     /// Replace every `-bin` entry for `key` with `value`.
     ///
-    /// [`Self::insert_bin`] appends. Validation matches [`Self::insert_bin`]:
+    /// [`Self::insert_bin`] appends. This is the last-write-wins form an
+    /// interceptor uses when it owns a `-bin` hop. Validation matches
+    /// [`Self::insert_bin`]:
     /// reserved names and non-`-bin` keys are rejected, and a failed call
     /// leaves the map unchanged.
     pub fn set_bin(&mut self, key: impl AsRef<str>, value: impl AsRef<[u8]>) -> Result<(), Status> {
