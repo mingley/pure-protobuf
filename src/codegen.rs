@@ -4827,7 +4827,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent. A local [`{G}::Status::with_error_details`] is [`{G}::Status::rpc`] / [`{G}::Status::error_details`] on that Call for every call shape. [`{G}::Outgoing::set_timeout`] is that Call's deadline on every call shape. `clear_timeout` opts out of the channel timeout on every call shape. `clear_compress` then `set_compress(compresses_outbound())` reapplies channel gzip on every call shape. Outgoing getters apply to every call shape."
+        "    /// Run `interceptor` on every outbound RPC before the stream opens. Invoked when the generated method is called, not on first poll of the [`{G}::Call`]. `Err` fails that Call on poll, including [`{G}::Status::with_error_details`]; nothing is sent. A local [`{G}::Status::with_error_details`] is [`{G}::Status::rpc`] / [`{G}::Status::error_details`] on that Call for every call shape. [`{G}::Outgoing::set_timeout`] is that Call's deadline on every call shape. `clear_timeout` opts out of the channel timeout on every call shape. `clear_compress` then `set_compress(compresses_outbound())` reapplies channel gzip on every call shape. `set_compress` stamps [`{G}::StreamSender::compress`] on client-streaming and bidi request streams. Outgoing getters apply to every call shape."
     );
     let _ = writeln!(
         src,

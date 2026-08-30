@@ -2258,6 +2258,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client intercept rustdoc must name gzip reapply after clear"
     );
     assert!(
+        src.contains(
+            "`set_compress` stamps [`::pbrs_grpc::StreamSender::compress`] on client-streaming and bidi request streams."
+        ),
+        "generated client intercept rustdoc must name StreamSender gzip stamp"
+    );
+    assert!(
         src.contains("dropping a streaming Call resets the stream"),
         "client-streaming and bidi pairs must be must_use"
     );

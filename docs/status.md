@@ -124,7 +124,10 @@ See `docs/upb.md`. Short list:
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress (a client interceptor `set_compress(true)` gzips, and
   `set_compress(false)` opts out of `send_compressed`, on
-  h2c, TLS including mTLS, Unix, and `from_io`), and the channel overlays
+  h2c, TLS including mTLS, Unix, and `from_io`; `set_compress(true)` also stamps
+  `StreamSender::compress` on client-streaming and bidi — unary and
+  server-streaming have no request `StreamSender` — on those transports plus
+  `from_io`), and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
   after `clear_*` on h2c, TLS including mTLS, and Unix lazy dialers (fail-fast
   after `clear_wait_for_ready`) and on `from_io` (already connected; the RPC

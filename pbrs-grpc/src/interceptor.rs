@@ -177,7 +177,9 @@ impl<S: Service> ServiceExt for S {}
 /// shape. [`crate::Outgoing::clear_timeout`] opts out of the channel timeout
 /// on every call shape. [`crate::Outgoing::clear_compress`] then
 /// [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`]
-/// reapplies channel gzip on every call shape. Outgoing getters apply to
+/// reapplies channel gzip on every call shape. [`crate::Outgoing::set_compress`]
+/// stamps [`crate::StreamSender::compress`] on client-streaming and bidi
+/// request streams. Outgoing getters apply to
 /// every call shape.
 ///
 /// ```

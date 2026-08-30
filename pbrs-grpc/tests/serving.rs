@@ -532,6 +532,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "stamps [`crate::StreamSender::compress`] on client-streaming and bidi\n    /// request streams."
+        ),
+        "Channel::intercept must name StreamSender gzip stamp on request streams"
+    );
+    assert!(
+        src.contains(
             "[`crate::Outgoing::clear_timeout`] opts out of the\n    /// channel timeout on every call shape."
         ),
         "Channel::intercept must name clear_timeout opt-out"
@@ -548,6 +554,12 @@ fn channel_call_apis_document_hand_written_services() {
             "[`crate::Outgoing::clear_timeout`] opts out of the channel timeout\n/// on every call shape."
         ),
         "ClientInterceptor rustdoc must name clear_timeout opt-out"
+    );
+    assert!(
+        intercept.contains(
+            "stamps [`crate::StreamSender::compress`] on client-streaming and bidi\n/// request streams."
+        ),
+        "ClientInterceptor rustdoc must name StreamSender gzip stamp"
     );
     assert!(
         src.contains(
@@ -11031,10 +11043,12 @@ async fn a_client_interceptor_can_gzip_request_streams() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        call.set_compress(true);
-        Ok(())
-    });
+    let client = GreeterClient::new(channel(addr).await).intercept(interceptor_set_compress);
+    gzip_request_streams(&client).await;
+    task.abort();
+}
+
+async fn gzip_request_streams(client: &GreeterClient) {
     let (tx, call) = client.client_hello(Request::new(()));
     assert!(tx.compress(), "interceptor must stamp StreamSender");
     tx.send(req("ada")).await.expect("send");
@@ -11049,7 +11063,70 @@ async fn a_client_interceptor_can_gzip_request_streams() {
     let mut inbound = call.await.expect("gzip bidi").into_inner();
     let reply = inbound.message().await.expect("msg").expect("item");
     assert_eq!(name_of(&reply), "gzip");
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_can_gzip_request_streams() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await).intercept(interceptor_set_compress);
+    gzip_request_streams(&client).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_can_gzip_request_streams() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(interceptor_set_compress);
+    gzip_request_streams(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_can_gzip_request_streams() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await).intercept(interceptor_set_compress);
+    gzip_request_streams(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_can_gzip_request_streams() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_set_compress);
+    gzip_request_streams(&client).await;
+    server.abort();
 }
 
 struct OptOutGzip;
