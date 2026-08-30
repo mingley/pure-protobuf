@@ -4767,6 +4767,18 @@ fn server_and_router_config_document_every_call_shape() {
         2,
         "Server::on_response and Router::on_response must name kernel-stamped path"
     );
+    assert!(
+        src.contains("server.on_response(|parts: &mut pbrs_grpc::ResponseParts| {"),
+        "Server::on_response rustdoc example must attach a closure"
+    );
+    assert!(
+        src.contains("///         parts.path(),"),
+        "Server::on_response rustdoc example must read path"
+    );
+    assert!(
+        src.contains("///         parts.send_buffer_size(),"),
+        "Server::on_response rustdoc example must read send_buffer_size"
+    );
     assert_eq!(
         src.matches("Distinct from [`crate::Request::path`]: that is the inbound request.")
             .count(),

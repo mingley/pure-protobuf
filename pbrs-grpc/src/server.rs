@@ -1958,6 +1958,27 @@ impl<S: Service> Server<S> {
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
     /// service.
+    ///
+    /// ```
+    /// # fn demo<S: pbrs_grpc::Service>(server: pbrs_grpc::Server<S>) -> pbrs_grpc::Server<S> {
+    /// server.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
+    ///     let _ = (
+    ///         parts.path(),
+    ///         parts.gzip_level(),
+    ///         parts.compresses_outbound(),
+    ///         parts.accepts_gzip(),
+    ///         parts.deadline(),
+    ///         parts.timeout(),
+    ///         parts.limits(),
+    ///         parts.peer_timeout(),
+    ///         parts.rpc_timeout(),
+    ///         parts.accepts_compressed(),
+    ///         parts.send_buffer_size(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {
         self.response_interceptor = Some(match self.response_interceptor {
