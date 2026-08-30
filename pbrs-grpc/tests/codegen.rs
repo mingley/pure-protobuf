@@ -4681,6 +4681,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         src.contains("[`Self::send_buffer_size`], and [`Self::limits`] read that overlay without colliding with the setters."),
         "generated client rustdoc must name limits as a colliding-free overlay getter"
     );
+    assert!(
+        src.contains("[`Self::send_buffer_size`], and [`Self::limits`] read the server overlay without colliding with the setters."),
+        "generated server rustdoc must name limits as a colliding-free overlay getter"
+    );
 }
 
 fn store_decode_cap() -> StoreServer<MemStore> {

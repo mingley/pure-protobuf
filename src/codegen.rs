@@ -3956,6 +3956,11 @@ fn emit_kernel_server(
     svc: &ServiceDescriptor,
 ) {
     let _ = writeln!(src, "/// Serves an implementation of [`{trait_name}`].");
+    let _ = writeln!(src, "///");
+    let _ = writeln!(
+        src,
+        "/// [`Self::rpc_timeout`], [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], [`Self::send_buffer_size`], and [`Self::limits`] read the server overlay without colliding with the setters. Same getters as [`{G}::Server`] / [`{G}::Router`]."
+    );
     let _ = writeln!(src, "pub struct {server}<T> {{");
     let _ = writeln!(src, "    inner: ::std::sync::Arc<T>,");
     let _ = writeln!(src, "    config: {G}::ServerConfig,");
