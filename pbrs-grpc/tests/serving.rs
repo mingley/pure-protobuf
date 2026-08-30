@@ -3694,6 +3694,20 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Response send_buffer_size"
     );
     assert!(
+        architecture.contains("`stream_buffer_size`, `send_buffer_size`, and `limits` read"),
+        "architecture must name FooClient send-buffer and limits overlay getters"
+    );
+    assert!(
+        architecture.contains("`FooServer::rpc_timeout`, `compresses_outbound`, `gzip_level`,"),
+        "architecture must name FooServer gzip_level overlay getter"
+    );
+    assert!(
+        architecture.contains(
+            "`limits` (also `Server` / `Router`) read the same overlays as `server_config`."
+        ),
+        "architecture must name FooServer/Server/Router limits overlay getters"
+    );
+    assert!(
         architecture.contains("Closures see `ResponseParts::send_buffer_size` (write-time HTTP/2 send buffer overlay)."),
         "architecture must name ResponseParts::send_buffer_size in on_response closures"
     );

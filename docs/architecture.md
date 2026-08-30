@@ -140,14 +140,17 @@ the peer sees on every call shape, including over TLS, mTLS, Unix, and
 `Outgoing::set_user_agent` prefixes this RPC (kernel suffix stays).
 `Request::set_user_agent` is the same prefix at the call site; an interceptor
 that then calls `Outgoing::set_user_agent` wins.
-`FooClient::rpc_timeout`, `waits_for_ready`, and `compresses_outbound` read
+`FooClient::rpc_timeout`, `waits_for_ready`, `compresses_outbound`,
+`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`,
+`stream_buffer_size`, `send_buffer_size`, and `limits` read
 the same overlays as the channel (the setter names cannot collide).
 `Channel::unary` / `server_streaming` / `client_streaming` / `bidi` are
 first-class for a hand-written `Service`; generated clients call the same
 methods. Unknown methods on that `Service` are `UNIMPLEMENTED` on every
 call shape, including over TLS, mTLS, Unix, and `from_io`.
-`FooServer::rpc_timeout` and `compresses_outbound` (also `Server` / `Router`)
-read the same overlays as `server_config`.
+`FooServer::rpc_timeout`, `compresses_outbound`, `gzip_level`,
+`accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, and
+`limits` (also `Server` / `Router`) read the same overlays as `server_config`.
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
 after headers does not end the stream, including over TLS, mTLS, Unix, and
 `from_io`. Dropping the `Streaming` before the end does reset it, including
