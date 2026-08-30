@@ -370,6 +370,21 @@ client-streaming upload (2000 × 1 KiB), best of eight rounds after warmup.
 This is a loopback capture in `scripts/grpc-server-bench.sh`; it is not the
 4-core Xeon unary tables above.
 
+This host, three rounds, kernel client, two servers in separate processes.
+Reported, not gated. Later rounds are noisier on a contended machine.
+
+| Round | Server | ping_pong rps | upload msgs/s |
+|---|---|---:|---:|
+| 1 | **kernel** | **57899** | **695945** |
+| 1 | grpc-go | 40998 | 538945 |
+| 2 | **kernel** | **58259** | **874125** |
+| 2 | grpc-go | 9522 | 464726 |
+| 3 | **kernel** | **14103** | **823888** |
+| 3 | grpc-go | 7681 | 315210 |
+
+Best of three: ping_pong **58259** vs 40998 (~1.42x), upload **874125** vs
+538945 (~1.62x). These numbers are not the Xeon tables.
+
 ```bash
 ./scripts/grpc-server-bench.sh
 ```

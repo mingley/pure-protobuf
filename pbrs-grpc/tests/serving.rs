@@ -1268,7 +1268,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "benchmarks.md must keep ping_pong/upload vs grpc-go as a loopback axis"
     );
     assert!(
-        benches.contains("it is not the 4-core Xeon unary tables above."),
+        benches.contains("loopback capture in `scripts/grpc-server-bench.sh`"),
         "benchmarks.md grpc-go ping_pong/upload must Distinct loopback from the Xeon unary tables"
     );
 }
