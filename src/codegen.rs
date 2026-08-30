@@ -4927,6 +4927,10 @@ fn emit_kernel_client(
                 src,
                 "    /// A [`{G}::CallHandle`] taken before await cancels the RPC."
             );
+            let _ = writeln!(
+                src,
+                "    /// OK-path custom trailers land on [`{G}::Response::trailers`]; a `-bin` trailer must not appear as a header, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
+            );
         }
         if m.server_streaming {
             let _ = writeln!(
@@ -4941,6 +4945,10 @@ fn emit_kernel_client(
                 src,
                 "    /// Letting the deadline fire RSTs the send half before headers and after headers the same way."
             );
+            let _ = writeln!(
+                src,
+                "    /// [`{G}::Streaming::trailers`] waits for end-of-stream, including when called before draining messages. A non-OK trailing `grpc-status` is `Err`. A `-bin` trailer must not appear as a header, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
+            );
         }
         if m.client_streaming && !m.server_streaming {
             let _ = writeln!(
@@ -4954,6 +4962,10 @@ fn emit_kernel_client(
             let _ = writeln!(
                 src,
                 "    /// Dropping the [`{G}::Call`] or letting its deadline fire after that half-close resets the same way."
+            );
+            let _ = writeln!(
+                src,
+                "    /// OK-path custom trailers land on [`{G}::Response::trailers`]; a `-bin` trailer must not appear as a header, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
             );
             let _ = writeln!(
                 src,

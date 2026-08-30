@@ -188,7 +188,9 @@ window rather than filling a buffer you own.
 
 `Streaming::trailers().await` waits for end-of-stream, discarding unread
 messages, and returns the trailing metadata. You can call it without
-draining first. A non-OK trailing `grpc-status` is `Err`.
+draining first. A non-OK trailing `grpc-status` is `Err`. A `-bin`
+trailer must not appear as a header. That split holds on every call
+shape, including over TLS, mTLS, Unix, and `from_io`.
 
 A handler is free to ignore its request stream entirely and answer straight
 away; the RPC terminates normally.
@@ -317,9 +319,10 @@ resp.trailers_mut().insert("x-rows-scanned", "1742")?;
 
 On a unary response the client reads that map with `Response::trailers()`.
 On a stream, `Streaming::trailers().await` waits until the RPC ends, then
-returns the same map. Initial headers (`Response::metadata`) and OK-path
+returns the same map — including when you call it before draining
+messages. Initial headers (`Response::metadata`) and OK-path
 custom trailers apply to every call shape; a `-bin` trailer must not appear
-as a header.
+as a header, including over TLS, mTLS, Unix, and `from_io`.
 
 A reply you want to rewrite without losing headers splits the same way as a
 request: `Response::into_message_and_parts` yields `ResponseParts` (initial

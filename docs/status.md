@@ -95,7 +95,12 @@ See `docs/upb.md`. Short list:
 - Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop
   (`empty_unary` … `unimplemented_service`, plus the four gzip cases,
   including mixed `server_compressed_streaming`) is locked against
-  `InteropTestService` over h2c, TLS, mTLS, Unix, and `from_io`. TLS
+  `InteropTestService` over h2c, TLS, mTLS, Unix, and `from_io`. Greeter
+  OK-path custom `-bin` trailers land on `Response::trailers` (unary and
+  client-streaming) and `Streaming::trailers` (server-streaming and bidi,
+  including when called before draining messages); a `-bin` trailer must not
+  appear as a header, including over those transports. A non-OK trailing
+  `grpc-status` is `Err` from `Streaming::trailers` on those transports. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
@@ -304,6 +309,12 @@ See `docs/upb.md`. Short list:
   Official `cancel_after_begin` (cancel a client-streaming `Call` before any
   request message, while still holding the sender) is `CANCELLED`, not OK
   from a half-close, including over TLS, mTLS, Unix, and `from_io`.
+  Greeter OK-path custom `-bin` trailers land on `Response::trailers` on
+  unary and client-streaming and on `Streaming::trailers` on server-streaming
+  and bidi, including when `trailers()` is called before draining messages;
+  a `-bin` trailer must not appear as a header, including over TLS, mTLS,
+  Unix, and `from_io`. A non-OK trailing `grpc-status` is `Err` from
+  `Streaming::trailers` on those transports.
   CallHandle cancel of a live server-streaming or bidi stream after headers,
   a bidi Call waiting for headers, and client-streaming after the sender
   closes also run over TLS, mTLS, Unix, and `from_io`.

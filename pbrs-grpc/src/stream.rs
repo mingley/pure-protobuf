@@ -238,7 +238,9 @@ impl<T> Streaming<T> {
     /// [`Status::metadata`](crate::Status::metadata) and
     /// `grpc-status-details-bin` on [`Status::error_details`](crate::Status::error_details)
     /// when the peer sent one. Applies to server-streaming and bidi; unary
-    /// and client-streaming use [`crate::Response::trailers`].
+    /// and client-streaming use [`crate::Response::trailers`]. A `-bin`
+    /// trailer must not appear as a header, including over TLS, mTLS, Unix,
+    /// and [`crate::Channel::from_io`].
     ///
     /// Application-produced streams ([`Self::channel`]) have no HTTP/2
     /// trailers: this returns empty metadata without consuming remaining

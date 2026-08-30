@@ -1430,7 +1430,8 @@ impl<T> Response<T> {
     /// On unary and client-streaming [`crate::Call`] results this is the
     /// OK-path custom trailer map. Server-streaming and bidi clients read
     /// the same map with [`crate::Streaming::trailers`] after end-of-stream.
-    /// A `-bin` trailer must not appear as a header.
+    /// A `-bin` trailer must not appear as a header, including over TLS,
+    /// mTLS, Unix, and [`crate::Channel::from_io`].
     #[must_use]
     pub fn trailers(&self) -> &Metadata {
         &self.trailers

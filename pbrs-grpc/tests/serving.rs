@@ -614,6 +614,24 @@ fn channel_call_apis_document_hand_written_services() {
         "Streaming rustdoc must name expired deadline is not a clean end on every transport"
     );
     assert!(
+        stream.contains(
+            "trailer must not appear as a header, including over TLS, mTLS, Unix,\n    /// and [`crate::Channel::from_io`]."
+        ),
+        "Streaming::trailers rustdoc must name -bin trailers on every transport"
+    );
+    assert!(
+        src.contains(
+            "OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`\n    /// trailer must not appear as a header, including over TLS, mTLS, Unix,\n    /// and [`Self::from_io`]."
+        ),
+        "Channel unary and client-streaming rustdoc must name OK-path -bin trailers on every transport"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Streaming::trailers`] waits for end-of-stream, including when\n    /// called before draining messages. A non-OK trailing `grpc-status` is\n    /// `Err`. A `-bin` trailer must not appear as a header, including over\n    /// TLS, mTLS, Unix, and [`Self::from_io`]."
+        ),
+        "Channel server-streaming and bidi rustdoc must name Streaming::trailers on every transport"
+    );
+    assert!(
         src.contains(
             "RPC as [`Code::Unavailable`] (including over TLS, mTLS, and Unix), or\n    /// waits until the deadline if that RPC"
         ),
@@ -1227,6 +1245,12 @@ fn request_deadline_documents_every_transport() {
             "A default server (no [`crate::Server::send_compressed`])\n    /// leaves this `None` on every call shape, including over TLS, mTLS, Unix,\n    /// and [`crate::Channel::from_io`]."
         ),
         "Response::encoding must name default identity on every transport"
+    );
+    assert!(
+        src.contains(
+            "A `-bin` trailer must not appear as a header, including over TLS,\n    /// mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "Response::trailers rustdoc must name -bin trailers on every transport"
     );
     assert!(
         src.contains(
@@ -21680,5 +21704,355 @@ async fn from_io_official_uncompressed_interop_cases_pass_against_the_kernel_ser
         OFFICIAL_UNCOMPRESSED_CASES,
     )
     .await;
+    server.abort();
+}
+
+const TRAILER_BIN: &str = "x-grpc-test-echo-trailing-bin";
+const HEADER_ASCII: &str = "x-grpc-test-echo-initial";
+
+struct TrailerEcho;
+
+fn stamp_ok_trailers<T>(resp: &mut Response<T>) {
+    resp.metadata_mut()
+        .insert(HEADER_ASCII, "ok")
+        .expect("ascii");
+    resp.trailers_mut()
+        .insert_bin(TRAILER_BIN, [0x00, 0x01])
+        .expect("bin");
+}
+
+fn named_reply(name: String) -> HelloReply {
+    let mut reply = HelloReply::new();
+    reply.set_message(name);
+    reply
+}
+
+fn trailer_stream(name: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(4);
+    drop(tokio::spawn(async move {
+        tx.send(named_reply(name)).await.ok();
+    }));
+    let mut resp = Response::new(stream);
+    stamp_ok_trailers(&mut resp);
+    resp
+}
+
+impl Greeter for TrailerEcho {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        let mut resp = Response::new(named_reply(name));
+        stamp_ok_trailers(&mut resp);
+        Ok(resp)
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut resp = Response::new(named_reply("ada".into()));
+        stamp_ok_trailers(&mut resp);
+        Ok(resp)
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let name = request
+            .into_inner()
+            .name()
+            .to_str()
+            .unwrap_or("")
+            .to_string();
+        Ok(trailer_stream(name))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Ok(trailer_stream("ada".into()))
+    }
+}
+
+struct TrailerFail;
+
+impl Greeter for TrailerFail {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("trailers"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("trailers"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.fail(Status::not_found("gone")).await;
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.fail(Status::not_found("gone")).await;
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+fn assert_ok_headers_and_bin_trailers<T>(resp: &Response<T>, shape: &str) {
+    assert_eq!(
+        resp.metadata().get(HEADER_ASCII),
+        Some("ok"),
+        "{shape} initial header"
+    );
+    assert!(
+        resp.metadata().get_bin(TRAILER_BIN).is_none(),
+        "{shape} -bin trailer must not appear as headers"
+    );
+}
+
+async fn assert_ok_path_custom_bin_trailers(client: &GreeterClient) {
+    let resp = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_ok_headers_and_bin_trailers(&resp, "unary");
+    assert_eq!(
+        resp.trailers().get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice()),
+        "unary trailers"
+    );
+
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("client-stream");
+    assert_ok_headers_and_bin_trailers(&resp, "client-stream");
+    assert_eq!(
+        resp.trailers().get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice()),
+        "client-stream trailers"
+    );
+
+    let resp = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    assert_ok_headers_and_bin_trailers(&resp, "server-stream");
+    let mut stream = resp.into_inner();
+    // Do not drain first: trailers() must wait for EOS itself.
+    let trailers = stream.trailers().await.expect("wait");
+    assert_eq!(
+        trailers.get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice()),
+        "server-stream trailers without drain"
+    );
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("bidi");
+    assert_ok_headers_and_bin_trailers(&resp, "bidi");
+    let mut inbound = resp.into_inner();
+    let trailers = inbound.trailers().await.expect("bidi wait");
+    assert_eq!(
+        trailers.get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice()),
+        "bidi trailers without drain"
+    );
+
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream drain")
+        .into_inner();
+    let msg = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&msg), "ada");
+    assert!(stream.message().await.expect("end").is_none());
+    let trailers = stream.trailers().await.expect("after drain");
+    assert_eq!(
+        trailers.get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice()),
+        "server-stream trailers after drain"
+    );
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi drain").into_inner();
+    let msg = inbound.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&msg), "ada");
+    assert!(inbound.message().await.expect("end").is_none());
+    let trailers = inbound.trailers().await.expect("bidi after drain");
+    assert_eq!(
+        trailers.get_bin(TRAILER_BIN).as_deref(),
+        Some([0x00, 0x01].as_slice()),
+        "bidi trailers after drain"
+    );
+}
+
+async fn assert_streaming_trailers_surface_a_trailing_status(client: &GreeterClient) {
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let err = stream.trailers().await.expect_err("status");
+    assert_eq!(err.code(), Code::NotFound, "{err}");
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    drop(tx);
+    let mut inbound = call.await.expect("bidi headers").into_inner();
+    let err = inbound.trailers().await.expect_err("bidi status");
+    assert_eq!(err.code(), Code::NotFound, "{err}");
+}
+
+#[tokio::test]
+async fn tls_ok_path_custom_bin_trailers_not_headers() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TrailerEcho)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_ok_path_custom_bin_trailers(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_ok_path_custom_bin_trailers_not_headers() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TrailerEcho)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_ok_path_custom_bin_trailers(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_ok_path_custom_bin_trailers_not_headers() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TrailerEcho).serve_unix(sock).await.ok();
+    });
+    assert_ok_path_custom_bin_trailers(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_ok_path_custom_bin_trailers_not_headers() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(TrailerEcho)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_ok_path_custom_bin_trailers(&GreeterClient::new(channel)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn tls_streaming_trailers_surface_a_trailing_status() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TrailerFail)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_streaming_trailers_surface_a_trailing_status(&GreeterClient::new(
+        tls_channel(addr).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_streaming_trailers_surface_a_trailing_status() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TrailerFail)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_streaming_trailers_surface_a_trailing_status(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_streaming_trailers_surface_a_trailing_status() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TrailerFail).serve_unix(sock).await.ok();
+    });
+    assert_streaming_trailers_surface_a_trailing_status(&GreeterClient::new(
+        unix_channel(&path).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_streaming_trailers_surface_a_trailing_status() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(TrailerFail)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_streaming_trailers_surface_a_trailing_status(&GreeterClient::new(channel)).await;
     server.abort();
 }

@@ -3572,6 +3572,18 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client-streaming methods must name cancel_after_begin on every transport"
     );
     assert!(
+        src.contains(
+            "OK-path custom trailers land on [`::pbrs_grpc::Response::trailers`]; a `-bin` trailer must not appear as a header, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated unary and client-streaming methods must name OK-path -bin trailers on every transport"
+    );
+    assert!(
+        src.contains(
+            "[`::pbrs_grpc::Streaming::trailers`] waits for end-of-stream, including when called before draining messages. A non-OK trailing `grpc-status` is `Err`. A `-bin` trailer must not appear as a header, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated server-streaming and bidi methods must name Streaming::trailers on every transport"
+    );
+    assert!(
         src.contains("Dropping the [`::pbrs_grpc::Call`] or letting its deadline fire after that half-close resets the same way."),
         "client-streaming client methods must name drop and deadline after half-close"
     );

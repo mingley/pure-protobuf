@@ -754,6 +754,9 @@ impl Channel {
     ///
     /// Dropping the [`Call`] without awaiting resets the stream. A
     /// [`crate::CallHandle`] taken before await still cancels it.
+    /// OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`
+    /// trailer must not appear as a header, including over TLS, mTLS, Unix,
+    /// and [`Self::from_io`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -837,6 +840,10 @@ impl Channel {
     /// headers. Dropping the received [`Streaming`] before the end does the
     /// same. Letting the deadline fire RSTs the send half before headers and
     /// after headers, matching [`Self::bidi`].
+    /// [`crate::Streaming::trailers`] waits for end-of-stream, including when
+    /// called before draining messages. A non-OK trailing `grpc-status` is
+    /// `Err`. A `-bin` trailer must not appear as a header, including over
+    /// TLS, mTLS, Unix, and [`Self::from_io`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -935,6 +942,9 @@ impl Channel {
     /// including over TLS, mTLS, Unix, and [`Self::from_io`]. Dropping the
     /// [`Call`] or letting its deadline fire after that half-close resets the
     /// same way.
+    /// OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`
+    /// trailer must not appear as a header, including over TLS, mTLS, Unix,
+    /// and [`Self::from_io`].
     ///
     /// [`crate::StreamSender::fail`] resolves the [`Call`] with that status
     /// (no request-side `grpc-status`; the stream is reset with CANCEL).
@@ -1016,6 +1026,10 @@ impl Channel {
     /// [`crate::StreamSender::fail`] before headers resolves the [`Call`] with
     /// that status, not `UNAVAILABLE` from the reset; after headers the
     /// received [`Streaming`] sees [`crate::Code::Cancelled`], not that status.
+    /// [`crate::Streaming::trailers`] waits for end-of-stream, including when
+    /// called before draining messages. A non-OK trailing `grpc-status` is
+    /// `Err`. A `-bin` trailer must not appear as a header, including over
+    /// TLS, mTLS, Unix, and [`Self::from_io`].
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
