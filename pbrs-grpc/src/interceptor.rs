@@ -101,10 +101,10 @@ where
 /// On the client, [`crate::Channel::on_response`] / generated
 /// `FooClient::on_response` run this after a successful receive, before
 /// the [`crate::Call`] is Ready. `Err` fails that Call (the peer already sent OK),
-/// including [`crate::Status::with_error_details`]. A non-OK peer status
-/// skips this hook. On server-streaming and bidi, this envelope
-/// holds initial headers; [`crate::Streaming::trailers`] still come from
-/// the wire after end-of-stream. Applies to every call shape, including
+/// including [`crate::Status::with_error_details`].
+/// A non-OK peer status skips this hook. On server-streaming and bidi, this
+/// envelope holds initial headers; [`crate::Streaming::trailers`] still come
+/// from the wire after end-of-stream. Applies to every call shape, including
 /// over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
 ///
 /// Calling either attach point twice stacks (first interceptor first).
