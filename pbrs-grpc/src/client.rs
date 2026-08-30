@@ -176,7 +176,8 @@ impl Endpoint {
 /// Cloning is cheap and shares the underlying connections, so a `Channel` is
 /// meant to be cloned into every task that needs it. A received
 /// [`Streaming`] also holds the HTTP/2 driver, so dropping the last `Channel`
-/// clone after headers still lets you read the stream to the end.
+/// clone after headers still lets you read the stream to the end, including
+/// over TLS, mTLS, Unix, and [`Self::from_io`].
 ///
 /// If a connection dies — peer `GOAWAY`, TCP reset, keepalive timeout — the
 /// next RPC on that slot dials again, including over TLS, mTLS, and Unix.

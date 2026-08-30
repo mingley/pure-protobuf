@@ -132,8 +132,9 @@ call shape, including over TLS, mTLS, Unix, and `from_io`.
 `FooServer::rpc_timeout` and `compresses_outbound` (also `Server` / `Router`)
 read the same overlays as `server_config`.
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`
-after headers does not end the stream. Dropping the `Streaming` before the
-end does reset it, including bidi while the send half is still held. A
+after headers does not end the stream, including over TLS, mTLS, Unix, and
+`from_io`. Dropping the `Streaming` before the end does reset it, including
+bidi while the send half is still held. A
 `CallHandle` taken before await still cancels that live stream after
 headers, still cancels a server-streaming or bidi call waiting for headers,
 and still cancels a

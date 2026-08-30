@@ -596,6 +596,19 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "dropping the last `Channel`\n/// clone after headers still lets you read the stream to the end, including\n/// over TLS, mTLS, Unix, and [`Self::from_io`]."
+        ),
+        "Channel rustdoc must name drop-Channel live stream on every transport"
+    );
+    let stream = include_str!("../src/stream.rs");
+    assert!(
+        stream.contains(
+            "dropping the client after headers still lets you read to the end,\n/// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "Streaming rustdoc must name drop-Channel live stream on every transport"
+    );
+    assert!(
+        src.contains(
             "RPC as [`Code::Unavailable`] (including over TLS, mTLS, and Unix), or\n    /// waits until the deadline if that RPC"
         ),
         "Channel::connect_lazy must name fail-fast on TLS, mTLS, and Unix"
@@ -17588,19 +17601,10 @@ async fn a_streaming_producer_is_not_cancelled_when_the_handler_returns() {
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn dropping_the_client_does_not_kill_a_live_stream() {
-    let cancelled = Arc::new(AtomicUsize::new(0));
-    let (go, go_rx) = tokio::sync::watch::channel(false);
-    let (addr, listener) = bind().await;
-    let svc = SpawnStream {
-        cancelled: Arc::clone(&cancelled),
-        go: go_rx,
-    };
-    let task = tokio::spawn(async move {
-        GreeterServer::new(svc).serve_listener(listener).await.ok();
-    });
-    let client = GreeterClient::new(channel(addr).await);
+async fn assert_dropping_the_channel_does_not_kill_a_live_stream(
+    client: GreeterClient,
+    go: tokio::sync::watch::Sender<bool>,
+) {
     let mut stream = client
         .server_hello(Request::new(req("ada")))
         .await
@@ -17620,7 +17624,106 @@ async fn dropping_the_client_does_not_kill_a_live_stream() {
         n += 1;
     }
     assert_eq!(n, 3, "stream must outlive dropping the client");
+}
+
+fn spawn_stream_svc() -> (SpawnStream, tokio::sync::watch::Sender<bool>) {
+    let cancelled = Arc::new(AtomicUsize::new(0));
+    let (go, go_rx) = tokio::sync::watch::channel(false);
+    (
+        SpawnStream {
+            cancelled,
+            go: go_rx,
+        },
+        go,
+    )
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dropping_the_client_does_not_kill_a_live_stream() {
+    let (svc, go) = spawn_stream_svc();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    assert_dropping_the_channel_does_not_kill_a_live_stream(
+        GreeterClient::new(channel(addr).await),
+        go,
+    )
+    .await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_dropping_the_client_does_not_kill_a_live_stream() {
+    let (svc, go) = spawn_stream_svc();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_dropping_the_channel_does_not_kill_a_live_stream(
+        GreeterClient::new(tls_channel(addr).await),
+        go,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_dropping_the_client_does_not_kill_a_live_stream() {
+    let (svc, go) = spawn_stream_svc();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_dropping_the_channel_does_not_kill_a_live_stream(
+        GreeterClient::new(tls_channel_with(addr, client_tls).await),
+        go,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_dropping_the_client_does_not_kill_a_live_stream() {
+    let (svc, go) = spawn_stream_svc();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    assert_dropping_the_channel_does_not_kill_a_live_stream(
+        GreeterClient::new(unix_channel(&path).await),
+        go,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_dropping_the_client_does_not_kill_a_live_stream() {
+    let (svc, go) = spawn_stream_svc();
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_dropping_the_channel_does_not_kill_a_live_stream(GreeterClient::new(channel), go).await;
+    server.abort();
 }
 
 /// Sends one message, then waits until the client leaves.

@@ -129,9 +129,9 @@ and held for the life of the process: if a connection dies, the next RPC
 redials that slot, including over TLS, mTLS, and Unix, so a server restart
 on the same address does not require a new client. `from_io` cannot redial. A received `Streaming` holds the HTTP/2 driver, so
 `call.await?.into_inner()` does not require keeping the client around to
-finish the stream. Dropping that `Streaming` before the end resets the RPC
-(dropping the `Channel` does not), including a bidi call whose send half is
-still held. Unary and server-streaming RPCs that race a `GOAWAY` after
+finish the stream, including over TLS, mTLS, Unix, and `from_io`. Dropping
+that `Streaming` before the end resets the RPC (dropping the `Channel` does
+not), including a bidi call whose send half is still held. Unary and server-streaming RPCs that race a `GOAWAY` after
 the slot still looked live retry that redial once on the same call.
 `GreeterClient::connect_lazy` skips the initial dial so the client
 can exist before the server; pair it with `wait_for_ready` on the client

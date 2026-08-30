@@ -75,7 +75,8 @@ enum Source<T> {
 /// extra buffer and no extra task.
 ///
 /// A stream received from a [`crate::Channel`] holds the HTTP/2 driver, so
-/// dropping the client after headers still lets you read to the end.
+/// dropping the client after headers still lets you read to the end,
+/// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
 /// Dropping this `Streaming` before the end resets the HTTP/2 stream, even
 /// if a bidi [`StreamSender`] is still held: that is how a client cancels a
 /// streaming RPC after it already has headers. A server-side producer waiting
