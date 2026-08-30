@@ -2552,6 +2552,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::gzip_compression_level`], which sets it.\n    #[must_use]\n    pub fn gzip_level(self) -> u32 {\n        self.gzip_compression_level\n    }\n\n    /// Whether inbound gzip is inflated. Default `true`.\n    /// See [`Self::accept_compressed`]. Applies to every call shape.\n    /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's"
+        ),
+        "ServerConfig::gzip_level must Distinct the setter"
+    );
+    assert!(
+        src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
         "ServerConfig::keep_alive_interval must name Unix and mTLS"

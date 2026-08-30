@@ -687,6 +687,7 @@ impl ServerConfig {
 
     /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
     /// Applies to every call shape.
+    /// Distinct from [`Self::gzip_compression_level`], which sets it.
     #[must_use]
     pub fn gzip_level(self) -> u32 {
         self.gzip_compression_level
