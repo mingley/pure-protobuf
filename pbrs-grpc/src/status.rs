@@ -362,6 +362,10 @@ impl Status {
     /// Prefer [`Self::rpc`] / [`Self::with_error_details`] when the payload
     /// is a `google.rpc.Status`. This returns the raw bytes so a proxy can
     /// forward a trailer it does not parse.
+    ///
+    /// Raw bytes still round-trip on every call shape, including over TLS,
+    /// mTLS, Unix, and [`crate::Channel::from_io`]. They do not appear as a
+    /// `grpc-status-details-bin` metadata key.
     #[must_use]
     pub fn details(&self) -> &[u8] {
         self.detail.as_ref().map_or(&[], |d| d.details.as_ref())
@@ -374,6 +378,11 @@ impl Status {
     /// [`crate::pb::Any`] payload. This method ships whatever bytes you give
     /// it. An empty slice omits the trailer. To build the protobuf, use
     /// [`Self::with_error_details`].
+    ///
+    /// A non-empty blob is `grpc-status-details-bin` on the wire for every
+    /// call shape, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    /// [`Self::details`] returns those bytes; they do not appear as a metadata
+    /// key.
     pub fn set_details(&mut self, details: impl Into<Bytes>) {
         let details = details.into();
         if details.is_empty() {

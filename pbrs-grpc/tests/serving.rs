@@ -794,6 +794,19 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Channel::client_streaming must name cancel_after_begin on every transport"
     );
+    let status = include_str!("../src/status.rs");
+    assert!(
+        status.contains(
+            "Raw bytes still round-trip on every call shape, including over TLS,\n    /// mTLS, Unix, and [`crate::Channel::from_io`]. They do not appear as a\n    /// `grpc-status-details-bin` metadata key."
+        ),
+        "Status::details must name raw bytes on every transport"
+    );
+    assert!(
+        status.contains(
+            "A non-empty blob is `grpc-status-details-bin` on the wire for every\n    /// call shape, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].\n    /// [`Self::details`] returns those bytes; they do not appear as a metadata\n    /// key."
+        ),
+        "Status::set_details must name the wire trailer on every transport"
+    );
 }
 
 #[test]
@@ -8315,6 +8328,75 @@ impl Greeter for FailGreeter {
         _: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
         Err(interceptor_blocked())
+    }
+}
+
+fn rich_fail() -> Status {
+    let mut status = Status::failed_precondition("quota");
+    status.set_details(vec![0x08, 0x09]);
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
+fn assert_rich_fail(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "quota");
+    assert_eq!(err.details(), &[0x08, 0x09]);
+    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+    assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+}
+
+async fn assert_raw_status_details_every_shape(client: &GreeterClient) {
+    assert_rich_fail(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    match client.server_hello(Request::new(req("ada"))).await {
+        Err(err) => assert_rich_fail(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_rich_fail(&err),
+            Ok(_) => panic!("server-stream raw details must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_rich_fail(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_rich_fail(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+struct RichFail;
+
+impl Greeter for RichFail {
+    async fn say_hello(&self, _: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+        Err(rich_fail())
+    }
+
+    async fn client_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(rich_fail())
+    }
+
+    async fn server_hello(
+        &self,
+        _: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(rich_fail())
+    }
+
+    async fn stream_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(rich_fail())
     }
 }
 
@@ -22297,5 +22379,65 @@ async fn from_io_pool_config_is_still_one_duplex() {
         .await
         .expect("from_io");
     echo_every_shape(&GreeterClient::new(channel), None).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn tls_raw_status_details_round_trip() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(RichFail)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_raw_status_details_every_shape(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_raw_status_details_round_trip() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(RichFail)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_raw_status_details_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_raw_status_details_round_trip() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(RichFail).serve_unix(sock).await.ok();
+    });
+    assert_raw_status_details_every_shape(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_raw_status_details_round_trip() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(RichFail)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_raw_status_details_every_shape(&GreeterClient::new(channel)).await;
     server.abort();
 }

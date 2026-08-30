@@ -121,7 +121,10 @@ See `docs/upb.md`. Short list:
   and `from_io`, distinct from the Store server decode cap and from Greeter
   client caps. `ChannelConfig::connections` opens independent HTTP/2
   drivers on TLS, mTLS, and Unix (`connect_tls_with` / `connect_unix_with`);
-  `from_io` cannot pool. TLS
+  `from_io` cannot pool. A handler `Status::set_details` blob round-trips as
+  `Status::details()` with trailing metadata on every call shape over TLS,
+  mTLS, Unix, and `from_io`; `grpc-status-details-bin` is not a metadata key.
+  Distinct from packed `google.rpc.Status`. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
