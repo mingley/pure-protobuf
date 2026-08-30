@@ -317,7 +317,8 @@ impl ServerConfig {
     }
 
     /// Cap every RPC to this duration even when the client omits `grpc-timeout`.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`].
     ///
     /// The effective deadline is the soonest of this, the client's, and any
     /// [`crate::Rpc::set_timeout`] from an interceptor. Disabled by default.

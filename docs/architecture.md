@@ -151,8 +151,10 @@ survive `into_message_and_parts`. TLS `:authority` is
 the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
-gzip, and the
-`compresses_outbound` overlay. `Server::send_compressed` / `Router::send_compressed`
+gzip, and the `compresses_outbound` overlay. `Server::timeout` / `Router::timeout`
+expire Slow handlers when the client omits a deadline and cap a longer client
+deadline, including over TLS, mTLS, Unix, and `from_io`.
+`Server::send_compressed` / `Router::send_compressed`
 gzip replies when the client advertises gzip on those transports.
 A default server leaves `Response::encoding` unset (identity) on those
 transports. `Response::set_compress(false)` opts out of

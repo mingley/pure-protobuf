@@ -4152,7 +4152,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape. See [`{G}::ServerConfig::timeout`]."
+        "    /// Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

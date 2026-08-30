@@ -3637,9 +3637,9 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape."
+            "Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
-        "generated server timeout rustdoc must name every call shape"
+        "generated server timeout rustdoc must name every transport"
     );
     assert!(
         src.contains("Replace both message caps at once. Applies to every call shape."),

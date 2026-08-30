@@ -1402,7 +1402,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Cap every RPC even when the client omits `grpc-timeout`. Applies to
-    /// every call shape. See [`ServerConfig::timeout`].
+    /// every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`]. See [`ServerConfig::timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.timeout(timeout);
@@ -1954,7 +1955,8 @@ impl Router {
     }
 
     /// Cap every RPC even when the client omits `grpc-timeout`. Applies to
-    /// every call shape. See [`ServerConfig::timeout`].
+    /// every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`]. See [`ServerConfig::timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.timeout(timeout);

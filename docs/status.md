@@ -124,7 +124,10 @@ See `docs/upb.md`. Short list:
   the server overlays on `Rpc::compresses_outbound` /
   `Request::compresses_outbound` and `Rpc::rpc_timeout` /
   `Request::rpc_timeout` (the `Server::timeout` cap, distinct from the
-  interceptor `set_timeout` and the client's `peer_timeout`); received replies
+  interceptor `set_timeout` and the client's `peer_timeout`); a `Server::timeout`
+  / `Router::timeout` overlay expires Slow handlers when the client omits a
+  deadline and caps a longer client deadline, including over TLS, mTLS, Unix,
+  and `from_io`; received replies
   surface `grpc-encoding` on
   `Response::encoding` (`None` for identity, including an explicit
   `identity` token, and a default server with no `send_compressed` on every

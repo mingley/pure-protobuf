@@ -791,6 +791,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ChannelConfig::timeout must name every transport"
     );
+    assert!(
+        src.contains(
+            "Cap every RPC to this duration even when the client omits `grpc-timeout`.\n    /// Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
+        ),
+        "ServerConfig::timeout must name every transport"
+    );
 }
 
 #[test]
@@ -1002,6 +1008,14 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::send_compressed and Router::send_compressed must name every transport"
+    );
+    assert_eq!(
+        src.matches(
+            "Cap every RPC even when the client omits `grpc-timeout`. Applies to\n    /// every call shape, including over TLS, mTLS, Unix, and\n    /// [`Self::serve_connection`]."
+        )
+        .count(),
+        2,
+        "Server::timeout and Router::timeout must name every transport"
     );
 }
 
@@ -12755,6 +12769,24 @@ async fn unix_connect_times_out_when_the_peer_never_speaks_http2() {
     drop(listener);
 }
 
+async fn assert_server_timeout_expires(ch: Channel) {
+    assert_deadline_quickly_on_every_shape(
+        &GreeterClient::new(ch),
+        None,
+        Duration::from_millis(150),
+    )
+    .await;
+}
+
+async fn assert_server_timeout_caps(ch: Channel) {
+    assert_deadline_quickly_on_every_shape(
+        &GreeterClient::new(ch),
+        Some(Duration::from_secs(5)),
+        Duration::from_millis(500),
+    )
+    .await;
+}
+
 #[tokio::test]
 async fn a_server_timeout_expires_when_the_client_sends_none() {
     let (addr, listener) = bind().await;
@@ -12765,9 +12797,74 @@ async fn a_server_timeout_expires_when_the_client_sends_none() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    assert_deadline_quickly_on_every_shape(&client, None, Duration::from_millis(150)).await;
+    assert_server_timeout_expires(channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_server_timeout_expires_when_the_client_sends_none() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .timeout(Duration::from_millis(50))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_server_timeout_expires(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_timeout_expires_when_the_client_sends_none() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .timeout(Duration::from_millis(50))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_server_timeout_expires(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_timeout_expires_when_the_client_sends_none() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .timeout(Duration::from_millis(50))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_server_timeout_expires(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_timeout_expires_when_the_client_sends_none() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .timeout(Duration::from_millis(50))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_server_timeout_expires(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -12781,14 +12878,78 @@ async fn a_server_timeout_caps_a_longer_client_deadline() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    assert_deadline_quickly_on_every_shape(
-        &client,
-        Some(Duration::from_secs(5)),
-        Duration::from_millis(500),
+    assert_server_timeout_caps(channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_server_timeout_caps_a_longer_client_deadline() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Slow))
+            .timeout(Duration::from_millis(50))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_server_timeout_caps(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_timeout_caps_a_longer_client_deadline() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Slow))
+            .timeout(Duration::from_millis(50))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_server_timeout_caps(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_timeout_caps_a_longer_client_deadline() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Slow))
+            .timeout(Duration::from_millis(50))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_server_timeout_caps(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_timeout_caps_a_longer_client_deadline() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Router::new()
+            .add_service(GreeterServer::new(Slow))
+            .timeout(Duration::from_millis(50))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_server_timeout_caps(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
     )
     .await;
-    task.abort();
+    server.abort();
 }
 
 #[tokio::test]

@@ -462,7 +462,10 @@ match client.say_hello(req).await {
 On the server, `request.timeout()` is the relative duration stamped at
 dispatch: the soonest of the client's `grpc-timeout`, a server cap
 (`ServerConfig::timeout`, also `Server::timeout` / `Router::timeout` /
-generated `FooServer::timeout`), and [`Rpc::set_timeout`] from an interceptor.
+generated `FooServer::timeout`), and [`Rpc::set_timeout`] from an interceptor,
+including over TLS, mTLS, Unix, and `from_io`. The server cap expires a Slow
+handler when the client omits a deadline, and a longer client deadline is
+capped to the server overlay, on those transports.
 `Server::rpc_timeout` / `FooServer::rpc_timeout` read that cap (`timeout` sets
 it). Interceptors read the same overlay on `Rpc::rpc_timeout`; it stays
 visible after `set_timeout`. Generated handlers see it on
