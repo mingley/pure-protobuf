@@ -3647,9 +3647,9 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Cap how many RPCs the process will run at once. Applies to every call shape."
+            "Cap how many RPCs the process will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
-        "generated max_concurrent_rpcs rustdoc must name every call shape"
+        "generated max_concurrent_rpcs rustdoc must name every transport"
     );
     assert!(
         src.contains(

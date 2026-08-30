@@ -46,6 +46,9 @@ mTLS, and Unix. `from_io` cannot redial.
 and Unix; a second dial is `UNAVAILABLE` while the cap is full.
 A mute TCP, TLS, mTLS, or Unix peer that never finishes the handshake is
 dropped by `handshake_timeout` so the accept loop keeps serving.
+`max_concurrent_rpcs` refuses extra RPCs with `RESOURCE_EXHAUSTED` before the
+handler runs, on every call shape, including over TLS, mTLS, Unix, and
+`from_io`.
 
 ### Dispatch
 

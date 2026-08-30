@@ -819,6 +819,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ServerConfig::handshake_timeout must name TLS, mTLS, and Unix"
     );
+    assert!(
+        src.contains(
+            "Cap how many RPCs the process will run at once, across every\n    /// connection. Applies to every call shape, including over TLS, mTLS,\n    /// Unix, and [`crate::Server::serve_connection`]."
+        ),
+        "ServerConfig::max_concurrent_rpcs must name every transport"
+    );
 }
 
 #[test]
@@ -931,11 +937,11 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
-            "Cap how many RPCs the process will run at once.\n    /// Applies to every call shape."
+            "Cap how many RPCs the process will run at once.\n    /// Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`Self::serve_connection`]."
         )
         .count(),
         2,
-        "Server::max_concurrent_rpcs and Router::max_concurrent_rpcs must name every call shape"
+        "Server::max_concurrent_rpcs and Router::max_concurrent_rpcs must name every transport"
     );
     assert_eq!(
         src.matches("Concurrent RPCs allowed per HTTP/2 connection. Applies to every call\n    /// shape.")
@@ -10205,6 +10211,56 @@ fn assert_api_disabled(err: &Status) {
     assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
 }
 
+fn one_ok_one_exhausted(codes: [Code; 2], what: &str) {
+    assert!(
+        codes.contains(&Code::Ok) && codes.contains(&Code::ResourceExhausted),
+        "{what}: one Ok and one RESOURCE_EXHAUSTED, got {codes:?}"
+    );
+}
+
+async fn assert_rpc_cap(client: &GreeterClient) {
+    let (a, b) = tokio::join!(
+        client.say_hello(Request::new(req("a"))),
+        client.say_hello(Request::new(req("b"))),
+    );
+    one_ok_one_exhausted(
+        [
+            a.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+            b.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+        ],
+        "unary",
+    );
+
+    let (c, d) = tokio::join!(client.server_hello(Request::new(req("c"))), async {
+        let (tx, call) = client.stream_hello(Request::new(()));
+        drop(tx);
+        call.await
+    });
+    one_ok_one_exhausted(
+        [
+            c.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+            d.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+        ],
+        "server-stream/bidi",
+    );
+
+    let (e, f) = tokio::join!(
+        async {
+            let (tx, call) = client.client_hello(Request::new(()));
+            drop(tx);
+            call.await
+        },
+        client.say_hello(Request::new(req("g"))),
+    );
+    one_ok_one_exhausted(
+        [
+            e.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+            f.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+        ],
+        "client-stream",
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     let (addr, listener) = bind().await;
@@ -10215,36 +10271,77 @@ async fn extra_rpcs_are_refused_when_the_process_cap_is_hit() {
             .await
             .ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await);
-    let (a, b) = tokio::join!(
-        client.say_hello(Request::new(req("a"))),
-        client.say_hello(Request::new(req("b"))),
-    );
-    let codes = [
-        a.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
-        b.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
-    ];
-    assert!(
-        codes.contains(&Code::Ok) && codes.contains(&Code::ResourceExhausted),
-        "one Ok and one RESOURCE_EXHAUSTED, got {codes:?}"
-    );
-
-    let (c, d) = tokio::join!(client.server_hello(Request::new(req("c"))), async {
-        let (tx, call) = client.stream_hello(Request::new(()));
-        drop(tx);
-        call.await
-    });
-    let codes = [
-        c.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
-        d.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
-    ];
-    assert!(
-        codes.contains(&Code::Ok) && codes.contains(&Code::ResourceExhausted),
-        "streaming cap: one Ok and one RESOURCE_EXHAUSTED, got {codes:?}"
-    );
-
+    assert_rpc_cap(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_concurrent_rpcs(1)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_rpc_cap(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_concurrent_rpcs(1)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_rpc_cap(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_concurrent_rpcs(1)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_rpc_cap(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_concurrent_rpcs(1)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_rpc_cap(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

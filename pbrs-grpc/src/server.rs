@@ -1329,7 +1329,8 @@ impl<S: Service> Server<S> {
     }
 
     /// Cap how many RPCs the process will run at once.
-    /// Applies to every call shape. See [`ServerConfig::max_concurrent_rpcs`].
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`]. See [`ServerConfig::max_concurrent_rpcs`].
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);
@@ -1886,7 +1887,8 @@ impl Router {
     }
 
     /// Cap how many RPCs the process will run at once.
-    /// Applies to every call shape. See [`ServerConfig::max_concurrent_rpcs`].
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`]. See [`ServerConfig::max_concurrent_rpcs`].
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.config = self.config.max_concurrent_rpcs(n);

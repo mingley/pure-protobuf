@@ -4071,7 +4071,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Cap how many RPCs the process will run at once. Applies to every call shape. See [`{G}::ServerConfig::max_concurrent_rpcs`]."
+        "    /// Cap how many RPCs the process will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::max_concurrent_rpcs`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

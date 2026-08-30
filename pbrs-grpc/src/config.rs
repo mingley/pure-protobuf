@@ -353,7 +353,8 @@ impl ServerConfig {
     }
 
     /// Cap how many RPCs the process will run at once, across every
-    /// connection. Applies to every call shape.
+    /// connection. Applies to every call shape, including over TLS, mTLS,
+    /// Unix, and [`crate::Server::serve_connection`].
     ///
     /// Further RPCs are refused with [`crate::Code::ResourceExhausted`]
     /// before the handler runs. Distinct from

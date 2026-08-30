@@ -287,8 +287,9 @@ See `docs/upb.md`. Short list:
   `CallHandle` drops a hanging handler on every call shape over TLS, mTLS,
   Unix, and `from_io` too. A handler that ignores its inbound request
   stream still answers on client-streaming and bidi rather than stalling the
-  window, including over TLS, mTLS, Unix, and `from_io`. `max_concurrent_rpcs` refuses extra RPCs on streaming the same as
-  unary.
+  window, including over TLS, mTLS, Unix, and `from_io`. `max_concurrent_rpcs` refuses extra RPCs with
+  `RESOURCE_EXHAUSTED` before the handler runs, on every call shape, including
+  over TLS, mTLS, Unix, and `from_io`.
   A server-streaming or bidi deadline RSTs the send half before headers and
   after a half-close;
   after those headers that deadline still RSTs the parked
