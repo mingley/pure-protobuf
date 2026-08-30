@@ -4259,6 +4259,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client on_response rustdoc must name received limits is None"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::peer_timeout`] is the client's `grpc-timeout`. Distinct from [`::pbrs_grpc::ResponseParts::timeout`]."),
+        "generated on_response rustdoc must name client grpc-timeout"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::peer_timeout`] on a received reply is `None` (the client's `grpc-timeout` is not on the reply wire)."),
+        "generated client on_response rustdoc must name received peer_timeout is None"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

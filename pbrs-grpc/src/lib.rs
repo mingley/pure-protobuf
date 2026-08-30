@@ -269,6 +269,9 @@
 //! [`Response::limits`] is the encode cap in a response interceptor.
 //! Distinct from [`Request::limits`].
 //! Distinct from [`Rpc::limits`].
+//! [`Response::peer_timeout`] is the client's `grpc-timeout` in a response interceptor.
+//! Distinct from [`Response::timeout`].
+//! Distinct from [`Rpc::peer_timeout`].
 //! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block

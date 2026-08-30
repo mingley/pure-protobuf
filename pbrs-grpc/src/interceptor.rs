@@ -108,6 +108,8 @@ where
 /// [`crate::ResponseParts::limits`] is the encode cap when writing.
 /// Distinct from [`crate::Request::limits`]: that is the inbound request.
 /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
+/// [`crate::ResponseParts::peer_timeout`] is the client's `grpc-timeout`.
+/// Distinct from [`crate::ResponseParts::timeout`]: that is the effective cap.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -582,6 +584,7 @@ mod tests {
         assert!(!resp.accepts_gzip());
         assert!(resp.deadline().is_none());
         assert!(resp.timeout().is_none());
+        assert!(resp.peer_timeout().is_none());
         assert!(resp.limits().is_none());
     }
 
@@ -596,6 +599,10 @@ mod tests {
             assert!(parts.accepts_gzip());
             assert!(parts.deadline().is_some());
             assert_eq!(parts.timeout(), Some(std::time::Duration::from_secs(5)));
+            assert_eq!(
+                parts.peer_timeout(),
+                Some(std::time::Duration::from_secs(30))
+            );
             assert_eq!(parts.limits(), Some(crate::MessageLimits::default()));
             Ok(())
         }
@@ -608,6 +615,7 @@ mod tests {
                 .with_accepts_gzip(true)
                 .with_deadline(Some(at))
                 .with_timeout(Some(std::time::Duration::from_secs(5)))
+                .with_peer_timeout(Some(std::time::Duration::from_secs(30)))
                 .with_limits(Some(crate::MessageLimits::default())),
             Some(&require_path),
         )
@@ -620,6 +628,10 @@ mod tests {
         assert!(resp.accepts_gzip());
         assert_eq!(resp.deadline(), Some(at));
         assert_eq!(resp.timeout(), Some(std::time::Duration::from_secs(5)));
+        assert_eq!(
+            resp.peer_timeout(),
+            Some(std::time::Duration::from_secs(30))
+        );
         assert_eq!(resp.limits(), Some(crate::MessageLimits::default()));
         let shown = format!("{resp:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
@@ -630,6 +642,7 @@ mod tests {
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("timeout: Some("), "{shown}");
+        assert!(shown.contains("peer_timeout: Some("), "{shown}");
         assert!(shown.contains("limits: Some("), "{shown}");
         assert!(crate::Response::new(0u32).path().is_none());
         assert!(crate::Response::new(0u32).service().is_none());
@@ -642,6 +655,7 @@ mod tests {
         assert!(!crate::Response::new(0u32).accepts_gzip());
         assert!(crate::Response::new(0u32).deadline().is_none());
         assert!(crate::Response::new(0u32).timeout().is_none());
+        assert!(crate::Response::new(0u32).peer_timeout().is_none());
         assert!(crate::Response::new(0u32).limits().is_none());
     }
 }

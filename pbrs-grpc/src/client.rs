@@ -863,6 +863,7 @@ impl Channel {
     /// [`crate::Response::deadline`] on a received reply is `None` (the peer deadline is not on the wire).
     /// [`crate::Response::timeout`] on a received reply is `None` (the peer timeout is not on the reply wire).
     /// [`crate::Response::limits`] on a received reply is `None` (the peer encode cap is not on the wire).
+    /// [`crate::Response::peer_timeout`] on a received reply is `None` (the client's `grpc-timeout` is not on the reply wire).
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
         let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();
