@@ -675,6 +675,7 @@ impl Channel {
     /// A request that already called [`crate::Request::set_wait_for_ready`]
     /// is left alone. Interceptors run after this fill and can still set
     /// or clear it.
+    /// Distinct from [`Self::connected`]: that is a live snapshot; this fill still queues when a slot is empty.
     #[must_use]
     pub fn wait_for_ready(mut self) -> Self {
         self.config = self.config.wait_for_ready(true);

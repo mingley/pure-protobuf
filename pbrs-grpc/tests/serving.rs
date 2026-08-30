@@ -2166,6 +2166,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::waits_for_ready must Distinct the live-socket snapshot"
     );
     assert!(
+        src.contains(
+            "Distinct from [`Self::connected`]: that is a live snapshot; this fill still queues when a slot is empty."
+        ),
+        "Channel::wait_for_ready must Distinct the live-socket snapshot"
+    );
+    assert!(
         src.contains("Distinct from [`Self::send_compressed`], which sets it."),
         "Channel::compresses_outbound must Distinct the setter"
     );
