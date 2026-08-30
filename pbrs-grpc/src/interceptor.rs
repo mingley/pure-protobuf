@@ -100,6 +100,9 @@ where
 /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
 /// [`crate::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement.
 /// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
+/// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
+/// Distinct from [`crate::Request::deadline`]: that is the inbound request.
+/// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -572,6 +575,7 @@ mod tests {
         assert!(resp.path().is_none());
         assert!(!resp.compresses_outbound());
         assert!(!resp.accepts_gzip());
+        assert!(resp.deadline().is_none());
     }
 
     #[test]
@@ -583,14 +587,17 @@ mod tests {
             assert_eq!(parts.gzip_level(), 9);
             assert!(parts.compresses_outbound());
             assert!(parts.accepts_gzip());
+            assert!(parts.deadline().is_some());
             Ok(())
         }
+        let at = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
         let resp = super::intercept_response(
             crate::Response::new(1u32)
                 .with_path(Some("/helloworld.Greeter/SayHello".into()))
                 .with_gzip_level(9)
                 .with_compresses_outbound(true)
-                .with_accepts_gzip(true),
+                .with_accepts_gzip(true)
+                .with_deadline(Some(at)),
             Some(&require_path),
         )
         .expect("path");
@@ -600,6 +607,7 @@ mod tests {
         assert_eq!(resp.gzip_level(), 9);
         assert!(resp.compresses_outbound());
         assert!(resp.accepts_gzip());
+        assert_eq!(resp.deadline(), Some(at));
         let shown = format!("{resp:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
@@ -607,6 +615,7 @@ mod tests {
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
+        assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(crate::Response::new(0u32).path().is_none());
         assert!(crate::Response::new(0u32).service().is_none());
         assert!(crate::Response::new(0u32).method().is_none());
@@ -616,5 +625,6 @@ mod tests {
         );
         assert!(!crate::Response::new(0u32).compresses_outbound());
         assert!(!crate::Response::new(0u32).accepts_gzip());
+        assert!(crate::Response::new(0u32).deadline().is_none());
     }
 }

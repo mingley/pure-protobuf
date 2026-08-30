@@ -4235,6 +4235,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client on_response rustdoc must name received accepts_gzip is false"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::deadline`] is kernel-stamped when writing. Distinct from [`::pbrs_grpc::Request::deadline`]. Distinct from [`::pbrs_grpc::Rpc::deadline`]."),
+        "generated on_response rustdoc must name kernel-stamped deadline"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::deadline`] on a received reply is `None` (the peer deadline is not on the wire)."),
+        "generated client on_response rustdoc must name received deadline is None"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

@@ -207,7 +207,9 @@ Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level`
 Distinct from `compress` (per-RPC). Distinct from `Rpc::compresses_outbound`
 (before the handler). Closures see `ResponseParts::accepts_gzip` (peer `grpc-accept-encoding`).
 Distinct from `encoding` (received). Distinct from `Rpc::accepts_gzip`
-(before the handler). Closures see `Rpc` (path, service/method,
+(before the handler). Closures see `ResponseParts::deadline` (kernel-stamped when writing).
+Distinct from `Request::deadline` (inbound). Distinct from `Rpc::deadline`
+(computed when that getter runs). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, peer, `:authority` / `:scheme`, limits).

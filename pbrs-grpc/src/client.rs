@@ -860,6 +860,7 @@ impl Channel {
     /// [`crate::Response::compresses_outbound`] on a received reply is `false` (the overlay is not on the wire).
     /// [`crate::Response::accepts_gzip`] on a received reply is `false` (the advertisement is not on the reply wire).
     /// Distinct from [`crate::Response::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding`.
+    /// [`crate::Response::deadline`] on a received reply is `None` (the peer deadline is not on the wire).
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
         let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();

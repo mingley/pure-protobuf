@@ -896,6 +896,51 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::accepts_gzip must name that gzip only goes out when the peer advertised it"
     );
     assert!(
+        outgoing.contains(
+            "Kernel-stamped remaining Instant after a handler `Ok`, when the kernel is writing this reply."
+        ),
+        "Response::deadline must name kernel stamp when writing"
+    );
+    assert!(
+        outgoing.contains("Same Instant as [`crate::Request::deadline`] after dispatch."),
+        "Response::deadline must name the Request Instant"
+    );
+    assert!(
+        outgoing
+            .contains("Distinct from [`crate::Request::deadline`]: that is the inbound request."),
+        "Response::deadline must Distinct inbound Request::deadline"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs."
+        ),
+        "Response::deadline must Distinct Rpc::deadline computed getter"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Request::timeout`]: that is the duration stamped at dispatch."
+        ),
+        "Response::deadline must Distinct Request::timeout duration"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::deadline`]: that is a client interceptor Instant."
+        ),
+        "Response::deadline must Distinct Outgoing Instant"
+    );
+    assert!(
+        outgoing.contains(
+            "`None` on a response you built or a received reply (the peer deadline is not on the wire)."
+        ),
+        "Response::deadline must name None on a received reply"
+    );
+    assert!(
+        outgoing.contains(
+            "An interceptor cannot change this; the kernel still enforces it when writing."
+        ),
+        "Response::deadline must name kernel enforcement when writing"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -1194,6 +1239,21 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct accepts_gzip from received encoding"
     );
     assert!(
+        intercept.contains("[`crate::ResponseParts::deadline`] is kernel-stamped when writing."),
+        "ResponseInterceptor rustdoc must name kernel-stamped deadline"
+    );
+    assert!(
+        intercept
+            .contains("Distinct from [`crate::Request::deadline`]: that is the inbound request."),
+        "ResponseInterceptor rustdoc must Distinct inbound Request::deadline"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs."
+        ),
+        "ResponseInterceptor rustdoc must Distinct Rpc::deadline computed getter"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
@@ -1248,6 +1308,12 @@ fn channel_call_apis_document_hand_written_services() {
             "Distinct from [`crate::Response::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding`."
         ),
         "Channel::on_response must Distinct accepts_gzip from encoding"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Response::deadline`] on a received reply is `None` (the peer deadline is not on the wire)."
+        ),
+        "Channel::on_response must name received deadline is None"
     );
     assert!(
         src.contains(
@@ -2457,6 +2523,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Response::accepts_gzip from received encoding"
     );
     assert!(
+        crate_src.contains("[`Response::deadline`] is kernel-stamped after `Ok`, when writing"),
+        "crate docs must name Response::deadline as kernel-stamped when writing"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Request::deadline`]"),
+        "crate docs must Distinct Response::deadline from Request::deadline"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::deadline`]"),
+        "crate docs must Distinct Response::deadline from Rpc::deadline"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2867,6 +2945,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Response::accepts_gzip` is the peer advertisement in a response interceptor. Distinct from `encoding` (received). Distinct from `Rpc::accepts_gzip` (before the handler). An interceptor cannot change it."),
         "guide must name Response::accepts_gzip as the response interceptor advertisement"
+    );
+    assert!(
+        guide.contains("`Response::deadline` is kernel-stamped after `Ok`, when writing. Distinct from `Request::deadline` (inbound). Distinct from `Rpc::deadline` (computed when that getter runs). An interceptor cannot change it."),
+        "guide must name Response::deadline as kernel-stamped when writing"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -3434,6 +3516,26 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::on_response and Router::on_response must Distinct accepts_gzip from received encoding"
     );
     assert_eq!(
+        src.matches("[`crate::ResponseParts::deadline`] is kernel-stamped when writing.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must name kernel-stamped deadline"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`crate::Request::deadline`]: that is the inbound request.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct inbound Request::deadline"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct Rpc::deadline computed getter"
+    );
+    assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         )
@@ -3498,6 +3600,12 @@ fn server_and_router_config_document_every_call_shape() {
             "Response interceptors see the same value on [`crate::Response::accepts_gzip`]."
         ),
         "Rpc::accepts_gzip must name the Response interceptor stamp"
+    );
+    assert!(
+        src.contains(
+            "Response interceptors see the same Instant as [`Request::deadline`] on [`crate::Response::deadline`]."
+        ),
+        "Rpc::deadline must name the Response interceptor stamp"
     );
     assert!(
         src.contains("Generated handlers see the same value on [`Request::accepts_compressed`]."),
@@ -21491,6 +21599,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         !reply.accepts_gzip(),
         "received reply must not carry peer grpc-accept-encoding"
     );
+    assert!(
+        reply.deadline().is_none(),
+        "received reply must not carry peer deadline Instant"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let reply = client
@@ -21513,6 +21625,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         !reply.accepts_gzip(),
         "received stream must not carry peer grpc-accept-encoding"
+    );
+    assert!(
+        reply.deadline().is_none(),
+        "received stream must not carry peer deadline Instant"
     );
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
@@ -21541,6 +21657,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         !reply.accepts_gzip(),
         "received client-stream must not carry peer grpc-accept-encoding"
     );
+    assert!(
+        reply.deadline().is_none(),
+        "received client-stream must not carry peer deadline Instant"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(Request::new(()));
@@ -21560,6 +21680,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         !reply.accepts_gzip(),
         "received bidi must not carry peer grpc-accept-encoding"
+    );
+    assert!(
+        reply.deadline().is_none(),
+        "received bidi must not carry peer deadline Instant"
     );
     let mut inbound = reply.into_inner();
     let framed = inbound
@@ -25710,6 +25834,9 @@ fn require_response_gzip_level(parts: &mut ResponseParts) -> Result<(), Status> 
     if !parts.accepts_gzip() {
         return Err(Status::internal("response accepts_gzip advertisement"));
     }
+    if parts.deadline().is_none() {
+        return Err(Status::internal("response deadline Instant"));
+    }
     Ok(())
 }
 
@@ -25724,6 +25851,7 @@ async fn a_handler_can_opt_out_of_server_send_compressed() {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
             .gzip_compression_level(9)
+            .timeout(Duration::from_secs(5))
             .intercept(interceptor_require_server_gzip)
             .on_response(require_response_gzip_level)
             .serve_listener(listener)
@@ -25742,6 +25870,7 @@ async fn a_tls_handler_can_opt_out_of_server_send_compressed() {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
             .gzip_compression_level(9)
+            .timeout(Duration::from_secs(5))
             .intercept(interceptor_require_server_gzip)
             .on_response(require_response_gzip_level)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
@@ -25760,6 +25889,7 @@ async fn an_mtls_handler_can_opt_out_of_server_send_compressed() {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
             .gzip_compression_level(9)
+            .timeout(Duration::from_secs(5))
             .intercept(interceptor_require_server_gzip)
             .on_response(require_response_gzip_level)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
@@ -25780,6 +25910,7 @@ async fn a_unix_handler_can_opt_out_of_server_send_compressed() {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
             .gzip_compression_level(9)
+            .timeout(Duration::from_secs(5))
             .intercept(interceptor_require_server_gzip)
             .on_response(require_response_gzip_level)
             .serve_unix(sock)
@@ -25797,6 +25928,7 @@ async fn a_from_io_handler_can_opt_out_of_server_send_compressed() {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
             .gzip_compression_level(9)
+            .timeout(Duration::from_secs(5))
             .intercept(interceptor_require_server_gzip)
             .on_response(require_response_gzip_level)
             .serve_connection(server_io)

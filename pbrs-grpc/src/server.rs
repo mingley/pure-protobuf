@@ -468,6 +468,7 @@ impl Rpc {
     /// [`Self::set_timeout`] sees the new Instant. The handler's
     /// [`Request::deadline`] is stamped once when dispatch starts. Visible
     /// on every call shape.
+    /// Response interceptors see the same Instant as [`Request::deadline`] on [`crate::Response::deadline`].
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.effective_timeout()
@@ -663,7 +664,7 @@ impl Rpc {
             cancel,
             path,
             gzip_level,
-            ..
+            deadline,
         }) = self.run_unary_request(handler).await
         else {
             return;
@@ -675,7 +676,8 @@ impl Rpc {
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip),
+                        .with_accepts_gzip(peer_accepts_gzip)
+                        .with_deadline(deadline),
                     hook.as_deref(),
                 )
             }) {
@@ -722,7 +724,7 @@ impl Rpc {
             cancel,
             path,
             gzip_level,
-            ..
+            deadline,
         }) = self.run_streaming_request(handler).await
         else {
             return;
@@ -734,7 +736,8 @@ impl Rpc {
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip),
+                        .with_accepts_gzip(peer_accepts_gzip)
+                        .with_deadline(deadline),
                     hook.as_deref(),
                 )
             }) {
@@ -800,7 +803,8 @@ impl Rpc {
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip),
+                        .with_accepts_gzip(peer_accepts_gzip)
+                        .with_deadline(deadline),
                     hook.as_deref(),
                 )
             }) {
@@ -873,7 +877,8 @@ impl Rpc {
                         .with_path(path)
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
-                        .with_accepts_gzip(peer_accepts_gzip),
+                        .with_accepts_gzip(peer_accepts_gzip)
+                        .with_deadline(deadline),
                     hook.as_deref(),
                 )
             }) {
@@ -1843,6 +1848,9 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
     /// [`crate::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement.
     /// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
+    /// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
+    /// Distinct from [`crate::Request::deadline`]: that is the inbound request.
+    /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2624,6 +2632,9 @@ impl Router {
     /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
     /// [`crate::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement.
     /// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
+    /// [`crate::ResponseParts::deadline`] is kernel-stamped when writing.
+    /// Distinct from [`crate::Request::deadline`]: that is the inbound request.
+    /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {
