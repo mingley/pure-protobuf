@@ -195,10 +195,13 @@ See `docs/upb.md`. Short list:
   wrapping `Service` reach the handler `Request` on every call shape. `FooServer::intercept` then
   `add_service` keeps that reject on every mount and every call shape.
   The same `add_service` keeps `max_decoding_message_size` on every mount
-  and every call shape. Generated handlers see
+  and every call shape.   Generated handlers see
   `:authority` / `:scheme` / `Request` parts, a deadline Instant that
   elapses, TCP local/remote, Unix `peer_cred`, and `Incoming::peer`
-  stamps on every call shape. Handler `Err` (nonzero `grpc-status` and
+  stamps on every call shape. A server interceptor `set_timeout` is the
+  handler `Request` / `Parts` timeout and deadline Instant, not the client
+  `peer_timeout`, including over TLS, mTLS, Unix, and `from_io`. Stacked
+  server interceptors can only tighten that cap, on those transports too. Handler `Err` (nonzero `grpc-status` and
   custom details) is that status on every call shape. A packed
   `google.rpc.Status` from `with_error_details` is `Status::rpc` /
   `Status::error_details` on every call shape. A

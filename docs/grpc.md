@@ -1296,7 +1296,9 @@ that overlay, the client header, and `set_timeout`. `Rpc::deadline` is that same
 `Instant`, computed at the call so a just-tightened cap is visible. An
 interceptor can only tighten the deadline, not extend it. The handler's
 `request.timeout()` / `request.deadline()` are that tightened cap, not the
-original client value. The handler Instant is stamped once at dispatch. That original duration is
+original client value, including over TLS, mTLS, Unix, and `from_io`.
+Stacked server interceptors can only tighten that cap, on those transports
+too. The handler Instant is stamped once at dispatch. That original duration is
 `Request::peer_timeout` / `Parts::peer_timeout`. The server overlay is
 `Request::rpc_timeout` / `Parts::rpc_timeout`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from

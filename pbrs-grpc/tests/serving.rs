@@ -7286,19 +7286,18 @@ async fn a_server_interceptor_retains_a_subset_of_metadata() {
     task.abort();
 }
 
+fn interceptor_set_timeout_5s(rpc: &mut Rpc) -> Result<(), Status> {
+    rpc.set_timeout(Duration::from_secs(5));
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_server_interceptor_can_tighten_the_deadline() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow)
-            .intercept(|rpc: &mut Rpc| {
-                rpc.set_timeout(Duration::from_secs(5));
-                Ok(())
-            })
-            .intercept(|rpc: &mut Rpc| {
-                rpc.set_timeout(Duration::from_millis(20));
-                Ok(())
-            })
+            .intercept(interceptor_set_timeout_5s)
+            .intercept(interceptor_server_set_timeout)
             .serve_listener(listener)
             .await
             .ok();
@@ -7314,99 +7313,184 @@ async fn a_server_interceptor_can_tighten_the_deadline() {
     task.abort();
 }
 
-#[tokio::test]
-async fn a_handler_sees_the_interceptor_deadline_on_request() {
-    fn take_cap<T>(request: Request<T>) -> Result<T, Status> {
-        let timeout = request
-            .timeout()
-            .ok_or_else(|| Status::internal("missing timeout duration"))?;
-        if timeout != Duration::from_millis(20) {
-            return Err(Status::internal(format!(
-                "stamped timeout {timeout:?} is not the interceptor cap"
-            )));
-        }
-        let peer = request
-            .peer_timeout()
-            .ok_or_else(|| Status::internal("missing client grpc-timeout"))?;
-        if peer != Duration::from_secs(5) {
-            return Err(Status::internal(format!(
-                "peer timeout {peer:?} is not the client's 5s"
-            )));
-        }
-        let (msg, parts) = request.into_message_and_parts();
-        if parts.timeout() != Some(timeout) {
-            return Err(Status::internal("parts timeout must match Request"));
-        }
-        if parts.peer_timeout() != Some(peer) {
-            return Err(Status::internal("parts peer_timeout must match Request"));
-        }
-        if parts.rpc_timeout().is_some() {
-            return Err(Status::internal("no server timeout overlay on this test"));
-        }
-        let deadline = parts
-            .deadline()
-            .ok_or_else(|| Status::internal("missing deadline Instant"))?;
-        let left = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if left > Duration::from_millis(50) {
-            return Err(Status::internal(format!(
-                "remaining {left:?} looks like the client 5s, not the interceptor cap"
-            )));
-        }
-        Ok(msg)
-    }
-
-    struct SeesCap;
-
-    impl Greeter for SeesCap {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            let msg = take_cap(request)?;
-            Ok(Response::new(common::reply(common::name_of_request(&msg))))
-        }
-
-        async fn client_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<HelloReply>, Status> {
-            let _ = take_cap(request)?;
-            Ok(Response::new(common::reply("ok")))
-        }
-
-        async fn server_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            let _ = take_cap(request)?;
-            Ok(Response::new(pbrs_grpc::Streaming::empty()))
-        }
-
-        async fn stream_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            let _ = take_cap(request)?;
-            Ok(Response::new(pbrs_grpc::Streaming::empty()))
-        }
-    }
-
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_tls_server_interceptor_can_tighten_the_deadline() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        GreeterServer::new(SeesCap)
-            .intercept(|rpc: &mut Rpc| {
-                let peer = rpc.peer_timeout();
-                if peer != Some(Duration::from_secs(5)) {
-                    return Err(Status::internal(format!("rpc peer timeout {peer:?}")));
-                }
-                rpc.set_timeout(Duration::from_millis(20));
-                Ok(())
-            })
-            .serve_listener(listener)
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .intercept(interceptor_server_set_timeout)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_secs(5)),
+        Duration::from_millis(500),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_mtls_server_interceptor_can_tighten_the_deadline() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .intercept(interceptor_server_set_timeout)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_secs(5)),
+        Duration::from_millis(500),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_unix_server_interceptor_can_tighten_the_deadline() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .intercept(interceptor_server_set_timeout)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_secs(5)),
+        Duration::from_millis(500),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_from_io_server_interceptor_can_tighten_the_deadline() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .intercept(interceptor_set_timeout_5s)
+            .intercept(interceptor_server_set_timeout)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_deadline_quickly_on_every_shape(
+        &client,
+        Some(Duration::from_secs(5)),
+        Duration::from_millis(500),
+    )
+    .await;
+    server.abort();
+}
+
+fn take_interceptor_deadline_cap<T>(request: Request<T>) -> Result<T, Status> {
+    let timeout = request
+        .timeout()
+        .ok_or_else(|| Status::internal("missing timeout duration"))?;
+    if timeout != Duration::from_millis(20) {
+        return Err(Status::internal(format!(
+            "stamped timeout {timeout:?} is not the interceptor cap"
+        )));
+    }
+    let peer = request
+        .peer_timeout()
+        .ok_or_else(|| Status::internal("missing client grpc-timeout"))?;
+    if peer != Duration::from_secs(5) {
+        return Err(Status::internal(format!(
+            "peer timeout {peer:?} is not the client's 5s"
+        )));
+    }
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.timeout() != Some(timeout) {
+        return Err(Status::internal("parts timeout must match Request"));
+    }
+    if parts.peer_timeout() != Some(peer) {
+        return Err(Status::internal("parts peer_timeout must match Request"));
+    }
+    if parts.rpc_timeout().is_some() {
+        return Err(Status::internal("no server timeout overlay on this test"));
+    }
+    let deadline = parts
+        .deadline()
+        .ok_or_else(|| Status::internal("missing deadline Instant"))?;
+    let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+    if left > Duration::from_millis(50) {
+        return Err(Status::internal(format!(
+            "remaining {left:?} looks like the client 5s, not the interceptor cap"
+        )));
+    }
+    Ok(msg)
+}
+
+fn interceptor_check_peer_and_tighten(rpc: &mut Rpc) -> Result<(), Status> {
+    let peer = rpc.peer_timeout();
+    if peer != Some(Duration::from_secs(5)) {
+        return Err(Status::internal(format!("rpc peer timeout {peer:?}")));
+    }
+    rpc.set_timeout(Duration::from_millis(20));
+    Ok(())
+}
+
+struct SeesCap;
+
+impl Greeter for SeesCap {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let msg = take_interceptor_deadline_cap(request)?;
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let _ = take_interceptor_deadline_cap(request)?;
+        Ok(Response::new(common::reply("ok")))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _ = take_interceptor_deadline_cap(request)?;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _ = take_interceptor_deadline_cap(request)?;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
+    }
+}
+
+async fn assert_handler_sees_interceptor_deadline(client: &GreeterClient) {
     let mut request = Request::new(req("ada"));
     request.set_timeout(Duration::from_secs(5));
     let reply = client.say_hello(request).await.expect("unary");
@@ -7427,7 +7511,89 @@ async fn a_handler_sees_the_interceptor_deadline_on_request() {
     let (tx, call) = client.stream_hello(request);
     tx.close();
     let _ = call.await.expect("bidi");
+}
+
+#[tokio::test]
+async fn a_handler_sees_the_interceptor_deadline_on_request() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesCap)
+            .intercept(interceptor_check_peer_and_tighten)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_handler_sees_interceptor_deadline(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_handler_sees_the_interceptor_deadline_on_request() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesCap)
+            .intercept(interceptor_check_peer_and_tighten)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_handler_sees_interceptor_deadline(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_handler_sees_the_interceptor_deadline_on_request() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesCap)
+            .intercept(interceptor_check_peer_and_tighten)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_handler_sees_interceptor_deadline(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_handler_sees_the_interceptor_deadline_on_request() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesCap)
+            .intercept(interceptor_check_peer_and_tighten)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_handler_sees_interceptor_deadline(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_handler_sees_the_interceptor_deadline_on_request() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesCap)
+            .intercept(interceptor_check_peer_and_tighten)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_handler_sees_interceptor_deadline(&client).await;
+    server.abort();
 }
 
 #[tokio::test]
