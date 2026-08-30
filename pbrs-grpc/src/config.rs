@@ -1448,6 +1448,7 @@ impl ChannelConfig {
 
     /// Configured message caps. Applies to every call shape.
     /// [`crate::Channel::limits`] reads this overlay on a live clone without building a [`ChannelConfig`].
+    /// Distinct from [`Self::message_limits`], which sets them.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
         self.limits

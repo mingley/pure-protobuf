@@ -2529,6 +2529,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::send_buffer_size must Distinct the setter"
     );
     assert!(
+        src.contains("Distinct from [`Self::message_limits`], which sets them."),
+        "ChannelConfig::limits must Distinct the setter"
+    );
+    assert!(
         src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
