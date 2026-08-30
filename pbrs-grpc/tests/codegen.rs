@@ -3994,6 +3994,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must Distinct send_buffer_size from stream_buffer_size"
     );
     assert!(
+        src.contains(
+            "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterClient::new(channel).intercept`)."
+        ),
+        "generated intercept rustdoc must point at the compiling hello overlay dump"
+    );
+    assert!(
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),
         "generated server intercept rustdoc must name the server timeout overlay"
     );
