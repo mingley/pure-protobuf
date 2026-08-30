@@ -265,7 +265,9 @@ builds that payload. `Status::help` is packed documentation links. Distinct from
 failure classifications: links can sit next to a retryable UNAVAILABLE.
 `Help::with_link` builds that payload. `Status::localized_message` is packed
 locale text. Distinct from the ASCII `grpc-message`. Distinct from `help`.
-`LocalizedMessage::with_locale` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
+`LocalizedMessage::with_locale` builds that payload. `Status::request_info` is packed
+request_id for logs. Distinct from `error_info`. Distinct from `help`.
+`RequestInfo::with_request_id` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details`
 replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing

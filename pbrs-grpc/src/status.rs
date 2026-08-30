@@ -842,6 +842,35 @@ impl Status {
         self.error_details().ok()?.localized_message
     }
 
+    /// Packed `google.rpc.RequestInfo`, if this status carries one.
+    ///
+    /// Distinct from [`Self::error_info`]: that is a metadata map, not a typed request_id.
+    /// Distinct from [`Self::help`]: that is a docs URL, not a request_id.
+    /// Distinct from [`Self::localized_message`]: that is a locale, not a request_id.
+    /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
+    /// Corrupt bytes are `None`. Build the payload with
+    /// [`crate::pb::RequestInfo::with_request_id`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, RequestInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     request_info: Some(RequestInfo::with_request_id("req-9", "encrypted")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
+    /// let info = status.request_info().expect("RequestInfo");
+    /// assert_eq!(info.request_id().to_str().unwrap_or(""), "req-9");
+    /// assert_eq!(info.serving_data().to_str().unwrap_or(""), "encrypted");
+    /// assert!(Status::internal("boom").request_info().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn request_info(&self) -> Option<crate::pb::RequestInfo> {
+        self.error_details().ok()?.request_info
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1914,6 +1943,59 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .localized_message()
+        .is_none());
+    }
+
+    #[test]
+    fn request_info_reads_packed_request_id() {
+        let mut error = crate::pb::ErrorInfo::new();
+        error.set_reason("BACKEND");
+        error.set_domain("example.com");
+        let details = crate::pb::ErrorDetails {
+            request_info: Some(crate::pb::RequestInfo::with_request_id(
+                "req-9",
+                "encrypted",
+            )),
+            error_info: Some(error),
+            help: Some(crate::pb::Help::with_link(
+                "docs",
+                "https://example.com/boom",
+            )),
+            localized_message: Some(crate::pb::LocalizedMessage::with_locale("fr-FR", "boom")),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status = Status::from_error_details(Code::Internal, "boom", &details).expect("encode");
+        let info = status.request_info().expect("RequestInfo");
+        assert_eq!(info.request_id().to_str().unwrap_or(""), "req-9");
+        assert_eq!(info.serving_data().to_str().unwrap_or(""), "encrypted");
+        assert!(status.error_info().is_some());
+        assert!(status.help().is_some());
+        assert!(status.localized_message().is_some());
+
+        let error_only = crate::pb::ErrorDetails {
+            error_info: Some({
+                let mut info = crate::pb::ErrorInfo::new();
+                info.set_reason("BACKEND");
+                info
+            }),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let error_status =
+            Status::from_error_details(Code::Internal, "boom", &error_only).expect("encode");
+        assert!(error_status.request_info().is_none());
+        assert!(error_status.error_info().is_some());
+
+        assert!(Status::internal("boom").request_info().is_none());
+        assert!(Status::internal("boom")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .request_info()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .request_info()
         .is_none());
     }
 

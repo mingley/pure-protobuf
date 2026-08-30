@@ -1850,6 +1850,38 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "LocalizedMessage::with_locale must Distinct ASCII grpc-message from locale"
     );
     assert!(
+        crate_src.contains("[`Status::request_info`]"),
+        "crate map must name Status::request_info"
+    );
+    assert!(
+        crate_src.contains("[`pb::RequestInfo::with_request_id`]"),
+        "crate map must name RequestInfo::with_request_id"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.RequestInfo`, if this status carries one."),
+        "Status::request_info must name packed RequestInfo"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::error_info`]: that is a metadata map, not a typed request_id."
+        ),
+        "Status::request_info must Distinct ErrorInfo metadata map from typed request_id"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::help`]: that is a docs URL, not a request_id."),
+        "Status::request_info must Distinct Help docs URL from request_id"
+    );
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::request_info`]"),
+        "RequestInfo::with_request_id must name Status::request_info unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::error_info`]: that is a metadata map, not a typed request_id."
+        ),
+        "RequestInfo::with_request_id must Distinct ErrorInfo metadata map from typed request_id"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
@@ -2150,6 +2182,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from `status.message()`."),
         "guide must Distinct localized_message from ASCII grpc-message"
+    );
+    assert!(
+        guide.contains("`status.request_info()` for a request_id"),
+        "guide must name Status::request_info as a request_id"
+    );
+    assert!(
+        guide.contains("`RequestInfo::with_request_id` builds that payload"),
+        "guide must name RequestInfo::with_request_id as the builder"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),

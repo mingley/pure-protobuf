@@ -432,6 +432,38 @@ impl LocalizedMessage {
     }
 }
 
+impl RequestInfo {
+    /// `RequestInfo` with `request_id` and `serving_data`.
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::request_info`].
+    /// Distinct from [`crate::Status::error_info`]: that is a metadata map, not a typed request_id.
+    /// Distinct from [`crate::Status::help`]: that is a docs URL, not a request_id.
+    /// Distinct from [`crate::Status::localized_message`]: that is a locale, not a request_id.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, RequestInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     request_info: Some(RequestInfo::with_request_id("req-9", "encrypted")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
+    /// let info = status.request_info().expect("RequestInfo");
+    /// assert_eq!(info.request_id().to_str().unwrap_or(""), "req-9");
+    /// assert_eq!(info.serving_data().to_str().unwrap_or(""), "encrypted");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_request_id(request_id: impl Into<String>, serving_data: impl Into<String>) -> Self {
+        let mut info = Self::new();
+        info.set_request_id(request_id.into());
+        info.set_serving_data(serving_data.into());
+        info
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -601,7 +633,7 @@ mod tests {
     use super::{
         bad_request, help, precondition_failure, quota_failure, Any, BadRequest, Duration,
         ErrorDetails, ErrorInfo, FieldViolation, Help, LocalizedMessage, PreconditionFailure,
-        QuotaFailure, RetryInfo, Status, TYPE_URL_PREFIX,
+        QuotaFailure, RequestInfo, RetryInfo, Status, TYPE_URL_PREFIX,
     };
     use crate::Code;
 
@@ -931,5 +963,24 @@ mod tests {
         assert_eq!(got.message().to_str().unwrap_or(""), "introuvable");
         assert!(status.help().is_none());
         assert!(status.precondition_failure().is_none());
+    }
+
+    #[test]
+    fn request_info_with_request_id_round_trips() {
+        let info = RequestInfo::with_request_id("req-9", "encrypted");
+        assert_eq!(info.request_id().to_str().unwrap_or(""), "req-9");
+        assert_eq!(info.serving_data().to_str().unwrap_or(""), "encrypted");
+        let details = ErrorDetails {
+            request_info: Some(info),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::Internal, "boom", &details).expect("encode");
+        let got = status.request_info().expect("RequestInfo");
+        assert_eq!(got.request_id().to_str().unwrap_or(""), "req-9");
+        assert_eq!(got.serving_data().to_str().unwrap_or(""), "encrypted");
+        assert!(status.error_info().is_none());
+        assert!(status.help().is_none());
+        assert!(status.localized_message().is_none());
     }
 }

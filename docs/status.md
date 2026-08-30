@@ -518,7 +518,10 @@ See `docs/upb.md`. Short list:
   `Help::with_link` builds that payload.
   `Status::localized_message` is packed locale text. Distinct from the ASCII
   `grpc-message`. Distinct from `help` (a docs URL).
-  `LocalizedMessage::with_locale` builds that payload. A
+  `LocalizedMessage::with_locale` builds that payload.
+  `Status::request_info` is packed request_id for logs. Distinct from
+  `error_info` (a metadata map). Distinct from `help` (a docs URL).
+  `RequestInfo::with_request_id` builds that payload. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

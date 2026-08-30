@@ -105,7 +105,7 @@
 //! | Reflection | [`reflection`] |
 //! | Interceptors | [`Interceptor`], [`ResponseInterceptor`], [`Intercepted`], [`ClientInterceptor`], [`Outgoing`], [`Extensions`] |
 //! | Envelopes | [`Request`], [`Parts`], [`Response`], [`ResponseParts`], [`Metadata`], [`Status`], [`Code`], [`ParseCodeError`], [`Any`] |
-//! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`Status::set_rpc`], [`Status::from_error`], [`Status::is_retryable`], [`Status::retry_delay`], [`Status::error_info`], [`Status::bad_request`], [`pb::BadRequest::with_field`], [`pb::bad_request`], [`Status::quota_failure`], [`pb::QuotaFailure::with_violation`], [`pb::quota_failure`], [`Status::precondition_failure`], [`pb::PreconditionFailure::with_violation`], [`pb::precondition_failure`], [`Status::help`], [`pb::Help::with_link`], [`pb::help`], [`Status::localized_message`], [`pb::LocalizedMessage::with_locale`] |
+//! | Rich errors | [`pb`], [`ErrorDetails`], [`Status::with_error_details`], [`Status::set_rpc`], [`Status::from_error`], [`Status::is_retryable`], [`Status::retry_delay`], [`Status::error_info`], [`Status::bad_request`], [`pb::BadRequest::with_field`], [`pb::bad_request`], [`Status::quota_failure`], [`pb::QuotaFailure::with_violation`], [`pb::quota_failure`], [`Status::precondition_failure`], [`pb::PreconditionFailure::with_violation`], [`pb::precondition_failure`], [`Status::help`], [`pb::Help::with_link`], [`pb::help`], [`Status::localized_message`], [`pb::LocalizedMessage::with_locale`], [`Status::request_info`], [`pb::RequestInfo::with_request_id`] |
 //! | Streaming | [`Streaming`], [`StreamSender`], [`Framed`], [`Stream`], [`FusedStream`] |
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
