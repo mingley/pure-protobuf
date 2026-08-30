@@ -1289,7 +1289,8 @@ GreeterServer::new(MyGreeter)
     .await?;
 ```
 
-The handler sees the mutated metadata on `request.metadata()`, including
+The handler sees the mutated metadata on `request.metadata()` and on
+`Parts` after `into_message_and_parts`, including
 injected keys and without stripped ones, on h2c, TLS, mTLS, Unix, and
 `from_io`. `set` / `set_bin` replace a hop the
 interceptor owns (a peer-supplied `x-actor` does not survive). `retain` keeps

@@ -189,7 +189,8 @@ See `docs/upb.md`. Short list:
   is `Outgoing::user_agent` on those same paths.   Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape, including over TLS, mTLS, Unix,
   and `from_io` (`set` replaces a peer-smuggled hop, `remove` strips before
-  the handler, `retain` keeps a subset including `-bin` keys). TLS
+  the handler, `retain` keeps a subset including `-bin` keys; `Request` and
+  `Parts` after `into_message_and_parts` see the same mutation). TLS
   (including mTLS) interceptor `:authority` is the dial `Target`
   (`SocketAddr` is `127.0.0.1:port`), not SNI `localhost`; Unix interceptor
   `:authority` is `localhost` on both sides even after `https_scheme`.

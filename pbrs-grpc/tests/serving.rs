@@ -7054,12 +7054,17 @@ async fn a_client_interceptor_can_reject_with_typed_status_details() {
 
 struct ActorEcho;
 
-fn actor_is_kernel<T>(request: &Request<T>) -> Result<(), Status> {
+fn actor_is_kernel<T>(request: Request<T>) -> Result<T, Status> {
     let actors: Vec<_> = request.metadata().get_all("x-actor").collect();
     if actors != ["kernel"] {
         return Err(Status::internal(format!("x-actor {actors:?}")));
     }
-    Ok(())
+    let (msg, parts) = request.into_message_and_parts();
+    let actors: Vec<_> = parts.metadata().get_all("x-actor").collect();
+    if actors != ["kernel"] {
+        return Err(Status::internal(format!("parts x-actor {actors:?}")));
+    }
+    Ok(msg)
 }
 
 fn kernel_stream() -> Response<pbrs_grpc::Streaming<HelloReply>> {
@@ -7075,7 +7080,7 @@ impl pbrs_grpc::Greeter for ActorEcho {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        actor_is_kernel(&request)?;
+        let _msg = actor_is_kernel(request)?;
         Ok(Response::new(common::reply("kernel")))
     }
 
@@ -7083,7 +7088,7 @@ impl pbrs_grpc::Greeter for ActorEcho {
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        actor_is_kernel(&request)?;
+        let _stream = actor_is_kernel(request)?;
         Ok(Response::new(common::reply("kernel")))
     }
 
@@ -7091,7 +7096,7 @@ impl pbrs_grpc::Greeter for ActorEcho {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        actor_is_kernel(&request)?;
+        let _msg = actor_is_kernel(request)?;
         Ok(kernel_stream())
     }
 
@@ -7099,7 +7104,7 @@ impl pbrs_grpc::Greeter for ActorEcho {
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        actor_is_kernel(&request)?;
+        let _stream = actor_is_kernel(request)?;
         Ok(kernel_stream())
     }
 }
@@ -7149,11 +7154,15 @@ async fn assert_injected_actor(client: &GreeterClient) {
 
 struct SeesAuth;
 
-fn auth_stripped<T>(request: &Request<T>) -> Result<(), Status> {
+fn auth_stripped<T>(request: Request<T>) -> Result<T, Status> {
     if request.metadata().get("authorization").is_some() {
         return Err(Status::internal("authorization leaked to handler"));
     }
-    Ok(())
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.metadata().get("authorization").is_some() {
+        return Err(Status::internal("authorization leaked to parts"));
+    }
+    Ok(msg)
 }
 
 impl pbrs_grpc::Greeter for SeesAuth {
@@ -7161,17 +7170,15 @@ impl pbrs_grpc::Greeter for SeesAuth {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        auth_stripped(&request)?;
-        Ok(Response::new(common::reply(common::name_of_request(
-            request.get_ref(),
-        ))))
+        let msg = auth_stripped(request)?;
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
     }
 
     async fn client_hello(
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        auth_stripped(&request)?;
+        let _stream = auth_stripped(request)?;
         Ok(Response::new(common::reply("ada")))
     }
 
@@ -7179,8 +7186,8 @@ impl pbrs_grpc::Greeter for SeesAuth {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        auth_stripped(&request)?;
-        let name = common::name_of_request(request.get_ref());
+        let msg = auth_stripped(request)?;
+        let name = common::name_of_request(&msg);
         let (tx, stream) = pbrs_grpc::Streaming::channel(1);
         drop(tokio::spawn(async move {
             tx.send(common::reply(name)).await.ok();
@@ -7192,7 +7199,7 @@ impl pbrs_grpc::Greeter for SeesAuth {
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        auth_stripped(&request)?;
+        let _stream = auth_stripped(request)?;
         let (tx, stream) = pbrs_grpc::Streaming::channel(1);
         drop(tokio::spawn(async move {
             tx.send(common::reply("ada")).await.ok();
@@ -7246,20 +7253,26 @@ async fn assert_stripped_authorization(client: &GreeterClient) {
 
 struct SeesHops;
 
-fn hops_ok<T>(request: &Request<T>) -> Result<(), Status> {
-    if request.metadata().get("y-drop").is_some() {
-        return Err(Status::internal("y-drop leaked to handler"));
+fn hops_ok<T>(request: Request<T>) -> Result<T, Status> {
+    fn check(md: &pbrs_grpc::Metadata, where_: &str) -> Result<(), Status> {
+        if md.get("y-drop").is_some() {
+            return Err(Status::internal(format!("y-drop leaked to {where_}")));
+        }
+        if md.get("x-keep") != Some("v") {
+            return Err(Status::internal(format!(
+                "{where_} x-keep {:?}",
+                md.get("x-keep")
+            )));
+        }
+        if md.get_bin("x-trace-bin").as_deref() != Some(&[1u8][..]) {
+            return Err(Status::internal(format!("{where_} x-trace-bin missing")));
+        }
+        Ok(())
     }
-    if request.metadata().get("x-keep") != Some("v") {
-        return Err(Status::internal(format!(
-            "x-keep {:?}",
-            request.metadata().get("x-keep")
-        )));
-    }
-    if request.metadata().get_bin("x-trace-bin").as_deref() != Some(&[1u8][..]) {
-        return Err(Status::internal("x-trace-bin missing"));
-    }
-    Ok(())
+    check(request.metadata(), "handler")?;
+    let (msg, parts) = request.into_message_and_parts();
+    check(parts.metadata(), "parts")?;
+    Ok(msg)
 }
 
 impl pbrs_grpc::Greeter for SeesHops {
@@ -7267,17 +7280,15 @@ impl pbrs_grpc::Greeter for SeesHops {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<HelloReply>, Status> {
-        hops_ok(&request)?;
-        Ok(Response::new(common::reply(common::name_of_request(
-            request.get_ref(),
-        ))))
+        let msg = hops_ok(request)?;
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
     }
 
     async fn client_hello(
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<HelloReply>, Status> {
-        hops_ok(&request)?;
+        let _stream = hops_ok(request)?;
         Ok(Response::new(common::reply("ada")))
     }
 
@@ -7285,8 +7296,8 @@ impl pbrs_grpc::Greeter for SeesHops {
         &self,
         request: Request<HelloRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        hops_ok(&request)?;
-        let name = common::name_of_request(request.get_ref());
+        let msg = hops_ok(request)?;
+        let name = common::name_of_request(&msg);
         let (tx, stream) = pbrs_grpc::Streaming::channel(1);
         drop(tokio::spawn(async move {
             tx.send(common::reply(name)).await.ok();
@@ -7298,7 +7309,7 @@ impl pbrs_grpc::Greeter for SeesHops {
         &self,
         request: Request<pbrs_grpc::Streaming<HelloRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-        hops_ok(&request)?;
+        let _stream = hops_ok(request)?;
         let (tx, stream) = pbrs_grpc::Streaming::channel(1);
         drop(tokio::spawn(async move {
             tx.send(common::reply("ada")).await.ok();
