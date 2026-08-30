@@ -186,7 +186,7 @@ See `docs/upb.md`. Short list:
   bytes, client-streaming and bidi before HEADERS. Unix accept loops expose `SO_PEERCRED` on `Rpc::peer_cred`.
   Custom `Incoming` implementations stamp local_addr / mTLS identity /
   Unix credentials / transport scheme via `Incoming::peer` and
-  `ConnectionInfo`. TLS `:scheme https` and mTLS `peer_identity` apply to
+  `ConnectionInfo`. Compiling `ConnectionInfo` peer dumps live on the `Incoming` rustdoc. TLS `:scheme https` and mTLS `peer_identity` apply to
   every call shape. HTTP/2 PING keepalive still serves every Greeter shape
   after PINGs fire on h2c, TLS (including mTLS), Unix, and `from_io`. TCP
   `SO_KEEPALIVE` is TCP-only and still serves every Greeter shape on h2c, TLS,
