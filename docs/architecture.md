@@ -99,7 +99,8 @@ are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
 the same overlays as the channel (the setter names cannot collide).
 `Channel::unary` / `server_streaming` / `client_streaming` / `bidi` are
 first-class for a hand-written `Service`; generated clients call the same
-methods.
+methods. Unknown methods on that `Service` are `UNIMPLEMENTED` on every
+call shape, including over TLS, mTLS, Unix, and `from_io`.
 `FooServer::rpc_timeout` and `compresses_outbound` (also `Server` / `Router`)
 read the same overlays as `server_config`.
 A received `Streaming` holds the HTTP/2 driver, so dropping the `Channel`

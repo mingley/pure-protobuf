@@ -419,6 +419,13 @@ async fn serve_reverser_mtls_at(
     Err(last)
 }
 
+async fn assert_hand_written_serves(channel: Channel, seen: &AtomicUsize) {
+    echo_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    assert_unimplemented_path(&channel, "/demo.Reverser/Nope").await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+}
+
 #[tokio::test]
 async fn a_hand_written_service_serves_without_generated_code() {
     let (addr, listener) = bind().await;
@@ -427,18 +434,76 @@ async fn a_hand_written_service_serves_without_generated_code() {
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
-
-    let channel = channel(addr).await;
-    echo_reverser_every_shape(&channel).await;
-    assert_eq!(seen.load(Ordering::Relaxed), 4);
-
-    let missing = channel
-        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Nope", Request::new(req("x")))
-        .await
-        .expect_err("unknown method");
-    assert_eq!(missing.code(), Code::Unimplemented);
-
+    assert_hand_written_serves(channel(addr).await, &seen).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_hand_written_service_serves_without_generated_code() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_hand_written_serves(tls_channel(addr).await, &seen).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_hand_written_service_serves_without_generated_code() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    );
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_hand_written_serves(tls_channel_with(addr, client_tls).await, &seen).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_hand_written_service_serves_without_generated_code() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    assert_hand_written_serves(unix_channel(&path).await, &seen).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_hand_written_service_serves_without_generated_code() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    assert_hand_written_serves(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+        &seen,
+    )
+    .await;
+    server.abort();
 }
 
 #[test]
@@ -855,6 +920,12 @@ fn server_and_router_config_document_every_call_shape() {
             "A path whose service is not mounted, or a method a mounted service does\n/// not have, is [`crate::Code::Unimplemented`] on every call shape, including\n/// over TLS, mTLS, Unix, and [`Server::serve_connection`]."
         ),
         "Router rustdoc must name UNIMPLEMENTED on every mount miss and transport"
+    );
+    assert!(
+        src.contains(
+            "A hand-written [`Service`] is first-class. Unknown methods are\n/// [`crate::Code::Unimplemented`] on every call shape, including over TLS,\n/// mTLS, Unix, and [`Server::serve_connection`]."
+        ),
+        "Server rustdoc must name hand-written unknown-method UNIMPLEMENTED on every transport"
     );
 }
 

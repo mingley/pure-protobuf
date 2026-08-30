@@ -1215,6 +1215,10 @@ pub(crate) fn split_path(path: &str) -> (&str, &str) {
 
 /// Serves exactly one [`Service`], with no per-RPC dynamic dispatch.
 ///
+/// A hand-written [`Service`] is first-class. Unknown methods are
+/// [`crate::Code::Unimplemented`] on every call shape, including over TLS,
+/// mTLS, Unix, and [`Server::serve_connection`].
+///
 /// ```no_run
 /// use pbrs_grpc::Server;
 /// # use pbrs_grpc::{Rpc, Service};

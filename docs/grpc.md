@@ -633,6 +633,9 @@ A hand-written `Service` uses `Server::new` the same way:
 Server::new(Echo).serve(addr).await?;
 ```
 
+Unknown methods are `UNIMPLEMENTED` on every call shape, including over TLS,
+mTLS, Unix, and `from_io`.
+
 Wrapping a generated server in `Server::new` works but adds nothing.
 
 Several services use `Router`, which looks up the service half of the request path:
@@ -1688,7 +1691,8 @@ the hostile-peer tests both use it. A hand-written `Service` is first-class on
 every `Channel` call shape, including `send_compressed` gzip over TLS, mTLS,
 Unix, and `from_io`, interceptor `with_error_details` over TLS, mTLS, Unix,
 and `from_io`, and a handler `Err(with_error_details)` over TLS, mTLS, Unix,
-and `from_io`. Official `TestService` handler `Err(with_error_details)` unpacks
+and `from_io`. Unknown methods on that `Service` are `UNIMPLEMENTED` on every
+call shape on those transports too. Official `TestService` handler `Err(with_error_details)` unpacks
 on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
 those transports too. A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
