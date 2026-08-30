@@ -56,6 +56,7 @@ pub struct Request<T> {
     rpc_timeout: Option<Duration>,
     accepts_gzip: bool,
     compresses_outbound: bool,
+    gzip_level: u32,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -88,6 +89,7 @@ impl<T> Request<T> {
             rpc_timeout: None,
             accepts_gzip: false,
             compresses_outbound: false,
+            gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -141,6 +143,7 @@ impl<T> Request<T> {
                 rpc_timeout: self.rpc_timeout,
                 accepts_gzip: self.accepts_gzip,
                 compresses_outbound: self.compresses_outbound,
+                gzip_level: self.gzip_level,
                 encoding: self.encoding,
                 cancel: self.cancel,
                 extensions: self.extensions,
@@ -176,6 +179,7 @@ impl<T> Request<T> {
             rpc_timeout: parts.rpc_timeout,
             accepts_gzip: parts.accepts_gzip,
             compresses_outbound: parts.compresses_outbound,
+            gzip_level: parts.gzip_level,
             encoding: parts.encoding,
             cancel: parts.cancel,
             extensions: parts.extensions,
@@ -483,6 +487,23 @@ impl<T> Request<T> {
         self.compresses_outbound
     }
 
+    /// Server [`crate::Server::gzip_compression_level`] overlay, when the kernel dispatched this call.
+    ///
+    /// Same overlay as [`crate::Rpc::gzip_level`] / [`crate::Server::gzip_level`].
+    /// Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort.
+    /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay.
+    /// [`crate::DEFAULT_GZIP_COMPRESSION_LEVEL`] on a request you built to send.
+    /// An interceptor cannot change this; the kernel applies it when encoding.
+    ///
+    /// ```
+    /// let req = pbrs_grpc::Request::new(());
+    /// assert_eq!(req.gzip_level(), pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL);
+    /// ```
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.gzip_level
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
@@ -645,6 +666,7 @@ impl<T> Request<T> {
             rpc_timeout: None,
             accepts_gzip: false,
             compresses_outbound: false,
+            gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -694,6 +716,10 @@ impl<T> Request<T> {
 
     pub(crate) fn set_compresses_outbound(&mut self, gzip: bool) {
         self.compresses_outbound = gzip;
+    }
+
+    pub(crate) fn set_gzip_level(&mut self, level: u32) {
+        self.gzip_level = level;
     }
 
     pub(crate) fn set_encoding(&mut self, encoding: Option<String>) {
@@ -1197,6 +1223,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("rpc_timeout", &self.rpc_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
             .field("compresses_outbound", &self.compresses_outbound)
+            .field("gzip_level", &self.gzip_level)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -1227,6 +1254,7 @@ pub struct Parts {
     rpc_timeout: Option<Duration>,
     accepts_gzip: bool,
     compresses_outbound: bool,
+    gzip_level: u32,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -1426,6 +1454,12 @@ impl Parts {
         self.compresses_outbound
     }
 
+    /// Server gzip deflate overlay. See [`Request::gzip_level`].
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.gzip_level
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     /// See [`Request::encoding`].
     #[must_use]
@@ -1507,6 +1541,7 @@ impl fmt::Debug for Parts {
             .field("rpc_timeout", &self.rpc_timeout)
             .field("accepts_gzip", &self.accepts_gzip)
             .field("compresses_outbound", &self.compresses_outbound)
+            .field("gzip_level", &self.gzip_level)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -2065,6 +2100,7 @@ mod tests {
         req.set_rpc_timeout(Some(Duration::from_secs(9)));
         req.set_accepts_gzip(true);
         req.set_compresses_outbound(true);
+        req.set_gzip_level(9);
         req.set_encoding(Some("gzip".into()));
         let (message, mut parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
@@ -2085,6 +2121,7 @@ mod tests {
         assert_eq!(parts.rpc_timeout(), Some(Duration::from_secs(9)));
         assert!(parts.accepts_gzip());
         assert!(parts.compresses_outbound());
+        assert_eq!(parts.gzip_level(), 9);
         assert_eq!(parts.encoding(), Some("gzip"));
         assert!(parts.peer_cred().is_none());
         assert!(parts.limits().is_none());
@@ -2114,6 +2151,7 @@ mod tests {
             shown_parts.contains("compresses_outbound: true"),
             "{shown_parts}"
         );
+        assert!(shown_parts.contains("gzip_level: 9"), "{shown_parts}");
         assert!(shown_parts.contains("encoding: Some("), "{shown_parts}");
         assert!(shown_parts.contains("user_agent: Some("), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
@@ -2136,6 +2174,7 @@ mod tests {
         assert_eq!(rebuilt.rpc_timeout(), Some(Duration::from_secs(9)));
         assert!(rebuilt.accepts_gzip());
         assert!(rebuilt.compresses_outbound());
+        assert_eq!(rebuilt.gzip_level(), 9);
         assert_eq!(rebuilt.encoding(), Some("gzip"));
         assert!(rebuilt.peer_cred().is_none());
         assert!(rebuilt.limits().is_none());
@@ -2154,6 +2193,7 @@ mod tests {
         assert!(shown.contains("rpc_timeout: Some("), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
+        assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("encoding: Some("), "{shown}");
         assert!(shown.contains("user_agent: Some("), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");

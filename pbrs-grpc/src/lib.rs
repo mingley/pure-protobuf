@@ -239,6 +239,8 @@
 //! Distinct from `send_compressed`, which is on or off.
 //! [`Outgoing::gzip_level`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::compresses_outbound`].
+//! [`Rpc::gzip_level`] is that overlay in a server interceptor.
+//! Distinct from [`Rpc::compresses_outbound`].
 //! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block

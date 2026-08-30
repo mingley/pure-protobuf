@@ -691,6 +691,18 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::gzip_level must Distinct deflate effort from on/off"
     );
     assert!(
+        outgoing.contains(
+            "Server [`crate::Server::gzip_compression_level`] overlay, when the kernel dispatched this call."
+        ),
+        "Request::gzip_level must name the server gzip_compression_level overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay."
+        ),
+        "Request::gzip_level must Distinct client interceptor overlay from inbound dispatch"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -837,6 +849,16 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         intercept.contains("[`crate::Outgoing::gzip_level`] is deflate effort"),
         "ClientInterceptor rustdoc must name Outgoing::gzip_level as deflate effort"
+    );
+    assert!(
+        intercept.contains("[`Rpc::gzip_level`] is deflate effort"),
+        "Interceptor rustdoc must name Rpc::gzip_level as deflate effort"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`Rpc::compresses_outbound`]: that is on or off; [`Rpc::gzip_level`] is deflate effort."
+        ),
+        "Interceptor rustdoc must Distinct Rpc::gzip_level from compresses_outbound"
     );
     assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
@@ -2008,6 +2030,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Outgoing::gzip_level from compresses_outbound"
     );
     assert!(
+        crate_src.contains("[`Rpc::gzip_level`] is that overlay in a server interceptor"),
+        "crate docs must name Rpc::gzip_level as the server interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::compresses_outbound`]"),
+        "crate docs must Distinct Rpc::gzip_level from compresses_outbound"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2370,6 +2400,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from `compresses_outbound` (on or off). An interceptor cannot change it."
         ),
         "guide must Distinct Outgoing::gzip_level from compresses_outbound"
+    );
+    assert!(
+        guide.contains("`Rpc::gzip_level` is that overlay in a server interceptor"),
+        "guide must name Rpc::gzip_level as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains(
+            "Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it."
+        ),
+        "guide must Distinct Rpc::gzip_level from Rpc::compresses_outbound"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -2915,6 +2955,16 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server and Router gzip_compression_level must Distinct deflate effort from on/off"
+    );
+    assert!(
+        src.contains("Generated handlers see the same value on [`Request::gzip_level`]."),
+        "Rpc::gzip_level must name the Request stamp"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay."
+        ),
+        "Rpc::gzip_level must Distinct client interceptor overlay"
     );
     assert!(
         src.contains("0 stores; 9 is best"),
@@ -24864,6 +24914,12 @@ fn overlay_gzips<T>(request: &Request<T>) -> Result<(), Status> {
     if !request.compresses_outbound() {
         return Err(Status::internal("request overlay should gzip"));
     }
+    if request.gzip_level() != 9 {
+        return Err(Status::internal(format!(
+            "request gzip_level {}",
+            request.gzip_level()
+        )));
+    }
     Ok(())
 }
 
@@ -24921,6 +24977,12 @@ fn interceptor_require_server_gzip(rpc: &mut Rpc) -> Result<(), Status> {
     if !rpc.compresses_outbound() {
         return Err(Status::internal("server overlay should gzip"));
     }
+    if rpc.gzip_level() != 9 {
+        return Err(Status::internal(format!(
+            "rpc gzip_level {}",
+            rpc.gzip_level()
+        )));
+    }
     Ok(())
 }
 
@@ -24934,6 +24996,7 @@ async fn a_handler_can_opt_out_of_server_send_compressed() {
     let task = tokio::spawn(async move {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
+            .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
             .serve_listener(listener)
             .await
@@ -24950,6 +25013,7 @@ async fn a_tls_handler_can_opt_out_of_server_send_compressed() {
     let task = tokio::spawn(async move {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
+            .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
@@ -24966,6 +25030,7 @@ async fn an_mtls_handler_can_opt_out_of_server_send_compressed() {
     let task = tokio::spawn(async move {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
+            .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
@@ -24984,6 +25049,7 @@ async fn a_unix_handler_can_opt_out_of_server_send_compressed() {
     let task = tokio::spawn(async move {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
+            .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
             .serve_unix(sock)
             .await
@@ -24999,6 +25065,7 @@ async fn a_from_io_handler_can_opt_out_of_server_send_compressed() {
     let server = tokio::spawn(async move {
         GreeterServer::new(OptOutGzip)
             .send_compressed()
+            .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
             .serve_connection(server_io)
             .await

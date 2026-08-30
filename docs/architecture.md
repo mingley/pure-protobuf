@@ -69,7 +69,8 @@ connection.
 `unary` / `client_streaming` / `server_streaming` / `bidi_streaming` /
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
-/ cred, `Rpc::limits`, gzip accept/encoding, and `compresses_outbound`.
+/ cred, `Rpc::limits`, gzip accept/encoding, `compresses_outbound`, and
+`gzip_level`.
 `Router` splits on the service half of the path. An unmounted service, or a
 method a mounted service does not have, is `UNIMPLEMENTED` on every call
 shape, including over TLS, mTLS, Unix, and `from_io`. Remounting the same
@@ -77,14 +78,14 @@ service name keeps the last handler on those transports.
 Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
-gzip accept/encoding, and the
-`compresses_outbound` overlay. Dumping
+gzip accept/encoding, the
+`compresses_outbound` overlay, and `gzip_level`. Dumping
 `Rpc` prints service/method, interceptor `timeout` / server `rpc_timeout` /
 `peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
-encoding / `compresses_outbound`, and `limits`.
+encoding / `compresses_outbound` / `gzip_level`, and `limits`.
 Dumping `Request` prints path / service / method, `timeout` / `rpc_timeout` /
 `peer_timeout`,
-`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, peer,
+`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, peer,
 `:authority` / `:scheme`, wait-for-ready, `limits`, and cancel.
 Dumping `Response` prints metadata, trailers, compress intent, and received
 `encoding`.
@@ -201,7 +202,7 @@ per-service hook and does not cover other mounts; a Server / Router hook
 still runs first. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
-`compresses_outbound`, peer, `:authority` / `:scheme`, limits).
+`compresses_outbound`, `gzip_level`, peer, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).
 `metadata_mut().set` / `remove` / `retain` reach the handler on every call
@@ -210,7 +211,7 @@ survive `into_message_and_parts`. TLS `:authority` is
 the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
-gzip, and the `compresses_outbound` overlay. `Server::timeout` / `Router::timeout`
+gzip, the `compresses_outbound` overlay, and `gzip_level`. `Server::timeout` / `Router::timeout`
 expire Slow handlers when the client omits a deadline and cap a longer client
 deadline, including over TLS, mTLS, Unix, and `from_io`.
 `Server::send_compressed` / `Router::send_compressed`

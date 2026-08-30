@@ -1161,6 +1161,7 @@ channel.send_compressed()
 0 stores; 9 is best. Values above 9 clamp to 9. Unused when outbound
 compression is off. Distinct from `send_compressed`, which is on or off.
 `Outgoing::gzip_level` is that overlay in a client interceptor. Distinct from `compresses_outbound` (on or off). An interceptor cannot change it.
+`Rpc::gzip_level` is that overlay in a server interceptor. Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
@@ -1216,7 +1217,8 @@ and `from_io`. Unary and server-streaming have no request `StreamSender`.
 `Server::compresses_outbound` / `Router` / `FooServer` read the
 response-side overlay; `Rpc::compresses_outbound` is that same bit, stamped
 onto `Request::compresses_outbound` at dispatch so a handler that never
-sees `Rpc` can still read it.
+sees `Rpc` can still read it. `Rpc::gzip_level` is deflate effort, stamped
+onto `Request::gzip_level`.
 `Response::set_compress(false)` opts out of `Server::send_compressed` the
 same way, on every call shape, including over TLS, mTLS, Unix, and
 `from_io`. Unset follows the overlay. `Response::compress` /
@@ -1601,7 +1603,8 @@ Unary `Request::compressed` is the first-frame Compressed-Flag; streaming
 requests leave it false. `Rpc::compresses_outbound`
 is the server's `send_compressed` overlay; generated handlers see it on
 `Request::compresses_outbound` / `Parts::compresses_outbound` (`false` on a
-request you built). `Rpc::rpc_timeout` is the server's `timeout` overlay;
+request you built). `Rpc::gzip_level` is that same deflate effort, stamped
+onto `Request::gzip_level` / `Parts::gzip_level` at dispatch. `Rpc::rpc_timeout` is the server's `timeout` overlay;
 generated handlers see it on `Request::rpc_timeout` / `Parts::rpc_timeout`.
 `grpc-*` keys stay off `Metadata`.
 

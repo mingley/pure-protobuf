@@ -274,6 +274,7 @@ impl std::fmt::Debug for Rpc {
             .field("limits", &self.limits())
             .field("accepts_gzip", &self.accepts_gzip())
             .field("compresses_outbound", &self.compresses_outbound())
+            .field("gzip_level", &self.gzip_level())
             .field("encoding", &self.encoding())
             .field("extensions", &self.extensions.len())
             .finish_non_exhaustive()
@@ -503,6 +504,19 @@ impl Rpc {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
+    }
+
+    /// Configured outbound gzip deflate level.
+    ///
+    /// Same overlay as [`crate::Server::gzip_level`].
+    /// Generated handlers see the same value on [`Request::gzip_level`].
+    /// Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort.
+    /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay.
+    /// An interceptor cannot change this; the kernel applies it when encoding.
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.config.gzip_level()
     }
 
     /// The peer's `grpc-encoding` token, if it sent a non-identity coding.
@@ -869,6 +883,7 @@ impl Rpc {
             req.set_rpc_timeout(rpc_timeout);
             req.set_accepts_gzip(peer_accepts_gzip);
             req.set_compresses_outbound(prefer_gzip);
+            req.set_gzip_level(config.gzip_level());
             req.set_encoding(encoding);
             req.set_cancel(cancel_rx);
             if let Some(d) = timeout {
@@ -945,6 +960,7 @@ impl Rpc {
         req.set_rpc_timeout(rpc_timeout);
         req.set_accepts_gzip(peer_accepts_gzip);
         req.set_compresses_outbound(prefer_gzip);
+        req.set_gzip_level(config.gzip_level());
         req.set_encoding(encoding);
         if let Some(d) = timeout {
             req.set_timeout(d);
@@ -1696,12 +1712,12 @@ impl<S: Service> Server<S> {
     /// [`Rpc::effective_timeout`] / [`Rpc::authority`] / [`Rpc::scheme`] /
     /// [`Rpc::remote_addr`] / [`Rpc::local_addr`] / [`Rpc::peer_identity`] /
     /// [`Rpc::peer_cred`] / [`Rpc::limits`] / [`Rpc::accepts_gzip`] /
-    /// [`Rpc::encoding`] / [`Rpc::compresses_outbound`],
+    /// [`Rpc::encoding`] / [`Rpc::compresses_outbound`] / [`Rpc::gzip_level`],
     /// attach typed state on [`Rpc::extensions_mut`], or return `Err`
     /// (including [`Status::with_error_details`]) to reject before the body
     /// is read. Generated handlers see the same path, peer, caps, client
-    /// timeout, server timeout overlay, gzip facts, and response-gzip overlay
-    /// on [`Request`].
+    /// timeout, server timeout overlay, gzip facts, response-gzip overlay,
+    /// and deflate effort on [`Request`].
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching

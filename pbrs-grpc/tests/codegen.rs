@@ -3946,6 +3946,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server intercept rustdoc must name the server timeout overlay"
     );
     assert!(
+        src.contains("gzip accept and encoding / `compresses_outbound` / `gzip_level`"),
+        "generated server intercept rustdoc must name gzip_level overlay"
+    );
+    assert!(
         src.contains(
             "gzip unary and server-streaming request payloads and [`::pbrs_grpc::StreamSender::send`]. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
         ),
