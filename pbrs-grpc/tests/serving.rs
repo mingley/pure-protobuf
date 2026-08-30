@@ -3230,6 +3230,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`Channel::stream_buffer_size`] reads the stream-queue overlay without colliding with [`Channel::stream_buffer`]"
+        ),
+        "crate docs must name Channel::stream_buffer_size as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::stream_buffer_size`]"),
+        "crate docs must Distinct Channel::stream_buffer_size as the same overlay as Outgoing::stream_buffer_size"
+    );
+    assert!(
+        crate_src.contains(
             "[`Channel::limits`] reads the message-cap overlay without colliding with [`Channel::message_limits`]"
         ),
         "crate docs must name Channel::limits as the live-clone overlay"
@@ -3850,6 +3860,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it."),
         "guide must name Outgoing::stream_buffer_size as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Channel::stream_buffer_size` reads the stream-queue overlay without colliding with `stream_buffer`. Same overlay as `Outgoing::stream_buffer_size`."),
+        "guide must name Channel::stream_buffer_size as the live-clone overlay"
     );
     assert!(
         guide.contains("`Channel::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Outgoing::limits`."),
