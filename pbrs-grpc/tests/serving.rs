@@ -1882,6 +1882,40 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "RequestInfo::with_request_id must Distinct ErrorInfo metadata map from typed request_id"
     );
     assert!(
+        crate_src.contains("[`Status::resource_info`]"),
+        "crate map must name Status::resource_info"
+    );
+    assert!(
+        crate_src.contains("[`pb::ResourceInfo::with_resource`]"),
+        "crate map must name ResourceInfo::with_resource"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.ResourceInfo`, if this status carries one."),
+        "Status::resource_info must name packed ResourceInfo"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::quota_failure`]: that is a quota subject, not a resource identity."
+        ),
+        "Status::resource_info must Distinct quota subject from resource identity"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::request_info`]: that is a request_id, not a resource."
+        ),
+        "Status::resource_info must Distinct request_id from resource"
+    );
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::resource_info`]"),
+        "ResourceInfo::with_resource must name Status::resource_info unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::quota_failure`]: that is a quota subject, not a resource identity."
+        ),
+        "ResourceInfo::with_resource must Distinct quota subject from resource identity"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
@@ -2190,6 +2224,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`RequestInfo::with_request_id` builds that payload"),
         "guide must name RequestInfo::with_request_id as the builder"
+    );
+    assert!(
+        guide.contains("`status.resource_info()` for resource type and name"),
+        "guide must name Status::resource_info as resource type and name"
+    );
+    assert!(
+        guide.contains("`ResourceInfo::with_resource` builds that payload"),
+        "guide must name ResourceInfo::with_resource as the builder"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),

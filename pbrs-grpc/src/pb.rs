@@ -464,6 +464,48 @@ impl RequestInfo {
     }
 }
 
+impl ResourceInfo {
+    /// `ResourceInfo` with `resource_type`, `resource_name`, and `owner`.
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::resource_info`].
+    /// Distinct from [`crate::Status::quota_failure`]: that is a quota subject, not a resource identity.
+    /// Distinct from [`crate::Status::request_info`]: that is a request_id, not a resource.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ResourceInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     resource_info: Some(ResourceInfo::with_resource(
+    ///         "sqladmin.googleapis.com/Instance",
+    ///         "projects/1/instances/a",
+    ///         "project:1",
+    ///     )),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::NotFound, "gone", &details)?;
+    /// let info = status.resource_info().expect("ResourceInfo");
+    /// assert_eq!(
+    ///     info.resource_name().to_str().unwrap_or(""),
+    ///     "projects/1/instances/a"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_resource(
+        resource_type: impl Into<String>,
+        resource_name: impl Into<String>,
+        owner: impl Into<String>,
+    ) -> Self {
+        let mut info = Self::new();
+        info.set_resource_type(resource_type.into());
+        info.set_resource_name(resource_name.into());
+        info.set_owner(owner.into());
+        info
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -633,7 +675,7 @@ mod tests {
     use super::{
         bad_request, help, precondition_failure, quota_failure, Any, BadRequest, Duration,
         ErrorDetails, ErrorInfo, FieldViolation, Help, LocalizedMessage, PreconditionFailure,
-        QuotaFailure, RequestInfo, RetryInfo, Status, TYPE_URL_PREFIX,
+        QuotaFailure, RequestInfo, ResourceInfo, RetryInfo, Status, TYPE_URL_PREFIX,
     };
     use crate::Code;
 
@@ -982,5 +1024,36 @@ mod tests {
         assert!(status.error_info().is_none());
         assert!(status.help().is_none());
         assert!(status.localized_message().is_none());
+    }
+
+    #[test]
+    fn resource_info_with_resource_round_trips() {
+        let info = ResourceInfo::with_resource(
+            "sqladmin.googleapis.com/Instance",
+            "projects/1/instances/a",
+            "project:1",
+        );
+        assert_eq!(
+            info.resource_type().to_str().unwrap_or(""),
+            "sqladmin.googleapis.com/Instance"
+        );
+        assert_eq!(
+            info.resource_name().to_str().unwrap_or(""),
+            "projects/1/instances/a"
+        );
+        assert_eq!(info.owner().to_str().unwrap_or(""), "project:1");
+        let details = ErrorDetails {
+            resource_info: Some(info),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::NotFound, "gone", &details).expect("encode");
+        let got = status.resource_info().expect("ResourceInfo");
+        assert_eq!(
+            got.resource_name().to_str().unwrap_or(""),
+            "projects/1/instances/a"
+        );
+        assert!(status.quota_failure().is_none());
+        assert!(status.request_info().is_none());
     }
 }

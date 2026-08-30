@@ -393,6 +393,7 @@ Or `status.precondition_failure()` for precondition type and subject without unp
 Or `status.help()` for documentation links without unpacking the bag. Distinct from `status.precondition_failure()`. `Help::with_link` builds that payload. Links can sit next to a retryable UNAVAILABLE.
 Or `status.localized_message()` for a locale without unpacking the bag. Distinct from `status.message()`. `LocalizedMessage::with_locale` builds that payload. Distinct from `status.help()`.
 Or `status.request_info()` for a request_id without unpacking the bag. Distinct from `status.error_info()`. `RequestInfo::with_request_id` builds that payload. Distinct from `status.help()`.
+Or `status.resource_info()` for resource type and name without unpacking the bag. Distinct from `status.quota_failure()`. `ResourceInfo::with_resource` builds that payload. Distinct from `status.request_info()`.
 
 Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `PreconditionFailure.Violation`, `Help.Link` — live in modules named after the parent:
@@ -404,6 +405,7 @@ Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `Help::with_link` builds one documentation link.
 `LocalizedMessage::with_locale` builds one locale.
 `RequestInfo::with_request_id` builds one request_id.
+`ResourceInfo::with_resource` builds one resource identity.
 
 Raw bytes still work (`Status::set_details`) when you are forwarding a trailer
 you do not parse.

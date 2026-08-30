@@ -267,7 +267,9 @@ failure classifications: links can sit next to a retryable UNAVAILABLE.
 locale text. Distinct from the ASCII `grpc-message`. Distinct from `help`.
 `LocalizedMessage::with_locale` builds that payload. `Status::request_info` is packed
 request_id for logs. Distinct from `error_info`. Distinct from `help`.
-`RequestInfo::with_request_id` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
+`RequestInfo::with_request_id` builds that payload. `Status::resource_info` is packed
+resource type and name. Distinct from `quota_failure`. Distinct from `request_info`.
+`ResourceInfo::with_resource` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details`
 replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing

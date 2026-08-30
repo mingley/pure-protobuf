@@ -871,6 +871,41 @@ impl Status {
         self.error_details().ok()?.request_info
     }
 
+    /// Packed `google.rpc.ResourceInfo`, if this status carries one.
+    ///
+    /// Distinct from [`Self::quota_failure`]: that is a quota subject, not a resource identity.
+    /// Distinct from [`Self::request_info`]: that is a request_id, not a resource.
+    /// Distinct from [`Self::error_info`]: that is reason and domain, not a resource type and name.
+    /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
+    /// Corrupt bytes are `None`. Build the payload with
+    /// [`crate::pb::ResourceInfo::with_resource`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ResourceInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     resource_info: Some(ResourceInfo::with_resource(
+    ///         "sqladmin.googleapis.com/Instance",
+    ///         "projects/1/instances/a",
+    ///         "project:1",
+    ///     )),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::NotFound, "gone", &details)?;
+    /// let info = status.resource_info().expect("ResourceInfo");
+    /// assert_eq!(
+    ///     info.resource_type().to_str().unwrap_or(""),
+    ///     "sqladmin.googleapis.com/Instance"
+    /// );
+    /// assert!(Status::not_found("gone").resource_info().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn resource_info(&self) -> Option<crate::pb::ResourceInfo> {
+        self.error_details().ok()?.resource_info
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1996,6 +2031,62 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .request_info()
+        .is_none());
+    }
+
+    #[test]
+    fn resource_info_reads_packed_resource_identity() {
+        let details = crate::pb::ErrorDetails {
+            resource_info: Some(crate::pb::ResourceInfo::with_resource(
+                "sqladmin.googleapis.com/Instance",
+                "projects/1/instances/a",
+                "project:1",
+            )),
+            quota_failure: Some(crate::pb::QuotaFailure::with_violation(
+                "project:1",
+                "instances",
+            )),
+            request_info: Some(crate::pb::RequestInfo::with_request_id("req-9", "")),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status = Status::from_error_details(Code::NotFound, "gone", &details).expect("encode");
+        let info = status.resource_info().expect("ResourceInfo");
+        assert_eq!(
+            info.resource_type().to_str().unwrap_or(""),
+            "sqladmin.googleapis.com/Instance"
+        );
+        assert_eq!(
+            info.resource_name().to_str().unwrap_or(""),
+            "projects/1/instances/a"
+        );
+        assert_eq!(info.owner().to_str().unwrap_or(""), "project:1");
+        assert!(status.quota_failure().is_some());
+        assert!(status.request_info().is_some());
+
+        let quota_only = crate::pb::ErrorDetails {
+            quota_failure: Some(crate::pb::QuotaFailure::with_violation(
+                "project:1",
+                "instances",
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let quota_status =
+            Status::from_error_details(Code::ResourceExhausted, "quota", &quota_only)
+                .expect("encode");
+        assert!(quota_status.resource_info().is_none());
+        assert!(quota_status.quota_failure().is_some());
+
+        assert!(Status::not_found("gone").resource_info().is_none());
+        assert!(Status::not_found("gone")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .resource_info()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .resource_info()
         .is_none());
     }
 
