@@ -827,6 +827,14 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Status::set_details must name the wire trailer on every transport"
     );
+    assert!(
+        status.contains("A peer trailer has no cause. Distinct"),
+        "Status rustdoc must Distinct Error::source from a peer trailer"
+    );
+    assert!(
+        status.contains("no cause: [`std::error::Error::source`] is `None`"),
+        "Status::with_cause rustdoc must name Error::source is None on a peer trailer"
+    );
 }
 
 #[test]
@@ -1231,6 +1239,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::rpc must Distinct receive-path ASCII from a mismatched packed google.rpc.Status"
     );
     assert!(
+        status_src.contains("A peer trailer has no cause. Distinct"),
+        "crate Status rustdoc must Distinct Error::source from a peer trailer"
+    );
+    assert!(
         crate_src.contains(
             "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
         ),
@@ -1279,6 +1291,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         !guide.contains("wrap it if a combinator needs `FusedStream`"),
         "guide must not list FusedStream as an omission"
+    );
+    assert!(
+        guide.contains("Local I/O, a TLS handshake, and HTTP/2 connection death attach"),
+        "guide must name Error::source for local I/O, TLS handshake, and HTTP/2 death"
+    );
+    assert!(
+        !guide.contains("There is no `Error::source` chain"),
+        "guide must not list Status Error::source as an omission"
     );
     assert!(
         guide

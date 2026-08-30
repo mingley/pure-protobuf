@@ -79,7 +79,7 @@ fn require_h2(alpn: Option<&[u8]>) -> Result<(), Status> {
 /// close. Certificate and protocol failures stay
 /// [`crate::Code::Unauthenticated`].
 fn tls_handshake_status(err: std::io::Error) -> Status {
-    match err.kind() {
+    let status = match err.kind() {
         std::io::ErrorKind::ConnectionRefused
         | std::io::ErrorKind::ConnectionReset
         | std::io::ErrorKind::ConnectionAborted
@@ -87,7 +87,8 @@ fn tls_handshake_status(err: std::io::Error) -> Status {
         | std::io::ErrorKind::BrokenPipe
         | std::io::ErrorKind::UnexpectedEof => Status::unavailable(format!("tls handshake: {err}")),
         _ => Status::unauthenticated(format!("tls handshake: {err}")),
-    }
+    };
+    status.with_cause(err)
 }
 
 /// A PEM certificate chain and private key.
@@ -452,6 +453,11 @@ mod tests {
         let err = std::io::Error::new(std::io::ErrorKind::ConnectionReset, "reset");
         let status = super::tls_handshake_status(err);
         assert_eq!(status.code(), Code::Unavailable);
+        let cause = std::error::Error::source(&status).expect("io cause");
+        assert_eq!(
+            cause.downcast_ref::<std::io::Error>().expect("io").kind(),
+            std::io::ErrorKind::ConnectionReset
+        );
     }
 
     #[test]
@@ -459,6 +465,7 @@ mod tests {
         let err = std::io::Error::new(std::io::ErrorKind::InvalidData, "bad cert");
         let status = super::tls_handshake_status(err);
         assert_eq!(status.code(), Code::Unauthenticated);
+        assert!(std::error::Error::source(&status).is_some());
     }
 
     #[test]

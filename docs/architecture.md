@@ -225,7 +225,9 @@ Response-side interceptors are a documented omission.
 ### Status
 
 `Status` is two machine words; message, metadata, and
-`grpc-status-details-bin` live behind a pointer. `with_error_details` /
+`grpc-status-details-bin` live behind a pointer. Local I/O, a TLS handshake,
+and HTTP/2 connection death attach the original error as
+`std::error::Error::source`; a peer trailer has no cause. `with_error_details` /
 `from_error_details` pack the standard `google.rpc` payloads
 (`ErrorInfo`, `RetryInfo`, `DebugInfo`, `QuotaFailure`, `PreconditionFailure`,
 `BadRequest`, `RequestInfo`, `ResourceInfo`, `Help`, `LocalizedMessage`) as
@@ -245,7 +247,7 @@ Received ASCII
 ### Health and reflection
 
 `grpc.health.v1` is an ordinary service plus `HealthReporter`
-(`Check` / `Watch` only). Check of a never-set name is `NOT_FOUND`; Watch of
+(`Check` / `List` / `Watch`). Check of a never-set name is `NOT_FOUND`; Watch of
 that name is `SERVICE_UNKNOWN`; Watch streams `set_not_serving` /
 `shutdown` / `resume`; dropping Watch releases the subscription, including
 over TLS, mTLS, Unix, and `from_io`. `Watch` ends when the client cancels or drops the

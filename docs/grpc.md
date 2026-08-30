@@ -412,7 +412,7 @@ match client.say_hello(request).await {
 `Status` is two machine words. Its message, metadata, and
 `grpc-status-details-bin` live behind a pointer that is only allocated when
 one of them is set, so `Result<T, Status>` stays cheap on paths where nothing
-goes wrong. `set_code` / `with_code` and `set_message` / `with_message`
+goes wrong. It implements `std::error::Error`. Local I/O, a TLS handshake, and HTTP/2 connection death attach the original error as `Error::source`; a peer trailer has no cause. `set_code` / `with_code` and `set_message` / `with_message`
 rewrite a packed `google.rpc.Status` whose code or message still matches,
 so the ASCII trailers and the protobuf stay in sync; opaque or mismatched
 detail bytes are left alone.
@@ -1818,7 +1818,6 @@ Deliberate omissions, with what to do instead.
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
 | GCP-auth and ORCA | Out of scope. |
 | `from_io` TLS handshake | `connect_tls` / `serve_tls`. `from_io` is already-connected bytes; `https_scheme` labels an encrypted stream. |
-| `Status` as `std::error::Error` source | `Status` is the error. There is no `Error::source` chain. |
 | `Outgoing::set_user_agent` | Prefix with `Channel::user_agent`. Interceptors read `Outgoing::user_agent`. |
 | Response extensions | Request / `Rpc` extensions only. |
 | crates.io publish | Path or git dependency until a registry version exists. `pbrs-grpc` has `publish = false`. |

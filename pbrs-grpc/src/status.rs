@@ -4,7 +4,7 @@
 use crate::metadata::Metadata;
 use bytes::Bytes;
 use std::fmt;
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 /// A `grpc-status` code.
 ///
@@ -193,6 +193,8 @@ struct Detail {
     /// HTTP/2 connection died (GOAWAY, I/O, `REFUSED_STREAM`). Not a peer
     /// `UNAVAILABLE` trailer. Unary/server-streaming redial once.
     transport: bool,
+    /// Local cause. Peer trailers leave this unset.
+    source: Option<Arc<dyn std::error::Error + Send + Sync>>,
 }
 
 /// A gRPC status: a [`Code`], an optional message, optional trailing
@@ -202,6 +204,12 @@ struct Detail {
 /// is kept to two machine words. The message, metadata, and details live
 /// behind a pointer that is only allocated when one of them is set, which
 /// means the common `Ok` and bare-code cases allocate nothing.
+///
+/// It implements [`std::error::Error`]. Local I/O ([`std::io::Error`]),
+/// a TLS handshake, and HTTP/2 connection death attach the original error
+/// as [`std::error::Error::source`]. A peer trailer has no cause. Distinct
+/// from [`Self::with_error_details`] (a packed `google.rpc.Status` on the
+/// wire).
 ///
 /// ```
 /// use pbrs_grpc::{Code, Status};
@@ -667,6 +675,18 @@ impl Status {
         Self::new(Code::Unauthenticated, message)
     }
 
+    /// Record `cause` as [`std::error::Error::source`].
+    ///
+    /// Local I/O ([`std::io::Error`]), a TLS handshake, and HTTP/2
+    /// connection death already attach the original error. A peer trailer has
+    /// no cause: [`std::error::Error::source`] is `None`. Distinct from
+    /// [`Self::with_error_details`] (a packed `google.rpc.Status` on the wire).
+    #[must_use]
+    pub fn with_cause(mut self, cause: impl std::error::Error + Send + Sync + 'static) -> Self {
+        self.detail.get_or_insert_with(Box::default).source = Some(Arc::new(cause));
+        self
+    }
+
     /// Map an HTTP/2 error onto [`Code::Unavailable`].
     ///
     /// Connection death (`GOAWAY`, I/O, `REFUSED_STREAM`) is marked so a
@@ -678,7 +698,7 @@ impl Status {
         if h2_lost_connection(&err) {
             status.mark_transport();
         }
-        status
+        status.with_cause(err)
     }
 
     /// Like [`Self::from_h2`], but non-connection failures stay
@@ -689,9 +709,9 @@ impl Status {
         if h2_lost_connection(&err) {
             let mut status = Self::unavailable(err.to_string());
             status.mark_transport();
-            status
+            status.with_cause(err)
         } else {
-            Self::internal(err.to_string())
+            Self::internal(err.to_string()).with_cause(err)
         }
     }
 
@@ -728,7 +748,15 @@ impl fmt::Display for Status {
     }
 }
 
-impl std::error::Error for Status {}
+impl std::error::Error for Status {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.detail
+            .as_ref()?
+            .source
+            .as_deref()
+            .map(|err| err as &(dyn std::error::Error + 'static))
+    }
+}
 
 /// Map a local I/O failure onto a gRPC code.
 ///
@@ -750,7 +778,7 @@ impl From<std::io::Error> for Status {
             std::io::ErrorKind::InvalidData => Code::Internal,
             _ => Code::Unknown,
         };
-        Self::new(code, err.to_string())
+        Self::new(code, err.to_string()).with_cause(err)
     }
 }
 
@@ -1098,6 +1126,13 @@ mod tests {
         let status = Status::from(err);
         assert_eq!(status.code(), Code::DeadlineExceeded);
         assert!(status.message().contains("slow"));
+        let cause = std::error::Error::source(&status).expect("io cause");
+        assert_eq!(
+            cause.downcast_ref::<std::io::Error>().expect("io").kind(),
+            std::io::ErrorKind::TimedOut
+        );
+        let cloned = status.clone();
+        assert!(std::error::Error::source(&cloned).is_some());
     }
 
     #[test]
@@ -1106,6 +1141,11 @@ mod tests {
         let status = Status::from(err);
         assert_eq!(status.code(), Code::Unavailable);
         assert!(!status.is_transport());
+        let cause = std::error::Error::source(&status).expect("io cause");
+        assert_eq!(
+            cause.downcast_ref::<std::io::Error>().expect("io").kind(),
+            std::io::ErrorKind::ConnectionRefused
+        );
     }
 
     #[test]
@@ -1113,11 +1153,27 @@ mod tests {
         let status = Status::from_h2(h2::Reason::REFUSED_STREAM);
         assert_eq!(status.code(), Code::Unavailable);
         assert!(status.is_transport());
+        assert!(std::error::Error::source(&status).is_some());
+    }
+
+    #[test]
+    fn peer_trailer_has_no_cause() {
+        let status = Status::not_found("no such row");
+        assert!(std::error::Error::source(&status).is_none());
     }
 
     #[test]
     fn peer_unavailable_message_is_not_transport_lost() {
         let status = Status::unavailable("too many concurrent RPCs");
         assert!(!status.is_transport());
+        assert!(std::error::Error::source(&status).is_none());
+    }
+
+    #[test]
+    fn with_cause_is_error_source() {
+        let cause = std::io::Error::new(std::io::ErrorKind::Other, "disk");
+        let status = Status::internal("write failed").with_cause(cause);
+        let src = std::error::Error::source(&status).expect("cause");
+        assert!(src.to_string().contains("disk"), "{src}");
     }
 }
