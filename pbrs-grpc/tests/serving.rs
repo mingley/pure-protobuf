@@ -3652,6 +3652,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Outgoing::gzip_level as the interceptor overlay"
     );
     assert!(
+        guide.contains("`Outgoing::gzip_level` are those channel overlays and stay visible after"),
+        "guide must name gzip_level next to the clear_* channel overlays"
+    );
+    assert!(
         guide.contains(
             "Distinct from `compresses_outbound` (on or off). An interceptor cannot change it."
         ),
