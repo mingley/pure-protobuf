@@ -3991,7 +3991,7 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server intercept rustdoc must name a single intercept reject on every transport"
     );
     assert!(
-        src.contains("`Response::extensions` is not on the wire; stamp metadata here to send it."),
+        src.contains("`Response::extensions` is not on the wire; stamp metadata here to send it"),
         "generated on_response rustdoc must Distinct extensions from wire metadata"
     );
     assert!(
