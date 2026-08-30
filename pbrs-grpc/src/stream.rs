@@ -117,6 +117,11 @@ pub struct Streaming<T> {
     /// resets the RPC, including bidi while the send half is still held.
     /// `None` on application channels and server-inbound streams.
     reset: Option<watch::Sender<bool>>,
+    /// Client [`crate::Channel::max_concurrent_rpcs`] permit. Held until this
+    /// received stream is dropped so a server-streaming or bidi RPC stays in
+    /// the cap after headers. `None` on application channels, server-inbound
+    /// streams, and uncapped channels.
+    rpc_slot: Option<tokio::sync::OwnedSemaphorePermit>,
     /// Set when [`Self::poll_framed`] yields end-of-stream or `Err`, so
     /// combinators that honour [`FusedStream`] skip further polls.
     terminated: bool,
@@ -166,6 +171,7 @@ impl<T> Streaming<T> {
                 lease: None,
                 driver: None,
                 reset: None,
+                rpc_slot: None,
                 terminated: false,
             },
         )
@@ -184,6 +190,7 @@ impl<T> Streaming<T> {
             lease: None,
             driver: None,
             reset: None,
+            rpc_slot: None,
             terminated: false,
         }
     }
@@ -201,6 +208,15 @@ impl<T> Streaming<T> {
         self.lease = lease;
         self.driver = driver;
         self.reset = reset;
+        self
+    }
+
+    /// Occupy a [`crate::Channel::max_concurrent_rpcs`] slot until drop.
+    pub(crate) fn bind_rpc_slot(
+        mut self,
+        rpc_slot: Option<tokio::sync::OwnedSemaphorePermit>,
+    ) -> Self {
+        self.rpc_slot = rpc_slot;
         self
     }
 
@@ -334,6 +350,7 @@ impl<T> std::fmt::Debug for Streaming<T> {
             .field("busy", &self.lease.is_some())
             .field("driver", &self.driver.is_some())
             .field("reset", &self.reset.is_some())
+            .field("rpc_slot", &self.rpc_slot.is_some())
             .field("terminated", &self.terminated)
             .finish_non_exhaustive()
     }

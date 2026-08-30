@@ -876,6 +876,22 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "Further RPCs are refused with [`Code::ResourceExhausted`] before the\n    /// stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`"
+        ),
+        "Channel::max_concurrent_rpcs must refuse extras before the stream opens"
+    );
+    assert!(
+        src.contains("Clones share the budget. Calling this twice replaces the cap."),
+        "Channel::max_concurrent_rpcs must name that clones share the budget"
+    );
+    assert!(
+        src.contains(
+            "A server-streaming or bidi slot is held until the received\n    /// [`Streaming`] is dropped."
+        ),
+        "Channel::max_concurrent_rpcs must hold a stream slot until drop"
+    );
+    assert!(
+        src.contains(
             "Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`Self::from_io`]. Inserting `user-agent` into request metadata cannot\n    /// replace this value on those transports."
         ),
         "Channel::user_agent must name every transport and that metadata cannot override"
@@ -1257,6 +1273,24 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::max_concurrent_rpcs`], which refuses extras\n    /// before the stream opens."
+        ),
+        "ChannelConfig::max_concurrent_streams must Distinct the client RPC cap"
+    );
+    assert!(
+        src.contains(
+            "Further RPCs are refused with [`crate::Code::ResourceExhausted`]\n    /// before the stream opens. Distinct from\n    /// [`Self::max_concurrent_streams`] (per HTTP/2 connection SETTINGS;"
+        ),
+        "ChannelConfig::max_concurrent_rpcs must refuse extras before the stream opens"
+    );
+    assert!(
+        src.contains(
+            "pooled connection. Applies to every call shape, including over TLS,\n    /// mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "ChannelConfig::max_concurrent_rpcs must name every transport"
+    );
+    assert!(
+        src.contains(
             "A well-behaved client splits DATA; every call shape still completes,\n    /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].\n    /// Distinct from [`Self::max_header_list_size`], which refuses oversize\n    /// metadata, and from [`Self::max_concurrent_streams`], which serializes\n    /// extra RPCs."
         ),
         "ServerConfig::max_frame_size must name still-serves Distinct from header-list and stream cap"
@@ -1506,6 +1540,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         !guide.contains("the default is tonic stubs"),
         "guide must not name tonic stubs as the compile_protos default"
+    );
+    assert!(
+        guide.contains(
+            "`Channel::max_concurrent_rpcs` / `ChannelConfig::max_concurrent_rpcs` is the"
+        ),
+        "guide must name Channel::max_concurrent_rpcs as the client RPC cap"
+    );
+    assert!(
+        guide.contains("server-streaming or bidi slot is held until the received `Streaming` is"),
+        "guide must hold a client stream slot until Streaming drop"
     );
     assert!(
         guide.contains("`Channel::connected` is a snapshot of live sockets"),
@@ -12077,6 +12121,108 @@ async fn from_io_extra_rpcs_are_refused_when_the_process_cap_is_hit() {
     ))
     .await;
     server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_extra_rpcs_are_refused_when_the_channel_cap_is_hit() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    assert_rpc_cap(&GreeterClient::new(channel(addr).await).max_concurrent_rpcs(1)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_client_extra_rpcs_are_refused_when_the_channel_cap_is_hit() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ch = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .max_concurrent_rpcs(1);
+    assert_rpc_cap(&GreeterClient::new(ch)).await;
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_config_max_concurrent_rpcs_refuses_extras() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let ch = channel_cfg(addr, ChannelConfig::new().max_concurrent_rpcs(1)).await;
+    assert_rpc_cap(&GreeterClient::new(ch)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_rpc_cap_releases_after_the_call_finishes() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).max_concurrent_rpcs(1);
+    client
+        .say_hello(Request::new(req("a")))
+        .await
+        .expect("first");
+    client
+        .say_hello(Request::new(req("b")))
+        .await
+        .expect("second");
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_rpc_cap_holds_a_server_stream_until_drop() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).max_concurrent_rpcs(1);
+    let resp = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("stream");
+    let err = client
+        .say_hello(Request::new(req("b")))
+        .await
+        .expect_err("held");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    drop(resp);
+    client
+        .say_hello(Request::new(req("c")))
+        .await
+        .expect("after drop");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn client_rpc_cap_is_shared_across_clones() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_listener(listener).await.ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).max_concurrent_rpcs(1);
+    let other = client.clone();
+    let (a, b) = tokio::join!(
+        client.say_hello(Request::new(req("a"))),
+        other.say_hello(Request::new(req("b"))),
+    );
+    one_ok_one_exhausted(
+        [
+            a.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+            b.map(|_| Code::Ok).unwrap_or_else(|e| e.code()),
+        ],
+        "clones",
+    );
+    task.abort();
 }
 
 #[tokio::test]

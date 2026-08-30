@@ -4819,6 +4819,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn compresses_outbound(&self) -> bool {{ self.channel.compresses_outbound() }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Configured channel-wide RPC cap, if any. Distinct from [`Self::max_concurrent_rpcs`], which sets it. See [`{G}::Channel::concurrent_rpc_limit`]. Applies to every call shape."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn concurrent_rpc_limit(&self) -> ::core::option::Option<usize> {{ self.channel.concurrent_rpc_limit() }}"
+    );
 }
 
 fn emit_kernel_client(
@@ -4999,6 +5008,15 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    pub fn stream_buffer(mut self, messages: usize) -> Self {{ self.channel = self.channel.stream_buffer(messages); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Cap how many RPCs this channel will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. Extra RPCs are `RESOURCE_EXHAUSTED` before the stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits. Distinct from [`{G}::Server::max_concurrent_rpcs`], which refuses inbound. Clones share the budget. See [`{G}::Channel::max_concurrent_rpcs`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {{ self.channel = self.channel.max_concurrent_rpcs(n); self }}"
     );
     let _ = writeln!(src, "    /// The channel this client sends on.");
     let _ = writeln!(src, "    #[must_use]");

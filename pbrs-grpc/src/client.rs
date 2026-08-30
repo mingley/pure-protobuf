@@ -28,7 +28,7 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 #[cfg(unix)]
 use tokio::net::UnixStream;
-use tokio::sync::{watch, Mutex};
+use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 
 /// Where a [`Channel`] should dial.
 ///
@@ -252,10 +252,12 @@ impl Endpoint {
 ///
 /// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
 /// [`Self::send_compressed`], the two message-size caps /
-/// [`Self::message_limits`], [`Self::stream_buffer`], and
+/// [`Self::message_limits`], [`Self::stream_buffer`],
+/// [`Self::max_concurrent_rpcs`], and
 /// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
-/// [`Self::compresses_outbound`], and [`Self::config`]. Keepalive, idle, age, TCP
+/// [`Self::compresses_outbound`], [`Self::concurrent_rpc_limit`], and
+/// [`Self::config`]. Keepalive, idle, age, TCP
 /// keepalive, connection count, HTTP/2 windows, and the rapid-reset cap are
 /// set at handshake ([`ChannelConfig`] / [`Self::connect_with`]).
 ///
@@ -289,6 +291,8 @@ pub struct Channel {
     config: ChannelConfig,
     interceptors: Arc<[ClientHook]>,
     response_interceptors: Arc<[ResponseHook]>,
+    /// Shared across clones of this lineage. `None` when the cap is unset.
+    rpc_slots: Option<Arc<Semaphore>>,
     user_agent: HeaderValue,
     /// `:scheme` this clone sends. TLS channels start `true`; [`Self::from_io`]
     /// starts `false` until [`Self::https_scheme`].
@@ -665,6 +669,36 @@ impl Channel {
         self
     }
 
+    /// Cap how many RPCs this clone's channel will run at once, across every
+    /// connection. Applies to every call shape, including over TLS, mTLS,
+    /// Unix, and [`Self::from_io`].
+    ///
+    /// Further RPCs are refused with [`Code::ResourceExhausted`] before the
+    /// stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`
+    /// (a well-behaved peer waits) and from [`crate::Server::max_concurrent_rpcs`]
+    /// (the server refuses inbound). Distinct from [`Self::wait_for_ready`],
+    /// which waits for a connection rather than refusing. Disabled by default.
+    /// Clones share the budget. Calling this twice replaces the cap.
+    /// Overlay: does not change how a dead slot is redialed.
+    /// A server-streaming or bidi slot is held until the received
+    /// [`Streaming`] is dropped.
+    ///
+    /// Equivalent to [`ChannelConfig::max_concurrent_rpcs`].
+    #[must_use]
+    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
+        self.config = self.config.max_concurrent_rpcs(n);
+        self.rpc_slots = rpc_slots_from(self.config);
+        self
+    }
+
+    /// Configured channel-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
+    /// Applies to every call shape. Distinct from [`Self::max_concurrent_rpcs`],
+    /// which sets it.
+    #[must_use]
+    pub fn concurrent_rpc_limit(&self) -> Option<usize> {
+        self.config.concurrent_rpc_limit()
+    }
+
     /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::from_io`]. Inserting `user-agent` into request metadata cannot
@@ -795,6 +829,16 @@ impl Channel {
             ))?;
         }
         Ok(())
+    }
+
+    fn take_rpc_slot(&self) -> Result<Option<OwnedSemaphorePermit>, Status> {
+        match &self.rpc_slots {
+            None => Ok(None),
+            Some(slots) => match slots.clone().try_acquire_owned() {
+                Ok(permit) => Ok(Some(permit)),
+                Err(_) => Err(Status::resource_exhausted("too many concurrent RPCs")),
+            },
+        }
     }
 
     /// The `:authority` sent with every request.
@@ -947,6 +991,7 @@ impl Channel {
                 let frame = encode_msg(&msg, compress, wire.limits)?;
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
+                let _permit = channel.take_rpc_slot()?;
                 let mut retried = false;
                 loop {
                     let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -1050,6 +1095,7 @@ impl Channel {
                 let frame = encode_msg(&msg, compress, wire.limits)?;
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
+                let permit = channel.take_rpc_slot()?;
                 let mut retried = false;
                 loop {
                     let live = channel.grab(cancel_rx.clone(), deadline, wait).await?;
@@ -1071,7 +1117,7 @@ impl Channel {
                     {
                         Ok(response) => {
                             let response = channel.apply_response_hooks(response)?;
-                            return Ok(attach_conn(response, lease, driver, Some(reset)));
+                            return Ok(attach_conn(response, lease, driver, Some(reset), permit));
                         }
                         Err(status)
                             if !retried
@@ -1156,6 +1202,7 @@ impl Channel {
                 let deadline = deadline_from(req.timeout());
                 let (_, md, timeout, compress, ua) = req.into_parts();
                 let user_agent = ua.unwrap_or_else(|| channel.user_agent.clone());
+                let _permit = channel.take_rpc_slot()?;
                 let opened = channel
                     .open_retrying(
                         cancel_rx.clone(),
@@ -1246,6 +1293,7 @@ impl Channel {
                 let deadline = deadline_from(req.timeout());
                 let (_, md, timeout, compress, ua) = req.into_parts();
                 let user_agent = ua.unwrap_or_else(|| channel.user_agent.clone());
+                let permit = channel.take_rpc_slot()?;
                 let opened = channel
                     .open_retrying(
                         cancel_rx.clone(),
@@ -1266,6 +1314,7 @@ impl Channel {
                     opened.lease,
                     opened.driver,
                     Some(reset),
+                    permit,
                 ))
             }),
         );
@@ -1352,9 +1401,16 @@ fn finish_channel(
         config,
         interceptors: Arc::from([]),
         response_interceptors: Arc::from([]),
+        rpc_slots: rpc_slots_from(config),
         user_agent: crate::wire::PBRS_GRPC_UA,
         https,
     }
+}
+
+fn rpc_slots_from(config: ChannelConfig) -> Option<Arc<Semaphore>> {
+    config
+        .concurrent_rpc_limit()
+        .map(|n| Arc::new(Semaphore::new(n)))
 }
 
 fn live_slots(dialed: Vec<Dialed>) -> Vec<Mutex<ConnSlot>> {
@@ -1713,8 +1769,13 @@ fn attach_conn<T>(
     lease: Option<crate::keepalive::Lease>,
     driver: Option<watch::Sender<bool>>,
     reset: Option<watch::Sender<bool>>,
+    rpc_slot: Option<OwnedSemaphorePermit>,
 ) -> crate::request::Response<Streaming<T>> {
-    response.map(|stream| stream.bind_conn(lease, driver, reset))
+    response.map(|stream| {
+        stream
+            .bind_conn(lease, driver, reset)
+            .bind_rpc_slot(rpc_slot)
+    })
 }
 
 #[allow(

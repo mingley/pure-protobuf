@@ -1216,6 +1216,14 @@ waits on that connection; both RPCs still complete over TLS, mTLS, Unix, and
 `UNAVAILABLE` while the connection cap is full; dropping a live connection lets the next
 dial in, and every Greeter call shape still serves.
 
+`Channel::max_concurrent_rpcs` / `ChannelConfig::max_concurrent_rpcs` is the
+client dual: extras are `RESOURCE_EXHAUSTED` before the stream opens, on every
+call shape, including over TLS, mTLS, Unix, and `from_io`. Distinct from
+`SETTINGS_MAX_CONCURRENT_STREAMS` (the HTTP/2 stack waits). Distinct from the
+server cap (inbound, before the handler). Clones share the budget. A
+server-streaming or bidi slot is held until the received `Streaming` is
+dropped.
+
 A well-behaved client never fills the pending-reset accept queue; every call
 shape still completes over TLS, mTLS, Unix, and `from_io`. Distinct from a
 raw HTTP/2 peer that `RST_STREAM`s faster than accept: that connection drops

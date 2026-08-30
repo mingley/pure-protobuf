@@ -52,7 +52,9 @@ a closed port or missing Unix path still fails immediately. `from_io` is
 already connected.
 `max_concurrent_rpcs` refuses extra RPCs with `RESOURCE_EXHAUSTED` before the
 handler runs, on every call shape, including over TLS, mTLS, Unix, and
-`from_io`.
+`from_io`. `Channel::max_concurrent_rpcs` is the client dual: extras are
+`RESOURCE_EXHAUSTED` before the stream opens on those transports. Distinct
+from `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits.
 Graceful drain finishes in-flight RPCs and refuses new connections on TLS,
 mTLS, and Unix; `from_io` has no accept loop. A dead Channel slot redials
 the same TCP, TLS, mTLS, or Unix address on the next RPC of every call

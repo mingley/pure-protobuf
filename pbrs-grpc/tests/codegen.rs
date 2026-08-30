@@ -3890,6 +3890,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Cap how many RPCs this channel will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]. Extra RPCs are `RESOURCE_EXHAUSTED` before the stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits. Distinct from [`::pbrs_grpc::Server::max_concurrent_rpcs`], which refuses inbound. Clones share the budget. See [`::pbrs_grpc::Channel::max_concurrent_rpcs`]."
+        ),
+        "generated client max_concurrent_rpcs rustdoc must Distinct SETTINGS wait from the server inbound cap"
+    );
+    assert!(
+        src.contains(
             "Cap how many TCP/Unix connections the accept loop will serve at once, including TLS and mTLS listeners. Applies to every call shape."
         ),
         "generated max_concurrent_connections rustdoc must name TLS and mTLS"

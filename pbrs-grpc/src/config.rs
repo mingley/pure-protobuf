@@ -643,6 +643,7 @@ pub struct ChannelConfig {
     send_compressed: bool,
     timeout: Option<Duration>,
     wait_for_ready: bool,
+    max_concurrent_rpcs: Option<usize>,
 }
 
 impl Default for ChannelConfig {
@@ -668,6 +669,7 @@ impl Default for ChannelConfig {
             send_compressed: false,
             timeout: None,
             wait_for_ready: false,
+            max_concurrent_rpcs: None,
         }
     }
 }
@@ -780,6 +782,8 @@ impl ChannelConfig {
     /// from [`ServerConfig::max_concurrent_streams`], which serializes extra
     /// RPCs on the server. Push is disabled, including over TLS, mTLS, Unix,
     /// and [`crate::Channel::from_io`].
+    /// Distinct from [`Self::max_concurrent_rpcs`], which refuses extras
+    /// before the stream opens.
     #[must_use]
     pub fn max_concurrent_streams(mut self, streams: u32) -> Self {
         self.max_concurrent_streams = streams;
@@ -1001,6 +1005,25 @@ impl ChannelConfig {
         self
     }
 
+    /// Cap how many RPCs this channel will run at once, across every
+    /// pooled connection. Applies to every call shape, including over TLS,
+    /// mTLS, Unix, and [`crate::Channel::from_io`].
+    ///
+    /// Further RPCs are refused with [`crate::Code::ResourceExhausted`]
+    /// before the stream opens. Distinct from
+    /// [`Self::max_concurrent_streams`] (per HTTP/2 connection SETTINGS;
+    /// extras wait) and from [`ServerConfig::max_concurrent_rpcs`] (the
+    /// server refuses inbound). Disabled by default.
+    ///
+    /// [`crate::Channel::max_concurrent_rpcs`] and generated
+    /// `FooClient::max_concurrent_rpcs` set this without building a
+    /// [`ChannelConfig`].
+    #[must_use]
+    pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
+        self.max_concurrent_rpcs = Some(n.max(1));
+        self
+    }
+
     /// Configured message caps. Applies to every call shape.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
@@ -1139,6 +1162,13 @@ impl ChannelConfig {
         self.wait_for_ready
     }
 
+    /// Configured channel-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn concurrent_rpc_limit(self) -> Option<usize> {
+        self.max_concurrent_rpcs
+    }
+
     pub(crate) fn keepalive(self) -> (Option<Duration>, Duration) {
         (self.keep_alive_interval, self.keep_alive_timeout)
     }
@@ -1240,8 +1270,19 @@ mod tests {
             super::DEFAULT_MAX_CONNECTION_AGE_GRACE
         );
         assert_eq!(ChannelConfig::new().rpc_timeout(), None);
+        assert_eq!(ChannelConfig::new().concurrent_rpc_limit(), None);
         assert!(!ChannelConfig::new().waits_for_ready());
         assert!(ChannelConfig::new().wait_for_ready(true).waits_for_ready());
+    }
+
+    #[test]
+    fn channel_rpc_cap_never_zero() {
+        assert_eq!(
+            ChannelConfig::new()
+                .max_concurrent_rpcs(0)
+                .concurrent_rpc_limit(),
+            Some(1)
+        );
     }
 
     #[test]
