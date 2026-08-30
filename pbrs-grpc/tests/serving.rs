@@ -1816,6 +1816,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc example must read limits"
     );
     assert!(
+        intercept.contains("svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {"),
+        "ServiceExt::on_response rustdoc example must attach a closure"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );

@@ -368,6 +368,28 @@ pub trait ServiceExt: Service + Sized {
     /// [`crate::Status::with_error_details`]. A handler `Err` skips this
     /// hook. Applies to every call shape, including over TLS, mTLS, Unix,
     /// and [`crate::Server::serve_connection`].
+    ///
+    /// ```
+    /// use pbrs_grpc::ServiceExt;
+    /// # fn demo<S: pbrs_grpc::Service>(svc: S) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor> {
+    /// svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
+    ///     let _ = (
+    ///         parts.path(),
+    ///         parts.gzip_level(),
+    ///         parts.compresses_outbound(),
+    ///         parts.accepts_gzip(),
+    ///         parts.deadline(),
+    ///         parts.timeout(),
+    ///         parts.limits(),
+    ///         parts.peer_timeout(),
+    ///         parts.rpc_timeout(),
+    ///         parts.accepts_compressed(),
+    ///         parts.send_buffer_size(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     fn on_response<R: ResponseInterceptor>(
         self,
