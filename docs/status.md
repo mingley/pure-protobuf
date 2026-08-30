@@ -134,7 +134,10 @@ See `docs/upb.md`. Short list:
   `Server::send_compressed` / `Response::set_compress(false)`
   opt-out apply to every call shape, including over TLS, mTLS, Unix, and
   `from_io`. `Request::set_compress(false)` opts out of
-  `Channel::send_compressed` on those transports too. Client interceptors see the channel overlay
+  `Channel::send_compressed` on those transports too. `Channel::send_compressed`
+  itself gzips unary and server-streaming payloads and `StreamSender::send`
+  on those transports (the handler sees the Compressed-Flag / `grpc-encoding`).
+  Client interceptors see the channel overlay
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
   wait-for-ready / compress (a client interceptor `set_compress(true)` gzips, and
   `set_compress(false)` opts out of `send_compressed`, on

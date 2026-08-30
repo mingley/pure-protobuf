@@ -823,7 +823,8 @@ impl ChannelConfig {
     }
 
     /// gzip request payloads (and [`crate::StreamSender::send`] on a stream).
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
     ///
     /// Off by default. The kernel always advertises `identity,gzip`, so a
     /// server that implements gzip will accept these frames. Per-RPC

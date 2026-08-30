@@ -3625,9 +3625,15 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "gzip unary and server-streaming request payloads and [`::pbrs_grpc::StreamSender::send`]. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated client send_compressed rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
             "gzip responses when the client advertises gzip. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
-        "generated server send_compressed rustdoc must name every call shape"
+        "generated server send_compressed rustdoc must name every transport"
     );
     assert!(
         src.contains(

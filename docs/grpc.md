@@ -1057,7 +1057,8 @@ GreeterServer::new(svc).send_compressed()
 ```
 
 To gzip every request from a channel — unary and server-streaming payloads,
-and `StreamSender::send` on client- and bidi-streams (every call shape):
+and `StreamSender::send` on client- and bidi-streams (every call shape,
+including over TLS, mTLS, Unix, and `from_io`):
 
 ```rust
 ChannelConfig::new().send_compressed(true)

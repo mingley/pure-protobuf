@@ -4865,7 +4865,7 @@ fn emit_kernel_client(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// gzip unary and server-streaming request payloads and [`{G}::StreamSender::send`]. Applies to every call shape. See [`{G}::Channel::send_compressed`]."
+        "    /// gzip unary and server-streaming request payloads and [`{G}::StreamSender::send`]. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. See [`{G}::Channel::send_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

@@ -157,7 +157,10 @@ gzip replies when the client advertises gzip on those transports.
 A default server leaves `Response::encoding` unset (identity) on those
 transports. `Response::set_compress(false)` opts out of
 `Server::send_compressed` on those transports too. `Request::set_compress(false)`
-opts out of `Channel::send_compressed` on those transports. A client `grpc-timeout` is a
+opts out of `Channel::send_compressed` on those transports. `Channel::send_compressed`
+itself gzips unary and server-streaming payloads and `StreamSender::send`
+on those transports (the handler sees the Compressed-Flag / `grpc-encoding`).
+A client `grpc-timeout` is a
 `Request::deadline` Instant that elapses while the handler runs, including
 over TLS, mTLS, Unix, and `from_io`.
 

@@ -524,7 +524,8 @@ impl Channel {
 
     /// gzip every unary and server-streaming request payload, and every
     /// [`crate::StreamSender::send`] on a client- or bidi-stream opened from
-    /// this channel. Applies to every call shape.
+    /// this channel. Applies to every call shape, including over TLS, mTLS,
+    /// Unix, and [`Self::from_io`].
     ///
     /// Off by default. Equivalent to [`ChannelConfig::send_compressed`].
     /// A request that already called [`crate::Request::set_compress`] is
