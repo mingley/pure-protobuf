@@ -2585,13 +2585,81 @@ async fn a_client_interceptor_cannot_insert_reserved_metadata() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        call.metadata_mut()
-            .insert("grpc-previous-rpc-attempts", "1")?;
-        Ok(())
-    });
+    let client = GreeterClient::new(channel(addr).await).intercept(interceptor_reserved_metadata);
     assert_err_on_every_shape(&client, Code::InvalidArgument).await;
     task.abort();
+}
+
+fn interceptor_reserved_metadata(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.metadata_mut()
+        .insert("grpc-previous-rpc-attempts", "1")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client =
+        GreeterClient::new(tls_channel(addr).await).intercept(interceptor_reserved_metadata);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(interceptor_reserved_metadata);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_cannot_insert_reserved_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    let client =
+        GreeterClient::new(unix_channel(&path).await).intercept(interceptor_reserved_metadata);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_cannot_insert_reserved_metadata() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_reserved_metadata);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -2600,12 +2668,78 @@ async fn a_client_interceptor_cannot_insert_hop_by_hop_headers() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        call.metadata_mut().insert("connection", "close")?;
-        Ok(())
-    });
+    let client = GreeterClient::new(channel(addr).await).intercept(interceptor_hop_by_hop);
     assert_err_on_every_shape(&client, Code::InvalidArgument).await;
     task.abort();
+}
+
+fn interceptor_hop_by_hop(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.metadata_mut().insert("connection", "close")?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await).intercept(interceptor_hop_by_hop);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(interceptor_hop_by_hop);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await).intercept(interceptor_hop_by_hop);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_hop_by_hop);
+    assert_err_on_every_shape(&client, Code::InvalidArgument).await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -2614,11 +2748,79 @@ async fn a_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await)
-        .intercept(|_: &mut Outgoing<'_>| Err(Status::failed_precondition("blocked locally")));
+    let client = GreeterClient::new(channel(addr).await).intercept(interceptor_fail_before_open);
     assert_err_on_every_shape(&client, Code::FailedPrecondition).await;
     task.abort();
+}
+
+fn interceptor_fail_before_open(_: &mut Outgoing<'_>) -> Result<(), Status> {
+    Err(Status::failed_precondition("blocked locally"))
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client =
+        GreeterClient::new(tls_channel(addr).await).intercept(interceptor_fail_before_open);
+    assert_err_on_every_shape(&client, Code::FailedPrecondition).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(interceptor_fail_before_open);
+    assert_err_on_every_shape(&client, Code::FailedPrecondition).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    let client =
+        GreeterClient::new(unix_channel(&path).await).intercept(interceptor_fail_before_open);
+    assert_err_on_every_shape(&client, Code::FailedPrecondition).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_fail_before_open);
+    assert_err_on_every_shape(&client, Code::FailedPrecondition).await;
+    server.abort();
 }
 
 #[tokio::test]

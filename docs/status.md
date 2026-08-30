@@ -166,7 +166,7 @@ See `docs/upb.md`. Short list:
   those Reverser dialers too, including mTLS. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
-  without details; nothing is sent. A packed `google.rpc.Status` on that
+  without details on h2c, TLS (including mTLS), Unix, and `from_io`; nothing is sent. A packed `google.rpc.Status` on that
   local `Err` is `Status::rpc` / `Status::error_details` on the Call.
   Outgoing getters apply to every call shape. Kernel `user-agent` (and a
   `Channel::user_agent` prefix) is sent on every shape, including over h2c, TLS

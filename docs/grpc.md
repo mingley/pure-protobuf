@@ -1117,7 +1117,7 @@ guards is committed.
 | Slow-reader amplification | Capacity is released only after a chunk is handed on | always |
 | Deeply nested protobuf | Recursion limit in `pbrs` | always |
 | Truncated or malformed frames | Protocol error, never treated as an empty message | always |
-| Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata | always |
+| Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata. A client interceptor `insert` of `grpc-previous-rpc-attempts` or `connection` is `INVALID_ARGUMENT` on h2c, TLS (including mTLS), Unix, and `from_io` | always |
 | Impersonation | WebPKI roots or a CA you pin; mTLS; verified client chain on `Rpc::peer_identity` | opt-in |
 | Unauthenticated Unix peer | Connecting process uid/gid/pid on `Rpc::peer_cred` from `SO_PEERCRED` | Unix accept loop |
 | Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
