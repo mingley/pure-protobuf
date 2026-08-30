@@ -5,7 +5,8 @@
 //! over TLS, mTLS, Unix, and [`crate::Channel::from_io`]. A [`HealthClient`]
 //! `max_encoding_message_size` / `max_decoding_message_size` is
 //! `RESOURCE_EXHAUSTED` on Check and Watch on those transports, distinct from
-//! the server decoding cap. `Router::message_limits` /
+//! the server decoding cap. [`HealthClient::message_limits`] refuses the same
+//! oversize, distinct from those single-cap wrappers. `Router::message_limits` /
 //! [`HealthServer::message_limits`] refuse the same oversize as
 //! `RESOURCE_EXHAUSTED` on both, distinct from
 //! [`crate::Router::max_decoding_message_size`].

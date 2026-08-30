@@ -22,7 +22,9 @@
 //! and [`crate::Channel::from_io`]. A [`ServerReflectionClient`]
 //! `max_encoding_message_size` / `max_decoding_message_size` is
 //! `RESOURCE_EXHAUSTED` on the one bidi method on those transports, distinct
-//! from the server decoding cap. `Router::message_limits` /
+//! from the server decoding cap. [`ServerReflectionClient::message_limits`]
+//! refuses the same oversize, distinct from those single-cap wrappers.
+//! `Router::message_limits` /
 //! [`ServerReflectionServer::message_limits`] refuse the same oversize as
 //! `RESOURCE_EXHAUSTED` trailers on that method, distinct from
 //! [`crate::Router::max_decoding_message_size`].

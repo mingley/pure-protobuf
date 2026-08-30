@@ -532,6 +532,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "[`HealthClient::message_limits`] refuses the same\n//! oversize, distinct from those single-cap wrappers."
+        ),
+        "Health crate rustdoc must name wrap message_limits on every transport"
+    );
+    assert!(
+        src.contains(
             "`Router::message_limits` /\n//! [`HealthServer::message_limits`] refuse the same oversize as\n//! `RESOURCE_EXHAUSTED` on both, distinct from\n//! [`crate::Router::max_decoding_message_size`]."
         ),
         "Health crate rustdoc must name combined-setter oversize on every transport"
@@ -3453,7 +3459,17 @@ async fn assert_health_client_decode_cap(client: &HealthClient) {
 
 async fn assert_health_client_message_caps(client: HealthClient) {
     assert_health_client_encode_cap(&client.clone().max_encoding_message_size(16)).await;
-    assert_health_client_decode_cap(&client.max_decoding_message_size(1)).await;
+    assert_health_client_decode_cap(&client.clone().max_decoding_message_size(1)).await;
+    assert_health_client_encode_cap(
+        &client
+            .clone()
+            .message_limits(MessageLimits::new().with_max_encoding(16)),
+    )
+    .await;
+    assert_health_client_decode_cap(
+        &client.message_limits(MessageLimits::new().with_max_decoding(1)),
+    )
+    .await;
 }
 
 fn health_plain() -> HealthServer<impl Health> {
