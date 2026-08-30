@@ -477,8 +477,9 @@ See `docs/upb.md`. Short list:
   RPCs finish inside the grace window on every Greeter call shape, including
   over TLS, mTLS, Unix, and `serve_connection`. Server `max_connection_idle`
   does not arm while Slow is in flight on every Greeter call shape on those
-  transports. Client `ChannelConfig::max_connection_idle` leaves those same
-  in-flight Slow shapes alone. Graceful drain finishes in-flight Slow on
+  transports.   Client `ChannelConfig::max_connection_idle` leaves those same
+  in-flight Slow shapes alone. `ChannelConfig::max_connection_age` still
+  lets those in-flight Slow shapes finish inside the grace window. Graceful drain finishes in-flight Slow on
   every Greeter call shape on those transports. A `CallHandle` taken before await still cancels that
   live stream after headers, still cancels a server-streaming or bidi call
   waiting for headers, and a client-streaming handle still cancels

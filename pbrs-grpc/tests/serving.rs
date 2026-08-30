@@ -1381,6 +1381,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ChannelConfig::max_connection_age as a client close"
     );
     assert!(
+        guide.contains("client close after age or idle"),
+        "guide threat table must name client close after age, not only idle"
+    );
+    assert!(
         !guide.contains("| Client `max_connection_age` |"),
         "guide must not list client max_connection_age as an omission"
     );

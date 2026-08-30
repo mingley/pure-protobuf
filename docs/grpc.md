@@ -1186,7 +1186,7 @@ guards is committed.
 | Reserved metadata injection | `grpc-*` and hop-by-hop headers are never read from or written to user metadata. A client interceptor `insert` of `grpc-previous-rpc-attempts` or `connection` is `INVALID_ARGUMENT` on h2c, TLS (including mTLS), Unix, and `from_io`, including official TestService methods, hand-written Reverser `Channel` APIs, generated Store, Health Check/List/Watch, and reflection `ServerReflectionInfo`. A local interceptor `Err` before the stream opens is that status on those same paths | always |
 | Impersonation | WebPKI roots or a CA you pin; mTLS; verified client chain on `Rpc::peer_identity` | opt-in |
 | Unauthenticated Unix peer | Connecting process uid/gid/pid on `Rpc::peer_cred` from `SO_PEERCRED` | Unix accept loop |
-| Long-lived connection hold | Server `GOAWAY` after age or idle; client closes an unused socket after idle; PINGs do not reset idle | opt-in |
+| Long-lived connection hold | Server `GOAWAY` after age or idle; client close after age or idle; PINGs do not reset idle | opt-in |
 | Slow handshake | Whole client dial, and each of the server TLS accept and HTTP/2 preface, is timed out | 20 s |
 | Accept storm | Drop excess TCP/Unix accepts before a handshake task is spawned | opt-in |
 | Unbounded handler concurrency | Refuse further RPCs with `RESOURCE_EXHAUSTED` before the handler runs | opt-in |
