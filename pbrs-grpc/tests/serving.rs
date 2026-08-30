@@ -1425,6 +1425,14 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept must name overlays after clear_*"
     );
     assert!(
+        src.contains("[`crate::Outgoing::gzip_level`] is deflate effort."),
+        "Channel::intercept must name Outgoing::gzip_level as deflate effort"
+    );
+    assert!(
+        src.contains("Distinct from [`crate::Outgoing::compresses_outbound`] (on or off)."),
+        "Channel::intercept must Distinct gzip_level from compresses_outbound"
+    );
+    assert!(
         src.contains(
             "[`crate::Outgoing::clear_compress`] then\n    /// [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`]\n    /// reapplies channel gzip on every call shape."
         ),

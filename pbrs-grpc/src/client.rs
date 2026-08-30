@@ -834,8 +834,11 @@ impl Channel {
     /// user-agent prefix ([`crate::Outgoing::set_user_agent`]), a
     /// timeout / deadline Instant, wait-for-ready, compression, or typed
     /// extensions. Channel overlays (`rpc_timeout`, `waits_for_ready`,
-    /// `compresses_outbound`) are visible even after `clear_*` opts out of
+    /// `compresses_outbound`, `gzip_level`) are visible even after `clear_*` opts out of
     /// the already-applied default.
+    /// [`crate::Outgoing::gzip_level`] is deflate effort.
+    /// Distinct from [`crate::Outgoing::compresses_outbound`] (on or off).
+    /// An interceptor cannot change it.
     /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
     /// (default on).
     /// [`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay.

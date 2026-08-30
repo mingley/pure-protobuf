@@ -3923,9 +3923,17 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`; `clear_*` opts out of the already-applied default)"
+            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level`; `clear_*` opts out of the already-applied default)"
         ),
         "generated intercept rustdoc must name channel overlays and clear_*"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Outgoing::gzip_level`] is deflate effort"),
+        "generated intercept rustdoc must name Outgoing::gzip_level as deflate effort"
+    );
+    assert!(
+        src.contains("Distinct from [`::pbrs_grpc::Outgoing::compresses_outbound`] (on or off)."),
+        "generated intercept rustdoc must Distinct gzip_level from compresses_outbound"
     );
     assert!(
         src.contains("[`::pbrs_grpc::Outgoing::set_user_agent`] prefixes this RPC."),
