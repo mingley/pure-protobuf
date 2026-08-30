@@ -2,8 +2,9 @@
 //!
 //! These tests speak raw HTTP/2 so they can send bytes no real client would:
 //! oversize length prefixes, gzip bombs, reserved flag values, truncated
-//! frames, and wrong content types. Every case must produce a `Status` and
-//! leave the server serving.
+//! frames, wrong content types, and an HTTP/2 rapid-reset flood. Every case
+//! must produce a `Status` (or drop that connection) and leave the server
+//! serving. Rapid reset is h2c-only here; TLS has no raw `h2` peer.
 
 #![allow(
     clippy::disallowed_methods,
@@ -32,6 +33,7 @@ use pbrs_grpc::hello::{Greeter, HelloReply, HelloRequest};
 use pbrs_grpc::{Code, Request, Response, ServerConfig, Status, Streaming};
 use std::io::Write;
 use std::net::SocketAddr;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
 const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
@@ -553,4 +555,62 @@ async fn h2c_ignores_a_peer_https_scheme() {
     peer.call_with(request, frame(&hello_request()))
         .await
         .expect_code(Code::Ok);
+}
+
+/// A raw peer that `RST_STREAM`s faster than accept exceeds
+/// [`ServerConfig::max_pending_accept_reset_streams`]. That connection is
+/// dropped (`ENHANCE_YOUR_CALM`); a well-behaved client on a fresh connection
+/// still serves. Distinct from wrap still-serves. h2c-only (`RawPeer`).
+///
+/// `current_thread` so the burst queues HEADERS then RSTs without the server
+/// `poll_accept` interleaving. A multi-thread runtime lets the accept loop
+/// drain streams before the RSTs land, and the queue never fills.
+#[tokio::test(flavor = "current_thread")]
+async fn rst_flood_beyond_pending_reset_cap_drops_that_connection() {
+    let (addr, _guard) =
+        spawn_greeter_server(ServerConfig::new().max_pending_accept_reset_streams(1)).await;
+    let peer = RawPeer::connect(addr).await;
+    let mut send = peer.send.clone().ready().await.expect("settings");
+    let mut opened = Vec::new();
+    for _ in 0..32 {
+        let request = peer.request(SAY_HELLO, "application/grpc");
+        let (response, stream) = send.send_request(request, false).expect("open stream");
+        opened.push((response, stream));
+        let waker = std::task::Waker::noop();
+        let mut cx = Context::from_waker(waker);
+        match send.poll_ready(&mut cx) {
+            Poll::Ready(Ok(())) => {}
+            Poll::Ready(Err(e)) => panic!("connection died while opening the burst: {e}"),
+            Poll::Pending => {
+                panic!("burst must not yield; SETTINGS should already allow 32 streams")
+            }
+        }
+    }
+    for (_, stream) in &mut opened {
+        stream.send_reset(h2::Reason::CANCEL);
+    }
+    drop(opened);
+    drop(send);
+    for _ in 0..16 {
+        tokio::task::yield_now().await;
+    }
+    let dropped =
+        match tokio::time::timeout(Duration::from_millis(500), peer.send.clone().ready()).await {
+            Ok(Ok(_)) => false,
+            Ok(Err(_)) | Err(_) => true,
+        };
+    assert!(
+        dropped,
+        "RST flood must trip max_pending_accept_reset_streams and drop that connection"
+    );
+
+    let client = common::greeter_client(addr).await;
+    let reply = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(pbrs_grpc::Request::new(common::req("ada"))),
+    )
+    .await
+    .expect("no hang")
+    .expect("accept loop still serves after the flood connection dropped");
+    assert_eq!(common::name_of(reply.get_ref()), "ada");
 }

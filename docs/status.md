@@ -249,7 +249,10 @@ See `docs/upb.md`. Short list:
   Store shape at that cap, distinct from wrapping only the generated Greeter
   setter. `ChannelConfig::max_pending_accept_reset_streams` caps the client's
   accept queue and still serves every Greeter shape when a well-behaved server
-  never fills it, over TLS, mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  never fills it, over TLS, mTLS, Unix, and `from_io`. A raw HTTP/2 RST flood
+  that exceeds `max_pending_accept_reset_streams` drops that connection
+  (`ENHANCE_YOUR_CALM`); the accept loop still serves a well-behaved client.
+  Distinct from wrap still-serves. h2c-only (`RawPeer`; no TLS raw peer). A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
