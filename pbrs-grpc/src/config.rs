@@ -671,6 +671,7 @@ impl ServerConfig {
 
     /// Configured process-wide RPC cap, if any. See [`Self::max_concurrent_rpcs`].
     /// Applies to every call shape.
+    /// Distinct from [`Self::max_concurrent_rpcs`], which sets it.
     #[must_use]
     pub fn concurrent_rpc_limit(self) -> Option<usize> {
         self.max_concurrent_rpcs
