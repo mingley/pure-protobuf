@@ -1016,6 +1016,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ServerConfig::max_concurrent_rpcs must name every transport"
     );
+    assert!(
+        src.contains(
+            "[`ServerConfig`]. Distinct from [`Self::max_decoding_message_size`].\n    /// Oversize inbound is [`crate::Code::ResourceExhausted`], including over\n    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]."
+        ),
+        "ServerConfig::message_limits must name combined-setter oversize on every transport"
+    );
 }
 
 #[test]
@@ -1141,6 +1147,14 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server::message_limits and Router::message_limits must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`Self::max_decoding_message_size`]. Oversize inbound\n    /// is [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`Self::serve_connection`]."
+        )
+        .count(),
+        2,
+        "Server::message_limits and Router::message_limits must name combined-setter oversize on every transport"
     );
     assert_eq!(
         src.matches(
@@ -22990,4 +23004,283 @@ async fn from_io_message_limits_setter_is_resource_exhausted() {
     server1.abort();
     server2.abort();
     server3.abort();
+}
+
+fn server_decode_limits() -> MessageLimits {
+    MessageLimits::new().with_max_decoding(16)
+}
+
+fn greeter_server_limits() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).message_limits(server_decode_limits())
+}
+
+fn greeter_config_limits() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).config(ServerConfig::new().message_limits(server_decode_limits()))
+}
+
+fn greeter_router_limits() -> Router {
+    Router::new()
+        .message_limits(server_decode_limits())
+        .add_service(GreeterServer::new(Echo))
+}
+
+fn reverser_plain_limits() -> Server<Reverser> {
+    Server::new(Reverser::new(Arc::new(AtomicUsize::new(0)))).message_limits(server_decode_limits())
+}
+
+fn reverser_mtls_limits() -> Server<Reverser> {
+    Server::new(Reverser::mtls(
+        Arc::new(AtomicUsize::new(0)),
+        client_identity().certificates().next().expect("leaf"),
+    ))
+    .message_limits(server_decode_limits())
+}
+
+async fn assert_reverser_server_oversize(channel: &Channel) {
+    let oversize = req(&"x".repeat(64));
+    let err = channel
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(oversize.clone()))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    match channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(oversize.clone()),
+        )
+        .await
+    {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream over the server cap must fail"),
+        },
+    }
+    let (tx, call) = channel
+        .client_streaming::<HelloRequest, HelloReply>("/demo.Reverser/Client", Request::new(()));
+    tx.send(oversize.clone()).await.expect("send");
+    tx.close();
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    tx.send(oversize).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi over the server cap must fail"),
+        },
+    }
+}
+
+#[tokio::test]
+async fn server_message_limits_is_resource_exhausted() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_server_limits().serve_listener(listener).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_config_limits().serve_listener(listener).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_router_limits().serve_listener(listener).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_plain_limits().serve_listener(listener).await.ok();
+    });
+    assert_reverser_server_oversize(&channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_server_message_limits_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_server_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_config_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_router_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_plain_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_reverser_server_oversize(&tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_server_message_limits_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_server_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_config_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_router_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_mtls_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reverser_server_oversize(&tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_server_message_limits_is_resource_exhausted() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_server_limits().serve_unix(sock).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_config_limits().serve_unix(sock).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_router_limits().serve_unix(sock).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        reverser_plain_limits().serve_unix(sock).await.ok();
+    });
+    assert_reverser_server_oversize(&unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_server_message_limits_is_resource_exhausted() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        greeter_server_limits().serve_connection(s1).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        Channel::from_io(c1, "localhost")
+            .await
+            .expect("from_io wrap"),
+    ))
+    .await;
+    server1.abort();
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        greeter_config_limits().serve_connection(s2).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        Channel::from_io(c2, "localhost")
+            .await
+            .expect("from_io config"),
+    ))
+    .await;
+    server2.abort();
+    let (c3, s3) = duplex_pair();
+    let server3 = tokio::spawn(async move {
+        greeter_router_limits().serve_connection(s3).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        Channel::from_io(c3, "localhost")
+            .await
+            .expect("from_io router"),
+    ))
+    .await;
+    server3.abort();
+    let (c4, s4) = duplex_pair();
+    let server4 = tokio::spawn(async move {
+        reverser_plain_limits().serve_connection(s4).await.ok();
+    });
+    assert_reverser_server_oversize(
+        &Channel::from_io(c4, "localhost")
+            .await
+            .expect("from_io reverser"),
+    )
+    .await;
+    server4.abort();
 }

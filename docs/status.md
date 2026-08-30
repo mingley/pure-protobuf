@@ -143,7 +143,10 @@ See `docs/upb.md`. Short list:
   add_service caps. `Channel::message_limits` / generated
   `FooClient::message_limits` / `ChannelConfig::message_limits` refuse
   oversize the same way as the single-cap setters over TLS, mTLS, Unix, and
-  `from_io`. TLS
+  `from_io`. `Server::message_limits` / `Router::message_limits` / generated
+  `FooServer::message_limits` / `ServerConfig::message_limits` refuse inbound
+  oversize as `RESOURCE_EXHAUSTED` over TLS, mTLS, Unix, and
+  `serve_connection`, distinct from `max_decoding_message_size`. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent

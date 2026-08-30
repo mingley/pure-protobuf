@@ -4064,6 +4064,10 @@ fn emit_kernel_server(
         src,
         "    /// Replace both message caps at once. Applies to every call shape. See [`{G}::ServerConfig::message_limits`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// Distinct from [`Self::max_decoding_message_size`]. Oversize inbound is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

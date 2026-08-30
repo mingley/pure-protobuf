@@ -149,7 +149,9 @@ impl ServerConfig {
     ///
     /// [`crate::Server::message_limits`], [`crate::Router::message_limits`],
     /// and generated `FooServer::message_limits` set this without building a
-    /// [`ServerConfig`].
+    /// [`ServerConfig`]. Distinct from [`Self::max_decoding_message_size`].
+    /// Oversize inbound is [`crate::Code::ResourceExhausted`], including over
+    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;

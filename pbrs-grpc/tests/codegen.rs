@@ -27,7 +27,7 @@
 
 use pbrs_grpc::{
     ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
-    ServerTls, Status, Streaming,
+    ServerConfig, ServerTls, Status, Streaming,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -3750,6 +3750,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::max_decoding_message_size`]. Oversize inbound is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated server message_limits rustdoc must name combined-setter oversize on every transport"
+    );
+    assert!(
+        src.contains(
             "Cap how many RPCs the process will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated max_concurrent_rpcs rustdoc must name every transport"
@@ -4663,4 +4669,89 @@ async fn generated_from_io_message_limits_setter_is_resource_exhausted() {
     server1.abort();
     server2.abort();
     server3.abort();
+}
+
+fn store_config_decode_limits() -> StoreServer<MemStore> {
+    StoreServer::new(MemStore)
+        .config(ServerConfig::new().message_limits(MessageLimits::new().with_max_decoding(16)))
+}
+
+#[tokio::test]
+async fn generated_server_config_message_limits_is_resource_exhausted() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_config_decode_limits()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_oversize_every_shape(&client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_server_config_message_limits_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_config_decode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_oversize_every_shape(&tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_server_config_message_limits_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_config_decode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_oversize_every_shape(&tls_client_with(addr, client_tls).await).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_server_config_message_limits_is_resource_exhausted() {
+    let path = unix_sock("cfg-limits");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        store_config_decode_limits().serve_unix(sock).await.ok();
+    });
+    assert_store_oversize_every_shape(&unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_server_config_message_limits_is_resource_exhausted() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        store_config_decode_limits()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_store_oversize_every_shape(&client).await;
+    server.abort();
 }
