@@ -26,8 +26,8 @@
 )]
 
 use pbrs_grpc::{
-    ChannelConfig, ClientTls, Code, Identity, Outgoing, Request, Response, ServerTls, Status,
-    Streaming,
+    ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
+    ServerTls, Status, Streaming,
 };
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -2189,6 +2189,382 @@ async fn generated_from_io_client_interceptors_stack_and_share_extensions() {
             .ok();
     });
     echo_store_every_shape(&stacked_trace_store(
+        StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[derive(Clone)]
+struct Tenant(String);
+
+fn interceptor_stamp_tenant(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let Some(tenant) = call.extensions().get::<Tenant>().cloned() else {
+        return Err(Status::internal("missing Tenant"));
+    };
+    call.metadata_mut().insert("x-tenant", tenant.0)?;
+    Ok(())
+}
+
+fn require_tenant(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-tenant") != Some("acme") {
+        return Err(Status::unauthenticated("missing tenant"));
+    }
+    Ok(())
+}
+
+fn with_tenant<T>(mut request: Request<T>) -> Request<T> {
+    request.extensions_mut().insert(Tenant("acme".into()));
+    request
+}
+
+async fn echo_tenant_store_every_shape(client: &StoreClient) {
+    let mut get = GetRequest::new();
+    get.set_key("alpha");
+    let got = client
+        .get(with_tenant(Request::new(get)))
+        .await
+        .expect("unary");
+    assert!(got.get_ref().found());
+    assert_eq!(key_of(got.get_ref().entry()), "alpha");
+
+    let (tx, call) = client.put_all(with_tenant(Request::new(())));
+    for (key, value) in [("a", &b"11"[..]), ("b", &b"222"[..])] {
+        tx.send(entry(key, value)).await.expect("send");
+    }
+    tx.close();
+    let summary = call.await.expect("client-stream");
+    assert_eq!(summary.get_ref().entries(), 2);
+
+    let mut watch = WatchRequest::new();
+    for prefix in ["x", "y", "z"] {
+        watch.prefixes_mut().push(pbrs::ProtoString::from(prefix));
+    }
+    let mut events = client
+        .watch(with_tenant(Request::new(watch)))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    while events.message().await.expect("event").is_some() {}
+
+    let (tx, call) = client.sync(with_tenant(Request::new(())));
+    let mut inbound = call.await.expect("bidi").into_inner();
+    tx.send(entry("p", b"v")).await.expect("send");
+    assert!(inbound.message().await.expect("event").is_some());
+    tx.close();
+    while inbound.message().await.expect("drain").is_some() {}
+    assert_store_err_every_shape(client, Code::Internal).await;
+}
+
+fn interceptor_stamp_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let ua = call.user_agent();
+    if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    call.metadata_mut().set("x-ua", ua)?;
+    Ok(())
+}
+
+fn require_stamped_user_agent(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    let stamped = rpc.metadata().get("x-ua").unwrap_or("");
+    if stamped != ua || !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua:?} x-ua {stamped:?}")));
+    }
+    Ok(())
+}
+
+fn user_agent_store(client: StoreClient) -> StoreClient {
+    client
+        .user_agent("inventory/2.1")
+        .expect("user-agent")
+        .intercept(interceptor_stamp_user_agent)
+}
+
+fn test_message_limits() -> MessageLimits {
+    MessageLimits::new()
+        .with_max_decoding(64 * 1024)
+        .with_max_encoding(64 * 1024)
+}
+
+fn interceptor_require_limits(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let want = test_message_limits();
+    if call.limits() != want {
+        return Err(Status::internal(format!("limits {:?}", call.limits())));
+    }
+    Ok(())
+}
+
+fn limits_store(client: StoreClient) -> StoreClient {
+    client
+        .message_limits(test_message_limits())
+        .intercept(interceptor_require_limits)
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_reads_caller_extensions() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_tenant)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_tenant_store_every_shape(&client(addr).await.intercept(interceptor_stamp_tenant)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_tenant_store_every_shape(&tls_client(addr).await.intercept(interceptor_stamp_tenant))
+        .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_tenant_store_every_shape(
+        &tls_client_with(addr, client_tls)
+            .await
+            .intercept(interceptor_stamp_tenant),
+    )
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_reads_caller_extensions() {
+    let path = unix_sock("store-tenant");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_tenant)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_tenant_store_every_shape(&unix_client(&path).await.intercept(interceptor_stamp_tenant))
+        .await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_reads_caller_extensions() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_tenant)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_tenant_store_every_shape(
+        &StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+            .await
+            .expect("from_io")
+            .intercept(interceptor_stamp_tenant),
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_sees_the_user_agent() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&user_agent_store(client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&user_agent_store(tls_client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_store_every_shape(&user_agent_store(tls_client_with(addr, client_tls).await)).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_sees_the_user_agent() {
+    let path = unix_sock("store-ua");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&user_agent_store(unix_client(&path).await)).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_sees_the_user_agent() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(require_stamped_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&user_agent_store(
+        StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_sees_message_limits() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&limits_store(client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&limits_store(tls_client(addr).await)).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_store_every_shape(&limits_store(tls_client_with(addr, client_tls).await)).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_sees_message_limits() {
+    let path = unix_sock("store-limits");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    echo_store_every_shape(&limits_store(unix_client(&path).await)).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_sees_message_limits() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&limits_store(
         StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
             .await
             .expect("from_io"),

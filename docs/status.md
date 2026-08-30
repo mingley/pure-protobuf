@@ -178,8 +178,9 @@ See `docs/upb.md`. Short list:
   into metadata cannot override it.   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
   interceptor on those transports plus `from_io`, including official TestService
-  methods and hand-written Reverser `Channel` APIs. A `Channel::user_agent` prefix
-  is `Outgoing::user_agent` on those same TestService and Reverser paths. Server interceptor `set` / `remove` /
+  methods and hand-written Reverser `Channel` APIs, generated Store Get / Watch /
+  PutAll / Sync, Health Check and Watch, and reflection `ServerReflectionInfo`. A `Channel::user_agent` prefix
+  is `Outgoing::user_agent` on those same paths. Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape.
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.

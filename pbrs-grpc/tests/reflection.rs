@@ -21,7 +21,8 @@ use pbrs_grpc::reflection::{
     ServerReflectionResponse, ServerReflectionServer,
 };
 use pbrs_grpc::{
-    Channel, ClientTls, Code, Identity, Outgoing, Request, Response, Router, ServerTls, Status,
+    Channel, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response, Router,
+    ServerTls, Status,
 };
 use std::net::SocketAddr;
 #[cfg(unix)]
@@ -1626,6 +1627,384 @@ async fn reflection_from_io_client_interceptors_stack_and_share_extensions() {
     });
     let _guard = ServerGuard(handle);
     echo_reflection_list(&stacked_trace_reflection(
+        ServerReflectionClient::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+}
+
+#[derive(Clone)]
+struct Tenant(String);
+
+fn interceptor_stamp_tenant(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let Some(tenant) = call.extensions().get::<Tenant>().cloned() else {
+        return Err(Status::internal("missing Tenant"));
+    };
+    call.metadata_mut().insert("x-tenant", tenant.0)?;
+    Ok(())
+}
+
+fn require_tenant(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-tenant") != Some("acme") {
+        return Err(Status::unauthenticated("missing tenant"));
+    }
+    Ok(())
+}
+
+fn with_tenant<T>(mut request: Request<T>) -> Request<T> {
+    request.extensions_mut().insert(Tenant("acme".into()));
+    request
+}
+
+async fn assert_reflection_err(client: &ServerReflectionClient, want: Code) {
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), want, "{err}");
+    drop(tx);
+}
+
+async fn echo_tenant_reflection(client: &ServerReflectionClient) {
+    let (tx, call) = client.server_reflection_info(with_tenant(Request::new(())));
+    let mut inbound = call.await.expect("open").into_inner();
+    tx.send(list_req()).await.expect("send");
+    let resp = inbound
+        .message()
+        .await
+        .expect("read")
+        .expect("reflection reply");
+    assert!(
+        resp.has_list_services_response(),
+        "expected list, got error {:?}",
+        resp.error_response().error_message()
+    );
+    let names = service_names(&resp);
+    assert!(
+        names.contains(&"helloworld.Greeter".to_owned()),
+        "{names:?}"
+    );
+    tx.close();
+    assert_reflection_err(client, Code::Internal).await;
+}
+
+fn interceptor_stamp_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let ua = call.user_agent();
+    if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    call.metadata_mut().set("x-ua", ua)?;
+    Ok(())
+}
+
+fn require_stamped_user_agent(rpc: &mut pbrs_grpc::Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    let stamped = rpc.metadata().get("x-ua").unwrap_or("");
+    if stamped != ua || !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua:?} x-ua {stamped:?}")));
+    }
+    Ok(())
+}
+
+fn user_agent_reflection(client: ServerReflectionClient) -> ServerReflectionClient {
+    client
+        .user_agent("inventory/2.1")
+        .expect("user-agent")
+        .intercept(interceptor_stamp_user_agent)
+}
+
+fn test_message_limits() -> MessageLimits {
+    MessageLimits::new()
+        .with_max_decoding(64 * 1024)
+        .with_max_encoding(64 * 1024)
+}
+
+fn interceptor_require_limits(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let want = test_message_limits();
+    if call.limits() != want {
+        return Err(Status::internal(format!("limits {:?}", call.limits())));
+    }
+    Ok(())
+}
+
+fn limits_reflection(client: ServerReflectionClient) -> ServerReflectionClient {
+    client
+        .message_limits(test_message_limits())
+        .intercept(interceptor_require_limits)
+}
+
+#[tokio::test]
+async fn a_reflection_client_interceptor_reads_caller_extensions() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_tenant)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_tenant_reflection(&client(addr).await.intercept(interceptor_stamp_tenant)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_tls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_tenant_reflection(&tls_client(addr).await.intercept(interceptor_stamp_tenant)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_mtls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_tenant_reflection(
+        &tls_client_with(addr, client_tls)
+            .await
+            .intercept(interceptor_stamp_tenant),
+    )
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reflection_unix_client_interceptor_reads_caller_extensions() {
+    let path = unix_sock("reflection-tenant");
+    let sock = path.clone();
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_tenant)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_tenant_reflection(&unix_client(&path).await.intercept(interceptor_stamp_tenant)).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_reflection_from_io_client_interceptor_reads_caller_extensions() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_tenant)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_tenant_reflection(
+        &ServerReflectionClient::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .intercept(interceptor_stamp_tenant),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn a_reflection_client_interceptor_sees_the_user_agent() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&user_agent_reflection(client(addr).await)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_tls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&user_agent_reflection(tls_client(addr).await)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_mtls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reflection_list(&user_agent_reflection(
+        tls_client_with(addr, client_tls).await,
+    ))
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reflection_unix_client_interceptor_sees_the_user_agent() {
+    let path = unix_sock("reflection-ua");
+    let sock = path.clone();
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&user_agent_reflection(unix_client(&path).await)).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_reflection_from_io_client_interceptor_sees_the_user_agent() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(require_stamped_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&user_agent_reflection(
+        ServerReflectionClient::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+}
+
+#[tokio::test]
+async fn a_reflection_client_interceptor_sees_message_limits() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection.serve_listener(listener).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&limits_reflection(client(addr).await)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_tls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&limits_reflection(tls_client(addr).await)).await;
+}
+
+#[tokio::test]
+async fn a_reflection_mtls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reflection_list(&limits_reflection(tls_client_with(addr, client_tls).await)).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reflection_unix_client_interceptor_sees_message_limits() {
+    let path = unix_sock("reflection-limits");
+    let sock = path.clone();
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection.serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&limits_reflection(unix_client(&path).await)).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_reflection_from_io_client_interceptor_sees_message_limits() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection.serve_connection(server_io).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&limits_reflection(
         ServerReflectionClient::from_io(client_io, "localhost")
             .await
             .expect("from_io"),
