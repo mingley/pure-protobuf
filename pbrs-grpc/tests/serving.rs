@@ -1749,6 +1749,13 @@ fn channel_call_apis_document_hand_written_services() {
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
+    assert_eq!(
+        intercept
+            .matches("Same kernel-stamped [`crate::ResponseParts`] overlays as [`crate::Server::on_response`]:")
+            .count(),
+        2,
+        "Intercepted::on_response and ServiceExt::on_response must name the same overlays as Server::on_response"
+    );
     assert!(
         src.contains("starts empty; this is how a client inserts typed context after the"),
         "Channel::on_response must Distinct receive-side insert from the peer"

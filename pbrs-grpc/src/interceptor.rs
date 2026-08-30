@@ -228,6 +228,9 @@ impl<S, I> Intercepted<S, I> {
     /// the first interceptor runs first. A [`crate::Server::on_response`] /
     /// [`crate::Router::on_response`] hook still runs first, then this one.
     /// This hook does not cover other mounts.
+    /// Same kernel-stamped [`crate::ResponseParts`] overlays as [`crate::Server::on_response`]:
+    /// `path` / `gzip_level` / `compresses_outbound` / `accepts_gzip` / `deadline` / `timeout` /
+    /// `limits` / `peer_timeout` / `rpc_timeout` / `accepts_compressed` / `send_buffer_size`.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent trailers-only instead of the response,
@@ -330,6 +333,9 @@ pub trait ServiceExt: Service + Sized {
     /// [`crate::Server::on_response`] / [`crate::Router::on_response`] hook
     /// still runs first, then this one.
     /// This hook does not cover other mounts.
+    /// Same kernel-stamped [`crate::ResponseParts`] overlays as [`crate::Server::on_response`]:
+    /// `path` / `gzip_level` / `compresses_outbound` / `accepts_gzip` / `deadline` / `timeout` /
+    /// `limits` / `peer_timeout` / `rpc_timeout` / `accepts_compressed` / `send_buffer_size`.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent
