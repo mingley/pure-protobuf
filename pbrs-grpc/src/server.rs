@@ -1322,7 +1322,8 @@ impl<S: Service> Server<S> {
 
     /// Replace both message caps at once. Applies to every call shape.
     /// See [`ServerConfig::message_limits`].
-    /// Distinct from [`Self::max_decoding_message_size`]. Oversize inbound
+    /// Distinct from [`Self::max_decoding_message_size`] /
+    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound
     /// is [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and
     /// [`Self::serve_connection`].
     #[must_use]
@@ -1888,7 +1889,8 @@ impl Router {
 
     /// Replace both message caps at once. Applies to every call shape.
     /// See [`ServerConfig::message_limits`].
-    /// Distinct from [`Self::max_decoding_message_size`]. Oversize inbound
+    /// Distinct from [`Self::max_decoding_message_size`] /
+    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound
     /// is [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and
     /// [`Self::serve_connection`].
     #[must_use]

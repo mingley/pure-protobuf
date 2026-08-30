@@ -4066,7 +4066,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// Distinct from [`Self::max_decoding_message_size`]. Oversize inbound is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
+        "    /// Distinct from [`Self::max_decoding_message_size`] / [`Self::max_encoding_message_size`]. Oversize inbound or outbound is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

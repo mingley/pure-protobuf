@@ -1018,7 +1018,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
-            "[`ServerConfig`]. Distinct from [`Self::max_decoding_message_size`].\n    /// Oversize inbound is [`crate::Code::ResourceExhausted`], including over\n    /// TLS, mTLS, Unix, and [`crate::Server::serve_connection`]."
+            "Distinct from [`Self::max_decoding_message_size`] /\n    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound is\n    /// [`crate::Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::message_limits must name combined-setter oversize on every transport"
     );
@@ -1150,7 +1150,7 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
-            "Distinct from [`Self::max_decoding_message_size`]. Oversize inbound\n    /// is [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`Self::serve_connection`]."
+            "Distinct from [`Self::max_decoding_message_size`] /\n    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound\n    /// is [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`Self::serve_connection`]."
         )
         .count(),
         2,
@@ -23283,4 +23283,201 @@ async fn from_io_server_message_limits_is_resource_exhausted() {
     )
     .await;
     server4.abort();
+}
+
+fn server_encode_limits() -> MessageLimits {
+    MessageLimits::new().with_max_encoding(16)
+}
+
+fn greeter_server_encode_limits() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).message_limits(server_encode_limits())
+}
+
+fn greeter_config_encode_limits() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).config(ServerConfig::new().message_limits(server_encode_limits()))
+}
+
+fn test_server_encode_limits() -> TestServiceServer<InteropTestService> {
+    TestServiceServer::new(InteropTestService).message_limits(server_encode_limits())
+}
+
+#[tokio::test]
+async fn server_message_limits_encode_is_resource_exhausted() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_server_encode_limits()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_config_encode_limits()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_server_encode_limits()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_oversize_encode_every_shape(&TestServiceClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_server_message_limits_encode_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_server_encode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_config_encode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_server_encode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_test_oversize_encode_every_shape(&TestServiceClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_server_message_limits_encode_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_server_encode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        greeter_config_encode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_server_encode_limits()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_test_oversize_encode_every_shape(&TestServiceClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_server_message_limits_encode_is_resource_exhausted() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_server_encode_limits().serve_unix(sock).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        greeter_config_encode_limits().serve_unix(sock).await.ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        test_server_encode_limits().serve_unix(sock).await.ok();
+    });
+    assert_test_oversize_encode_every_shape(&TestServiceClient::new(unix_channel(&path).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_server_message_limits_encode_is_resource_exhausted() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        greeter_server_encode_limits()
+            .serve_connection(s1)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        Channel::from_io(c1, "localhost")
+            .await
+            .expect("from_io wrap"),
+    ))
+    .await;
+    server1.abort();
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        greeter_config_encode_limits()
+            .serve_connection(s2)
+            .await
+            .ok();
+    });
+    assert_greeter_oversize_every_shape(&GreeterClient::new(
+        Channel::from_io(c2, "localhost")
+            .await
+            .expect("from_io config"),
+    ))
+    .await;
+    server2.abort();
+    let (c3, s3) = duplex_pair();
+    let server3 = tokio::spawn(async move {
+        test_server_encode_limits().serve_connection(s3).await.ok();
+    });
+    assert_test_oversize_encode_every_shape(&TestServiceClient::new(
+        Channel::from_io(c3, "localhost")
+            .await
+            .expect("from_io test"),
+    ))
+    .await;
+    server3.abort();
 }

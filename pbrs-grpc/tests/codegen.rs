@@ -3750,7 +3750,7 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Distinct from [`Self::max_decoding_message_size`]. Oversize inbound is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+            "Distinct from [`Self::max_decoding_message_size`] / [`Self::max_encoding_message_size`]. Oversize inbound or outbound is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated server message_limits rustdoc must name combined-setter oversize on every transport"
     );
