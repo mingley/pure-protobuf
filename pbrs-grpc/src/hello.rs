@@ -74,6 +74,31 @@
 //! })
 //! # }
 //! ```
+//! Generated [`GreeterServer::on_response`] reads the same ResponseParts overlays as
+//! [`crate::Server::on_response`]:
+//!
+//! ```
+//! # struct Svc;
+//! # impl pbrs_grpc::hello::Greeter for Svc {}
+//! # fn demo() -> pbrs_grpc::Server<pbrs_grpc::hello::GreeterServer<Svc>> {
+//! pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {
+//!     let _ = (
+//!         parts.path(),
+//!         parts.gzip_level(),
+//!         parts.compresses_outbound(),
+//!         parts.accepts_gzip(),
+//!         parts.deadline(),
+//!         parts.timeout(),
+//!         parts.limits(),
+//!         parts.peer_timeout(),
+//!         parts.rpc_timeout(),
+//!         parts.accepts_compressed(),
+//!         parts.send_buffer_size(),
+//!     );
+//!     Ok(())
+//! })
+//! # }
+//! ```
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
