@@ -764,6 +764,20 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::stream_buffer_size must name the streaming shapes it queues"
     );
     assert!(
+        outgoing.contains("Kernel-stamped after a handler `Ok` and after a successful receive."),
+        "Response::path must name kernel stamp after Ok and after receive"
+    );
+    assert!(
+        outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
+        "Response::path must Distinct inbound Request::path"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send."
+        ),
+        "Response::path must Distinct Outgoing::path before send"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -1016,6 +1030,20 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must name client Err after the peer sent OK"
     );
     assert!(
+        intercept.contains("[`crate::ResponseParts::path`] is kernel-stamped."),
+        "ResponseInterceptor rustdoc must name kernel-stamped path"
+    );
+    assert!(
+        intercept.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
+        "ResponseInterceptor rustdoc must Distinct inbound Request::path"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send."
+        ),
+        "ResponseInterceptor rustdoc must Distinct Outgoing::path before send"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
@@ -1030,6 +1058,16 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("the peer already sent OK"),
         "Channel::on_response must name Err after the peer sent OK"
+    );
+    assert!(
+        src.contains("[`crate::ResponseParts::path`] is kernel-stamped."),
+        "Channel::on_response must name kernel-stamped path"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send."
+        ),
+        "Channel::on_response must Distinct Outgoing::path before send"
     );
     assert!(
         src.contains(
@@ -2194,6 +2232,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Outgoing::stream_buffer_size from limits"
     );
     assert!(
+        crate_src.contains("[`Response::path`] is kernel-stamped after `Ok` / after receive"),
+        "crate docs must name Response::path as kernel-stamped"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Request::path`]"),
+        "crate docs must Distinct Response::path from Request::path"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::path`]"),
+        "crate docs must Distinct Response::path from Outgoing::path"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2588,6 +2638,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it."),
         "guide must name Outgoing::stream_buffer_size as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
+        "guide must name Response::path as kernel-stamped for on_response"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -3101,6 +3155,18 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::on_response and Router::on_response must name trailers-only after the handler"
+    );
+    assert_eq!(
+        src.matches("[`crate::ResponseParts::path`] is kernel-stamped.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must name kernel-stamped path"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`crate::Request::path`]: that is the inbound request.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct inbound Request::path"
     );
     assert_eq!(
         src.matches(
@@ -15918,7 +15984,20 @@ fn stamp_from_ext(parts: &mut ResponseParts) -> Result<(), Status> {
     Ok(())
 }
 
+fn require_response_path(parts: &ResponseParts) -> Result<(), Status> {
+    match (parts.path(), parts.service(), parts.method()) {
+        (Some(_), Some(_), Some(_)) => Ok(()),
+        _ => Err(Status::internal(format!(
+            "response path {:?}/{:?}/{:?}",
+            parts.path(),
+            parts.service(),
+            parts.method()
+        ))),
+    }
+}
+
 fn stamp_hook(parts: &mut ResponseParts) -> Result<(), Status> {
+    require_response_path(parts)?;
     parts.metadata_mut().insert("x-hook", "1")?;
     parts.trailers_mut().insert("x-hook-end", "1")?;
     Ok(())
@@ -16008,6 +16087,17 @@ impl pbrs_grpc::Greeter for FailHello {
     }
 }
 
+fn assert_response_path<T>(
+    resp: &Response<T>,
+    want_path: &str,
+    want_service: &str,
+    want_method: &str,
+) {
+    assert_eq!(resp.path(), Some(want_path), "response path");
+    assert_eq!(resp.service(), Some(want_service), "response service");
+    assert_eq!(resp.method(), Some(want_method), "response method");
+}
+
 async fn echo_hook_every_shape(client: &GreeterClient) {
     let resp = client
         .say_hello(Request::new(req("ada")))
@@ -16020,6 +16110,12 @@ async fn echo_hook_every_shape(client: &GreeterClient) {
         Some("1"),
         "unary trailer"
     );
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/SayHello",
+        "helloworld.Greeter",
+        "SayHello",
+    );
 
     let resp = client
         .server_hello(Request::new(req("ada")))
@@ -16029,6 +16125,12 @@ async fn echo_hook_every_shape(client: &GreeterClient) {
         resp.metadata().get("x-hook"),
         Some("1"),
         "server-stream header"
+    );
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/ServerHello",
+        "helloworld.Greeter",
+        "ServerHello",
     );
     let mut stream = resp.into_inner();
     let first = stream
@@ -16060,12 +16162,24 @@ async fn echo_hook_every_shape(client: &GreeterClient) {
         Some("1"),
         "client-stream trailer"
     );
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/ClientHello",
+        "helloworld.Greeter",
+        "ClientHello",
+    );
 
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
     tx.close();
     let resp = call.await.expect("bidi");
     assert_eq!(resp.metadata().get("x-hook"), Some("1"), "bidi header");
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/StreamHello",
+        "helloworld.Greeter",
+        "StreamHello",
+    );
     let mut inbound = resp.into_inner();
     let first = inbound
         .message()
@@ -16219,6 +16333,7 @@ async fn on_response_survives_add_service() {
 }
 
 fn insert_local_ext(parts: &mut ResponseParts) -> Result<(), Status> {
+    require_response_path(parts)?;
     assert_eq!(parts.metadata().get("x-hook"), Some("1"));
     parts.extensions_mut().insert(7u8);
     Ok(())
@@ -16241,6 +16356,12 @@ async fn echo_client_hook_every_shape(client: &GreeterClient) {
         Some(7),
         "unary local ext"
     );
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/SayHello",
+        "helloworld.Greeter",
+        "SayHello",
+    );
 
     let resp = client
         .server_hello(Request::new(req("ada")))
@@ -16255,6 +16376,12 @@ async fn echo_client_hook_every_shape(client: &GreeterClient) {
         resp.extensions().get::<u8>().copied(),
         Some(7),
         "server-stream local ext"
+    );
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/ServerHello",
+        "helloworld.Greeter",
+        "ServerHello",
     );
     let mut stream = resp.into_inner();
     let first = stream
@@ -16291,6 +16418,12 @@ async fn echo_client_hook_every_shape(client: &GreeterClient) {
         Some(7),
         "client-stream local ext"
     );
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/ClientHello",
+        "helloworld.Greeter",
+        "ClientHello",
+    );
 
     let (tx, call) = client.stream_hello(Request::new(()));
     tx.send(req("ada")).await.expect("send");
@@ -16301,6 +16434,12 @@ async fn echo_client_hook_every_shape(client: &GreeterClient) {
         resp.extensions().get::<u8>().copied(),
         Some(7),
         "bidi local ext"
+    );
+    assert_response_path(
+        &resp,
+        "/helloworld.Greeter/StreamHello",
+        "helloworld.Greeter",
+        "StreamHello",
     );
     let mut inbound = resp.into_inner();
     let first = inbound
@@ -16438,6 +16577,7 @@ async fn echo_reverser_hook_every_shape(ch: &Channel) {
         Some("1"),
         "unary trailer"
     );
+    assert_response_path(&resp, "/demo.Reverser/Reverse", "demo.Reverser", "Reverse");
 
     let resp = ch
         .server_streaming::<HelloRequest, HelloReply>(
@@ -16451,6 +16591,7 @@ async fn echo_reverser_hook_every_shape(ch: &Channel) {
         Some("1"),
         "server-stream header"
     );
+    assert_response_path(&resp, "/demo.Reverser/Server", "demo.Reverser", "Server");
     let mut stream = resp.into_inner();
     let first = stream
         .message()
@@ -16482,12 +16623,14 @@ async fn echo_reverser_hook_every_shape(ch: &Channel) {
         Some("1"),
         "client-stream trailer"
     );
+    assert_response_path(&resp, "/demo.Reverser/Client", "demo.Reverser", "Client");
 
     let (tx, call) = ch.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
     tx.send(req("stressed")).await.expect("send");
     tx.close();
     let resp = call.await.expect("bidi");
     assert_eq!(resp.metadata().get("x-hook"), Some("1"), "bidi header");
+    assert_response_path(&resp, "/demo.Reverser/Bidi", "demo.Reverser", "Bidi");
     let mut inbound = resp.into_inner();
     let first = inbound
         .message()

@@ -91,6 +91,9 @@ where
 /// [`crate::ResponseParts::trailers_mut`] for trailing metadata that ships
 /// with `grpc-status`. Distinct from [`Interceptor`] / [`ClientInterceptor`],
 /// which run before the handler or before the stream opens.
+/// [`crate::ResponseParts::path`] is kernel-stamped.
+/// Distinct from [`crate::Request::path`]: that is the inbound request.
+/// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -201,6 +204,8 @@ impl<S, I> Intercepted<S, I> {
     /// the first interceptor runs first. A [`crate::Server::on_response`] /
     /// [`crate::Router::on_response`] hook still runs first, then this one.
     /// This hook does not cover other mounts.
+    /// [`crate::ResponseParts::path`] is kernel-stamped.
+    /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent trailers-only instead of the response,
     /// including [`crate::Status::with_error_details`]. A handler `Err` skips
     /// this hook. Applies to every call shape, including over TLS, mTLS, Unix,
@@ -301,6 +306,8 @@ pub trait ServiceExt: Service + Sized {
     /// [`crate::Server::on_response`] / [`crate::Router::on_response`] hook
     /// still runs first, then this one.
     /// This hook does not cover other mounts.
+    /// [`crate::ResponseParts::path`] is kernel-stamped.
+    /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent
     /// trailers-only instead of the response, including
     /// [`crate::Status::with_error_details`]. A handler `Err` skips this
@@ -556,5 +563,31 @@ mod tests {
     fn intercept_response_all_empty_is_identity() {
         let resp = super::intercept_response_all(crate::Response::new(1u32), &[]).expect("empty");
         assert!(resp.metadata().is_empty());
+        assert!(resp.path().is_none());
+    }
+
+    #[test]
+    fn response_interceptor_sees_kernel_path() {
+        fn require_path(parts: &mut crate::ResponseParts) -> Result<(), crate::Status> {
+            assert_eq!(parts.path(), Some("/helloworld.Greeter/SayHello"));
+            assert_eq!(parts.service(), Some("helloworld.Greeter"));
+            assert_eq!(parts.method(), Some("SayHello"));
+            Ok(())
+        }
+        let resp = super::intercept_response(
+            crate::Response::new(1u32).with_path(Some("/helloworld.Greeter/SayHello".into())),
+            Some(&require_path),
+        )
+        .expect("path");
+        assert_eq!(resp.path(), Some("/helloworld.Greeter/SayHello"));
+        assert_eq!(resp.service(), Some("helloworld.Greeter"));
+        assert_eq!(resp.method(), Some("SayHello"));
+        let shown = format!("{resp:?}");
+        assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
+        assert!(shown.contains("helloworld.Greeter"), "{shown}");
+        assert!(shown.contains("SayHello"), "{shown}");
+        assert!(crate::Response::new(0u32).path().is_none());
+        assert!(crate::Response::new(0u32).service().is_none());
+        assert!(crate::Response::new(0u32).method().is_none());
     }
 }

@@ -1166,6 +1166,7 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Outgoing::concurrent_rpc_limit` is that overlay in a client interceptor. Distinct from `waits_for_ready` (connection). An interceptor cannot change it.
 `Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
 `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
+`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
@@ -1659,7 +1660,7 @@ shape, including over TLS, mTLS, Unix, and `from_io`.
 `Server::on_response` (and the generated `FooServer::on_response`, and
 `Router::on_response`) runs after the handler returns `Ok`, before headers
 go out. Closures take `ResponseParts`. `Response::extensions` is local typed
-context; stamp metadata here to send a header. Calling it twice stacks:
+context; stamp metadata here to send a header. `ResponseParts::path` is kernel-stamped. Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it. Calling it twice stacks:
 the first interceptor runs first. `Err` after the handler already ran; that
 status is sent trailers-only instead of the response. A handler `Err` skips
 this hook. Applies to every call shape, including over TLS, mTLS, Unix, and
@@ -1669,7 +1670,7 @@ the per-service hook. The per-service hook does not cover other mounts.
 
 `Channel::on_response` (and the generated `FooClient::on_response`) runs
 after a successful receive, before the `Call` is Ready. A received reply
-starts empty; this hook inserts typed context the peer cannot. `Err` fails
+starts empty; this hook inserts typed context the peer cannot. `ResponseParts::path` is kernel-stamped. Distinct from `Outgoing::path` (before send). `Err` fails
 that Call (the peer already sent OK). A non-OK peer status skips this hook.
 Applies to every call shape, including over TLS, mTLS, Unix, and `from_io`.
 

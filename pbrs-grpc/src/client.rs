@@ -853,6 +853,8 @@ impl Channel {
     /// this hook. On server-streaming and bidi, trailers on this envelope
     /// do not replace [`crate::Streaming::trailers`]. Generated clients
     /// expose the same method: `GreeterClient::new(ch).on_response(stamp)`.
+    /// [`crate::ResponseParts::path`] is kernel-stamped.
+    /// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send.
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
         let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();
@@ -863,8 +865,15 @@ impl Channel {
         }
     }
 
-    fn apply_response_hooks<T>(&self, response: Response<T>) -> Result<Response<T>, Status> {
-        crate::interceptor::intercept_response_all(response, &self.response_interceptors)
+    fn apply_response_hooks<T>(
+        &self,
+        path: &'static str,
+        response: Response<T>,
+    ) -> Result<Response<T>, Status> {
+        crate::interceptor::intercept_response_all(
+            response.with_path(Some(path.to_owned())),
+            &self.response_interceptors,
+        )
     }
 
     fn prepare_outbound<T>(&self, path: &'static str, req: &mut Request<T>) -> Result<(), Status> {
@@ -1094,7 +1103,7 @@ impl Channel {
                         }
                         result => {
                             return result
-                                .and_then(|response| channel.apply_response_hooks(response))
+                                .and_then(|response| channel.apply_response_hooks(path, response))
                         }
                     }
                 }
@@ -1189,7 +1198,7 @@ impl Channel {
                     .await
                     {
                         Ok(response) => {
-                            let response = channel.apply_response_hooks(response)?;
+                            let response = channel.apply_response_hooks(path, response)?;
                             return Ok(attach_conn(response, lease, driver, Some(reset), permit));
                         }
                         Err(status)
@@ -1291,7 +1300,7 @@ impl Channel {
                 let response =
                     run_client_stream(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout)
                         .await?;
-                channel.apply_response_hooks(response)
+                channel.apply_response_hooks(path, response)
             }),
         );
         (tx, call)
@@ -1381,7 +1390,7 @@ impl Channel {
                     .await?;
                 let response =
                     run_bidi(opened.resp_fut, opened.send, rx, cancel_rx, wire, timeout).await?;
-                let response = channel.apply_response_hooks(response)?;
+                let response = channel.apply_response_hooks(path, response)?;
                 Ok(attach_conn(
                     response,
                     opened.lease,

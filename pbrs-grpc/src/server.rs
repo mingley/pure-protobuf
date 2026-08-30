@@ -658,6 +658,7 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             cancel,
+            path,
             ..
         }) = self.run_unary_request(handler).await
         else {
@@ -665,7 +666,7 @@ impl Rpc {
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response, hook.as_deref())
+                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -708,6 +709,7 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             cancel,
+            path,
             ..
         }) = self.run_streaming_request(handler).await
         else {
@@ -715,7 +717,7 @@ impl Rpc {
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response, hook.as_deref())
+                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -766,13 +768,14 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             cancel,
+            path,
         }) = self.run_unary_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response, hook.as_deref())
+                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -830,13 +833,14 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             cancel,
+            path,
         }) = self.run_streaming_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response, hook.as_deref())
+                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -903,7 +907,7 @@ impl Rpc {
                 peer_identity,
             )
             .with_extensions(extensions)
-            .with_http(authority, scheme, path);
+            .with_http(authority, scheme, path.clone());
             req.set_compressed(framed.compressed);
             req.set_peer_cred(peer_cred);
             req.set_limits(limits);
@@ -934,6 +938,7 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             cancel: CancelOnDrop(cancel_tx),
+            path,
         })
     }
 
@@ -983,7 +988,7 @@ impl Rpc {
         let mut req =
             Request::from_metadata(stream, metadata, remote_addr, local_addr, peer_identity)
                 .with_extensions(extensions)
-                .with_http(authority, scheme, path);
+                .with_http(authority, scheme, path.clone());
         req.set_peer_cred(peer_cred);
         req.set_limits(limits);
         req.set_peer_timeout(peer_timeout);
@@ -1016,6 +1021,7 @@ impl Rpc {
             prefer_gzip,
             peer_accepts_gzip,
             cancel: CancelOnDrop(cancel_tx),
+            path,
         })
     }
 }
@@ -1118,6 +1124,8 @@ struct Prepared<T> {
     prefer_gzip: bool,
     peer_accepts_gzip: bool,
     cancel: CancelOnDrop,
+    /// Kernel-stamped onto the handler [`Response`] before `on_response`.
+    path: Option<String>,
 }
 
 async fn send_unary_response<Resp: Serialize>(
@@ -1789,6 +1797,8 @@ impl<S: Service> Server<S> {
     /// `Err` after the handler already ran; that status is sent trailers-only
     /// instead of the response, including [`Status::with_error_details`].
     /// A handler `Err` skips this hook.
+    /// [`crate::ResponseParts::path`] is kernel-stamped.
+    /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2562,6 +2572,8 @@ impl Router {
     /// `Err` after the handler already ran; that status is sent trailers-only
     /// instead of the response, including [`Status::with_error_details`].
     /// A handler `Err` skips this hook.
+    /// [`crate::ResponseParts::path`] is kernel-stamped.
+    /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {

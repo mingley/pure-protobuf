@@ -1654,6 +1654,10 @@ impl fmt::Debug for Parts {
 
 /// A reply: message, initial headers, and trailing metadata.
 ///
+/// The kernel stamps [`Self::path`] after a handler `Ok` and after a successful receive.
+/// Distinct from [`crate::Request::path`]: that is the inbound request.
+/// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send.
+///
 /// Trailing metadata set here survives on the OK path; to attach metadata to
 /// an error, put it on the [`Status`] instead.
 ///
@@ -1685,6 +1689,7 @@ pub struct Response<T> {
     trailers: Metadata,
     compress: Option<bool>,
     encoding: Option<String>,
+    path: Option<String>,
     extensions: http::Extensions,
 }
 
@@ -1698,6 +1703,7 @@ impl<T> Response<T> {
             trailers: Metadata::new(),
             compress: None,
             encoding: None,
+            path: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -1725,6 +1731,7 @@ impl<T> Response<T> {
                 trailers: self.trailers,
                 compress: self.compress,
                 encoding: self.encoding,
+                path: self.path,
                 extensions: self.extensions,
             },
         )
@@ -1739,6 +1746,7 @@ impl<T> Response<T> {
             trailers: parts.trailers,
             compress: parts.compress,
             encoding: parts.encoding,
+            path: parts.path,
             extensions: parts.extensions,
         }
     }
@@ -1877,6 +1885,44 @@ impl<T> Response<T> {
         self.encoding.as_deref()
     }
 
+    /// Full gRPC path, e.g. `/helloworld.Greeter/SayHello`.
+    ///
+    /// Kernel-stamped after a handler `Ok` and after a successful receive.
+    /// `None` on a response you built: the kernel stamps this, not this envelope.
+    /// Distinct from [`crate::Request::path`]: that is the inbound request.
+    /// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send.
+    /// Bind it before [`Self::metadata_mut`]: `let path = response.path();`. Stamped on every call shape.
+    /// An interceptor cannot change this.
+    #[must_use]
+    pub fn path(&self) -> Option<&str> {
+        self.path.as_deref()
+    }
+
+    /// Service half of the path, e.g. `helloworld.Greeter`.
+    ///
+    /// Same split as [`crate::Rpc::service`]. Unparseable paths yield
+    /// `Some("")`. `None` when [`Self::path`] is `None`. Stamped on every
+    /// call shape.
+    #[must_use]
+    pub fn service(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).0)
+    }
+
+    /// Method half of the path, e.g. `SayHello`.
+    ///
+    /// Same split as [`crate::Rpc::method`]. Unparseable paths yield
+    /// `Some("")`. `None` when [`Self::path`] is `None`. Stamped on every
+    /// call shape.
+    #[must_use]
+    pub fn method(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).1)
+    }
+
+    pub(crate) fn with_path(mut self, path: Option<String>) -> Self {
+        self.path = path;
+        self
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
@@ -1884,6 +1930,7 @@ impl<T> Response<T> {
             trailers,
             compress: Some(false),
             encoding: None,
+            path: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -1900,6 +1947,7 @@ impl<T> Response<T> {
             trailers,
             compress: Some(compress),
             encoding: None,
+            path: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -1924,6 +1972,7 @@ pub struct ResponseParts {
     trailers: Metadata,
     compress: Option<bool>,
     encoding: Option<String>,
+    path: Option<String>,
     extensions: http::Extensions,
 }
 
@@ -1988,6 +2037,24 @@ impl ResponseParts {
         self.encoding.as_deref()
     }
 
+    /// Full gRPC path. See [`Response::path`].
+    #[must_use]
+    pub fn path(&self) -> Option<&str> {
+        self.path.as_deref()
+    }
+
+    /// Service half of the path. See [`Response::service`].
+    #[must_use]
+    pub fn service(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).0)
+    }
+
+    /// Method half of the path. See [`Response::method`].
+    #[must_use]
+    pub fn method(&self) -> Option<&str> {
+        self.path.as_deref().map(|p| split_path(p).1)
+    }
+
     /// Typed values on this envelope. See [`Response::extensions`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
@@ -2008,6 +2075,9 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("trailers", &self.trailers)
             .field("compress", &self.compress)
             .field("encoding", &self.encoding)
+            .field("path", &self.path())
+            .field("service", &self.service())
+            .field("method", &self.method())
             .field("extensions", &self.extensions.len())
             .finish()
     }
@@ -2413,11 +2483,19 @@ mod tests {
         assert_eq!(mapped.extensions().get::<u8>().copied(), Some(7));
         assert!(mapped.compressed());
         assert!(mapped.compress());
-        let (n, mut parts) = mapped.into_message_and_parts();
+        assert!(mapped.path().is_none());
+        let stamped = mapped.with_path(Some("/helloworld.Greeter/SayHello".into()));
+        assert_eq!(stamped.path(), Some("/helloworld.Greeter/SayHello"));
+        assert_eq!(stamped.service(), Some("helloworld.Greeter"));
+        assert_eq!(stamped.method(), Some("SayHello"));
+        let (n, mut parts) = stamped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
         assert!(parts.encoding().is_none());
         assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
+        assert_eq!(parts.path(), Some("/helloworld.Greeter/SayHello"));
+        assert_eq!(parts.service(), Some("helloworld.Greeter"));
+        assert_eq!(parts.method(), Some("SayHello"));
         parts.set_compress(false);
         parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
@@ -2429,6 +2507,13 @@ mod tests {
         assert!(rebuilt.encoding().is_none());
         assert_eq!(rebuilt.metadata().get("h"), Some("v"));
         assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(9));
+        assert_eq!(rebuilt.path(), Some("/helloworld.Greeter/SayHello"));
+        assert_eq!(rebuilt.service(), Some("helloworld.Greeter"));
+        assert_eq!(rebuilt.method(), Some("SayHello"));
+        let shown = format!("{rebuilt:?}");
+        assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
+        assert!(shown.contains("helloworld.Greeter"), "{shown}");
+        assert!(shown.contains("SayHello"), "{shown}");
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));

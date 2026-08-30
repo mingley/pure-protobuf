@@ -4391,7 +4391,7 @@ fn emit_kernel_server(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` after `{trait_name}` methods return `Ok`. It may mutate headers, trailers, compress, and local extensions (`Response::extensions` is not on the wire; stamp metadata here to send it). Calling this twice stacks: the first interceptor runs first. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. `Err` after the handler already ran; that status is sent trailers-only instead of the response, including [`{G}::Status::with_error_details`]. A handler `Err` skips this hook."
+        "    /// Run `interceptor` after `{trait_name}` methods return `Ok`. It may mutate headers, trailers, compress, and local extensions (`Response::extensions` is not on the wire; stamp metadata here to send it). Calling this twice stacks: the first interceptor runs first. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. `Err` after the handler already ran; that status is sent trailers-only instead of the response, including [`{G}::Status::with_error_details`]. A handler `Err` skips this hook. [`{G}::ResponseParts::path`] is kernel-stamped. Distinct from [`{G}::Request::path`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -5070,7 +5070,7 @@ fn emit_kernel_client(
     let _ = writeln!(src, "    }}");
     let _ = writeln!(
         src,
-        "    /// Run `interceptor` after a successful receive, before the [`{G}::Call`] is Ready. Closures implement [`{G}::ResponseInterceptor`]. A received reply starts empty; this is how a client inserts typed context after the peer cannot. Distinct from [`Self::intercept`], which runs before the stream opens. Calling this twice stacks: the first interceptor runs first. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. `Err` fails that Call (the peer already sent OK), including [`{G}::Status::with_error_details`]. A non-OK peer status skips this hook. On server-streaming and bidi, trailers on this envelope do not replace [`{G}::Streaming::trailers`]. See [`{G}::Channel::on_response`]."
+        "    /// Run `interceptor` after a successful receive, before the [`{G}::Call`] is Ready. Closures implement [`{G}::ResponseInterceptor`]. A received reply starts empty; this is how a client inserts typed context after the peer cannot. Distinct from [`Self::intercept`], which runs before the stream opens. Calling this twice stacks: the first interceptor runs first. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. `Err` fails that Call (the peer already sent OK), including [`{G}::Status::with_error_details`]. A non-OK peer status skips this hook. On server-streaming and bidi, trailers on this envelope do not replace [`{G}::Streaming::trailers`]. See [`{G}::Channel::on_response`]. [`{G}::ResponseParts::path`] is kernel-stamped. Distinct from [`{G}::Outgoing::path`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
