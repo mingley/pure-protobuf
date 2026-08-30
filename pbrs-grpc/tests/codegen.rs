@@ -4219,6 +4219,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client on_response rustdoc must Distinct received gzip_level from encoding"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::compresses_outbound`] is the server encode overlay. Distinct from [`::pbrs_grpc::ResponseParts::compress`], which is the per-RPC Compressed-Flag."),
+        "generated on_response rustdoc must name compresses_outbound overlay"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::compresses_outbound`] on a received reply is `false` (the overlay is not on the wire)."),
+        "generated client on_response rustdoc must name received compresses_outbound is false"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

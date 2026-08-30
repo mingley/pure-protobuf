@@ -203,6 +203,8 @@ still runs first. Closures see `ResponseParts::path` (kernel-stamped).
 Distinct from `Request::path` (inbound). Distinct from `Outgoing::path`
 (before send). Closures see `ResponseParts::gzip_level` (server encode overlay).
 Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level`
+(before the handler). Closures see `ResponseParts::compresses_outbound` (server encode overlay).
+Distinct from `compress` (per-RPC). Distinct from `Rpc::compresses_outbound`
 (before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,

@@ -380,6 +380,7 @@ See `docs/upb.md`. Short list:
   `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
   `Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it.
   `Response::gzip_level` is that overlay in a response interceptor. Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level` (before the handler). An interceptor cannot change it.
+  `Response::compresses_outbound` is that overlay in a response interceptor. Distinct from `compress` (per-RPC). Distinct from `Rpc::compresses_outbound` (before the handler). An interceptor cannot change it.
   Inbound gzip is on by default; `Server::accept_compressed(false)` /
   `Channel::accept_compressed(false)` refuse `grpc-encoding: gzip` as
   `UNIMPLEMENTED` and advertise `identity` only (distinct from tonic's

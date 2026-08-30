@@ -503,6 +503,7 @@ impl Rpc {
     /// [`crate::Response::set_compress`]`(false)` opts out; unset follows
     /// this default. Generated handlers see the same value on
     /// [`Request::compresses_outbound`].
+    /// Response interceptors see the same value on [`crate::Response::compresses_outbound`].
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
@@ -669,7 +670,10 @@ impl Rpc {
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
-                    response.with_path(path).with_gzip_level(gzip_level),
+                    response
+                        .with_path(path)
+                        .with_gzip_level(gzip_level)
+                        .with_compresses_outbound(prefer_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -724,7 +728,10 @@ impl Rpc {
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
-                    response.with_path(path).with_gzip_level(gzip_level),
+                    response
+                        .with_path(path)
+                        .with_gzip_level(gzip_level)
+                        .with_compresses_outbound(prefer_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -786,7 +793,10 @@ impl Rpc {
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
-                    response.with_path(path).with_gzip_level(gzip_level),
+                    response
+                        .with_path(path)
+                        .with_gzip_level(gzip_level)
+                        .with_compresses_outbound(prefer_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -855,7 +865,10 @@ impl Rpc {
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
                 crate::interceptor::intercept_response(
-                    response.with_path(path).with_gzip_level(gzip_level),
+                    response
+                        .with_path(path)
+                        .with_gzip_level(gzip_level)
+                        .with_compresses_outbound(prefer_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -1821,6 +1834,8 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// [`crate::ResponseParts::gzip_level`] is the server encode overlay.
     /// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
+    /// [`crate::ResponseParts::compresses_outbound`] is the server encode overlay.
+    /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2598,6 +2613,8 @@ impl Router {
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// [`crate::ResponseParts::gzip_level`] is the server encode overlay.
     /// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
+    /// [`crate::ResponseParts::compresses_outbound`] is the server encode overlay.
+    /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {
