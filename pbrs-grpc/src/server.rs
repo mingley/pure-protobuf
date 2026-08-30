@@ -2043,6 +2043,9 @@ impl Router {
     }
 
     /// Mount `service` at `S::NAME`, replacing any service already there.
+    ///
+    /// The last mount is the one that serves, on every call shape, including
+    /// over TLS, mTLS, Unix, and [`Self::serve_connection`].
     #[must_use]
     pub fn add_service<S: Service>(self, service: S) -> Self {
         self.add_arc(Arc::new(service))

@@ -935,6 +935,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "The last mount is the one that serves, on every call shape, including\n    /// over TLS, mTLS, Unix, and [`Self::serve_connection`]."
+        ),
+        "Router::add_service must name last-wins remount on every transport"
+    );
+    assert!(
+        src.contains(
             "A hand-written [`Service`] is first-class. Unknown methods are\n/// [`crate::Code::Unimplemented`] on every call shape, including over TLS,\n/// mTLS, Unix, and [`Server::serve_connection`]."
         ),
         "Server rustdoc must name hand-written unknown-method UNIMPLEMENTED on every transport"
@@ -1093,6 +1099,82 @@ async fn mounting_the_same_service_twice_keeps_the_last() {
         .add_service(GreeterServer::new(Echo))
         .add_service(GreeterServer::new(Echo));
     assert_eq!(router.service_names().count(), 1);
+}
+
+fn last_wins_router() -> Router {
+    Router::new()
+        .add_service(GreeterServer::new(FailGreeter))
+        .add_service(GreeterServer::new(Echo))
+}
+
+async fn assert_last_mount_wins(channel: Channel) {
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+}
+
+#[tokio::test]
+async fn a_router_serves_the_last_mount_of_a_service() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        last_wins_router().serve_listener(listener).await.ok();
+    });
+    assert_last_mount_wins(channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_router_serves_the_last_mount_of_a_service() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        last_wins_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_last_mount_wins(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_router_serves_the_last_mount_of_a_service() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        last_wins_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_last_mount_wins(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_router_serves_the_last_mount_of_a_service() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        last_wins_router().serve_unix(sock).await.ok();
+    });
+    assert_last_mount_wins(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_router_serves_the_last_mount_of_a_service() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        last_wins_router().serve_connection(server_io).await.ok();
+    });
+    assert_last_mount_wins(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 /// A handler slow enough that the drain has to wait for it.

@@ -648,7 +648,10 @@ Router::new()
     .await?;
 ```
 
-`Router::service_names` lists what is mounted (order is unspecified). Reflection
+`Router::service_names` lists what is mounted (order is unspecified).
+Mounting the same service twice keeps the last handler; that last mount
+is the one that serves, on every call shape, including over TLS, mTLS,
+Unix, and `from_io`. Reflection
 `list_services` answers from registered file descriptor sets, not from this
 list, so register every proto you serve.
 
