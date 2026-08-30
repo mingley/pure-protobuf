@@ -3700,13 +3700,20 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Outgoing path and authority"
     );
     assert!(
-        architecture
-            .contains("`stream_buffer_size` / `send_buffer_size`, metadata, timeout / deadline,"),
-        "architecture must dump Outgoing stream_buffer_size and send_buffer_size"
+        architecture.contains(
+            "`accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /"
+        ),
+        "architecture must dump Outgoing stream_buffer_size"
     );
     assert!(
-        architecture.contains("wait-for-ready, `connected`, compress, and extensions."),
-        "architecture must dump Outgoing connected snapshot"
+        architecture.contains(
+            "`send_buffer_size`, metadata, timeout / deadline, wait-for-ready, `connected`,"
+        ),
+        "architecture must dump Outgoing send_buffer_size and connected"
+    );
+    assert!(
+        architecture.contains("compress, and extensions."),
+        "architecture must dump Outgoing compress and extensions"
     );
     assert!(
         architecture.contains("`stream_buffer_size`, `send_buffer_size`, and `limits` read"),
