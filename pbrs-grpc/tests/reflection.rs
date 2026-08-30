@@ -1388,6 +1388,124 @@ async fn a_reflection_from_io_client_interceptor_sees_channel_overlays_after_cle
     echo_reflection_list(&client).await;
 }
 
+fn reapply_channel_gzip(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if !call.compresses_outbound() {
+        return Err(Status::internal("compresses_outbound overlay"));
+    }
+    call.clear_compress();
+    call.set_compress(call.compresses_outbound());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_reflection_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = client(addr)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_reflection_list(&client).await;
+}
+
+#[tokio::test]
+async fn a_reflection_tls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = tls_client(addr)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_reflection_list(&client).await;
+}
+
+#[tokio::test]
+async fn a_reflection_mtls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::mtls(identity, CA).expect("mtls server");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = tls_client_with(addr, client_tls)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_reflection_list(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reflection_unix_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let path = unix_sock("reflect-gzip-reapply");
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection.send_compressed().serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = unix_client(&path)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_reflection_list(&client).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_reflection_from_io_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let handle = tokio::spawn(async move {
+        reflection
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_reflection_list(&client).await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind_reflection().await;

@@ -136,7 +136,9 @@ See `docs/upb.md`. Short list:
   methods, generated Store Get / Watch / PutAll / Sync, Health Check and Watch
   (no List), and reflection `ServerReflectionInfo`. `clear_compress` then `set_compress(compresses_outbound())`
   reapplies channel gzip on those transports plus `from_io`, including official
-  TestService methods and hand-written Reverser `Channel` APIs. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
+  TestService methods, hand-written Reverser `Channel` APIs, generated Store
+  Get / Watch / PutAll / Sync, Health Check and Watch, and reflection
+  `ServerReflectionInfo`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   reapplies channel gzip on those transports plus `from_io`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
   overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, a client interceptor `set_wait_for_ready(false)`, and a waiting Call's deadline, including mTLS.

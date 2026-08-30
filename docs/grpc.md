@@ -1059,7 +1059,9 @@ StreamingInputCall / FullDuplexCall and hand-written Reverser `Channel`
 methods see that same overlay-after-clear contract, as do generated Store
 Get / Watch / PutAll / Sync, Health Check and Watch (no List), and reflection
 `ServerReflectionInfo`. `clear_compress` then `set_compress(compresses_outbound())`
-reapplies channel gzip on those dialers for Greeter, TestService, and Reverser.
+reapplies channel gzip on those dialers for Greeter, TestService, Reverser,
+generated Store Get / Watch / PutAll / Sync, Health Check and Watch (no List),
+and reflection `ServerReflectionInfo`.
 Client- and bidi-streaming `StreamSender::send` is stamped
 after overlays and interceptors run, so `Outgoing::set_compress` on that
 RPC is the same flag `send()` consults, on h2c, TLS (including mTLS), Unix,

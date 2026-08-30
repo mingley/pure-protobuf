@@ -1960,6 +1960,121 @@ async fn a_generated_from_io_client_interceptor_sees_channel_overlays_after_clea
     server.abort();
 }
 
+fn reapply_channel_gzip(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if !call.compresses_outbound() {
+        return Err(Status::internal("compresses_outbound overlay"));
+    }
+    call.clear_compress();
+    call.set_compress(call.compresses_outbound());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = client(addr)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = tls_client(addr)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = tls_client_with(addr, client_tls)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let path = unix_sock("store-gzip-reapply");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = unix_client(&path)
+        .await
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_store_every_shape(&client).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .send_compressed()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io")
+        .send_compressed()
+        .intercept(reapply_channel_gzip);
+    gzip_store_every_shape(&client).await;
+    server.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind_store().await;
