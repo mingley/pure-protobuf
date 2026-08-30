@@ -859,6 +859,15 @@ fn official_interop_rustdoc_names_every_transport() {
         ),
         "testing crate rustdoc must name max_frame_size still-serves on every TestService shape"
     );
+    assert!(
+        testing.contains(
+            "A [`TestServiceClient`] pool larger than
+//! [`TestServiceServer::max_concurrent_connections`] fails the whole dial as
+//! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
+//! cannot pool."
+        ),
+        "testing crate rustdoc must name pool-vs-cap UNAVAILABLE on TLS, mTLS, and Unix"
+    );
     let cases = include_str!("../src/interop_cases.rs");
     assert!(
         cases.contains(
@@ -26030,6 +26039,233 @@ async fn from_io_client_send_buffer_still_serves_every_shape() {
                 .expect("from_io"),
         ),
         None,
+    )
+    .await;
+    server.abort();
+}
+
+fn test_conn_cap() -> TestServiceServer<InteropTestService> {
+    TestServiceServer::new(InteropTestService).max_concurrent_connections(1)
+}
+
+async fn assert_test_cap_refuses_then_echo(
+    first: TestServiceClient,
+    second: Result<TestServiceClient, Status>,
+    reconnect: impl std::future::Future<Output = TestServiceClient>,
+) {
+    let err = second.expect_err("pool larger than the accept-loop cap should fail");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(first);
+    echo_test_every_shape(&reconnect.await).await;
+}
+
+#[tokio::test]
+async fn test_service_pool_against_cap_is_unavailable() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_conn_cap().serve_listener(listener).await.ok();
+    });
+    let first = TestServiceClient::new(channel(addr).await);
+    assert_test_cap_refuses_then_echo(
+        first,
+        TestServiceClient::connect_with(addr, pool_against_cap()).await,
+        async { TestServiceClient::new(channel(addr).await) },
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_test_service_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let first = TestServiceClient::new(tls_channel_with(addr, client_tls.clone()).await);
+    assert_test_cap_refuses_then_echo(
+        first,
+        TestServiceClient::connect_tls_with(addr, pool_against_cap(), client_tls.clone()).await,
+        async move { TestServiceClient::new(tls_channel_with(addr, client_tls).await) },
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_test_service_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let first = TestServiceClient::new(tls_channel_with(addr, client_tls.clone()).await);
+    assert_test_cap_refuses_then_echo(
+        first,
+        TestServiceClient::connect_tls_with(addr, pool_against_cap(), client_tls.clone()).await,
+        async move { TestServiceClient::new(tls_channel_with(addr, client_tls).await) },
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_test_service_pool_against_cap_is_unavailable() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        test_conn_cap().serve_unix(sock).await.ok();
+    });
+    let first = TestServiceClient::new(unix_channel(&path).await);
+    let reconnect_path = path.clone();
+    assert_test_cap_refuses_then_echo(
+        first,
+        TestServiceClient::connect_unix_with(&path, pool_against_cap()).await,
+        async move { TestServiceClient::new(unix_channel(&reconnect_path).await) },
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_test_service_pool_config_is_still_one_duplex() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(
+        &TestServiceClient::from_io_with(client_io, "localhost", pool_cfg())
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
+}
+
+fn reverser_conn_cap() -> Server<Reverser> {
+    Server::new(Reverser::new(Arc::new(AtomicUsize::new(0)))).max_concurrent_connections(1)
+}
+
+fn reverser_mtls_conn_cap() -> Server<Reverser> {
+    Server::new(Reverser::mtls(
+        Arc::new(AtomicUsize::new(0)),
+        client_identity().certificates().next().expect("leaf"),
+    ))
+    .max_concurrent_connections(1)
+}
+
+async fn assert_reverser_cap_refuses_then_echo(
+    first: Channel,
+    second: Result<Channel, Status>,
+    reconnect: impl std::future::Future<Output = Channel>,
+) {
+    let err = second.expect_err("pool larger than the accept-loop cap should fail");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(first);
+    echo_reverser_every_shape(&reconnect.await).await;
+}
+
+#[tokio::test]
+async fn reverser_pool_against_cap_is_unavailable() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_conn_cap().serve_listener(listener).await.ok();
+    });
+    let first = channel(addr).await;
+    assert_reverser_cap_refuses_then_echo(
+        first,
+        Channel::connect_with(addr, pool_against_cap()).await,
+        channel(addr),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_reverser_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let first = tls_channel_with(addr, client_tls.clone()).await;
+    assert_reverser_cap_refuses_then_echo(
+        first,
+        Channel::connect_tls_with(addr, pool_against_cap(), client_tls.clone()).await,
+        tls_channel_with(addr, client_tls),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_reverser_pool_against_cap_is_unavailable() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        reverser_mtls_conn_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let first = tls_channel_with(addr, client_tls.clone()).await;
+    assert_reverser_cap_refuses_then_echo(
+        first,
+        Channel::connect_tls_with(addr, pool_against_cap(), client_tls.clone()).await,
+        tls_channel_with(addr, client_tls),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_reverser_pool_against_cap_is_unavailable() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        reverser_conn_cap().serve_unix(sock).await.ok();
+    });
+    let first = unix_channel(&path).await;
+    assert_reverser_cap_refuses_then_echo(
+        first,
+        Channel::connect_unix_with(&path, pool_against_cap()).await,
+        unix_channel(&path),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_reverser_pool_config_is_still_one_duplex() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_reverser_every_shape(
+        &Channel::from_io_with(client_io, "localhost", pool_cfg())
+            .await
+            .expect("from_io"),
     )
     .await;
     server.abort();

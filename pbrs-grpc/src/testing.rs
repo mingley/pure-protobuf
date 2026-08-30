@@ -21,7 +21,10 @@
 //! StreamingOutputCall / StreamingInputCall / FullDuplexCall at the HTTP/2
 //! 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server.
+//! server. A [`TestServiceClient`] pool larger than
+//! [`TestServiceServer::max_concurrent_connections`] fails the whole dial as
+//! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
+//! cannot pool.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
