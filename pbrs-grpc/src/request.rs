@@ -270,7 +270,8 @@ impl<T> Request<T> {
     /// Empty on a request you built yourself until something inserts into
     /// [`Self::extensions_mut`]. On the server, this is the map an
     /// [`crate::Interceptor`] filled on the [`crate::Rpc`] before the
-    /// handler ran.
+    /// handler ran. Same map on [`Parts::extensions`] after
+    /// [`Self::into_message_and_parts`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions
@@ -1154,7 +1155,7 @@ impl Parts {
         self.wait_for_ready = None;
     }
 
-    /// Typed values an interceptor attached to this RPC.
+    /// Typed values an interceptor attached to this RPC. See [`Request::extensions`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions

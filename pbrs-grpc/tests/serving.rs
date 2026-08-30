@@ -574,6 +574,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor rustdoc must name set/remove/retain on every transport"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Request::extensions`] / [`crate::Parts::extensions`] (including\n/// over TLS, mTLS, Unix, and [`crate::Channel::from_io`])"
+        ),
+        "Interceptor rustdoc must name typed extensions on Request/Parts every transport"
+    );
+    assert!(
         src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),
@@ -2781,122 +2787,179 @@ async fn service_ext_interceptors_stack_in_declaration_order() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
     let service = Reverser::new(Arc::clone(&seen))
-        .intercept(|rpc: &mut Rpc| {
-            if rpc.metadata().get("x-trace").is_none() {
-                return Err(Status::invalid_argument("missing x-trace"));
-            }
-            Ok(())
-        })
+        .intercept(interceptor_require_trace)
         .intercept(require_bearer);
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
-
-    let ch = channel(addr).await;
-    assert_reverser_err_every_shape(&ch, Code::InvalidArgument).await;
-
-    assert_reverser_err_every_shape(&ch.clone().intercept(inject_bearer), Code::InvalidArgument)
-        .await;
-
-    echo_reverser_every_shape(&ch.intercept(|call: &mut Outgoing<'_>| {
-        call.metadata_mut().insert("x-trace", "1")?;
-        call.metadata_mut()
-            .insert("authorization", "Bearer letmein")?;
-        Ok(())
-    }))
-    .await;
-    assert_eq!(seen.load(Ordering::Relaxed), 4);
-
+    assert_service_ext_stack(channel(addr).await, &seen).await;
     task.abort();
 }
 
 #[tokio::test]
-async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
-    struct TenantEcho;
-
-    fn tenant_of<T>(request: &Request<T>) -> Result<String, Status> {
-        request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .ok_or_else(|| Status::internal("missing tenant extension"))
-    }
-
-    fn tenant_reply(tenant: String) -> Response<HelloReply> {
-        Response::new(common::reply(&tenant))
-    }
-
-    fn tenant_stream(tenant: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
-        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
-        drop(tokio::spawn(async move {
-            tx.send(common::reply(&tenant)).await.ok();
-        }));
-        Response::new(stream)
-    }
-
-    impl Service for TenantEcho {
-        const NAME: &'static str = "demo.TenantEcho";
-
-        async fn call(&self, rpc: Rpc) {
-            match rpc.method() {
-                "Unary" => {
-                    rpc.unary(|request: Request<HelloRequest>| async move {
-                        Ok(tenant_reply(tenant_of(&request)?))
-                    })
-                    .await;
-                }
-                "Server" => {
-                    rpc.server_streaming(|request: Request<HelloRequest>| async move {
-                        Ok(tenant_stream(tenant_of(&request)?))
-                    })
-                    .await;
-                }
-                "Client" => {
-                    rpc.client_streaming(
-                        |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
-                            Ok(tenant_reply(tenant_of(&request)?))
-                        },
-                    )
-                    .await;
-                }
-                "Bidi" => {
-                    rpc.bidi_streaming(
-                        |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
-                            Ok(tenant_stream(tenant_of(&request)?))
-                        },
-                    )
-                    .await;
-                }
-                _ => rpc.unimplemented(),
-            }
-        }
-    }
-
-    fn with_tenant(rpc: &mut Rpc) -> Result<(), Status> {
-        let Some(tenant) = rpc.metadata().get("x-tenant").map(str::to_owned) else {
-            return Err(Status::unauthenticated("missing x-tenant"));
-        };
-        rpc.extensions_mut().insert(tenant);
-        Ok(())
-    }
-
-    fn stamp_tenant<T>(mut request: Request<T>) -> Request<T> {
-        request
-            .metadata_mut()
-            .insert("x-tenant", "acme")
-            .expect("metadata");
-        request
-    }
-
+async fn tls_service_ext_interceptors_stack_in_declaration_order() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen))
+        .intercept(interceptor_require_trace)
+        .intercept(require_bearer);
     let task = tokio::spawn(async move {
-        Server::new(TenantEcho.intercept(with_tenant))
-            .serve_listener(listener)
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
     });
+    assert_service_ext_stack(tls_channel(addr).await, &seen).await;
+    task.abort();
+}
 
-    let ch = channel(addr).await;
+#[tokio::test]
+async fn mtls_service_ext_interceptors_stack_in_declaration_order() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    )
+    .intercept(interceptor_require_trace)
+    .intercept(require_bearer);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_service_ext_stack(tls_channel_with(addr, client_tls).await, &seen).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_service_ext_interceptors_stack_in_declaration_order() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen))
+        .intercept(interceptor_require_trace)
+        .intercept(require_bearer);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    assert_service_ext_stack(unix_channel(&path).await, &seen).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_service_ext_interceptors_stack_in_declaration_order() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen))
+        .intercept(interceptor_require_trace)
+        .intercept(require_bearer);
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    assert_service_ext_stack(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+        &seen,
+    )
+    .await;
+    server.abort();
+}
+
+async fn assert_service_ext_stack(ch: Channel, seen: &AtomicUsize) {
+    assert_reverser_err_every_shape(&ch, Code::InvalidArgument).await;
+    assert_reverser_err_every_shape(&ch.clone().intercept(inject_bearer), Code::InvalidArgument)
+        .await;
+    echo_reverser_every_shape(&ch.intercept(interceptor_inject_trace_and_bearer)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+}
+
+struct TenantEcho;
+
+fn tenant_of<T>(request: Request<T>) -> Result<String, Status> {
+    let Some(tenant) = request.extensions().get::<String>().cloned() else {
+        return Err(Status::internal("missing tenant extension"));
+    };
+    let (_msg, parts) = request.into_message_and_parts();
+    match parts.extensions().get::<String>() {
+        Some(same) if same == &tenant => Ok(tenant),
+        _ => Err(Status::internal("parts dropped tenant extension")),
+    }
+}
+
+fn tenant_reply(tenant: String) -> Response<HelloReply> {
+    Response::new(common::reply(&tenant))
+}
+
+fn tenant_stream(tenant: String) -> Response<pbrs_grpc::Streaming<HelloReply>> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        tx.send(common::reply(&tenant)).await.ok();
+    }));
+    Response::new(stream)
+}
+
+impl Service for TenantEcho {
+    const NAME: &'static str = "demo.TenantEcho";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Unary" => {
+                rpc.unary(|request: Request<HelloRequest>| async move {
+                    Ok(tenant_reply(tenant_of(request)?))
+                })
+                .await;
+            }
+            "Server" => {
+                rpc.server_streaming(|request: Request<HelloRequest>| async move {
+                    Ok(tenant_stream(tenant_of(request)?))
+                })
+                .await;
+            }
+            "Client" => {
+                rpc.client_streaming(
+                    |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
+                        Ok(tenant_reply(tenant_of(request)?))
+                    },
+                )
+                .await;
+            }
+            "Bidi" => {
+                rpc.bidi_streaming(
+                    |request: Request<pbrs_grpc::Streaming<HelloRequest>>| async move {
+                        Ok(tenant_stream(tenant_of(request)?))
+                    },
+                )
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
+    }
+}
+
+fn interceptor_attach_tenant(rpc: &mut Rpc) -> Result<(), Status> {
+    let Some(tenant) = rpc.metadata().get("x-tenant").map(str::to_owned) else {
+        return Err(Status::unauthenticated("missing x-tenant"));
+    };
+    rpc.extensions_mut().insert(tenant);
+    Ok(())
+}
+
+fn stamp_tenant<T>(mut request: Request<T>) -> Request<T> {
+    request
+        .metadata_mut()
+        .insert("x-tenant", "acme")
+        .expect("metadata");
+    request
+}
+
+async fn assert_tenant_echo(ch: &Channel) {
     let denied = ch
         .unary::<HelloRequest, HelloReply>("/demo.TenantEcho/Unary", Request::new(req("ignored")))
         .await
@@ -2957,8 +3020,81 @@ async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
     let first = inbound.message().await.expect("item").expect("first");
     assert_eq!(name_of(&first), "acme");
     assert!(inbound.message().await.expect("end").is_none());
+}
 
+#[tokio::test]
+async fn an_interceptor_can_attach_typed_state_the_handler_reads() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TenantEcho.intercept(interceptor_attach_tenant))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_tenant_echo(&channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_interceptor_can_attach_typed_state_the_handler_reads() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TenantEcho.intercept(interceptor_attach_tenant))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_tenant_echo(&tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_interceptor_can_attach_typed_state_the_handler_reads() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TenantEcho.intercept(interceptor_attach_tenant))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_tenant_echo(&tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_interceptor_can_attach_typed_state_the_handler_reads() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        Server::new(TenantEcho.intercept(interceptor_attach_tenant))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_tenant_echo(&unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_interceptor_can_attach_typed_state_the_handler_reads() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Server::new(TenantEcho.intercept(interceptor_attach_tenant))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_tenant_echo(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

@@ -1386,7 +1386,7 @@ generated server's `.serve()` chain. Chaining `ServiceExt::intercept` is
 first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
 `Intercepted::intercept` is an inherent method, so it does not wrap
 onion-style. That reject-and-stack contract is the same on every call
-shape.
+shape, including over TLS, mTLS, Unix, and `from_io`.
 
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs when the RPC method is invoked — before the stream opens and before the
@@ -1481,8 +1481,9 @@ either way (trailing metadata and `grpc-status-details-bin` both ship), and
 `NAME` is inherited so the wrapper mounts where the inner service would,
 including over TLS, mTLS, Unix, and `from_io`.
 Interceptor extensions inserted on `Rpc` are visible on the handler
-`Request` for every call shape (`Rpc::unary` / `client_streaming` /
-`server_streaming` / `bidi_streaming`). There is no `tower` layer; use
+`Request` and `Parts` after `into_message_and_parts` for every call shape
+(`Rpc::unary` / `client_streaming` / `server_streaming` / `bidi_streaming`),
+including over TLS, mTLS, Unix, and `from_io`. There is no `tower` layer; use
 `protobuf-tonic` if you need tonic's middleware stack. Interceptors run
 before the handler (or before the stream opens on the client). They cannot
 see or rewrite the final `Status`; do that in the method.

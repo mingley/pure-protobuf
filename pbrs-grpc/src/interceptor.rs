@@ -30,7 +30,8 @@ use std::sync::Arc;
 /// (`encoding` is `None` for identity), the TCP interface with
 /// [`Rpc::local_addr`] / [`Rpc::remote_addr`], or insert typed values with
 /// [`Rpc::extensions_mut`] for the handler to read from
-/// [`crate::Request::extensions`]. Generated handlers see the same path,
+/// [`crate::Request::extensions`] / [`crate::Parts::extensions`] (including
+/// over TLS, mTLS, Unix, and [`crate::Channel::from_io`]). Generated handlers see the same path,
 /// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, peer, and caps on
 /// [`crate::Request`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
