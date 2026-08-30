@@ -1639,6 +1639,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::intercept rustdoc must name a single intercept reject on every transport"
     );
     assert!(
+        intercept.contains("svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
+        "ServiceExt::intercept rustdoc example must attach a closure"
+    );
+    assert!(
         intercept.contains("`Ok`, before headers go out."),
         "ResponseInterceptor rustdoc must name after Ok, before headers"
     );

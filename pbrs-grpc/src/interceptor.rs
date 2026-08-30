@@ -391,6 +391,27 @@ pub trait ServiceExt: Service + Sized {
     /// instead, which stacks first-interceptor-first. A single interceptor
     /// still rejects before the handler on every call shape, including over
     /// TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    ///
+    /// ```
+    /// use pbrs_grpc::ServiceExt;
+    /// # fn demo<S: pbrs_grpc::Service>(svc: S) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor> {
+    /// svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {
+    ///     let _ = (
+    ///         rpc.path(),
+    ///         rpc.peer_timeout(),
+    ///         rpc.rpc_timeout(),
+    ///         rpc.effective_timeout(),
+    ///         rpc.deadline(),
+    ///         rpc.gzip_level(),
+    ///         rpc.accepts_compressed(),
+    ///         rpc.concurrent_rpc_limit(),
+    ///         rpc.send_buffer_size(),
+    ///         rpc.limits(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     fn intercept<I: Interceptor>(self, interceptor: I) -> Intercepted<Self, I> {
         Intercepted::new(self, interceptor)
