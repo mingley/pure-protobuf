@@ -1254,6 +1254,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         benches.contains("it is not the 4-core Xeon unary/QPS/stream"),
         "benchmarks.md ping_pong must Distinct loopback from the Xeon tables"
     );
+    assert!(
+        benches.contains("### Client-streaming upload throughput (loopback)"),
+        "benchmarks.md must keep upload as a loopback axis, not a Xeon table replacement"
+    );
 }
 
 #[test]

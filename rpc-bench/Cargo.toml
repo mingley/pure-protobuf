@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.88"
 publish = false
 license = "MIT OR Apache-2.0"
-description = "Loopback empty_unary/large_unary/stream/ping_pong: pbrs-grpc vs tonic 0.14"
+description = "Loopback empty_unary/large_unary/stream/ping_pong/upload: pbrs-grpc vs tonic 0.14"
 
 [workspace]
 

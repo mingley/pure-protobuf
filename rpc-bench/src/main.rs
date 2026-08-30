@@ -5,7 +5,7 @@
 //! only difference under test is the gRPC transport, so a delta here is a
 //! transport delta and not a serialization one.
 //!
-//! Five axes:
+//! Six axes:
 //!
 //! | Axis | Shape | Reports |
 //! |---|---|---|
@@ -14,6 +14,7 @@
 //! | `qps` | sustained unary, low and high concurrency | requests per second |
 //! | `stream` | one server-streaming RPC of many messages | messages per second |
 //! | `ping_pong` | one bidi RPC of empty request/response pairs | round-trips per second |
+//! | `upload` | one client-streaming RPC of many messages | messages per second |
 //!
 //! Gates, in decreasing strictness:
 //!
@@ -30,6 +31,9 @@
 //!   exchanging empty pairs is noisier than unary: each round-trip waits for
 //!   a response before the next request, so scheduler luck shows up as RTT
 //!   rather than queueing. A strictly-faster gate would fail on that noise.
+//! - Upload throughput: the same 90% band. One client-streaming
+//!   `StreamingInputCall` of many messages is the inbound inverse of `stream`.
+//!   Scheduler luck shows up as decode and window-release, not RTT.
 //! - Sustained QPS: reported, not gated. It moves with core count and
 //!   scheduler luck.
 #![allow(
@@ -54,8 +58,8 @@ mod tonic_gen {
 }
 
 use pbrs_grpc::{
-    Empty, InteropTestService, Request as KReq, ResponseParameters, SimpleRequest,
-    StreamingOutputCallRequest, TestServiceClient, TestServiceServer,
+    Empty, InteropTestService, Payload, Request as KReq, ResponseParameters, SimpleRequest,
+    StreamingInputCallRequest, StreamingOutputCallRequest, TestServiceClient, TestServiceServer,
 };
 use tonic::transport::{Channel, Server};
 use tonic::{Request, Response, Status};
@@ -81,6 +85,8 @@ const STREAM_PARITY: f64 = 0.9;
 const PING_PONGS: u64 = 256;
 /// Same band as stream: bidi ping-pong is noisier than unary latency.
 const PING_PONG_PARITY: f64 = 0.9;
+/// Same band as stream: client-streaming upload is noisier than unary latency.
+const UPLOAD_PARITY: f64 = 0.9;
 
 struct TonicInterop;
 
@@ -144,11 +150,20 @@ impl tonic_gen::TestService for TonicInterop {
         )))
     }
 
+    /// Mirrors the kernel's `InteropTestService`: sum inbound payload sizes.
     async fn streaming_input_call(
         &self,
-        _req: Request<tonic::Streaming<tonic_gen::StreamingInputCallRequest>>,
+        req: Request<tonic::Streaming<tonic_gen::StreamingInputCallRequest>>,
     ) -> Result<Response<tonic_gen::StreamingInputCallResponse>, Status> {
-        Err(Status::unimplemented("bench"))
+        let mut inbound = req.into_inner();
+        let mut total: i32 = 0;
+        while let Some(item) = inbound.message().await? {
+            let n = i32::try_from(item.payload().body().len()).unwrap_or(i32::MAX);
+            total = total.saturating_add(n);
+        }
+        let mut msg = tonic_gen::StreamingInputCallResponse::new();
+        msg.set_aggregated_payload_size(total);
+        Ok(Response::new(msg))
     }
 
     type FullDuplexCallStream = tokio_stream::wrappers::ReceiverStream<
@@ -597,6 +612,75 @@ async fn ping_pong_tonic(addr: SocketAddr) -> u64 {
     best
 }
 
+fn upload_kernel_req() -> StreamingInputCallRequest {
+    let mut m = StreamingInputCallRequest::new();
+    let mut p = Payload::new();
+    p.set_body(vec![0u8; STREAM_SIZE as usize]);
+    m.set_payload(p);
+    m
+}
+
+fn upload_tonic_req() -> tonic_gen::StreamingInputCallRequest {
+    let mut m = tonic_gen::StreamingInputCallRequest::new();
+    let mut p = tonic_gen::Payload::new();
+    p.set_body(vec![0u8; STREAM_SIZE as usize]);
+    m.set_payload(p);
+    m
+}
+
+fn upload_want_bytes() -> i32 {
+    STREAM_MSGS.saturating_mul(STREAM_SIZE)
+}
+
+/// Messages per second on one client-streaming RPC of `STREAM_MSGS` payloads.
+async fn upload_kernel(addr: SocketAddr) -> u64 {
+    let client = TestServiceClient::new(pbrs_grpc::Channel::connect(addr).await.unwrap());
+    let req = upload_kernel_req();
+    let want = upload_want_bytes();
+    let mut best = 0u64;
+    for round in 0..STREAM_ROUNDS {
+        let t = Instant::now();
+        let (tx, call) = client.streaming_input_call(KReq::new(()));
+        for _ in 0..STREAM_MSGS {
+            tx.send(req.clone()).await.unwrap();
+        }
+        tx.close();
+        let got = call.await.unwrap().into_inner().aggregated_payload_size();
+        assert_eq!(got, want, "kernel upload must be complete");
+        if round > 0 {
+            best = best.max(rate(STREAM_MSGS as u64, t.elapsed()));
+        }
+    }
+    best
+}
+
+async fn upload_tonic(addr: SocketAddr) -> u64 {
+    let mut client = tonic_gen::TestServiceClient::new(tonic_channel(addr).await);
+    let req = upload_tonic_req();
+    let want = upload_want_bytes();
+    let mut best = 0u64;
+    for round in 0..STREAM_ROUNDS {
+        let t = Instant::now();
+        let (tx, rx) = tokio::sync::mpsc::channel(8);
+        let send = async {
+            for _ in 0..STREAM_MSGS {
+                tx.send(req.clone()).await.unwrap();
+            }
+            drop(tx);
+        };
+        let recv = client.streaming_input_call(Request::new(
+            tokio_stream::wrappers::ReceiverStream::new(rx),
+        ));
+        let (_, resp) = tokio::join!(send, recv);
+        let got = resp.unwrap().into_inner().aggregated_payload_size();
+        assert_eq!(got, want, "tonic upload must be complete");
+        if round > 0 {
+            best = best.max(rate(STREAM_MSGS as u64, t.elapsed()));
+        }
+    }
+    best
+}
+
 fn rate(count: u64, dur: Duration) -> u64 {
     (count as f64 / dur.as_secs_f64()).round() as u64
 }
@@ -687,6 +771,15 @@ async fn main() {
          tonic_round_trips_per_s={t_ping}"
     );
 
+    let k_upload = upload_kernel(k_addr).await;
+    let t_upload = upload_tonic(t_addr).await;
+    println!(
+        "upload msgs={STREAM_MSGS} size={STREAM_SIZE} kernel_msgs_per_s={k_upload} \
+         tonic_msgs_per_s={t_upload} kernel_mib_per_s={} tonic_mib_per_s={}",
+        k_upload * bytes_per_msg / (1024 * 1024),
+        t_upload * bytes_per_msg / (1024 * 1024)
+    );
+
     let mut failed = false;
     if !k_empty.beats(t_empty) {
         eprintln!(
@@ -716,6 +809,14 @@ async fn main() {
             "perf gate failed: ping_pong kernel {k_ping} vs tonic {t_ping} round-trips/s \
              (must be within {}%)",
             ((1.0 - PING_PONG_PARITY) * 100.0).round()
+        );
+        failed = true;
+    }
+    if (k_upload as f64) < (t_upload as f64) * UPLOAD_PARITY {
+        eprintln!(
+            "perf gate failed: upload kernel {k_upload} vs tonic {t_upload} msgs/s \
+             (must be within {}%)",
+            ((1.0 - UPLOAD_PARITY) * 100.0).round()
         );
         failed = true;
     }

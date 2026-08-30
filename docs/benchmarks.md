@@ -315,6 +315,13 @@ This host, one release run, kernel and tonic sharing one process:
 
 The 90% gate passed. These numbers are not the Xeon tables.
 
+### Client-streaming upload throughput (loopback)
+
+One client-streaming `StreamingInputCall` of 2000 messages × 1 KiB, best of
+eight rounds after warmup, reported as messages/s. Process-gated at 90% of
+tonic, the same band as server-streaming. This axis is a loopback capture in
+`rpc-bench`; it is not the 4-core Xeon unary/QPS/stream tables above.
+
 ### Re-run
 
 ```bash
