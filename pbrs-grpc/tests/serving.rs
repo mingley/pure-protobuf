@@ -1613,6 +1613,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor rustdoc example must read limits"
     );
     assert!(
+        intercept.contains(
+            "rpc.metadata_mut().set(\"x-actor\", \"gateway\")?;\n///     let _ = (\n///         rpc.path(),\n///         rpc.peer_timeout(),\n///         rpc.rpc_timeout(),\n///         rpc.effective_timeout(),\n///         rpc.deadline(),\n///         rpc.gzip_level(),\n///         rpc.accepts_compressed(),\n///         rpc.concurrent_rpc_limit(),\n///         rpc.send_buffer_size(),\n///         rpc.limits(),\n///         rpc.local_addr(),\n///         rpc.remote_addr(),\n///         rpc.peer_identity(),\n///         rpc.peer_cred(),\n///         rpc.authority(),\n///         rpc.scheme(),"
+        ),
+        "Interceptor rustdoc example must read Incoming-stamped peer facts"
+    );
+    assert!(
         intercept.contains("///         rpc.gzip_level(),"),
         "Interceptor rustdoc example must read gzip_level"
     );
