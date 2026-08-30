@@ -61,6 +61,7 @@ the same TCP, TLS, mTLS, or Unix address on the next RPC of every call
 shape and fails fast when nothing is listening; `from_io` cannot redial.
 `Incoming::peer` stamps connection facts onto every call shape on that
 connection.
+Compiling `ConnectionInfo` peer dumps live on the `Incoming` rustdoc.
 
 ### Dispatch
 

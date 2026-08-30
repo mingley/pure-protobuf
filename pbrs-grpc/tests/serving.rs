@@ -4384,6 +4384,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must point at the compiling hello intercept and on_response overlay dumps"
     );
     assert!(
+        architecture
+            .contains("Compiling `ConnectionInfo` peer dumps live on the `Incoming` rustdoc."),
+        "architecture must point at the compiling Incoming ConnectionInfo peer dump"
+    );
+    assert!(
         guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
         "guide must name Response::path as kernel-stamped for on_response"
     );
