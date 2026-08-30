@@ -239,7 +239,10 @@ See `docs/upb.md`. Short list:
   fails the whole dial as `UNAVAILABLE` on TLS, mTLS, and Unix
   (`from_io_with` cannot pool). Hand-written Reverser `Server::max_concurrent_connections`
   refuses a `ChannelConfig::connections` pool the same way, distinct from wrapping
-  only GreeterServer. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  only GreeterServer. Generated `FooServer::max_pending_accept_reset_streams`
+  still serves every Greeter shape at a pending-reset cap of 1 over TLS, mTLS,
+  Unix, and `serve_connection`; a well-behaved client never fills that queue,
+  distinct from a raw HTTP/2 RST flood. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

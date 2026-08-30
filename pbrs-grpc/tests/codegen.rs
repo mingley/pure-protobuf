@@ -3828,6 +3828,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "A well-behaved client never fills that queue; every call shape still completes, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
+        ),
+        "generated max_pending_accept_reset_streams rustdoc must name still-serves Distinct from a raw RST flood"
+    );
+    assert!(
+        src.contains(
             "Serve a single already-accepted byte stream until it closes. Applies to every call shape."
         ),
         "generated serve_connection rustdoc must name every call shape"

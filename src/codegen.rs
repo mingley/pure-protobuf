@@ -4173,6 +4173,10 @@ fn emit_kernel_server(
         src,
         "    /// Cap remotely-reset HTTP/2 streams waiting in the accept queue. Applies to every call shape. See [`{G}::ServerConfig::max_pending_accept_reset_streams`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// A well-behaved client never fills that queue; every call shape still completes, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

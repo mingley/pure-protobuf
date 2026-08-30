@@ -241,6 +241,9 @@ impl ServerConfig {
     /// opens streams and immediately `RST_STREAM`s them sits in that queue
     /// until accepted; exceeding this is `ENHANCE_YOUR_CALM` and the
     /// connection is dropped.
+    /// A well-behaved client never fills that queue; every call shape still
+    /// completes, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`]. Distinct from a raw HTTP/2 peer.
     ///
     /// [`crate::Server::max_pending_accept_reset_streams`],
     /// [`crate::Router::max_pending_accept_reset_streams`], and generated

@@ -1427,6 +1427,9 @@ impl<S: Service> Server<S> {
     /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
     /// Applies to every call shape. See
     /// [`ServerConfig::max_pending_accept_reset_streams`].
+    /// A well-behaved client never fills that queue; every call shape still
+    /// completes, including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    /// Distinct from a raw HTTP/2 peer.
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.config = self.config.max_pending_accept_reset_streams(n);
@@ -2020,6 +2023,9 @@ impl Router {
     /// Cap remotely-reset HTTP/2 streams waiting in the accept queue.
     /// Applies to every call shape. See
     /// [`ServerConfig::max_pending_accept_reset_streams`].
+    /// A well-behaved client never fills that queue; every call shape still
+    /// completes, including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    /// Distinct from a raw HTTP/2 peer.
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.config = self.config.max_pending_accept_reset_streams(n);
