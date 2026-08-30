@@ -3936,6 +3936,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must Distinct gzip_level from compresses_outbound"
     );
     assert!(
+        src.contains(
+            "[`::pbrs_grpc::Outgoing::accepts_compressed`] is the inbound gzip overlay (default on)."
+        ),
+        "generated intercept rustdoc must name Outgoing::accepts_compressed"
+    );
+    assert!(
         src.contains("[`::pbrs_grpc::Outgoing::set_user_agent`] prefixes this RPC."),
         "generated intercept rustdoc must name Outgoing::set_user_agent"
     );
