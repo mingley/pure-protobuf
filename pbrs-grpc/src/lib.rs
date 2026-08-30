@@ -252,6 +252,10 @@
 //! Same overlay as [`Outgoing::limits`].
 //! [`Server::limits`] reads the message-cap overlay without colliding with [`Server::message_limits`].
 //! Same overlay as [`Rpc::limits`].
+//! [`Channel::send_buffer_size`] reads the HTTP/2 send buffer overlay without colliding with [`Channel::max_send_buffer_size`].
+//! Same overlay as [`Outgoing::send_buffer_size`].
+//! [`Server::send_buffer_size`] reads the HTTP/2 send buffer overlay without colliding with [`Server::max_send_buffer_size`].
+//! Same overlay as [`Rpc::send_buffer_size`].
 //! [`Outgoing::send_buffer_size`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::stream_buffer_size`].
 //! [`Rpc::send_buffer_size`] is that overlay in a server interceptor.

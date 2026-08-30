@@ -3119,6 +3119,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Server::limits as the same overlay as Rpc::limits"
     );
     assert!(
+        crate_src.contains(
+            "[`Channel::send_buffer_size`] reads the HTTP/2 send buffer overlay without colliding with [`Channel::max_send_buffer_size`]"
+        ),
+        "crate docs must name Channel::send_buffer_size as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::send_buffer_size`]"),
+        "crate docs must Distinct Channel::send_buffer_size as the same overlay as Outgoing::send_buffer_size"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Server::send_buffer_size`] reads the HTTP/2 send buffer overlay without colliding with [`Server::max_send_buffer_size`]"
+        ),
+        "crate docs must name Server::send_buffer_size as the live-server overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Rpc::send_buffer_size`]"),
+        "crate docs must Distinct Server::send_buffer_size as the same overlay as Rpc::send_buffer_size"
+    );
+    assert!(
         crate_src
             .contains("[`Outgoing::send_buffer_size`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::send_buffer_size as the interceptor overlay"
@@ -3676,6 +3696,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Server::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Rpc::limits`."),
         "guide must name Server::limits as the live-server overlay"
+    );
+    assert!(
+        guide.contains("`Channel::send_buffer_size` reads the HTTP/2 send buffer overlay without colliding with `max_send_buffer_size`. Same overlay as `Outgoing::send_buffer_size`."),
+        "guide must name Channel::send_buffer_size as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Server::send_buffer_size` reads the HTTP/2 send buffer overlay without colliding with `max_send_buffer_size`. Same overlay as `Rpc::send_buffer_size`."),
+        "guide must name Server::send_buffer_size as the live-server overlay"
     );
     assert!(
         guide.contains("`Outgoing::send_buffer_size` is that overlay in a client interceptor. Distinct from `stream_buffer_size` (queue depth). An interceptor cannot change it."),
