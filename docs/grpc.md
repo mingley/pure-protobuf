@@ -2054,7 +2054,7 @@ Deliberate omissions, with what to do instead.
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
 | Retries and hedging | Application retries stay at the call site. `Code::is_retryable` / `Status::is_retryable` is the gRPC A6 default (`UNAVAILABLE` only). Packed `RetryInfo` is `Status::retry_delay`, a wait hint, not a larger retryable set. `RESOURCE_EXHAUSTED` from `max_concurrent_rpcs` is not retryable. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
-| Channel connectivity state | `Channel::connected` is a snapshot of live sockets (`Outgoing::connected` is that snapshot in a client interceptor). There is no `GetState` / `WaitForStateChange`. |
+| Channel connectivity state | `Channel::connected` is a snapshot of live sockets (`Outgoing::connected` is that snapshot in a client interceptor; `FooClient::connected` is that snapshot on a generated client). There is no `GetState` / `WaitForStateChange`. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |

@@ -3958,6 +3958,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep GetState as an omission"
     );
     assert!(
+        guide.contains("`FooClient::connected` is that snapshot on a generated client"),
+        "guide omissions must name FooClient::connected as the generated-client snapshot"
+    );
+    assert!(
         guide
             .contains("`List` returns that same snapshot as `HealthCheckResponse` values keyed by"),
         "guide must name Health List as a snapshot of known names"
