@@ -248,6 +248,10 @@
 //! [`Rpc::concurrent_rpc_limit`] is that overlay in a server interceptor.
 //! [`Outgoing::stream_buffer_size`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::limits`].
+//! [`Channel::limits`] reads the message-cap overlay without colliding with [`Channel::message_limits`].
+//! Same overlay as [`Outgoing::limits`].
+//! [`Server::limits`] reads the message-cap overlay without colliding with [`Server::message_limits`].
+//! Same overlay as [`Rpc::limits`].
 //! [`Outgoing::send_buffer_size`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::stream_buffer_size`].
 //! [`Rpc::send_buffer_size`] is that overlay in a server interceptor.

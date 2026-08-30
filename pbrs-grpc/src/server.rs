@@ -487,6 +487,7 @@ impl Rpc {
     /// and unlimited outbound. An interceptor cannot raise them; it can only
     /// inspect, or reject before the body is read. Generated handlers see the
     /// same caps on [`Request::limits`].
+    /// Same overlay as [`crate::Server::limits`].
     /// Response interceptors see the same caps on [`crate::Response::limits`].
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
@@ -1536,6 +1537,16 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Configured message caps. See [`Self::message_limits`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::message_limits`], which sets them.
+    /// Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not uncompressed protobuf bytes.
+    /// Same overlay as [`crate::Rpc::limits`].
+    #[must_use]
+    pub fn limits(&self) -> MessageLimits {
+        self.config.limits()
+    }
+
     /// Cap how many RPCs the process will run at once.
     /// Applies to every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::serve_connection`]. See [`ServerConfig::max_concurrent_rpcs`].
@@ -2341,6 +2352,16 @@ impl Router {
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.config = self.config.message_limits(limits);
         self
+    }
+
+    /// Configured message caps. See [`Self::message_limits`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::message_limits`], which sets them.
+    /// Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not uncompressed protobuf bytes.
+    /// Same overlay as [`crate::Rpc::limits`].
+    #[must_use]
+    pub fn limits(&self) -> MessageLimits {
+        self.config.limits()
     }
 
     /// Cap how many RPCs the process will run at once.

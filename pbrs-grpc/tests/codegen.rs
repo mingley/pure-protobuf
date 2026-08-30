@@ -1650,6 +1650,8 @@ fn generated_client_debug_and_into_inner() {
     assert_eq!(client.channel().config().send_buffer_size(), 123_456);
     assert_eq!(client.send_buffer_size(), 123_456);
     assert_eq!(client.channel().config().limits().max_decoding(), None);
+    assert_eq!(client.limits(), client.channel().config().limits());
+    assert_eq!(client.limits().max_decoding(), None);
     assert_eq!(client.config(), client.channel().config());
     assert_eq!(client.rpc_timeout(), Some(Duration::from_secs(5)));
     assert!(client.waits_for_ready());
@@ -4654,6 +4656,22 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Configured write-time HTTP/2 send buffer. Distinct from [`Self::max_send_buffer_size`], which sets it. Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer."
         ),
         "generated server send_buffer_size rustdoc must Distinct the setter and message size"
+    );
+    assert!(
+        src.contains(
+            "Configured message caps. Distinct from [`Self::message_limits`], which sets them. Distinct from [`Self::stream_buffer_size`]: that is queue depth, not uncompressed protobuf bytes. Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not these caps."
+        ),
+        "generated client limits rustdoc must Distinct the setter, queue depth, and send buffer"
+    );
+    assert!(
+        src.contains(
+            "Configured message caps. Distinct from [`Self::message_limits`], which sets them. Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not uncompressed protobuf bytes."
+        ),
+        "generated server limits rustdoc must Distinct the setter and send buffer"
+    );
+    assert!(
+        src.contains("[`Self::send_buffer_size`], and [`Self::limits`] read that overlay without colliding with the setters."),
+        "generated client rustdoc must name limits as a colliding-free overlay getter"
     );
 }
 

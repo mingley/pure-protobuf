@@ -288,7 +288,7 @@ impl Config {
     /// `https_scheme` for already-encrypted `from_io` streams. Read those
     /// overlays with `scheme` / `authority` / `grpc_user_agent` /
     /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
-    /// `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `config`.
+    /// `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits` / `config`.
     /// Methods you omit on the generated `Foo` trait answer `UNIMPLEMENTED`.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
@@ -4079,6 +4079,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Configured message caps. Distinct from [`Self::message_limits`], which sets them. Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not uncompressed protobuf bytes. See [`{G}::Server::limits`]. Applies to every call shape."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn limits(&self) -> {G}::MessageLimits {{ self.config.limits() }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap how many RPCs the process will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::max_concurrent_rpcs`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4975,6 +4984,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    pub fn send_buffer_size(&self) -> usize {{ self.channel.send_buffer_size() }}"
     );
+    let _ = writeln!(
+        src,
+        "    /// Configured message caps. Distinct from [`Self::message_limits`], which sets them. Distinct from [`Self::stream_buffer_size`]: that is queue depth, not uncompressed protobuf bytes. Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not these caps. See [`{G}::Channel::limits`]. Applies to every call shape."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn limits(&self) -> {G}::MessageLimits {{ self.channel.limits() }}"
+    );
 }
 
 fn emit_kernel_client(
@@ -5000,7 +5018,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`], and [`Self::send_buffer_size`] read that overlay without colliding with the setters."
+        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`], [`Self::send_buffer_size`], and [`Self::limits`] read that overlay without colliding with the setters."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");

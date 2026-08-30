@@ -788,6 +788,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::stream_buffer_size must name the streaming shapes it queues"
     );
     assert!(
+        outgoing.contains("Same overlay as [`crate::Channel::limits`]."),
+        "Outgoing::limits must name the Channel::limits overlay"
+    );
+    assert!(
         outgoing.contains("Channel [`crate::Channel::max_send_buffer_size`] overlay."),
         "Outgoing::send_buffer_size must name the channel max_send_buffer_size overlay"
     );
@@ -1872,6 +1876,30 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::send_buffer_size must Distinct from the setter"
     );
     assert!(
+        src.contains("Configured message caps. See [`Self::message_limits`]."),
+        "Channel::limits must Distinct the setter"
+    );
+    assert!(
+        src.contains("Distinct from [`Self::message_limits`], which sets them."),
+        "Channel::limits must Distinct from the setter"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::stream_buffer_size`]: that is queue depth, not uncompressed protobuf bytes."
+        ),
+        "Channel::limits must Distinct queue depth from message caps"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not these caps."
+        ),
+        "Channel::limits must Distinct the send buffer from message caps"
+    );
+    assert!(
+        src.contains("Same overlay as [`crate::Outgoing::limits`]."),
+        "Channel::limits must name the interceptor overlay"
+    );
+    assert!(
         src.contains(
             "Further RPCs are refused with [`Code::ResourceExhausted`] before the\n    /// stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`"
         ),
@@ -2205,6 +2233,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         src.contains("Configured message caps. Applies to every call shape."),
         "ServerConfig::limits and ChannelConfig::limits must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "Server interceptors read this overlay on [`crate::Rpc::limits`] / [`crate::Request::limits`]."
+        ),
+        "ServerConfig::limits must name the interceptor overlay"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Channel::limits`] reads this overlay on a live clone without building a [`ChannelConfig`]."
+        ),
+        "ChannelConfig::limits must name the live Channel overlay"
     );
     assert!(
         src.contains("Configured per-connection send buffer. Applies to every call shape."),
@@ -3044,6 +3084,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Outgoing::stream_buffer_size from limits"
     );
     assert!(
+        crate_src.contains(
+            "[`Channel::limits`] reads the message-cap overlay without colliding with [`Channel::message_limits`]"
+        ),
+        "crate docs must name Channel::limits as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::limits`]"),
+        "crate docs must Distinct Channel::limits as the same overlay as Outgoing::limits"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Server::limits`] reads the message-cap overlay without colliding with [`Server::message_limits`]"
+        ),
+        "crate docs must name Server::limits as the live-server overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Rpc::limits`]"),
+        "crate docs must Distinct Server::limits as the same overlay as Rpc::limits"
+    );
+    assert!(
         crate_src
             .contains("[`Outgoing::send_buffer_size`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::send_buffer_size as the interceptor overlay"
@@ -3595,6 +3655,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Outgoing::stream_buffer_size as the interceptor overlay"
     );
     assert!(
+        guide.contains("`Channel::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Outgoing::limits`."),
+        "guide must name Channel::limits as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Server::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Rpc::limits`."),
+        "guide must name Server::limits as the live-server overlay"
+    );
+    assert!(
         guide.contains("`Outgoing::send_buffer_size` is that overlay in a client interceptor. Distinct from `stream_buffer_size` (queue depth). An interceptor cannot change it."),
         "guide must name Outgoing::send_buffer_size as the interceptor overlay"
     );
@@ -3994,6 +4062,32 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::send_buffer_size and Router::send_buffer_size must Distinct message size from the send buffer"
+    );
+    assert_eq!(
+        src.matches("Configured message caps. See [`Self::message_limits`].")
+            .count(),
+        2,
+        "Server::limits and Router::limits must Distinct the setter"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`Self::message_limits`], which sets them.")
+            .count(),
+        2,
+        "Server::limits and Router::limits must Distinct from the setter"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not uncompressed protobuf bytes."
+        )
+        .count(),
+        2,
+        "Server::limits and Router::limits must Distinct the send buffer from message caps"
+    );
+    assert_eq!(
+        src.matches("Same overlay as [`crate::Rpc::limits`].")
+            .count(),
+        2,
+        "Server::limits and Router::limits must name the interceptor overlay"
     );
     assert_eq!(
         src.matches(
@@ -4446,6 +4540,10 @@ fn server_and_router_config_document_every_call_shape() {
     assert!(
         src.contains("Response interceptors see the same caps on [`crate::Response::limits`]."),
         "Rpc::limits must name the Response interceptor stamp"
+    );
+    assert!(
+        src.contains("Same overlay as [`crate::Server::limits`]."),
+        "Rpc::limits must name the Server::limits overlay"
     );
     assert!(
         src.contains(

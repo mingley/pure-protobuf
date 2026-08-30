@@ -263,7 +263,7 @@ impl Endpoint {
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
 /// [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`],
 /// [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`],
-/// [`Self::send_buffer_size`], and
+/// [`Self::send_buffer_size`], [`Self::limits`], and
 /// [`Self::config`]. Keepalive, idle, age, TCP
 /// keepalive, connection count, HTTP/2 windows, the HPACK table, the
 /// small-DATA budget, the rapid-reset cap, the locally-reset stream memory
@@ -599,6 +599,17 @@ impl Channel {
     pub fn message_limits(mut self, limits: crate::MessageLimits) -> Self {
         self.config = self.config.message_limits(limits);
         self
+    }
+
+    /// Configured message caps. See [`Self::message_limits`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::message_limits`], which sets them.
+    /// Distinct from [`Self::stream_buffer_size`]: that is queue depth, not uncompressed protobuf bytes.
+    /// Distinct from [`Self::send_buffer_size`]: that is the HTTP/2 send buffer, not these caps.
+    /// Same overlay as [`crate::Outgoing::limits`].
+    #[must_use]
+    pub fn limits(&self) -> crate::MessageLimits {
+        self.config.limits()
     }
 
     /// gzip every unary and server-streaming request payload, and every
@@ -2343,13 +2354,15 @@ mod tests {
             channel.send_buffer_size(),
             crate::DEFAULT_MAX_SEND_BUFFER_SIZE
         );
+        assert_eq!(channel.limits(), crate::MessageLimits::default());
         let channel = channel
             .timeout(Duration::from_secs(5))
             .wait_for_ready()
             .send_compressed()
             .gzip_compression_level(9)
             .stream_buffer(32)
-            .max_send_buffer_size(123_456);
+            .max_send_buffer_size(123_456)
+            .message_limits(crate::MessageLimits::unlimited());
         assert_eq!(channel.rpc_timeout(), Some(Duration::from_secs(5)));
         assert!(channel.waits_for_ready());
         assert!(channel.compresses_outbound());
@@ -2374,6 +2387,8 @@ mod tests {
             channel.send_buffer_size(),
             channel.config().send_buffer_size()
         );
+        assert_eq!(channel.limits().max_decoding(), None);
+        assert_eq!(channel.limits(), channel.config().limits());
         assert_eq!(
             super::Channel::connect_lazy("127.0.0.1:9")
                 .expect("lazy")

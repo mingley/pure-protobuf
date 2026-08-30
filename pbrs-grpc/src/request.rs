@@ -1012,7 +1012,8 @@ impl<'a> Outgoing<'a> {
     /// Same value as [`crate::ChannelConfig::limits`] after overlays
     /// ([`crate::Channel::message_limits`],
     /// [`crate::Channel::max_decoding_message_size`],
-    /// [`crate::Channel::max_encoding_message_size`]). An interceptor cannot
+    /// [`crate::Channel::max_encoding_message_size`]). Same overlay as [`crate::Channel::limits`].
+    /// An interceptor cannot
     /// raise them; the kernel applies them when encoding and decoding.
     /// Distinct from [`crate::Request::limits`], which is `None` on a request
     /// you built to send. Applies to every call shape.
