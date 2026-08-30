@@ -7596,80 +7596,66 @@ async fn a_from_io_handler_sees_the_interceptor_deadline_on_request() {
     server.abort();
 }
 
-#[tokio::test]
-async fn interceptors_and_handlers_see_message_limits() {
-    fn take_limits<T>(request: Request<T>) -> Result<T, Status> {
-        let want = MessageLimits::new()
-            .with_max_decoding(16)
-            .with_max_encoding(32);
-        if request.limits() != Some(want) {
-            return Err(Status::internal(format!("limits {:?}", request.limits())));
-        }
-        let (msg, parts) = request.into_message_and_parts();
-        if parts.limits() != Some(want) {
-            return Err(Status::internal(format!(
-                "parts limits {:?}",
-                parts.limits()
-            )));
-        }
-        Ok(msg)
+fn interceptor_require_rpc_limits(rpc: &mut Rpc) -> Result<(), Status> {
+    let want = test_message_limits();
+    if rpc.limits() != want {
+        return Err(Status::internal(format!("rpc limits {:?}", rpc.limits())));
+    }
+    Ok(())
+}
+
+fn take_handler_limits<T>(request: Request<T>) -> Result<T, Status> {
+    let want = test_message_limits();
+    if request.limits() != Some(want) {
+        return Err(Status::internal(format!("limits {:?}", request.limits())));
+    }
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.limits() != Some(want) {
+        return Err(Status::internal(format!(
+            "parts limits {:?}",
+            parts.limits()
+        )));
+    }
+    Ok(msg)
+}
+
+struct SeesLimits;
+
+impl Greeter for SeesLimits {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let msg = take_handler_limits(request)?;
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
     }
 
-    struct SeesLimits;
-
-    impl Greeter for SeesLimits {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            let msg = take_limits(request)?;
-            Ok(Response::new(common::reply(common::name_of_request(&msg))))
-        }
-
-        async fn client_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<HelloReply>, Status> {
-            let _ = take_limits(request)?;
-            Ok(Response::new(common::reply("ok")))
-        }
-
-        async fn server_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            let _ = take_limits(request)?;
-            Ok(Response::new(pbrs_grpc::Streaming::empty()))
-        }
-
-        async fn stream_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            let _ = take_limits(request)?;
-            Ok(Response::new(pbrs_grpc::Streaming::empty()))
-        }
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let _ = take_handler_limits(request)?;
+        Ok(Response::new(common::reply("ok")))
     }
 
-    let (addr, listener) = bind().await;
-    let want = MessageLimits::new()
-        .with_max_decoding(16)
-        .with_max_encoding(32);
-    let task = tokio::spawn(async move {
-        GreeterServer::new(SeesLimits)
-            .max_decoding_message_size(16)
-            .max_encoding_message_size(32)
-            .intercept(move |rpc: &mut Rpc| {
-                if rpc.limits() != want {
-                    return Err(Status::internal(format!("rpc limits {:?}", rpc.limits())));
-                }
-                Ok(())
-            })
-            .serve_listener(listener)
-            .await
-            .ok();
-    });
-    let client = GreeterClient::new(channel(addr).await);
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _ = take_handler_limits(request)?;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _ = take_handler_limits(request)?;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
+    }
+}
+
+async fn assert_handler_sees_message_limits(client: &GreeterClient) {
     let reply = client
         .say_hello(Request::new(req("ada")))
         .await
@@ -7686,112 +7672,196 @@ async fn interceptors_and_handlers_see_message_limits() {
     tx.close();
     let _ = call.await.expect("bidi");
     assert!(Request::new(req("ada")).limits().is_none());
-    task.abort();
 }
 
 #[tokio::test]
-async fn interceptors_and_handlers_see_the_method_path() {
-    fn check_path<T>(
-        request: &Request<T>,
-        want_path: &str,
-        want_method: &str,
-    ) -> Result<(), Status> {
-        if request.path() != Some(want_path) {
-            return Err(Status::internal(format!("path {:?}", request.path())));
-        }
-        if request.service() != Some("helloworld.Greeter") {
-            return Err(Status::internal(format!("service {:?}", request.service())));
-        }
-        if request.method() != Some(want_method) {
-            return Err(Status::internal(format!("method {:?}", request.method())));
-        }
-        Ok(())
-    }
-
-    fn take_path<T>(
-        request: Request<T>,
-        want_path: &'static str,
-        want_method: &'static str,
-    ) -> Result<T, Status> {
-        check_path(&request, want_path, want_method)?;
-        let (msg, parts) = request.into_message_and_parts();
-        if parts.path() != Some(want_path) {
-            return Err(Status::internal(format!("parts path {:?}", parts.path())));
-        }
-        if parts.service() != Some("helloworld.Greeter") {
-            return Err(Status::internal(format!(
-                "parts service {:?}",
-                parts.service()
-            )));
-        }
-        if parts.method() != Some(want_method) {
-            return Err(Status::internal(format!(
-                "parts method {:?}",
-                parts.method()
-            )));
-        }
-        Ok(msg)
-    }
-
-    struct SeesPath;
-
-    impl Greeter for SeesPath {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            let msg = take_path(request, "/helloworld.Greeter/SayHello", "SayHello")?;
-            Ok(Response::new(common::reply(common::name_of_request(&msg))))
-        }
-
-        async fn client_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<HelloReply>, Status> {
-            let _ = take_path(request, "/helloworld.Greeter/ClientHello", "ClientHello")?;
-            let mut reply = HelloReply::new();
-            reply.set_message("path");
-            Ok(Response::new(reply))
-        }
-
-        async fn server_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            let _ = take_path(request, "/helloworld.Greeter/ServerHello", "ServerHello")?;
-            Ok(Response::new(pbrs_grpc::Streaming::empty()))
-        }
-
-        async fn stream_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            let _ = take_path(request, "/helloworld.Greeter/StreamHello", "StreamHello")?;
-            Ok(Response::new(pbrs_grpc::Streaming::empty()))
-        }
-    }
-
+async fn interceptors_and_handlers_see_message_limits() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        GreeterServer::new(SeesPath)
-            .intercept(|rpc: &mut Rpc| {
-                if rpc.service() != "helloworld.Greeter" {
-                    return Err(Status::internal(format!("rpc service {}", rpc.service())));
-                }
-                let want = format!("/helloworld.Greeter/{}", rpc.method());
-                if rpc.path() != want {
-                    return Err(Status::internal(format!(
-                        "rpc path {} != {want}",
-                        rpc.path()
-                    )));
-                }
-                Ok(())
-            })
+        GreeterServer::new(SeesLimits)
+            .max_decoding_message_size(16)
+            .max_encoding_message_size(32)
+            .intercept(interceptor_require_rpc_limits)
             .serve_listener(listener)
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
+    assert_handler_sees_message_limits(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_interceptors_and_handlers_see_message_limits() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesLimits)
+            .max_decoding_message_size(16)
+            .max_encoding_message_size(32)
+            .intercept(interceptor_require_rpc_limits)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_handler_sees_message_limits(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_interceptors_and_handlers_see_message_limits() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesLimits)
+            .max_decoding_message_size(16)
+            .max_encoding_message_size(32)
+            .intercept(interceptor_require_rpc_limits)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_handler_sees_message_limits(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_interceptors_and_handlers_see_message_limits() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesLimits)
+            .max_decoding_message_size(16)
+            .max_encoding_message_size(32)
+            .intercept(interceptor_require_rpc_limits)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_handler_sees_message_limits(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_interceptors_and_handlers_see_message_limits() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesLimits)
+            .max_decoding_message_size(16)
+            .max_encoding_message_size(32)
+            .intercept(interceptor_require_rpc_limits)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_handler_sees_message_limits(&client).await;
+    server.abort();
+}
+
+fn interceptor_require_greeter_path(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.service() != "helloworld.Greeter" {
+        return Err(Status::internal(format!("rpc service {}", rpc.service())));
+    }
+    let want = format!("/helloworld.Greeter/{}", rpc.method());
+    if rpc.path() != want {
+        return Err(Status::internal(format!(
+            "rpc path {} != {want}",
+            rpc.path()
+        )));
+    }
+    Ok(())
+}
+
+fn check_handler_path<T>(
+    request: &Request<T>,
+    want_path: &str,
+    want_method: &str,
+) -> Result<(), Status> {
+    if request.path() != Some(want_path) {
+        return Err(Status::internal(format!("path {:?}", request.path())));
+    }
+    if request.service() != Some("helloworld.Greeter") {
+        return Err(Status::internal(format!("service {:?}", request.service())));
+    }
+    if request.method() != Some(want_method) {
+        return Err(Status::internal(format!("method {:?}", request.method())));
+    }
+    Ok(())
+}
+
+fn take_handler_path<T>(
+    request: Request<T>,
+    want_path: &'static str,
+    want_method: &'static str,
+) -> Result<T, Status> {
+    check_handler_path(&request, want_path, want_method)?;
+    let (msg, parts) = request.into_message_and_parts();
+    if parts.path() != Some(want_path) {
+        return Err(Status::internal(format!("parts path {:?}", parts.path())));
+    }
+    if parts.service() != Some("helloworld.Greeter") {
+        return Err(Status::internal(format!(
+            "parts service {:?}",
+            parts.service()
+        )));
+    }
+    if parts.method() != Some(want_method) {
+        return Err(Status::internal(format!(
+            "parts method {:?}",
+            parts.method()
+        )));
+    }
+    Ok(msg)
+}
+
+struct SeesPath;
+
+impl Greeter for SeesPath {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let msg = take_handler_path(request, "/helloworld.Greeter/SayHello", "SayHello")?;
+        Ok(Response::new(common::reply(common::name_of_request(&msg))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let _ = take_handler_path(request, "/helloworld.Greeter/ClientHello", "ClientHello")?;
+        let mut reply = HelloReply::new();
+        reply.set_message("path");
+        Ok(Response::new(reply))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _ = take_handler_path(request, "/helloworld.Greeter/ServerHello", "ServerHello")?;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let _ = take_handler_path(request, "/helloworld.Greeter/StreamHello", "StreamHello")?;
+        Ok(Response::new(pbrs_grpc::Streaming::empty()))
+    }
+}
+
+async fn assert_handler_sees_method_path(client: &GreeterClient) {
     let reply = client
         .say_hello(Request::new(req("ada")))
         .await
@@ -7811,7 +7881,89 @@ async fn interceptors_and_handlers_see_the_method_path() {
     assert!(Request::new(req("ada")).path().is_none());
     assert!(Request::new(req("ada")).service().is_none());
     assert!(Request::new(req("ada")).method().is_none());
+}
+
+#[tokio::test]
+async fn interceptors_and_handlers_see_the_method_path() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesPath)
+            .intercept(interceptor_require_greeter_path)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_handler_sees_method_path(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_interceptors_and_handlers_see_the_method_path() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesPath)
+            .intercept(interceptor_require_greeter_path)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_handler_sees_method_path(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_interceptors_and_handlers_see_the_method_path() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesPath)
+            .intercept(interceptor_require_greeter_path)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_handler_sees_method_path(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_interceptors_and_handlers_see_the_method_path() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesPath)
+            .intercept(interceptor_require_greeter_path)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_handler_sees_method_path(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_interceptors_and_handlers_see_the_method_path() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesPath)
+            .intercept(interceptor_require_greeter_path)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_handler_sees_method_path(&client).await;
+    server.abort();
 }
 
 #[tokio::test]

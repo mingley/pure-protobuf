@@ -116,8 +116,10 @@ See `docs/upb.md`. Short list:
   shapes) on h2c, TLS (including mTLS), Unix, and `from_io`, including official
   TestService methods, hand-written Reverser `Channel` APIs, generated Store,
   Health Check/Watch, and reflection `ServerReflectionInfo`, not on first poll of the `Call`. Interceptors and generated
-  handlers see `MessageLimits` on `Rpc::limits` / `Request::limits`, the
-  method path on `Rpc::path` / `Request::path`, gzip accept/encoding, and
+  handlers see `MessageLimits` on `Rpc::limits` / `Request::limits` /
+  `Parts::limits`, including over TLS, mTLS, Unix, and `from_io`, the
+  method path on `Rpc::path` / `Request::path` / `Parts::path`, including
+  over those transports, gzip accept/encoding, and
   the server overlays on `Rpc::compresses_outbound` /
   `Request::compresses_outbound` and `Rpc::rpc_timeout` /
   `Request::rpc_timeout` (the `Server::timeout` cap, distinct from the

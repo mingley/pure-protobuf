@@ -1143,7 +1143,8 @@ guards is committed.
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
 produces. An interceptor reads those caps with `Rpc::limits`; a generated
-handler reads them with `Request::limits`. Oversize encode or decode is
+handler reads them with `Request::limits` / `Parts::limits`, including over
+TLS, mTLS, Unix, and `from_io`. Oversize encode or decode is
 `RESOURCE_EXHAUSTED` on every call shape. A server-streaming or bidi producer
 that exceeds `max_encoding_message_size` ships that status as trailers, not
 an HTTP/2 reset.
@@ -1309,7 +1310,9 @@ transport scheme.
 Generated handlers see the same values on `Request::authority` / `Request::scheme`.
 `Rpc::path` is the full `/<service>/<method>`; `Rpc::service` / `Rpc::method`
 are the two halves (unparseable paths yield empty strings). Generated handlers
-see the same values on `Request::path` / `Request::service` / `Request::method`;
+see the same values on `Request::path` / `Request::service` / `Request::method`
+and `Parts` after `into_message_and_parts`, including over TLS, mTLS, Unix,
+and `from_io`;
 a request you built to send has `None` — the channel stamps the path from the
 generated method. A proxy that maps the payload keeps the method name on
 `Request::into_message_and_parts`.
@@ -1326,7 +1329,8 @@ Returning `Err(Status::with_error_details(...))` ships
 `grpc-status-details-bin` to the client the same way a handler error does.
 `Rpc::limits` is the `MessageLimits` the kernel will enforce on this RPC
 (default 4 MiB inbound, unlimited outbound). An interceptor cannot raise
-them. Generated handlers see the same caps on `Request::limits`; a request
+them. Generated handlers see the same caps on `Request::limits` / `Parts::limits`,
+including over TLS, mTLS, Unix, and `from_io`; a request
 you built to send has `None` — the channel's `message_limits` applies at
 send time. A client interceptor reads that overlay with `Outgoing::limits`.
 `Rpc::accepts_gzip` / `Rpc::encoding` are the peer's `grpc-accept-encoding`
