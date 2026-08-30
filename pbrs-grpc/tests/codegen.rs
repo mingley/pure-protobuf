@@ -3789,6 +3789,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated max_frame_size rustdoc must name every call shape"
     );
     assert!(
+        src.contains(
+            "A well-behaved client splits DATA; every call shape still completes, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]. Distinct from [`Self::max_header_list_size`], which refuses oversize metadata, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
+        ),
+        "generated max_frame_size rustdoc must name still-serves Distinct from header-list and stream cap"
+    );
+    assert!(
         src.contains("HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape."),
         "generated max_header_list_size rustdoc must name every call shape"
     );

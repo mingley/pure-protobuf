@@ -4126,6 +4126,10 @@ fn emit_kernel_server(
         src,
         "    /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape. See [`{G}::ServerConfig::max_frame_size`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// A well-behaved client splits DATA; every call shape still completes, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from [`Self::max_header_list_size`], which refuses oversize metadata, and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

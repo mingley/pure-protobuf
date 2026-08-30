@@ -1381,6 +1381,10 @@ impl<S: Service> Server<S> {
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape.
     /// See [`ServerConfig::max_frame_size`].
+    /// A well-behaved client splits DATA; every call shape still completes,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct
+    /// from [`Self::max_header_list_size`], which refuses oversize metadata,
+    /// and from [`Self::max_concurrent_streams`], which serializes extra RPCs.
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_frame_size(bytes);
@@ -1955,6 +1959,10 @@ impl Router {
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Applies to every call shape.
     /// See [`ServerConfig::max_frame_size`].
+    /// A well-behaved client splits DATA; every call shape still completes,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct
+    /// from [`Self::max_header_list_size`], which refuses oversize metadata,
+    /// and from [`Self::max_concurrent_streams`], which serializes extra RPCs.
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_frame_size(bytes);

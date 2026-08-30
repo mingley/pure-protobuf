@@ -1068,6 +1068,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "A well-behaved client splits DATA; every call shape still completes,\n    /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].\n    /// Distinct from [`Self::max_header_list_size`], which refuses oversize\n    /// metadata, and from [`Self::max_concurrent_streams`], which serializes\n    /// extra RPCs."
+        ),
+        "ServerConfig::max_frame_size must name still-serves Distinct from header-list and stream cap"
+    );
+    assert_eq!(
+        src.matches("A well-behaved client splits DATA; every call shape still completes,")
+            .count(),
+        1,
+        "ChannelConfig::max_frame_size must not copy the server still-serves Distinct"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::max_decoding_message_size`] /\n    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound is\n    /// [`crate::Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::message_limits must name combined-setter oversize on every transport"
@@ -1258,6 +1270,14 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server::max_frame_size and Router::max_frame_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "A well-behaved client splits DATA; every call shape still completes,\n    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`]. Distinct\n    /// from [`Self::max_header_list_size`], which refuses oversize metadata,\n    /// and from [`Self::max_concurrent_streams`], which serializes extra RPCs."
+        )
+        .count(),
+        2,
+        "Server::max_frame_size and Router::max_frame_size must name still-serves Distinct from header-list and stream cap"
     );
     assert_eq!(
         src.matches("HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape.")
@@ -24869,4 +24889,81 @@ async fn from_io_reverser_header_list_cap_refuses_oversize_metadata() {
     assert_reverser_header_flood_then_echo(flood, healthy).await;
     server1.abort();
     server2.abort();
+}
+
+fn frame_size_server() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).max_frame_size(16 * 1024)
+}
+
+#[tokio::test]
+async fn frame_size_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        frame_size_server().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_frame_size_still_serves_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        frame_size_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(tls_channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_frame_size_still_serves_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        frame_size_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_every_shape(
+        &GreeterClient::new(tls_channel_with(addr, client_tls).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_frame_size_still_serves_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        frame_size_server().serve_unix(sock).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(unix_channel(&path).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_frame_size_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        frame_size_server().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
 }

@@ -177,6 +177,11 @@ impl ServerConfig {
 
     /// HTTP/2 `SETTINGS_MAX_FRAME_SIZE`. Default 1 MiB.
     /// Applies to every call shape.
+    /// A well-behaved client splits DATA; every call shape still completes,
+    /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
+    /// Distinct from [`Self::max_header_list_size`], which refuses oversize
+    /// metadata, and from [`Self::max_concurrent_streams`], which serializes
+    /// extra RPCs.
     #[must_use]
     pub fn max_frame_size(mut self, bytes: u32) -> Self {
         self.max_frame_size = bytes;
