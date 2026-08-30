@@ -21,8 +21,8 @@ use pbrs_grpc::{
     ServerTls, Status,
 };
 use std::net::SocketAddr;
-#[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 
@@ -2426,6 +2426,101 @@ async fn a_health_from_io_client_interceptor_can_fail_the_rpc_before_the_stream_
         Code::FailedPrecondition,
     )
     .await;
+    handle.abort();
+}
+
+fn intercept_counts_create_health(client: HealthClient, ran: &Arc<AtomicUsize>) -> HealthClient {
+    let flag = Arc::clone(ran);
+    client.intercept(move |_: &mut Outgoing<'_>| {
+        flag.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    })
+}
+
+fn assert_interceptors_run_on_create_health(client: &HealthClient, ran: &Arc<AtomicUsize>) {
+    let check = client.check(Request::new(HealthCheckRequest::new()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        1,
+        "Check interceptor must run when the method returns"
+    );
+    drop(check);
+
+    let watch = client.watch(Request::new(HealthCheckRequest::new()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        2,
+        "Watch interceptor must run when the method returns"
+    );
+    drop(watch);
+}
+
+#[tokio::test]
+async fn health_client_interceptors_run_when_the_call_is_created() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client =
+        intercept_counts_create_health(HealthClient::connect_lazy(addr).expect("lazy"), &ran);
+    assert_interceptors_run_on_create_health(&client, &ran);
+}
+
+#[tokio::test]
+async fn a_health_tls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = intercept_counts_create_health(
+        HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_health(&client, &ran);
+}
+
+#[tokio::test]
+async fn a_health_mtls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind_health().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = intercept_counts_create_health(
+        HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_health(&client, &ran);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_health_unix_client_interceptor_runs_when_the_call_is_created() {
+    let path = unix_sock("health-on-create");
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client =
+        intercept_counts_create_health(HealthClient::connect_unix_lazy(&path).expect("lazy"), &ran);
+    assert_interceptors_run_on_create_health(&client, &ran);
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_health_from_io_client_interceptor_runs_when_the_call_is_created() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let (svc, reporter) = service();
+    reporter.set_serving("helloworld.Greeter");
+    let handle = tokio::spawn(async move {
+        svc.serve_connection(server_io).await.ok();
+    });
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client = intercept_counts_create_health(
+        HealthClient::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_health(&client, &ran);
     handle.abort();
 }
 

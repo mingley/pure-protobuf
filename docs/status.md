@@ -111,7 +111,8 @@ See `docs/upb.md`. Short list:
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible
   channel facts. Interceptors run when the RPC method is invoked (all four
   shapes) on h2c, TLS (including mTLS), Unix, and `from_io`, including official
-  TestService methods and hand-written Reverser `Channel` APIs, not on first poll of the `Call`. Interceptors and generated
+  TestService methods, hand-written Reverser `Channel` APIs, generated Store,
+  Health Check/Watch, and reflection `ServerReflectionInfo`, not on first poll of the `Call`. Interceptors and generated
   handlers see `MessageLimits` on `Rpc::limits` / `Request::limits`, the
   method path on `Rpc::path` / `Request::path`, gzip accept/encoding, and
   the server overlays on `Rpc::compresses_outbound` /
