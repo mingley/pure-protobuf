@@ -4492,6 +4492,10 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
+        "    /// TLS (including mTLS) pooling is [`Self::connect_tls_with`] plus [`{G}::ChannelConfig::connections`]; Unix is [`Self::connect_unix_with`]. [`{G}::Channel::from_io`] cannot pool."
+    );
+    let _ = writeln!(
+        src,
         "    pub async fn connect_pool(target: impl Into<{G}::Target>, connections: usize) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
@@ -4515,6 +4519,10 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(
         src,
         "    /// [`Self::connect_tls`] with [`{G}::ChannelConfig`]. Applies to every call shape."
+    );
+    let _ = writeln!(
+        src,
+        "    /// [`{G}::ChannelConfig::connections`] opens that many TLS sockets (including mTLS); all must succeed. [`{G}::Channel::from_io`] cannot pool."
     );
     let _ = writeln!(
         src,
@@ -4595,6 +4603,10 @@ fn emit_kernel_client_dialers(src: &mut String) {
         src,
         "    /// [`Self::connect_unix`] with [`{G}::ChannelConfig`]. Applies to every call shape."
     );
+    let _ = writeln!(
+        src,
+        "    /// [`{G}::ChannelConfig::connections`] opens that many Unix sockets; all must succeed. [`{G}::Channel::from_io`] cannot pool."
+    );
     let _ = writeln!(src, "    #[cfg(unix)]");
     let _ = writeln!(
         src,
@@ -4655,6 +4667,10 @@ fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(
         src,
         "    /// [`Self::from_io`] with [`{G}::ChannelConfig`]. Applies to every call shape."
+    );
+    let _ = writeln!(
+        src,
+        "    /// [`{G}::ChannelConfig::connections`] is forced to 1: one duplex is one HTTP/2 connection."
     );
     let _ = writeln!(
         src,

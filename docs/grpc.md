@@ -1295,6 +1295,10 @@ client-side lever:
 Channel::connect_with(target, ChannelConfig::new().connections(4)).await?
 ```
 
+TLS (including mTLS) uses `connect_tls_with` with the same `connections`
+knob; Unix uses `connect_unix_with`. `from_io` cannot pool: one duplex is
+one HTTP/2 connection.
+
 **Window sizes.** The 16 MiB default keeps a 4 MiB message from stalling on a
 `WINDOW_UPDATE` round trip, which is where large-payload throughput usually
 goes. Lower it only under memory pressure:

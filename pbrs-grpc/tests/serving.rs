@@ -654,6 +654,30 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::from_io_with must name every call shape"
     );
     assert!(
+        src.contains(
+            "[`ChannelConfig::connections`] is forced to 1: one duplex is one\n    /// HTTP/2 connection."
+        ),
+        "Channel::from_io_with must name that pooling is forced to one duplex"
+    );
+    assert!(
+        src.contains(
+            "[`ChannelConfig::connections`] opens that many TLS sockets (including\n    /// mTLS); all of them must succeed. [`Self::from_io`] cannot pool."
+        ),
+        "Channel::connect_tls_with must name TLS pooling"
+    );
+    assert!(
+        src.contains(
+            "[`ChannelConfig::connections`] opens that many Unix sockets; all of\n    /// them must succeed. [`Self::from_io`] cannot pool."
+        ),
+        "Channel::connect_unix_with must name Unix pooling"
+    );
+    assert!(
+        src.contains(
+            "TLS (including mTLS) pooling is [`Self::connect_tls_with`] plus\n    /// [`ChannelConfig::connections`]; Unix is [`Self::connect_unix_with`].\n    /// [`Self::from_io`] cannot pool."
+        ),
+        "Channel::connect_pool must name TLS and Unix pooling"
+    );
+    assert!(
         src.contains("The configuration in effect. Applies to every call shape."),
         "Channel::config must name every call shape"
     );
@@ -821,7 +845,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
-            "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape."
+            "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix.\n    /// [`crate::Channel::from_io`] cannot pool: [`crate::Channel::from_io_with`]\n    /// forces `connections` to 1."
         ),
         "ChannelConfig::connections must name every call shape"
     );
@@ -22189,5 +22213,89 @@ async fn from_io_client_message_caps_are_resource_exhausted() {
         .await
         .expect("from_io");
     assert_client_message_caps(channel).await;
+    server.abort();
+}
+
+fn pool_cfg() -> ChannelConfig {
+    ChannelConfig::new().connections(4)
+}
+
+async fn assert_pool_serves(channel: Channel) {
+    let client = GreeterClient::new(channel);
+    echo_every_shape(&client, None).await;
+    let mut hs = Vec::new();
+    for i in 0..16u32 {
+        let c = client.clone();
+        hs.push(tokio::spawn(async move {
+            let label = format!("n{i}");
+            let resp = c.say_hello(Request::new(req(&label))).await.expect("unary");
+            name_of(&resp.into_inner())
+        }));
+    }
+    let mut got = Vec::new();
+    for h in hs {
+        got.push(h.await.expect("join"));
+    }
+    got.sort();
+    let mut want: Vec<String> = (0..16u32).map(|i| format!("n{i}")).collect();
+    want.sort();
+    assert_eq!(got, want);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn tls_connection_pool_serves_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_pool_serves(tls_channel_cfg(addr, client_tls, pool_cfg()).await).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn mtls_connection_pool_serves_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_pool_serves(tls_channel_cfg(addr, client_tls, pool_cfg()).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn unix_connection_pool_serves_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    assert_pool_serves(unix_channel_with(&path, pool_cfg()).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_pool_config_is_still_one_duplex() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io_with(client_io, "localhost", pool_cfg())
+        .await
+        .expect("from_io");
+    echo_every_shape(&GreeterClient::new(channel), None).await;
     server.abort();
 }

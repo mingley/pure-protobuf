@@ -314,6 +314,9 @@ impl Channel {
     /// One connection means one `h2` driver task, so concurrent small RPCs
     /// serialize behind a single core's framing work. Pooling is the fix.
     /// Applies to every call shape.
+    /// TLS (including mTLS) pooling is [`Self::connect_tls_with`] plus
+    /// [`ChannelConfig::connections`]; Unix is [`Self::connect_unix_with`].
+    /// [`Self::from_io`] cannot pool.
     pub async fn connect_pool(
         target: impl Into<Target>,
         connections: usize,
@@ -331,6 +334,8 @@ impl Channel {
     }
 
     /// Dial `target` over TLS with `config`. Applies to every call shape.
+    /// [`ChannelConfig::connections`] opens that many TLS sockets (including
+    /// mTLS); all of them must succeed. [`Self::from_io`] cannot pool.
     pub async fn connect_tls_with(
         target: impl Into<Target>,
         config: ChannelConfig,
@@ -385,6 +390,8 @@ impl Channel {
     }
 
     /// [`Self::connect_unix`] with `config`. Applies to every call shape.
+    /// [`ChannelConfig::connections`] opens that many Unix sockets; all of
+    /// them must succeed. [`Self::from_io`] cannot pool.
     #[cfg(unix)]
     pub async fn connect_unix_with(
         path: impl AsRef<Path>,
@@ -464,6 +471,8 @@ impl Channel {
     }
 
     /// [`Self::from_io`] with `config`. Applies to every call shape.
+    /// [`ChannelConfig::connections`] is forced to 1: one duplex is one
+    /// HTTP/2 connection.
     pub async fn from_io_with<IO>(
         io: IO,
         authority: impl Into<Target>,

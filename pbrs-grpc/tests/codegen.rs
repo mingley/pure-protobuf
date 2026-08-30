@@ -3853,6 +3853,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "TLS (including mTLS) pooling is [`Self::connect_tls_with`] plus [`::pbrs_grpc::ChannelConfig::connections`]; Unix is [`Self::connect_unix_with`]. [`::pbrs_grpc::Channel::from_io`] cannot pool."
+        ),
+        "generated connect_pool rustdoc must name TLS and Unix pooling"
+    );
+    assert!(
+        src.contains(
             "Dial a Unix domain socket. See [`::pbrs_grpc::Channel::connect_unix`]. Applies to every call shape."
         ),
         "generated connect_unix rustdoc must name every call shape"
@@ -3868,6 +3874,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "[`Self::from_io`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
         ),
         "generated from_io_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`::pbrs_grpc::ChannelConfig::connections`] is forced to 1: one duplex is one HTTP/2 connection."
+        ),
+        "generated from_io_with rustdoc must name that pooling is forced to one duplex"
     );
     assert!(
         src.contains(
@@ -3967,6 +3979,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::ChannelConfig::connections`] opens that many Unix sockets; all must succeed. [`::pbrs_grpc::Channel::from_io`] cannot pool."
+        ),
+        "generated connect_unix_with rustdoc must name Unix pooling"
+    );
+    assert!(
+        src.contains(
             "[`Self::connect_unix`] that dials on the first RPC. Applies to every call shape."
         ),
         "generated connect_unix_lazy rustdoc must name every call shape"
@@ -3976,6 +3994,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "[`Self::connect_tls`] with [`::pbrs_grpc::ChannelConfig`]. Applies to every call shape."
         ),
         "generated connect_tls_with rustdoc must name every call shape"
+    );
+    assert!(
+        src.contains(
+            "[`::pbrs_grpc::ChannelConfig::connections`] opens that many TLS sockets (including mTLS); all must succeed. [`::pbrs_grpc::Channel::from_io`] cannot pool."
+        ),
+        "generated connect_tls_with rustdoc must name TLS pooling"
     );
     assert!(
         src.contains(
@@ -4071,5 +4095,107 @@ async fn generated_from_io_oversize_is_resource_exhausted() {
         .await
         .expect("from_io");
     assert_store_oversize_every_shape(&client).await;
+    server.abort();
+}
+
+fn store_pool_cfg() -> ChannelConfig {
+    ChannelConfig::new().connections(4)
+}
+
+async fn tls_store_pool(addr: SocketAddr, client_tls: ClientTls) -> StoreClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match StoreClient::connect_tls_with(addr, store_pool_cfg(), client_tls.clone()).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[tokio::test]
+async fn generated_tls_connection_pool_serves_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(
+        &tls_store_pool(addr, ClientTls::ca("localhost", CA).expect("client tls")).await,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_connection_pool_serves_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_store_every_shape(&tls_store_pool(addr, client_tls).await).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_connection_pool_serves_every_shape() {
+    let path = unix_sock("pool");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    let mut last = None;
+    let client = {
+        let mut found = None;
+        for _ in 0..80 {
+            match StoreClient::connect_unix_with(&path, store_pool_cfg()).await {
+                Ok(client) => {
+                    found = Some(client);
+                    break;
+                }
+                Err(e) => {
+                    last = Some(e);
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            }
+        }
+        found.unwrap_or_else(|| panic!("could not connect: {last:?}"))
+    };
+    echo_store_every_shape(&client).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_pool_config_is_still_one_duplex() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", store_pool_cfg())
+        .await
+        .expect("from_io");
+    echo_store_every_shape(&client).await;
     server.abort();
 }
