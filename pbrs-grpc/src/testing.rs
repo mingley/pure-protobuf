@@ -4,7 +4,16 @@
 //! clients are all generated from `proto/grpc/testing/test.proto`. Only
 //! [`InteropTestService`] is written by hand: it is the behaviour the
 //! cross-language interop suite checks, so the kernel is verified against Go,
-//! Java, and C++ peers rather than only against itself.
+//! Java, and C++ peers rather than only against itself. A [`TestServiceClient`]
+//! `message_limits` is `RESOURCE_EXHAUSTED` on UnaryCall /
+//! StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
+//! TLS, mTLS, Unix, and [`crate::Channel::from_io`]. Distinct from wrapping
+//! `max_encoding_message_size` / `max_decoding_message_size`.
+//! [`TestServiceClient::connect_tls_with`] /
+//! [`TestServiceClient::connect_unix_with`] /
+//! [`TestServiceClient::from_io_with`] with
+//! [`crate::ChannelConfig::message_limits`] refuse the same oversize, distinct
+//! from wrapping a live client.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

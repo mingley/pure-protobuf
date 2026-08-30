@@ -831,6 +831,18 @@ fn official_interop_rustdoc_names_every_transport() {
         ),
         "InteropTestService rustdoc must name official cases on every transport"
     );
+    assert!(
+        testing.contains(
+            "A [`TestServiceClient`]\n//! `message_limits` is `RESOURCE_EXHAUSTED` on UnaryCall /\n//! StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over\n//! TLS, mTLS, Unix, and [`crate::Channel::from_io`]. Distinct from wrapping\n//! `max_encoding_message_size` / `max_decoding_message_size`."
+        ),
+        "testing crate rustdoc must name TestServiceClient message_limits on every transport"
+    );
+    assert!(
+        testing.contains(
+            "[`TestServiceClient::connect_tls_with`] /\n//! [`TestServiceClient::connect_unix_with`] /\n//! [`TestServiceClient::from_io_with`] with\n//! [`crate::ChannelConfig::message_limits`] refuse the same oversize, distinct\n//! from wrapping a live client."
+        ),
+        "testing crate rustdoc must name dial-time ChannelConfig message_limits on every transport"
+    );
     let cases = include_str!("../src/interop_cases.rs");
     assert!(
         cases.contains(
@@ -23692,4 +23704,177 @@ async fn from_io_header_list_cap_refuses_oversize_metadata() {
     assert_header_flood_then_echo(flood, healthy).await;
     server1.abort();
     server2.abort();
+}
+
+async fn assert_test_combined_message_limits(client: TestServiceClient) {
+    assert_test_client_encode_cap(&client.clone().message_limits(encode_message_limits())).await;
+    assert_test_client_decode_cap(&client.message_limits(decode_message_limits())).await;
+}
+
+async fn test_cfg(addr: SocketAddr, cfg: ChannelConfig) -> TestServiceClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match TestServiceClient::connect_with(addr, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+async fn test_tls_cfg(addr: SocketAddr, tls: ClientTls, cfg: ChannelConfig) -> TestServiceClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match TestServiceClient::connect_tls_with(addr, cfg, tls.clone()).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[cfg(unix)]
+async fn test_unix_cfg(path: &std::path::Path, cfg: ChannelConfig) -> TestServiceClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match TestServiceClient::connect_unix_with(path, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+async fn assert_test_dial_message_limits(encode: TestServiceClient, decode: TestServiceClient) {
+    assert_test_client_encode_cap(&encode).await;
+    assert_test_client_decode_cap(&decode).await;
+}
+
+#[tokio::test]
+async fn test_service_message_limits_setter_is_resource_exhausted() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_combined_message_limits(TestServiceClient::new(channel(addr).await)).await;
+    assert_test_dial_message_limits(
+        test_cfg(addr, dial_encode_limits()).await,
+        test_cfg(addr, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_tls_message_limits_setter_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_test_combined_message_limits(TestServiceClient::new(tls_channel(addr).await)).await;
+    assert_test_dial_message_limits(
+        test_tls_cfg(addr, client_tls.clone(), dial_encode_limits()).await,
+        test_tls_cfg(addr, client_tls, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_mtls_message_limits_setter_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_test_combined_message_limits(TestServiceClient::new(
+        tls_channel_with(addr, client_tls.clone()).await,
+    ))
+    .await;
+    assert_test_dial_message_limits(
+        test_tls_cfg(addr, client_tls.clone(), dial_encode_limits()).await,
+        test_tls_cfg(addr, client_tls, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_message_limits_setter_is_resource_exhausted() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_test_combined_message_limits(TestServiceClient::new(unix_channel(&path).await)).await;
+    assert_test_dial_message_limits(
+        test_unix_cfg(&path, dial_encode_limits()).await,
+        test_unix_cfg(&path, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_message_limits_setter_is_resource_exhausted() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(s1)
+            .await
+            .ok();
+    });
+    let live = TestServiceClient::from_io(c1, "localhost")
+        .await
+        .expect("from_io live");
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(s2)
+            .await
+            .ok();
+    });
+    let encode = TestServiceClient::from_io_with(c2, "localhost", dial_encode_limits())
+        .await
+        .expect("from_io encode");
+    let (c3, s3) = duplex_pair();
+    let server3 = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(s3)
+            .await
+            .ok();
+    });
+    let decode = TestServiceClient::from_io_with(c3, "localhost", dial_decode_limits())
+        .await
+        .expect("from_io decode");
+    assert_test_combined_message_limits(live).await;
+    assert_test_dial_message_limits(encode, decode).await;
+    server1.abort();
+    server2.abort();
+    server3.abort();
 }

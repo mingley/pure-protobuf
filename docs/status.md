@@ -150,7 +150,10 @@ See `docs/upb.md`. Short list:
   `max_encoding_message_size` / `max_decoding_message_size` is
   `RESOURCE_EXHAUSTED` on UnaryCall / StreamingOutputCall / StreamingInputCall
   / FullDuplexCall over those transports, distinct from the TestService server
-  add_service caps. `Channel::message_limits` / generated
+  add_service caps. A TestServiceClient `message_limits` /
+  `ChannelConfig::message_limits` at `connect_tls_with` / `connect_unix_with` /
+  `from_io_with` is `RESOURCE_EXHAUSTED` on those methods, distinct from
+  wrapping the single-cap setters. `Channel::message_limits` / generated
   `FooClient::message_limits` / `ChannelConfig::message_limits` refuse
   oversize the same way as the single-cap setters over TLS, mTLS, Unix, and
   `from_io`. `Server::message_limits` / `Router::message_limits` / generated
