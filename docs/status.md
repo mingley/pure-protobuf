@@ -108,9 +108,13 @@ See `docs/upb.md`. Short list:
   `file_containing_symbol` / `file_by_filename` / `file_containing_extension`
   / `all_extension_numbers_of_type` run on the one bidi method, including
   over TLS, mTLS, Unix, and `from_io`. An inbound Health Check or Watch over
-  the decoding cap is `RESOURCE_EXHAUSTED` on those transports. An inbound
+  the decoding cap is `RESOURCE_EXHAUSTED` on those transports.
+  `Router::message_limits` / `HealthServer::message_limits` refuse the same
+  oversize, distinct from `max_decoding_message_size`. An inbound
   reflection message over the decoding cap fails that bidi stream as
-  `RESOURCE_EXHAUSTED` trailers on those transports. Generated Store
+  `RESOURCE_EXHAUSTED` trailers on those transports.
+  `Router::message_limits` / `ServerReflectionServer::message_limits` refuse
+  the same oversize, distinct from `max_decoding_message_size`. Generated Store
   `max_decoding_message_size` is `RESOURCE_EXHAUSTED` on Get / Watch / PutAll
   / Sync over TLS, mTLS, Unix, and `from_io`. A Greeter client
   `max_encoding_message_size` / `max_decoding_message_size` is

@@ -5,7 +5,10 @@
 //! over TLS, mTLS, Unix, and [`crate::Channel::from_io`]. A [`HealthClient`]
 //! `max_encoding_message_size` / `max_decoding_message_size` is
 //! `RESOURCE_EXHAUSTED` on Check and Watch on those transports, distinct from
-//! the server decoding cap. An interceptor
+//! the server decoding cap. `Router::message_limits` /
+//! [`HealthServer::message_limits`] refuse the same oversize as
+//! `RESOURCE_EXHAUSTED` on both, distinct from
+//! [`crate::Router::max_decoding_message_size`]. An interceptor
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
 //! the client on both methods. A handler `Err` may carry the same packed
 //! status; those trailers reach the client on both methods. Watch

@@ -530,6 +530,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must name client message caps on every transport"
     );
+    assert!(
+        src.contains(
+            "`Router::message_limits` /\n//! [`HealthServer::message_limits`] refuse the same oversize as\n//! `RESOURCE_EXHAUSTED` on both, distinct from\n//! [`crate::Router::max_decoding_message_size`]."
+        ),
+        "Health crate rustdoc must name combined-setter oversize on every transport"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
@@ -3517,4 +3523,159 @@ async fn health_from_io_client_message_caps_are_resource_exhausted() {
         .expect("from_io");
     assert_health_client_message_caps(client).await;
     handle.abort();
+}
+
+fn health_decode_limits() -> MessageLimits {
+    MessageLimits::new().with_max_decoding(16)
+}
+
+fn health_oversize_limits_router() -> Router {
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    Router::new()
+        .message_limits(health_decode_limits())
+        .add_service(svc)
+}
+
+fn health_oversize_limits_server() -> HealthServer<impl Health> {
+    health_plain().message_limits(health_decode_limits())
+}
+
+#[tokio::test]
+async fn health_message_limits_oversize_is_resource_exhausted() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_router()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_health_oversize(&client(addr).await).await;
+    handle.abort();
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_server()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_health_oversize(&client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_tls_message_limits_oversize_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_health_oversize(&tls_client(addr).await).await;
+    handle.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_health_oversize(&tls_client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_mtls_message_limits_oversize_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_oversize(&tls_client_with(addr, client_tls).await).await;
+    handle.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_oversize(&tls_client_with(addr, client_tls).await).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_message_limits_oversize_is_resource_exhausted() {
+    let path = unix_sock("msg-limits");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_router().serve_unix(sock).await.ok();
+    });
+    assert_health_oversize(&unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+    let path = unix_sock("msg-limits-srv");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_oversize_limits_server().serve_unix(sock).await.ok();
+    });
+    assert_health_oversize(&unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn health_from_io_message_limits_oversize_is_resource_exhausted() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let handle1 = tokio::spawn(async move {
+        health_oversize_limits_router()
+            .serve_connection(s1)
+            .await
+            .ok();
+    });
+    let client = HealthClient::from_io(c1, "localhost")
+        .await
+        .expect("from_io router");
+    assert_health_oversize(&client).await;
+    handle1.abort();
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let handle2 = tokio::spawn(async move {
+        health_oversize_limits_server()
+            .serve_connection(s2)
+            .await
+            .ok();
+    });
+    let client = HealthClient::from_io(c2, "localhost")
+        .await
+        .expect("from_io server");
+    assert_health_oversize(&client).await;
+    handle2.abort();
 }
