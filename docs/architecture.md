@@ -201,7 +201,9 @@ this hook. `ServiceExt::on_response` / `Intercepted::on_response` is the
 per-service hook and does not cover other mounts; a Server / Router hook
 still runs first. Closures see `ResponseParts::path` (kernel-stamped).
 Distinct from `Request::path` (inbound). Distinct from `Outgoing::path`
-(before send). Closures see `Rpc` (path, service/method,
+(before send). Closures see `ResponseParts::gzip_level` (server encode overlay).
+Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level`
+(before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, peer, `:authority` / `:scheme`, limits).

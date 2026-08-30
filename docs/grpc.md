@@ -1167,6 +1167,7 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
 `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
 `Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it.
+`Response::gzip_level` is that overlay in a response interceptor. Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level` (before the handler). An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.

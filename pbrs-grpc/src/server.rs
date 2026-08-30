@@ -514,6 +514,7 @@ impl Rpc {
     /// Generated handlers see the same value on [`Request::gzip_level`].
     /// Distinct from [`Self::compresses_outbound`]: that is on or off; this is deflate effort.
     /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay.
+    /// Response interceptors see the same value on [`crate::Response::gzip_level`].
     /// An interceptor cannot change this; the kernel applies it when encoding.
     /// Applies to every call shape.
     #[must_use]
@@ -659,6 +660,7 @@ impl Rpc {
             peer_accepts_gzip,
             cancel,
             path,
+            gzip_level,
             ..
         }) = self.run_unary_request(handler).await
         else {
@@ -666,7 +668,10 @@ impl Rpc {
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
+                crate::interceptor::intercept_response(
+                    response.with_path(path).with_gzip_level(gzip_level),
+                    hook.as_deref(),
+                )
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -710,6 +715,7 @@ impl Rpc {
             peer_accepts_gzip,
             cancel,
             path,
+            gzip_level,
             ..
         }) = self.run_streaming_request(handler).await
         else {
@@ -717,7 +723,10 @@ impl Rpc {
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
+                crate::interceptor::intercept_response(
+                    response.with_path(path).with_gzip_level(gzip_level),
+                    hook.as_deref(),
+                )
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -769,13 +778,17 @@ impl Rpc {
             peer_accepts_gzip,
             cancel,
             path,
+            gzip_level,
         }) = self.run_unary_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
+                crate::interceptor::intercept_response(
+                    response.with_path(path).with_gzip_level(gzip_level),
+                    hook.as_deref(),
+                )
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -834,13 +847,17 @@ impl Rpc {
             peer_accepts_gzip,
             cancel,
             path,
+            gzip_level,
         }) = self.run_streaming_request(handler).await
         else {
             return;
         };
         hold_cancel(cancel, async move {
             match outcome.and_then(|response| {
-                crate::interceptor::intercept_response(response.with_path(path), hook.as_deref())
+                crate::interceptor::intercept_response(
+                    response.with_path(path).with_gzip_level(gzip_level),
+                    hook.as_deref(),
+                )
             }) {
                 Err(status) => send_trailers_only(&mut respond, status, &Metadata::new()),
                 Ok(response) => {
@@ -939,6 +956,7 @@ impl Rpc {
             peer_accepts_gzip,
             cancel: CancelOnDrop(cancel_tx),
             path,
+            gzip_level: config.gzip_level(),
         })
     }
 
@@ -1022,6 +1040,7 @@ impl Rpc {
             peer_accepts_gzip,
             cancel: CancelOnDrop(cancel_tx),
             path,
+            gzip_level: config.gzip_level(),
         })
     }
 }
@@ -1126,6 +1145,7 @@ struct Prepared<T> {
     cancel: CancelOnDrop,
     /// Kernel-stamped onto the handler [`Response`] before `on_response`.
     path: Option<String>,
+    gzip_level: u32,
 }
 
 async fn send_unary_response<Resp: Serialize>(
@@ -1799,6 +1819,8 @@ impl<S: Service> Server<S> {
     /// A handler `Err` skips this hook.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
+    /// [`crate::ResponseParts::gzip_level`] is the server encode overlay.
+    /// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2574,6 +2596,8 @@ impl Router {
     /// A handler `Err` skips this hook.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
+    /// [`crate::ResponseParts::gzip_level`] is the server encode overlay.
+    /// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {

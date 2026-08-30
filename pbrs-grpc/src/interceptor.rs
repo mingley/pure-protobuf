@@ -94,6 +94,8 @@ where
 /// [`crate::ResponseParts::path`] is kernel-stamped.
 /// Distinct from [`crate::Request::path`]: that is the inbound request.
 /// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send.
+/// [`crate::ResponseParts::gzip_level`] is the server encode overlay.
+/// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -572,22 +574,31 @@ mod tests {
             assert_eq!(parts.path(), Some("/helloworld.Greeter/SayHello"));
             assert_eq!(parts.service(), Some("helloworld.Greeter"));
             assert_eq!(parts.method(), Some("SayHello"));
+            assert_eq!(parts.gzip_level(), 9);
             Ok(())
         }
         let resp = super::intercept_response(
-            crate::Response::new(1u32).with_path(Some("/helloworld.Greeter/SayHello".into())),
+            crate::Response::new(1u32)
+                .with_path(Some("/helloworld.Greeter/SayHello".into()))
+                .with_gzip_level(9),
             Some(&require_path),
         )
         .expect("path");
         assert_eq!(resp.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(resp.service(), Some("helloworld.Greeter"));
         assert_eq!(resp.method(), Some("SayHello"));
+        assert_eq!(resp.gzip_level(), 9);
         let shown = format!("{resp:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
         assert!(shown.contains("SayHello"), "{shown}");
+        assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(crate::Response::new(0u32).path().is_none());
         assert!(crate::Response::new(0u32).service().is_none());
         assert!(crate::Response::new(0u32).method().is_none());
+        assert_eq!(
+            crate::Response::new(0u32).gzip_level(),
+            crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL
+        );
     }
 }

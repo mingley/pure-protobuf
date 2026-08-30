@@ -778,6 +778,36 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::path must Distinct Outgoing::path before send"
     );
     assert!(
+        outgoing.contains(
+            "Server [`crate::Server::gzip_compression_level`] overlay, when the kernel is encoding this reply."
+        ),
+        "Response::gzip_level must name the server encode overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compress`]: that is on or off; this is deflate effort."
+        ),
+        "Response::gzip_level must Distinct compress on/off from deflate effort"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::gzip_level`]: that is a server interceptor before the handler."
+        ),
+        "Response::gzip_level must Distinct Rpc::gzip_level before the handler"
+    );
+    assert!(
+        outgoing.contains(
+            "[`crate::DEFAULT_GZIP_COMPRESSION_LEVEL`] on a response you built or a received reply (deflate effort is not on the wire)."
+        ),
+        "Response::gzip_level must name DEFAULT on a received reply"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::encoding`]: that is the received `grpc-encoding` token."
+        ),
+        "Response::gzip_level must Distinct received encoding from deflate effort"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -1044,6 +1074,14 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct Outgoing::path before send"
     );
     assert!(
+        intercept.contains("[`crate::ResponseParts::gzip_level`] is the server encode overlay."),
+        "ResponseInterceptor rustdoc must name gzip_level overlay"
+    );
+    assert!(
+        intercept.contains("Distinct from [`crate::ResponseParts::compress`]: that is on or off."),
+        "ResponseInterceptor rustdoc must Distinct gzip_level from compress"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
@@ -1068,6 +1106,18 @@ fn channel_call_apis_document_hand_written_services() {
             "Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send."
         ),
         "Channel::on_response must Distinct Outgoing::path before send"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Response::gzip_level`] on a received reply is not the peer's deflate effort."
+        ),
+        "Channel::on_response must name received gzip_level is not peer effort"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Response::encoding`]: that is the received `grpc-encoding` token."
+        ),
+        "Channel::on_response must Distinct gzip_level from encoding"
     );
     assert!(
         src.contains(
@@ -2244,6 +2294,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Response::path from Outgoing::path"
     );
     assert!(
+        crate_src.contains("[`Response::gzip_level`] is that overlay in a response interceptor"),
+        "crate docs must name Response::gzip_level as the response interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Response::compress`]"),
+        "crate docs must Distinct Response::gzip_level from compress"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::gzip_level`]"),
+        "crate docs must Distinct Response::gzip_level from Rpc::gzip_level"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2642,6 +2704,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
         "guide must name Response::path as kernel-stamped for on_response"
+    );
+    assert!(
+        guide.contains("`Response::gzip_level` is that overlay in a response interceptor. Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level` (before the handler). An interceptor cannot change it."),
+        "guide must name Response::gzip_level as the response interceptor overlay"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -3169,6 +3235,18 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::on_response and Router::on_response must Distinct inbound Request::path"
     );
     assert_eq!(
+        src.matches("[`crate::ResponseParts::gzip_level`] is the server encode overlay.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must name gzip_level overlay"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`crate::ResponseParts::compress`]: that is on or off.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct gzip_level from compress"
+    );
+    assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         )
@@ -3215,6 +3293,12 @@ fn server_and_router_config_document_every_call_shape() {
             "Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay."
         ),
         "Rpc::gzip_level must Distinct client interceptor overlay"
+    );
+    assert!(
+        src.contains(
+            "Response interceptors see the same value on [`crate::Response::gzip_level`]."
+        ),
+        "Rpc::gzip_level must name the Response interceptor stamp"
     );
     assert!(
         src.contains("Generated handlers see the same value on [`Request::accepts_compressed`]."),
@@ -21195,6 +21279,11 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         reply.encoding().is_none(),
         "identity unary must not invent grpc-encoding"
     );
+    assert_eq!(
+        reply.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL,
+        "received reply must not carry peer deflate effort"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let reply = client
@@ -21204,6 +21293,11 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         reply.encoding().is_none(),
         "identity stream must not invent grpc-encoding"
+    );
+    assert_eq!(
+        reply.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL,
+        "received stream must not carry peer deflate effort"
     );
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
@@ -21219,6 +21313,11 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     let reply = call.await.expect("client-stream");
     assert!(!reply.compressed());
     assert!(reply.encoding().is_none());
+    assert_eq!(
+        reply.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL,
+        "received client-stream must not carry peer deflate effort"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(Request::new(()));
@@ -21226,6 +21325,11 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     tx.close();
     let reply = call.await.expect("bidi");
     assert!(reply.encoding().is_none());
+    assert_eq!(
+        reply.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL,
+        "received bidi must not carry peer deflate effort"
+    );
     let mut inbound = reply.into_inner();
     let framed = inbound
         .next_framed()
@@ -25362,6 +25466,16 @@ fn interceptor_require_server_gzip(rpc: &mut Rpc) -> Result<(), Status> {
     Ok(())
 }
 
+fn require_response_gzip_level(parts: &mut ResponseParts) -> Result<(), Status> {
+    if parts.gzip_level() != 9 {
+        return Err(Status::internal(format!(
+            "response gzip_level {}",
+            parts.gzip_level()
+        )));
+    }
+    Ok(())
+}
+
 async fn assert_handler_gzip_opt_out(ch: Channel) {
     assert_identity_encoding_every_shape(&GreeterClient::new(ch)).await;
 }
@@ -25374,6 +25488,7 @@ async fn a_handler_can_opt_out_of_server_send_compressed() {
             .send_compressed()
             .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
+            .on_response(require_response_gzip_level)
             .serve_listener(listener)
             .await
             .ok();
@@ -25391,6 +25506,7 @@ async fn a_tls_handler_can_opt_out_of_server_send_compressed() {
             .send_compressed()
             .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
+            .on_response(require_response_gzip_level)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
@@ -25408,6 +25524,7 @@ async fn an_mtls_handler_can_opt_out_of_server_send_compressed() {
             .send_compressed()
             .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
+            .on_response(require_response_gzip_level)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
@@ -25427,6 +25544,7 @@ async fn a_unix_handler_can_opt_out_of_server_send_compressed() {
             .send_compressed()
             .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
+            .on_response(require_response_gzip_level)
             .serve_unix(sock)
             .await
             .ok();
@@ -25443,6 +25561,7 @@ async fn a_from_io_handler_can_opt_out_of_server_send_compressed() {
             .send_compressed()
             .gzip_compression_level(9)
             .intercept(interceptor_require_server_gzip)
+            .on_response(require_response_gzip_level)
             .serve_connection(server_io)
             .await
             .ok();

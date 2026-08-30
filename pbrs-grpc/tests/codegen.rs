@@ -4211,6 +4211,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client on_response rustdoc must Distinct Outgoing::path"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::gzip_level`] is the server encode overlay. Distinct from [`::pbrs_grpc::ResponseParts::compress`]."),
+        "generated on_response rustdoc must name gzip_level overlay"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::gzip_level`] on a received reply is not the peer's deflate effort. Distinct from [`::pbrs_grpc::Response::encoding`]."),
+        "generated client on_response rustdoc must Distinct received gzip_level from encoding"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

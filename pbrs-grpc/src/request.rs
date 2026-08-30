@@ -1690,6 +1690,7 @@ pub struct Response<T> {
     compress: Option<bool>,
     encoding: Option<String>,
     path: Option<String>,
+    gzip_level: u32,
     extensions: http::Extensions,
 }
 
@@ -1704,6 +1705,7 @@ impl<T> Response<T> {
             compress: None,
             encoding: None,
             path: None,
+            gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             extensions: http::Extensions::new(),
         }
     }
@@ -1732,6 +1734,7 @@ impl<T> Response<T> {
                 compress: self.compress,
                 encoding: self.encoding,
                 path: self.path,
+                gzip_level: self.gzip_level,
                 extensions: self.extensions,
             },
         )
@@ -1747,6 +1750,7 @@ impl<T> Response<T> {
             compress: parts.compress,
             encoding: parts.encoding,
             path: parts.path,
+            gzip_level: parts.gzip_level,
             extensions: parts.extensions,
         }
     }
@@ -1923,6 +1927,30 @@ impl<T> Response<T> {
         self
     }
 
+    pub(crate) fn with_gzip_level(mut self, gzip_level: u32) -> Self {
+        self.gzip_level = gzip_level;
+        self
+    }
+
+    /// Server [`crate::Server::gzip_compression_level`] overlay, when the kernel is encoding this reply.
+    ///
+    /// Same overlay as [`crate::Rpc::gzip_level`] / [`crate::Request::gzip_level`].
+    /// Distinct from [`Self::compress`]: that is on or off; this is deflate effort.
+    /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay.
+    /// Distinct from [`crate::Rpc::gzip_level`]: that is a server interceptor before the handler.
+    /// [`crate::DEFAULT_GZIP_COMPRESSION_LEVEL`] on a response you built or a received reply (deflate effort is not on the wire).
+    /// Distinct from [`Self::encoding`]: that is the received `grpc-encoding` token.
+    /// An interceptor cannot change this; the kernel applies it when encoding.
+    ///
+    /// ```
+    /// let resp = pbrs_grpc::Response::new(());
+    /// assert_eq!(resp.gzip_level(), pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL);
+    /// ```
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.gzip_level
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
@@ -1931,6 +1959,7 @@ impl<T> Response<T> {
             compress: Some(false),
             encoding: None,
             path: None,
+            gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             extensions: http::Extensions::new(),
         }
     }
@@ -1948,6 +1977,7 @@ impl<T> Response<T> {
             compress: Some(compress),
             encoding: None,
             path: None,
+            gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             extensions: http::Extensions::new(),
         }
     }
@@ -1973,6 +2003,7 @@ pub struct ResponseParts {
     compress: Option<bool>,
     encoding: Option<String>,
     path: Option<String>,
+    gzip_level: u32,
     extensions: http::Extensions,
 }
 
@@ -2055,6 +2086,12 @@ impl ResponseParts {
         self.path.as_deref().map(|p| split_path(p).1)
     }
 
+    /// Server encode overlay. See [`Response::gzip_level`].
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.gzip_level
+    }
+
     /// Typed values on this envelope. See [`Response::extensions`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
@@ -2078,6 +2115,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("path", &self.path())
             .field("service", &self.service())
             .field("method", &self.method())
+            .field("gzip_level", &self.gzip_level)
             .field("extensions", &self.extensions.len())
             .finish()
     }
@@ -2484,10 +2522,17 @@ mod tests {
         assert!(mapped.compressed());
         assert!(mapped.compress());
         assert!(mapped.path().is_none());
-        let stamped = mapped.with_path(Some("/helloworld.Greeter/SayHello".into()));
+        assert_eq!(
+            mapped.gzip_level(),
+            crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL
+        );
+        let stamped = mapped
+            .with_path(Some("/helloworld.Greeter/SayHello".into()))
+            .with_gzip_level(9);
         assert_eq!(stamped.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(stamped.service(), Some("helloworld.Greeter"));
         assert_eq!(stamped.method(), Some("SayHello"));
+        assert_eq!(stamped.gzip_level(), 9);
         let (n, mut parts) = stamped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
@@ -2496,6 +2541,7 @@ mod tests {
         assert_eq!(parts.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(parts.service(), Some("helloworld.Greeter"));
         assert_eq!(parts.method(), Some("SayHello"));
+        assert_eq!(parts.gzip_level(), 9);
         parts.set_compress(false);
         parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
@@ -2510,10 +2556,12 @@ mod tests {
         assert_eq!(rebuilt.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(rebuilt.service(), Some("helloworld.Greeter"));
         assert_eq!(rebuilt.method(), Some("SayHello"));
+        assert_eq!(rebuilt.gzip_level(), 9);
         let shown = format!("{rebuilt:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
         assert!(shown.contains("SayHello"), "{shown}");
+        assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));
