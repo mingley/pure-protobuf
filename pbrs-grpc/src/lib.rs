@@ -110,6 +110,8 @@
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
 //!
+//! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
+//!
 //! # Safety
 //!
 //! The crate forbids `unsafe` in every hand-written module. What remains is

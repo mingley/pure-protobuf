@@ -215,6 +215,7 @@ trailers-only. A handler `Err` skips this hook. `Channel::on_response` /
 starts empty and this hook inserts typed context the peer cannot. `Err`
 fails that Call (the peer already sent OK). A non-OK peer status skips
 this hook. A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`.
+Compiling intercept / on_response overlay dumps live on the `hello` module rustdoc (`GreeterClient` / `GreeterServer`).
 `ServiceExt::on_response` / `Intercepted::on_response` is the
 per-service hook and does not cover other mounts; a Server / Router hook
 still runs first. Closures see `ResponseParts::path` (kernel-stamped).

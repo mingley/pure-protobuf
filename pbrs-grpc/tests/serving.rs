@@ -2866,6 +2866,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must name stream-cap serialize vs RESOURCE_EXHAUSTED"
     );
     assert!(
+        crate_src.contains(
+            "Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`)."
+        ),
+        "crate docs must point at the compiling hello intercept and on_response overlay dumps"
+    );
+    assert!(
         crate_src.contains("including a rapid-reset flood that exceeds"),
         "crate docs must name the hostile rapid-reset flood"
     );
@@ -4290,6 +4296,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         architecture.contains("A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`."),
         "architecture must Distinct Channel::on_response from Channel overlays on a received reply"
+    );
+    assert!(
+        architecture.contains("Compiling intercept / on_response overlay dumps live on the `hello` module rustdoc (`GreeterClient` / `GreeterServer`)."),
+        "architecture must point at the compiling hello intercept and on_response overlay dumps"
     );
     assert!(
         guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
