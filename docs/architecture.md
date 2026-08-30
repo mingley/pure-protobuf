@@ -113,7 +113,7 @@ sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
 `user-agent`, message caps, metadata, timeout / deadline Instant,
 wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
-`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size`),
+`gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size`),
 extensions). Those Outgoing getters apply to every call shape. The next RPC of every call shape redials a dead slot, including over TLS,
 mTLS, and Unix. Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. Client-streaming and bidi retry once
@@ -250,7 +250,7 @@ Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 `Outgoing` (path, service/method, `:authority`, `:scheme`, `user-agent`,
 limits, metadata, timeout / deadline Instant, wait-for-ready
 (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays
-(`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size`), extensions).
+(`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size`), extensions).
 Overlays (timeout, wait-for-ready, send_compressed, gzip_compression_level, message caps,
 `https_scheme`) fill in before interceptors run; `clear_*` opts out of that
 already-applied default while the overlay getters stay. `Channel::timeout` /

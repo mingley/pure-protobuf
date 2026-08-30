@@ -764,6 +764,28 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::stream_buffer_size must name the streaming shapes it queues"
     );
     assert!(
+        outgoing.contains("Channel [`crate::Channel::max_send_buffer_size`] overlay."),
+        "Outgoing::send_buffer_size must name the channel max_send_buffer_size overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::limits`]: that is uncompressed protobuf bytes, not this HTTP/2 send buffer."
+        ),
+        "Outgoing::send_buffer_size must Distinct message size from the HTTP/2 send buffer"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer."
+        ),
+        "Outgoing::send_buffer_size must Distinct queue depth from the send buffer"
+    );
+    assert!(
+        outgoing.contains(
+            "An interceptor cannot change this; the kernel applies it when sending DATA."
+        ),
+        "Outgoing::send_buffer_size must name the write-time DATA apply"
+    );
+    assert!(
         outgoing.contains("Kernel-stamped after a handler `Ok` and after a successful receive."),
         "Response::path must name kernel stamp after Ok and after receive"
     );
@@ -1399,6 +1421,18 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must Distinct stream_buffer_size from limits"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay"
+        ),
+        "ClientInterceptor rustdoc must name Outgoing::send_buffer_size"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not this send buffer."
+        ),
+        "ClientInterceptor rustdoc must Distinct send_buffer_size from stream_buffer_size"
+    );
+    assert!(
         intercept.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
         "ClientInterceptor rustdoc must name Outgoing::connected"
     );
@@ -1718,6 +1752,24 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::stream_buffer_size must Distinct from the setter"
     );
     assert!(
+        src.contains("Write-time HTTP/2 send buffer threshold for outbound DATA on this clone."),
+        "Channel::max_send_buffer_size must name the write-time DATA overlay"
+    );
+    assert!(
+        src.contains("redialed; the handshake h2 send buffer stays the dial-time value."),
+        "Channel::max_send_buffer_size must Distinct handshake h2 buffer from the overlay"
+    );
+    assert!(
+        src.contains(
+            "Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`]."
+        ),
+        "Channel::send_buffer_size must Distinct the setter"
+    );
+    assert!(
+        src.contains("Distinct from [`Self::max_send_buffer_size`], which sets it."),
+        "Channel::send_buffer_size must Distinct from the setter"
+    );
+    assert!(
         src.contains(
             "Further RPCs are refused with [`Code::ResourceExhausted`] before the\n    /// stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`"
         ),
@@ -1776,6 +1828,18 @@ fn channel_call_apis_document_hand_written_services() {
             "Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth."
         ),
         "Channel::intercept rustdoc must Distinct stream_buffer_size from limits"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay"
+        ),
+        "Channel::intercept rustdoc must name Outgoing::send_buffer_size"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not this send buffer."
+        ),
+        "Channel::intercept rustdoc must Distinct send_buffer_size from stream_buffer_size"
     );
     assert!(
         src.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
@@ -2273,6 +2337,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "HTTP/2 send buffer the client applies on outbound frames. Distinct from\n    /// [`ServerConfig::max_send_buffer_size`], which still serves when the\n    /// server advertises a small buffer. A well-behaved server still completes\n    /// every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::max_send_buffer_size must name client buffer Distinct from server still-serves"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Channel::max_send_buffer_size`] sets the write-time DATA threshold on a live clone without building a [`ChannelConfig`]."
+        ),
+        "ChannelConfig::max_send_buffer_size must name the live Channel write-time overlay"
     );
     assert!(
         src.contains(
@@ -2866,6 +2936,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Outgoing::stream_buffer_size from limits"
     );
     assert!(
+        crate_src
+            .contains("[`Outgoing::send_buffer_size`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::send_buffer_size as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::stream_buffer_size`]"),
+        "crate docs must Distinct Outgoing::send_buffer_size from stream_buffer_size"
+    );
+    assert!(
         crate_src.contains("[`Response::path`] is kernel-stamped after `Ok` / after receive"),
         "crate docs must name Response::path as kernel-stamped"
     );
@@ -3384,6 +3463,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it."),
         "guide must name Outgoing::stream_buffer_size as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Outgoing::send_buffer_size` is that overlay in a client interceptor. Distinct from `stream_buffer_size` (queue depth). An interceptor cannot change it."),
+        "guide must name Outgoing::send_buffer_size as the interceptor overlay"
     );
     assert!(
         guide.contains("`Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it."),
@@ -9372,6 +9455,12 @@ fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
             call.stream_buffer_size()
         )));
     }
+    if call.send_buffer_size() != 123_456 {
+        return Err(Status::internal(format!(
+            "send_buffer_size {}",
+            call.send_buffer_size()
+        )));
+    }
     if call.timeout() != Some(Duration::from_secs(5)) {
         return Err(Status::internal(format!("timeout {:?}", call.timeout())));
     }
@@ -9389,6 +9478,7 @@ fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
         || !call.compresses_outbound()
         || call.gzip_level() != 9
         || call.stream_buffer_size() != 32
+        || call.send_buffer_size() != 123_456
     {
         return Err(Status::internal("overlays vanished after clear"));
     }
@@ -9402,6 +9492,7 @@ fn overlay_after_clear_channel(channel: Channel) -> Channel {
         .send_compressed()
         .gzip_compression_level(9)
         .stream_buffer(32)
+        .max_send_buffer_size(123_456)
         .intercept(overlays_survive_clear)
 }
 

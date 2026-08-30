@@ -1166,6 +1166,7 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Outgoing::concurrent_rpc_limit` is that overlay in a client interceptor. Distinct from `waits_for_ready` (connection). An interceptor cannot change it.
 `Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
 `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
+`Outgoing::send_buffer_size` is that overlay in a client interceptor. Distinct from `stream_buffer_size` (queue depth). An interceptor cannot change it.
 `Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it.
 `Response::gzip_level` is that overlay in a response interceptor. Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level` (before the handler). An interceptor cannot change it.
 `Response::compresses_outbound` is that overlay in a response interceptor. Distinct from `compress` (per-RPC). Distinct from `Rpc::compresses_outbound` (before the handler). An interceptor cannot change it.
@@ -1524,6 +1525,14 @@ ChannelConfig::new().stream_buffer(64)
 
 Received streams are decoded inline on the reading task, so they have no queue
 to size in either direction.
+
+`Channel::max_send_buffer_size` sets the write-time DATA threshold on a live clone. Distinct from `stream_buffer` (decoded-message queue depth). Overlay: does not change how a dead slot is redialed.
+
+```rust
+channel.max_send_buffer_size(16 * 1024)
+// or, at connect:
+ChannelConfig::new().max_send_buffer_size(16 * 1024)
+```
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size`, `header_table_size`,

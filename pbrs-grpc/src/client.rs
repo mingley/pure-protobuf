@@ -149,7 +149,8 @@ struct ChannelInner {
     tls: Option<ClientTls>,
     /// Settings used to dial. Per-clone overlays on [`Channel`] (timeout,
     /// wait-for-ready, send_compressed, gzip_compression_level, message sizes,
-    /// stream_buffer) do not change how a dead slot is redialed.
+    /// stream_buffer, max_send_buffer_size) do not change how a dead slot is
+    /// redialed.
     dial: ChannelConfig,
 }
 
@@ -257,11 +258,12 @@ impl Endpoint {
 /// [`Self::send_compressed`], [`Self::gzip_compression_level`],
 /// [`Self::accept_compressed`], the two message-size caps /
 /// [`Self::message_limits`], [`Self::stream_buffer`],
-/// [`Self::max_concurrent_rpcs`], and
+/// [`Self::max_send_buffer_size`], [`Self::max_concurrent_rpcs`], and
 /// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
 /// [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`],
-/// [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`], and
+/// [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`],
+/// [`Self::send_buffer_size`], and
 /// [`Self::config`]. Keepalive, idle, age, TCP
 /// keepalive, connection count, HTTP/2 windows, the HPACK table, the
 /// small-DATA budget, the rapid-reset cap, the locally-reset stream memory
@@ -727,6 +729,31 @@ impl Channel {
         self.config.stream_buffer_size()
     }
 
+    /// Write-time HTTP/2 send buffer threshold for outbound DATA on this clone.
+    /// See [`ChannelConfig::max_send_buffer_size`].
+    ///
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::from_io`]. Overlay: does not change how a dead slot is
+    /// redialed; the handshake h2 send buffer stays the dial-time value.
+    /// Distinct from [`Self::stream_buffer`]: that is decoded-message queue depth, not this send buffer.
+    /// Distinct from [`Self::message_limits`]: that is uncompressed protobuf bytes, not this send buffer.
+    /// Distinct from [`crate::Server::max_send_buffer_size`]: that is the server write buffer, not this client overlay.
+    #[must_use]
+    pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
+        self.config = self.config.max_send_buffer_size(bytes);
+        self
+    }
+
+    /// Configured write-time HTTP/2 send buffer. See [`Self::max_send_buffer_size`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::max_send_buffer_size`], which sets it.
+    /// Distinct from [`Self::stream_buffer_size`]: that is queue depth, not this send buffer.
+    /// Distinct from [`Self::message_limits`]: that is message size, not this send buffer.
+    #[must_use]
+    pub fn send_buffer_size(&self) -> usize {
+        self.config.send_buffer_size()
+    }
+
     /// Cap how many RPCs this clone's channel will run at once, across every
     /// connection. Applies to every call shape, including over TLS, mTLS,
     /// Unix, and [`Self::from_io`].
@@ -804,6 +831,8 @@ impl Channel {
     /// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
     /// [`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay.
     /// Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth.
+    /// [`crate::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay.
+    /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not this send buffer.
     /// [`crate::Outgoing::connected`] is the live-socket snapshot
     /// ([`crate::Channel::connected`]), taken when this interceptor runs.
     /// Distinct from wait-for-ready: a lazy first RPC sees `false` even when
@@ -2291,6 +2320,15 @@ mod tests {
     }
 
     #[test]
+    fn send_buffer_overlays_a_live_channel() {
+        let channel = super::Channel::connect_lazy("127.0.0.1:9")
+            .expect("lazy")
+            .max_send_buffer_size(123_456);
+        assert_eq!(channel.send_buffer_size(), 123_456);
+        assert_eq!(channel.config().send_buffer_size(), 123_456);
+    }
+
+    #[test]
     fn overlay_getters_read_timeout_wait_for_ready_and_gzip() {
         use std::time::Duration;
 
@@ -2300,17 +2338,23 @@ mod tests {
         assert!(!channel.compresses_outbound());
         assert_eq!(channel.gzip_level(), 1);
         assert_eq!(channel.stream_buffer_size(), crate::DEFAULT_STREAM_BUFFER);
+        assert_eq!(
+            channel.send_buffer_size(),
+            crate::DEFAULT_MAX_SEND_BUFFER_SIZE
+        );
         let channel = channel
             .timeout(Duration::from_secs(5))
             .wait_for_ready()
             .send_compressed()
             .gzip_compression_level(9)
-            .stream_buffer(32);
+            .stream_buffer(32)
+            .max_send_buffer_size(123_456);
         assert_eq!(channel.rpc_timeout(), Some(Duration::from_secs(5)));
         assert!(channel.waits_for_ready());
         assert!(channel.compresses_outbound());
         assert_eq!(channel.gzip_level(), 9);
         assert_eq!(channel.stream_buffer_size(), 32);
+        assert_eq!(channel.send_buffer_size(), 123_456);
         assert_eq!(channel.rpc_timeout(), channel.config().rpc_timeout());
         assert_eq!(
             channel.waits_for_ready(),
@@ -2324,6 +2368,10 @@ mod tests {
         assert_eq!(
             channel.stream_buffer_size(),
             channel.config().stream_buffer_size()
+        );
+        assert_eq!(
+            channel.send_buffer_size(),
+            channel.config().send_buffer_size()
         );
         assert_eq!(
             super::Channel::connect_lazy("127.0.0.1:9")

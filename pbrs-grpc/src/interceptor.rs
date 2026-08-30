@@ -366,6 +366,8 @@ impl<S: Service> ServiceExt for S {}
 /// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
 /// [`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay.
 /// Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth.
+/// [`crate::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay.
+/// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not this send buffer.
 /// [`crate::Outgoing::connected`] is the live-socket snapshot
 /// ([`crate::Channel::connected`]), taken when this interceptor runs.
 /// Distinct from wait-for-ready: a lazy first RPC sees `false` even when
@@ -425,6 +427,7 @@ impl<S: Service> ServiceExt for S {}
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
 ///         call.gzip_level(),
+///         call.send_buffer_size(),
 ///         call.connected(),
 ///     );
 ///     Ok(())

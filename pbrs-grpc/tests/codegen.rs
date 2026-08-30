@@ -1642,10 +1642,13 @@ fn generated_client_debug_and_into_inner() {
     .expect("lazy")
     .wait_for_ready()
     .stream_buffer(64)
+    .max_send_buffer_size(123_456)
     .message_limits(pbrs_grpc::MessageLimits::unlimited());
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
     assert_eq!(client.channel().config().stream_buffer_size(), 64);
     assert_eq!(client.stream_buffer_size(), 64);
+    assert_eq!(client.channel().config().send_buffer_size(), 123_456);
+    assert_eq!(client.send_buffer_size(), 123_456);
     assert_eq!(client.channel().config().limits().max_decoding(), None);
     assert_eq!(client.config(), client.channel().config());
     assert_eq!(client.rpc_timeout(), Some(Duration::from_secs(5)));
@@ -3955,6 +3958,18 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must name Outgoing::stream_buffer_size"
     );
     assert!(
+        src.contains(
+            "[`::pbrs_grpc::Outgoing::send_buffer_size`] is the outbound HTTP/2 send buffer overlay"
+        ),
+        "generated intercept rustdoc must name Outgoing::send_buffer_size"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`::pbrs_grpc::Outgoing::stream_buffer_size`]: that is queue depth, not this send buffer."
+        ),
+        "generated intercept rustdoc must Distinct send_buffer_size from stream_buffer_size"
+    );
+    assert!(
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),
         "generated server intercept rustdoc must name the server timeout overlay"
     );
@@ -4607,6 +4622,18 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "Configured outbound streaming queue depth. Distinct from [`Self::stream_buffer`], which sets it."
         ),
         "generated stream_buffer_size rustdoc must Distinct the setter"
+    );
+    assert!(
+        src.contains(
+            "Write-time HTTP/2 send buffer threshold for outbound DATA. See [`::pbrs_grpc::Channel::max_send_buffer_size`]. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]. Overlay: does not change how a dead slot is redialed."
+        ),
+        "generated client max_send_buffer_size rustdoc must name the write-time DATA overlay"
+    );
+    assert!(
+        src.contains(
+            "Configured write-time HTTP/2 send buffer. Distinct from [`Self::max_send_buffer_size`], which sets it. Distinct from [`Self::stream_buffer_size`]: that is queue depth, not this send buffer."
+        ),
+        "generated send_buffer_size rustdoc must Distinct the setter and queue depth"
     );
 }
 

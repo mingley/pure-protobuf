@@ -806,6 +806,7 @@ impl<T> Request<T> {
             gzip_level: config.gzip_level(),
             concurrent_rpc_limit: config.concurrent_rpc_limit(),
             stream_buffer_size: config.stream_buffer_size(),
+            send_buffer_size: config.send_buffer_size(),
             metadata: &mut self.metadata,
             timeout: &mut self.timeout,
             wait_for_ready: &mut self.wait_for_ready,
@@ -824,7 +825,7 @@ impl<T> Request<T> {
 /// wait-for-ready, compression, typed extensions — is. So is the channel's
 /// `:authority`, `:scheme`, `user-agent`, message caps, timeout / wait-for-ready
 /// / gzip overlays ([`Self::rpc_timeout`] / [`Self::waits_for_ready`] /
-/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`] / [`Self::concurrent_rpc_limit`] / [`Self::stream_buffer_size`]), and the service/method halves of the path,
+/// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`] / [`Self::concurrent_rpc_limit`] / [`Self::stream_buffer_size`] / [`Self::send_buffer_size`]), and the service/method halves of the path,
 /// which the interceptor cannot otherwise see. Those overlays fill in before
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
 /// [`Self::clear_compress`] opt out of an already-applied default.
@@ -871,6 +872,7 @@ impl<T> Request<T> {
 ///         call.gzip_level(),
 ///         call.concurrent_rpc_limit(),
 ///         call.stream_buffer_size(),
+///         call.send_buffer_size(),
 ///         call.connected(),
 ///     );
 ///     Ok(())
@@ -891,6 +893,7 @@ pub struct Outgoing<'a> {
     gzip_level: u32,
     concurrent_rpc_limit: Option<usize>,
     stream_buffer_size: usize,
+    send_buffer_size: usize,
     metadata: &'a mut Metadata,
     timeout: &'a mut Option<Duration>,
     wait_for_ready: &'a mut Option<bool>,
@@ -1069,6 +1072,19 @@ impl<'a> Outgoing<'a> {
     #[must_use]
     pub fn stream_buffer_size(&self) -> usize {
         self.stream_buffer_size
+    }
+
+    /// Channel [`crate::Channel::max_send_buffer_size`] overlay.
+    ///
+    /// Distinct from [`Self::limits`]: that is uncompressed protobuf bytes, not this HTTP/2 send buffer.
+    /// Distinct from [`Self::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer.
+    /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake flow control.
+    /// An interceptor cannot change this; the kernel applies it when sending DATA.
+    /// Same value as [`crate::Channel::send_buffer_size`]. Default [`crate::DEFAULT_MAX_SEND_BUFFER_SIZE`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn send_buffer_size(&self) -> usize {
+        self.send_buffer_size
     }
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`. Visible on every
@@ -1272,6 +1288,7 @@ impl fmt::Debug for Outgoing<'_> {
             .field("gzip_level", &self.gzip_level)
             .field("concurrent_rpc_limit", &self.concurrent_rpc_limit)
             .field("stream_buffer_size", &self.stream_buffer_size)
+            .field("send_buffer_size", &self.send_buffer_size)
             .field("metadata", &self.metadata)
             .field("timeout", &self.timeout)
             .field("deadline", &self.deadline())
@@ -2974,6 +2991,7 @@ mod tests {
             assert!(call.accepts_compressed());
             assert!(call.concurrent_rpc_limit().is_none());
             assert_eq!(call.stream_buffer_size(), crate::DEFAULT_STREAM_BUFFER);
+            assert_eq!(call.send_buffer_size(), crate::DEFAULT_MAX_SEND_BUFFER_SIZE);
             assert!(!call.connected());
             format!("{call:?}")
         };
@@ -3066,7 +3084,8 @@ mod tests {
             .send_compressed(true)
             .accept_compressed(false)
             .max_concurrent_rpcs(4)
-            .stream_buffer(32);
+            .stream_buffer(32)
+            .max_send_buffer_size(123_456);
         let mut call = req.outgoing(
             "/svc/Method",
             "127.0.0.1:1",
@@ -3080,6 +3099,7 @@ mod tests {
         assert!(!call.accepts_compressed());
         assert_eq!(call.concurrent_rpc_limit(), Some(4));
         assert_eq!(call.stream_buffer_size(), 32);
+        assert_eq!(call.send_buffer_size(), 123_456);
         // Overlays are not copied onto the per-RPC fields until prepare_outbound.
         assert!(call.timeout().is_none());
         assert!(!call.wait_for_ready_is_set());
@@ -3102,6 +3122,7 @@ mod tests {
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("concurrent_rpc_limit: Some(4)"), "{shown}");
         assert!(shown.contains("stream_buffer_size: 32"), "{shown}");
+        assert!(shown.contains("send_buffer_size: 123456"), "{shown}");
     }
 
     #[test]

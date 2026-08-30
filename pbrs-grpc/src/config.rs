@@ -1083,6 +1083,7 @@ impl ChannelConfig {
     /// server advertises a small buffer. A well-behaved server still completes
     /// every call shape, including over TLS, mTLS, Unix, and
     /// [`crate::Channel::from_io`].
+    /// [`crate::Channel::max_send_buffer_size`] sets the write-time DATA threshold on a live clone without building a [`ChannelConfig`].
     #[must_use]
     pub fn max_send_buffer_size(mut self, bytes: usize) -> Self {
         self.max_send_buffer_size = bytes;

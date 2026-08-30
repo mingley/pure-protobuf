@@ -248,6 +248,8 @@
 //! [`Rpc::concurrent_rpc_limit`] is that overlay in a server interceptor.
 //! [`Outgoing::stream_buffer_size`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::limits`].
+//! [`Outgoing::send_buffer_size`] is that overlay in a client interceptor.
+//! Distinct from [`Outgoing::stream_buffer_size`].
 //! [`Response::path`] is kernel-stamped after `Ok` / after receive.
 //! Distinct from [`Request::path`].
 //! Distinct from [`Outgoing::path`].
