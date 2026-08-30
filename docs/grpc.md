@@ -1300,7 +1300,8 @@ original client value, including over TLS, mTLS, Unix, and `from_io`.
 Stacked server interceptors can only tighten that cap, on those transports
 too. The handler Instant is stamped once at dispatch. That original duration is
 `Request::peer_timeout` / `Parts::peer_timeout`. The server overlay is
-`Request::rpc_timeout` / `Parts::rpc_timeout`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
+`Request::rpc_timeout` / `Parts::rpc_timeout` and stays visible after
+`Rpc::set_timeout`, including over TLS, mTLS, Unix, and `from_io`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
 the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
 and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a
