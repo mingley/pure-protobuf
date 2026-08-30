@@ -122,7 +122,8 @@ See `docs/upb.md`. Short list:
   `identity` token). `Server::send_compressed` / `Response::set_compress(false)`
   opt-out apply to every call shape. Client interceptors see the channel overlay
   on `Outgoing::limits` plus a deadline Instant, fill-if-unset
-  wait-for-ready / compress (a client interceptor `set_compress(true)` gzips on
+  wait-for-ready / compress (a client interceptor `set_compress(true)` gzips, and
+  `set_compress(false)` opts out of `send_compressed`, on
   h2c, TLS including mTLS, Unix, and `from_io`), and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
   after `clear_*`.   Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,

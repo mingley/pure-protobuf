@@ -10699,12 +10699,18 @@ async fn a_client_interceptor_can_opt_out_of_channel_send_compressed() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await.send_compressed()).intercept(
-        |call: &mut Outgoing<'_>| {
-            call.set_compress(false);
-            Ok(())
-        },
-    );
+    let client = GreeterClient::new(channel(addr).await.send_compressed())
+        .intercept(interceptor_opt_out_compress);
+    assert_sees_gzip_opt_out(&client).await;
+    task.abort();
+}
+
+fn interceptor_opt_out_compress(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.set_compress(false);
+    Ok(())
+}
+
+async fn assert_sees_gzip_opt_out(client: &GreeterClient) {
     let reply = client
         .say_hello(Request::new(req("ada")))
         .await
@@ -10735,7 +10741,73 @@ async fn a_client_interceptor_can_opt_out_of_channel_send_compressed() {
     let mut inbound = call.await.expect("opt-out bidi").into_inner();
     let reply = inbound.message().await.expect("msg").expect("item");
     assert_eq!(name_of(&reply), "gzip");
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_can_opt_out_of_channel_send_compressed() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await.send_compressed())
+        .intercept(interceptor_opt_out_compress);
+    assert_sees_gzip_opt_out(&client).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_can_opt_out_of_channel_send_compressed() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await.send_compressed())
+        .intercept(interceptor_opt_out_compress);
+    assert_sees_gzip_opt_out(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_can_opt_out_of_channel_send_compressed() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await.send_compressed())
+        .intercept(interceptor_opt_out_compress);
+    assert_sees_gzip_opt_out(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_can_opt_out_of_channel_send_compressed() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesGzip)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .send_compressed(),
+    )
+    .intercept(interceptor_opt_out_compress);
+    assert_sees_gzip_opt_out(&client).await;
+    server.abort();
 }
 
 #[tokio::test]

@@ -1048,7 +1048,7 @@ channel.send_compressed()
 overlay. That overlay fills compress only when the request omitted a choice, so
 `Request::set_compress(false)` opts out of a channel that called
 `send_compressed`. An interceptor can still `Outgoing::set_compress(false)`
-(or `true`). `Outgoing::clear_compress` then
+(or `true`) on h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_compress` then
 `set_compress(compresses_outbound())` reapplies the channel overlay on every
 call shape. Client- and bidi-streaming `StreamSender::send` is stamped
 after overlays and interceptors run, so `Outgoing::set_compress` on that
