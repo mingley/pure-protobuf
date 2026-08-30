@@ -1910,22 +1910,92 @@ impl pbrs_grpc::Greeter for Slow {
     }
 }
 
+/// Four Slow RPCs that have entered the 200 ms hang, one per call shape.
+struct SlowInFlight {
+    unary: Call<Response<HelloReply>>,
+    server: Call<Response<pbrs_grpc::Streaming<HelloReply>>>,
+    client_tx: pbrs_grpc::StreamSender<HelloRequest>,
+    client_call: Call<Response<HelloReply>>,
+    bidi_tx: pbrs_grpc::StreamSender<HelloRequest>,
+    bidi_call: Call<Response<pbrs_grpc::Streaming<HelloReply>>>,
+}
+
+/// First poll starts each RPC. Park until Slow's hang is running on every shape.
+async fn start_slow_in_flight(client: &GreeterClient) -> SlowInFlight {
+    let mut unary = client.say_hello(Request::new(req("ada")));
+    let mut server = client.server_hello(Request::new(req("ada")));
+    let (client_tx, mut client_call) = client.client_hello(Request::new(()));
+    let (bidi_tx, mut bidi_call) = client.stream_hello(Request::new(()));
+    tokio::select! {
+        biased;
+        result = &mut unary => panic!("Slow unary returned before park: {result:?}"),
+        result = &mut server => panic!("Slow server-stream returned before park: {result:?}"),
+        result = &mut client_call => panic!("Slow client-stream returned before park: {result:?}"),
+        result = &mut bidi_call => panic!("Slow bidi returned before park: {result:?}"),
+        () = tokio::time::sleep(Duration::from_millis(30)) => {}
+    }
+    SlowInFlight {
+        unary,
+        server,
+        client_tx,
+        client_call,
+        bidi_tx,
+        bidi_call,
+    }
+}
+
+async fn finish_slow_in_flight(flight: SlowInFlight) {
+    let SlowInFlight {
+        unary,
+        server,
+        client_tx,
+        client_call,
+        bidi_tx,
+        bidi_call,
+    } = flight;
+    let reply = tokio::time::timeout(Duration::from_secs(5), unary)
+        .await
+        .expect("in-flight unary hung")
+        .expect("in-flight unary must complete");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+
+    let mut stream = tokio::time::timeout(Duration::from_secs(5), server)
+        .await
+        .expect("in-flight server-stream hung")
+        .expect("in-flight server-stream must complete")
+        .into_inner();
+    assert!(
+        stream.message().await.expect("end").is_none(),
+        "Slow server-stream is empty after the hang"
+    );
+
+    let reply = tokio::time::timeout(Duration::from_secs(5), client_call)
+        .await
+        .expect("in-flight client-stream hung")
+        .expect("in-flight client-stream must complete");
+    assert_eq!(name_of(reply.get_ref()), "ok");
+    drop(client_tx);
+
+    let mut inbound = tokio::time::timeout(Duration::from_secs(5), bidi_call)
+        .await
+        .expect("in-flight bidi hung")
+        .expect("in-flight bidi must complete")
+        .into_inner();
+    drop(bidi_tx);
+    assert!(
+        inbound.message().await.expect("end").is_none(),
+        "Slow bidi is empty after the hang"
+    );
+}
+
 async fn assert_in_flight_finishes(
     client: GreeterClient,
     shutdown_tx: tokio::sync::oneshot::Sender<()>,
     served: tokio::task::JoinHandle<()>,
 ) {
-    let mut call = client.say_hello(Request::new(req("ada")));
-    // Drive the call far enough that Slow's 200 ms handler is running, then
-    // signal drain. Creating a Call does not start the RPC; first poll does.
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("Slow returned before shutdown: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(30)) => {}
-    }
+    let flight = start_slow_in_flight(&client).await;
     shutdown_tx.send(()).expect("signal");
-    let reply = call.await.expect("in-flight RPC must complete");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    finish_slow_in_flight(flight).await;
     tokio::time::timeout(Duration::from_secs(5), served)
         .await
         .expect("drain must finish")
@@ -12682,17 +12752,7 @@ async fn unix_max_connection_idle_goaway_then_the_channel_redials() {
 }
 
 async fn assert_age_lets_in_flight_finish(client: GreeterClient) {
-    let mut call = client.say_hello(Request::new(req("ada")));
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("Slow returned before age: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(30)) => {}
-    }
-    let reply = tokio::time::timeout(Duration::from_secs(5), call)
-        .await
-        .expect("in-flight RPC hung past grace")
-        .expect("in-flight RPC must complete");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    finish_slow_in_flight(start_slow_in_flight(&client).await).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -12780,17 +12840,7 @@ async fn from_io_max_connection_age_lets_in_flight_rpcs_finish() {
 }
 
 async fn assert_idle_lets_in_flight_finish(client: GreeterClient) {
-    let mut call = client.say_hello(Request::new(req("ada")));
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("Slow returned before idle: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(30)) => {}
-    }
-    let reply = tokio::time::timeout(Duration::from_secs(5), call)
-        .await
-        .expect("in-flight RPC hung past idle")
-        .expect("in-flight RPC must complete");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    finish_slow_in_flight(start_slow_in_flight(&client).await).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -12967,17 +13017,7 @@ async fn assert_client_idle_closes_peers(
 }
 
 async fn assert_client_idle_in_flight(client: GreeterClient) {
-    let mut call = client.say_hello(Request::new(req("ada")));
-    tokio::select! {
-        biased;
-        result = &mut call => panic!("Slow returned before client idle: {result:?}"),
-        () = tokio::time::sleep(Duration::from_millis(30)) => {}
-    }
-    let reply = tokio::time::timeout(Duration::from_secs(5), call)
-        .await
-        .expect("in-flight RPC hung past client idle")
-        .expect("in-flight RPC must complete");
-    assert_eq!(name_of(reply.get_ref()), "ada");
+    finish_slow_in_flight(start_slow_in_flight(&client).await).await;
 }
 
 #[cfg(unix)]

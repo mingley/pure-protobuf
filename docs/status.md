@@ -463,9 +463,12 @@ See `docs/upb.md`. Short list:
   handler returns, on those transports. An expired deadline is never a clean
   end of stream (`DEADLINE_EXCEEDED`, not `Ok(None)`), including over those
   transports. Server `max_connection_age` GOAWAY still lets in-flight Slow
-  unary RPCs finish inside the grace window, including over TLS, mTLS, Unix,
-  and `serve_connection`. Server `max_connection_idle` does not arm while an
-  RPC is in flight on those transports. A `CallHandle` taken before await still cancels that
+  RPCs finish inside the grace window on every Greeter call shape, including
+  over TLS, mTLS, Unix, and `serve_connection`. Server `max_connection_idle`
+  does not arm while Slow is in flight on every Greeter call shape on those
+  transports. Client `ChannelConfig::max_connection_idle` leaves those same
+  in-flight Slow shapes alone. Graceful drain finishes in-flight Slow on
+  every Greeter call shape on those transports. A `CallHandle` taken before await still cancels that
   live stream after headers, still cancels a server-streaming or bidi call
   waiting for headers, and a client-streaming handle still cancels
   after the sender is closed while the unary response is pending (dropping
