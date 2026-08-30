@@ -1422,11 +1422,13 @@ mod tests {
             .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
             .error_info()
             .is_none());
-        assert!(
-            Status::with_details(Code::Internal, "junk", Bytes::from_static(b"not-protobuf"))
-                .error_info()
-                .is_none()
-        );
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .error_info()
+        .is_none());
     }
 
     #[test]
