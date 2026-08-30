@@ -26,6 +26,11 @@
 //! pending-reset cap of 1, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. A well-behaved client never fills that
 //! queue. Distinct from wrapping only a Greeter server.
+//! [`TestServiceServer::max_send_buffer_size`] still serves EmptyCall /
+//! StreamingOutputCall / StreamingInputCall / FullDuplexCall at a 16 KiB send
+//! buffer, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server.
 //! A [`TestServiceClient`] pool larger than
 //! [`TestServiceServer::max_concurrent_connections`] fails the whole dial as
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
