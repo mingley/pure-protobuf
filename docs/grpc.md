@@ -1379,7 +1379,8 @@ for every call shape; nothing is sent. The Call's `Status::rpc` /
 `Err`. A local `Err` before the stream opens
 is that status on every shape, including without details. `Outgoing::set_timeout` is that Call's
 deadline on every call shape, including when a client interceptor stamps it
-over h2c, TLS (including mTLS), Unix, and `from_io`. Outgoing getters (`authority`, `scheme`,
+over h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_timeout`
+opts out of a channel timeout on those transports plus `from_io`. Outgoing getters (`authority`, `scheme`,
 `user_agent`, `limits`, overlays, `service` / `method`, metadata, timeout)
 apply to every call shape. Generated Greeter stamps those Outgoing facts over
 TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape.

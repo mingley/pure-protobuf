@@ -2242,6 +2242,16 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client intercept rustdoc must name set_timeout as the Call deadline"
     );
     assert!(
+        src.contains("`clear_timeout` opts out of the channel timeout on every call shape."),
+        "generated client intercept rustdoc must name clear_timeout opt-out"
+    );
+    assert!(
+        src.contains(
+            "Interceptors run after this fill and can still set or [`::pbrs_grpc::Outgoing::clear_timeout`]."
+        ),
+        "generated timeout rustdoc must name interceptor clear_timeout"
+    );
+    assert!(
         src.contains(
             "`clear_compress` then `set_compress(compresses_outbound())` reapplies channel gzip on every call shape."
         ),

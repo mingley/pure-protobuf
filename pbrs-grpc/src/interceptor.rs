@@ -174,7 +174,8 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Status::with_error_details`] is [`crate::Status::rpc`] /
 /// [`crate::Status::error_details`] on that Call for every call shape.
 /// [`crate::Outgoing::set_timeout`] is that Call's deadline on every call
-/// shape. [`crate::Outgoing::clear_compress`] then
+/// shape. [`crate::Outgoing::clear_timeout`] opts out of the channel timeout
+/// on every call shape. [`crate::Outgoing::clear_compress`] then
 /// [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`]
 /// reapplies channel gzip on every call shape. Outgoing getters apply to
 /// every call shape.
@@ -227,7 +228,8 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// nothing is sent. A local [`crate::Status::with_error_details`] is
     /// [`crate::Status::rpc`] / [`crate::Status::error_details`] on that Call
     /// for every call shape. [`crate::Outgoing::set_timeout`] is that Call's
-    /// deadline on every call shape.
+    /// deadline on every call shape. [`crate::Outgoing::clear_timeout`] opts
+    /// out of the channel timeout on every call shape.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 

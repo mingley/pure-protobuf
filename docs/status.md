@@ -163,7 +163,9 @@ See `docs/upb.md`. Short list:
   into metadata cannot override it. Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape.
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
-  a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`. A
+  a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.
+  `Outgoing::clear_timeout` opts out of a channel timeout on those transports plus
+  `from_io`. A
   wrapping `Service`, generated `FooServer::intercept`, and
   `Router::intercept` reject before the body is read and stack in
   declaration order on every call shape. Interceptor extensions on a

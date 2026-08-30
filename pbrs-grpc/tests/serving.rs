@@ -532,6 +532,25 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "[`crate::Outgoing::clear_timeout`] opts out of the\n    /// channel timeout on every call shape."
+        ),
+        "Channel::intercept must name clear_timeout opt-out"
+    );
+    assert!(
+        src.contains(
+            "Interceptors run after this fill and can still set or\n    /// [`crate::Outgoing::clear_timeout`]."
+        ),
+        "Channel::timeout must name interceptor clear_timeout"
+    );
+    let intercept = include_str!("../src/interceptor.rs");
+    assert!(
+        intercept.contains(
+            "[`crate::Outgoing::clear_timeout`] opts out of the channel timeout\n/// on every call shape."
+        ),
+        "ClientInterceptor rustdoc must name clear_timeout opt-out"
+    );
+    assert!(
+        src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),
         "Channel::stream_buffer must name the streaming shapes it queues"
@@ -2982,14 +3001,82 @@ async fn a_client_interceptor_can_clear_the_channel_timeout() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Slow).serve_listener(listener).await.ok();
     });
-    let client = GreeterClient::new(channel(addr).await)
-        .timeout(Duration::from_millis(40))
-        .intercept(|call: &mut Outgoing<'_>| {
-            call.clear_timeout();
-            Ok(())
-        });
+    let client = clear_timeout_client(channel(addr).await);
     slow_every_shape(&client, None).await;
     task.abort();
+}
+
+fn interceptor_clear_timeout(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.clear_timeout();
+    Ok(())
+}
+
+fn clear_timeout_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(channel)
+        .timeout(Duration::from_millis(40))
+        .intercept(interceptor_clear_timeout)
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_can_clear_the_channel_timeout() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = clear_timeout_client(tls_channel(addr).await);
+    slow_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_can_clear_the_channel_timeout() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = clear_timeout_client(tls_channel_with(addr, client_tls).await);
+    slow_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_can_clear_the_channel_timeout() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow).serve_unix(sock).await.ok();
+    });
+    let client = clear_timeout_client(unix_channel(&path).await);
+    slow_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_can_clear_the_channel_timeout() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = clear_timeout_client(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    slow_every_shape(&client, None).await;
+    server.abort();
 }
 
 #[tokio::test]

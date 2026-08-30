@@ -542,6 +542,10 @@ impl Channel {
 
     /// Default per-RPC deadline when the request omits one. Applies to every
     /// call shape. See [`ChannelConfig::timeout`].
+    ///
+    /// A request that already called [`crate::Request::set_timeout`] is left
+    /// alone. Interceptors run after this fill and can still set or
+    /// [`crate::Outgoing::clear_timeout`].
     #[must_use]
     pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config = self.config.timeout(timeout);
@@ -639,7 +643,8 @@ impl Channel {
     /// is sent. A local [`crate::Status::with_error_details`] is
     /// [`crate::Status::rpc`] / [`crate::Status::error_details`] on that Call
     /// for every call shape. [`crate::Outgoing::set_timeout`] is that Call's deadline on
-    /// every call shape. [`crate::Outgoing::clear_compress`] then
+    /// every call shape. [`crate::Outgoing::clear_timeout`] opts out of the
+    /// channel timeout on every call shape. [`crate::Outgoing::clear_compress`] then
     /// [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`]
     /// reapplies channel gzip on every call shape. Outgoing getters apply to
     /// every call shape.
