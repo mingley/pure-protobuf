@@ -1692,6 +1692,7 @@ pub struct Response<T> {
     path: Option<String>,
     gzip_level: u32,
     compresses_outbound: bool,
+    accepts_gzip: bool,
     extensions: http::Extensions,
 }
 
@@ -1708,6 +1709,7 @@ impl<T> Response<T> {
             path: None,
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             compresses_outbound: false,
+            accepts_gzip: false,
             extensions: http::Extensions::new(),
         }
     }
@@ -1738,6 +1740,7 @@ impl<T> Response<T> {
                 path: self.path,
                 gzip_level: self.gzip_level,
                 compresses_outbound: self.compresses_outbound,
+                accepts_gzip: self.accepts_gzip,
                 extensions: self.extensions,
             },
         )
@@ -1755,6 +1758,7 @@ impl<T> Response<T> {
             path: parts.path,
             gzip_level: parts.gzip_level,
             compresses_outbound: parts.compresses_outbound,
+            accepts_gzip: parts.accepts_gzip,
             extensions: parts.extensions,
         }
     }
@@ -1979,6 +1983,31 @@ impl<T> Response<T> {
         self.compresses_outbound
     }
 
+    pub(crate) fn with_accepts_gzip(mut self, accepts_gzip: bool) -> Self {
+        self.accepts_gzip = accepts_gzip;
+        self
+    }
+
+    /// Peer `grpc-accept-encoding` gzip advertisement, when the kernel is encoding this reply.
+    ///
+    /// Same value as [`crate::Rpc::accepts_gzip`] / [`crate::Request::accepts_gzip`].
+    /// Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding`.
+    /// Distinct from [`crate::Rpc::accepts_gzip`]: that is a server interceptor before the handler.
+    /// Distinct from [`crate::Request::accepts_gzip`]: that is the inbound request.
+    /// Distinct from [`Self::compresses_outbound`]: that is the server encode overlay, not the peer advertisement.
+    /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay.
+    /// `false` on a response you built or a received reply (the advertisement is not on the reply wire).
+    /// An interceptor cannot change this; gzip only goes out when this is true.
+    ///
+    /// ```
+    /// let resp = pbrs_grpc::Response::new(());
+    /// assert!(!resp.accepts_gzip());
+    /// ```
+    #[must_use]
+    pub fn accepts_gzip(&self) -> bool {
+        self.accepts_gzip
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
@@ -1989,6 +2018,7 @@ impl<T> Response<T> {
             path: None,
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             compresses_outbound: false,
+            accepts_gzip: false,
             extensions: http::Extensions::new(),
         }
     }
@@ -2008,6 +2038,7 @@ impl<T> Response<T> {
             path: None,
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             compresses_outbound: false,
+            accepts_gzip: false,
             extensions: http::Extensions::new(),
         }
     }
@@ -2035,6 +2066,7 @@ pub struct ResponseParts {
     path: Option<String>,
     gzip_level: u32,
     compresses_outbound: bool,
+    accepts_gzip: bool,
     extensions: http::Extensions,
 }
 
@@ -2129,6 +2161,12 @@ impl ResponseParts {
         self.compresses_outbound
     }
 
+    /// Peer gzip advertisement. See [`Response::accepts_gzip`].
+    #[must_use]
+    pub fn accepts_gzip(&self) -> bool {
+        self.accepts_gzip
+    }
+
     /// Typed values on this envelope. See [`Response::extensions`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
@@ -2154,6 +2192,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("method", &self.method())
             .field("gzip_level", &self.gzip_level)
             .field("compresses_outbound", &self.compresses_outbound)
+            .field("accepts_gzip", &self.accepts_gzip)
             .field("extensions", &self.extensions.len())
             .finish()
     }
@@ -2565,15 +2604,18 @@ mod tests {
             crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL
         );
         assert!(!mapped.compresses_outbound());
+        assert!(!mapped.accepts_gzip());
         let stamped = mapped
             .with_path(Some("/helloworld.Greeter/SayHello".into()))
             .with_gzip_level(9)
-            .with_compresses_outbound(true);
+            .with_compresses_outbound(true)
+            .with_accepts_gzip(true);
         assert_eq!(stamped.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(stamped.service(), Some("helloworld.Greeter"));
         assert_eq!(stamped.method(), Some("SayHello"));
         assert_eq!(stamped.gzip_level(), 9);
         assert!(stamped.compresses_outbound());
+        assert!(stamped.accepts_gzip());
         let (n, mut parts) = stamped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
@@ -2584,6 +2626,7 @@ mod tests {
         assert_eq!(parts.method(), Some("SayHello"));
         assert_eq!(parts.gzip_level(), 9);
         assert!(parts.compresses_outbound());
+        assert!(parts.accepts_gzip());
         parts.set_compress(false);
         parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
@@ -2600,12 +2643,14 @@ mod tests {
         assert_eq!(rebuilt.method(), Some("SayHello"));
         assert_eq!(rebuilt.gzip_level(), 9);
         assert!(rebuilt.compresses_outbound());
+        assert!(rebuilt.accepts_gzip());
         let shown = format!("{rebuilt:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
         assert!(shown.contains("SayHello"), "{shown}");
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
+        assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));
@@ -2620,6 +2665,7 @@ mod tests {
         assert!(Response::new(0u32).encoding().is_none());
         assert!(Response::new(0u32).extensions().get::<u8>().is_none());
         assert!(!Response::new(0u32).compresses_outbound());
+        assert!(!Response::new(0u32).accepts_gzip());
     }
 
     #[test]

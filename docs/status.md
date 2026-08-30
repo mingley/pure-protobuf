@@ -381,6 +381,7 @@ See `docs/upb.md`. Short list:
   `Response::path` is kernel-stamped after `Ok` (server) and after a successful receive (client). Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it.
   `Response::gzip_level` is that overlay in a response interceptor. Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level` (before the handler). An interceptor cannot change it.
   `Response::compresses_outbound` is that overlay in a response interceptor. Distinct from `compress` (per-RPC). Distinct from `Rpc::compresses_outbound` (before the handler). An interceptor cannot change it.
+  `Response::accepts_gzip` is the peer advertisement in a response interceptor. Distinct from `encoding` (received). Distinct from `Rpc::accepts_gzip` (before the handler). An interceptor cannot change it.
   Inbound gzip is on by default; `Server::accept_compressed(false)` /
   `Channel::accept_compressed(false)` refuse `grpc-encoding: gzip` as
   `UNIMPLEMENTED` and advertise `identity` only (distinct from tonic's

@@ -98,6 +98,8 @@ where
 /// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
 /// [`crate::ResponseParts::compresses_outbound`] is the server encode overlay.
 /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
+/// [`crate::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement.
+/// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -569,6 +571,7 @@ mod tests {
         assert!(resp.metadata().is_empty());
         assert!(resp.path().is_none());
         assert!(!resp.compresses_outbound());
+        assert!(!resp.accepts_gzip());
     }
 
     #[test]
@@ -579,13 +582,15 @@ mod tests {
             assert_eq!(parts.method(), Some("SayHello"));
             assert_eq!(parts.gzip_level(), 9);
             assert!(parts.compresses_outbound());
+            assert!(parts.accepts_gzip());
             Ok(())
         }
         let resp = super::intercept_response(
             crate::Response::new(1u32)
                 .with_path(Some("/helloworld.Greeter/SayHello".into()))
                 .with_gzip_level(9)
-                .with_compresses_outbound(true),
+                .with_compresses_outbound(true)
+                .with_accepts_gzip(true),
             Some(&require_path),
         )
         .expect("path");
@@ -594,12 +599,14 @@ mod tests {
         assert_eq!(resp.method(), Some("SayHello"));
         assert_eq!(resp.gzip_level(), 9);
         assert!(resp.compresses_outbound());
+        assert!(resp.accepts_gzip());
         let shown = format!("{resp:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
         assert!(shown.contains("SayHello"), "{shown}");
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
+        assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(crate::Response::new(0u32).path().is_none());
         assert!(crate::Response::new(0u32).service().is_none());
         assert!(crate::Response::new(0u32).method().is_none());
@@ -608,5 +615,6 @@ mod tests {
             crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL
         );
         assert!(!crate::Response::new(0u32).compresses_outbound());
+        assert!(!crate::Response::new(0u32).accepts_gzip());
     }
 }

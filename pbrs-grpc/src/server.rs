@@ -492,6 +492,7 @@ impl Rpc {
     /// Same value as [`Request::accepts_gzip`] after dispatch. A handler that
     /// calls [`crate::Response::set_compress`] still only gzips when this is
     /// true: the kernel will not compress a peer that did not ask.
+    /// Response interceptors see the same value on [`crate::Response::accepts_gzip`].
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
         crate::wire::accepts_gzip(self.request.headers())
@@ -673,7 +674,8 @@ impl Rpc {
                     response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip),
+                        .with_compresses_outbound(prefer_gzip)
+                        .with_accepts_gzip(peer_accepts_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -731,7 +733,8 @@ impl Rpc {
                     response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip),
+                        .with_compresses_outbound(prefer_gzip)
+                        .with_accepts_gzip(peer_accepts_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -796,7 +799,8 @@ impl Rpc {
                     response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip),
+                        .with_compresses_outbound(prefer_gzip)
+                        .with_accepts_gzip(peer_accepts_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -868,7 +872,8 @@ impl Rpc {
                     response
                         .with_path(path)
                         .with_gzip_level(gzip_level)
-                        .with_compresses_outbound(prefer_gzip),
+                        .with_compresses_outbound(prefer_gzip)
+                        .with_accepts_gzip(peer_accepts_gzip),
                     hook.as_deref(),
                 )
             }) {
@@ -1836,6 +1841,8 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
     /// [`crate::ResponseParts::compresses_outbound`] is the server encode overlay.
     /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
+    /// [`crate::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement.
+    /// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2615,6 +2622,8 @@ impl Router {
     /// Distinct from [`crate::ResponseParts::compress`]: that is on or off.
     /// [`crate::ResponseParts::compresses_outbound`] is the server encode overlay.
     /// Distinct from [`crate::ResponseParts::compress`]: that is the per-RPC Compressed-Flag.
+    /// [`crate::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement.
+    /// Distinct from [`crate::ResponseParts::encoding`]: that is received `grpc-encoding`.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {

@@ -858,6 +858,8 @@ impl Channel {
     /// [`crate::Response::gzip_level`] on a received reply is not the peer's deflate effort.
     /// Distinct from [`crate::Response::encoding`]: that is the received `grpc-encoding` token.
     /// [`crate::Response::compresses_outbound`] on a received reply is `false` (the overlay is not on the wire).
+    /// [`crate::Response::accepts_gzip`] on a received reply is `false` (the advertisement is not on the reply wire).
+    /// Distinct from [`crate::Response::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding`.
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
         let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();

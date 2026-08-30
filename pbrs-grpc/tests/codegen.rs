@@ -4227,6 +4227,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client on_response rustdoc must name received compresses_outbound is false"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::accepts_gzip`] is the peer `grpc-accept-encoding` advertisement. Distinct from [`::pbrs_grpc::ResponseParts::encoding`]."),
+        "generated on_response rustdoc must name accepts_gzip advertisement"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::accepts_gzip`] on a received reply is `false` (the advertisement is not on the reply wire)."),
+        "generated client on_response rustdoc must name received accepts_gzip is false"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

@@ -205,6 +205,8 @@ Distinct from `Request::path` (inbound). Distinct from `Outgoing::path`
 Distinct from `compress` (on or off). Distinct from `Rpc::gzip_level`
 (before the handler). Closures see `ResponseParts::compresses_outbound` (server encode overlay).
 Distinct from `compress` (per-RPC). Distinct from `Rpc::compresses_outbound`
+(before the handler). Closures see `ResponseParts::accepts_gzip` (peer `grpc-accept-encoding`).
+Distinct from `encoding` (received). Distinct from `Rpc::accepts_gzip`
 (before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
