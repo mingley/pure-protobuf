@@ -21,7 +21,9 @@
 //! (`StreamSender::fail`), not a quiet OK end. An interceptor `Err` may carry
 //! [`crate::Status::with_error_details`]; those trailers reach the client.
 //! A handler `Err` may carry the same packed status; those trailers reach
-//! the client. Unix (`serve_unix` / `connect_unix`), TLS (`serve_tls` /
+//! the client. [`crate::StreamSender::fail`] after a streamed DATA frame on
+//! `ServerReflectionInfo` ships those trailers the same way. Unix (`serve_unix` /
+//! `connect_unix`), TLS (`serve_tls` /
 //! `connect_tls`),
 //! and [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
 //! the bidi method. [`ServerReflectionServer::send_compressed`] gzips that

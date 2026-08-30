@@ -209,8 +209,9 @@ See `docs/upb.md`. Short list:
   server response stream, including after a streamed DATA frame on
   server-streaming and bidi over h2c, TLS (including mTLS), Unix, and
   `from_io` (unary and client-streaming have no response DATA then trailers),
-  including official TestService StreamingOutputCall / FullDuplexCall and
-  generated Store Watch / Sync.
+  including official TestService StreamingOutputCall / FullDuplexCall,
+  generated Store Watch / Sync, Health Watch (Check is unary), and
+  reflection `ServerReflectionInfo`.
   On a client request sender it resets CANCEL
   (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
   `Call` that has not yet seen headers, resolves with that status, not

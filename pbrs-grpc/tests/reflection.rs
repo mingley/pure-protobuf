@@ -17,8 +17,8 @@ mod common;
 use common::{Echo, ServerGuard};
 use pbrs_grpc::hello::{GreeterServer, FILE_DESCRIPTOR_SET};
 use pbrs_grpc::reflection::{
-    service, ExtensionRequest, ServerReflection, ServerReflectionClient, ServerReflectionRequest,
-    ServerReflectionResponse, ServerReflectionServer,
+    service, ExtensionRequest, ListServiceResponse, ServerReflection, ServerReflectionClient,
+    ServerReflectionRequest, ServerReflectionResponse, ServerReflectionServer, ServiceResponse,
 };
 use pbrs_grpc::{
     Channel, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response, Router,
@@ -340,6 +340,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name wait-for-ready opt-out and deadline"
     );
+    assert!(
+        src.contains(
+            "[`crate::StreamSender::fail`] after a streamed DATA frame on\n//! `ServerReflectionInfo` ships those trailers the same way."
+        ),
+        "reflection crate rustdoc must name typed Status after streamed DATA"
+    );
 }
 
 #[tokio::test]
@@ -592,6 +598,100 @@ impl ServerReflection for FailReflection {
     ) -> Result<Response<pbrs_grpc::Streaming<ServerReflectionResponse>>, Status> {
         Err(interceptor_blocked())
     }
+}
+
+fn typed_after_headers_status() -> Status {
+    let mut info = pbrs_grpc::pb::ErrorInfo::new();
+    info.set_reason("API_DISABLED");
+    info.set_domain("example.com");
+    let mut status = Status::with_error_details(
+        Code::FailedPrecondition,
+        "api disabled",
+        [pbrs_grpc::pb::Any::pack(&info).expect("pack")],
+    )
+    .expect("encode");
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
+fn assert_typed_after_headers(err: &Status) {
+    assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
+    assert_eq!(err.message(), "api disabled");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "API_DISABLED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+    assert_eq!(err.metadata().get("x-retry-after"), Some("30"));
+    assert!(err.metadata().get_bin("grpc-status-details-bin").is_none());
+}
+
+fn fail_reflection_after_one() -> pbrs_grpc::Streaming<ServerReflectionResponse> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut list = ListServiceResponse::new();
+        let mut svc = ServiceResponse::new();
+        svc.set_name("ada");
+        list.service_mut().push(svc);
+        let mut resp = ServerReflectionResponse::new();
+        resp.set_list_services_response(list);
+        tx.send(resp).await.ok();
+        tx.fail(typed_after_headers_status()).await;
+    }));
+    stream
+}
+
+/// One bidi method: send a list_services-shaped reply, then trailers.
+struct TypedAfterHeadersReflection;
+
+impl ServerReflection for TypedAfterHeadersReflection {
+    async fn server_reflection_info(
+        &self,
+        _: Request<pbrs_grpc::Streaming<ServerReflectionRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<ServerReflectionResponse>>, Status> {
+        Ok(Response::new(fail_reflection_after_one()))
+    }
+}
+
+async fn assert_reflection_typed_status_after_streamed_message(client: &ServerReflectionClient) {
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert!(
+        first.has_list_services_response(),
+        "expected list, got error {:?}",
+        first.error_response().error_message()
+    );
+    assert_eq!(service_names(&first), vec!["ada".to_owned()]);
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert!(
+        first.has_list_services_response(),
+        "expected list, got error {:?}",
+        first.error_response().error_message()
+    );
+    assert_eq!(service_names(&first), vec!["ada".to_owned()]);
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
 }
 
 async fn assert_reflection_blocked(client: &ServerReflectionClient) {
@@ -2852,4 +2952,90 @@ async fn reflection_from_io_handlers_return_typed_status() {
         .await
         .expect("from_io");
     assert_reflection_blocked(&client).await;
+}
+
+#[tokio::test]
+async fn reflection_typed_google_rpc_status_after_a_streamed_message() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(TypedAfterHeadersReflection)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_typed_status_after_streamed_message(&client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_tls_typed_google_rpc_status_after_a_streamed_message() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::new(identity).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(TypedAfterHeadersReflection)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_typed_status_after_streamed_message(&tls_client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_mtls_typed_google_rpc_status_after_a_streamed_message() {
+    let identity = Identity::from_pem(SERVER_CERT, SERVER_KEY).expect("identity");
+    let tls = ServerTls::mtls(identity, CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(TypedAfterHeadersReflection)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reflection_typed_status_after_streamed_message(&tls_client_with(addr, client_tls).await)
+        .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_typed_google_rpc_status_after_a_streamed_message() {
+    let path = unix_sock("typed-after-headers");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(TypedAfterHeadersReflection)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_typed_status_after_streamed_message(&unix_client(&path).await).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn reflection_from_io_typed_google_rpc_status_after_a_streamed_message() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(TypedAfterHeadersReflection)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_reflection_typed_status_after_streamed_message(&client).await;
 }

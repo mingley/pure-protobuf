@@ -4,7 +4,10 @@
 //! request over the decoding cap is `RESOURCE_EXHAUSTED` on both. An interceptor
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
 //! the client on both methods. A handler `Err` may carry the same packed
-//! status; those trailers reach the client on both methods. Unix (`serve_unix` /
+//! status; those trailers reach the client on both methods. Watch
+//! [`crate::StreamSender::fail`] after a streamed DATA frame ships those
+//! trailers the same way (Check is unary: no response DATA then trailers).
+//! Unix (`serve_unix` /
 //! `connect_unix`), TLS (`serve_tls` / `connect_tls`), and
 //! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
 //! both methods. [`HealthServer::send_compressed`] gzips Check and Watch when

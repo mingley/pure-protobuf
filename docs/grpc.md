@@ -887,7 +887,9 @@ TLS, mTLS, Unix, and `from_io`. An interceptor `Err(Status::with_error_details(.
 unpacks as `Status::rpc` / `Status::error_details` on both methods, including
 over TLS, mTLS, Unix, and `from_io`. A handler `Err(Status::with_error_details(...))`
 unpacks the same way on both methods, including over TLS, mTLS, Unix, and
-`from_io`.
+`from_io`. Watch `StreamSender::fail` after a streamed DATA frame unpacks the
+same way (Check is unary: no response DATA then trailers), including over TLS,
+mTLS, Unix, and `from_io`.
 
 ## Reflection
 
@@ -922,6 +924,8 @@ interceptor `Err(Status::with_error_details(...))` unpacks as `Status::rpc` /
 `Status::error_details` on that bidi method, including over TLS, mTLS, Unix, and
 `from_io`. A handler `Err(Status::with_error_details(...))` unpacks the same
 way on that method, including over TLS, mTLS, Unix, and `from_io`.
+`StreamSender::fail` after a streamed DATA frame on `ServerReflectionInfo`
+unpacks the same way, including over TLS, mTLS, Unix, and `from_io`.
 
 ## Graceful shutdown
 
