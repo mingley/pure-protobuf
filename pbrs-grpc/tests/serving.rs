@@ -4023,39 +4023,120 @@ async fn a_from_io_client_interceptor_sees_message_limits() {
     server.abort();
 }
 
+#[derive(Clone, Copy)]
+struct Trace(&'static str);
+
+fn interceptor_insert_trace(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.extensions_mut().insert(Trace("abc"));
+    Ok(())
+}
+
+fn interceptor_stamp_trace(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let Some(trace) = call.extensions().get::<Trace>().copied() else {
+        return Err(Status::internal("first interceptor did not run"));
+    };
+    call.metadata_mut().insert("x-trace", trace.0)?;
+    Ok(())
+}
+
+fn require_trace(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-trace") != Some("abc") {
+        return Err(Status::invalid_argument("missing trace"));
+    }
+    Ok(())
+}
+
+fn stacked_trace_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(channel)
+        .intercept(interceptor_insert_trace)
+        .intercept(interceptor_stamp_trace)
+}
+
 #[tokio::test]
 async fn client_interceptors_stack_and_share_extensions() {
-    #[derive(Clone, Copy)]
-    struct Trace(&'static str);
-
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                if rpc.metadata().get("x-trace") != Some("abc") {
-                    return Err(Status::invalid_argument("missing trace"));
-                }
-                Ok(())
-            })
+            .intercept(require_trace)
             .serve_listener(listener)
             .await
             .ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await)
-        .intercept(|call: &mut Outgoing<'_>| {
-            call.extensions_mut().insert(Trace("abc"));
-            Ok(())
-        })
-        .intercept(|call: &mut Outgoing<'_>| {
-            let Some(trace) = call.extensions().get::<Trace>().copied() else {
-                return Err(Status::internal("first interceptor did not run"));
-            };
-            call.metadata_mut().insert("x-trace", trace.0)?;
-            Ok(())
-        });
-    echo_every_shape(&client, None).await;
+    echo_every_shape(&stacked_trace_client(channel(addr).await), None).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_trace)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_every_shape(&stacked_trace_client(tls_channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_trace)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_every_shape(
+        &stacked_trace_client(tls_channel_with(addr, client_tls).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_client_interceptors_stack_and_share_extensions() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_trace)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_every_shape(&stacked_trace_client(unix_channel(&path).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_interceptors_stack_and_share_extensions() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_trace)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_every_shape(
+        &stacked_trace_client(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

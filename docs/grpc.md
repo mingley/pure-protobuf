@@ -1395,7 +1395,8 @@ apply to every call shape. Generated Greeter stamps those Outgoing facts over
 TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
-interceptor on h2c, TLS (including mTLS), Unix, and `from_io`. A
+interceptor on h2c, TLS (including mTLS), Unix, and `from_io`. Stacked
+interceptors share that map on those transports too. A
 `Channel::user_agent` prefix is `Outgoing::user_agent` on those transports
 too, and `Outgoing::limits` is the channel `MessageLimits` overlay. Calling `intercept` twice stacks — the first interceptor runs
 first and can insert extensions for the next — the same contract as
