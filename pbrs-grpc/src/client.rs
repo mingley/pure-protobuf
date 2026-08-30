@@ -875,6 +875,26 @@ impl Channel {
     /// every call shape. [`crate::Request::set_user_agent`] is the same prefix
     /// at the call site; an interceptor [`crate::Outgoing::set_user_agent`]
     /// that runs after wins.
+    ///
+    /// ```
+    /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
+    /// channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {
+    ///     let _ = (
+    ///         call.rpc_timeout(),
+    ///         call.waits_for_ready(),
+    ///         call.compresses_outbound(),
+    ///         call.accepts_compressed(),
+    ///         call.gzip_level(),
+    ///         call.concurrent_rpc_limit(),
+    ///         call.stream_buffer_size(),
+    ///         call.send_buffer_size(),
+    ///         call.limits(),
+    ///         call.connected(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn intercept(self, interceptor: impl ClientInterceptor) -> Self {
         let mut hooks: Vec<ClientHook> = self.interceptors.iter().cloned().collect();

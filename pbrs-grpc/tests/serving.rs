@@ -2061,6 +2061,26 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must Distinct connected from wait-for-ready"
     );
     assert!(
+        src.contains("channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {"),
+        "Channel::intercept rustdoc example must attach a closure"
+    );
+    assert!(
+        src.contains("///         call.rpc_timeout(),"),
+        "Channel::intercept rustdoc example must read rpc_timeout"
+    );
+    assert!(
+        src.contains("///         call.send_buffer_size(),"),
+        "Channel::intercept rustdoc example must read send_buffer_size"
+    );
+    assert!(
+        src.contains("///         call.limits(),"),
+        "Channel::intercept rustdoc example must read limits"
+    );
+    assert!(
+        src.contains("///         call.connected(),"),
+        "Channel::intercept rustdoc example must read connected"
+    );
+    assert!(
         src.contains(
             "Applies to every call shape, including over TLS, mTLS,\n    /// Unix, and [`Self::from_io`]."
         ),
