@@ -28,6 +28,7 @@ numbers, see [benchmarks](benchmarks.md).
 - [Interceptors and middleware](#interceptors-and-middleware)
 - [Testing](#testing)
 - [Writing a service without codegen](#writing-a-service-without-codegen)
+- [One-shape proofs](#one-shape-proofs)
 - [What is not here](#what-is-not-here)
 
 ## Quickstart
@@ -1771,6 +1772,26 @@ on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
 those transports too. A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
 client-streaming have no response DATA then trailers).
+
+## One-shape proofs
+
+Some integration fixtures drive one method on purpose. Kernel rustdoc that
+says "Applies to every call shape" is about dispatch and transport, not
+about those fixtures. Slow in-flight grace is every Greeter method; the
+rows below are not.
+
+| Fixture | What it covers |
+|---|---|
+| `WaitAfterFirst` | Server-streaming hang after the first response DATA. |
+| `BidiWaitAfterFirst` | Bidi hang after the first response DATA. |
+| `ClientStreamWaitAfterClose` | Client-streaming hang after half-close. |
+| `DelayedStream` / `SpawnStream` | Server-streaming producer timing. |
+| `FailAfterOne` | Trailers after a streamed DATA frame. |
+| typed-after-DATA | Server-streaming and bidi only. Unary and client-streaming have no response DATA then trailers. |
+| `EchoGreeter` | Unary `SayHello` only; the other Greeter methods stay `UNIMPLEMENTED`. |
+| unix leftover / steal | Accept-loop inode, not an RPC shape. |
+| Health | Check, List, and Watch. There is no fourth health RPC. |
+| reflection | One bidi method (`ServerReflectionInfo`). |
 
 ## What is not here
 

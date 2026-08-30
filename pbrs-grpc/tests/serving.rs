@@ -1250,6 +1250,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Health List as a snapshot of known names"
     );
     assert!(
+        guide.contains("Slow in-flight grace is every Greeter method; the"),
+        "guide must Distinct Slow every-shape in-flight from one-shape fixtures"
+    );
+    assert!(
+        guide.contains("Server-streaming hang after the first response DATA."),
+        "guide must inventory WaitAfterFirst as a one-shape proof"
+    );
+    assert!(
+        guide.contains("typed-after-DATA | Server-streaming and bidi only."),
+        "guide must inventory typed-after-DATA as server-stream and bidi"
+    );
+    assert!(
         guide.contains(
             "rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`"
         ),
