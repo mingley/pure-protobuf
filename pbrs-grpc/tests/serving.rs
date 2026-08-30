@@ -24410,3 +24410,130 @@ async fn from_io_extra_rpcs_wait_when_the_stream_cap_is_hit() {
     .await;
     server.abort();
 }
+
+fn stream_cap_config() -> GreeterServer<Slow> {
+    GreeterServer::new(Slow).config(ServerConfig::new().max_concurrent_streams(1))
+}
+
+fn stream_cap_router() -> Router {
+    Router::new()
+        .max_concurrent_streams(1)
+        .add_service(GreeterServer::new(Slow))
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn extra_rpcs_wait_when_the_stream_cap_config_and_router_are_hit() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_config().serve_listener(listener).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_router().serve_listener(listener).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_extra_rpcs_wait_when_the_stream_cap_config_and_router_are_hit() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_config()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_stream_cap(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_stream_cap(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_extra_rpcs_wait_when_the_stream_cap_config_and_router_are_hit() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_config()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_stream_cap(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        stream_cap_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_stream_cap(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_extra_rpcs_wait_when_the_stream_cap_config_and_router_are_hit() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        stream_cap_config().serve_unix(sock).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        stream_cap_router().serve_unix(sock).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_extra_rpcs_wait_when_the_stream_cap_config_and_router_are_hit() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        stream_cap_config().serve_connection(server_io).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io config"),
+    ))
+    .await;
+    server.abort();
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        stream_cap_router().serve_connection(server_io).await.ok();
+    });
+    assert_stream_cap(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io router"),
+    ))
+    .await;
+    server.abort();
+}

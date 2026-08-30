@@ -4992,3 +4992,168 @@ async fn generated_from_io_header_list_cap_refuses_oversize_metadata() {
     server1.abort();
     server2.abort();
 }
+
+struct SlowStore;
+
+impl SlowStore {
+    async fn hang(&self) {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+}
+
+impl Store for SlowStore {
+    async fn get(&self, request: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
+        self.hang().await;
+        let key = request
+            .get_ref()
+            .key()
+            .to_str()
+            .unwrap_or_default()
+            .to_owned();
+        let mut resp = GetResponse::new();
+        resp.set_found(true);
+        resp.set_entry(entry(&key, b"value"));
+        Ok(Response::new(resp))
+    }
+
+    async fn put_all(&self, _: Request<Streaming<Entry>>) -> Result<Response<PutSummary>, Status> {
+        self.hang().await;
+        Ok(Response::new(PutSummary::new()))
+    }
+
+    async fn watch(&self, _: Request<WatchRequest>) -> Result<Response<Streaming<Event>>, Status> {
+        self.hang().await;
+        Ok(Response::new(Streaming::empty()))
+    }
+
+    async fn sync(
+        &self,
+        _: Request<Streaming<Entry>>,
+    ) -> Result<Response<Streaming<Event>>, Status> {
+        self.hang().await;
+        Ok(Response::new(Streaming::empty()))
+    }
+}
+
+fn store_stream_cap() -> StoreServer<SlowStore> {
+    StoreServer::new(SlowStore).max_concurrent_streams(1)
+}
+
+fn get_req(key: &str) -> Request<GetRequest> {
+    let mut get = GetRequest::new();
+    get.set_key(key);
+    Request::new(get)
+}
+
+fn store_both_ok(
+    a: Result<impl std::fmt::Debug, Status>,
+    b: Result<impl std::fmt::Debug, Status>,
+    what: &str,
+) {
+    assert!(
+        a.is_ok() && b.is_ok(),
+        "{what}: both RPCs must complete under the stream cap, got {a:?} {b:?}"
+    );
+}
+
+async fn assert_store_stream_cap(client: &StoreClient) {
+    let started = Instant::now();
+    let (a, b) = tokio::join!(client.get(get_req("a")), client.get(get_req("b")));
+    store_both_ok(a, b, "unary");
+    assert!(
+        started.elapsed() >= Duration::from_millis(300),
+        "stream cap must serialize Slow Store unary handlers, got {:?}",
+        started.elapsed()
+    );
+
+    let started = Instant::now();
+    let (c, d) = tokio::join!(client.watch(Request::new(WatchRequest::new())), async {
+        let (tx, call) = client.sync(Request::new(()));
+        drop(tx);
+        call.await
+    });
+    store_both_ok(c, d, "server-stream/bidi");
+    assert!(
+        started.elapsed() >= Duration::from_millis(300),
+        "stream cap must serialize Slow Store streaming handlers, got {:?}",
+        started.elapsed()
+    );
+
+    let started = Instant::now();
+    let (e, f) = tokio::join!(
+        async {
+            let (tx, call) = client.put_all(Request::new(()));
+            drop(tx);
+            call.await
+        },
+        client.get(get_req("g")),
+    );
+    store_both_ok(e, f, "client-stream");
+    assert!(
+        started.elapsed() >= Duration::from_millis(300),
+        "stream cap must serialize Slow Store client-stream handlers, got {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let (addr, listener) = bind_store().await;
+    let server = tokio::spawn(async move {
+        store_stream_cap().serve_listener(listener).await.ok();
+    });
+    assert_store_stream_cap(&client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_tls_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind_store().await;
+    let server = tokio::spawn(async move {
+        store_stream_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_stream_cap(&tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_mtls_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind_store().await;
+    let server = tokio::spawn(async move {
+        store_stream_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_stream_cap(&tls_client_with(addr, client_tls).await).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_unix_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let path = unix_sock("stream-cap");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        store_stream_cap().serve_unix(sock).await.ok();
+    });
+    assert_store_stream_cap(&unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn generated_from_io_extra_rpcs_wait_when_the_stream_cap_is_hit() {
+    let (c, s) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        store_stream_cap().serve_connection(s).await.ok();
+    });
+    assert_store_stream_cap(&StoreClient::from_io(c, "localhost").await.expect("from_io")).await;
+    server.abort();
+}
