@@ -2534,6 +2534,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "/ [`crate::Request::rpc_timeout`].\n    /// Distinct from [`Self::timeout`], which sets it."
+        ),
+        "ServerConfig::rpc_timeout must Distinct the setter"
+    );
+    assert!(
+        src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
         "ServerConfig::keep_alive_interval must name Unix and mTLS"

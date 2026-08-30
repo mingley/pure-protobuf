@@ -656,6 +656,7 @@ impl ServerConfig {
     /// Applies to every call shape.
     /// Interceptors and handlers read this overlay on [`crate::Rpc::rpc_timeout`]
     /// / [`crate::Request::rpc_timeout`].
+    /// Distinct from [`Self::timeout`], which sets it.
     #[must_use]
     pub fn rpc_timeout(self) -> Option<Duration> {
         self.timeout
