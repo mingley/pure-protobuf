@@ -1560,6 +1560,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         crate_src.contains("[`Status::error_info`]"),
         "crate map must name Status::error_info"
     );
+    assert!(
+        crate_src.contains("[`Status::bad_request`]"),
+        "crate map must name Status::bad_request"
+    );
+    assert!(
+        crate_src.contains("[`pb::BadRequest::with_field`]"),
+        "crate map must name BadRequest::with_field"
+    );
     let status_src = include_str!("../src/status.rs");
     assert!(
         status_src.contains("A peer can send a protobuf whose code or message disagrees"),
@@ -1593,6 +1601,27 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         status_src.contains("Distinct from [`Self::retry_delay`]: that is a wait hint."),
         "Status::error_info must Distinct retry_delay wait hint"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.BadRequest`, if this status carries one."),
+        "Status::bad_request must name packed BadRequest"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::error_info`]: that is reason and domain, not"),
+        "Status::bad_request must Distinct error_info reason and domain"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::invalid_argument`], which is"),
+        "Status::bad_request must Distinct ASCII invalid_argument"
+    );
+    let pb_src = include_str!("../src/pb.rs");
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::bad_request`]"),
+        "BadRequest::with_field must name Status::bad_request unpack"
+    );
+    assert!(
+        pb_src.contains("Distinct from [`crate::Status::invalid_argument`], which"),
+        "BadRequest::with_field must Distinct ASCII invalid_argument"
     );
     assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
@@ -1799,6 +1828,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from `status.error_details()`."),
         "guide must Distinct error_info from the ErrorDetails bag"
+    );
+    assert!(
+        guide.contains("`status.bad_request()` for field violations"),
+        "guide must name Status::bad_request as field violations"
+    );
+    assert!(
+        guide.contains("`BadRequest::with_field` builds that payload"),
+        "guide must name BadRequest::with_field as the builder"
+    );
+    assert!(
+        guide.contains("Distinct from `status.error_info()`."),
+        "guide must Distinct bad_request from error_info"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),

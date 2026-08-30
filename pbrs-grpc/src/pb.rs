@@ -176,6 +176,54 @@ impl RetryInfo {
     }
 }
 
+impl FieldViolation {
+    /// A violation of `field` with `description`.
+    ///
+    /// Packed as part of [`BadRequest::with_field`]. Distinct from
+    /// [`crate::Status::error_info`]: that is reason and domain, not a field
+    /// path.
+    #[must_use]
+    pub fn with_field(field: impl Into<String>, description: impl Into<String>) -> Self {
+        let mut violation = Self::new();
+        violation.set_field(field.into());
+        violation.set_description(description.into());
+        violation
+    }
+}
+
+impl BadRequest {
+    /// `BadRequest` with one [`FieldViolation`].
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::bad_request`]. Distinct from
+    /// [`crate::Status::error_info`]: that is reason and domain, not field
+    /// violations. Distinct from [`crate::Status::invalid_argument`], which
+    /// is the ASCII code with no packed fields.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{BadRequest, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     bad_request: Some(BadRequest::with_field("name", "required")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
+    /// let bad = status.bad_request().expect("BadRequest");
+    /// assert_eq!(
+    ///     bad.field_violations().get(0).expect("field").field().to_str().unwrap_or(""),
+    ///     "name"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_field(field: impl Into<String>, description: impl Into<String>) -> Self {
+        let mut bad = Self::new();
+        bad.set_field_violations([FieldViolation::with_field(field, description)]);
+        bad
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -344,8 +392,8 @@ fn fill_standard(out: &mut ErrorDetails, any: &Any) -> Result<bool, crate::Statu
 mod tests {
     use super::{
         bad_request, help, precondition_failure, quota_failure, Any, BadRequest, Duration,
-        ErrorDetails, ErrorInfo, Help, PreconditionFailure, QuotaFailure, RetryInfo, Status,
-        TYPE_URL_PREFIX,
+        ErrorDetails, ErrorInfo, FieldViolation, Help, PreconditionFailure, QuotaFailure,
+        RetryInfo, Status, TYPE_URL_PREFIX,
     };
     use crate::Code;
 
@@ -557,5 +605,23 @@ mod tests {
         delay.set_seconds(-1);
         let err = delay.try_to_std().expect_err("negative");
         assert_eq!(err.code(), Code::InvalidArgument);
+    }
+
+    #[test]
+    fn bad_request_with_field_round_trips() {
+        let violation = FieldViolation::with_field("name", "required");
+        assert_eq!(violation.field().to_str().unwrap_or(""), "name");
+        assert_eq!(violation.description().to_str().unwrap_or(""), "required");
+        let bad = BadRequest::with_field("email", "invalid");
+        let details = ErrorDetails {
+            bad_request: Some(bad),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::InvalidArgument, "bad", &details)
+            .expect("encode");
+        let got = status.bad_request().expect("BadRequest");
+        let field = got.field_violations().get(0).expect("field");
+        assert_eq!(field.field().to_str().unwrap_or(""), "email");
+        assert_eq!(field.description().to_str().unwrap_or(""), "invalid");
     }
 }

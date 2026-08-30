@@ -254,7 +254,8 @@ and HTTP/2 connection death attach the original error as
 `BadRequest`, `RequestInfo`, `ResourceInfo`, `Help`, `LocalizedMessage`) as
 `google.rpc.Status`. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
-(a wait hint). `set_code` / `set_message` rewrite a packed protobuf
+(a wait hint). `Status::bad_request` is packed field violations. Distinct from
+`error_info`. `BadRequest::with_field` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
 whose code or message still matches. `set_rpc` / `set_error_details`
 replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing

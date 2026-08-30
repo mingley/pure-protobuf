@@ -657,6 +657,40 @@ impl Status {
         self.error_details().ok()?.error_info
     }
 
+    /// Packed `google.rpc.BadRequest`, if this status carries one.
+    ///
+    /// Distinct from [`Self::error_info`]: that is reason and domain, not
+    /// field violations. Distinct from [`Self::invalid_argument`], which is
+    /// the ASCII code with no packed fields. Corrupt bytes are `None`.
+    /// Build the payload with [`crate::pb::BadRequest::with_field`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{BadRequest, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     bad_request: Some(BadRequest::with_field("name", "required")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
+    /// let bad = status.bad_request().expect("BadRequest");
+    /// assert_eq!(
+    ///     bad.field_violations()
+    ///         .get(0)
+    ///         .expect("field")
+    ///         .field()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "name"
+    /// );
+    /// assert!(Status::invalid_argument("name").bad_request().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn bad_request(&self) -> Option<crate::pb::BadRequest> {
+        self.error_details().ok()?.bad_request
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -1428,6 +1462,49 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .error_info()
+        .is_none());
+    }
+
+    #[test]
+    fn bad_request_reads_packed_field_violations() {
+        let details = crate::pb::ErrorDetails {
+            bad_request: Some(crate::pb::BadRequest::with_field("name", "required")),
+            error_info: {
+                let mut info = crate::pb::ErrorInfo::new();
+                info.set_reason("API_DISABLED");
+                Some(info)
+            },
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status =
+            Status::from_error_details(Code::InvalidArgument, "bad", &details).expect("encode");
+        let bad = status.bad_request().expect("BadRequest");
+        let field = bad.field_violations().get(0).expect("field");
+        assert_eq!(field.field().to_str().unwrap_or(""), "name");
+        assert_eq!(field.description().to_str().unwrap_or(""), "required");
+        assert!(status.error_info().is_some());
+
+        let info_only = crate::pb::ErrorDetails {
+            error_info: status.error_info(),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let info_status =
+            Status::from_error_details(Code::FailedPrecondition, "disabled", &info_only)
+                .expect("encode");
+        assert!(info_status.bad_request().is_none());
+        assert!(info_status.error_info().is_some());
+
+        assert!(Status::invalid_argument("name").bad_request().is_none());
+        assert!(Status::invalid_argument("name")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .bad_request()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .bad_request()
         .is_none());
     }
 

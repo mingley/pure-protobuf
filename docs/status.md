@@ -486,7 +486,9 @@ See `docs/upb.md`. Short list:
   `google.rpc.Status` from `with_error_details` is `Status::rpc` /
   `Status::error_details` on every call shape. `Status::error_info` is the
   packed `ErrorInfo` without unpacking the bag. Distinct from `error_details`.
-  Distinct from `retry_delay` (a wait hint). A
+  Distinct from `retry_delay` (a wait hint). `Status::bad_request` is packed
+  field violations. Distinct from `error_info`. `BadRequest::with_field` builds
+  that payload. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and
