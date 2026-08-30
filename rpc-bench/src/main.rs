@@ -641,11 +641,16 @@ async fn upload_kernel(addr: SocketAddr) -> u64 {
     for round in 0..STREAM_ROUNDS {
         let t = Instant::now();
         let (tx, call) = client.streaming_input_call(KReq::new(()));
-        for _ in 0..STREAM_MSGS {
-            tx.send(req.clone()).await.unwrap();
-        }
-        tx.close();
-        let got = call.await.unwrap().into_inner().aggregated_payload_size();
+        // The default request buffer is 16 messages. Send without polling
+        // `call` fills it and parks; join so the driver drains while we upload.
+        let send = async {
+            for _ in 0..STREAM_MSGS {
+                tx.send(req.clone()).await.unwrap();
+            }
+            tx.close();
+        };
+        let ((), resp) = tokio::join!(send, call);
+        let got = resp.unwrap().into_inner().aggregated_payload_size();
         assert_eq!(got, want, "kernel upload must be complete");
         if round > 0 {
             best = best.max(rate(STREAM_MSGS as u64, t.elapsed()));
