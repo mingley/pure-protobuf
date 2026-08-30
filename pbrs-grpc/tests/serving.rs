@@ -2101,6 +2101,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {"
+        ),
+        "hello module rustdoc must attach a compiling GreeterClient::on_response example"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {"
         ),
         "hello module rustdoc must attach a compiling GreeterServer::intercept example"

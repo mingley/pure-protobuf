@@ -27,6 +27,29 @@
 //! })
 //! # }
 //! ```
+//! Generated [`GreeterClient::on_response`] reads the same ResponseParts overlays as
+//! [`crate::Channel::on_response`]:
+//!
+//! ```
+//! # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::hello::GreeterClient {
+//! pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {
+//!     let _ = (
+//!         parts.path(),
+//!         parts.gzip_level(),
+//!         parts.compresses_outbound(),
+//!         parts.accepts_gzip(),
+//!         parts.deadline(),
+//!         parts.timeout(),
+//!         parts.limits(),
+//!         parts.peer_timeout(),
+//!         parts.rpc_timeout(),
+//!         parts.accepts_compressed(),
+//!         parts.send_buffer_size(),
+//!     );
+//!     Ok(())
+//! })
+//! # }
+//! ```
 //! Generated [`GreeterServer::intercept`] reads the same Rpc overlays as
 //! [`crate::Server::intercept`]:
 //!
