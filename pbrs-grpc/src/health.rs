@@ -16,6 +16,9 @@
 //! [`HealthServer::max_header_list_size`] refuses oversize metadata on Check
 //! and Watch, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server. [`HealthServer::max_frame_size`] still serves Check and Watch at
+//! the HTTP/2 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
 //! server. A [`HealthClient`] pool larger than
 //! [`HealthServer::max_concurrent_connections`] fails the whole dial as
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]

@@ -219,7 +219,10 @@ See `docs/upb.md`. Short list:
   `ChannelConfig::initial_stream_window_size` /
   `ChannelConfig::initial_connection_window_size` advertise client windows and
   still serve every Greeter shape when a well-behaved server completes over TLS,
-  mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  mTLS, Unix, and `from_io`. [`HealthServer::max_frame_size`] still serves Check
+  and Watch, and [`ServerReflectionServer::max_frame_size`] still serves
+  `ServerReflectionInfo`, at the HTTP/2 16 KiB SETTINGS minimum over TLS, mTLS,
+  Unix, and `serve_connection`, distinct from wrapping only GreeterServer. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
