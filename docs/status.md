@@ -523,6 +523,7 @@ See `docs/upb.md`. Short list:
   the peer cannot. `Err` fails that Call (the peer already sent OK). A
   non-OK peer status skips this hook. First registered runs first. Applies
   to every call shape, including over TLS, mTLS, Unix, and `from_io`.
+  A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`.
   `ServiceExt::on_response` / `Intercepted::on_response` is per-service and
   does not cover other mounts; a Server / Router hook still runs first.
   The same `add_service` keeps `max_decoding_message_size` on every mount

@@ -1718,6 +1718,8 @@ starts empty; this hook inserts typed context the peer cannot. `ResponseParts::p
 that Call (the peer already sent OK). A non-OK peer status skips this hook.
 Applies to every call shape, including over TLS, mTLS, Unix, and `from_io`.
 
+A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`.
+
 On the client, `Channel::intercept` (and the generated `FooClient::intercept`)
 runs when the RPC method is invoked — before the stream opens and before the
 `Call` is polled, for all four call shapes, on h2c, TLS (including mTLS), Unix,

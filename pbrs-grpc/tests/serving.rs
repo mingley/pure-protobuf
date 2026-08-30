@@ -3713,6 +3713,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Channel::on_response as the client response interceptor hook"
     );
     assert!(
+        guide.contains("A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`."),
+        "guide must Distinct Channel::on_response from Channel overlays on a received reply"
+    );
+    assert!(
         guide.contains("`compile_protos` emits `pbrs-grpc` stubs by default."),
         "guide must name kernel stubs as the compile_protos default"
     );
