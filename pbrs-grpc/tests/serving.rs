@@ -8227,7 +8227,11 @@ async fn a_reverser_mtls_client_interceptor_sets_the_user_agent() {
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
-    let service = Reverser::new(Arc::clone(&seen)).intercept(require_override_user_agent);
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    )
+    .intercept(require_override_user_agent);
     let task = tokio::spawn(async move {
         Server::new(service)
             .serve_tls_with_shutdown(listener, std::future::pending(), tls)
