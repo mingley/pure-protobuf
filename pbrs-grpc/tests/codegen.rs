@@ -3773,6 +3773,18 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Cap outbound messages at `limit` bytes. Default unlimited. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated client max_encoding rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Cap inbound messages at `limit` bytes. Default 4 MiB. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated client max_decoding rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
             "Wait for a connection instead of failing fast. See [`::pbrs_grpc::Channel::wait_for_ready`]. Applies to every call shape."
         ),
         "generated wait_for_ready rustdoc must name every call shape"

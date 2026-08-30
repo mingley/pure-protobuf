@@ -600,6 +600,18 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Channel rustdoc must name drop-Channel live stream on every transport"
     );
+    assert!(
+        src.contains(
+            "Cap inbound messages at `limit` bytes. Default 4 MiB.\n    /// Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`Self::from_io`]."
+        ),
+        "Channel::max_decoding_message_size must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Cap outbound messages at `limit` bytes. Default unlimited.\n    /// Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`Self::from_io`]."
+        ),
+        "Channel::max_encoding_message_size must name every transport"
+    );
     let stream = include_str!("../src/stream.rs");
     assert!(
         stream.contains(
@@ -22054,5 +22066,128 @@ async fn from_io_streaming_trailers_surface_a_trailing_status() {
         .await
         .expect("from_io");
     assert_streaming_trailers_surface_a_trailing_status(&GreeterClient::new(channel)).await;
+    server.abort();
+}
+
+async fn assert_client_encode_cap_every_shape(client: &GreeterClient) {
+    let oversize = req(&"x".repeat(64));
+    let err = client
+        .say_hello(Request::new(oversize.clone()))
+        .await
+        .expect_err("unary encode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    match client.server_hello(Request::new(oversize.clone())).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(_) => panic!("server-stream client encode cap must fail before headers"),
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    let err = tx
+        .send(oversize.clone())
+        .await
+        .expect_err("client-stream send");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    drop(call);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    let err = tx.send(oversize).await.expect_err("bidi send");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    drop(call);
+}
+
+async fn assert_client_decode_cap_every_shape(client: &GreeterClient) {
+    let oversize = req(&"x".repeat(64));
+    let err = client
+        .say_hello(Request::new(oversize.clone()))
+        .await
+        .expect_err("unary decode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    match client.server_hello(Request::new(oversize.clone())).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream client decode cap must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.send(oversize.clone()).await.expect("send");
+    tx.close();
+    let err = call.await.expect_err("client-stream decode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(oversize).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi client decode cap must fail"),
+        },
+    }
+}
+
+async fn assert_client_message_caps(channel: Channel) {
+    assert_client_encode_cap_every_shape(
+        &GreeterClient::new(channel.clone()).max_encoding_message_size(16),
+    )
+    .await;
+    assert_client_decode_cap_every_shape(
+        &GreeterClient::new(channel).max_decoding_message_size(16),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn tls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_client_message_caps(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_client_message_caps(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_client_message_caps_are_resource_exhausted() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    assert_client_message_caps(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_message_caps_are_resource_exhausted() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_client_message_caps(channel).await;
     server.abort();
 }

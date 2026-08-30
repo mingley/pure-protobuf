@@ -500,7 +500,8 @@ impl Channel {
     }
 
     /// Cap inbound messages at `limit` bytes. Default 4 MiB.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::from_io`].
     #[must_use]
     pub fn max_decoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_decoding_message_size(limit);
@@ -508,7 +509,8 @@ impl Channel {
     }
 
     /// Cap outbound messages at `limit` bytes. Default unlimited.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::from_io`].
     #[must_use]
     pub fn max_encoding_message_size(mut self, limit: usize) -> Self {
         self.config = self.config.max_encoding_message_size(limit);

@@ -1201,7 +1201,11 @@ cap is unlimited, because a peer does not control what your own service
 produces. An interceptor reads those caps with `Rpc::limits`; a generated
 handler reads them with `Request::limits` / `Parts::limits`, including over
 TLS, mTLS, Unix, and `from_io`. Oversize encode or decode is
-`RESOURCE_EXHAUSTED` on every call shape. A server-streaming or bidi producer
+`RESOURCE_EXHAUSTED` on every call shape. A client
+`max_encoding_message_size` refuses oversize outbound frames before they
+hit the wire, including over TLS, mTLS, Unix, and `from_io`; a client
+`max_decoding_message_size` refuses oversize inbound frames on those
+transports. Those are distinct from the server caps. A server-streaming or bidi producer
 that exceeds `max_encoding_message_size` ships that status as trailers, not
 an HTTP/2 reset.
 

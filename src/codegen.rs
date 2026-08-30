@@ -4803,7 +4803,7 @@ fn emit_kernel_client(
     emit_kernel_client_dialers(src);
     let _ = writeln!(
         src,
-        "    /// Cap inbound messages at `limit` bytes. Default 4 MiB. Applies to every call shape."
+        "    /// Cap inbound messages at `limit` bytes. Default 4 MiB. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
@@ -4812,7 +4812,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "    /// Cap outbound messages at `limit` bytes. Default unlimited. Applies to every call shape."
+        "    /// Cap outbound messages at `limit` bytes. Default unlimited. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
