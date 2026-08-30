@@ -1461,6 +1461,7 @@ impl ChannelConfig {
 
     /// Configured outbound streaming queue depth. Applies to client-streaming
     /// and bidi request streams. See [`Self::stream_buffer`].
+    /// Distinct from [`Self::stream_buffer`], which sets it.
     #[must_use]
     pub fn stream_buffer_size(self) -> usize {
         self.stream_buffer
