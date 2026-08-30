@@ -1046,7 +1046,8 @@ calls `Response::set_compress(true)` still only gzips when this is true.
 `Parts` keeps all three across `into_message_and_parts`. `ResponseParts`
 keeps the gzip flag and received `encoding` the same way.
 
-To gzip every response a client advertised `gzip` for (every call shape):
+To gzip every response a client advertised `gzip` for (every call shape,
+including over TLS, mTLS, Unix, and `from_io`):
 
 ```rust
 GreeterServer::new(svc).send_compressed()

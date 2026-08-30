@@ -957,6 +957,14 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Server::intercept rustdoc must name a single intercept reject on every transport"
     );
+    assert_eq!(
+        src.matches(
+            "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
+        )
+        .count(),
+        2,
+        "Server::send_compressed and Router::send_compressed must name every transport"
+    );
 }
 
 #[test]
@@ -18198,20 +18206,80 @@ async fn from_io_metadata_cannot_override_the_kernel_user_agent() {
     server.abort();
 }
 
+fn gzip_router() -> Router {
+    Router::new()
+        .add_service(GreeterServer::new(Echo))
+        .send_compressed()
+}
+
+async fn assert_router_gzips(ch: Channel) {
+    assert_server_gzip_every_shape(&GreeterClient::new(ch)).await;
+}
+
 #[tokio::test]
 async fn the_server_gzips_when_configured_and_the_client_accepts() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
-        Router::new()
-            .add_service(GreeterServer::new(Echo))
-            .send_compressed()
-            .serve_listener(listener)
+        gzip_router().serve_listener(listener).await.ok();
+    });
+    assert_router_gzips(channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_server_gzips_when_configured_and_the_client_accepts() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        gzip_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    assert_server_gzip_every_shape(&client).await;
+    assert_router_gzips(tls_channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn mtls_server_gzips_when_configured_and_the_client_accepts() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        gzip_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_router_gzips(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_server_gzips_when_configured_and_the_client_accepts() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        gzip_router().serve_unix(sock).await.ok();
+    });
+    assert_router_gzips(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_server_gzips_when_configured_and_the_client_accepts() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        gzip_router().serve_connection(server_io).await.ok();
+    });
+    assert_router_gzips(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

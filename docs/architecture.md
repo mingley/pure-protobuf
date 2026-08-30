@@ -152,7 +152,9 @@ the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
 gzip, and the
-`compresses_outbound` overlay. `Response::set_compress(false)` opts out of
+`compresses_outbound` overlay. `Server::send_compressed` / `Router::send_compressed`
+gzip replies when the client advertises gzip on those transports.
+`Response::set_compress(false)` opts out of
 `Server::send_compressed` on those transports too. `Request::set_compress(false)`
 opts out of `Channel::send_compressed` on those transports. A client `grpc-timeout` is a
 `Request::deadline` Instant that elapses while the handler runs, including

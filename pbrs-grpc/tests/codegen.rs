@@ -3625,7 +3625,7 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "gzip responses when the client advertises gzip. Applies to every call shape."
+            "gzip responses when the client advertises gzip. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated server send_compressed rustdoc must name every call shape"
     );
