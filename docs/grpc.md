@@ -1686,7 +1686,9 @@ shape, including over TLS, mTLS, Unix, and `from_io`.
 `Server::on_response` (and the generated `FooServer::on_response`, and
 `Router::on_response`) runs after the handler returns `Ok`, before headers
 go out. Closures take `ResponseParts`. `Response::extensions` is local typed
-context; stamp metadata here to send a header. `ResponseParts::path` is kernel-stamped. Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it. Calling it twice stacks:
+context; stamp metadata here to send a header. `ResponseParts::path` is kernel-stamped. Distinct from `Request::path` (inbound). Distinct from `Outgoing::path` (before send). An interceptor cannot change it.
+Same kernel-stamped `ResponseParts` overlays as `Server::on_response`: `path` / `gzip_level` / `compresses_outbound` / `accepts_gzip` / `deadline` / `timeout` / `limits` / `peer_timeout` / `rpc_timeout` / `accepts_compressed` / `send_buffer_size`.
+Calling it twice stacks:
 the first interceptor runs first. `Err` after the handler already ran; that
 status is sent trailers-only instead of the response. A handler `Err` skips
 this hook. Applies to every call shape, including over TLS, mTLS, Unix, and

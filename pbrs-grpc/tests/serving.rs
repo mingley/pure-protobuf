@@ -3507,6 +3507,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ServiceExt::on_response as the per-service response hook"
     );
     assert!(
+        guide.contains("Same kernel-stamped `ResponseParts` overlays as `Server::on_response`: `path` / `gzip_level` / `compresses_outbound` / `accepts_gzip` / `deadline` / `timeout` / `limits` / `peer_timeout` / `rpc_timeout` / `accepts_compressed` / `send_buffer_size`."),
+        "guide must name the same on_response overlays as Server rustdoc"
+    );
+    assert!(
         !guide.contains("see or rewrite the final `Status`"),
         "guide must not claim interceptors cannot rewrite after Ok"
     );
