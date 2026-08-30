@@ -168,9 +168,10 @@ See `docs/upb.md`. Short list:
   reapplies channel gzip on every call shape. A client interceptor `Err` fails the `Call` on poll for
   every call shape, including `with_error_details` and a local fail-before-open
   without details on h2c, TLS (including mTLS), Unix, and `from_io`, including
-  official TestService methods and hand-written Reverser `Channel` APIs; nothing is sent. A reserved
+  official TestService methods, hand-written Reverser `Channel` APIs, generated
+  Store, Health Check/Watch, and reflection `ServerReflectionInfo`; nothing is sent. A reserved
   `grpc-*` or hop-by-hop interceptor `insert` is `INVALID_ARGUMENT` on those same
-  TestService and Reverser paths. A packed `google.rpc.Status` on that
+  paths. A packed `google.rpc.Status` on that
   local `Err` is `Status::rpc` / `Status::error_details` on the Call.
   Outgoing getters apply to every call shape. Kernel `user-agent` (and a
   `Channel::user_agent` prefix) is sent on every shape, including over h2c, TLS

@@ -2573,6 +2573,320 @@ async fn a_generated_from_io_client_interceptor_sees_message_limits() {
     server.abort();
 }
 
+fn interceptor_reserved_metadata(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.metadata_mut()
+        .insert("grpc-previous-rpc-attempts", "1")?;
+    Ok(())
+}
+
+fn interceptor_hop_by_hop(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    call.metadata_mut().insert("connection", "close")?;
+    Ok(())
+}
+
+fn interceptor_fail_before_open(_: &mut Outgoing<'_>) -> Result<(), Status> {
+    Err(Status::failed_precondition("blocked locally"))
+}
+
+fn reserved_store(client: StoreClient) -> StoreClient {
+    client.intercept(interceptor_reserved_metadata)
+}
+
+fn hop_store(client: StoreClient) -> StoreClient {
+    client.intercept(interceptor_hop_by_hop)
+}
+
+fn fail_open_store(client: StoreClient) -> StoreClient {
+    client.intercept(interceptor_fail_before_open)
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_cannot_insert_reserved_metadata() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(&reserved_store(client(addr).await), Code::InvalidArgument).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(
+        &reserved_store(tls_client(addr).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_cannot_insert_reserved_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_err_every_shape(
+        &reserved_store(tls_client_with(addr, client_tls).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_cannot_insert_reserved_metadata() {
+    let path = unix_sock("store-reserved");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    assert_store_err_every_shape(
+        &reserved_store(unix_client(&path).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_cannot_insert_reserved_metadata() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(
+        &reserved_store(
+            StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+                .await
+                .expect("from_io"),
+        ),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(&hop_store(client(addr).await), Code::InvalidArgument).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(&hop_store(tls_client(addr).await), Code::InvalidArgument).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_err_every_shape(
+        &hop_store(tls_client_with(addr, client_tls).await),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let path = unix_sock("store-hop");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    assert_store_err_every_shape(&hop_store(unix_client(&path).await), Code::InvalidArgument).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_cannot_insert_hop_by_hop_headers() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(
+        &hop_store(
+            StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+                .await
+                .expect("from_io"),
+        ),
+        Code::InvalidArgument,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(
+        &fail_open_store(client(addr).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_tls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(
+        &fail_open_store(tls_client(addr).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_generated_mtls_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_err_every_shape(
+        &fail_open_store(tls_client_with(addr, client_tls).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_generated_unix_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let path = unix_sock("store-fail-open");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    assert_store_err_every_shape(
+        &fail_open_store(unix_client(&path).await),
+        Code::FailedPrecondition,
+    )
+    .await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn a_generated_from_io_client_interceptor_can_fail_the_rpc_before_the_stream_opens() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_store_err_every_shape(
+        &fail_open_store(
+            StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+                .await
+                .expect("from_io"),
+        ),
+        Code::FailedPrecondition,
+    )
+    .await;
+    server.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_request_can_opt_out_of_channel_wait_for_ready() {
     let (addr, listener) = bind_store().await;
