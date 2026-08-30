@@ -211,7 +211,9 @@ Distinct from `encoding` (received). Distinct from `Rpc::accepts_gzip`
 Distinct from `Request::deadline` (inbound). Distinct from `Rpc::deadline`
 (computed when that getter runs). Closures see `ResponseParts::timeout` (duration stamped at dispatch).
 Distinct from `deadline` (Instant). Distinct from `Rpc::timeout`
-(interceptor cap). Closures see `Rpc` (path, service/method,
+(interceptor cap). Closures see `ResponseParts::limits` (encode cap when writing).
+Distinct from `Request::limits` (inbound). Distinct from `Rpc::limits`
+(before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, peer, `:authority` / `:scheme`, limits).

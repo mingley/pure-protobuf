@@ -266,6 +266,9 @@
 //! [`Response::timeout`] is the duration stamped at dispatch, in a response interceptor.
 //! Distinct from [`Response::deadline`].
 //! Distinct from [`Rpc::timeout`].
+//! [`Response::limits`] is the encode cap in a response interceptor.
+//! Distinct from [`Request::limits`].
+//! Distinct from [`Rpc::limits`].
 //! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block

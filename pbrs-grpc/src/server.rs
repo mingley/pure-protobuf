@@ -484,6 +484,7 @@ impl Rpc {
     /// and unlimited outbound. An interceptor cannot raise them; it can only
     /// inspect, or reject before the body is read. Generated handlers see the
     /// same caps on [`Request::limits`].
+    /// Response interceptors see the same caps on [`crate::Response::limits`].
     #[must_use]
     pub fn limits(&self) -> MessageLimits {
         self.config.limits()
@@ -680,7 +681,8 @@ impl Rpc {
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
                         .with_deadline(deadline)
-                        .with_timeout(timeout),
+                        .with_timeout(timeout)
+                        .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
             }) {
@@ -742,7 +744,8 @@ impl Rpc {
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
                         .with_deadline(deadline)
-                        .with_timeout(timeout),
+                        .with_timeout(timeout)
+                        .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
             }) {
@@ -811,7 +814,8 @@ impl Rpc {
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
                         .with_deadline(deadline)
-                        .with_timeout(timeout),
+                        .with_timeout(timeout)
+                        .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
             }) {
@@ -887,7 +891,8 @@ impl Rpc {
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
                         .with_deadline(deadline)
-                        .with_timeout(timeout),
+                        .with_timeout(timeout)
+                        .with_limits(Some(wire.limits)),
                     hook.as_deref(),
                 )
             }) {
@@ -1865,6 +1870,9 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
     /// [`crate::ResponseParts::timeout`] is the duration stamped at dispatch.
     /// Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.
+    /// [`crate::ResponseParts::limits`] is the encode cap when writing.
+    /// Distinct from [`crate::Request::limits`]: that is the inbound request.
+    /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2651,6 +2659,9 @@ impl Router {
     /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs.
     /// [`crate::ResponseParts::timeout`] is the duration stamped at dispatch.
     /// Distinct from [`crate::ResponseParts::deadline`]: that is the Instant.
+    /// [`crate::ResponseParts::limits`] is the encode cap when writing.
+    /// Distinct from [`crate::Request::limits`]: that is the inbound request.
+    /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {

@@ -1006,6 +1006,54 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::timeout must name kernel enforcement of deadline when writing"
     );
     assert!(
+        outgoing.contains("Message caps the kernel is enforcing when encoding this reply."),
+        "Response::limits must name encode caps when writing"
+    );
+    assert!(
+        outgoing.contains(
+            "Same caps as [`crate::Rpc::limits`] / [`crate::Request::limits`] after dispatch."
+        ),
+        "Response::limits must name the Request/Rpc caps"
+    );
+    assert!(
+        outgoing.contains("Distinct from [`crate::Request::limits`]: that is the inbound request."),
+        "Response::limits must Distinct inbound Request::limits"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler."
+        ),
+        "Response::limits must Distinct Rpc::limits before the handler"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::limits`]: that is a client interceptor overlay."
+        ),
+        "Response::limits must Distinct Outgoing overlay"
+    );
+    assert!(
+        outgoing.contains("Distinct from [`Self::timeout`]: that is a duration, not a size cap."),
+        "Response::limits must Distinct timeout duration"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not message size."
+        ),
+        "Response::limits must Distinct stream_buffer_size queue depth"
+    );
+    assert!(
+        outgoing.contains(
+            "`None` on a response you built or a received reply (the peer encode cap is not on the wire)."
+        ),
+        "Response::limits must name None on a received reply"
+    );
+    assert!(
+        outgoing.contains(
+            "An interceptor cannot raise them; the kernel still checks these caps when encoding."
+        ),
+        "Response::limits must name kernel encode check"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -1329,6 +1377,21 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct timeout from deadline Instant"
     );
     assert!(
+        intercept.contains("[`crate::ResponseParts::limits`] is the encode cap when writing."),
+        "ResponseInterceptor rustdoc must name encode caps when writing"
+    );
+    assert!(
+        intercept
+            .contains("Distinct from [`crate::Request::limits`]: that is the inbound request."),
+        "ResponseInterceptor rustdoc must Distinct inbound Request::limits"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler."
+        ),
+        "ResponseInterceptor rustdoc must Distinct Rpc::limits before the handler"
+    );
+    assert!(
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
@@ -1395,6 +1458,12 @@ fn channel_call_apis_document_hand_written_services() {
             "[`crate::Response::timeout`] on a received reply is `None` (the peer timeout is not on the reply wire)."
         ),
         "Channel::on_response must name received timeout is None"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Response::limits`] on a received reply is `None` (the peer encode cap is not on the wire)."
+        ),
+        "Channel::on_response must name received limits is None"
     );
     assert!(
         src.contains(
@@ -2630,6 +2699,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Response::timeout from Rpc::timeout"
     );
     assert!(
+        crate_src.contains("[`Response::limits`] is the encode cap in a response interceptor"),
+        "crate docs must name Response::limits as the response interceptor encode cap"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Request::limits`]"),
+        "crate docs must Distinct Response::limits from Request::limits"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::limits`]"),
+        "crate docs must Distinct Response::limits from Rpc::limits"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -3048,6 +3129,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Response::timeout` is the duration stamped at dispatch, in a response interceptor. Distinct from `deadline` (Instant). Distinct from `Rpc::timeout` (interceptor cap). An interceptor cannot change it."),
         "guide must name Response::timeout as duration stamped at dispatch"
+    );
+    assert!(
+        guide.contains("`Response::limits` is the encode cap in a response interceptor. Distinct from `Request::limits` (inbound). Distinct from `Rpc::limits` (before the handler). An interceptor cannot change it."),
+        "guide must name Response::limits as the response interceptor encode cap"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -3647,6 +3732,26 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::on_response and Router::on_response must Distinct timeout from deadline Instant"
     );
     assert_eq!(
+        src.matches("[`crate::ResponseParts::limits`] is the encode cap when writing.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must name encode caps when writing"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`crate::Request::limits`]: that is the inbound request.")
+            .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct inbound Request::limits"
+    );
+    assert_eq!(
+        src.matches(
+            "Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler."
+        )
+        .count(),
+        2,
+        "Server::on_response and Router::on_response must Distinct Rpc::limits before the handler"
+    );
+    assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
         )
@@ -3723,6 +3828,10 @@ fn server_and_router_config_document_every_call_shape() {
             "Response interceptors see the same duration on [`crate::Response::timeout`]."
         ),
         "Rpc::effective_timeout must name the Response interceptor stamp"
+    );
+    assert!(
+        src.contains("Response interceptors see the same caps on [`crate::Response::limits`]."),
+        "Rpc::limits must name the Response interceptor stamp"
     );
     assert!(
         src.contains("Generated handlers see the same value on [`Request::accepts_compressed`]."),
@@ -21724,6 +21833,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         reply.timeout().is_none(),
         "received reply must not carry peer timeout duration"
     );
+    assert!(
+        reply.limits().is_none(),
+        "received reply must not carry peer encode cap"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let reply = client
@@ -21754,6 +21867,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         reply.timeout().is_none(),
         "received stream must not carry peer timeout duration"
+    );
+    assert!(
+        reply.limits().is_none(),
+        "received stream must not carry peer encode cap"
     );
     let mut stream = reply.into_inner();
     let framed = stream.next_framed().await.expect("frame").expect("message");
@@ -21790,6 +21907,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
         reply.timeout().is_none(),
         "received client-stream must not carry peer timeout duration"
     );
+    assert!(
+        reply.limits().is_none(),
+        "received client-stream must not carry peer encode cap"
+    );
     assert_eq!(name_of(reply.get_ref()), "ada");
 
     let (tx, call) = client.stream_hello(Request::new(()));
@@ -21817,6 +21938,10 @@ async fn assert_identity_encoding_every_shape(client: &GreeterClient) {
     assert!(
         reply.timeout().is_none(),
         "received bidi must not carry peer timeout duration"
+    );
+    assert!(
+        reply.limits().is_none(),
+        "received bidi must not carry peer encode cap"
     );
     let mut inbound = reply.into_inner();
     let framed = inbound
@@ -25972,6 +26097,9 @@ fn require_response_gzip_level(parts: &mut ResponseParts) -> Result<(), Status> 
     }
     if parts.timeout() != Some(Duration::from_secs(5)) {
         return Err(Status::internal("response timeout duration"));
+    }
+    if parts.limits() != Some(MessageLimits::default()) {
+        return Err(Status::internal("response encode limits"));
     }
     Ok(())
 }

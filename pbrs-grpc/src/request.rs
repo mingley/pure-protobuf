@@ -1695,6 +1695,7 @@ pub struct Response<T> {
     accepts_gzip: bool,
     deadline: Option<tokio::time::Instant>,
     timeout: Option<Duration>,
+    limits: Option<MessageLimits>,
     extensions: http::Extensions,
 }
 
@@ -1714,6 +1715,7 @@ impl<T> Response<T> {
             accepts_gzip: false,
             deadline: None,
             timeout: None,
+            limits: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -1747,6 +1749,7 @@ impl<T> Response<T> {
                 accepts_gzip: self.accepts_gzip,
                 deadline: self.deadline,
                 timeout: self.timeout,
+                limits: self.limits,
                 extensions: self.extensions,
             },
         )
@@ -1767,6 +1770,7 @@ impl<T> Response<T> {
             accepts_gzip: parts.accepts_gzip,
             deadline: parts.deadline,
             timeout: parts.timeout,
+            limits: parts.limits,
             extensions: parts.extensions,
         }
     }
@@ -2067,6 +2071,31 @@ impl<T> Response<T> {
         self.timeout
     }
 
+    pub(crate) fn with_limits(mut self, limits: Option<MessageLimits>) -> Self {
+        self.limits = limits;
+        self
+    }
+
+    /// Message caps the kernel is enforcing when encoding this reply.
+    ///
+    /// Same caps as [`crate::Rpc::limits`] / [`crate::Request::limits`] after dispatch.
+    /// Distinct from [`crate::Request::limits`]: that is the inbound request.
+    /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler.
+    /// Distinct from [`crate::Outgoing::limits`]: that is a client interceptor overlay.
+    /// Distinct from [`Self::timeout`]: that is a duration, not a size cap.
+    /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not message size.
+    /// `None` on a response you built or a received reply (the peer encode cap is not on the wire).
+    /// An interceptor cannot raise them; the kernel still checks these caps when encoding.
+    ///
+    /// ```
+    /// let resp = pbrs_grpc::Response::new(());
+    /// assert!(resp.limits().is_none());
+    /// ```
+    #[must_use]
+    pub fn limits(&self) -> Option<MessageLimits> {
+        self.limits
+    }
+
     pub(crate) fn from_parts(message: T, metadata: Metadata, trailers: Metadata) -> Self {
         Self {
             message,
@@ -2080,6 +2109,7 @@ impl<T> Response<T> {
             accepts_gzip: false,
             deadline: None,
             timeout: None,
+            limits: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -2102,6 +2132,7 @@ impl<T> Response<T> {
             accepts_gzip: false,
             deadline: None,
             timeout: None,
+            limits: None,
             extensions: http::Extensions::new(),
         }
     }
@@ -2132,6 +2163,7 @@ pub struct ResponseParts {
     accepts_gzip: bool,
     deadline: Option<tokio::time::Instant>,
     timeout: Option<Duration>,
+    limits: Option<MessageLimits>,
     extensions: http::Extensions,
 }
 
@@ -2244,6 +2276,12 @@ impl ResponseParts {
         self.timeout
     }
 
+    /// Encode caps when writing. See [`Response::limits`].
+    #[must_use]
+    pub fn limits(&self) -> Option<MessageLimits> {
+        self.limits
+    }
+
     /// Typed values on this envelope. See [`Response::extensions`].
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
@@ -2272,6 +2310,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("accepts_gzip", &self.accepts_gzip)
             .field("deadline", &self.deadline)
             .field("timeout", &self.timeout)
+            .field("limits", &self.limits)
             .field("extensions", &self.extensions.len())
             .finish()
     }
@@ -2686,6 +2725,7 @@ mod tests {
         assert!(!mapped.accepts_gzip());
         assert!(mapped.deadline().is_none());
         assert!(mapped.timeout().is_none());
+        assert!(mapped.limits().is_none());
         let at = tokio::time::Instant::now() + Duration::from_secs(5);
         let stamped = mapped
             .with_path(Some("/helloworld.Greeter/SayHello".into()))
@@ -2693,7 +2733,8 @@ mod tests {
             .with_compresses_outbound(true)
             .with_accepts_gzip(true)
             .with_deadline(Some(at))
-            .with_timeout(Some(Duration::from_secs(5)));
+            .with_timeout(Some(Duration::from_secs(5)))
+            .with_limits(Some(crate::MessageLimits::default()));
         assert_eq!(stamped.path(), Some("/helloworld.Greeter/SayHello"));
         assert_eq!(stamped.service(), Some("helloworld.Greeter"));
         assert_eq!(stamped.method(), Some("SayHello"));
@@ -2702,6 +2743,7 @@ mod tests {
         assert!(stamped.accepts_gzip());
         assert_eq!(stamped.deadline(), Some(at));
         assert_eq!(stamped.timeout(), Some(Duration::from_secs(5)));
+        assert_eq!(stamped.limits(), Some(crate::MessageLimits::default()));
         let (n, mut parts) = stamped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
@@ -2715,6 +2757,7 @@ mod tests {
         assert!(parts.accepts_gzip());
         assert_eq!(parts.deadline(), Some(at));
         assert_eq!(parts.timeout(), Some(Duration::from_secs(5)));
+        assert_eq!(parts.limits(), Some(crate::MessageLimits::default()));
         parts.set_compress(false);
         parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
@@ -2734,6 +2777,7 @@ mod tests {
         assert!(rebuilt.accepts_gzip());
         assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.timeout(), Some(Duration::from_secs(5)));
+        assert_eq!(rebuilt.limits(), Some(crate::MessageLimits::default()));
         let shown = format!("{rebuilt:?}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");
         assert!(shown.contains("helloworld.Greeter"), "{shown}");
@@ -2743,6 +2787,7 @@ mod tests {
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("timeout: Some("), "{shown}");
+        assert!(shown.contains("limits: Some("), "{shown}");
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));
@@ -2760,6 +2805,7 @@ mod tests {
         assert!(!Response::new(0u32).accepts_gzip());
         assert!(Response::new(0u32).deadline().is_none());
         assert!(Response::new(0u32).timeout().is_none());
+        assert!(Response::new(0u32).limits().is_none());
     }
 
     #[test]

@@ -1172,6 +1172,7 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Response::accepts_gzip` is the peer advertisement in a response interceptor. Distinct from `encoding` (received). Distinct from `Rpc::accepts_gzip` (before the handler). An interceptor cannot change it.
 `Response::deadline` is kernel-stamped after `Ok`, when writing. Distinct from `Request::deadline` (inbound). Distinct from `Rpc::deadline` (computed when that getter runs). An interceptor cannot change it.
 `Response::timeout` is the duration stamped at dispatch, in a response interceptor. Distinct from `deadline` (Instant). Distinct from `Rpc::timeout` (interceptor cap). An interceptor cannot change it.
+`Response::limits` is the encode cap in a response interceptor. Distinct from `Request::limits` (inbound). Distinct from `Rpc::limits` (before the handler). An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.

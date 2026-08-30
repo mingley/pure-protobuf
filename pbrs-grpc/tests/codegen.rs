@@ -4251,6 +4251,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client on_response rustdoc must name received timeout is None"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::limits`] is the encode cap when writing. Distinct from [`::pbrs_grpc::Request::limits`]. Distinct from [`::pbrs_grpc::Rpc::limits`]."),
+        "generated on_response rustdoc must name encode caps when writing"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::limits`] on a received reply is `None` (the peer encode cap is not on the wire)."),
+        "generated client on_response rustdoc must name received limits is None"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),
