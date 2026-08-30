@@ -110,11 +110,17 @@ See `docs/upb.md`. Short list:
   over TLS, mTLS, Unix, and `from_io`. An inbound Health Check or Watch over
   the decoding cap is `RESOURCE_EXHAUSTED` on those transports.
   `Router::message_limits` / `HealthServer::message_limits` refuse the same
-  oversize, distinct from `max_decoding_message_size`. An inbound
+  oversize, distinct from `max_decoding_message_size`. A HealthClient
+  `ChannelConfig::message_limits` at `connect_tls_with` / `connect_unix_with` /
+  `from_io_with` is `RESOURCE_EXHAUSTED` on Check and Watch, distinct from
+  wrapping a live client. An inbound
   reflection message over the decoding cap fails that bidi stream as
   `RESOURCE_EXHAUSTED` trailers on those transports.
   `Router::message_limits` / `ServerReflectionServer::message_limits` refuse
-  the same oversize, distinct from `max_decoding_message_size`. Generated Store
+  the same oversize, distinct from `max_decoding_message_size`. A
+  ServerReflectionClient `ChannelConfig::message_limits` at those dialers is
+  `RESOURCE_EXHAUSTED` on the one bidi method, distinct from wrapping a live
+  client. Generated Store
   `max_decoding_message_size` is `RESOURCE_EXHAUSTED` on Get / Watch / PutAll
   / Sync over TLS, mTLS, Unix, and `from_io`. A Greeter client
   `max_encoding_message_size` / `max_decoding_message_size` is

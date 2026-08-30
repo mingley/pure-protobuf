@@ -17,8 +17,8 @@ use pbrs_grpc::health::{
     HealthServer, ServingStatus,
 };
 use pbrs_grpc::{
-    Channel, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response, Router,
-    ServerTls, Status,
+    Channel, ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
+    Router, ServerTls, Status,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -535,6 +535,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
             "`Router::message_limits` /\n//! [`HealthServer::message_limits`] refuse the same oversize as\n//! `RESOURCE_EXHAUSTED` on both, distinct from\n//! [`crate::Router::max_decoding_message_size`]."
         ),
         "Health crate rustdoc must name combined-setter oversize on every transport"
+    );
+    assert!(
+        src.contains(
+            "[`HealthClient::connect_tls_with`] / [`HealthClient::connect_unix_with`] /\n//! [`HealthClient::from_io_with`] with [`crate::ChannelConfig::message_limits`]\n//! refuse the same oversize, distinct from wrapping a live client."
+        ),
+        "Health crate rustdoc must name dial-time ChannelConfig message_limits on every transport"
     );
 }
 
@@ -3677,5 +3683,152 @@ async fn health_from_io_message_limits_oversize_is_resource_exhausted() {
         .await
         .expect("from_io server");
     assert_health_oversize(&client).await;
+    handle2.abort();
+}
+
+fn health_dial_encode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(MessageLimits::new().with_max_encoding(16))
+}
+
+fn health_dial_decode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(MessageLimits::new().with_max_decoding(1))
+}
+
+async fn health_cfg(addr: SocketAddr, cfg: ChannelConfig) -> HealthClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match HealthClient::connect_with(addr, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+async fn health_tls_cfg(addr: SocketAddr, tls: ClientTls, cfg: ChannelConfig) -> HealthClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match HealthClient::connect_tls_with(addr, cfg, tls.clone()).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[cfg(unix)]
+async fn health_unix_cfg(path: &std::path::Path, cfg: ChannelConfig) -> HealthClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match HealthClient::connect_unix_with(path, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[tokio::test]
+async fn health_channel_config_message_limits_are_resource_exhausted() {
+    let (addr, _reporter, handle) = serve().await;
+    assert_health_client_encode_cap(&health_cfg(addr, health_dial_encode_limits()).await).await;
+    assert_health_client_decode_cap(&health_cfg(addr, health_dial_decode_limits()).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_tls_channel_config_message_limits_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        health_plain()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_health_client_encode_cap(
+        &health_tls_cfg(addr, client_tls.clone(), health_dial_encode_limits()).await,
+    )
+    .await;
+    assert_health_client_decode_cap(
+        &health_tls_cfg(addr, client_tls, health_dial_decode_limits()).await,
+    )
+    .await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_mtls_channel_config_message_limits_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        health_plain()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_client_encode_cap(
+        &health_tls_cfg(addr, client_tls.clone(), health_dial_encode_limits()).await,
+    )
+    .await;
+    assert_health_client_decode_cap(
+        &health_tls_cfg(addr, client_tls, health_dial_decode_limits()).await,
+    )
+    .await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_channel_config_message_limits_are_resource_exhausted() {
+    let path = unix_sock("dial-limits");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_plain().serve_unix(sock).await.ok();
+    });
+    assert_health_client_encode_cap(&health_unix_cfg(&path, health_dial_encode_limits()).await)
+        .await;
+    assert_health_client_decode_cap(&health_unix_cfg(&path, health_dial_decode_limits()).await)
+        .await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn health_from_io_channel_config_message_limits_are_resource_exhausted() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let handle1 = tokio::spawn(async move {
+        health_plain().serve_connection(s1).await.ok();
+    });
+    let encode = HealthClient::from_io_with(c1, "localhost", health_dial_encode_limits())
+        .await
+        .expect("from_io encode");
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let handle2 = tokio::spawn(async move {
+        health_plain().serve_connection(s2).await.ok();
+    });
+    let decode = HealthClient::from_io_with(c2, "localhost", health_dial_decode_limits())
+        .await
+        .expect("from_io decode");
+    assert_health_client_encode_cap(&encode).await;
+    assert_health_client_decode_cap(&decode).await;
+    handle1.abort();
     handle2.abort();
 }

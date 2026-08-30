@@ -25,7 +25,12 @@
 //! from the server decoding cap. `Router::message_limits` /
 //! [`ServerReflectionServer::message_limits`] refuse the same oversize as
 //! `RESOURCE_EXHAUSTED` trailers on that method, distinct from
-//! [`crate::Router::max_decoding_message_size`]. An interceptor `Err` may carry
+//! [`crate::Router::max_decoding_message_size`].
+//! [`ServerReflectionClient::connect_tls_with`] /
+//! [`ServerReflectionClient::connect_unix_with`] /
+//! [`ServerReflectionClient::from_io_with`] with
+//! [`crate::ChannelConfig::message_limits`] refuse the same oversize, distinct
+//! from wrapping a live client. An interceptor `Err` may carry
 //! [`crate::Status::with_error_details`]; those trailers reach the client.
 //! A handler `Err` may carry the same packed status; those trailers reach
 //! the client. [`crate::StreamSender::fail`] after a streamed DATA frame on

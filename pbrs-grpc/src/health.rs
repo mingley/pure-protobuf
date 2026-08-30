@@ -8,7 +8,10 @@
 //! the server decoding cap. `Router::message_limits` /
 //! [`HealthServer::message_limits`] refuse the same oversize as
 //! `RESOURCE_EXHAUSTED` on both, distinct from
-//! [`crate::Router::max_decoding_message_size`]. An interceptor
+//! [`crate::Router::max_decoding_message_size`].
+//! [`HealthClient::connect_tls_with`] / [`HealthClient::connect_unix_with`] /
+//! [`HealthClient::from_io_with`] with [`crate::ChannelConfig::message_limits`]
+//! refuse the same oversize, distinct from wrapping a live client. An interceptor
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
 //! the client on both methods. A handler `Err` may carry the same packed
 //! status; those trailers reach the client on both methods. Watch

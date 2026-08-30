@@ -21,8 +21,8 @@ use pbrs_grpc::reflection::{
     ServerReflectionRequest, ServerReflectionResponse, ServerReflectionServer, ServiceResponse,
 };
 use pbrs_grpc::{
-    Channel, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response, Router,
-    ServerTls, Status,
+    Channel, ChannelConfig, ClientTls, Code, Identity, MessageLimits, Outgoing, Request, Response,
+    Router, ServerTls, Status,
 };
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -375,6 +375,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
             "`Router::message_limits` /\n//! [`ServerReflectionServer::message_limits`] refuse the same oversize as\n//! `RESOURCE_EXHAUSTED` trailers on that method, distinct from\n//! [`crate::Router::max_decoding_message_size`]."
         ),
         "reflection crate rustdoc must name combined-setter oversize on every transport"
+    );
+    assert!(
+        src.contains(
+            "[`ServerReflectionClient::connect_tls_with`] /\n//! [`ServerReflectionClient::connect_unix_with`] /\n//! [`ServerReflectionClient::from_io_with`] with\n//! [`crate::ChannelConfig::message_limits`] refuse the same oversize, distinct\n//! from wrapping a live client."
+        ),
+        "reflection crate rustdoc must name dial-time ChannelConfig message_limits on every transport"
     );
 }
 
@@ -3612,4 +3618,166 @@ async fn reflection_from_io_message_limits_oversize_is_resource_exhausted() {
         .await
         .expect("from_io server");
     assert_reflection_oversize(&client).await;
+}
+
+fn reflection_dial_encode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(MessageLimits::new().with_max_encoding(16))
+}
+
+fn reflection_dial_decode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(MessageLimits::new().with_max_decoding(16))
+}
+
+async fn reflection_cfg(addr: SocketAddr, cfg: ChannelConfig) -> ServerReflectionClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match ServerReflectionClient::connect_with(addr, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+async fn reflection_tls_cfg(
+    addr: SocketAddr,
+    tls: ClientTls,
+    cfg: ChannelConfig,
+) -> ServerReflectionClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match ServerReflectionClient::connect_tls_with(addr, cfg, tls.clone()).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[cfg(unix)]
+async fn reflection_unix_cfg(path: &std::path::Path, cfg: ChannelConfig) -> ServerReflectionClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match ServerReflectionClient::connect_unix_with(path, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+#[tokio::test]
+async fn reflection_channel_config_message_limits_are_resource_exhausted() {
+    let (addr, _guard) = serve().await;
+    assert_reflection_client_encode_cap(
+        &reflection_cfg(addr, reflection_dial_encode_limits()).await,
+    )
+    .await;
+    assert_reflection_client_decode_cap(
+        &reflection_cfg(addr, reflection_dial_decode_limits()).await,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn reflection_tls_channel_config_message_limits_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_reflection_client_encode_cap(
+        &reflection_tls_cfg(addr, client_tls.clone(), reflection_dial_encode_limits()).await,
+    )
+    .await;
+    assert_reflection_client_decode_cap(
+        &reflection_tls_cfg(addr, client_tls, reflection_dial_decode_limits()).await,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn reflection_mtls_channel_config_message_limits_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reflection_client_encode_cap(
+        &reflection_tls_cfg(addr, client_tls.clone(), reflection_dial_encode_limits()).await,
+    )
+    .await;
+    assert_reflection_client_decode_cap(
+        &reflection_tls_cfg(addr, client_tls, reflection_dial_decode_limits()).await,
+    )
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_channel_config_message_limits_are_resource_exhausted() {
+    let path = unix_sock("dial-limits");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection_server().serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_client_encode_cap(
+        &reflection_unix_cfg(&path, reflection_dial_encode_limits()).await,
+    )
+    .await;
+    assert_reflection_client_decode_cap(
+        &reflection_unix_cfg(&path, reflection_dial_decode_limits()).await,
+    )
+    .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn reflection_from_io_channel_config_message_limits_are_resource_exhausted() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        reflection_server().serve_connection(s1).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let encode =
+        ServerReflectionClient::from_io_with(c1, "localhost", reflection_dial_encode_limits())
+            .await
+            .expect("from_io encode");
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        reflection_server().serve_connection(s2).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    let decode =
+        ServerReflectionClient::from_io_with(c2, "localhost", reflection_dial_decode_limits())
+            .await
+            .expect("from_io decode");
+    assert_reflection_client_encode_cap(&encode).await;
+    assert_reflection_client_decode_cap(&decode).await;
 }
