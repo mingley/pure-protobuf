@@ -768,6 +768,9 @@ impl Channel {
     /// OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`
     /// trailer must not appear as a header, including over TLS, mTLS, Unix,
     /// and [`Self::from_io`].
+    /// [`Self::max_encoding_message_size`] / [`Self::max_decoding_message_size`]
+    /// fail this path as [`Code::ResourceExhausted`], including over TLS, mTLS,
+    /// Unix, and [`Self::from_io`]. Distinct from generated client wrappers.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -855,6 +858,9 @@ impl Channel {
     /// called before draining messages. A non-OK trailing `grpc-status` is
     /// `Err`. A `-bin` trailer must not appear as a header, including over
     /// TLS, mTLS, Unix, and [`Self::from_io`].
+    /// [`Self::max_encoding_message_size`] / [`Self::max_decoding_message_size`]
+    /// fail this path as [`Code::ResourceExhausted`], including over TLS, mTLS,
+    /// Unix, and [`Self::from_io`]. Distinct from generated client wrappers.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};
@@ -956,6 +962,9 @@ impl Channel {
     /// OK-path custom trailers land on [`crate::Response::trailers`]; a `-bin`
     /// trailer must not appear as a header, including over TLS, mTLS, Unix,
     /// and [`Self::from_io`].
+    /// [`Self::max_encoding_message_size`] / [`Self::max_decoding_message_size`]
+    /// fail this path as [`Code::ResourceExhausted`], including over TLS, mTLS,
+    /// Unix, and [`Self::from_io`]. Distinct from generated client wrappers.
     ///
     /// [`crate::StreamSender::fail`] resolves the [`Call`] with that status
     /// (no request-side `grpc-status`; the stream is reset with CANCEL).
@@ -1041,6 +1050,9 @@ impl Channel {
     /// called before draining messages. A non-OK trailing `grpc-status` is
     /// `Err`. A `-bin` trailer must not appear as a header, including over
     /// TLS, mTLS, Unix, and [`Self::from_io`].
+    /// [`Self::max_encoding_message_size`] / [`Self::max_decoding_message_size`]
+    /// fail this path as [`Code::ResourceExhausted`], including over TLS, mTLS,
+    /// Unix, and [`Self::from_io`]. Distinct from generated client wrappers.
     ///
     /// ```no_run
     /// # use pbrs_grpc::{Channel, HelloReply, HelloRequest, Request};

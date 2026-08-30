@@ -133,7 +133,10 @@ See `docs/upb.md`. Short list:
   distinct from the Health server decoding cap. A ServerReflectionClient
   `max_encoding_message_size` / `max_decoding_message_size` is
   `RESOURCE_EXHAUSTED` on the one bidi method over those transports, distinct
-  from the reflection server decoding cap. TLS
+  from the reflection server decoding cap. Hand-written `Channel::unary` /
+  `server_streaming` / `client_streaming` / `bidi` honor those same client
+  caps as `RESOURCE_EXHAUSTED` on every call shape over TLS, mTLS, Unix, and
+  `from_io`, distinct from generated GreeterClient wrappers. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
