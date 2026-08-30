@@ -3375,6 +3375,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must name Channel::connected as the same snapshot without an interceptor"
     );
     assert!(
+        crate_src.contains(
+            "[`GreeterClient::connected`] is the live-socket snapshot on a generated client"
+        ),
+        "crate docs must name GreeterClient::connected as the live-socket snapshot"
+    );
+    assert!(
+        crate_src.contains("Same snapshot as [`Channel::connected`]"),
+        "crate docs must Distinct GreeterClient::connected as the same snapshot as Channel::connected"
+    );
+    assert!(
         crate_src.contains("[`Outgoing::rpc_timeout`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::rpc_timeout as the interceptor overlay"
     );
@@ -4093,6 +4103,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Channel::connected as the same snapshot without an interceptor"
     );
     assert!(
+        guide.contains("`FooClient::connected` is the live-socket snapshot on a generated client. Distinct from `waits_for_ready` (overlay). Same snapshot as `Channel::connected`."),
+        "guide must name FooClient::connected as the live-socket snapshot Distinct from the wait-for-ready overlay"
+    );
+    assert!(
         guide.contains("`Outgoing::rpc_timeout` is that overlay in a client interceptor. Distinct from `timeout` (per-RPC). An interceptor cannot change it."),
         "guide must name Outgoing::rpc_timeout as the interceptor overlay"
     );
@@ -4216,6 +4230,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         architecture.contains("`stream_buffer_size`, `send_buffer_size`, and `limits` read"),
         "architecture must name FooClient send-buffer and limits overlay getters"
+    );
+    assert!(
+        architecture.contains("`FooClient::connected` is the live-socket snapshot on a generated client. Distinct from `waits_for_ready` (overlay). Same snapshot as `Channel::connected`."),
+        "architecture must name FooClient::connected as the live-socket snapshot Distinct from the wait-for-ready overlay"
     );
     assert!(
         architecture.contains("`FooServer::rpc_timeout`, `compresses_outbound`, `gzip_level`,"),

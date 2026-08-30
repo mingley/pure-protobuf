@@ -274,6 +274,9 @@
 //! [`Outgoing::connected`] is the live-socket snapshot in a client interceptor.
 //! Distinct from [`Outgoing::waits_for_ready`].
 //! [`Channel::connected`] is that same snapshot without an interceptor.
+//! [`GreeterClient::connected`] is the live-socket snapshot on a generated client.
+//! Distinct from [`GreeterClient::waits_for_ready`].
+//! Same snapshot as [`Channel::connected`].
 //! [`Outgoing::rpc_timeout`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::timeout`].
 //! [`Rpc::rpc_timeout`] is that overlay in a server interceptor.

@@ -4696,6 +4696,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client rustdoc must name limits as a colliding-free overlay getter"
     );
     assert!(
+        src.contains("[`Self::connected`] is the live-socket snapshot. Distinct from [`Self::waits_for_ready`]. Same snapshot as [`::pbrs_grpc::Channel::connected`]."),
+        "generated client rustdoc must name connected as the live-socket snapshot Distinct from waits_for_ready"
+    );
+    assert!(
         src.contains("[`Self::send_buffer_size`], and [`Self::limits`] read the server overlay without colliding with the setters."),
         "generated server rustdoc must name limits as a colliding-free overlay getter"
     );

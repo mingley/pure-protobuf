@@ -5025,6 +5025,10 @@ fn emit_kernel_client(
         src,
         "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`], [`Self::send_buffer_size`], and [`Self::limits`] read that overlay without colliding with the setters."
     );
+    let _ = writeln!(
+        src,
+        "/// [`Self::connected`] is the live-socket snapshot. Distinct from [`Self::waits_for_ready`]. Same snapshot as [`{G}::Channel::connected`]."
+    );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
     let _ = writeln!(src, "    channel: {G}::Channel,");

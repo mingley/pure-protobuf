@@ -155,6 +155,7 @@ that then calls `Outgoing::set_user_agent` wins.
 `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`,
 `stream_buffer_size`, `send_buffer_size`, and `limits` read
 the same overlays as the channel (the setter names cannot collide).
+`FooClient::connected` is the live-socket snapshot on a generated client. Distinct from `waits_for_ready` (overlay). Same snapshot as `Channel::connected`.
 `Channel::unary` / `server_streaming` / `client_streaming` / `bidi` are
 first-class for a hand-written `Service`; generated clients call the same
 methods. Unknown methods on that `Service` are `UNIMPLEMENTED` on every

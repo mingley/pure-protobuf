@@ -392,6 +392,7 @@ See `docs/upb.md`. Short list:
   `Channel::waits_for_ready` reads the wait-for-ready overlay without colliding with `wait_for_ready`. Same overlay as `Outgoing::waits_for_ready`.
   `Outgoing::connected` is the live-socket snapshot in a client interceptor. Distinct from `waits_for_ready` (overlay).
   `Channel::connected` is that same snapshot without an interceptor.
+  `FooClient::connected` is the live-socket snapshot on a generated client. Distinct from `waits_for_ready` (overlay). Same snapshot as `Channel::connected`.
   `Outgoing::rpc_timeout` is that overlay in a client interceptor. Distinct from `timeout` (per-RPC). An interceptor cannot change it.
   `Rpc::rpc_timeout` is that overlay in a server interceptor. Distinct from `Rpc::timeout` (interceptor cap).
   `Channel::rpc_timeout` reads the deadline overlay without colliding with `timeout`. Same overlay as `Outgoing::rpc_timeout`.
