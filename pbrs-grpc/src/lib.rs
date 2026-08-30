@@ -247,6 +247,10 @@
 //! Same overlay as [`Rpc::gzip_level`].
 //! [`Rpc::accepts_compressed`] is that overlay in a server interceptor.
 //! Distinct from [`Rpc::accepts_gzip`].
+//! [`Channel::accepts_compressed`] reads the inbound gzip overlay without colliding with [`Channel::accept_compressed`].
+//! Same overlay as [`Outgoing::accepts_compressed`].
+//! [`Server::accepts_compressed`] reads the inbound gzip overlay without colliding with [`Server::accept_compressed`].
+//! Same overlay as [`Rpc::accepts_compressed`].
 //! [`Outgoing::concurrent_rpc_limit`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::waits_for_ready`].
 //! [`Rpc::concurrent_rpc_limit`] is that overlay in a server interceptor.

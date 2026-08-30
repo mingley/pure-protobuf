@@ -711,6 +711,7 @@ impl Channel {
 
     /// Whether inbound gzip is inflated. Default `true`.
     /// See [`Self::accept_compressed`]. Applies to every call shape.
+    /// Distinct from [`Self::accept_compressed`], which sets it.
     /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's
     /// `grpc-accept-encoding`.
     #[must_use]

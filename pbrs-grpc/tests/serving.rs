@@ -2073,6 +2073,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::accept_compressed must omit gzip from accept-encoding"
     );
     assert!(
+        src.contains("Distinct from [`Self::accept_compressed`], which sets it."),
+        "Channel::accepts_compressed must Distinct the setter"
+    );
+    assert!(
         src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
         "Channel::wait_for_ready must name interceptor set/clear"
     );
@@ -3163,6 +3167,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Rpc::accepts_compressed from peer accepts_gzip"
     );
     assert!(
+        crate_src.contains(
+            "[`Channel::accepts_compressed`] reads the inbound gzip overlay without colliding with [`Channel::accept_compressed`]"
+        ),
+        "crate docs must name Channel::accepts_compressed as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::accepts_compressed`]"),
+        "crate docs must Distinct Channel::accepts_compressed as the same overlay as Outgoing::accepts_compressed"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Server::accepts_compressed`] reads the inbound gzip overlay without colliding with [`Server::accept_compressed`]"
+        ),
+        "crate docs must name Server::accepts_compressed as the live-server overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Rpc::accepts_compressed`]"),
+        "crate docs must Distinct Server::accepts_compressed as the same overlay as Rpc::accepts_compressed"
+    );
+    assert!(
         crate_src
             .contains("[`Outgoing::concurrent_rpc_limit`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::concurrent_rpc_limit as the interceptor overlay"
@@ -3772,6 +3796,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Rpc::accepts_compressed` is that overlay in a server interceptor"),
         "guide must name Rpc::accepts_compressed as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Channel::accepts_compressed` reads the inbound gzip overlay without colliding with `accept_compressed`. Same overlay as `Outgoing::accepts_compressed`."),
+        "guide must name Channel::accepts_compressed as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Server::accepts_compressed` reads the inbound gzip overlay without colliding with `accept_compressed`. Same overlay as `Rpc::accepts_compressed`."),
+        "guide must name Server::accepts_compressed as the live-server overlay"
     );
     assert!(
         guide.contains(
