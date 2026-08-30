@@ -4910,7 +4910,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`{G}::Channel::connected`]. Applies to every call shape. Client interceptors see the same snapshot as [`{G}::Outgoing::connected`]."
+        "    /// Whether any pool slot currently holds a live HTTP/2 connection. Distinct from gRPC `GetState`. See [`{G}::Channel::connected`]. Applies to every call shape. Client interceptors see the same snapshot as [`{G}::Outgoing::connected`]. Distinct from [`Self::wait_for_ready`]: that overlay queues; this getter is a live snapshot."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
