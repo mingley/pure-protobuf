@@ -2509,6 +2509,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::compresses_outbound must Distinct the setter"
     );
     assert!(
+        src.contains("Distinct from [`Self::gzip_compression_level`], which sets it."),
+        "ChannelConfig::gzip_level must Distinct the setter"
+    );
+    assert!(
         src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
