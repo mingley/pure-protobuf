@@ -3200,6 +3200,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must name Rpc::concurrent_rpc_limit as the server interceptor overlay"
     );
     assert!(
+        crate_src.contains(
+            "[`Channel::concurrent_rpc_limit`] reads the RPC-cap overlay without colliding with [`Channel::max_concurrent_rpcs`]"
+        ),
+        "crate docs must name Channel::concurrent_rpc_limit as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::concurrent_rpc_limit`]"),
+        "crate docs must Distinct Channel::concurrent_rpc_limit as the same overlay as Outgoing::concurrent_rpc_limit"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Server::concurrent_rpc_limit`] reads the RPC-cap overlay without colliding with [`Server::max_concurrent_rpcs`]"
+        ),
+        "crate docs must name Server::concurrent_rpc_limit as the live-server overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Rpc::concurrent_rpc_limit`]"),
+        "crate docs must Distinct Server::concurrent_rpc_limit as the same overlay as Rpc::concurrent_rpc_limit"
+    );
+    assert!(
         crate_src
             .contains("[`Outgoing::stream_buffer_size`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::stream_buffer_size as the interceptor overlay"
@@ -3818,6 +3838,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits)."),
         "guide must name Rpc::concurrent_rpc_limit as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Channel::concurrent_rpc_limit` reads the RPC-cap overlay without colliding with `max_concurrent_rpcs`. Same overlay as `Outgoing::concurrent_rpc_limit`."),
+        "guide must name Channel::concurrent_rpc_limit as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Server::concurrent_rpc_limit` reads the RPC-cap overlay without colliding with `max_concurrent_rpcs`. Same overlay as `Rpc::concurrent_rpc_limit`."),
+        "guide must name Server::concurrent_rpc_limit as the live-server overlay"
     );
     assert!(
         guide.contains("`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it."),

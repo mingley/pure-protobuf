@@ -1169,6 +1169,8 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Server::accepts_compressed` reads the inbound gzip overlay without colliding with `accept_compressed`. Same overlay as `Rpc::accepts_compressed`.
 `Outgoing::concurrent_rpc_limit` is that overlay in a client interceptor. Distinct from `waits_for_ready` (connection). An interceptor cannot change it.
 `Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
+`Channel::concurrent_rpc_limit` reads the RPC-cap overlay without colliding with `max_concurrent_rpcs`. Same overlay as `Outgoing::concurrent_rpc_limit`.
+`Server::concurrent_rpc_limit` reads the RPC-cap overlay without colliding with `max_concurrent_rpcs`. Same overlay as `Rpc::concurrent_rpc_limit`.
 `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
 `Channel::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Outgoing::limits`.
 `Server::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Rpc::limits`.
