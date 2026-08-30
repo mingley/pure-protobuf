@@ -46,6 +46,11 @@
 //! method at a 16 KiB send buffer, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
 //! server.
+//! [`ServerReflectionServer::initial_stream_window_size`] /
+//! [`ServerReflectionServer::initial_connection_window_size`] still serve the
+//! one bidi method at a 64 KiB stream / 128 KiB connection window, including
+//! over TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from
+//! wrapping only a Greeter server.
 //! A [`ServerReflectionClient`] pool larger than
 //! [`ServerReflectionServer::max_concurrent_connections`] fails the whole dial
 //! as `UNAVAILABLE` on TLS, mTLS, and Unix.

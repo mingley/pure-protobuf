@@ -266,7 +266,10 @@ See `docs/upb.md`. Short list:
   method at that buffer on those transports. Official TestService and
   hand-written Reverser still serve every shape at a 16 KiB send buffer over
   TLS, mTLS, Unix, and `from_io` (mTLS Reverser uses `Reverser::mtls` with the
-  same leaf). A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  same leaf). `HealthServer` HTTP/2 windows still serve Check and Watch at
+  64 KiB / 128 KiB over TLS, mTLS, Unix, and `serve_connection`.
+  `ServerReflectionServer` windows still serve the one bidi method at those
+  sizes on those transports. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

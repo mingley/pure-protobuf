@@ -27,6 +27,11 @@
 //! 16 KiB send buffer, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
 //! server.
+//! [`HealthServer::initial_stream_window_size`] /
+//! [`HealthServer::initial_connection_window_size`] still serve Check and Watch
+//! at a 64 KiB stream / 128 KiB connection window, including over TLS, mTLS,
+//! Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping only a
+//! Greeter server.
 //! A [`HealthClient`] pool larger than
 //! [`HealthServer::max_concurrent_connections`] fails the whole dial as
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]

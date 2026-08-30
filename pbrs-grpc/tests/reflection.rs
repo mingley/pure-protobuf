@@ -414,6 +414,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "[`ServerReflectionServer::initial_stream_window_size`] /\n//! [`ServerReflectionServer::initial_connection_window_size`] still serve the\n//! one bidi method at a 64 KiB stream / 128 KiB connection window, including\n//! over TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. Distinct from\n//! wrapping only a Greeter server."
+        ),
+        "reflection crate rustdoc must name HTTP/2 window still-serves on ServerReflectionInfo"
+    );
+    assert!(
+        src.contains(
             "A [`ServerReflectionClient`] pool larger than\n//! [`ServerReflectionServer::max_concurrent_connections`] fails the whole dial\n//! as `UNAVAILABLE` on TLS, mTLS, and Unix.\n//! [`ServerReflectionClient::from_io_with`] cannot pool."
         ),
         "reflection crate rustdoc must name pool-vs-cap UNAVAILABLE on TLS, mTLS, and Unix"
@@ -4263,6 +4269,79 @@ async fn from_io_reflection_send_buffer_still_serves_list() {
     let (c, s) = tokio::io::duplex(1024 * 1024);
     let handle = tokio::spawn(async move {
         reflection_send_buffer().serve_connection(s).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(
+        &ServerReflectionClient::from_io(c, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+}
+
+fn reflection_window_size() -> ServerReflectionServer<impl ServerReflection> {
+    reflection_server()
+        .initial_stream_window_size(64 * 1024)
+        .initial_connection_window_size(128 * 1024)
+}
+
+#[tokio::test]
+async fn reflection_window_size_still_serves_list() {
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_window_size().serve_listener(listener).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&client(addr).await).await;
+}
+
+#[tokio::test]
+async fn tls_reflection_window_size_still_serves_list() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_window_size()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&tls_client(addr).await).await;
+}
+
+#[tokio::test]
+async fn mtls_reflection_window_size_still_serves_list() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_window_size()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reflection_list(&tls_client_with(addr, client_tls).await).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_reflection_window_size_still_serves_list() {
+    let path = unix_sock("reflection-window-size");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection_window_size().serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    echo_reflection_list(&unix_client(&path).await).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn from_io_reflection_window_size_still_serves_list() {
+    let (c, s) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        reflection_window_size().serve_connection(s).await.ok();
     });
     let _guard = ServerGuard(handle);
     echo_reflection_list(
