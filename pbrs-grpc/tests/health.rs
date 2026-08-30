@@ -548,6 +548,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must name dial-time ChannelConfig message_limits on every transport"
     );
+    assert!(
+        src.contains(
+            "[`HealthServer::max_header_list_size`] refuses oversize metadata on Check\n//! and Watch, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter\n//! server."
+        ),
+        "Health crate rustdoc must name header-list flood on Check and Watch"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
@@ -3845,6 +3851,113 @@ async fn health_from_io_channel_config_message_limits_are_resource_exhausted() {
         .expect("from_io decode");
     assert_health_client_encode_cap(&encode).await;
     assert_health_client_decode_cap(&decode).await;
+    handle1.abort();
+    handle2.abort();
+}
+
+fn health_header_list_cap() -> HealthServer<impl Health> {
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    reporter.set_serving("helloworld.Greeter");
+    svc.max_header_list_size(1024)
+}
+
+fn flood_check() -> Request<HealthCheckRequest> {
+    let mut request = Request::new(HealthCheckRequest::new());
+    request
+        .metadata_mut()
+        .insert("x-flood", "v".repeat(4096))
+        .expect("meta");
+    request
+}
+
+async fn assert_health_header_flood_then_echo(flood: HealthClient, healthy: HealthClient) {
+    let _ = tokio::time::timeout(Duration::from_secs(2), flood.check(flood_check())).await;
+    echo_health_check_and_watch(&healthy).await;
+}
+
+#[tokio::test]
+async fn health_header_list_cap_refuses_oversize_metadata() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_header_list_cap().serve_listener(listener).await.ok();
+    });
+    assert_health_header_flood_then_echo(client(addr).await, client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_tls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_health_header_flood_then_echo(tls_client(addr).await, tls_client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_mtls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        health_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_header_flood_then_echo(
+        tls_client_with(addr, client_tls.clone()).await,
+        tls_client_with(addr, client_tls).await,
+    )
+    .await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_header_list_cap_refuses_oversize_metadata() {
+    let path = unix_sock("hdr-list");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_header_list_cap().serve_unix(sock).await.ok();
+    });
+    assert_health_header_flood_then_echo(unix_client(&path).await, unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn health_from_io_header_list_cap_refuses_oversize_metadata() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let handle1 = tokio::spawn(async move {
+        health_header_list_cap().serve_connection(s1).await.ok();
+    });
+    let flood = HealthClient::from_io(c1, "localhost")
+        .await
+        .expect("from_io flood");
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let handle2 = tokio::spawn(async move {
+        health_header_list_cap().serve_connection(s2).await.ok();
+    });
+    let healthy = HealthClient::from_io(c2, "localhost")
+        .await
+        .expect("from_io healthy");
+    assert_health_header_flood_then_echo(flood, healthy).await;
     handle1.abort();
     handle2.abort();
 }

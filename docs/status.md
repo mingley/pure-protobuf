@@ -184,7 +184,9 @@ See `docs/upb.md`. Short list:
   `Router::max_header_list_size` / `ServerConfig::max_header_list_size` /
   generated `FooServer::max_header_list_size` is refused over TLS, mTLS, Unix,
   and `serve_connection`, distinct from a raw HTTP/2 peer and from wrapping
-  only the generated Greeter server setter. `ChannelConfig::max_header_list_size`
+  only the generated Greeter server setter. Health Check/Watch and reflection
+  `ServerReflectionInfo` refuse the same flood then keep serving a healthy
+  client. `ChannelConfig::max_header_list_size`
   refuses oversize response headers or trailers as `UNAVAILABLE` over TLS, mTLS,
   Unix, and `from_io`, distinct from the server inbound cap.
   `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /

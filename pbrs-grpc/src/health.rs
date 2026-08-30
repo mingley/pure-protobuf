@@ -12,7 +12,11 @@
 //! [`crate::Router::max_decoding_message_size`].
 //! [`HealthClient::connect_tls_with`] / [`HealthClient::connect_unix_with`] /
 //! [`HealthClient::from_io_with`] with [`crate::ChannelConfig::message_limits`]
-//! refuse the same oversize, distinct from wrapping a live client. An interceptor
+//! refuse the same oversize, distinct from wrapping a live client.
+//! [`HealthServer::max_header_list_size`] refuses oversize metadata on Check
+//! and Watch, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server. An interceptor
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
 //! the client on both methods. A handler `Err` may carry the same packed
 //! status; those trailers reach the client on both methods. Watch

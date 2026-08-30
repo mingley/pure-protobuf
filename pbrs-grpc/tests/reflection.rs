@@ -388,6 +388,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name dial-time ChannelConfig message_limits on every transport"
     );
+    assert!(
+        src.contains(
+            "[`ServerReflectionServer::max_header_list_size`]\n//! refuses oversize metadata on the one bidi method, including over TLS, mTLS,\n//! Unix, and [`crate::Server::serve_connection`]. Distinct from wrapping only a\n//! Greeter server."
+        ),
+        "reflection crate rustdoc must name header-list flood on ServerReflectionInfo"
+    );
 }
 
 #[tokio::test]
@@ -3796,4 +3802,108 @@ async fn reflection_from_io_channel_config_message_limits_are_resource_exhausted
             .expect("from_io decode");
     assert_reflection_client_encode_cap(&encode).await;
     assert_reflection_client_decode_cap(&decode).await;
+}
+
+fn reflection_header_list_cap() -> ServerReflectionServer<impl ServerReflection> {
+    reflection_server().max_header_list_size(1024)
+}
+
+fn flood_reflection() -> Request<()> {
+    let mut request = Request::new(());
+    request
+        .metadata_mut()
+        .insert("x-flood", "v".repeat(4096))
+        .expect("meta");
+    request
+}
+
+async fn assert_reflection_header_flood_then_echo(
+    flood: ServerReflectionClient,
+    healthy: ServerReflectionClient,
+) {
+    let (tx, call) = flood.server_reflection_info(flood_reflection());
+    drop(tx);
+    let _ = tokio::time::timeout(Duration::from_secs(2), call).await;
+    echo_reflection_list(&healthy).await;
+}
+
+#[tokio::test]
+async fn reflection_header_list_cap_refuses_oversize_metadata() {
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_header_list_cap()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_header_flood_then_echo(client(addr).await, client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_tls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_header_flood_then_echo(tls_client(addr).await, tls_client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_mtls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind_reflection().await;
+    let handle = tokio::spawn(async move {
+        reflection_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reflection_header_flood_then_echo(
+        tls_client_with(addr, client_tls.clone()).await,
+        tls_client_with(addr, client_tls).await,
+    )
+    .await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_header_list_cap_refuses_oversize_metadata() {
+    let path = unix_sock("hdr-list");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection_header_list_cap().serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_header_flood_then_echo(unix_client(&path).await, unix_client(&path).await)
+        .await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn reflection_from_io_header_list_cap_refuses_oversize_metadata() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let flood_handle = tokio::spawn(async move {
+        reflection_header_list_cap().serve_connection(s1).await.ok();
+    });
+    let _flood_guard = ServerGuard(flood_handle);
+    let flood = ServerReflectionClient::from_io(c1, "localhost")
+        .await
+        .expect("from_io flood");
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let healthy_handle = tokio::spawn(async move {
+        reflection_header_list_cap().serve_connection(s2).await.ok();
+    });
+    let _healthy_guard = ServerGuard(healthy_handle);
+    let healthy = ServerReflectionClient::from_io(c2, "localhost")
+        .await
+        .expect("from_io healthy");
+    assert_reflection_header_flood_then_echo(flood, healthy).await;
 }
