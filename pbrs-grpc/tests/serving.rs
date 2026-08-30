@@ -988,6 +988,12 @@ fn request_deadline_documents_every_transport() {
         ),
         "Request::set_compress must name call-site opt-out of send_compressed on every transport"
     );
+    assert!(
+        src.contains(
+            "A default server (no [`crate::Server::send_compressed`])\n    /// leaves this `None` on every call shape, including over TLS, mTLS, Unix,\n    /// and [`crate::Channel::from_io`]."
+        ),
+        "Response::encoding must name default identity on every transport"
+    );
 }
 
 fn greeter_and_test_router() -> Router {
@@ -18311,15 +18317,77 @@ async fn server_send_compressed_gzips_streaming_send() {
     task.abort();
 }
 
+async fn assert_default_identity(ch: Channel) {
+    assert_identity_encoding_every_shape(&GreeterClient::new(ch)).await;
+}
+
 #[tokio::test]
 async fn identity_streaming_send_does_not_advertise_gzip() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    assert_identity_encoding_every_shape(&client).await;
+    assert_default_identity(channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_identity_streaming_send_does_not_advertise_gzip() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_default_identity(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_identity_streaming_send_does_not_advertise_gzip() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_default_identity(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_identity_streaming_send_does_not_advertise_gzip() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    assert_default_identity(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_identity_streaming_send_does_not_advertise_gzip() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_default_identity(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

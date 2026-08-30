@@ -127,7 +127,8 @@ See `docs/upb.md`. Short list:
   interceptor `set_timeout` and the client's `peer_timeout`); received replies
   surface `grpc-encoding` on
   `Response::encoding` (`None` for identity, including an explicit
-  `identity` token). `Server::send_compressed` / `Router::send_compressed`
+  `identity` token, and a default server with no `send_compressed` on every
+  call shape over TLS, mTLS, Unix, and `from_io`). `Server::send_compressed` / `Router::send_compressed`
   gzip every call shape when the client advertises gzip (`Response::compressed`
   and `encoding()` are gzip), including over TLS, mTLS, Unix, and `from_io`.
   `Server::send_compressed` / `Response::set_compress(false)`

@@ -1039,7 +1039,9 @@ Client- and bidi-streaming requests leave it `false`; each message's flag
 is on `Framed`. `request.encoding()` is the call's `grpc-encoding` token
 (`Some("gzip")` for gzip; `None` for identity — header absent or an
 explicit `identity` token). `response.encoding()` is the same token on a
-received reply (`None` on a response you built, and on identity replies).
+received reply (`None` on a response you built, and on identity replies,
+including a default server with no `send_compressed` over TLS, mTLS, Unix,
+and `from_io`).
 `grpc-*` keys stay off `Metadata`. `request.accepts_gzip()` is
 whether the peer listed gzip in `grpc-accept-encoding` — a handler that
 calls `Response::set_compress(true)` still only gzips when this is true.

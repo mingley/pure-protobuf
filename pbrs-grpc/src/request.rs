@@ -1496,7 +1496,9 @@ impl<T> Response<T> {
     /// [`Self::compressed`]: that is the unary Compressed-Flag (and
     /// outbound intent); this is the HTTP header that applies to the whole
     /// call. Streaming payloads still report the per-message flag on
-    /// [`crate::Framed`]. Bind it before [`Self::metadata_mut`]:
+    /// [`crate::Framed`]. A default server (no [`crate::Server::send_compressed`])
+    /// leaves this `None` on every call shape, including over TLS, mTLS, Unix,
+    /// and [`crate::Channel::from_io`]. Bind it before [`Self::metadata_mut`]:
     /// `let enc = response.encoding();`.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
