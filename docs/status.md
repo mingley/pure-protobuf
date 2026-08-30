@@ -390,6 +390,10 @@ See `docs/upb.md`. Short list:
   `Server::concurrent_rpc_limit` reads the RPC-cap overlay without colliding with `max_concurrent_rpcs`. Same overlay as `Rpc::concurrent_rpc_limit`.
   `Outgoing::waits_for_ready` is that overlay in a client interceptor. Distinct from `connected` (live snapshot). An interceptor cannot change it.
   `Channel::waits_for_ready` reads the wait-for-ready overlay without colliding with `wait_for_ready`. Same overlay as `Outgoing::waits_for_ready`.
+  `Outgoing::rpc_timeout` is that overlay in a client interceptor. Distinct from `timeout` (per-RPC). An interceptor cannot change it.
+  `Rpc::rpc_timeout` is that overlay in a server interceptor. Distinct from `Rpc::timeout` (interceptor cap).
+  `Channel::rpc_timeout` reads the deadline overlay without colliding with `timeout`. Same overlay as `Outgoing::rpc_timeout`.
+  `Server::rpc_timeout` reads the deadline overlay without colliding with `timeout`. Same overlay as `Rpc::rpc_timeout`.
   `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
   `Channel::stream_buffer_size` reads the stream-queue overlay without colliding with `stream_buffer`. Same overlay as `Outgoing::stream_buffer_size`.
   `Channel::limits` reads the message-cap overlay without colliding with `message_limits`. Same overlay as `Outgoing::limits`.

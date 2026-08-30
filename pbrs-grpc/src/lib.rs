@@ -271,6 +271,13 @@
 //! Distinct from [`Outgoing::connected`].
 //! [`Channel::waits_for_ready`] reads the wait-for-ready overlay without colliding with [`Channel::wait_for_ready`].
 //! Same overlay as [`Outgoing::waits_for_ready`].
+//! [`Outgoing::rpc_timeout`] is that overlay in a client interceptor.
+//! Distinct from [`Outgoing::timeout`].
+//! [`Rpc::rpc_timeout`] is that overlay in a server interceptor.
+//! [`Channel::rpc_timeout`] reads the deadline overlay without colliding with [`Channel::timeout`].
+//! Same overlay as [`Outgoing::rpc_timeout`].
+//! [`Server::rpc_timeout`] reads the deadline overlay without colliding with [`Server::timeout`].
+//! Same overlay as [`Rpc::rpc_timeout`].
 //! [`Outgoing::stream_buffer_size`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::limits`].
 //! [`Channel::stream_buffer_size`] reads the stream-queue overlay without colliding with [`Channel::stream_buffer`].

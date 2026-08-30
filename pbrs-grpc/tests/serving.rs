@@ -2085,6 +2085,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::compresses_outbound must Distinct the setter"
     );
     assert!(
+        src.contains("call shape. Distinct from [`Self::timeout`], which sets it."),
+        "Channel::rpc_timeout must Distinct the setter"
+    );
+    assert!(
         src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
         "Channel::wait_for_ready must name interceptor set/clear"
     );
@@ -3288,6 +3292,38 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Channel::waits_for_ready as the same overlay as Outgoing::waits_for_ready"
     );
     assert!(
+        crate_src.contains("[`Outgoing::rpc_timeout`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::rpc_timeout as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::timeout`]"),
+        "crate docs must Distinct Outgoing::rpc_timeout from per-RPC timeout"
+    );
+    assert!(
+        crate_src.contains("[`Rpc::rpc_timeout`] is that overlay in a server interceptor"),
+        "crate docs must name Rpc::rpc_timeout as the server interceptor overlay"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Channel::rpc_timeout`] reads the deadline overlay without colliding with [`Channel::timeout`]"
+        ),
+        "crate docs must name Channel::rpc_timeout as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::rpc_timeout`]"),
+        "crate docs must Distinct Channel::rpc_timeout as the same overlay as Outgoing::rpc_timeout"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Server::rpc_timeout`] reads the deadline overlay without colliding with [`Server::timeout`]"
+        ),
+        "crate docs must name Server::rpc_timeout as the live-server overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Rpc::rpc_timeout`]"),
+        "crate docs must Distinct Server::rpc_timeout as the same overlay as Rpc::rpc_timeout"
+    );
+    assert!(
         crate_src
             .contains("[`Outgoing::stream_buffer_size`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::stream_buffer_size as the interceptor overlay"
@@ -3952,6 +3988,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Channel::waits_for_ready` reads the wait-for-ready overlay without colliding with `wait_for_ready`. Same overlay as `Outgoing::waits_for_ready`."),
         "guide must name Channel::waits_for_ready as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Outgoing::rpc_timeout` is that overlay in a client interceptor. Distinct from `timeout` (per-RPC). An interceptor cannot change it."),
+        "guide must name Outgoing::rpc_timeout as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Rpc::rpc_timeout` is that overlay in a server interceptor. Distinct from `Rpc::timeout` (interceptor cap)."),
+        "guide must name Rpc::rpc_timeout as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Channel::rpc_timeout` reads the deadline overlay without colliding with `timeout`. Same overlay as `Outgoing::rpc_timeout`."),
+        "guide must name Channel::rpc_timeout as the live-clone overlay"
+    );
+    assert!(
+        guide.contains("`Server::rpc_timeout` reads the deadline overlay without colliding with `timeout`. Same overlay as `Rpc::rpc_timeout`."),
+        "guide must name Server::rpc_timeout as the live-server overlay"
     );
     assert!(
         guide.contains("`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it."),
