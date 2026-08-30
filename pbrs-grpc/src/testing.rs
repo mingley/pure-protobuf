@@ -21,7 +21,12 @@
 //! StreamingOutputCall / StreamingInputCall / FullDuplexCall at the HTTP/2
 //! 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server. A [`TestServiceClient`] pool larger than
+//! server. [`TestServiceServer::max_pending_accept_reset_streams`] still serves
+//! EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall at a
+//! pending-reset cap of 1, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. A well-behaved client never fills that
+//! queue. Distinct from wrapping only a Greeter server.
+//! A [`TestServiceClient`] pool larger than
 //! [`TestServiceServer::max_concurrent_connections`] fails the whole dial as
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
 //! cannot pool.

@@ -256,7 +256,10 @@ See `docs/upb.md`. Short list:
   `HealthServer::max_pending_accept_reset_streams` still serves Check and Watch
   at a pending-reset cap of 1 over TLS, mTLS, Unix, and `serve_connection`.
   `ServerReflectionServer::max_pending_accept_reset_streams` still serves the
-  one bidi method at that cap on those transports. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  one bidi method at that cap on those transports.
+  Official TestService and hand-written Reverser still serve every shape at a
+  pending-reset cap of 1 over TLS, mTLS, Unix, and `from_io` (mTLS Reverser
+  uses `Reverser::mtls` with the same leaf). A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
