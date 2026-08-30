@@ -645,6 +645,9 @@ impl ChannelConfig {
     /// Applies to every call shape, including over TLS, mTLS, and Unix.
     /// [`crate::Channel::from_io`] cannot pool: [`crate::Channel::from_io_with`]
     /// forces `connections` to 1.
+    /// All of them must succeed: a pool larger than the server's
+    /// [`crate::Server::max_concurrent_connections`] fails the dial as
+    /// [`crate::Code::Unavailable`].
     ///
     /// One connection means one `h2` driver task, so one core drives all
     /// framing. Raising this is the single biggest throughput lever for

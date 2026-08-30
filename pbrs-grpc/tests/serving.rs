@@ -876,6 +876,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "All of them must succeed: a pool larger than the server's\n    /// [`crate::Server::max_concurrent_connections`] fails the dial as\n    /// [`crate::Code::Unavailable`]."
+        ),
+        "ChannelConfig::connections must name pool-vs-cap UNAVAILABLE on every transport"
+    );
+    assert!(
+        src.contains(
             "Applies to every call shape, including when set on\n    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]\n    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live\n    /// [`crate::Channel`] with [`crate::Channel::max_decoding_message_size`]."
         ),
         "ChannelConfig::max_decoding_message_size must name dial-time overlay on every transport"
@@ -22424,6 +22430,96 @@ async fn from_io_pool_config_is_still_one_duplex() {
         .expect("from_io");
     echo_every_shape(&GreeterClient::new(channel), None).await;
     server.abort();
+}
+
+fn pool_against_cap() -> ChannelConfig {
+    refuse_connect_cfg().connections(2)
+}
+
+#[tokio::test]
+async fn connection_pool_is_refused_when_the_cap_is_hit() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_concurrent_connections(1)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let first = channel(addr).await;
+    assert_cap_refuses_then_echo(
+        first,
+        Channel::connect_with(addr, pool_against_cap()).await,
+        channel(addr),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_connection_pool_is_refused_when_the_cap_is_hit() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_concurrent_connections(1)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let first = tls_channel_with(addr, client_tls.clone()).await;
+    assert_cap_refuses_then_echo(
+        first,
+        Channel::connect_tls_with(addr, pool_against_cap(), client_tls.clone()).await,
+        tls_channel_with(addr, client_tls),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_connection_pool_is_refused_when_the_cap_is_hit() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_concurrent_connections(1)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let first = tls_channel_with(addr, client_tls.clone()).await;
+    assert_cap_refuses_then_echo(
+        first,
+        Channel::connect_tls_with(addr, pool_against_cap(), client_tls.clone()).await,
+        tls_channel_with(addr, client_tls),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_connection_pool_is_refused_when_the_cap_is_hit() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_concurrent_connections(1)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let first = unix_channel(&path).await;
+    assert_cap_refuses_then_echo(
+        first,
+        Channel::connect_unix_with(&path, pool_against_cap()).await,
+        unix_channel(&path),
+    )
+    .await;
+    task.abort();
 }
 
 #[tokio::test]

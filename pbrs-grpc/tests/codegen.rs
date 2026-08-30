@@ -3950,6 +3950,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "A pool larger than the server's [`::pbrs_grpc::Server::max_concurrent_connections`] fails the dial as `UNAVAILABLE`."
+        ),
+        "generated connect_pool rustdoc must name pool-vs-cap UNAVAILABLE"
+    );
+    assert!(
+        src.contains(
             "Dial a Unix domain socket. See [`::pbrs_grpc::Channel::connect_unix`]. Applies to every call shape."
         ),
         "generated connect_unix rustdoc must name every call shape"
@@ -4289,6 +4295,119 @@ async fn generated_from_io_pool_config_is_still_one_duplex() {
         .expect("from_io");
     echo_store_every_shape(&client).await;
     server.abort();
+}
+
+fn store_pool_against_cap() -> ChannelConfig {
+    ChannelConfig::new()
+        .connect_timeout(Duration::from_millis(300))
+        .connections(2)
+}
+
+async fn assert_store_cap_refuses_then_echo(
+    first: StoreClient,
+    second: Result<StoreClient, Status>,
+    reconnect: impl std::future::Future<Output = StoreClient>,
+) {
+    let err = second.expect_err("pool larger than the accept-loop cap should fail");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    drop(first);
+    echo_store_every_shape(&reconnect.await).await;
+}
+
+#[tokio::test]
+async fn generated_connection_pool_is_refused_when_the_cap_is_hit() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .max_concurrent_connections(1)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let first = client(addr).await;
+    assert_store_cap_refuses_then_echo(
+        first,
+        StoreClient::connect_with(addr, store_pool_against_cap()).await,
+        client(addr),
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_connection_pool_is_refused_when_the_cap_is_hit() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .max_concurrent_connections(1)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let first = tls_client_with(addr, client_tls.clone()).await;
+    assert_store_cap_refuses_then_echo(
+        first,
+        StoreClient::connect_tls_with(addr, store_pool_against_cap(), client_tls.clone()).await,
+        tls_client_with(addr, client_tls),
+    )
+    .await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_connection_pool_is_refused_when_the_cap_is_hit() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let handle = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .max_concurrent_connections(1)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let first = tls_client_with(addr, client_tls.clone()).await;
+    assert_store_cap_refuses_then_echo(
+        first,
+        StoreClient::connect_tls_with(addr, store_pool_against_cap(), client_tls.clone()).await,
+        tls_client_with(addr, client_tls),
+    )
+    .await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_connection_pool_is_refused_when_the_cap_is_hit() {
+    let path = unix_sock("pool-cap");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .max_concurrent_connections(1)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let first = unix_client(&path).await;
+    assert_store_cap_refuses_then_echo(
+        first,
+        StoreClient::connect_unix_with(&path, store_pool_against_cap()).await,
+        unix_client(&path),
+    )
+    .await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
 }
 
 #[tokio::test]

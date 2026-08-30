@@ -4500,6 +4500,10 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
+        "    /// A pool larger than the server's [`{G}::Server::max_concurrent_connections`] fails the dial as `UNAVAILABLE`."
+    );
+    let _ = writeln!(
+        src,
         "    pub async fn connect_pool(target: impl Into<{G}::Target>, connections: usize) -> ::core::result::Result<Self, {G}::Status> {{"
     );
     let _ = writeln!(
