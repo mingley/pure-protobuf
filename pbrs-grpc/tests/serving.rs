@@ -1098,6 +1098,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "HTTP/2 stream receive window the client advertises. Distinct from\n    /// [`ServerConfig::initial_stream_window_size`], which still serves when\n    /// the server advertises a small window. A well-behaved server still\n    /// completes every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
+        ),
+        "ChannelConfig::initial_stream_window_size must name client advertised Distinct from server still-serves"
+    );
+    assert!(
+        src.contains(
+            "HTTP/2 connection receive window the client advertises. Distinct from\n    /// [`ServerConfig::initial_connection_window_size`], which still serves when\n    /// the server advertises a small window. A well-behaved server still\n    /// completes every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
+        ),
+        "ChannelConfig::initial_connection_window_size must name client advertised Distinct from server still-serves"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::max_decoding_message_size`] /\n    /// [`Self::max_encoding_message_size`]. Oversize inbound or outbound is\n    /// [`crate::Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::message_limits must name combined-setter oversize on every transport"
@@ -25435,6 +25447,98 @@ async fn from_io_window_size_config_and_router_still_serve_every_shape() {
             Channel::from_io(client_io, "localhost")
                 .await
                 .expect("from_io router"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+fn client_window_settings() -> ChannelConfig {
+    ChannelConfig::new()
+        .initial_stream_window_size(64 * 1024)
+        .initial_connection_window_size(128 * 1024)
+}
+
+#[tokio::test]
+async fn client_window_settings_still_serve_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(channel_cfg(addr, client_window_settings()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_client_window_settings_still_serve_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    echo_every_shape(
+        &GreeterClient::new(tls_channel_cfg(addr, client_tls, client_window_settings()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_client_window_settings_still_serve_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_every_shape(
+        &GreeterClient::new(tls_channel_cfg(addr, client_tls, client_window_settings()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_client_window_settings_still_serve_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        echo_uncapped().serve_unix(sock).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(unix_channel_with(&path, client_window_settings()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_window_settings_still_serve_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        echo_uncapped().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io_with(client_io, "localhost", client_window_settings())
+                .await
+                .expect("from_io"),
         ),
         None,
     )

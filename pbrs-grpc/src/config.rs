@@ -721,6 +721,11 @@ impl ChannelConfig {
 
     /// HTTP/2 per-stream receive window. Default 16 MiB.
     /// Applies to every call shape.
+    /// HTTP/2 stream receive window the client advertises. Distinct from
+    /// [`ServerConfig::initial_stream_window_size`], which still serves when
+    /// the server advertises a small window. A well-behaved server still
+    /// completes every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
     #[must_use]
     pub fn initial_stream_window_size(mut self, bytes: u32) -> Self {
         self.initial_stream_window_size = bytes;
@@ -729,6 +734,11 @@ impl ChannelConfig {
 
     /// HTTP/2 per-connection receive window. Default 16 MiB.
     /// Applies to every call shape.
+    /// HTTP/2 connection receive window the client advertises. Distinct from
+    /// [`ServerConfig::initial_connection_window_size`], which still serves when
+    /// the server advertises a small window. A well-behaved server still
+    /// completes every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
     #[must_use]
     pub fn initial_connection_window_size(mut self, bytes: u32) -> Self {
         self.initial_connection_window_size = bytes;

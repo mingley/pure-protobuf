@@ -215,7 +215,11 @@ See `docs/upb.md`. Short list:
   (and the matching connection-window setters) still serve every Greeter and
   Store shape at a 64 KiB stream / 128 KiB connection window over TLS, mTLS, Unix,
   and `serve_connection`, distinct from wrapping only the generated Greeter
-  setter, from frame-size still-serves, and from stream-cap serialize. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  setter, from frame-size still-serves, and from stream-cap serialize.
+  `ChannelConfig::initial_stream_window_size` /
+  `ChannelConfig::initial_connection_window_size` advertise client windows and
+  still serve every Greeter shape when a well-behaved server completes over TLS,
+  mTLS, Unix, and `from_io`. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot
