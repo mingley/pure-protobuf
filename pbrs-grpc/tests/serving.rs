@@ -1921,6 +1921,18 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::on_response must name received send_buffer_size is None"
     );
     assert!(
+        src.contains("channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {"),
+        "Channel::on_response rustdoc example must attach a closure"
+    );
+    assert!(
+        src.contains("///         parts.path(),"),
+        "Channel::on_response rustdoc example must read path"
+    );
+    assert!(
+        src.contains("///         parts.send_buffer_size(),"),
+        "Channel::on_response rustdoc example must read send_buffer_size"
+    );
+    assert!(
         src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),

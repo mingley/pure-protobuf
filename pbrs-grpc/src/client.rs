@@ -935,6 +935,27 @@ impl Channel {
     /// [`crate::Response::rpc_timeout`] on a received reply is `None` (the server overlay is not on the reply wire).
     /// [`crate::Response::accepts_compressed`] on a received reply is `false` (this overlay is not a received-reply field).
     /// [`crate::Response::send_buffer_size`] on a received reply is `None` (the peer send buffer is not on the reply wire).
+    ///
+    /// ```
+    /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
+    /// channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
+    ///     let _ = (
+    ///         parts.path(),
+    ///         parts.gzip_level(),
+    ///         parts.compresses_outbound(),
+    ///         parts.accepts_gzip(),
+    ///         parts.deadline(),
+    ///         parts.timeout(),
+    ///         parts.limits(),
+    ///         parts.peer_timeout(),
+    ///         parts.rpc_timeout(),
+    ///         parts.accepts_compressed(),
+    ///         parts.send_buffer_size(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn on_response(self, interceptor: impl crate::ResponseInterceptor) -> Self {
         let mut hooks: Vec<ResponseHook> = self.response_interceptors.iter().cloned().collect();
