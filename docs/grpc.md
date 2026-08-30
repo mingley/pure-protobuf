@@ -1162,6 +1162,7 @@ channel.send_compressed()
 compression is off. Distinct from `send_compressed`, which is on or off.
 `Outgoing::gzip_level` is that overlay in a client interceptor. Distinct from `compresses_outbound` (on or off). An interceptor cannot change it.
 `Rpc::gzip_level` is that overlay in a server interceptor. Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it.
+`Rpc::accepts_compressed` is that overlay in a server interceptor. Distinct from `Rpc::accepts_gzip` (peer advertisement). An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
@@ -1243,7 +1244,9 @@ and is distinct from `send_compressed` (outbound). A channel that called
 `accept_compressed(false)` omits gzip from its request `grpc-accept-encoding`
 and refuses a gzip reply the same way, including over TLS, mTLS, Unix, and
 `from_io`. `Outgoing::accepts_compressed` is that overlay; interceptors
-cannot change it. Distinct from tonic's `accept_compressed`, which starts
+cannot change it. `Rpc::accepts_compressed` is the server overlay a handler
+sees on `Request::accepts_compressed`. Distinct from `Rpc::accepts_gzip`.
+Distinct from tonic's `accept_compressed`, which starts
 opt-in.
 
 Compression is not free. At LAN latencies, identity framing usually wins:
@@ -1604,7 +1607,10 @@ requests leave it false. `Rpc::compresses_outbound`
 is the server's `send_compressed` overlay; generated handlers see it on
 `Request::compresses_outbound` / `Parts::compresses_outbound` (`false` on a
 request you built). `Rpc::gzip_level` is that same deflate effort, stamped
-onto `Request::gzip_level` / `Parts::gzip_level` at dispatch. `Rpc::rpc_timeout` is the server's `timeout` overlay;
+onto `Request::gzip_level` / `Parts::gzip_level` at dispatch. `Rpc::accepts_compressed`
+is the server's inbound gzip overlay; generated handlers see it on
+`Request::accepts_compressed` / `Parts::accepts_compressed`. Distinct from
+`Rpc::accepts_gzip`. `Rpc::rpc_timeout` is the server's `timeout` overlay;
 generated handlers see it on `Request::rpc_timeout` / `Parts::rpc_timeout`.
 `grpc-*` keys stay off `Metadata`.
 

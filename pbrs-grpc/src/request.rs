@@ -57,6 +57,7 @@ pub struct Request<T> {
     accepts_gzip: bool,
     compresses_outbound: bool,
     gzip_level: u32,
+    accepts_compressed: bool,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -90,6 +91,7 @@ impl<T> Request<T> {
             accepts_gzip: false,
             compresses_outbound: false,
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
+            accepts_compressed: true,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -144,6 +146,7 @@ impl<T> Request<T> {
                 accepts_gzip: self.accepts_gzip,
                 compresses_outbound: self.compresses_outbound,
                 gzip_level: self.gzip_level,
+                accepts_compressed: self.accepts_compressed,
                 encoding: self.encoding,
                 cancel: self.cancel,
                 extensions: self.extensions,
@@ -180,6 +183,7 @@ impl<T> Request<T> {
             accepts_gzip: parts.accepts_gzip,
             compresses_outbound: parts.compresses_outbound,
             gzip_level: parts.gzip_level,
+            accepts_compressed: parts.accepts_compressed,
             encoding: parts.encoding,
             cancel: parts.cancel,
             extensions: parts.extensions,
@@ -504,6 +508,24 @@ impl<T> Request<T> {
         self.gzip_level
     }
 
+    /// Server [`crate::Server::accept_compressed`] overlay, when the kernel dispatched this call.
+    ///
+    /// Same overlay as [`crate::Rpc::accepts_compressed`] / [`crate::Server::accepts_compressed`].
+    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this overlay.
+    /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay.
+    /// Default `true` on a request you built to send.
+    /// An interceptor cannot change this; the kernel applies it when decoding.
+    ///
+    /// ```
+    /// let req = pbrs_grpc::Request::new(());
+    /// assert!(req.accepts_compressed());
+    /// assert!(!req.accepts_gzip());
+    /// ```
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.accepts_compressed
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
@@ -667,6 +689,7 @@ impl<T> Request<T> {
             accepts_gzip: false,
             compresses_outbound: false,
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
+            accepts_compressed: true,
             encoding: None,
             cancel: None,
             extensions: http::Extensions::new(),
@@ -720,6 +743,10 @@ impl<T> Request<T> {
 
     pub(crate) fn set_gzip_level(&mut self, level: u32) {
         self.gzip_level = level;
+    }
+
+    pub(crate) fn set_accepts_compressed(&mut self, accept: bool) {
+        self.accepts_compressed = accept;
     }
 
     pub(crate) fn set_encoding(&mut self, encoding: Option<String>) {
@@ -1224,6 +1251,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
             .field("accepts_gzip", &self.accepts_gzip)
             .field("compresses_outbound", &self.compresses_outbound)
             .field("gzip_level", &self.gzip_level)
+            .field("accepts_compressed", &self.accepts_compressed)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -1255,6 +1283,7 @@ pub struct Parts {
     accepts_gzip: bool,
     compresses_outbound: bool,
     gzip_level: u32,
+    accepts_compressed: bool,
     encoding: Option<String>,
     cancel: Option<watch::Receiver<bool>>,
     extensions: http::Extensions,
@@ -1460,6 +1489,12 @@ impl Parts {
         self.gzip_level
     }
 
+    /// Server inbound gzip overlay. See [`Request::accepts_compressed`].
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.accepts_compressed
+    }
+
     /// The `grpc-encoding` token the peer used on this call, if any.
     /// See [`Request::encoding`].
     #[must_use]
@@ -1542,6 +1577,7 @@ impl fmt::Debug for Parts {
             .field("accepts_gzip", &self.accepts_gzip)
             .field("compresses_outbound", &self.compresses_outbound)
             .field("gzip_level", &self.gzip_level)
+            .field("accepts_compressed", &self.accepts_compressed)
             .field("encoding", &self.encoding)
             .field("cancelled", &self.is_cancelled())
             .field("extensions", &self.extensions.len())
@@ -2101,6 +2137,7 @@ mod tests {
         req.set_accepts_gzip(true);
         req.set_compresses_outbound(true);
         req.set_gzip_level(9);
+        req.set_accepts_compressed(false);
         req.set_encoding(Some("gzip".into()));
         let (message, mut parts) = req.into_message_and_parts();
         assert_eq!(message, 1);
@@ -2122,6 +2159,7 @@ mod tests {
         assert!(parts.accepts_gzip());
         assert!(parts.compresses_outbound());
         assert_eq!(parts.gzip_level(), 9);
+        assert!(!parts.accepts_compressed());
         assert_eq!(parts.encoding(), Some("gzip"));
         assert!(parts.peer_cred().is_none());
         assert!(parts.limits().is_none());
@@ -2152,6 +2190,10 @@ mod tests {
             "{shown_parts}"
         );
         assert!(shown_parts.contains("gzip_level: 9"), "{shown_parts}");
+        assert!(
+            shown_parts.contains("accepts_compressed: false"),
+            "{shown_parts}"
+        );
         assert!(shown_parts.contains("encoding: Some("), "{shown_parts}");
         assert!(shown_parts.contains("user_agent: Some("), "{shown_parts}");
         let rebuilt = Request::<u32>::from_message_and_parts("swapped", parts);
@@ -2175,6 +2217,7 @@ mod tests {
         assert!(rebuilt.accepts_gzip());
         assert!(rebuilt.compresses_outbound());
         assert_eq!(rebuilt.gzip_level(), 9);
+        assert!(!rebuilt.accepts_compressed());
         assert_eq!(rebuilt.encoding(), Some("gzip"));
         assert!(rebuilt.peer_cred().is_none());
         assert!(rebuilt.limits().is_none());
@@ -2194,6 +2237,7 @@ mod tests {
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("gzip_level: 9"), "{shown}");
+        assert!(shown.contains("accepts_compressed: false"), "{shown}");
         assert!(shown.contains("encoding: Some("), "{shown}");
         assert!(shown.contains("user_agent: Some("), "{shown}");
         assert!(shown.contains("/helloworld.Greeter/SayHello"), "{shown}");

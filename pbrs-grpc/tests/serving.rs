@@ -703,6 +703,24 @@ fn channel_call_apis_document_hand_written_services() {
         "Request::gzip_level must Distinct client interceptor overlay from inbound dispatch"
     );
     assert!(
+        outgoing.contains(
+            "Server [`crate::Server::accept_compressed`] overlay, when the kernel dispatched this call."
+        ),
+        "Request::accepts_compressed must name the server accept_compressed overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this overlay."
+        ),
+        "Request::accepts_compressed must Distinct peer accepts_gzip from inbound overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay."
+        ),
+        "Request::accepts_compressed must Distinct client interceptor overlay from inbound dispatch"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -859,6 +877,12 @@ fn channel_call_apis_document_hand_written_services() {
             "Distinct from [`Rpc::compresses_outbound`]: that is on or off; [`Rpc::gzip_level`] is deflate effort."
         ),
         "Interceptor rustdoc must Distinct Rpc::gzip_level from compresses_outbound"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`Rpc::accepts_gzip`]: that is the peer's `grpc-accept-encoding`; [`Rpc::accepts_compressed`] is this overlay."
+        ),
+        "Interceptor rustdoc must Distinct Rpc::accepts_compressed from peer accepts_gzip"
     );
     assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
@@ -2038,6 +2062,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Rpc::gzip_level from compresses_outbound"
     );
     assert!(
+        crate_src.contains("[`Rpc::accepts_compressed`] is that overlay in a server interceptor"),
+        "crate docs must name Rpc::accepts_compressed as the server interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Rpc::accepts_gzip`]"),
+        "crate docs must Distinct Rpc::accepts_compressed from peer accepts_gzip"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2410,6 +2442,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from `Rpc::compresses_outbound` (on or off). An interceptor cannot change it."
         ),
         "guide must Distinct Rpc::gzip_level from Rpc::compresses_outbound"
+    );
+    assert!(
+        guide.contains("`Rpc::accepts_compressed` is that overlay in a server interceptor"),
+        "guide must name Rpc::accepts_compressed as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains(
+            "Distinct from `Rpc::accepts_gzip` (peer advertisement). An interceptor cannot change it."
+        ),
+        "guide must Distinct Rpc::accepts_compressed from peer advertisement"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -2965,6 +3007,16 @@ fn server_and_router_config_document_every_call_shape() {
             "Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay."
         ),
         "Rpc::gzip_level must Distinct client interceptor overlay"
+    );
+    assert!(
+        src.contains("Generated handlers see the same value on [`Request::accepts_compressed`]."),
+        "Rpc::accepts_compressed must name the Request stamp"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this overlay."
+        ),
+        "Rpc::accepts_compressed must Distinct peer accepts_gzip from inbound overlay"
     );
     assert!(
         src.contains("0 stores; 9 is best"),
@@ -25089,6 +25141,9 @@ fn sees_gzip_unary(request: Request<HelloRequest>) -> Result<HelloRequest, Statu
     if request.compresses_outbound() {
         return Err(Status::internal("default server does not gzip"));
     }
+    if !request.accepts_compressed() {
+        return Err(Status::internal("default server inflates gzip"));
+    }
     let encoding = request.encoding().map(str::to_owned);
     let compressed = request.compressed();
     let (msg, parts) = request.into_message_and_parts();
@@ -25097,6 +25152,9 @@ fn sees_gzip_unary(request: Request<HelloRequest>) -> Result<HelloRequest, Statu
     }
     if parts.compresses_outbound() {
         return Err(Status::internal("parts invented compresses_outbound"));
+    }
+    if !parts.accepts_compressed() {
+        return Err(Status::internal("parts dropped accepts_compressed"));
     }
     if parts.encoding() != encoding.as_deref() {
         return Err(Status::internal(format!(
@@ -25129,6 +25187,9 @@ async fn sees_gzip_inbound(
     }
     if request.compresses_outbound() {
         return Err(Status::internal("default server does not gzip"));
+    }
+    if !request.accepts_compressed() {
+        return Err(Status::internal("default server inflates gzip"));
     }
     let encoding = request.encoding().map(str::to_owned);
     let mut stream = request.into_inner();
@@ -25205,6 +25266,9 @@ impl pbrs_grpc::Greeter for SeesGzip {
 fn interceptor_require_accepts_gzip(rpc: &mut Rpc) -> Result<(), Status> {
     if !rpc.accepts_gzip() {
         return Err(Status::internal("rpc accepts_gzip"));
+    }
+    if !rpc.accepts_compressed() {
+        return Err(Status::internal("rpc accepts_compressed"));
     }
     Ok(())
 }
@@ -25396,6 +25460,16 @@ fn interceptor_peer_must_not_advertise_gzip(rpc: &mut Rpc) -> Result<(), Status>
     if rpc.accepts_gzip() {
         return Err(Status::internal("peer advertised gzip"));
     }
+    if !rpc.accepts_compressed() {
+        return Err(Status::internal("server overlay should still inflate"));
+    }
+    Ok(())
+}
+
+fn interceptor_require_accept_opt_out(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.accepts_compressed() {
+        return Err(Status::internal("server overlay should refuse gzip"));
+    }
     Ok(())
 }
 
@@ -25422,6 +25496,7 @@ async fn server_accept_compressed_false_refuses_gzip_every_shape() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .accept_compressed(false)
+            .intercept(interceptor_require_accept_opt_out)
             .serve_listener(listener)
             .await
             .ok();
@@ -25438,6 +25513,7 @@ async fn from_io_server_accept_compressed_false_refuses_gzip() {
     let server = tokio::spawn(async move {
         GreeterServer::new(Echo)
             .accept_compressed(false)
+            .intercept(interceptor_require_accept_opt_out)
             .serve_connection(server_io)
             .await
             .ok();
@@ -25478,6 +25554,7 @@ async fn server_config_accept_compressed_false_refuses_gzip() {
     let task = tokio::spawn(async move {
         Server::new(GreeterServer::new(Echo))
             .config(ServerConfig::new().accept_compressed(false))
+            .intercept(interceptor_require_accept_opt_out)
             .serve_listener(listener)
             .await
             .ok();

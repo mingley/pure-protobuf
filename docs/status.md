@@ -374,6 +374,8 @@ See `docs/upb.md`. Short list:
   `compresses_outbound` (on or off). An interceptor cannot change it.
   `Rpc::gzip_level` is that overlay in a server interceptor. Distinct from
   `Rpc::compresses_outbound` (on or off). An interceptor cannot change it.
+  `Rpc::accepts_compressed` is that overlay in a server interceptor. Distinct from
+  `Rpc::accepts_gzip` (peer advertisement). An interceptor cannot change it.
   Inbound gzip is on by default; `Server::accept_compressed(false)` /
   `Channel::accept_compressed(false)` refuse `grpc-encoding: gzip` as
   `UNIMPLEMENTED` and advertise `identity` only (distinct from tonic's
