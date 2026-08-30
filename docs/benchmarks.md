@@ -322,6 +322,14 @@ eight rounds after warmup, reported as messages/s. Process-gated at 90% of
 tonic, the same band as server-streaming. This axis is a loopback capture in
 `rpc-bench`; it is not the 4-core Xeon unary/QPS/stream tables above.
 
+This host, one release run, kernel and tonic sharing one process:
+
+| kernel msgs/s | tonic msgs/s | ratio |
+|---|---:|---:|
+| **1447599** | 555431 | **2.61x** |
+
+The 90% gate passed. These numbers are not the Xeon tables.
+
 ### Re-run
 
 ```bash
