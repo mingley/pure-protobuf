@@ -1541,6 +1541,22 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must name Outgoing::gzip_level as deflate effort"
     );
     assert!(
+        intercept.contains("        call.accepts_compressed(),"),
+        "ClientInterceptor rustdoc example must read accepts_compressed"
+    );
+    assert!(
+        intercept.contains("        call.concurrent_rpc_limit(),"),
+        "ClientInterceptor rustdoc example must read concurrent_rpc_limit"
+    );
+    assert!(
+        intercept.contains("        call.stream_buffer_size(),"),
+        "ClientInterceptor rustdoc example must read stream_buffer_size"
+    );
+    assert!(
+        intercept.contains("        call.limits(),"),
+        "ClientInterceptor rustdoc example must read limits"
+    );
+    assert!(
         intercept.contains("[`Rpc::gzip_level`] is deflate effort"),
         "Interceptor rustdoc must name Rpc::gzip_level as deflate effort"
     );

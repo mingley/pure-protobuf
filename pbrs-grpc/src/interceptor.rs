@@ -435,8 +435,12 @@ impl<S: Service> ServiceExt for S {}
 ///         call.rpc_timeout(),
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
+///         call.accepts_compressed(),
 ///         call.gzip_level(),
+///         call.concurrent_rpc_limit(),
+///         call.stream_buffer_size(),
 ///         call.send_buffer_size(),
+///         call.limits(),
 ///         call.connected(),
 ///     );
 ///     Ok(())
