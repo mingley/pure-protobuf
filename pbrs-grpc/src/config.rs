@@ -1624,6 +1624,7 @@ impl ChannelConfig {
 
     /// Configured default per-RPC deadline, if any. See [`Self::timeout`].
     /// Applies to every call shape.
+    /// Distinct from [`Self::timeout`], which sets it.
     #[must_use]
     pub fn rpc_timeout(self) -> Option<Duration> {
         self.timeout
