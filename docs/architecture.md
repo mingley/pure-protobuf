@@ -96,6 +96,9 @@ a TLS handshake; TCP and Unix keep the transport. `Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on
 `Outgoing::scheme`. `FooClient::authority` and `FooClient::grpc_user_agent`
 are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.
+The kernel `user-agent` (and a `Channel::user_agent` prefix) is the header
+the peer sees on every call shape, including over TLS, mTLS, Unix, and
+`from_io`; inserting `user-agent` into metadata cannot replace it.
 `FooClient::rpc_timeout`, `waits_for_ready`, and `compresses_outbound` read
 the same overlays as the channel (the setter names cannot collide).
 `Channel::unary` / `server_streaming` / `client_streaming` / `bidi` are

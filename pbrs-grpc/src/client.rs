@@ -599,7 +599,9 @@ impl Channel {
     }
 
     /// Prefix the kernel `user-agent`, matching grpc-go `WithUserAgent`.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::from_io`]. Inserting `user-agent` into request metadata cannot
+    /// replace this value on those transports.
     ///
     /// `user_agent("my-app/1.0")` sends `my-app/1.0 pbrs-grpc/<version>`.
     /// The kernel suffix is always present so a peer can identify the stack.
@@ -618,7 +620,8 @@ impl Channel {
         Ok(self)
     }
 
-    /// The `user-agent` sent on every RPC. Applies to every call shape.
+    /// The `user-agent` sent on every RPC. Applies to every call shape,
+    /// including over TLS, mTLS, Unix, and [`Self::from_io`].
     #[must_use]
     pub fn grpc_user_agent(&self) -> &str {
         self.user_agent.to_str().unwrap_or(crate::wire::DEFAULT_UA)

@@ -661,6 +661,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::stream_buffer must name the streaming shapes it queues"
     );
     assert!(
+        src.contains(
+            "Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`Self::from_io`]. Inserting `user-agent` into request metadata cannot\n    /// replace this value on those transports."
+        ),
+        "Channel::user_agent must name every transport and that metadata cannot override"
+    );
+    assert!(
         src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
         "Channel::wait_for_ready must name interceptor set/clear"
     );
@@ -9941,21 +9947,115 @@ async fn outbound_rpcs_send_a_kernel_user_agent() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                let md = rpc.metadata();
-                let ua = md.get("user-agent").unwrap_or("");
-                if !ua.starts_with("pbrs-grpc/") {
-                    return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
-                }
-                Ok(())
-            })
+            .intercept(require_kernel_user_agent)
             .serve_listener(listener)
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    echo_every_shape(&client, None).await;
+    assert_kernel_user_agent(channel(addr).await).await;
     task.abort();
+}
+
+fn require_kernel_user_agent(rpc: &mut Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    if !ua.starts_with("pbrs-grpc/") {
+        return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
+    }
+    Ok(())
+}
+
+async fn assert_kernel_user_agent(ch: Channel) {
+    echo_every_shape(&GreeterClient::new(ch), None).await;
+}
+
+#[tokio::test]
+async fn tls_outbound_rpcs_send_a_kernel_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_kernel_user_agent(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_outbound_rpcs_send_a_kernel_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_kernel_user_agent(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_outbound_rpcs_send_a_kernel_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_kernel_user_agent(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_outbound_rpcs_send_a_kernel_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_kernel_user_agent(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
+}
+
+fn require_prefixed_user_agent(rpc: &mut Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
+    }
+    Ok(())
+}
+
+async fn assert_prefixed_user_agent(ch: Channel) {
+    let ch = ch.user_agent("inventory/2.1").expect("user-agent");
+    echo_every_shape(&GreeterClient::new(ch), None).await;
+}
+
+async fn assert_user_agent_not_overridable(ch: Channel) {
+    echo_every_shape(
+        &GreeterClient::new(ch).intercept(|call: &mut Outgoing<'_>| {
+            call.metadata_mut().insert("user-agent", "evil-agent")?;
+            Ok(())
+        }),
+        None,
+    )
+    .await;
 }
 
 /// Answers without ever reading the request stream. Inbound messages are
@@ -17931,25 +18031,79 @@ async fn a_prefixed_user_agent_is_sent() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                let md = rpc.metadata();
-                let ua = md.get("user-agent").unwrap_or("");
-                if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
-                    return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
-                }
-                Ok(())
-            })
+            .intercept(require_prefixed_user_agent)
             .serve_listener(listener)
             .await
             .ok();
     });
-    let channel = channel(addr)
-        .await
-        .user_agent("inventory/2.1")
-        .expect("user-agent");
-    let client = GreeterClient::new(channel);
-    echo_every_shape(&client, None).await;
+    assert_prefixed_user_agent(channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_prefixed_user_agent_is_sent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_prefixed_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_prefixed_user_agent(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_prefixed_user_agent_is_sent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_prefixed_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_prefixed_user_agent(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_prefixed_user_agent_is_sent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_prefixed_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_prefixed_user_agent(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_prefixed_user_agent_is_sent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_prefixed_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_prefixed_user_agent(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -17957,24 +18111,79 @@ async fn metadata_cannot_override_the_kernel_user_agent() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                let md = rpc.metadata();
-                let ua = md.get("user-agent").unwrap_or("");
-                if !ua.starts_with("pbrs-grpc/") {
-                    return Err(Status::invalid_argument(format!("user-agent {ua:?}")));
-                }
-                Ok(())
-            })
+            .intercept(require_kernel_user_agent)
             .serve_listener(listener)
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        call.metadata_mut().insert("user-agent", "evil-agent")?;
-        Ok(())
-    });
-    echo_every_shape(&client, None).await;
+    assert_user_agent_not_overridable(channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_metadata_cannot_override_the_kernel_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_user_agent_not_overridable(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_metadata_cannot_override_the_kernel_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_user_agent_not_overridable(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_metadata_cannot_override_the_kernel_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_user_agent_not_overridable(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_metadata_cannot_override_the_kernel_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_kernel_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_user_agent_not_overridable(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

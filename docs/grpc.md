@@ -1109,7 +1109,8 @@ A peer asking for an encoding the kernel does not implement gets
 `UNIMPLEMENTED` with `grpc-accept-encoding: identity,gzip` attached, so it
 knows what to retry with.
 
-Outbound RPCs send `user-agent: pbrs-grpc/<version>`. Prefix it the way
+Outbound RPCs send `user-agent: pbrs-grpc/<version>` on every call shape,
+including over TLS, mTLS, Unix, and `from_io`. Prefix it the way
 grpc-go does with `WithUserAgent`:
 
 ```rust
@@ -1117,7 +1118,8 @@ let channel = Channel::connect(addr).await?.user_agent("inventory/2.1")?;
 // sends: inventory/2.1 pbrs-grpc/0.1.0
 ```
 
-`user-agent` in request metadata cannot replace that value. A client
+`user-agent` in request metadata cannot replace that value on those
+transports. A client
 interceptor reads the value the kernel will send with `Outgoing::user_agent`.
 
 ## Limits and the threat model
