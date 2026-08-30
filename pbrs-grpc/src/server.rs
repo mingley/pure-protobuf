@@ -532,6 +532,14 @@ impl Rpc {
         &mut self.extensions
     }
 
+    /// Stack `hook` after any [`crate::Server::on_response`] already on this RPC.
+    pub(crate) fn push_response_hook(&mut self, hook: crate::interceptor::ResponseHook) {
+        self.response_interceptor = Some(match self.response_interceptor.take() {
+            None => hook,
+            Some(prev) => Arc::new(crate::interceptor::ResponseThen::new(prev, hook)),
+        });
+    }
+
     /// Answer with `UNIMPLEMENTED`, naming the path.
     ///
     /// This is the correct default arm of a method `match`: a peer asking for

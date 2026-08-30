@@ -163,16 +163,21 @@ pub(crate) fn intercept_response_all<T>(
     Ok(response)
 }
 
-/// A [`Service`] with an [`Interceptor`] in front of it.
+/// A [`Service`] with an [`Interceptor`] in front of it, and optionally a
+/// [`ResponseInterceptor`] after the handler returns `Ok`.
 ///
 /// `NAME` is inherited, so the wrapper mounts wherever the inner service
-/// would. Build one with [`ServiceExt::intercept`] or
-/// [`crate::Server::intercept`]. Calling [`Intercepted::intercept`] stacks
+/// would. Build one with [`ServiceExt::intercept`] / [`ServiceExt::on_response`]
+/// or [`crate::Server::intercept`]. Calling [`Intercepted::intercept`] stacks
 /// another interceptor after this one (first registered runs first).
+/// [`Intercepted::on_response`] is the same stack for the response hook.
+/// A per-service response hook does not cover other mounts; Distinct from
+/// [`crate::Server::on_response`] / [`crate::Router::on_response`].
 /// Cloning is cheap when `I: Clone`: the inner service is shared.
 pub struct Intercepted<S, I> {
     inner: Arc<S>,
     interceptor: I,
+    response_interceptor: Option<ResponseHook>,
 }
 
 impl<S, I> Intercepted<S, I> {
@@ -182,7 +187,27 @@ impl<S, I> Intercepted<S, I> {
         Self {
             inner: Arc::new(inner),
             interceptor,
+            response_interceptor: None,
         }
+    }
+
+    /// Run `interceptor` after the inner handler returns `Ok`.
+    ///
+    /// Closures implement [`ResponseInterceptor`]. Calling this twice stacks:
+    /// the first interceptor runs first. A [`crate::Server::on_response`] /
+    /// [`crate::Router::on_response`] hook still runs first, then this one.
+    /// This hook does not cover other mounts.
+    /// `Err` after the handler already ran; that status is sent trailers-only instead of the response,
+    /// including [`crate::Status::with_error_details`]. A handler `Err` skips
+    /// this hook. Applies to every call shape, including over TLS, mTLS, Unix,
+    /// and [`crate::Server::serve_connection`].
+    #[must_use]
+    pub fn on_response<R: ResponseInterceptor>(mut self, interceptor: R) -> Self {
+        self.response_interceptor = Some(match self.response_interceptor {
+            None => Arc::new(interceptor),
+            Some(prev) => Arc::new(ResponseThen::new(prev, interceptor)),
+        });
+        self
     }
 }
 
@@ -191,6 +216,7 @@ impl<S, I: Clone> Clone for Intercepted<S, I> {
         Self {
             inner: Arc::clone(&self.inner),
             interceptor: self.interceptor.clone(),
+            response_interceptor: self.response_interceptor.clone(),
         }
     }
 }
@@ -202,12 +228,14 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     ///
     /// This inherent method is what `.intercept()` resolves to on an
     /// [`Intercepted`], so `svc.intercept(a).intercept(b)` does not wrap
-    /// onion-style (which would run `b` first).
+    /// onion-style (which would run `b` first). A response hook already
+    /// attached with [`Self::on_response`] stays.
     #[must_use]
     pub fn intercept<J: Interceptor>(self, next: J) -> Intercepted<S, impl Interceptor> {
         Intercepted {
             inner: self.inner,
             interceptor: Then::new(Arc::new(self.interceptor), next),
+            response_interceptor: self.response_interceptor,
         }
     }
 }
@@ -227,7 +255,25 @@ impl<S: Service, I: Interceptor> Service for Intercepted<S, I> {
         if let Err(status) = self.interceptor.intercept(&mut rpc) {
             return rpc.reject(status);
         }
+        if let Some(hook) = &self.response_interceptor {
+            rpc.push_response_hook(Arc::clone(hook));
+        }
         self.inner.call(rpc).await;
+    }
+}
+
+#[derive(Clone, Copy)]
+struct AllowAll;
+
+impl Interceptor for AllowAll {
+    fn intercept(&self, _: &mut Rpc) -> Result<(), Status> {
+        Ok(())
+    }
+}
+
+impl ResponseInterceptor for ResponseHook {
+    fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status> {
+        (**self).intercept(parts)
     }
 }
 
@@ -242,6 +288,26 @@ pub trait ServiceExt: Service + Sized {
     #[must_use]
     fn intercept<I: Interceptor>(self, interceptor: I) -> Intercepted<Self, I> {
         Intercepted::new(self, interceptor)
+    }
+
+    /// Run `interceptor` after this service's handler returns `Ok`.
+    ///
+    /// Calling this on an [`Intercepted`] uses [`Intercepted::on_response`]
+    /// instead, which stacks first-interceptor-first. A
+    /// [`crate::Server::on_response`] / [`crate::Router::on_response`] hook
+    /// still runs first, then this one.
+    /// This hook does not cover other mounts.
+    /// `Err` after the handler already ran; that status is sent
+    /// trailers-only instead of the response, including
+    /// [`crate::Status::with_error_details`]. A handler `Err` skips this
+    /// hook. Applies to every call shape, including over TLS, mTLS, Unix,
+    /// and [`crate::Server::serve_connection`].
+    #[must_use]
+    fn on_response<R: ResponseInterceptor>(
+        self,
+        interceptor: R,
+    ) -> Intercepted<Self, impl Interceptor> {
+        Intercepted::new(self, AllowAll).on_response(interceptor)
     }
 }
 

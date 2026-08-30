@@ -190,7 +190,9 @@ trailers-only. A handler `Err` skips this hook. `Channel::on_response` /
 `FooClient::on_response` run after a successful receive; a received reply
 starts empty and this hook inserts typed context the peer cannot. `Err`
 fails that Call (the peer already sent OK). A non-OK peer status skips
-this hook. Closures see `Rpc` (path, service/method,
+this hook. `ServiceExt::on_response` / `Intercepted::on_response` is the
+per-service hook and does not cover other mounts; a Server / Router hook
+still runs first. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).

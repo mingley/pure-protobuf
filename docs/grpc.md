@@ -1506,7 +1506,9 @@ context; stamp metadata here to send a header. Calling it twice stacks:
 the first interceptor runs first. `Err` after the handler already ran; that
 status is sent trailers-only instead of the response. A handler `Err` skips
 this hook. Applies to every call shape, including over TLS, mTLS, Unix, and
-`from_io`.
+`from_io`. Per-service wrapping is `ServiceExt::on_response` /
+`Intercepted::on_response`. A Server / Router hook still runs first, then
+the per-service hook. The per-service hook does not cover other mounts.
 
 `Channel::on_response` (and the generated `FooClient::on_response`) runs
 after a successful receive, before the `Call` is Ready. A received reply

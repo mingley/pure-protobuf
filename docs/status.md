@@ -440,6 +440,8 @@ See `docs/upb.md`. Short list:
   the peer cannot. `Err` fails that Call (the peer already sent OK). A
   non-OK peer status skips this hook. First registered runs first. Applies
   to every call shape, including over TLS, mTLS, Unix, and `from_io`.
+  `ServiceExt::on_response` / `Intercepted::on_response` is per-service and
+  does not cover other mounts; a Server / Router hook still runs first.
   The same `add_service` keeps `max_decoding_message_size` on every mount
   and every call shape, including over TLS, mTLS, Unix, and `from_io`.
   `max_encoding_message_size` then `add_service` keeps that outbound cap on

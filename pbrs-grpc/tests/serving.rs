@@ -853,6 +853,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must name client Err after the peer sent OK"
     );
     assert!(
+        intercept.contains("does not cover other mounts."),
+        "ServiceExt::on_response must Distinct a per-service hook from other mounts"
+    );
+    assert!(
         src.contains("starts empty; this is how a client inserts typed context after the"),
         "Channel::on_response must Distinct receive-side insert from the peer"
     );
@@ -1478,6 +1482,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         !guide.contains("| Response interceptors |"),
         "guide must not list Response interceptors as an omission"
+    );
+    assert!(
+        guide.contains("`ServiceExt::on_response` /"),
+        "guide must name ServiceExt::on_response as the per-service response hook"
     );
     assert!(
         guide.contains("`Channel::on_response` (and the generated"),
@@ -14783,6 +14791,194 @@ async fn channel_on_response_stack_is_first_registered_first() {
         .await
         .expect("unary");
     assert_eq!(reply.metadata().get("x-stack"), Some("ab"));
+    task.abort();
+}
+
+async fn echo_reverser_hook_every_shape(ch: &Channel) {
+    let resp = ch
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(resp.get_ref()), "desserts");
+    assert_eq!(resp.metadata().get("x-hook"), Some("1"), "unary header");
+    assert_eq!(
+        resp.trailers().get("x-hook-end"),
+        Some("1"),
+        "unary trailer"
+    );
+
+    let resp = ch
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(req("stressed")),
+        )
+        .await
+        .expect("server-stream");
+    assert_eq!(
+        resp.metadata().get("x-hook"),
+        Some("1"),
+        "server-stream header"
+    );
+    let mut stream = resp.into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
+    assert!(stream.message().await.expect("end").is_none());
+    let trailers = stream.trailers().await.expect("trailers");
+    assert_eq!(
+        trailers.get("x-hook-end"),
+        Some("1"),
+        "server-stream trailer"
+    );
+
+    let (tx, call) =
+        ch.client_streaming::<HelloRequest, HelloReply>("/demo.Reverser/Client", Request::new(()));
+    tx.send(req("stressed")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("client-stream");
+    assert_eq!(name_of(resp.get_ref()), "desserts");
+    assert_eq!(
+        resp.metadata().get("x-hook"),
+        Some("1"),
+        "client-stream header"
+    );
+    assert_eq!(
+        resp.trailers().get("x-hook-end"),
+        Some("1"),
+        "client-stream trailer"
+    );
+
+    let (tx, call) = ch.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    tx.send(req("stressed")).await.expect("send");
+    tx.close();
+    let resp = call.await.expect("bidi");
+    assert_eq!(resp.metadata().get("x-hook"), Some("1"), "bidi header");
+    let mut inbound = resp.into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
+    assert!(inbound.message().await.expect("end").is_none());
+    let trailers = inbound.trailers().await.expect("bidi trailers");
+    assert_eq!(trailers.get("x-hook-end"), Some("1"), "bidi trailer");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn service_ext_on_response_stamps_every_reverser_shape() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(seen).on_response(stamp_hook))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_reverser_hook_every_shape(&channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn service_ext_on_response_err_after_handler() {
+    let seen = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let seen = Arc::clone(&seen);
+        async move {
+            Server::new(Reverser::new(seen).on_response(deny_after_ok))
+                .serve_listener(listener)
+                .await
+                .ok();
+        }
+    });
+    let err = channel(addr)
+        .await
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect_err("hook must replace the response");
+    assert_eq!(err.code(), Code::PermissionDenied);
+    assert_eq!(seen.load(Ordering::SeqCst), 1, "handler must have run");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn service_ext_on_response_does_not_cover_other_mounts() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let task = tokio::spawn(async move {
+        Router::new()
+            .add_service(Reverser::new(seen).on_response(stamp_hook))
+            .add_service(TestServiceServer::new(InteropTestService))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let ch = channel(addr).await;
+    let reverse = ch
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("reverse");
+    assert_eq!(name_of(reverse.get_ref()), "desserts");
+    assert_eq!(reverse.metadata().get("x-hook"), Some("1"));
+    let empty = TestServiceClient::new(ch)
+        .empty_call(Request::new(Empty::new()))
+        .await
+        .expect("empty");
+    assert!(
+        empty.metadata().get("x-hook").is_none(),
+        "per-service on_response must not cover other mounts"
+    );
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn service_ext_on_response_stack_is_first_registered_first() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let task = tokio::spawn(async move {
+        Server::new(
+            Reverser::new(seen)
+                .on_response(interceptor_stack_a)
+                .on_response(interceptor_stack_b),
+        )
+        .serve_listener(listener)
+        .await
+        .ok();
+    });
+    let reply = channel(addr)
+        .await
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("unary");
+    assert_eq!(reply.metadata().get("x-stack"), Some("ab"));
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn server_on_response_runs_before_service_ext_on_response() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let task = tokio::spawn(async move {
+        Server::new(Reverser::new(seen).on_response(interceptor_stack_b))
+            .on_response(interceptor_stack_a)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let reply = channel(addr)
+        .await
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")))
+        .await
+        .expect("unary");
+    assert_eq!(
+        reply.metadata().get("x-stack"),
+        Some("ab"),
+        "Server on_response must run before the per-service hook"
+    );
     task.abort();
 }
 
