@@ -3444,6 +3444,100 @@ fn assert_interceptors_run_on_create(client: &GreeterClient, ran: &Arc<AtomicUsi
     drop(tx);
 }
 
+fn intercept_counts_create_test(channel: Channel, ran: &Arc<AtomicUsize>) -> TestServiceClient {
+    let flag = Arc::clone(ran);
+    TestServiceClient::new(channel).intercept(move |_: &mut Outgoing<'_>| {
+        flag.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    })
+}
+
+fn assert_interceptors_run_on_create_test(client: &TestServiceClient, ran: &Arc<AtomicUsize>) {
+    let unary = client.empty_call(Request::new(Empty::new()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        1,
+        "unary interceptor must run when the method returns"
+    );
+    drop(unary);
+
+    let streaming = client.streaming_output_call(Request::new(StreamingOutputCallRequest::new()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        2,
+        "server-streaming interceptor must run when the method returns"
+    );
+    drop(streaming);
+
+    let (tx, call) = client.streaming_input_call(Request::new(()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        3,
+        "client-streaming interceptor must run when the method returns"
+    );
+    drop(call);
+    drop(tx);
+
+    let (tx, call) = client.full_duplex_call(Request::new(()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        4,
+        "bidi interceptor must run when the method returns"
+    );
+    drop(call);
+    drop(tx);
+}
+
+fn intercept_counts_create_channel(channel: Channel, ran: &Arc<AtomicUsize>) -> Channel {
+    let flag = Arc::clone(ran);
+    channel.intercept(move |_: &mut Outgoing<'_>| {
+        flag.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    })
+}
+
+fn assert_interceptors_run_on_create_channel(channel: &Channel, ran: &Arc<AtomicUsize>) {
+    let unary = channel
+        .unary::<HelloRequest, HelloReply>("/demo.Reverser/Reverse", Request::new(req("stressed")));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        1,
+        "unary interceptor must run when the method returns"
+    );
+    drop(unary);
+
+    let streaming = channel.server_streaming::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Server",
+        Request::new(req("stressed")),
+    );
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        2,
+        "server-streaming interceptor must run when the method returns"
+    );
+    drop(streaming);
+
+    let (tx, call) = channel
+        .client_streaming::<HelloRequest, HelloReply>("/demo.Reverser/Client", Request::new(()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        3,
+        "client-streaming interceptor must run when the method returns"
+    );
+    drop(call);
+    drop(tx);
+
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    assert_eq!(
+        ran.load(Ordering::SeqCst),
+        4,
+        "bidi interceptor must run when the method returns"
+    );
+    drop(call);
+    drop(tx);
+}
+
 #[tokio::test]
 async fn a_tls_client_interceptor_runs_when_the_call_is_created() {
     let (addr, listener) = bind().await;
@@ -3498,6 +3592,142 @@ async fn a_from_io_client_interceptor_runs_when_the_call_is_created() {
         &ran,
     );
     assert_interceptors_run_on_create(&client, &ran);
+    server.abort();
+}
+
+#[tokio::test]
+async fn test_client_interceptors_run_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client = intercept_counts_create_test(Channel::connect_lazy(addr).expect("lazy"), &ran);
+    assert_interceptors_run_on_create_test(&client, &ran);
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = intercept_counts_create_test(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_test(&client, &ran);
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = intercept_counts_create_test(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_test(&client, &ran);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_runs_when_the_call_is_created() {
+    let (path, _guard) = unix_test_path();
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client =
+        intercept_counts_create_test(Channel::connect_unix_lazy(&path).expect("lazy"), &ran);
+    assert_interceptors_run_on_create_test(&client, &ran);
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_runs_when_the_call_is_created() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client = intercept_counts_create_test(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_test(&client, &ran);
+    server.abort();
+}
+
+#[tokio::test]
+async fn reverser_client_interceptors_run_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let channel = intercept_counts_create_channel(Channel::connect_lazy(addr).expect("lazy"), &ran);
+    assert_interceptors_run_on_create_channel(&channel, &ran);
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = intercept_counts_create_channel(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_channel(&channel, &ran);
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_runs_when_the_call_is_created() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let ran = Arc::new(AtomicUsize::new(0));
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = intercept_counts_create_channel(
+        Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_channel(&channel, &ran);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_runs_when_the_call_is_created() {
+    let (path, _guard) = unix_test_path();
+    let ran = Arc::new(AtomicUsize::new(0));
+    let channel =
+        intercept_counts_create_channel(Channel::connect_unix_lazy(&path).expect("lazy"), &ran);
+    assert_interceptors_run_on_create_channel(&channel, &ran);
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_runs_when_the_call_is_created() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        Server::new(Reverser::new(Arc::new(AtomicUsize::new(0))))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let ran = Arc::new(AtomicUsize::new(0));
+    let channel = intercept_counts_create_channel(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+        &ran,
+    );
+    assert_interceptors_run_on_create_channel(&channel, &ran);
     server.abort();
 }
 
