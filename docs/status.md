@@ -107,7 +107,10 @@ See `docs/upb.md`. Short list:
   Unix, and `from_io`. There is still no Health `List`. Reflection
   `file_containing_symbol` / `file_by_filename` / `file_containing_extension`
   / `all_extension_numbers_of_type` run on the one bidi method, including
-  over TLS, mTLS, Unix, and `from_io`. TLS
+  over TLS, mTLS, Unix, and `from_io`. An inbound Health Check or Watch over
+  the decoding cap is `RESOURCE_EXHAUSTED` on those transports. An inbound
+  reflection message over the decoding cap fails that bidi stream as
+  `RESOURCE_EXHAUSTED` trailers on those transports. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent

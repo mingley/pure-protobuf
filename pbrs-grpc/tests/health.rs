@@ -518,6 +518,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must name Watch drop on every transport"
     );
+    assert!(
+        src.contains(
+            "request over the decoding cap is `RESOURCE_EXHAUSTED` on both, including\n//! over TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "Health crate rustdoc must name oversize RESOURCE_EXHAUSTED on every transport"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
@@ -3303,5 +3309,95 @@ async fn health_from_io_check_watch_protocol() {
         .await
         .expect("from_io");
     assert_health_protocol(&client, &reporter).await;
+    handle.abort();
+}
+
+async fn assert_health_oversize(client: &HealthClient) {
+    let mut fat = HealthCheckRequest::new();
+    fat.set_service("k".repeat(64));
+    let err = client
+        .check(Request::new(fat.clone()))
+        .await
+        .expect_err("check");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    match client.watch(Request::new(fat)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("oversize Watch must fail as trailers"),
+        },
+    }
+}
+
+fn health_oversize_router() -> Router {
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    Router::new().max_decoding_message_size(16).add_service(svc)
+}
+
+#[tokio::test]
+async fn health_tls_oversize_request_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_health_oversize(
+        &tls_client_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await,
+    )
+    .await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_mtls_oversize_request_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        health_oversize_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_health_oversize(&tls_client_with(addr, client_tls).await).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn health_unix_oversize_request_is_resource_exhausted() {
+    let path = unix_sock("oversize");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_oversize_router().serve_unix(sock).await.ok();
+    });
+    assert_health_oversize(&unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn health_from_io_oversize_request_is_resource_exhausted() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        health_oversize_router()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = HealthClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_health_oversize(&client).await;
     handle.abort();
 }

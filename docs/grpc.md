@@ -912,7 +912,7 @@ is the inverse: every known name is `SERVING` again, still without creating
 unknown names.
 
 There is no `List`. An inbound `Check` or `Watch` over the decoding cap is
-`RESOURCE_EXHAUSTED`. Unix, TLS, and `from_io` serve both methods.
+`RESOURCE_EXHAUSTED`, including over TLS, mTLS, Unix, and `from_io`. Unix, TLS, and `from_io` serve both methods.
 `send_compressed` gzips Check and Watch when the client advertises gzip,
 including over TLS, mTLS, Unix, and `from_io`. A client interceptor sees path,
 service, method, `:authority`, and `:scheme` on both methods, including over
@@ -951,7 +951,7 @@ extension-number listing is best-effort (empty when the type has none). A
 missing symbol is a `NOT_FOUND` on the stream (`ErrorResponse`), not a broken
 RPC, including over those transports. An inbound message over the
 decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers, not a quiet
-OK end. Unix, TLS, and `from_io` serve that method. `send_compressed` gzips
+OK end, including over TLS, mTLS, Unix, and `from_io`. Unix, TLS, and `from_io` serve that method. `send_compressed` gzips
 that bidi method when the client advertises gzip, including over TLS, mTLS, Unix,
 and `from_io`. A client interceptor sees path, service, method, `:authority`,
 and `:scheme` on that method, including over TLS, mTLS, Unix, and `from_io`. An

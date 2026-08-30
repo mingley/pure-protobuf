@@ -358,6 +358,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name extension lookups on every transport"
     );
+    assert!(
+        src.contains(
+            "over the decoding cap fails the stream as `RESOURCE_EXHAUSTED` trailers\n//! (`StreamSender::fail`), not a quiet OK end, including over TLS, mTLS, Unix,\n//! and [`crate::Channel::from_io`]."
+        ),
+        "reflection crate rustdoc must name oversize RESOURCE_EXHAUSTED on every transport"
+    );
 }
 
 #[tokio::test]
@@ -3256,4 +3262,89 @@ async fn reflection_from_io_extension_lookups() {
         .await
         .expect("from_io");
     assert_reflection_extensions(&client).await;
+}
+
+async fn assert_reflection_oversize(client: &ServerReflectionClient) {
+    let mut fat = ServerReflectionRequest::new();
+    fat.set_file_containing_symbol("k".repeat(64));
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    tx.send(fat).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("oversize reflection request must fail as trailers"),
+        },
+    }
+}
+
+fn reflection_oversize_router() -> Router {
+    Router::new()
+        .max_decoding_message_size(16)
+        .add_service(service([FILE_DESCRIPTOR_SET]).expect("reflection"))
+}
+
+#[tokio::test]
+async fn reflection_tls_oversize_request_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection_oversize_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_oversize(&tls_client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_mtls_oversize_request_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection_oversize_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reflection_oversize(&tls_client_with(addr, client_tls).await).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reflection_unix_oversize_request_is_resource_exhausted() {
+    let path = unix_sock("oversize");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        reflection_oversize_router().serve_unix(sock).await.ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_oversize(&unix_client(&path).await).await;
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn reflection_from_io_oversize_request_is_resource_exhausted() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        reflection_oversize_router()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = ServerReflectionClient::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_reflection_oversize(&client).await;
 }
