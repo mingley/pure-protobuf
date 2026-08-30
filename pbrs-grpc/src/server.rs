@@ -2766,6 +2766,26 @@ impl Router {
     /// Run `interceptor` before every mounted service. Calling this twice
     /// stacks: the first interceptor runs first. Same inspect/reject surface
     /// as [`Server::intercept`]. Applies to every call shape.
+    ///
+    /// ```
+    /// # fn demo(router: pbrs_grpc::Router) -> pbrs_grpc::Router {
+    /// router.intercept(|rpc: &mut pbrs_grpc::Rpc| {
+    ///     let _ = (
+    ///         rpc.path(),
+    ///         rpc.peer_timeout(),
+    ///         rpc.rpc_timeout(),
+    ///         rpc.effective_timeout(),
+    ///         rpc.deadline(),
+    ///         rpc.gzip_level(),
+    ///         rpc.accepts_compressed(),
+    ///         rpc.concurrent_rpc_limit(),
+    ///         rpc.send_buffer_size(),
+    ///         rpc.limits(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn intercept<I: crate::Interceptor>(mut self, interceptor: I) -> Self {
         self.interceptor = Some(match self.interceptor {

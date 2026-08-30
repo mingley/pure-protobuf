@@ -4757,6 +4757,10 @@ fn server_and_router_config_document_every_call_shape() {
         src.contains("///         rpc.concurrent_rpc_limit(),"),
         "Server::intercept rustdoc example must read concurrent_rpc_limit"
     );
+    assert!(
+        src.contains("router.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
+        "Router::intercept rustdoc example must attach a closure"
+    );
     assert_eq!(
         src.matches(
             "Those extensions are not on the\n    /// wire; stamp [`crate::ResponseParts::metadata_mut`] to send a header."
