@@ -4233,7 +4233,7 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
-        "    /// After age or idle fires, wait this long for in-flight RPCs. Applies to every call shape. See [`{G}::ServerConfig::max_connection_age_grace`]."
+        "    /// After age or idle fires, wait this long for in-flight RPCs, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Applies to every call shape. See [`{G}::ServerConfig::max_connection_age_grace`]."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(

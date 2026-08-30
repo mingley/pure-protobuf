@@ -854,6 +854,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ServerConfig::max_connection_age must name redial on TLS, mTLS, and Unix"
     );
     assert!(
+        src.contains(
+            "dropping the socket. Default 10 s. Values below 1 ms are raised to 1 ms.\n    /// Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
+        ),
+        "ServerConfig::max_connection_age_grace must name in-flight finish on every transport"
+    );
+    assert!(
         src.contains("of every call shape redials, including over TLS, mTLS, and Unix."),
         "ServerConfig::max_connection_idle must name redial on TLS, mTLS, and Unix"
     );
@@ -949,6 +955,14 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::max_connection_idle and Router::max_connection_idle must name redial on TLS, mTLS, and Unix"
+    );
+    assert_eq!(
+        src.matches(
+            "including over TLS, mTLS, Unix, and [`Self::serve_connection`].\n    /// Applies to every call shape. See [`ServerConfig::max_connection_age_grace`]."
+        )
+        .count(),
+        2,
+        "Server::max_connection_age_grace and Router::max_connection_age_grace must name every transport"
     );
     assert_eq!(
         src.matches(
@@ -12003,18 +12017,7 @@ async fn unix_max_connection_idle_goaway_then_the_channel_redials() {
     task.abort();
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn max_connection_age_lets_in_flight_rpcs_finish() {
-    let (addr, listener) = bind().await;
-    let task = tokio::spawn(async move {
-        GreeterServer::new(Slow)
-            .max_connection_age(Duration::from_millis(80))
-            .max_connection_age_grace(Duration::from_secs(2))
-            .serve_listener(listener)
-            .await
-            .ok();
-    });
-    let client = GreeterClient::new(channel(addr).await);
+async fn assert_age_lets_in_flight_finish(client: GreeterClient) {
     let mut call = client.say_hello(Request::new(req("ada")));
     tokio::select! {
         biased;
@@ -12026,7 +12029,90 @@ async fn max_connection_age_lets_in_flight_rpcs_finish() {
         .expect("in-flight RPC hung past grace")
         .expect("in-flight RPC must complete");
     assert_eq!(name_of(reply.get_ref()), "ada");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn max_connection_age_lets_in_flight_rpcs_finish() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_age_lets_in_flight_finish(GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_max_connection_age_lets_in_flight_rpcs_finish() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_age_lets_in_flight_finish(GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_max_connection_age_lets_in_flight_rpcs_finish() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_age_lets_in_flight_finish(GreeterClient::new(tls_channel_with(addr, client_tls).await))
+        .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_max_connection_age_lets_in_flight_rpcs_finish() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_age_lets_in_flight_finish(GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_max_connection_age_lets_in_flight_rpcs_finish() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Slow)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_age_lets_in_flight_finish(GreeterClient::new(channel)).await;
+    server.abort();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -3857,6 +3857,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "After age or idle fires, wait this long for in-flight RPCs, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]. Applies to every call shape."
+        ),
+        "generated max_connection_age_grace rustdoc must name in-flight finish on every transport"
+    );
+    assert!(
+        src.contains(
             "Send GOAWAY after this long with no outstanding RPCs. The next RPC of every call shape redials, including over TLS, mTLS, and Unix."
         ),
         "generated max_connection_idle rustdoc must name redial on TLS, mTLS, and Unix"

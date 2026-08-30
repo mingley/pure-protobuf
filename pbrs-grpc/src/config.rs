@@ -305,7 +305,8 @@ impl ServerConfig {
 
     /// After age or idle fires, wait this long for in-flight RPCs before
     /// dropping the socket. Default 10 s. Values below 1 ms are raised to 1 ms.
-    /// Applies to every call shape.
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`].
     ///
     /// [`crate::Server::max_connection_age_grace`],
     /// [`crate::Router::max_connection_age_grace`], and generated

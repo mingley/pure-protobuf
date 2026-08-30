@@ -1482,7 +1482,8 @@ impl<S: Service> Server<S> {
         self
     }
 
-    /// After age or idle fires, wait this long for in-flight RPCs.
+    /// After age or idle fires, wait this long for in-flight RPCs,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
     /// Applies to every call shape. See [`ServerConfig::max_connection_age_grace`].
     #[must_use]
     pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
@@ -2044,7 +2045,8 @@ impl Router {
         self
     }
 
-    /// After age or idle fires, wait this long for in-flight RPCs.
+    /// After age or idle fires, wait this long for in-flight RPCs,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
     /// Applies to every call shape. See [`ServerConfig::max_connection_age_grace`].
     #[must_use]
     pub fn max_connection_age_grace(mut self, grace: Duration) -> Self {
