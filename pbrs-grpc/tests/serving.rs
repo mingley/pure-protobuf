@@ -4403,6 +4403,189 @@ async fn from_io_client_interceptors_stack_and_share_extensions() {
     server.abort();
 }
 
+fn stacked_trace_test(channel: Channel) -> TestServiceClient {
+    TestServiceClient::new(channel)
+        .intercept(interceptor_insert_trace)
+        .intercept(interceptor_stamp_trace)
+}
+
+fn stacked_trace_channel(channel: Channel) -> Channel {
+    channel
+        .intercept(interceptor_insert_trace)
+        .intercept(interceptor_stamp_trace)
+}
+
+#[tokio::test]
+async fn test_client_interceptors_stack_and_share_extensions() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_trace)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&stacked_trace_test(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_tls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_trace)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&stacked_trace_test(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_mtls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_trace)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_test_every_shape(&stacked_trace_test(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_unix_client_interceptors_stack_and_share_extensions() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_trace)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&stacked_trace_test(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_from_io_client_interceptors_stack_and_share_extensions() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_trace)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&stacked_trace_test(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn reverser_client_interceptors_stack_and_share_extensions() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_trace);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+    echo_reverser_every_shape(&stacked_trace_channel(channel(addr).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_tls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_trace);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_reverser_every_shape(&stacked_trace_channel(tls_channel(addr).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_mtls_client_interceptors_stack_and_share_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    )
+    .intercept(require_trace);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reverser_every_shape(&stacked_trace_channel(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reverser_unix_client_interceptors_stack_and_share_extensions() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_trace);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    echo_reverser_every_shape(&stacked_trace_channel(unix_channel(&path).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_from_io_client_interceptors_stack_and_share_extensions() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_trace);
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    echo_reverser_every_shape(&stacked_trace_channel(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    server.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_client_interceptor_can_set_wait_for_ready() {
     let (addr, listener) = bind().await;
