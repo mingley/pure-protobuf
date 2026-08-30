@@ -72,6 +72,24 @@ fn require_h2(alpn: Option<&[u8]>) -> Result<(), Status> {
     }
 }
 
+/// Map a rustls handshake I/O error onto a gRPC code.
+///
+/// A reset or abort while the peer is dropping the socket (accept-loop cap,
+/// mute close) is [`crate::Code::Unavailable`], matching an h2c preface
+/// close. Certificate and protocol failures stay
+/// [`crate::Code::Unauthenticated`].
+fn tls_handshake_status(err: std::io::Error) -> Status {
+    match err.kind() {
+        std::io::ErrorKind::ConnectionRefused
+        | std::io::ErrorKind::ConnectionReset
+        | std::io::ErrorKind::ConnectionAborted
+        | std::io::ErrorKind::NotConnected
+        | std::io::ErrorKind::BrokenPipe
+        | std::io::ErrorKind::UnexpectedEof => Status::unavailable(format!("tls handshake: {err}")),
+        _ => Status::unauthenticated(format!("tls handshake: {err}")),
+    }
+}
+
 /// A PEM certificate chain and private key.
 pub struct Identity {
     certs: Vec<CertificateDer<'static>>,
@@ -354,7 +372,7 @@ impl ClientTls {
             .connector
             .connect(self.server_name.clone(), tcp)
             .await
-            .map_err(|e| Status::unauthenticated(format!("tls handshake: {e}")))?;
+            .map_err(tls_handshake_status)?;
         require_h2(stream.get_ref().1.alpn_protocol())?;
         // TLS 1.3 lets the client finish before the server has applied a
         // mandatory client-certificate check. The alert is already in the
@@ -427,6 +445,20 @@ mod tests {
         assert_eq!(err.code(), Code::InvalidArgument);
         let err = key_from_pem(b"").expect_err("empty key");
         assert_eq!(err.code(), Code::InvalidArgument);
+    }
+
+    #[test]
+    fn tls_handshake_reset_is_unavailable() {
+        let err = std::io::Error::new(std::io::ErrorKind::ConnectionReset, "reset");
+        let status = super::tls_handshake_status(err);
+        assert_eq!(status.code(), Code::Unavailable);
+    }
+
+    #[test]
+    fn tls_handshake_invalid_data_is_unauthenticated() {
+        let err = std::io::Error::new(std::io::ErrorKind::InvalidData, "bad cert");
+        let status = super::tls_handshake_status(err);
+        assert_eq!(status.code(), Code::Unauthenticated);
     }
 
     #[test]
