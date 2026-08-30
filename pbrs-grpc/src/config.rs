@@ -1468,6 +1468,7 @@ impl ChannelConfig {
     }
 
     /// Configured per-connection send buffer. Applies to every call shape.
+    /// Distinct from [`Self::max_send_buffer_size`], which sets it.
     #[must_use]
     pub fn send_buffer_size(self) -> usize {
         self.max_send_buffer_size
