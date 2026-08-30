@@ -93,8 +93,9 @@
 See `docs/upb.md`. Short list:
 
 - Native gRPC is `pbrs-grpc`. Official `grpc.testing` TestService interop
-  (`empty_unary` … `timeout_on_sleeping_server`, plus the four gzip cases,
-  including mixed `server_compressed_streaming`) is implemented. TLS
+  (`empty_unary` … `unimplemented_service`, plus the four gzip cases,
+  including mixed `server_compressed_streaming`) is locked against
+  `InteropTestService` over h2c, TLS, mTLS, Unix, and `from_io`. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent

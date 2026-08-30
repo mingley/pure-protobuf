@@ -38,7 +38,10 @@ fn assert_payload_len(resp: &crate::testing::SimpleResponse, n: i32) -> Result<(
     Ok(())
 }
 
-/// Run one official uncompressed or compressed `_TEST_CASES` name.
+/// Run one official uncompressed or gzip `_TEST_CASES` name.
+///
+/// Applies to the call shapes that case uses, including over TLS, mTLS,
+/// Unix, and [`crate::Channel::from_io`].
 pub async fn run_case(client: &TestServiceClient, name: &str) -> Result<(), Status> {
     match name {
         "empty_unary" => empty_unary(client).await,

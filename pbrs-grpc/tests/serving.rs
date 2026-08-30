@@ -743,6 +743,26 @@ fn channel_call_apis_document_hand_written_services() {
 }
 
 #[test]
+fn official_interop_rustdoc_names_every_transport() {
+    let testing = include_str!("../src/testing.rs");
+    assert!(
+        testing.contains(
+            "Official uncompressed `_TEST_CASES` and the four gzip cases pass against
+/// this server over TLS, mTLS, Unix, and [`crate::Server::serve_connection`]."
+        ),
+        "InteropTestService rustdoc must name official cases on every transport"
+    );
+    let cases = include_str!("../src/interop_cases.rs");
+    assert!(
+        cases.contains(
+            "Applies to the call shapes that case uses, including over TLS, mTLS,
+/// Unix, and [`crate::Channel::from_io`]."
+        ),
+        "run_case rustdoc must name every transport"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -21449,6 +21469,38 @@ fn server_and_router_config_is_readable_and_cloneable() {
     );
 }
 
+async fn assert_official_cases(client: &TestServiceClient, cases: &[&str]) {
+    for case in cases {
+        pbrs_grpc::run_case(client, case)
+            .await
+            .unwrap_or_else(|err| panic!("{case}: {err}"));
+    }
+}
+
+const OFFICIAL_COMPRESSED_CASES: &[&str] = &[
+    "client_compressed_unary",
+    "server_compressed_unary",
+    "client_compressed_streaming",
+    "server_compressed_streaming",
+];
+
+const OFFICIAL_UNCOMPRESSED_CASES: &[&str] = &[
+    "empty_unary",
+    "large_unary",
+    "client_streaming",
+    "server_streaming",
+    "ping_pong",
+    "empty_stream",
+    "cancel_after_begin",
+    "cancel_after_first_response",
+    "timeout_on_sleeping_server",
+    "custom_metadata",
+    "status_code_and_message",
+    "special_status_message",
+    "unimplemented_method",
+    "unimplemented_service",
+];
+
 #[tokio::test]
 async fn official_compressed_interop_cases_pass_against_the_kernel_server() {
     let (addr, listener) = bind().await;
@@ -21458,16 +21510,175 @@ async fn official_compressed_interop_cases_pass_against_the_kernel_server() {
             .await
             .ok();
     });
-    let client = TestServiceClient::new(channel(addr).await);
-    for case in [
-        "client_compressed_unary",
-        "server_compressed_unary",
-        "client_compressed_streaming",
-        "server_compressed_streaming",
-    ] {
-        pbrs_grpc::run_case(&client, case)
-            .await
-            .unwrap_or_else(|err| panic!("{case}: {err}"));
-    }
+    assert_official_cases(
+        &TestServiceClient::new(channel(addr).await),
+        OFFICIAL_COMPRESSED_CASES,
+    )
+    .await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_official_compressed_interop_cases_pass_against_the_kernel_server() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_official_cases(
+        &TestServiceClient::new(tls_channel(addr).await),
+        OFFICIAL_COMPRESSED_CASES,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_official_compressed_interop_cases_pass_against_the_kernel_server() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_official_cases(
+        &TestServiceClient::new(tls_channel_with(addr, client_tls).await),
+        OFFICIAL_COMPRESSED_CASES,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_official_compressed_interop_cases_pass_against_the_kernel_server() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_official_cases(
+        &TestServiceClient::new(unix_channel(&path).await),
+        OFFICIAL_COMPRESSED_CASES,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_official_compressed_interop_cases_pass_against_the_kernel_server() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_official_cases(&TestServiceClient::new(channel), OFFICIAL_COMPRESSED_CASES).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn official_uncompressed_interop_cases_pass_against_the_kernel_server() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_official_cases(
+        &TestServiceClient::new(channel(addr).await),
+        OFFICIAL_UNCOMPRESSED_CASES,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_official_uncompressed_interop_cases_pass_against_the_kernel_server() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_official_cases(
+        &TestServiceClient::new(tls_channel(addr).await),
+        OFFICIAL_UNCOMPRESSED_CASES,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_official_uncompressed_interop_cases_pass_against_the_kernel_server() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_official_cases(
+        &TestServiceClient::new(tls_channel_with(addr, client_tls).await),
+        OFFICIAL_UNCOMPRESSED_CASES,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_official_uncompressed_interop_cases_pass_against_the_kernel_server() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_official_cases(
+        &TestServiceClient::new(unix_channel(&path).await),
+        OFFICIAL_UNCOMPRESSED_CASES,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_official_uncompressed_interop_cases_pass_against_the_kernel_server() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_official_cases(
+        &TestServiceClient::new(channel),
+        OFFICIAL_UNCOMPRESSED_CASES,
+    )
+    .await;
+    server.abort();
 }

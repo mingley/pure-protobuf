@@ -1036,7 +1036,12 @@ cannot redial: an idle close there makes later RPCs fail with
 
 gzip, via `grpc-encoding` and the per-message Compressed-Flag. It is per
 message rather than per connection, so you can compress the payloads that
-benefit and leave the rest alone:
+benefit and leave the rest alone. Official `grpc.testing` gzip cases
+(`client_compressed_unary`, `server_compressed_unary`,
+`client_compressed_streaming`, `server_compressed_streaming`) pass against
+`InteropTestService` over TLS, mTLS, Unix, and `from_io`. Uncompressed
+`_TEST_CASES` (`empty_unary` through `unimplemented_service`) pass on those
+transports too:
 
 ```rust
 let mut req = Request::new(big_payload);

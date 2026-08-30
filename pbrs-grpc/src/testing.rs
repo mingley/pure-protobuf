@@ -45,6 +45,9 @@ impl Echo {
 }
 
 /// The reference [`TestService`] implementation used by the interop suite.
+///
+/// Official uncompressed `_TEST_CASES` and the four gzip cases pass against
+/// this server over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
 #[derive(Default)]
 pub struct InteropTestService;
 
