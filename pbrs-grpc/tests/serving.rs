@@ -2564,6 +2564,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Server interceptors read this overlay on [`crate::Rpc::limits`] / [`crate::Request::limits`].\n    /// Distinct from [`Self::message_limits`], which sets them."
+        ),
+        "ServerConfig::limits must Distinct the setter"
+    );
+    assert!(
+        src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
         "ServerConfig::keep_alive_interval must name Unix and mTLS"

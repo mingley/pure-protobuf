@@ -640,6 +640,7 @@ impl ServerConfig {
 
     /// Configured message caps. Applies to every call shape.
     /// Server interceptors read this overlay on [`crate::Rpc::limits`] / [`crate::Request::limits`].
+    /// Distinct from [`Self::message_limits`], which sets them.
     #[must_use]
     pub fn limits(self) -> MessageLimits {
         self.limits
