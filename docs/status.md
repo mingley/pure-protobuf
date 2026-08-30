@@ -182,7 +182,9 @@ See `docs/upb.md`. Short list:
   `Router::max_header_list_size` / `ServerConfig::max_header_list_size` /
   generated `FooServer::max_header_list_size` is refused over TLS, mTLS, Unix,
   and `serve_connection`, distinct from a raw HTTP/2 peer and from wrapping
-  only the generated Greeter server setter. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  only the generated Greeter server setter. `ChannelConfig::max_header_list_size`
+  refuses oversize response headers or trailers as `UNAVAILABLE` over TLS, mTLS,
+  Unix, and `from_io`, distinct from the server inbound cap. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

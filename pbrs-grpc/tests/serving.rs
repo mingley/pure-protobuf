@@ -912,6 +912,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Oversize response headers or trailers are refused, including over TLS,\n    /// mTLS, Unix, and [`crate::Channel::from_io`]. Distinct from\n    /// [`ServerConfig::max_header_list_size`], which caps inbound request\n    /// metadata."
+        ),
+        "ChannelConfig::max_header_list_size must name oversize response metadata on every transport"
+    );
+    assert!(
+        src.contains(
             "Messages queued between a client-streaming caller and the wire.\n    /// Default 16. Applies to client-streaming and bidi request streams."
         ),
         "ChannelConfig::stream_buffer must name the streaming shapes it queues"
@@ -24042,4 +24048,209 @@ async fn from_io_header_list_config_and_router_refuse_oversize_metadata() {
     assert_header_flood_then_echo(flood, healthy).await;
     server3.abort();
     server4.abort();
+}
+
+fn flood_meta<T>(mut resp: Response<T>) -> Response<T> {
+    resp.metadata_mut()
+        .insert("x-flood", "v".repeat(4096))
+        .expect("meta");
+    resp
+}
+
+/// Echoes like [`Echo`], but stamps oversize response headers.
+struct FloodHeaders;
+
+impl Greeter for FloodHeaders {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Ok(flood_meta(Response::new(common::reply(name_of_request(
+            request.get_ref(),
+        )))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut stream = request.into_inner();
+        let mut names = Vec::new();
+        while let Some(msg) = stream.message().await? {
+            names.push(name_of_request(&msg));
+        }
+        Ok(flood_meta(Response::new(common::reply(names.join(",")))))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let name = name_of_request(request.get_ref());
+        let (tx, stream) = pbrs_grpc::Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            for part in name.split(',') {
+                if tx.send(common::reply(part.to_string())).await.is_err() {
+                    break;
+                }
+            }
+        }));
+        Ok(flood_meta(Response::new(stream)))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        let mut inbound = request.into_inner();
+        let (tx, stream) = pbrs_grpc::Streaming::channel(4);
+        drop(tokio::spawn(async move {
+            loop {
+                match inbound.message().await {
+                    Ok(Some(msg)) => {
+                        if tx.send(common::reply(name_of_request(&msg))).await.is_err() {
+                            break;
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(status) => {
+                        tx.fail(status).await;
+                        break;
+                    }
+                }
+            }
+        }));
+        Ok(flood_meta(Response::new(stream)))
+    }
+}
+
+fn flood_headers_server() -> GreeterServer<FloodHeaders> {
+    GreeterServer::new(FloodHeaders)
+}
+
+fn client_header_list_cap() -> ChannelConfig {
+    ChannelConfig::new().max_header_list_size(1024)
+}
+
+async fn assert_capped_client_refuses_flood(client: &GreeterClient) {
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("unary");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let err = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect_err("server-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    let err = call.await.expect_err("client-stream");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let err = call.await.expect_err("bidi");
+    assert_eq!(err.code(), Code::Unavailable, "{err}");
+}
+
+async fn assert_client_header_list_cap(capped: GreeterClient, healthy: GreeterClient) {
+    assert_capped_client_refuses_flood(&capped).await;
+    echo_every_shape(&healthy, None).await;
+}
+
+#[tokio::test]
+async fn channel_config_header_list_cap_refuses_oversize_response_metadata() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        flood_headers_server().serve_listener(listener).await.ok();
+    });
+    assert_client_header_list_cap(
+        GreeterClient::new(channel_cfg(addr, client_header_list_cap()).await),
+        GreeterClient::new(channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_channel_config_header_list_cap_refuses_oversize_response_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        flood_headers_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_client_header_list_cap(
+        GreeterClient::new(
+            tls_channel_cfg(addr, client_tls.clone(), client_header_list_cap()).await,
+        ),
+        GreeterClient::new(tls_channel_with(addr, client_tls).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_channel_config_header_list_cap_refuses_oversize_response_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        flood_headers_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_client_header_list_cap(
+        GreeterClient::new(
+            tls_channel_cfg(addr, client_tls.clone(), client_header_list_cap()).await,
+        ),
+        GreeterClient::new(tls_channel_with(addr, client_tls).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_channel_config_header_list_cap_refuses_oversize_response_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        flood_headers_server().serve_unix(sock).await.ok();
+    });
+    assert_client_header_list_cap(
+        GreeterClient::new(unix_channel_with(&path, client_header_list_cap()).await),
+        GreeterClient::new(unix_channel(&path).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_channel_config_header_list_cap_refuses_oversize_response_metadata() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        flood_headers_server().serve_connection(s1).await.ok();
+    });
+    let capped = GreeterClient::new(
+        Channel::from_io_with(c1, "localhost", client_header_list_cap())
+            .await
+            .expect("from_io capped"),
+    );
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        flood_headers_server().serve_connection(s2).await.ok();
+    });
+    let healthy = GreeterClient::new(
+        Channel::from_io(c2, "localhost")
+            .await
+            .expect("from_io healthy"),
+    );
+    assert_client_header_list_cap(capped, healthy).await;
+    server1.abort();
+    server2.abort();
 }

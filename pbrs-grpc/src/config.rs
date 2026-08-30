@@ -739,10 +739,13 @@ impl ChannelConfig {
         self
     }
 
-    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`, i.e. the metadata cap.
-    /// Default 16 KiB. Applies to every call shape.
-    /// Oversize metadata is refused, including over TLS, mTLS, Unix, and
-    /// [`crate::Server::serve_connection`]. Distinct from a raw HTTP/2 peer.
+    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`, i.e. the metadata cap the
+    /// client will accept from the peer. Default 16 KiB. Applies to every
+    /// call shape.
+    /// Oversize response headers or trailers are refused, including over TLS,
+    /// mTLS, Unix, and [`crate::Channel::from_io`]. Distinct from
+    /// [`ServerConfig::max_header_list_size`], which caps inbound request
+    /// metadata.
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.max_header_list_size = bytes;
