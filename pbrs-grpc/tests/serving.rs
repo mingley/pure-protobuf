@@ -2077,6 +2077,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::accepts_compressed must Distinct the setter"
     );
     assert!(
+        src.contains("Distinct from [`Self::wait_for_ready`], which sets it."),
+        "Channel::waits_for_ready must Distinct the setter"
+    );
+    assert!(
         src.contains("Interceptors run after this fill and can still set\n    /// or clear it."),
         "Channel::wait_for_ready must name interceptor set/clear"
     );
@@ -3229,6 +3233,24 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must Distinct Server::concurrent_rpc_limit as the same overlay as Rpc::concurrent_rpc_limit"
     );
     assert!(
+        crate_src.contains("[`Outgoing::waits_for_ready`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::waits_for_ready as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::connected`]"),
+        "crate docs must Distinct Outgoing::waits_for_ready from connected"
+    );
+    assert!(
+        crate_src.contains(
+            "[`Channel::waits_for_ready`] reads the wait-for-ready overlay without colliding with [`Channel::wait_for_ready`]"
+        ),
+        "crate docs must name Channel::waits_for_ready as the live-clone overlay"
+    );
+    assert!(
+        crate_src.contains("Same overlay as [`Outgoing::waits_for_ready`]"),
+        "crate docs must Distinct Channel::waits_for_ready as the same overlay as Outgoing::waits_for_ready"
+    );
+    assert!(
         crate_src
             .contains("[`Outgoing::stream_buffer_size`] is that overlay in a client interceptor"),
         "crate docs must name Outgoing::stream_buffer_size as the interceptor overlay"
@@ -3869,6 +3891,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Server::concurrent_rpc_limit` reads the RPC-cap overlay without colliding with `max_concurrent_rpcs`. Same overlay as `Rpc::concurrent_rpc_limit`."),
         "guide must name Server::concurrent_rpc_limit as the live-server overlay"
+    );
+    assert!(
+        guide.contains("`Outgoing::waits_for_ready` is that overlay in a client interceptor. Distinct from `connected` (live snapshot). An interceptor cannot change it."),
+        "guide must name Outgoing::waits_for_ready as the interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Channel::waits_for_ready` reads the wait-for-ready overlay without colliding with `wait_for_ready`. Same overlay as `Outgoing::waits_for_ready`."),
+        "guide must name Channel::waits_for_ready as the live-clone overlay"
     );
     assert!(
         guide.contains("`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it."),

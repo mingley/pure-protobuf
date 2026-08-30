@@ -260,6 +260,10 @@
 //! Same overlay as [`Outgoing::concurrent_rpc_limit`].
 //! [`Server::concurrent_rpc_limit`] reads the RPC-cap overlay without colliding with [`Server::max_concurrent_rpcs`].
 //! Same overlay as [`Rpc::concurrent_rpc_limit`].
+//! [`Outgoing::waits_for_ready`] is that overlay in a client interceptor.
+//! Distinct from [`Outgoing::connected`].
+//! [`Channel::waits_for_ready`] reads the wait-for-ready overlay without colliding with [`Channel::wait_for_ready`].
+//! Same overlay as [`Outgoing::waits_for_ready`].
 //! [`Outgoing::stream_buffer_size`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::limits`].
 //! [`Channel::stream_buffer_size`] reads the stream-queue overlay without colliding with [`Channel::stream_buffer`].
