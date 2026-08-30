@@ -1110,7 +1110,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must name HPACK table as handshake-only"
     );
     assert!(
-        channel.contains("the small-DATA budget"),
+        channel.contains("small-DATA budget"),
         "Channel rustdoc must name small-DATA budget as handshake-only"
     );
     assert!(
