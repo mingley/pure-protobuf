@@ -107,7 +107,8 @@ See `docs/upb.md`. Short list:
   `ConnectionInfo`. TLS `:scheme https` and mTLS `peer_identity` apply to
   every call shape. HTTP/2 PING keepalive still serves every Greeter shape
   after PINGs fire on h2c, TLS (including mTLS), Unix, and `from_io`. TCP
-  `SO_KEEPALIVE` is TCP-only. `Channel::https_scheme` sends `:scheme https` on a
+  `SO_KEEPALIVE` is TCP-only and still serves every Greeter shape on h2c, TLS,
+  and mTLS. `Channel::https_scheme` sends `:scheme https` on a
   `from_io` clone (no TLS handshake; no-op on TCP/Unix);
   `Channel::scheme` / generated `FooClient::scheme` / `FooClient::authority` /
   `FooClient::grpc_user_agent` read that overlay and the other interceptor-visible

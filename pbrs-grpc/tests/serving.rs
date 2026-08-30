@@ -9948,6 +9948,50 @@ async fn tcp_keepalive_still_serves() {
 }
 
 #[tokio::test]
+async fn tls_tcp_keepalive_still_serves() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .tcp_keepalive(Duration::from_secs(15))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = tls_channel_cfg(
+        addr,
+        client_tls,
+        ChannelConfig::new().tcp_keepalive(Duration::from_secs(15)),
+    )
+    .await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_tcp_keepalive_still_serves() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .tcp_keepalive(Duration::from_secs(15))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = tls_channel_cfg(
+        addr,
+        client_tls,
+        ChannelConfig::new().tcp_keepalive(Duration::from_secs(15)),
+    )
+    .await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn tls_keepalive_still_serves() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
