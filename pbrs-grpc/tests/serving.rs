@@ -2517,6 +2517,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::accepts_compressed must Distinct the setter"
     );
     assert!(
+        src.contains("Distinct from [`Self::max_concurrent_rpcs`], which sets it."),
+        "ChannelConfig::concurrent_rpc_limit must Distinct the setter"
+    );
+    assert!(
         src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
