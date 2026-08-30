@@ -171,9 +171,11 @@ See `docs/upb.md`. Short list:
   Outgoing getters apply to every call shape. Kernel `user-agent` (and a
   `Channel::user_agent` prefix) is sent on every shape, including over h2c, TLS
   (including mTLS), Unix, and `from_io`; inserting `user-agent`
-  into metadata cannot override it. Caller extensions on `Request::extensions_mut`
+  into metadata cannot override it.   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
-  interceptor on those transports plus `from_io`. Server interceptor `set` / `remove` /
+  interceptor on those transports plus `from_io`, including official TestService
+  methods and hand-written Reverser `Channel` APIs. A `Channel::user_agent` prefix
+  is `Outgoing::user_agent` on those same TestService and Reverser paths. Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape.
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.

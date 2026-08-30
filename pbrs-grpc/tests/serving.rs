@@ -3968,6 +3968,87 @@ async fn echo_tenant_every_shape(client: &GreeterClient) {
     assert_err_on_every_shape(client, Code::Internal).await;
 }
 
+async fn echo_tenant_test_every_shape(client: &TestServiceClient) {
+    client
+        .empty_call(with_tenant(Request::new(Empty::new())))
+        .await
+        .expect("unary");
+
+    let mut stream = client
+        .streaming_output_call(with_tenant(Request::new(StreamingOutputCallRequest::new())))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    assert!(
+        stream.message().await.expect("end").is_none(),
+        "empty StreamingOutputCall plan must end"
+    );
+
+    let (tx, call) = client.streaming_input_call(with_tenant(Request::new(())));
+    tx.close();
+    call.await.expect("client-stream");
+
+    let (tx, call) = client.full_duplex_call(with_tenant(Request::new(())));
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    assert!(
+        inbound.message().await.expect("end").is_none(),
+        "empty FullDuplexCall must end"
+    );
+    assert_err_on_test_every_shape(client, Code::Internal).await;
+}
+
+async fn echo_tenant_reverser_every_shape(channel: &Channel) {
+    let reply: HelloReply = channel
+        .unary(
+            "/demo.Reverser/Reverse",
+            with_tenant(Request::new(req("stressed"))),
+        )
+        .await
+        .expect("unary")
+        .into_inner();
+    assert_eq!(name_of(&reply), "desserts");
+
+    let mut stream = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            with_tenant(Request::new(req("stressed"))),
+        )
+        .await
+        .expect("server-stream")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
+    assert!(stream.message().await.expect("end").is_none());
+
+    let (tx, call) = channel.client_streaming::<HelloRequest, HelloReply>(
+        "/demo.Reverser/Client",
+        with_tenant(Request::new(())),
+    );
+    tx.send(req("stressed")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "desserts");
+
+    let (tx, call) = channel
+        .bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", with_tenant(Request::new(())));
+    tx.send(req("stressed")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    let first = inbound
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "desserts");
+    assert!(inbound.message().await.expect("end").is_none());
+    assert_reverser_err_every_shape(channel, Code::Internal).await;
+}
+
 #[tokio::test]
 async fn a_client_interceptor_reads_caller_extensions() {
     let (addr, listener) = bind().await;
@@ -4055,6 +4136,186 @@ async fn a_from_io_client_interceptor_reads_caller_extensions() {
 }
 
 #[tokio::test]
+async fn a_test_client_interceptor_reads_caller_extensions() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_tenant)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(channel(addr).await).intercept(interceptor_stamp_tenant);
+    echo_tenant_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client =
+        TestServiceClient::new(tls_channel(addr).await).intercept(interceptor_stamp_tenant);
+    echo_tenant_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = TestServiceClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(interceptor_stamp_tenant);
+    echo_tenant_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_reads_caller_extensions() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_tenant)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client =
+        TestServiceClient::new(unix_channel(&path).await).intercept(interceptor_stamp_tenant);
+    echo_tenant_test_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_reads_caller_extensions() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_tenant)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_stamp_tenant);
+    echo_tenant_test_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_reads_caller_extensions() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_tenant);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+    let channel = channel(addr).await.intercept(interceptor_stamp_tenant);
+    echo_tenant_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_tenant);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let channel = tls_channel(addr).await.intercept(interceptor_stamp_tenant);
+    echo_tenant_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    )
+    .intercept(require_tenant);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = tls_channel_with(addr, client_tls)
+        .await
+        .intercept(interceptor_stamp_tenant);
+    echo_tenant_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_reads_caller_extensions() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_tenant);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    let channel = unix_channel(&path)
+        .await
+        .intercept(interceptor_stamp_tenant);
+    echo_tenant_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_reads_caller_extensions() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_tenant);
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io")
+        .intercept(interceptor_stamp_tenant);
+    echo_tenant_reverser_every_shape(&channel).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_sees_the_h2c_scheme() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -4119,6 +4380,18 @@ fn require_stamped_user_agent(rpc: &mut Rpc) -> Result<(), Status> {
 
 fn user_agent_client(channel: Channel) -> GreeterClient {
     GreeterClient::new(channel.user_agent("inventory/2.1").expect("user-agent"))
+        .intercept(interceptor_stamp_user_agent)
+}
+
+fn user_agent_test(channel: Channel) -> TestServiceClient {
+    TestServiceClient::new(channel.user_agent("inventory/2.1").expect("user-agent"))
+        .intercept(interceptor_stamp_user_agent)
+}
+
+fn user_agent_channel(channel: Channel) -> Channel {
+    channel
+        .user_agent("inventory/2.1")
+        .expect("user-agent")
         .intercept(interceptor_stamp_user_agent)
 }
 
@@ -4192,6 +4465,174 @@ async fn a_from_io_client_interceptor_sees_the_user_agent() {
 }
 
 #[tokio::test]
+async fn a_test_client_interceptor_sees_the_user_agent() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_user_agent)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&user_agent_test(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&user_agent_test(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_test_every_shape(&user_agent_test(tls_channel_with(addr, client_tls).await)).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_sees_the_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&user_agent_test(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_sees_the_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .intercept(require_stamped_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&user_agent_test(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_sees_the_user_agent() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+    echo_reverser_every_shape(&user_agent_channel(channel(addr).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_reverser_every_shape(&user_agent_channel(tls_channel(addr).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    )
+    .intercept(require_stamped_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reverser_every_shape(&user_agent_channel(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_sees_the_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_user_agent);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    echo_reverser_every_shape(&user_agent_channel(unix_channel(&path).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_sees_the_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_stamped_user_agent);
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    echo_reverser_every_shape(&user_agent_channel(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_sees_message_limits() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -4222,6 +4663,14 @@ fn interceptor_require_limits(call: &mut Outgoing<'_>) -> Result<(), Status> {
 
 fn limits_client(channel: Channel) -> GreeterClient {
     GreeterClient::new(channel).intercept(interceptor_require_limits)
+}
+
+fn limits_test(channel: Channel) -> TestServiceClient {
+    TestServiceClient::new(channel).intercept(interceptor_require_limits)
+}
+
+fn limits_channel(channel: Channel) -> Channel {
+    channel.intercept(interceptor_require_limits)
 }
 
 #[tokio::test]
@@ -4284,6 +4733,185 @@ async fn a_from_io_client_interceptor_sees_message_limits() {
             .expect("from_io"),
     );
     echo_every_shape(&client, None).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_test_client_interceptor_sees_message_limits() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&limits_test(channel_with(addr, limits_config()).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_tls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    echo_test_every_shape(&limits_test(
+        tls_channel_cfg(addr, client_tls, limits_config()).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_mtls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_test_every_shape(&limits_test(
+        tls_channel_cfg(addr, client_tls, limits_config()).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_test_unix_client_interceptor_sees_message_limits() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&limits_test(
+        unix_channel_with(&path, limits_config()).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_test_from_io_client_interceptor_sees_message_limits() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_test_every_shape(&limits_test(
+        Channel::from_io_with(client_io, "localhost", limits_config())
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_client_interceptor_sees_message_limits() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+    echo_reverser_every_shape(&limits_channel(channel_with(addr, limits_config()).await)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_tls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    echo_reverser_every_shape(&limits_channel(
+        tls_channel_cfg(addr, client_tls, limits_config()).await,
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_mtls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    );
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_reverser_every_shape(&limits_channel(
+        tls_channel_cfg(addr, client_tls, limits_config()).await,
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_reverser_unix_client_interceptor_sees_message_limits() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    echo_reverser_every_shape(&limits_channel(
+        unix_channel_with(&path, limits_config()).await,
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_reverser_from_io_client_interceptor_sees_message_limits() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen));
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    echo_reverser_every_shape(&limits_channel(
+        Channel::from_io_with(client_io, "localhost", limits_config())
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
     server.abort();
 }
 
