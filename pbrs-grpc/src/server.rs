@@ -122,9 +122,10 @@ pub type IncomingAccept<Io> = Option<Result<(Io, Option<SocketAddr>), Status>>;
 /// sends `GOAWAY`, and drains. After the last connection, pending forever is
 /// usually what you want, so the live stream is not torn down.
 ///
-/// ```no_run
+/// ```
 /// use std::future::Future;
-/// use pbrs_grpc::{Incoming, IncomingAccept};
+/// use std::net::SocketAddr;
+/// use pbrs_grpc::{ConnectionInfo, Incoming, IncomingAccept, PeerCred, PeerIdentity};
 ///
 /// struct One(Option<tokio::net::TcpStream>);
 ///
@@ -133,6 +134,15 @@ pub type IncomingAccept<Io> = Option<Result<(Io, Option<SocketAddr>), Status>>;
 ///     fn accept(&mut self) -> impl Future<Output = IncomingAccept<Self::Io>> + Send {
 ///         let io = self.0.take();
 ///         async move { io.map(|io| Ok((io, None))) }
+///     }
+///     fn peer(&self, io: &Self::Io, remote: Option<SocketAddr>) -> ConnectionInfo {
+///         let _ = (self, io, remote);
+///         ConnectionInfo::new()
+///             .with_remote_addr("192.0.2.1:8".parse().expect("remote"))
+///             .with_local_addr("127.0.0.1:9".parse().expect("local"))
+///             .with_peer_identity(PeerIdentity::from_der_certs([b"leaf"]).expect("leaf"))
+///             .with_peer_cred(PeerCred::new(42, 43, Some(44)))
+///             .with_scheme("https")
 ///     }
 /// }
 /// ```

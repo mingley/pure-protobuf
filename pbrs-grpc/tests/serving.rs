@@ -4892,6 +4892,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "fn peer(&self, io: &Self::Io, remote: Option<SocketAddr>) -> ConnectionInfo {\n///         let _ = (self, io, remote);\n///         ConnectionInfo::new()\n///             .with_remote_addr(\"192.0.2.1:8\".parse().expect(\"remote\"))\n///             .with_local_addr(\"127.0.0.1:9\".parse().expect(\"local\"))\n///             .with_peer_identity(PeerIdentity::from_der_certs([b\"leaf\"]).expect(\"leaf\"))\n///             .with_peer_cred(PeerCred::new(42, 43, Some(44)))\n///             .with_scheme(\"https\")"
+        ),
+        "Incoming rustdoc must compile a ConnectionInfo peer dump"
+    );
+    assert!(
+        src.contains(
             "[`Incoming::peer`] is how a custom acceptor supplies a local address,\n/// mTLS identity, Unix credentials, or a transport `:scheme`. The default\n/// keeps the `SocketAddr` from [`IncomingAccept`] and does not override\n/// `:scheme`. [`Server::serve_connection`] leaves every field unset.\n/// Applies to every call shape on that connection."
         ),
         "ConnectionInfo rustdoc must name Incoming::peer on every call shape"
