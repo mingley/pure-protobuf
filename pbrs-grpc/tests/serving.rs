@@ -2143,6 +2143,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {\n//!     let _ = (\n//!         rpc.path(),\n//!         rpc.peer_timeout(),\n//!         rpc.rpc_timeout(),\n//!         rpc.effective_timeout(),\n//!         rpc.deadline(),\n//!         rpc.gzip_level(),\n//!         rpc.accepts_compressed(),\n//!         rpc.concurrent_rpc_limit(),\n//!         rpc.send_buffer_size(),\n//!         rpc.limits(),\n//!         rpc.local_addr(),\n//!         rpc.remote_addr(),\n//!         rpc.peer_identity(),\n//!         rpc.peer_cred(),\n//!         rpc.authority(),\n//!         rpc.scheme(),"
+        ),
+        "hello GreeterServer::intercept rustdoc example must read Incoming-stamped peer facts"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {"
         ),
         "hello module rustdoc must attach a compiling GreeterServer::on_response example"
