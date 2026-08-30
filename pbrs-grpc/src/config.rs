@@ -679,6 +679,7 @@ impl ServerConfig {
 
     /// Whether responses are gzipped when the client accepts gzip.
     /// See [`Self::send_compressed`]. Applies to every call shape.
+    /// Distinct from [`Self::send_compressed`], which sets it.
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed

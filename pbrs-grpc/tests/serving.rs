@@ -2546,6 +2546,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Whether responses are gzipped when the client accepts gzip.\n    /// See [`Self::send_compressed`]. Applies to every call shape.\n    /// Distinct from [`Self::send_compressed`], which sets it."
+        ),
+        "ServerConfig::compresses_outbound must Distinct the setter"
+    );
+    assert!(
+        src.contains(
             "This is not TCP keepalive. PINGs run on Unix sockets and TLS\n    /// (including mTLS);"
         ),
         "ServerConfig::keep_alive_interval must name Unix and mTLS"
