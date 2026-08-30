@@ -1233,6 +1233,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .contains("[`ChannelConfig::max_pending_accept_reset_streams`] is the client accept"),
         "crate docs must Distinct ChannelConfig pending-reset as the client queue"
     );
+    assert!(
+        crate_src.contains("more CONTINUATION frames than the header-list cap"),
+        "crate docs must name the hostile CONTINUATION flood"
+    );
+    assert!(
+        crate_src.contains("does not take the accept loop down."),
+        "crate docs must Distinct unfinished HEADERS from taking the accept loop down"
+    );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
@@ -1243,6 +1251,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "`ChannelConfig::max_pending_accept_reset_streams` is the client accept queue"
         ),
         "guide must Distinct ChannelConfig pending-reset as the client queue"
+    );
+    assert!(
+        guide.contains("more CONTINUATION frames than the header-list cap"),
+        "guide must name the hostile CONTINUATION flood"
+    );
+    assert!(
+        guide.contains("does not take the accept loop down."),
+        "guide must Distinct unfinished HEADERS from taking the accept loop down"
     );
     assert!(
         guide

@@ -1187,6 +1187,8 @@ guards is committed.
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 (`ServerConfig::max_pending_accept_reset_streams`) |
+| HTTP/2 CONTINUATION flood | Cap CONTINUATION frames on an unfinished header block; that connection drops | always (`h2`, scaled from `max_header_list_size`) |
+| Unfinished HEADERS | Header block without `END_HEADERS` stalls that stream only | always |
 | Client RST after the request is read | Drop the handler; abort a stream drain waiting for the next message | always |
 | Non-gRPC HTTP/2 (GET, grpc-web, JSON, `grpc+json`) | HTTP 405 / 415 with no `grpc-status`, before an RPC slot is taken | always |
 
@@ -1208,6 +1210,12 @@ as `ENHANCE_YOUR_CALM`; the accept loop still serves a well-behaved client.
 The raw flood is h2c-only (`tests/hostile.rs`; no TLS raw peer).
 `ChannelConfig::max_pending_accept_reset_streams` is the client accept queue,
 not the server cap.
+
+A raw peer that sends more CONTINUATION frames than the header-list cap
+allows drops that connection (`ENHANCE_YOUR_CALM`); an unfinished HEADERS
+frame (no `END_HEADERS`) does not take the accept loop down. Distinct from
+one complete oversize HEADERS frame (`SETTINGS_MAX_HEADER_LIST_SIZE`). The
+raw floods are h2c-only (`tests/hostile.rs`; no TLS raw peer).
 
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service

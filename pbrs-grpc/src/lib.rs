@@ -143,6 +143,8 @@
 //! | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in [`ServerConfig::timeout`] |
 //! | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in [`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`] |
 //! | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`], override [`ServerConfig::max_pending_accept_reset_streams`]) |
+//! | HTTP/2 CONTINUATION flood | Cap CONTINUATION frames on an unfinished header block; that connection drops | always (`h2`, scaled from [`ServerConfig::max_header_list_size`]) |
+//! | Unfinished HEADERS | Header block without `END_HEADERS` stalls that stream only; the accept loop still serves | always |
 //! | Client RST after the request is read | Signal [`Request::cancelled`], then drop a still-pending handler; abort a stream drain waiting for the next message | always |
 //! | Client cancel after a client-streaming half-close | RST while the unary response is pending (handle, drop, or deadline) | always |
 //! | Client request-stream abort ([`StreamSender::fail`]) | RST CANCEL; the [`Call`] resolves with that status (client-streaming, or bidi before headers — not `UNAVAILABLE` from the reset); after bidi headers the received [`Streaming`] sees [`Code::Cancelled`], not that status | always |
@@ -159,6 +161,11 @@
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as
 //! `ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client.
 //! The flood is h2c-only. A well-behaved client never fills that queue.
+//! A raw peer that sends more CONTINUATION frames than the header-list cap
+//! allows also drops that connection (`ENHANCE_YOUR_CALM`); an unfinished
+//! HEADERS frame (no `END_HEADERS`) does not take the accept loop down.
+//! Distinct from one complete oversize HEADERS frame
+//! (`SETTINGS_MAX_HEADER_LIST_SIZE`). Those floods are h2c-only.
 //! [`ChannelConfig::max_pending_accept_reset_streams`] is the client accept
 //! queue, not the server cap. Property tests in the wire module cover what
 //! fixed cases cannot: frames survive arbitrary chunk boundaries, arbitrary

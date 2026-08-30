@@ -2,9 +2,10 @@
 //!
 //! These tests speak raw HTTP/2 so they can send bytes no real client would:
 //! oversize length prefixes, gzip bombs, reserved flag values, truncated
-//! frames, wrong content types, and an HTTP/2 rapid-reset flood. Every case
-//! must produce a `Status` (or drop that connection) and leave the server
-//! serving. Rapid reset is h2c-only here; TLS has no raw `h2` peer.
+//! frames, wrong content types, an HTTP/2 rapid-reset flood, and a HEADERS
+//! block split across CONTINUATION frames. Every case must produce a `Status`
+//! (or drop that connection) and leave the server serving. Rapid reset and
+//! CONTINUATION floods are h2c-only here; TLS has no raw `h2` peer.
 
 #![allow(
     clippy::disallowed_methods,
@@ -35,6 +36,8 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::task::{Context, Poll};
 use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
 
 const SAY_HELLO: &str = "/helloworld.Greeter/SayHello";
 const STREAM_HELLO: &str = "/helloworld.Greeter/StreamHello";
@@ -613,4 +616,192 @@ async fn rst_flood_beyond_pending_reset_cap_drops_that_connection() {
     .expect("no hang")
     .expect("accept loop still serves after the flood connection dropped");
     assert_eq!(common::name_of(reply.get_ref()), "ada");
+}
+
+const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+const FRAME_HEADERS: u8 = 0x1;
+const FRAME_SETTINGS: u8 = 0x4;
+const FRAME_CONTINUATION: u8 = 0x9;
+const FLAG_ACK: u8 = 0x1;
+
+/// Length-prefixed HTTP/2 frame. `h2::client` always sends a complete header
+/// block; this is how a test splits HEADERS across CONTINUATION.
+fn h2_frame(ty: u8, flags: u8, stream_id: u32, payload: &[u8]) -> Vec<u8> {
+    let len = payload.len();
+    let mut buf = Vec::with_capacity(9 + len);
+    buf.push(((len >> 16) & 0xff) as u8);
+    buf.push(((len >> 8) & 0xff) as u8);
+    buf.push((len & 0xff) as u8);
+    buf.push(ty);
+    buf.push(flags);
+    buf.push(((stream_id >> 24) & 0x7f) as u8);
+    buf.push(((stream_id >> 16) & 0xff) as u8);
+    buf.push(((stream_id >> 8) & 0xff) as u8);
+    buf.push((stream_id & 0xff) as u8);
+    buf.extend_from_slice(payload);
+    buf
+}
+
+fn hpack_int(buf: &mut Vec<u8>, n: usize, prefix_bits: u8, first_high: u8) {
+    let max = (1usize << prefix_bits) - 1;
+    if n < max {
+        buf.push(first_high | n as u8);
+        return;
+    }
+    buf.push(first_high | max as u8);
+    let mut n = n - max;
+    while n >= 128 {
+        buf.push((n % 128) as u8 | 0x80);
+        n /= 128;
+    }
+    buf.push(n as u8);
+}
+
+fn hpack_string(buf: &mut Vec<u8>, value: &[u8]) {
+    hpack_int(buf, value.len(), 7, 0);
+    buf.extend_from_slice(value);
+}
+
+/// Literal without indexing, static-table name index (RFC 7541 §6.2.2).
+fn hpack_literal_indexed(index: usize, value: &str) -> Vec<u8> {
+    let mut buf = Vec::new();
+    hpack_int(&mut buf, index, 4, 0);
+    hpack_string(&mut buf, value.as_bytes());
+    buf
+}
+
+fn hpack_literal_new(name: &str, value: &[u8]) -> Vec<u8> {
+    let mut buf = vec![0];
+    hpack_string(&mut buf, name.as_bytes());
+    hpack_string(&mut buf, value);
+    buf
+}
+
+fn grpc_header_block(authority: &str) -> Vec<u8> {
+    let mut block = Vec::new();
+    block.push(0x83); // :method POST
+    block.extend(hpack_literal_indexed(4, SAY_HELLO)); // :path
+    block.push(0x86); // :scheme http
+    block.extend(hpack_literal_indexed(1, authority)); // :authority
+    block.extend(hpack_literal_indexed(31, "application/grpc")); // content-type
+    block.extend(hpack_literal_new("te", b"trailers"));
+    block
+}
+
+/// Prior-knowledge HTTP/2 on a raw TCP socket, so tests can omit `END_HEADERS`.
+struct RawH2 {
+    tcp: TcpStream,
+}
+
+impl RawH2 {
+    async fn connect(addr: SocketAddr) -> Self {
+        let mut tcp = TcpStream::connect(addr).await.expect("connect");
+        tcp.write_all(H2_PREFACE).await.expect("preface");
+        tcp.write_all(&h2_frame(FRAME_SETTINGS, 0, 0, &[]))
+            .await
+            .expect("client settings");
+        let mut this = Self { tcp };
+        this.ack_server_settings().await;
+        this
+    }
+
+    async fn ack_server_settings(&mut self) {
+        for _ in 0..8 {
+            let (ty, _flags, stream, _payload) =
+                match tokio::time::timeout(Duration::from_millis(500), self.read_frame()).await {
+                    Ok(Ok(frame)) => frame,
+                    Ok(Err(_)) | Err(_) => return,
+                };
+            if ty == FRAME_SETTINGS && stream == 0 {
+                self.tcp
+                    .write_all(&h2_frame(FRAME_SETTINGS, FLAG_ACK, 0, &[]))
+                    .await
+                    .expect("settings ack");
+                return;
+            }
+        }
+        panic!("server never sent SETTINGS");
+    }
+
+    async fn read_frame(&mut self) -> std::io::Result<(u8, u8, u32, Vec<u8>)> {
+        let mut head = [0u8; 9];
+        self.tcp.read_exact(&mut head).await?;
+        let len = (u32::from(head[0]) << 16) | (u32::from(head[1]) << 8) | u32::from(head[2]);
+        let ty = head[3];
+        let flags = head[4];
+        let stream = u32::from_be_bytes([head[5] & 0x7f, head[6], head[7], head[8]]);
+        let mut payload = vec![0u8; len as usize];
+        if len > 0 {
+            self.tcp.read_exact(&mut payload).await?;
+        }
+        Ok((ty, flags, stream, payload))
+    }
+
+    async fn write_all(&mut self, bytes: &[u8]) {
+        self.tcp.write_all(bytes).await.expect("write");
+    }
+}
+
+async fn assert_accept_loop_still_serves(addr: SocketAddr) {
+    let client = common::greeter_client(addr).await;
+    let reply = tokio::time::timeout(
+        Duration::from_secs(5),
+        client.say_hello(pbrs_grpc::Request::new(common::req("ada"))),
+    )
+    .await
+    .expect("no hang")
+    .expect("accept loop still serves");
+    assert_eq!(common::name_of(reply.get_ref()), "ada");
+}
+
+/// A raw peer that sends more CONTINUATION frames than the header-list cap
+/// allows (`h2` `too_many_continuations`) drops that connection
+/// (`ENHANCE_YOUR_CALM`). A well-behaved client on a fresh connection still
+/// serves. Distinct from `metadata_beyond_the_header_list_cap_is_refused`,
+/// which sends one complete HEADERS frame through `h2::client`, and from
+/// rapid-reset. h2c-only (`RawH2`).
+#[tokio::test]
+async fn continuation_flood_drops_that_connection() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new().max_header_list_size(1024)).await;
+    let mut peer = RawH2::connect(addr).await;
+    let block = grpc_header_block(&addr.to_string());
+    peer.write_all(&h2_frame(FRAME_HEADERS, 0, 1, &block)).await;
+    for _ in 0..32 {
+        peer.write_all(&h2_frame(FRAME_CONTINUATION, 0, 1, &[]))
+            .await;
+    }
+
+    let started = std::time::Instant::now();
+    let dropped = loop {
+        match tokio::time::timeout(Duration::from_millis(200), peer.read_frame()).await {
+            Ok(Ok((0x7, _, _, _))) => break true, // GOAWAY
+            Ok(Ok(_)) => {
+                if started.elapsed() > Duration::from_millis(800) {
+                    break false;
+                }
+            }
+            Ok(Err(_)) | Err(_) => break true,
+        }
+    };
+    assert!(
+        dropped,
+        "CONTINUATION flood must trip too_many_continuations and drop that connection"
+    );
+    assert_accept_loop_still_serves(addr).await;
+}
+
+/// HEADERS without `END_HEADERS` and without a following CONTINUATION stalls
+/// that stream. Distinct from handshake timeout (preface already finished) and
+/// from the CONTINUATION flood above. The accept loop still serves. h2c-only.
+#[tokio::test]
+async fn unfinished_headers_do_not_take_the_accept_loop_down() {
+    let (addr, _guard) = spawn_greeter_server(ServerConfig::new()).await;
+    let mut peer = RawH2::connect(addr).await;
+    let block = grpc_header_block(&addr.to_string());
+    peer.write_all(&h2_frame(FRAME_HEADERS, 0, 1, &block)).await;
+    for _ in 0..8 {
+        tokio::task::yield_now().await;
+    }
+    assert_accept_loop_still_serves(addr).await;
+    drop(peer);
 }
