@@ -3744,6 +3744,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::max_encoding_message_size`] / [`Self::max_decoding_message_size`]. Oversize is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]."
+        ),
+        "generated client message_limits rustdoc must name the combined setter on every transport"
+    );
+    assert!(
+        src.contains(
             "Cap how many RPCs the process will run at once. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated max_concurrent_rpcs rustdoc must name every transport"
@@ -4513,4 +4519,148 @@ async fn generated_from_io_channel_config_message_caps_are_resource_exhausted() 
     assert_store_dial_message_caps(encode, decode).await;
     server1.abort();
     server2.abort();
+}
+
+fn store_encode_limits() -> MessageLimits {
+    MessageLimits::new().with_max_encoding(16)
+}
+
+fn store_decode_limits() -> MessageLimits {
+    MessageLimits::new().with_max_decoding(16)
+}
+
+fn store_dial_encode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(store_encode_limits())
+}
+
+fn store_dial_decode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(store_decode_limits())
+}
+
+async fn store_cfg(addr: SocketAddr, cfg: ChannelConfig) -> StoreClient {
+    let mut last = None;
+    for _ in 0..80 {
+        match StoreClient::connect_with(addr, cfg).await {
+            Ok(client) => return client,
+            Err(e) => {
+                last = Some(e);
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        }
+    }
+    panic!("could not connect: {last:?}")
+}
+
+async fn assert_store_combined_message_limits(client: StoreClient) {
+    assert_store_client_encode_cap_every_shape(
+        &client.clone().message_limits(store_encode_limits()),
+    )
+    .await;
+    assert_store_client_decode_cap_every_shape(&client.message_limits(store_decode_limits())).await;
+}
+
+#[tokio::test]
+async fn generated_message_limits_setter_is_resource_exhausted() {
+    let (addr, server) = serve().await;
+    assert_store_combined_message_limits(client(addr).await).await;
+    assert_store_dial_message_caps(
+        store_cfg(addr, store_dial_encode_limits()).await,
+        store_cfg(addr, store_dial_decode_limits()).await,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_message_limits_setter_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_store_combined_message_limits(tls_client(addr).await).await;
+    assert_store_dial_message_caps(
+        tls_store_cfg(addr, client_tls.clone(), store_dial_encode_limits()).await,
+        tls_store_cfg(addr, client_tls, store_dial_decode_limits()).await,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_message_limits_setter_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_combined_message_limits(tls_client_with(addr, client_tls.clone()).await).await;
+    assert_store_dial_message_caps(
+        tls_store_cfg(addr, client_tls.clone(), store_dial_encode_limits()).await,
+        tls_store_cfg(addr, client_tls, store_dial_decode_limits()).await,
+    )
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_message_limits_setter_is_resource_exhausted() {
+    let path = unix_sock("msg-limits");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    assert_store_combined_message_limits(unix_client(&path).await).await;
+    assert_store_dial_message_caps(
+        unix_store_cfg(&path, store_dial_encode_limits()).await,
+        unix_store_cfg(&path, store_dial_decode_limits()).await,
+    )
+    .await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_message_limits_setter_is_resource_exhausted() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let server1 = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_connection(s1).await.ok();
+    });
+    let live = StoreClient::from_io(c1, "localhost")
+        .await
+        .expect("from_io live");
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let server2 = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_connection(s2).await.ok();
+    });
+    let encode = StoreClient::from_io_with(c2, "localhost", store_dial_encode_limits())
+        .await
+        .expect("from_io encode");
+    let (c3, s3) = tokio::io::duplex(1024 * 1024);
+    let server3 = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_connection(s3).await.ok();
+    });
+    let decode = StoreClient::from_io_with(c3, "localhost", store_dial_decode_limits())
+        .await
+        .expect("from_io decode");
+    assert_store_combined_message_limits(live).await;
+    assert_store_dial_message_caps(encode, decode).await;
+    server1.abort();
+    server2.abort();
+    server3.abort();
 }

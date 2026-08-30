@@ -4839,6 +4839,10 @@ fn emit_kernel_client(
         src,
         "    /// Replace both message caps at once. Applies to every call shape. See [`{G}::Channel::message_limits`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// Distinct from [`Self::max_encoding_message_size`] / [`Self::max_decoding_message_size`]. Oversize is `RESOURCE_EXHAUSTED` on every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

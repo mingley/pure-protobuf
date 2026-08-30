@@ -618,6 +618,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Channel::max_encoding_message_size must name every transport"
     );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::max_encoding_message_size`] /\n    /// [`Self::max_decoding_message_size`]. Oversize is\n    /// [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and\n    /// [`Self::from_io`]."
+        ),
+        "Channel::message_limits must name the combined setter on every transport"
+    );
     let stream = include_str!("../src/stream.rs");
     assert!(
         stream.contains(
@@ -879,6 +885,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Applies to every call shape, including when set on\n    /// [`crate::Channel::connect_tls_with`] / [`crate::Channel::connect_unix_with`]\n    /// / [`crate::Channel::from_io_with`]. Distinct from wrapping a live\n    /// [`crate::Channel`] with [`crate::Channel::max_encoding_message_size`]."
         ),
         "ChannelConfig::max_encoding_message_size must name dial-time overlay on every transport"
+    );
+    assert!(
+        src.contains(
+            "Dial-time overlay on [`crate::Channel::connect_tls_with`] /\n    /// [`crate::Channel::connect_unix_with`] / [`crate::Channel::from_io_with`].\n    /// Distinct from [`Self::max_encoding_message_size`] /\n    /// [`Self::max_decoding_message_size`]."
+        ),
+        "ChannelConfig::message_limits must name dial-time combined setter on every transport"
     );
     assert!(
         src.contains(
@@ -22849,4 +22861,133 @@ async fn test_service_from_io_client_message_caps_are_resource_exhausted() {
         .expect("from_io");
     assert_test_client_message_caps(TestServiceClient::new(channel)).await;
     server.abort();
+}
+
+fn encode_message_limits() -> MessageLimits {
+    MessageLimits::new().with_max_encoding(16)
+}
+
+fn decode_message_limits() -> MessageLimits {
+    MessageLimits::new().with_max_decoding(16)
+}
+
+async fn assert_combined_message_limits_caps(channel: Channel) {
+    assert_client_encode_cap_every_shape(
+        &GreeterClient::new(channel.clone()).message_limits(encode_message_limits()),
+    )
+    .await;
+    assert_client_decode_cap_every_shape(
+        &GreeterClient::new(channel).message_limits(decode_message_limits()),
+    )
+    .await;
+}
+
+fn dial_encode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(encode_message_limits())
+}
+
+fn dial_decode_limits() -> ChannelConfig {
+    ChannelConfig::new().message_limits(decode_message_limits())
+}
+
+#[tokio::test]
+async fn message_limits_setter_is_resource_exhausted() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    assert_combined_message_limits_caps(channel(addr).await).await;
+    assert_dial_message_caps(
+        channel_cfg(addr, dial_encode_limits()).await,
+        channel_cfg(addr, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_message_limits_setter_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    assert_combined_message_limits_caps(tls_channel(addr).await).await;
+    assert_dial_message_caps(
+        tls_channel_cfg(addr, client_tls.clone(), dial_encode_limits()).await,
+        tls_channel_cfg(addr, client_tls, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_message_limits_setter_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_combined_message_limits_caps(tls_channel_with(addr, client_tls.clone()).await).await;
+    assert_dial_message_caps(
+        tls_channel_cfg(addr, client_tls.clone(), dial_encode_limits()).await,
+        tls_channel_cfg(addr, client_tls, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_message_limits_setter_is_resource_exhausted() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    assert_combined_message_limits_caps(unix_channel(&path).await).await;
+    assert_dial_message_caps(
+        unix_channel_with(&path, dial_encode_limits()).await,
+        unix_channel_with(&path, dial_decode_limits()).await,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_message_limits_setter_is_resource_exhausted() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_connection(s1).await.ok();
+    });
+    let live = Channel::from_io(c1, "localhost")
+        .await
+        .expect("from_io live");
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_connection(s2).await.ok();
+    });
+    let encode = Channel::from_io_with(c2, "localhost", dial_encode_limits())
+        .await
+        .expect("from_io encode");
+    let (c3, s3) = duplex_pair();
+    let server3 = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_connection(s3).await.ok();
+    });
+    let decode = Channel::from_io_with(c3, "localhost", dial_decode_limits())
+        .await
+        .expect("from_io decode");
+    assert_combined_message_limits_caps(live).await;
+    assert_dial_message_caps(encode, decode).await;
+    server1.abort();
+    server2.abort();
+    server3.abort();
 }

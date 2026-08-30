@@ -530,6 +530,10 @@ impl Channel {
     ///
     /// Overlay: applies to RPCs from this clone. Does not change how a dead
     /// slot is redialed. Applies to every call shape.
+    /// Distinct from [`Self::max_encoding_message_size`] /
+    /// [`Self::max_decoding_message_size`]. Oversize is
+    /// [`Code::ResourceExhausted`], including over TLS, mTLS, Unix, and
+    /// [`Self::from_io`].
     #[must_use]
     pub fn message_limits(mut self, limits: crate::MessageLimits) -> Self {
         self.config = self.config.message_limits(limits);

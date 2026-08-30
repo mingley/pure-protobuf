@@ -681,6 +681,10 @@ impl ChannelConfig {
     ///
     /// [`crate::Channel::message_limits`] and generated `FooClient::message_limits`
     /// set this without building a [`ChannelConfig`].
+    /// Dial-time overlay on [`crate::Channel::connect_tls_with`] /
+    /// [`crate::Channel::connect_unix_with`] / [`crate::Channel::from_io_with`].
+    /// Distinct from [`Self::max_encoding_message_size`] /
+    /// [`Self::max_decoding_message_size`].
     #[must_use]
     pub fn message_limits(mut self, limits: MessageLimits) -> Self {
         self.limits = limits;

@@ -140,7 +140,10 @@ See `docs/upb.md`. Short list:
   `max_encoding_message_size` / `max_decoding_message_size` is
   `RESOURCE_EXHAUSTED` on UnaryCall / StreamingOutputCall / StreamingInputCall
   / FullDuplexCall over those transports, distinct from the TestService server
-  add_service caps. TLS
+  add_service caps. `Channel::message_limits` / generated
+  `FooClient::message_limits` / `ChannelConfig::message_limits` refuse
+  oversize the same way as the single-cap setters over TLS, mTLS, Unix, and
+  `from_io`. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent
