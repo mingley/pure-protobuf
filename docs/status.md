@@ -165,7 +165,9 @@ See `docs/upb.md`. Short list:
   mTLS, or Unix dial with `UNAVAILABLE` while the cap is full (`from_io` is
   not an accept loop). A `ChannelConfig::connections` pool larger than that
   cap fails the whole dial as `UNAVAILABLE` on TLS, mTLS, and Unix (`from_io`
-  cannot pool). A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  cannot pool). Oversize metadata against `Server::max_header_list_size` is
+  refused over TLS, mTLS, Unix, and `serve_connection`, distinct from a raw
+  HTTP/2 peer. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

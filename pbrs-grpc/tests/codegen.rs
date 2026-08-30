@@ -3787,6 +3787,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated max_header_list_size rustdoc must name every call shape"
     );
     assert!(
+        src.contains(
+            "Oversize metadata is refused, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
+        ),
+        "generated max_header_list_size rustdoc must name oversize metadata on every transport"
+    );
+    assert!(
         src.contains("Per-connection HTTP/2 send buffer. Applies to every call shape."),
         "generated max_send_buffer_size rustdoc must name every call shape"
     );

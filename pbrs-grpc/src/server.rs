@@ -1384,6 +1384,8 @@ impl<S: Service> Server<S> {
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape.
     /// See [`ServerConfig::max_header_list_size`].
+    /// Oversize metadata is refused, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`]. Distinct from a raw HTTP/2 peer.
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_header_list_size(bytes);
@@ -1951,6 +1953,8 @@ impl Router {
 
     /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape.
     /// See [`ServerConfig::max_header_list_size`].
+    /// Oversize metadata is refused, including over TLS, mTLS, Unix, and
+    /// [`Self::serve_connection`]. Distinct from a raw HTTP/2 peer.
     #[must_use]
     pub fn max_header_list_size(mut self, bytes: u32) -> Self {
         self.config = self.config.max_header_list_size(bytes);

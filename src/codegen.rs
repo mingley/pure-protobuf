@@ -4131,6 +4131,10 @@ fn emit_kernel_server(
         src,
         "    /// HTTP/2 `SETTINGS_MAX_HEADER_LIST_SIZE`. Applies to every call shape. See [`{G}::ServerConfig::max_header_list_size`]."
     );
+    let _ = writeln!(
+        src,
+        "    /// Oversize metadata is refused, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
         src,

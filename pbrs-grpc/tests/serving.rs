@@ -1028,6 +1028,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ServerConfig::message_limits must name combined-setter oversize on every transport"
     );
+    assert!(
+        src.contains(
+            "Oversize metadata is refused, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
+        ),
+        "ServerConfig::max_header_list_size must name oversize metadata on every transport"
+    );
 }
 
 #[test]
@@ -1199,6 +1205,14 @@ fn server_and_router_config_document_every_call_shape() {
             .count(),
         2,
         "Server::max_header_list_size and Router::max_header_list_size must name every call shape"
+    );
+    assert_eq!(
+        src.matches(
+            "Oversize metadata is refused, including over TLS, mTLS, Unix, and\n    /// [`Self::serve_connection`]. Distinct from a raw HTTP/2 peer."
+        )
+        .count(),
+        2,
+        "Server::max_header_list_size and Router::max_header_list_size must name oversize metadata on every transport"
     );
     assert_eq!(
         src.matches("Per-connection HTTP/2 send buffer. Applies to every call shape.")
@@ -23576,4 +23590,106 @@ async fn from_io_server_message_limits_encode_is_resource_exhausted() {
     ))
     .await;
     server3.abort();
+}
+
+fn header_list_cap_server() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).max_header_list_size(1024)
+}
+
+fn flood_hello() -> Request<HelloRequest> {
+    let mut request = Request::new(req("ada"));
+    request
+        .metadata_mut()
+        .insert("x-flood", "v".repeat(4096))
+        .expect("meta");
+    request
+}
+
+async fn assert_header_flood_then_echo(flood: GreeterClient, healthy: GreeterClient) {
+    let _ = tokio::time::timeout(Duration::from_secs(2), flood.say_hello(flood_hello())).await;
+    echo_every_shape(&healthy, None).await;
+}
+
+#[tokio::test]
+async fn header_list_cap_refuses_oversize_metadata() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        header_list_cap_server().serve_listener(listener).await.ok();
+    });
+    assert_header_flood_then_echo(
+        GreeterClient::new(channel(addr).await),
+        GreeterClient::new(channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        header_list_cap_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_header_flood_then_echo(
+        GreeterClient::new(tls_channel(addr).await),
+        GreeterClient::new(tls_channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        header_list_cap_server()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_header_flood_then_echo(
+        GreeterClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        GreeterClient::new(tls_channel_with(addr, client_tls).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_header_list_cap_refuses_oversize_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        header_list_cap_server().serve_unix(sock).await.ok();
+    });
+    assert_header_flood_then_echo(
+        GreeterClient::new(unix_channel(&path).await),
+        GreeterClient::new(unix_channel(&path).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_header_list_cap_refuses_oversize_metadata() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        header_list_cap_server().serve_connection(s1).await.ok();
+    });
+    let flood = GreeterClient::new(Channel::from_io(c1, "localhost").await.expect("flood"));
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        header_list_cap_server().serve_connection(s2).await.ok();
+    });
+    let healthy = GreeterClient::new(Channel::from_io(c2, "localhost").await.expect("healthy"));
+    assert_header_flood_then_echo(flood, healthy).await;
+    server1.abort();
+    server2.abort();
 }
