@@ -287,7 +287,8 @@ impl<T> Request<T> {
     /// gzip this request's payload and set the Compressed-Flag.
     ///
     /// Passing `false` opts out of a later [`crate::Channel::send_compressed`]
-    /// overlay. [`Self::clear_compress`] drops the choice so that overlay
+    /// overlay on every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`]. [`Self::clear_compress`] drops the choice so that overlay
     /// can fill it in. Applies to every call shape.
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = Some(compress);

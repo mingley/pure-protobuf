@@ -153,7 +153,8 @@ Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
 gzip, and the
 `compresses_outbound` overlay. `Response::set_compress(false)` opts out of
-`Server::send_compressed` on those transports too. A client `grpc-timeout` is a
+`Server::send_compressed` on those transports too. `Request::set_compress(false)`
+opts out of `Channel::send_compressed` on those transports. A client `grpc-timeout` is a
 `Request::deadline` Instant that elapses while the handler runs, including
 over TLS, mTLS, Unix, and `from_io`.
 

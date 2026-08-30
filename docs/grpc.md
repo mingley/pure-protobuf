@@ -1065,7 +1065,8 @@ channel.send_compressed()
 `Channel::compresses_outbound` / `FooClient::compresses_outbound` read that
 overlay. That overlay fills compress only when the request omitted a choice, so
 `Request::set_compress(false)` opts out of a channel that called
-`send_compressed`. An interceptor can still `Outgoing::set_compress(false)`
+`send_compressed`, on every call shape, including over TLS, mTLS, Unix,
+and `from_io`. An interceptor can still `Outgoing::set_compress(false)`
 (or `true`) on h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_compress` then
 `set_compress(compresses_outbound())` reapplies the channel overlay on every
 call shape, on h2c, TLS (including mTLS), Unix, and `from_io`. Channel overlays
@@ -1437,7 +1438,8 @@ overlay set a choice — the same pattern as `timeout()` being `None`;
 are those channel overlays and stay visible after `clear_*` opts out of the
 already-applied default), compression (`Outgoing::compress` is
 `false` when unset; `compress_is_set` is the same fill-if-unset pattern, and
-`Request::set_compress(false)` opts out of `Channel::send_compressed`. A client interceptor
+`Request::set_compress(false)` opts out of `Channel::send_compressed` on
+h2c, TLS (including mTLS), Unix, and `from_io`. A client interceptor
 `set_compress(true)` gzips on h2c, TLS (including mTLS), Unix, and `from_io`), and typed extensions. TCP `:authority` is `host:port`; Unix is
 `localhost` (`FooClient::authority` is the same string). Returning `Err(Status::with_error_details(...))` fails that `Call` on poll
 for every call shape; nothing is sent. The Call's `Status::rpc` /
