@@ -227,13 +227,12 @@ See `docs/upb.md`. Short list:
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, and hand-written
   Reverser `Channel` APIs still serve Reverse / Server / Client / Bidi, at the
   HTTP/2 16 KiB SETTINGS minimum over TLS, mTLS, Unix, and `serve_connection`,
-  distinct from wrapping only GreeterServer. Generated
-  `FooServer::max_send_buffer_size` still serves every Greeter shape at a 16 KiB
-  send buffer over TLS, mTLS, Unix, and `serve_connection`, distinct from
-  frame-size still-serves and window still-serves. Generated
-  `FooServer::max_send_buffer_size` still serves every Greeter shape at a 16 KiB
-  send buffer over TLS, mTLS, Unix, and `serve_connection`, distinct from
-  frame-size still-serves and window still-serves. A mute TCP, TLS, mTLS, or Unix peer that never finishes
+  distinct from wrapping only GreeterServer. `Server::max_send_buffer_size` /
+  `Router::max_send_buffer_size` / generated `FooServer::max_send_buffer_size` /
+  `ServerConfig::max_send_buffer_size` still serve every Greeter and Store shape
+  at a 16 KiB send buffer over TLS, mTLS, Unix, and `serve_connection`, distinct
+  from wrapping only the generated Greeter setter, from frame-size still-serves,
+  and from window still-serves. A mute TCP, TLS, mTLS, or Unix peer that never finishes
   the handshake is dropped by `handshake_timeout` so the accept loop keeps
   serving. Graceful drain finishes in-flight RPCs and refuses new connections
   on TLS, mTLS, and Unix (`from_io` has no accept loop). A dead Channel slot

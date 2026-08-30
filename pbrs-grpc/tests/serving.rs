@@ -25803,3 +25803,138 @@ async fn from_io_send_buffer_still_serves_every_shape() {
     .await;
     server.abort();
 }
+
+fn send_buffer_config() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).config(ServerConfig::new().max_send_buffer_size(16 * 1024))
+}
+
+fn send_buffer_router() -> Router {
+    Router::new()
+        .max_send_buffer_size(16 * 1024)
+        .add_service(GreeterServer::new(Echo))
+}
+
+#[tokio::test]
+async fn send_buffer_config_and_router_still_serve_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        send_buffer_config().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        send_buffer_router().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_send_buffer_config_and_router_still_serve_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        send_buffer_config()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(tls_channel(addr).await), None).await;
+    task.abort();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        send_buffer_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(tls_channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_send_buffer_config_and_router_still_serve_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        send_buffer_config()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_every_shape(
+        &GreeterClient::new(tls_channel_with(addr, client_tls).await),
+        None,
+    )
+    .await;
+    task.abort();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        send_buffer_router()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_every_shape(
+        &GreeterClient::new(tls_channel_with(addr, client_tls).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_send_buffer_config_and_router_still_serve_every_shape() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        send_buffer_config().serve_unix(sock).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(unix_channel(&path).await), None).await;
+    task.abort();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        send_buffer_router().serve_unix(sock).await.ok();
+    });
+    echo_every_shape(&GreeterClient::new(unix_channel(&path).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_send_buffer_config_and_router_still_serve_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        send_buffer_config().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io config"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        send_buffer_router().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io router"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
