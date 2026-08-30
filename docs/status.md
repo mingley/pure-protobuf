@@ -115,7 +115,11 @@ See `docs/upb.md`. Short list:
   / Sync over TLS, mTLS, Unix, and `from_io`. A Greeter client
   `max_encoding_message_size` / `max_decoding_message_size` is
   `RESOURCE_EXHAUSTED` on every call shape over those transports, distinct
-  from the server caps. `ChannelConfig::connections` opens independent HTTP/2
+  from the server caps. A generated Store client
+  `max_encoding_message_size` / `max_decoding_message_size` is
+  `RESOURCE_EXHAUSTED` on Get / Watch / PutAll / Sync over TLS, mTLS, Unix,
+  and `from_io`, distinct from the Store server decode cap and from Greeter
+  client caps. `ChannelConfig::connections` opens independent HTTP/2
   drivers on TLS, mTLS, and Unix (`connect_tls_with` / `connect_unix_with`);
   `from_io` cannot pool. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and

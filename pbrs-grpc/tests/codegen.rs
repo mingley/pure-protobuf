@@ -813,6 +813,85 @@ async fn assert_store_oversize_every_shape(client: &StoreClient) {
     }
 }
 
+async fn assert_store_client_encode_cap_every_shape(client: &StoreClient) {
+    let mut get = GetRequest::new();
+    get.set_key(fat_store_key());
+    let err = client
+        .get(Request::new(get))
+        .await
+        .expect_err("unary encode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let mut watch = WatchRequest::new();
+    watch
+        .prefixes_mut()
+        .push(pbrs::ProtoString::from(fat_store_key()));
+    match client.watch(Request::new(watch)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(_) => panic!("server-stream client encode cap must fail before headers"),
+    }
+
+    let (tx, call) = client.put_all(Request::new(()));
+    let err = tx
+        .send(entry(&fat_store_key(), b"v"))
+        .await
+        .expect_err("client-stream send");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    drop(call);
+
+    let (tx, call) = client.sync(Request::new(()));
+    let err = tx
+        .send(entry(&fat_store_key(), b"v"))
+        .await
+        .expect_err("bidi send");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    drop(call);
+}
+
+async fn assert_store_client_decode_cap_every_shape(client: &StoreClient) {
+    let mut get = GetRequest::new();
+    get.set_key(fat_store_key());
+    let err = client
+        .get(Request::new(get))
+        .await
+        .expect_err("unary decode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let mut watch = WatchRequest::new();
+    watch
+        .prefixes_mut()
+        .push(pbrs::ProtoString::from(fat_store_key()));
+    match client.watch(Request::new(watch)).await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("server-stream client decode cap must fail"),
+        },
+    }
+
+    let (tx, call) = client.put_all(Request::new(()));
+    tx.send(entry(&fat_store_key(), b"v")).await.expect("send");
+    tx.close();
+    let err = call.await.expect_err("client-stream decode");
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+
+    let (tx, call) = client.sync(Request::new(()));
+    tx.send(entry(&fat_store_key(), b"v")).await.expect("send");
+    tx.close();
+    match call.await {
+        Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_eq!(err.code(), Code::ResourceExhausted, "{err}"),
+            Ok(_) => panic!("bidi client decode cap must fail"),
+        },
+    }
+}
+
+async fn assert_store_client_message_caps(client: StoreClient) {
+    assert_store_client_encode_cap_every_shape(&client.clone().max_encoding_message_size(16)).await;
+    assert_store_client_decode_cap_every_shape(&client.max_decoding_message_size(16)).await;
+}
+
 fn stamp_outgoing_context(call: &mut Outgoing<'_>) -> Result<(), Status> {
     let path = call.path();
     call.metadata_mut().insert("x-path", path)?;
@@ -4197,5 +4276,76 @@ async fn generated_from_io_pool_config_is_still_one_duplex() {
         .await
         .expect("from_io");
     echo_store_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_client_message_caps_are_resource_exhausted() {
+    let (addr, server) = serve().await;
+    assert_store_client_message_caps(client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_client_message_caps(tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_client_message_caps_are_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_client_message_caps(tls_client_with(addr, client_tls).await).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_client_message_caps_are_resource_exhausted() {
+    let path = unix_sock("client-caps");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore).serve_unix(sock).await.ok();
+    });
+    assert_store_client_message_caps(unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_client_message_caps_are_resource_exhausted() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io");
+    assert_store_client_message_caps(client).await;
     server.abort();
 }
