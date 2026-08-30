@@ -1,10 +1,12 @@
 //! Official-shape interop client: `-test_case` `-server_host` `-server_port`
 //! `-use_tls=false`.
 //!
-//! `--bench` replaces the test case with a latency measurement against whatever
-//! server is listening. Pointing it at this kernel's server and then at another
-//! implementation's is a single-variable comparison: same client, same
-//! `.proto`, same codec, different server.
+//! `--bench` replaces the test case with a latency and throughput measurement
+//! against whatever server is listening. Pointing it at this kernel's server
+//! and then at another implementation's is a single-variable comparison: same
+//! client, same `.proto`, same codec, different server. Unary latency is
+//! empty_unary / large_unary. Throughput is empty bidi ping-pong and
+//! client-streaming upload, matching `rpc-bench` payloads.
 
 #![allow(
     clippy::unwrap_used,
@@ -15,8 +17,12 @@
 )]
 
 use pbrs_grpc::interop_cases;
-use pbrs_grpc::Status;
+use pbrs_grpc::{
+    Payload, Request, ResponseParameters, Status, StreamingInputCallRequest,
+    StreamingOutputCallRequest, TestServiceClient,
+};
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::time::{Duration, Instant};
 
 struct Args {
     host: String,
@@ -80,6 +86,12 @@ const BENCH_EMPTY_ITERS: u32 = 2000;
 const BENCH_LARGE_ITERS: u32 = 200;
 const LARGE_REQ: i32 = 271_828;
 const LARGE_RESP: i32 = 314_159;
+/// Empty request/response pairs in one bidi `FullDuplexCall`. Matches `rpc-bench`.
+const PING_PONGS: u64 = 256;
+/// Messages and payload size for one client-streaming `StreamingInputCall`.
+const UPLOAD_MSGS: i32 = 2000;
+const UPLOAD_SIZE: i32 = 1024;
+const STREAM_ROUNDS: usize = 9;
 
 /// Nearest-rank p50 and p99, computed in integers so no cast can lose
 /// precision or a sign.
@@ -103,44 +115,122 @@ fn large_request() -> pbrs_grpc::SimpleRequest {
     req
 }
 
-/// Measure `empty_unary` and `large_unary` round-trip latency.
-async fn bench(client: &pbrs_grpc::TestServiceClient) -> Result<(), Status> {
-    use std::time::Instant;
+fn rate(count: u64, dur: Duration) -> u64 {
+    let nanos = dur.as_nanos();
+    if nanos == 0 {
+        return 0;
+    }
+    let per_sec = u128::from(count).saturating_mul(1_000_000_000) / nanos;
+    u64::try_from(per_sec).unwrap_or(u64::MAX)
+}
 
+fn ping_pong_req() -> StreamingOutputCallRequest {
+    let mut req = StreamingOutputCallRequest::new();
+    let mut p = ResponseParameters::new();
+    p.set_size(0);
+    req.response_parameters_mut().push(p);
+    req
+}
+
+fn upload_req() -> StreamingInputCallRequest {
+    let mut req = StreamingInputCallRequest::new();
+    let mut p = Payload::new();
+    p.set_body(vec![0u8; usize::try_from(UPLOAD_SIZE.max(0)).unwrap_or(0)]);
+    req.set_payload(p);
+    req
+}
+
+/// Best of eight rounds after warmup: empty bidi round-trips/s.
+async fn bench_ping_pong(client: &TestServiceClient) -> Result<u64, Status> {
+    let req = ping_pong_req();
+    let mut best = 0u64;
+    for round in 0..STREAM_ROUNDS {
+        let started = Instant::now();
+        let (tx, call) = client.full_duplex_call(Request::new(()));
+        tx.send(req.clone()).await?;
+        let mut inbound = call.await?.into_inner();
+        if inbound.message().await?.is_none() {
+            return Err(Status::internal("ping_pong missing first reply"));
+        }
+        for _ in 1..PING_PONGS {
+            tx.send(req.clone()).await?;
+            if inbound.message().await?.is_none() {
+                return Err(Status::internal("ping_pong ended early"));
+            }
+        }
+        tx.close();
+        while inbound.message().await?.is_some() {}
+        if round > 0 {
+            best = best.max(rate(PING_PONGS, started.elapsed()));
+        }
+    }
+    Ok(best)
+}
+
+/// Best of eight rounds after warmup: client-streaming messages/s.
+async fn bench_upload(client: &TestServiceClient) -> Result<u64, Status> {
+    let req = upload_req();
+    let want = UPLOAD_MSGS.saturating_mul(UPLOAD_SIZE);
+    let mut best = 0u64;
+    for round in 0..STREAM_ROUNDS {
+        let started = Instant::now();
+        let (tx, call) = client.streaming_input_call(Request::new(()));
+        let send = async {
+            for _ in 0..UPLOAD_MSGS {
+                tx.send(req.clone()).await?;
+            }
+            tx.close();
+            Ok::<(), Status>(())
+        };
+        let (sent, resp) = tokio::join!(send, call);
+        sent?;
+        let got = resp?.into_inner().aggregated_payload_size();
+        if got != want {
+            return Err(Status::internal(format!("upload agg {got} want {want}")));
+        }
+        if round > 0 {
+            let n = u64::try_from(UPLOAD_MSGS.max(0)).unwrap_or(0);
+            best = best.max(rate(n, started.elapsed()));
+        }
+    }
+    Ok(best)
+}
+
+/// Measure unary latency plus ping_pong / upload throughput.
+async fn bench(client: &TestServiceClient) -> Result<(), Status> {
     for _ in 0..BENCH_WARMUP {
         client
-            .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
+            .empty_call(Request::new(pbrs_grpc::Empty::new()))
             .await?;
     }
     let mut empty = Vec::with_capacity(BENCH_EMPTY_ITERS as usize);
     for _ in 0..BENCH_EMPTY_ITERS {
         let start = Instant::now();
         client
-            .empty_call(pbrs_grpc::Request::new(pbrs_grpc::Empty::new()))
+            .empty_call(Request::new(pbrs_grpc::Empty::new()))
             .await?;
         empty.push(start.elapsed().as_nanos());
     }
 
     let request = large_request();
     for _ in 0..BENCH_WARMUP / 4 {
-        client
-            .unary_call(pbrs_grpc::Request::new(request.clone()))
-            .await?;
+        client.unary_call(Request::new(request.clone())).await?;
     }
     let mut large = Vec::with_capacity(BENCH_LARGE_ITERS as usize);
     for _ in 0..BENCH_LARGE_ITERS {
         let start = Instant::now();
-        client
-            .unary_call(pbrs_grpc::Request::new(request.clone()))
-            .await?;
+        client.unary_call(Request::new(request.clone())).await?;
         large.push(start.elapsed().as_nanos());
     }
 
     let (empty_p50, empty_p99) = percentiles(empty);
     let (large_p50, large_p99) = percentiles(large);
+    let ping_pong_rps = bench_ping_pong(client).await?;
+    let upload_rps = bench_upload(client).await?;
     println!(
         "bench empty_p50={empty_p50} empty_p99={empty_p99} \
-large_p50={large_p50} large_p99={large_p99}"
+large_p50={large_p50} large_p99={large_p99} \
+ping_pong_rps={ping_pong_rps} upload_rps={upload_rps}"
     );
     Ok(())
 }

@@ -10,6 +10,8 @@
 # tonic with both sides under test and is what the process gates use; see
 # docs/benchmarks.md. This script answers the narrower question of how the
 # kernel's server compares to the most widely deployed gRPC implementation.
+# Unary latency is the Xeon table. Ping-pong and upload are extra loopback
+# axes; they do not replace that table.
 #
 # Needs a Go toolchain and network access to fetch google.golang.org/grpc.
 set -euo pipefail
@@ -69,15 +71,16 @@ wait_for_port "$KERNEL_PORT"
 wait_for_port "$GO_PORT"
 
 echo "== kernel client, two servers, ${ROUNDS} rounds =="
-echo "server        empty_p50  empty_p99  large_p50  large_p99   (nanoseconds)"
+echo "server        empty_p50  empty_p99  large_p50  large_p99  ping_pong_rps  upload_rps"
 for round in $(seq 1 "$ROUNDS"); do
   for name in kernel go; do
     if [[ "$name" == kernel ]]; then port="$KERNEL_PORT"; else port="$GO_PORT"; fi
     line="$(target/release/pbrs-grpc-interop-client \
       --server_host 127.0.0.1 --server_port "$port" --bench)"
-    # bench empty_p50=.. empty_p99=.. large_p50=.. large_p99=..
-    read -r _ e50 e99 l50 l99 <<<"$line"
-    printf '%-13s %10s %10s %10s %10s   (round %s)\n' \
-      "$name" "${e50#*=}" "${e99#*=}" "${l50#*=}" "${l99#*=}" "$round"
+    # bench empty_p50=.. empty_p99=.. large_p50=.. large_p99=.. ping_pong_rps=.. upload_rps=..
+    read -r _ e50 e99 l50 l99 ping upload <<<"$line"
+    printf '%-13s %10s %10s %10s %10s %14s %10s   (round %s)\n' \
+      "$name" "${e50#*=}" "${e99#*=}" "${l50#*=}" "${l99#*=}" \
+      "${ping#*=}" "${upload#*=}" "$round"
   done
 done

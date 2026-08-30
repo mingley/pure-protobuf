@@ -1263,6 +1263,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         benches.contains("### Client-streaming upload throughput (loopback)"),
         "benchmarks.md must keep upload as a loopback axis, not a Xeon table replacement"
     );
+    assert!(
+        benches.contains("### Bidi ping-pong and upload vs grpc-go (loopback)"),
+        "benchmarks.md must keep ping_pong/upload vs grpc-go as a loopback axis"
+    );
+    assert!(
+        benches.contains("it is not the 4-core Xeon unary tables above."),
+        "benchmarks.md grpc-go ping_pong/upload must Distinct loopback from the Xeon unary tables"
+    );
 }
 
 #[test]

@@ -363,6 +363,13 @@ and 1.8x on its p99. Round-to-round spread is a few percent, because unlike
 Reported, not gated: the script needs a Go toolchain and network access to
 fetch `google.golang.org/grpc`, so it is not something CI should depend on.
 
+### Bidi ping-pong and upload vs grpc-go (loopback)
+
+The same kernel client also measures empty bidi ping-pong (256 pairs) and
+client-streaming upload (2000 × 1 KiB), best of eight rounds after warmup.
+This is a loopback capture in `scripts/grpc-server-bench.sh`; it is not the
+4-core Xeon unary tables above.
+
 ```bash
 ./scripts/grpc-server-bench.sh
 ```
