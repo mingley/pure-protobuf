@@ -1648,7 +1648,9 @@ Unix, and `from_io`, interceptor `with_error_details` over TLS, mTLS, Unix,
 and `from_io`, and a handler `Err(with_error_details)` over TLS, mTLS, Unix,
 and `from_io`. Official `TestService` handler `Err(with_error_details)` unpacks
 on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
-those transports too.
+those transports too. A Reverser `StreamSender::fail` after a streamed DATA
+frame unpacks on server-streaming and bidi on those transports too (unary and
+client-streaming have no response DATA then trailers).
 
 ## What is not here
 

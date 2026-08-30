@@ -2385,6 +2385,85 @@ async fn reverser_from_io_handlers_return_typed_status_on_every_shape() {
 }
 
 #[tokio::test]
+async fn reverser_typed_google_rpc_status_after_a_streamed_message() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TypedAfterHeadersReverser)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_typed_status_after_streamed_message(&channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_tls_typed_google_rpc_status_after_a_streamed_message() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TypedAfterHeadersReverser)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_reverser_typed_status_after_streamed_message(&tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_mtls_typed_google_rpc_status_after_a_streamed_message() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TypedAfterHeadersReverser)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_reverser_typed_status_after_streamed_message(&tls_channel_with(addr, client_tls).await)
+        .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn reverser_unix_typed_google_rpc_status_after_a_streamed_message() {
+    let (path, _guard) = unix_test_path();
+    let listener = tokio::net::UnixListener::bind(&path).expect("bind");
+    let task = tokio::spawn(async move {
+        Server::new(TypedAfterHeadersReverser)
+            .serve_unix_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_typed_status_after_streamed_message(
+        &Channel::connect_unix(&path).await.expect("connect"),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn reverser_from_io_typed_google_rpc_status_after_a_streamed_message() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        Server::new(TypedAfterHeadersReverser)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_reverser_typed_status_after_streamed_message(
+        &Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn service_ext_interceptors_stack_in_declaration_order() {
     // Same contract as generated_server_interceptors_stack_in_declaration_order,
     // but wrapping the Service itself. Intercepted::intercept is inherent, so
@@ -6690,6 +6769,90 @@ impl Service for FailReverser {
             _ => rpc.unimplemented(),
         }
     }
+}
+
+/// Server-streaming and bidi only: unary and client-streaming have no
+/// response DATA then trailers.
+struct TypedAfterHeadersReverser;
+
+impl Service for TypedAfterHeadersReverser {
+    const NAME: &'static str = "demo.Reverser";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Reverse" => {
+                rpc.unary(|_: Request<HelloRequest>| async {
+                    Err::<Response<HelloReply>, _>(Status::unimplemented("typed-after-headers"))
+                })
+                .await;
+            }
+            "Server" => {
+                rpc.server_streaming(|_: Request<HelloRequest>| async {
+                    Ok::<Response<pbrs_grpc::Streaming<HelloReply>>, Status>(Response::new(
+                        fail_after_one(),
+                    ))
+                })
+                .await;
+            }
+            "Client" => {
+                rpc.client_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Err::<Response<HelloReply>, _>(Status::unimplemented("typed-after-headers"))
+                })
+                .await;
+            }
+            "Bidi" => {
+                rpc.bidi_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Ok::<Response<pbrs_grpc::Streaming<HelloReply>>, Status>(Response::new(
+                        fail_after_one(),
+                    ))
+                })
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
+    }
+}
+
+async fn assert_reverser_typed_status_after_streamed_message(channel: &Channel) {
+    let mut stream = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(req("ada")),
+        )
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let mut stream = channel
+        .server_streaming::<HelloRequest, HelloReply>(
+            "/demo.Reverser/Server",
+            Request::new(req("ada")),
+        )
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
+
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.message().await.expect_err("status"));
+
+    let (tx, call) =
+        channel.bidi::<HelloRequest, HelloReply>("/demo.Reverser/Bidi", Request::new(()));
+    tx.close();
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream.message().await.expect("msg").expect("item");
+    assert_eq!(name_of(&first), "ada");
+    assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
 }
 
 fn stamp_outgoing_context(call: &mut Outgoing<'_>) -> Result<(), Status> {
