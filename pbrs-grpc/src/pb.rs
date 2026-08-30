@@ -404,8 +404,8 @@ impl LocalizedMessage {
     /// `LocalizedMessage` for `locale` with `message`.
     ///
     /// Packed onto a status with [`crate::Status::from_error_details`];
-    /// unpack with [`crate::Status::localized_message`]. Distinct from
-    /// [`crate::Status::message`]: that is the ASCII `grpc-message`, not a locale.
+    /// unpack with [`crate::Status::localized_message`].
+    /// Distinct from [`crate::Status::message`]: that is the ASCII `grpc-message`, not a locale.
     /// Distinct from [`crate::Status::help`]: that is a docs URL, not a locale.
     ///
     /// ```
