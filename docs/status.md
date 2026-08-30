@@ -169,8 +169,11 @@ See `docs/upb.md`. Short list:
   without details; nothing is sent. A packed `google.rpc.Status` on that
   local `Err` is `Status::rpc` / `Status::error_details` on the Call.
   Outgoing getters apply to every call shape. Kernel `user-agent` (and a
-  `Channel::user_agent` prefix) is sent on every shape; inserting `user-agent`
-  into metadata cannot override it. Server interceptor `set` / `remove` /
+  `Channel::user_agent` prefix) is sent on every shape, including over h2c, TLS
+  (including mTLS), Unix, and `from_io`; inserting `user-agent`
+  into metadata cannot override it. Caller extensions on `Request::extensions_mut`
+  and channel `MessageLimits` on `Outgoing::limits` are visible to a client
+  interceptor on those transports plus `from_io`. Server interceptor `set` / `remove` /
   `retain` reach the handler on every shape.
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.

@@ -3646,36 +3646,30 @@ async fn a_reverser_from_io_client_interceptor_can_reapply_channel_gzip_after_cl
     server.abort();
 }
 
-#[tokio::test]
-async fn a_client_interceptor_reads_caller_extensions() {
-    #[derive(Clone)]
-    struct Tenant(String);
+#[derive(Clone)]
+struct Tenant(String);
 
-    let (addr, listener) = bind().await;
-    let task = tokio::spawn(async move {
-        GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                if rpc.metadata().get("x-tenant") != Some("acme") {
-                    return Err(Status::unauthenticated("missing tenant"));
-                }
-                Ok(())
-            })
-            .serve_listener(listener)
-            .await
-            .ok();
-    });
+fn interceptor_stamp_tenant(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let Some(tenant) = call.extensions().get::<Tenant>().cloned() else {
+        return Err(Status::internal("missing Tenant"));
+    };
+    call.metadata_mut().insert("x-tenant", tenant.0)?;
+    Ok(())
+}
 
-    let client = GreeterClient::new(channel(addr).await).intercept(|call: &mut Outgoing<'_>| {
-        let Some(tenant) = call.extensions().get::<Tenant>().cloned() else {
-            return Err(Status::internal("missing Tenant"));
-        };
-        call.metadata_mut().insert("x-tenant", tenant.0)?;
-        Ok(())
-    });
-    fn with_tenant<T>(mut request: Request<T>) -> Request<T> {
-        request.extensions_mut().insert(Tenant("acme".into()));
-        request
+fn require_tenant(rpc: &mut Rpc) -> Result<(), Status> {
+    if rpc.metadata().get("x-tenant") != Some("acme") {
+        return Err(Status::unauthenticated("missing tenant"));
     }
+    Ok(())
+}
+
+fn with_tenant<T>(mut request: Request<T>) -> Request<T> {
+    request.extensions_mut().insert(Tenant("acme".into()));
+    request
+}
+
+async fn echo_tenant_every_shape(client: &GreeterClient) {
     let reply = client
         .say_hello(with_tenant(Request::new(req("ada"))))
         .await
@@ -3707,8 +3701,93 @@ async fn a_client_interceptor_reads_caller_extensions() {
         .expect("item")
         .expect("first message");
     assert_eq!(name_of(&first), "ada");
-    assert_err_on_every_shape(&client, Code::Internal).await;
+    assert_err_on_every_shape(client, Code::Internal).await;
+}
+
+#[tokio::test]
+async fn a_client_interceptor_reads_caller_extensions() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_tenant)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await).intercept(interceptor_stamp_tenant);
+    echo_tenant_every_shape(&client).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await).intercept(interceptor_stamp_tenant);
+    echo_tenant_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_reads_caller_extensions() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_tenant)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await)
+        .intercept(interceptor_stamp_tenant);
+    echo_tenant_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_reads_caller_extensions() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_tenant)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await).intercept(interceptor_stamp_tenant);
+    echo_tenant_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_reads_caller_extensions() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_tenant)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .intercept(interceptor_stamp_tenant);
+    echo_tenant_every_shape(&client).await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -3746,35 +3825,106 @@ async fn a_client_interceptor_sees_the_user_agent() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
-            .intercept(|rpc: &mut Rpc| {
-                let ua = rpc.metadata().get("user-agent").unwrap_or("");
-                let stamped = rpc.metadata().get("x-ua").unwrap_or("");
-                if stamped != ua || !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/")
-                {
-                    return Err(Status::internal(format!("ua {ua:?} x-ua {stamped:?}")));
-                }
-                Ok(())
-            })
+            .intercept(require_stamped_user_agent)
             .serve_listener(listener)
             .await
             .ok();
     });
-    let client = GreeterClient::new(
-        channel(addr)
-            .await
-            .user_agent("inventory/2.1")
-            .expect("user-agent"),
-    )
-    .intercept(|call: &mut Outgoing<'_>| {
-        let ua = call.user_agent();
-        if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
-            return Err(Status::internal(format!("user-agent {ua}")));
-        }
-        call.metadata_mut().set("x-ua", ua)?;
-        Ok(())
-    });
+    let client = user_agent_client(channel(addr).await);
     echo_every_shape(&client, None).await;
     task.abort();
+}
+
+fn interceptor_stamp_user_agent(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let ua = call.user_agent();
+    if !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("user-agent {ua}")));
+    }
+    call.metadata_mut().set("x-ua", ua)?;
+    Ok(())
+}
+
+fn require_stamped_user_agent(rpc: &mut Rpc) -> Result<(), Status> {
+    let ua = rpc.metadata().get("user-agent").unwrap_or("");
+    let stamped = rpc.metadata().get("x-ua").unwrap_or("");
+    if stamped != ua || !ua.starts_with("inventory/2.1 ") || !ua.contains("pbrs-grpc/") {
+        return Err(Status::internal(format!("ua {ua:?} x-ua {stamped:?}")));
+    }
+    Ok(())
+}
+
+fn user_agent_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(channel.user_agent("inventory/2.1").expect("user-agent"))
+        .intercept(interceptor_stamp_user_agent)
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = user_agent_client(tls_channel(addr).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_sees_the_user_agent() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_user_agent)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = user_agent_client(tls_channel_with(addr, client_tls).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_sees_the_user_agent() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_user_agent)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    let client = user_agent_client(unix_channel(&path).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_sees_the_user_agent() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_stamped_user_agent)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = user_agent_client(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    echo_every_shape(&client, None).await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -3783,19 +3933,94 @@ async fn a_client_interceptor_sees_message_limits() {
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo).serve_listener(listener).await.ok();
     });
-    let want = MessageLimits::new()
-        .with_max_decoding(16)
-        .with_max_encoding(32);
-    let client =
-        GreeterClient::new(channel_with(addr, ChannelConfig::new().message_limits(want)).await)
-            .intercept(move |call: &mut Outgoing<'_>| {
-                if call.limits() != want {
-                    return Err(Status::internal(format!("limits {:?}", call.limits())));
-                }
-                Ok(())
-            });
+    let client = limits_client(channel_with(addr, limits_config()).await);
     echo_every_shape(&client, None).await;
     task.abort();
+}
+
+fn test_message_limits() -> MessageLimits {
+    MessageLimits::new()
+        .with_max_decoding(16)
+        .with_max_encoding(32)
+}
+
+fn limits_config() -> ChannelConfig {
+    ChannelConfig::new().message_limits(test_message_limits())
+}
+
+fn interceptor_require_limits(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    let want = test_message_limits();
+    if call.limits() != want {
+        return Err(Status::internal(format!("limits {:?}", call.limits())));
+    }
+    Ok(())
+}
+
+fn limits_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(channel).intercept(interceptor_require_limits)
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client = limits_client(tls_channel_cfg(addr, client_tls, limits_config()).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_sees_message_limits() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = limits_client(tls_channel_cfg(addr, client_tls, limits_config()).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_sees_message_limits() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    let client = limits_client(unix_channel_with(&path, limits_config()).await);
+    echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_sees_message_limits() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = limits_client(
+        Channel::from_io_with(client_io, "localhost", limits_config())
+            .await
+            .expect("from_io"),
+    );
+    echo_every_shape(&client, None).await;
+    server.abort();
 }
 
 #[tokio::test]
