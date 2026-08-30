@@ -13,7 +13,11 @@
 //! [`TestServiceClient::connect_unix_with`] /
 //! [`TestServiceClient::from_io_with`] with
 //! [`crate::ChannelConfig::message_limits`] refuse the same oversize, distinct
-//! from wrapping a live client.
+//! from wrapping a live client. [`TestServiceServer::max_header_list_size`]
+//! refuses oversize metadata on EmptyCall / StreamingOutputCall /
+//! StreamingInputCall / FullDuplexCall, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

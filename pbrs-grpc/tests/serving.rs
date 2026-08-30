@@ -843,6 +843,12 @@ fn official_interop_rustdoc_names_every_transport() {
         ),
         "testing crate rustdoc must name dial-time ChannelConfig message_limits on every transport"
     );
+    assert!(
+        testing.contains(
+            "[`TestServiceServer::max_header_list_size`]\n//! refuses oversize metadata on EmptyCall / StreamingOutputCall /\n//! StreamingInputCall / FullDuplexCall, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter\n//! server."
+        ),
+        "testing crate rustdoc must name header-list flood on every TestService shape"
+    );
     let cases = include_str!("../src/interop_cases.rs");
     assert!(
         cases.contains(
@@ -24536,4 +24542,114 @@ async fn from_io_extra_rpcs_wait_when_the_stream_cap_config_and_router_are_hit()
     ))
     .await;
     server.abort();
+}
+
+fn test_header_list_cap() -> TestServiceServer<InteropTestService> {
+    TestServiceServer::new(InteropTestService).max_header_list_size(1024)
+}
+
+fn flood_empty() -> Request<Empty> {
+    let mut request = Request::new(Empty::new());
+    request
+        .metadata_mut()
+        .insert("x-flood", "v".repeat(4096))
+        .expect("meta");
+    request
+}
+
+async fn assert_test_header_flood_then_echo(flood: TestServiceClient, healthy: TestServiceClient) {
+    let _ = tokio::time::timeout(Duration::from_secs(2), flood.empty_call(flood_empty())).await;
+    echo_test_every_shape(&healthy).await;
+}
+
+#[tokio::test]
+async fn test_service_header_list_cap_refuses_oversize_metadata() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_header_list_cap().serve_listener(listener).await.ok();
+    });
+    assert_test_header_flood_then_echo(
+        TestServiceClient::new(channel(addr).await),
+        TestServiceClient::new(channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_tls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_test_header_flood_then_echo(
+        TestServiceClient::new(tls_channel(addr).await),
+        TestServiceClient::new(tls_channel(addr).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_mtls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        test_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_test_header_flood_then_echo(
+        TestServiceClient::new(tls_channel_with(addr, client_tls.clone()).await),
+        TestServiceClient::new(tls_channel_with(addr, client_tls).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn test_service_unix_header_list_cap_refuses_oversize_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        test_header_list_cap().serve_unix(sock).await.ok();
+    });
+    assert_test_header_flood_then_echo(
+        TestServiceClient::new(unix_channel(&path).await),
+        TestServiceClient::new(unix_channel(&path).await),
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn test_service_from_io_header_list_cap_refuses_oversize_metadata() {
+    let (c1, s1) = duplex_pair();
+    let server1 = tokio::spawn(async move {
+        test_header_list_cap().serve_connection(s1).await.ok();
+    });
+    let flood = TestServiceClient::new(
+        Channel::from_io(c1, "localhost")
+            .await
+            .expect("from_io flood"),
+    );
+    let (c2, s2) = duplex_pair();
+    let server2 = tokio::spawn(async move {
+        test_header_list_cap().serve_connection(s2).await.ok();
+    });
+    let healthy = TestServiceClient::new(
+        Channel::from_io(c2, "localhost")
+            .await
+            .expect("from_io healthy"),
+    );
+    assert_test_header_flood_then_echo(flood, healthy).await;
+    server1.abort();
+    server2.abort();
 }

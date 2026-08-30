@@ -186,7 +186,9 @@ See `docs/upb.md`. Short list:
   and `serve_connection`, distinct from a raw HTTP/2 peer and from wrapping
   only the generated Greeter server setter. Health Check/Watch and reflection
   `ServerReflectionInfo` refuse the same flood then keep serving a healthy
-  client. `ChannelConfig::max_header_list_size`
+  client. Official TestService EmptyCall / StreamingOutputCall /
+  StreamingInputCall / FullDuplexCall refuse the same flood then keep serving
+  a healthy client. `ChannelConfig::max_header_list_size`
   refuses oversize response headers or trailers as `UNAVAILABLE` over TLS, mTLS,
   Unix, and `from_io`, distinct from the server inbound cap.
   `Server::max_concurrent_streams` / `Router::max_concurrent_streams` /
