@@ -27,6 +27,30 @@
 //! })
 //! # }
 //! ```
+//! Generated [`GreeterServer::intercept`] reads the same Rpc overlays as
+//! [`crate::Server::intercept`]:
+//!
+//! ```
+//! # struct Svc;
+//! # impl pbrs_grpc::hello::Greeter for Svc {}
+//! # fn demo() -> pbrs_grpc::Server<pbrs_grpc::hello::GreeterServer<Svc>> {
+//! pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {
+//!     let _ = (
+//!         rpc.path(),
+//!         rpc.peer_timeout(),
+//!         rpc.rpc_timeout(),
+//!         rpc.effective_timeout(),
+//!         rpc.deadline(),
+//!         rpc.gzip_level(),
+//!         rpc.accepts_compressed(),
+//!         rpc.concurrent_rpc_limit(),
+//!         rpc.send_buffer_size(),
+//!         rpc.limits(),
+//!     );
+//!     Ok(())
+//! })
+//! # }
+//! ```
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

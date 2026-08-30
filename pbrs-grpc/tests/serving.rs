@@ -2100,6 +2100,12 @@ fn channel_call_apis_document_hand_written_services() {
         "hello module rustdoc must attach a compiling GreeterClient::intercept example"
     );
     assert!(
+        hello.contains(
+            "pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {"
+        ),
+        "hello module rustdoc must attach a compiling GreeterServer::intercept example"
+    );
+    assert!(
         src.contains("///         call.rpc_timeout(),"),
         "Channel::intercept rustdoc example must read rpc_timeout"
     );
