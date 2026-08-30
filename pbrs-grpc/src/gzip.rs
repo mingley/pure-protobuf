@@ -24,14 +24,19 @@ const INFLATE_GUESS_RATIO: usize = 4;
 /// Never reserve more than this up front, however large the input.
 const INFLATE_GUESS_CAP: usize = 256 * 1024;
 
-/// gzip `payload`.
-///
-/// Uses [`Compression::fast`]: at gRPC message sizes the extra CPU of higher
-/// levels costs more latency than the saved bytes buy back.
+/// gzip `payload` at the kernel default (deflate level 1, [`Compression::fast`]).
 pub fn encode(payload: &[u8]) -> Result<Vec<u8>, Status> {
+    encode_level(payload, crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL)
+}
+
+/// gzip `payload` at deflate `level` (0 stores, 1 is fast, 9 is best).
+///
+/// Values above 9 are clamped to 9. Default 1: at gRPC message sizes the extra
+/// CPU of higher levels often costs more latency than the saved bytes buy back.
+pub fn encode_level(payload: &[u8], level: u32) -> Result<Vec<u8>, Status> {
     let mut enc = GzEncoder::new(
         Vec::with_capacity(payload.len() / 2 + 32),
-        Compression::fast(),
+        Compression::new(level.min(9)),
     );
     enc.write_all(payload)
         .map_err(|e| Status::internal(format!("gzip encode: {e}")))?;
@@ -76,7 +81,7 @@ pub fn decode_limited(payload: &[u8], limits: MessageLimits) -> Result<Vec<u8>, 
 
 #[cfg(test)]
 mod tests {
-    use super::{decode, decode_limited, encode};
+    use super::{decode, decode_limited, encode, encode_level};
     use crate::limits::MessageLimits;
     use crate::status::Code;
 
@@ -123,6 +128,28 @@ mod tests {
     fn garbage_is_an_error_not_a_panic() {
         let err = decode(&[0xff; 32]).expect_err("not gzip");
         assert_eq!(err.code(), Code::Internal);
+    }
+
+    #[test]
+    fn higher_level_compresses_zeros_tighter() {
+        let payload = vec![0u8; 64 * 1024];
+        let store = encode_level(&payload, 0).expect("store");
+        let fast = encode_level(&payload, 1).expect("fast");
+        let best = encode_level(&payload, 9).expect("best");
+        assert!(
+            best.len() <= fast.len(),
+            "best={} fast={}",
+            best.len(),
+            fast.len()
+        );
+        assert!(
+            store.len() > best.len(),
+            "store={} best={}",
+            store.len(),
+            best.len()
+        );
+        assert_eq!(decode(&best).expect("decode best"), payload);
+        assert_eq!(decode(&store).expect("decode store"), payload);
     }
 
     #[test]

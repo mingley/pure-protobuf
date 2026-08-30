@@ -1106,6 +1106,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must name protocol-error RST cap as handshake-only"
     );
     assert!(
+        channel.contains("[`Self::send_compressed`], [`Self::gzip_compression_level`]"),
+        "Channel rustdoc must overlay gzip_compression_level with send_compressed"
+    );
+    assert!(
+        channel.contains("Distinct from [`Self::send_compressed`], which is on or off."),
+        "Channel::gzip_compression_level must Distinct deflate effort from on/off"
+    );
+    assert!(
         src.contains(
             "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix.\n    /// [`crate::Channel::from_io`] cannot pool: [`crate::Channel::from_io_with`]\n    /// forces `connections` to 1."
         ),
@@ -1408,6 +1416,24 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ChannelConfig::max_local_error_reset_streams must name client handshake Distinct from server still-serves"
     );
     assert_eq!(
+        src.matches("Distinct from [`Self::send_compressed`], which is on or off.")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig gzip_compression_level must Distinct deflate effort from on/off"
+    );
+    assert_eq!(
+        src.matches(
+            "Deflate effort for outbound gzip. Default 1 (`flate2` fast).\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "ServerConfig and ChannelConfig gzip_compression_level must name deflate effort"
+    );
+    assert!(
+        src.contains("0 stores; 9 is best"),
+        "ServerConfig::gzip_compression_level must name store and best levels"
+    );
+    assert_eq!(
         src.matches("A well-behaved client never fills that queue; every call shape still")
             .count(),
         1,
@@ -1509,6 +1535,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("so a finished [`Streaming`] is skipped by"),
         "crate docs must re-export FusedStream for a finished Streaming"
+    );
+    assert!(
+        crate_src.contains("is deflate effort (default 1)"),
+        "crate docs must name gzip_compression_level default 1"
+    );
+    assert!(
+        crate_src.contains("Distinct from `send_compressed`, which is on or off"),
+        "crate docs must Distinct gzip_compression_level from send_compressed"
     );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
@@ -1705,6 +1739,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("a protocol-error RST flood that exceeds `max_local_error_reset_streams`"),
         "guide must name the hostile.rs protocol-error RST flood"
+    );
+    assert!(
+        guide.contains("`gzip_compression_level` is deflate effort"),
+        "guide must name gzip_compression_level as deflate effort"
+    );
+    assert!(
+        guide.contains("Distinct from `send_compressed`, which is on or off"),
+        "guide must Distinct gzip_compression_level from send_compressed on/off"
     );
     let benches = include_str!("../../docs/benchmarks.md");
     assert!(
@@ -2108,6 +2150,24 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::accept_compressed and Router::accept_compressed must refuse gzip as UNIMPLEMENTED"
+    );
+    assert_eq!(
+        src.matches(
+            "Deflate effort for outbound gzip. Default 1 (`flate2` fast).\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::gzip_compression_level and Router::gzip_compression_level must name every call shape"
+    );
+    assert_eq!(
+        src.matches("Distinct from [`Self::send_compressed`], which is on or off.")
+            .count(),
+        2,
+        "Server and Router gzip_compression_level must Distinct deflate effort from on/off"
+    );
+    assert!(
+        src.contains("0 stores; 9 is best"),
+        "Server::gzip_compression_level must name store and best levels"
     );
     assert_eq!(
         src.matches(
@@ -24399,6 +24459,91 @@ async fn server_config_accept_compressed_false_refuses_gzip() {
     task.abort();
 }
 
+#[tokio::test]
+async fn gzip_compression_level_still_gzips_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .send_compressed()
+            .gzip_compression_level(9)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_server_gzip_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_gzip_compression_level_still_gzips_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .send_compressed()
+            .gzip_compression_level(9)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_server_gzip_every_shape(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn server_config_gzip_compression_level_still_gzips_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(GreeterServer::new(Echo))
+            .config(
+                ServerConfig::new()
+                    .send_compressed(true)
+                    .gzip_compression_level(9),
+            )
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_server_gzip_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn channel_config_gzip_compression_level_still_gzips_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_listener(listener).await.ok();
+    });
+    let ch = channel_cfg(
+        addr,
+        ChannelConfig::new()
+            .send_compressed(true)
+            .gzip_compression_level(9),
+    )
+    .await;
+    assert_eq!(ch.gzip_level(), 9);
+    gzip_every_shape(&GreeterClient::new(ch)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn gzip_compression_level_without_send_compressed_stays_identity() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .gzip_compression_level(9)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_identity_encoding_every_shape(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
 #[test]
 fn server_and_router_config_is_readable_and_cloneable() {
     let svc = GreeterServer::new(Echo).timeout(Duration::from_secs(3));
@@ -24408,6 +24553,9 @@ fn server_and_router_config_is_readable_and_cloneable() {
     );
     assert_eq!(svc.rpc_timeout(), Some(Duration::from_secs(3)));
     assert!(!svc.compresses_outbound());
+    assert_eq!(svc.gzip_level(), pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL);
+    assert_eq!(svc.clone().gzip_compression_level(9).gzip_level(), 9);
+    assert_eq!(svc.clone().gzip_compression_level(10).gzip_level(), 9);
     assert!(svc.accepts_compressed());
     assert!(svc.clone().send_compressed().compresses_outbound());
     assert!(!svc.clone().accept_compressed(false).accepts_compressed());
@@ -24418,6 +24566,11 @@ fn server_and_router_config_is_readable_and_cloneable() {
     );
     assert_eq!(server.rpc_timeout(), Some(Duration::from_secs(9)));
     assert!(server.accepts_compressed());
+    assert_eq!(
+        server.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL
+    );
+    assert_eq!(server.clone().gzip_compression_level(9).gzip_level(), 9);
     assert!(!server.clone().accept_compressed(false).accepts_compressed());
     assert_eq!(
         server.clone().server_config().rpc_timeout(),
@@ -24432,6 +24585,11 @@ fn server_and_router_config_is_readable_and_cloneable() {
     );
     assert_eq!(router.rpc_timeout(), Some(Duration::from_secs(2)));
     assert!(!router.compresses_outbound());
+    assert_eq!(
+        router.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL
+    );
+    assert_eq!(router.clone().gzip_compression_level(9).gzip_level(), 9);
     assert!(router.accepts_compressed());
     assert!(router.clone().send_compressed().compresses_outbound());
     assert!(!router.clone().accept_compressed(false).accepts_compressed());

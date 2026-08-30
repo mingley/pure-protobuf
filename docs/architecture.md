@@ -227,7 +227,7 @@ Client: `Channel::intercept` / `FooClient::intercept`. Closures see
 limits, metadata, timeout / deadline Instant, wait-for-ready
 (`wait_for_ready_is_set`), compression (`compress_is_set`), channel overlays
 (`rpc_timeout` / `waits_for_ready` / `compresses_outbound`), extensions).
-Overlays (timeout, wait-for-ready, send_compressed, message caps,
+Overlays (timeout, wait-for-ready, send_compressed, gzip_compression_level, message caps,
 `https_scheme`) fill in before interceptors run; `clear_*` opts out of that
 already-applied default while the overlay getters stay. `Channel::timeout` /
 `ChannelConfig::timeout` fill `grpc-timeout` when the request omits one,

@@ -216,6 +216,9 @@
 //! [`ServerConfig::send_compressed`] / [`ChannelConfig::send_compressed`]
 //! trade CPU for bandwidth, and at LAN latencies identity framing usually
 //! wins. A peer that did not advertise gzip is never sent a compressed frame.
+//! [`ServerConfig::gzip_compression_level`] /
+//! [`ChannelConfig::gzip_compression_level`] is deflate effort (default 1).
+//! Distinct from `send_compressed`, which is on or off.
 //! Inbound gzip is on by default; [`ServerConfig::accept_compressed`]`(false)`
 //! / [`ChannelConfig::accept_compressed`]`(false)` refuses it.
 //! A received reply surfaces the peer's `grpc-encoding` on [`Response::encoding`]
@@ -299,9 +302,9 @@ pub mod codegen_support {
 
 pub use client::{Channel, Target};
 pub use config::{
-    ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_KEEP_ALIVE_TIMEOUT,
-    DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE,
-    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
+    ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_GZIP_COMPRESSION_LEVEL,
+    DEFAULT_KEEP_ALIVE_TIMEOUT, DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONNECTION_AGE_GRACE,
+    DEFAULT_MAX_FRAME_SIZE, DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
     DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
     DEFAULT_WINDOW_SIZE,
 };

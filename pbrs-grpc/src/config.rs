@@ -41,6 +41,12 @@ pub const DEFAULT_KEEP_ALIVE_TIMEOUT: Duration = Duration::from_secs(20);
 /// instead of hanging the caller forever.
 pub const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 
+/// Default outbound gzip deflate level: 1 (`flate2` fast).
+///
+/// At gRPC message sizes the extra CPU of higher levels often costs more
+/// latency than the saved bytes buy back. 0 stores; 9 is best.
+pub const DEFAULT_GZIP_COMPRESSION_LEVEL: u32 = 1;
+
 /// After [`ServerConfig::max_connection_age`] or idle fires, how long to wait
 /// for in-flight RPCs before dropping the socket. Default 10 s.
 pub const DEFAULT_MAX_CONNECTION_AGE_GRACE: Duration = Duration::from_secs(10);
@@ -69,6 +75,8 @@ pub(crate) struct Wire {
     /// Inflate inbound gzip. Default on; [`ServerConfig::accept_compressed`] /
     /// [`ChannelConfig::accept_compressed`]`(false)` opts out.
     pub(crate) accept_gzip: bool,
+    /// Deflate effort for outbound gzip. Default 1.
+    pub(crate) gzip_level: u32,
 }
 
 /// HTTP/2 and resource settings for a server.
@@ -107,6 +115,7 @@ pub struct ServerConfig {
     max_concurrent_rpcs: Option<usize>,
     send_compressed: bool,
     accept_compressed: bool,
+    gzip_compression_level: u32,
 }
 
 impl Default for ServerConfig {
@@ -133,6 +142,7 @@ impl Default for ServerConfig {
             max_concurrent_rpcs: None,
             send_compressed: false,
             accept_compressed: true,
+            gzip_compression_level: DEFAULT_GZIP_COMPRESSION_LEVEL,
         }
     }
 }
@@ -464,6 +474,22 @@ impl ServerConfig {
         self
     }
 
+    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
+    /// Applies to every call shape.
+    ///
+    /// 0 stores; 9 is best. Values above 9 are clamped to 9. Unused when
+    /// outbound compression is off.
+    /// Distinct from [`Self::send_compressed`], which is on or off.
+    ///
+    /// [`crate::Server::gzip_compression_level`], [`crate::Router::gzip_compression_level`],
+    /// and generated `FooServer::gzip_compression_level` set this without
+    /// building a [`ServerConfig`].
+    #[must_use]
+    pub fn gzip_compression_level(mut self, level: u32) -> Self {
+        self.gzip_compression_level = level.min(9);
+        self
+    }
+
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
     ///
@@ -523,6 +549,13 @@ impl ServerConfig {
     #[must_use]
     pub fn compresses_outbound(self) -> bool {
         self.send_compressed
+    }
+
+    /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn gzip_level(self) -> u32 {
+        self.gzip_compression_level
     }
 
     /// Whether inbound gzip is inflated. Default `true`.
@@ -653,6 +686,7 @@ impl ServerConfig {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
             accept_gzip: self.accept_compressed,
+            gzip_level: self.gzip_compression_level,
         }
     }
 
@@ -720,6 +754,7 @@ pub struct ChannelConfig {
     max_connection_age_grace: Duration,
     send_compressed: bool,
     accept_compressed: bool,
+    gzip_compression_level: u32,
     timeout: Option<Duration>,
     wait_for_ready: bool,
     max_concurrent_rpcs: Option<usize>,
@@ -748,6 +783,7 @@ impl Default for ChannelConfig {
             max_connection_age_grace: DEFAULT_MAX_CONNECTION_AGE_GRACE,
             send_compressed: false,
             accept_compressed: true,
+            gzip_compression_level: DEFAULT_GZIP_COMPRESSION_LEVEL,
             timeout: None,
             wait_for_ready: false,
             max_concurrent_rpcs: None,
@@ -1077,6 +1113,22 @@ impl ChannelConfig {
         self
     }
 
+    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
+    ///
+    /// 0 stores; 9 is best. Values above 9 are clamped to 9. Unused when
+    /// outbound compression is off.
+    /// Distinct from [`Self::send_compressed`], which is on or off.
+    /// Overlay: [`crate::Channel::gzip_compression_level`] and generated
+    /// `FooClient::gzip_compression_level` set this without building a
+    /// [`ChannelConfig`].
+    #[must_use]
+    pub fn gzip_compression_level(mut self, level: u32) -> Self {
+        self.gzip_compression_level = level.min(9);
+        self
+    }
+
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     ///
@@ -1277,6 +1329,13 @@ impl ChannelConfig {
         self.send_compressed
     }
 
+    /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
+    /// Applies to every call shape.
+    #[must_use]
+    pub fn gzip_level(self) -> u32 {
+        self.gzip_compression_level
+    }
+
     /// Whether inbound gzip is inflated. Default `true`.
     /// See [`Self::accept_compressed`]. Applies to every call shape.
     /// Distinct from [`crate::Rpc::accepts_gzip`], which is the peer's
@@ -1322,6 +1381,7 @@ impl ChannelConfig {
             limits: self.limits,
             send_buffer: self.max_send_buffer_size,
             accept_gzip: self.accept_compressed,
+            gzip_level: self.gzip_compression_level,
         }
     }
 
@@ -1447,6 +1507,46 @@ mod tests {
         assert!(!ServerConfig::new()
             .accept_compressed(false)
             .accepts_compressed());
+        assert_eq!(config.gzip_level(), super::DEFAULT_GZIP_COMPRESSION_LEVEL);
+        assert_eq!(
+            ChannelConfig::new().gzip_level(),
+            super::DEFAULT_GZIP_COMPRESSION_LEVEL
+        );
+        assert_eq!(
+            ServerConfig::new().gzip_compression_level(9).gzip_level(),
+            9
+        );
+        assert_eq!(
+            ServerConfig::new().gzip_compression_level(0).gzip_level(),
+            0
+        );
+        assert_eq!(
+            ServerConfig::new().gzip_compression_level(10).gzip_level(),
+            9
+        );
+        assert_eq!(
+            ChannelConfig::new().gzip_compression_level(9).gzip_level(),
+            9
+        );
+        assert_eq!(
+            ChannelConfig::new().gzip_compression_level(10).gzip_level(),
+            9
+        );
+        assert_eq!(ServerConfig::new().wire().gzip_level, 1);
+        assert_eq!(
+            ServerConfig::new()
+                .gzip_compression_level(9)
+                .wire()
+                .gzip_level,
+            9
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .gzip_compression_level(0)
+                .wire()
+                .gzip_level,
+            0
+        );
     }
 
     #[test]

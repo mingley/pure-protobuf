@@ -1357,6 +1357,7 @@ async fn generated_servers_accept_configuration() {
     let server = tokio::spawn(async move {
         StoreServer::new(MemStore)
             .send_compressed()
+            .gzip_compression_level(9)
             .message_limits(pbrs_grpc::MessageLimits::new().with_max_decoding(16))
             .max_concurrent_rpcs(32)
             .max_concurrent_connections(8)
@@ -1626,6 +1627,11 @@ fn generated_client_debug_and_into_inner() {
     assert_eq!(client.rpc_timeout(), Some(Duration::from_secs(5)));
     assert!(client.waits_for_ready());
     assert!(!client.compresses_outbound());
+    assert_eq!(
+        client.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL
+    );
+    assert_eq!(client.clone().gzip_compression_level(9).gzip_level(), 9);
     assert!(client.accepts_compressed());
     assert!(!client.clone().accept_compressed(false).accepts_compressed());
     assert_eq!(client.rpc_timeout(), client.channel().rpc_timeout());
@@ -1642,6 +1648,11 @@ fn generated_server_config_is_readable_after_overlays() {
     );
     assert_eq!(server.rpc_timeout(), Some(Duration::from_secs(5)));
     assert!(!server.compresses_outbound());
+    assert_eq!(
+        server.gzip_level(),
+        pbrs_grpc::DEFAULT_GZIP_COMPRESSION_LEVEL
+    );
+    assert_eq!(server.clone().gzip_compression_level(9).gzip_level(), 9);
     assert!(server.accepts_compressed());
     assert!(server.clone().send_compressed().compresses_outbound());
     assert!(!server.clone().accept_compressed(false).accepts_compressed());
@@ -3864,6 +3875,18 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "gzip responses when the client advertises gzip. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated server send_compressed rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::send_compressed`], which is on or off. 0 stores; 9 is best. A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated gzip_compression_level rustdoc must Distinct deflate effort from on/off on every transport"
+    );
+    assert!(
+        src.contains(
+            "including over TLS, mTLS, Unix, and [`::pbrs_grpc::Channel::from_io`]. Distinct from [`Self::send_compressed`], which is on or off."
+        ),
+        "generated client gzip_compression_level rustdoc must Distinct deflate effort from on/off on every transport"
     );
     assert!(
         src.contains(

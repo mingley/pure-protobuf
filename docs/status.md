@@ -341,6 +341,8 @@ See `docs/upb.md`. Short list:
   reply starts empty.   `Server::send_compressed` / `Router::send_compressed`
   gzip every call shape when the client advertises gzip (`Response::compressed`
   and `encoding()` are gzip), including over TLS, mTLS, Unix, and `from_io`.
+  `gzip_compression_level` is deflate effort (default 1). Distinct from
+  `send_compressed`, which is on or off. 0 stores; 9 is best.
   Inbound gzip is on by default; `Server::accept_compressed(false)` /
   `Channel::accept_compressed(false)` refuse `grpc-encoding: gzip` as
   `UNIMPLEMENTED` and advertise `identity` only (distinct from tonic's

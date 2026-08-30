@@ -1081,7 +1081,7 @@ async fn send_unary_response<Resp: Serialize>(
 ) {
     let (msg, headers, trailers, compress) = response.split();
     let gzip = gzip_outbound(compress, prefer_gzip, peer_accepts_gzip);
-    let frame = match encode_msg(&msg, gzip, wire.limits) {
+    let frame = match encode_msg(&msg, gzip, wire.limits, wire.gzip_level) {
         Ok(frame) => frame,
         Err(status) => {
             send_trailers_only(&mut respond, status, &Metadata::new());
@@ -1505,6 +1505,18 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
+    /// Applies to every call shape. See
+    /// [`ServerConfig::gzip_compression_level`].
+    /// Distinct from [`Self::send_compressed`], which is on or off.
+    /// 0 stores; 9 is best. A well-behaved client still completes every
+    /// call shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn gzip_compression_level(mut self, level: u32) -> Self {
+        self.config = self.config.gzip_compression_level(level);
+        self
+    }
+
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
     /// Passing `false` refuses `grpc-encoding: gzip` as
@@ -1533,6 +1545,14 @@ impl<S: Service> Server<S> {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
+    }
+
+    /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::gzip_compression_level`], which sets it.
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.config.gzip_level()
     }
 
     /// Whether inbound gzip is inflated. Default `true`.
@@ -2174,6 +2194,18 @@ impl Router {
         self
     }
 
+    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
+    /// Applies to every call shape. See
+    /// [`ServerConfig::gzip_compression_level`].
+    /// Distinct from [`Self::send_compressed`], which is on or off.
+    /// 0 stores; 9 is best. A well-behaved client still completes every
+    /// call shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn gzip_compression_level(mut self, level: u32) -> Self {
+        self.config = self.config.gzip_compression_level(level);
+        self
+    }
+
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
     /// Passing `false` refuses `grpc-encoding: gzip` as
@@ -2202,6 +2234,14 @@ impl Router {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
+    }
+
+    /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::gzip_compression_level`], which sets it.
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.config.gzip_level()
     }
 
     /// Whether inbound gzip is inflated. Default `true`.

@@ -1127,6 +1127,17 @@ ChannelConfig::new().send_compressed(true)
 channel.send_compressed()
 ```
 
+`gzip_compression_level` is deflate effort (default 1, `flate2` fast).
+0 stores; 9 is best. Values above 9 clamp to 9. Unused when outbound
+compression is off. Distinct from `send_compressed`, which is on or off.
+
+```rust
+GreeterServer::new(svc)
+    .send_compressed()
+    .gzip_compression_level(9)
+channel.send_compressed().gzip_compression_level(9)
+```
+
 `Channel::compresses_outbound` / `FooClient::compresses_outbound` read that
 overlay. That overlay fills compress only when the request omitted a choice, so
 `Request::set_compress(false)` opts out of a channel that called

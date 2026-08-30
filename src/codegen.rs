@@ -288,7 +288,7 @@ impl Config {
     /// `https_scheme` for already-encrypted `from_io` streams. Read those
     /// overlays with `scheme` / `authority` / `grpc_user_agent` /
     /// `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
-    /// `accepts_compressed` / `config`.
+    /// `gzip_level` / `accepts_compressed` / `config`.
     /// Methods you omit on the generated `Foo` trait answer `UNIMPLEMENTED`.
     /// Mutually exclusive with [`Self::emit_tonic_stubs`]; the last call wins.
     ///
@@ -4215,6 +4215,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast). Applies to every call shape. Distinct from [`Self::send_compressed`], which is on or off. 0 stores; 9 is best. A well-behaved client still completes every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::gzip_compression_level`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn gzip_compression_level(mut self, level: u32) -> Self {{ self.config = self.config.gzip_compression_level(level); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Inflate inbound gzip. Default `true`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. Passing `false` refuses `grpc-encoding: gzip` as `UNIMPLEMENTED` before the handler. Distinct from [`Self::send_compressed`], which is outbound. See [`{G}::ServerConfig::accept_compressed`]."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4239,6 +4248,15 @@ fn emit_kernel_server(
     let _ = writeln!(
         src,
         "    pub fn compresses_outbound(&self) -> bool {{ self.config.compresses_outbound() }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Configured outbound gzip deflate level. Distinct from [`Self::gzip_compression_level`], which sets it. See [`{G}::Server::gzip_level`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn gzip_level(&self) -> u32 {{ self.config.gzip_level() }}"
     );
     let _ = writeln!(
         src,
@@ -4851,6 +4869,15 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
+        "    /// Configured outbound gzip deflate level. Distinct from [`Self::gzip_compression_level`], which sets it. See [`{G}::Channel::gzip_level`]. Applies to every call shape."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn gzip_level(&self) -> u32 {{ self.channel.gzip_level() }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Whether inbound gzip is inflated. Default `true`. Distinct from [`Self::accept_compressed`], which sets it. Distinct from [`{G}::Rpc::accepts_gzip`], which is the peer's `grpc-accept-encoding`. See [`{G}::Channel::accepts_compressed`]. Applies to every call shape."
     );
     let _ = writeln!(src, "    #[must_use]");
@@ -4892,7 +4919,7 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
-        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], and [`Self::accepts_compressed`] read that overlay without colliding with the setters."
+        "/// [`Self::authority`], [`Self::scheme`], and [`Self::grpc_user_agent`] read the same values interceptors see on [`{G}::Outgoing`]. [`Self::config`] is the channel overlay those values come from. [`Self::rpc_timeout`], [`Self::waits_for_ready`], [`Self::compresses_outbound`], [`Self::gzip_level`], and [`Self::accepts_compressed`] read that overlay without colliding with the setters."
     );
     let _ = writeln!(src, "#[derive(::core::clone::Clone)]");
     let _ = writeln!(src, "pub struct {client} {{");
@@ -5016,6 +5043,15 @@ fn emit_kernel_client(
     let _ = writeln!(
         src,
         "    pub fn send_compressed(mut self) -> Self {{ self.channel = self.channel.send_compressed(); self }}"
+    );
+    let _ = writeln!(
+        src,
+        "    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast). Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Channel::from_io`]. Distinct from [`Self::send_compressed`], which is on or off. 0 stores; 9 is best. See [`{G}::Channel::gzip_compression_level`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn gzip_compression_level(mut self, level: u32) -> Self {{ self.channel = self.channel.gzip_compression_level(level); self }}"
     );
     let _ = writeln!(
         src,

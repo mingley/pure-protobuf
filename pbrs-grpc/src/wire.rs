@@ -311,6 +311,7 @@ pub(crate) fn encode_msg<T: Serialize>(
     msg: &T,
     compress: bool,
     limits: MessageLimits,
+    gzip_level: u32,
 ) -> Result<Bytes, Status> {
     let len = T::serialized_len(msg);
     limits.check_encode(len)?;
@@ -318,7 +319,7 @@ pub(crate) fn encode_msg<T: Serialize>(
         return frame_from_msg(msg, len);
     }
     let body = T::serialize(msg).map_err(|e| Status::internal(e.to_string()))?;
-    let gz = gzip::encode(&body)?;
+    let gz = gzip::encode_level(&body, gzip_level)?;
     codec::encode(&gz, true)
 }
 
@@ -340,12 +341,13 @@ fn append_frame<T: Serialize>(
     msg: &T,
     compress: bool,
     limits: MessageLimits,
+    gzip_level: u32,
 ) -> Result<(), Status> {
     let len = T::serialized_len(msg);
     limits.check_encode(len)?;
     if compress {
         let body = T::serialize(msg).map_err(|e| Status::internal(e.to_string()))?;
-        let gz = gzip::encode(&body)?;
+        let gz = gzip::encode_level(&body, gzip_level)?;
         let prefix = u32::try_from(gz.len()).map_err(|_| Status::internal("message too large"))?;
         buf.reserve(codec::HEADER_LEN + gz.len());
         buf.put_u8(1);
@@ -391,6 +393,7 @@ impl OutBatch {
             &item.message,
             item.compressed,
             self.wire.limits,
+            self.wire.gzip_level,
         )
     }
 

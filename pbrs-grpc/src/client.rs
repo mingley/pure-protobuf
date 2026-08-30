@@ -148,8 +148,8 @@ struct ChannelInner {
     endpoint: Endpoint,
     tls: Option<ClientTls>,
     /// Settings used to dial. Per-clone overlays on [`Channel`] (timeout,
-    /// wait-for-ready, send_compressed, message sizes, stream_buffer) do not
-    /// change how a dead slot is redialed.
+    /// wait-for-ready, send_compressed, gzip_compression_level, message sizes,
+    /// stream_buffer) do not change how a dead slot is redialed.
     dial: ChannelConfig,
 }
 
@@ -254,12 +254,14 @@ impl Endpoint {
 /// wait-for-ready without touching each call.
 ///
 /// After connect, [`Self::timeout`], [`Self::wait_for_ready`],
-/// [`Self::send_compressed`], [`Self::accept_compressed`], the two message-size caps /
+/// [`Self::send_compressed`], [`Self::gzip_compression_level`],
+/// [`Self::accept_compressed`], the two message-size caps /
 /// [`Self::message_limits`], [`Self::stream_buffer`],
 /// [`Self::max_concurrent_rpcs`], and
 /// [`Self::https_scheme`] (for [`Self::from_io`]) overlay this clone.
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
-/// [`Self::compresses_outbound`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], and
+/// [`Self::compresses_outbound`], [`Self::gzip_level`], [`Self::accepts_compressed`],
+/// [`Self::concurrent_rpc_limit`], and
 /// [`Self::config`]. Keepalive, idle, age, TCP
 /// keepalive, connection count, HTTP/2 windows, the rapid-reset cap, and the
 /// protocol-error RST cap are set at handshake ([`ChannelConfig`] /
@@ -614,6 +616,18 @@ impl Channel {
         self
     }
 
+    /// Deflate effort for outbound gzip. Default 1 (`flate2` fast).
+    /// Applies to every call shape, including over TLS, mTLS, Unix, and
+    /// [`Self::from_io`]. See [`ChannelConfig::gzip_compression_level`].
+    /// Distinct from [`Self::send_compressed`], which is on or off.
+    /// 0 stores; 9 is best. Overlay: does not change how a dead slot is
+    /// redialed.
+    #[must_use]
+    pub fn gzip_compression_level(mut self, level: u32) -> Self {
+        self.config = self.config.gzip_compression_level(level);
+        self
+    }
+
     /// Inflate inbound gzip. Default `true`. Applies to every call shape,
     /// including over TLS, mTLS, Unix, and [`Self::from_io`].
     /// Passing `false` omits gzip from `grpc-accept-encoding` and refuses a
@@ -670,6 +684,14 @@ impl Channel {
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.config.compresses_outbound()
+    }
+
+    /// Configured outbound gzip deflate level. See [`Self::gzip_compression_level`].
+    /// Applies to every call shape.
+    /// Distinct from [`Self::gzip_compression_level`], which sets it.
+    #[must_use]
+    pub fn gzip_level(&self) -> u32 {
+        self.config.gzip_level()
     }
 
     /// Whether inbound gzip is inflated. Default `true`.
@@ -1016,7 +1038,7 @@ impl Channel {
                 let (msg, md, timeout, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let frame = encode_msg(&msg, compress, wire.limits)?;
+                let frame = encode_msg(&msg, compress, wire.limits, wire.gzip_level)?;
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
                 let _permit = channel.take_rpc_slot()?;
@@ -1120,7 +1142,7 @@ impl Channel {
                 let (msg, md, timeout, compress, ua) = req.into_parts();
                 // Encode before opening so an oversize message never occupies a
                 // stream slot, and a transparent retry does not re-serialize.
-                let frame = encode_msg(&msg, compress, wire.limits)?;
+                let frame = encode_msg(&msg, compress, wire.limits, wire.gzip_level)?;
                 let https = channel.https;
                 let ua = ua.unwrap_or_else(|| channel.user_agent.clone());
                 let permit = channel.take_rpc_slot()?;
@@ -2232,13 +2254,16 @@ mod tests {
         assert_eq!(channel.rpc_timeout(), None);
         assert!(!channel.waits_for_ready());
         assert!(!channel.compresses_outbound());
+        assert_eq!(channel.gzip_level(), 1);
         let channel = channel
             .timeout(Duration::from_secs(5))
             .wait_for_ready()
-            .send_compressed();
+            .send_compressed()
+            .gzip_compression_level(9);
         assert_eq!(channel.rpc_timeout(), Some(Duration::from_secs(5)));
         assert!(channel.waits_for_ready());
         assert!(channel.compresses_outbound());
+        assert_eq!(channel.gzip_level(), 9);
         assert_eq!(channel.rpc_timeout(), channel.config().rpc_timeout());
         assert_eq!(
             channel.waits_for_ready(),
@@ -2247,6 +2272,14 @@ mod tests {
         assert_eq!(
             channel.compresses_outbound(),
             channel.config().compresses_outbound()
+        );
+        assert_eq!(channel.gzip_level(), channel.config().gzip_level());
+        assert_eq!(
+            super::Channel::connect_lazy("127.0.0.1:9")
+                .expect("lazy")
+                .gzip_compression_level(10)
+                .gzip_level(),
+            9
         );
     }
 }
