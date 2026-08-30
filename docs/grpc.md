@@ -529,7 +529,8 @@ interceptor `set_timeout` is what tightened that deadline, over TLS, mTLS,
 Unix, and `from_io`. The future resolves when
 the RPC ends — after the response is written, or after a stream drains —
 not when the handler function returns. A server-streaming producer spawned
-before `return Ok(Response::new(stream))` stays live until that drain. A
+before `return Ok(Response::new(stream))` stays live until that drain,
+including over TLS, mTLS, Unix, and `serve_connection`. A
 client RST while drain is waiting for the next message aborts that wait,
 so `cancelled` and `StreamSender::closed` resolve without another send.
 Work meant to outlive the RPC needs its own lifetime. The same signal is

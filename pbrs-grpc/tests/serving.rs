@@ -1190,6 +1190,12 @@ fn request_deadline_documents_every_transport() {
         ),
         "Response::encoding must name default identity on every transport"
     );
+    assert!(
+        src.contains(
+            "stays live until that drain, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
+        ),
+        "Request::cancelled must name spawned producer drain on every transport"
+    );
 }
 
 fn greeter_and_test_router() -> Router {
@@ -17642,23 +17648,12 @@ impl pbrs_grpc::Greeter for SpawnStream {
     }
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn a_streaming_producer_is_not_cancelled_when_the_handler_returns() {
-    let cancelled = Arc::new(AtomicUsize::new(0));
-    let (go, go_rx) = tokio::sync::watch::channel(false);
-    let (addr, listener) = bind().await;
-    let svc = SpawnStream {
-        cancelled: Arc::clone(&cancelled),
-        go: go_rx,
-    };
-    let task = tokio::spawn(async move {
-        GreeterServer::new(svc).serve_listener(listener).await.ok();
-    });
-    // The HTTP/2 driver lives on the Channel. Dropping the client after
-    // headers used to close the connection under a stream that is still
-    // draining; the stream now holds the driver. Keep the client here so
-    // this test stays about cancellation, not connection lifetime.
-    let client = GreeterClient::new(channel(addr).await);
+async fn assert_streaming_producer_is_not_cancelled_when_the_handler_returns(
+    client: GreeterClient,
+    go: tokio::sync::watch::Sender<bool>,
+    cancelled: &AtomicUsize,
+) {
+    // Keep the client so this stays about cancellation, not connection lifetime.
     let mut stream = client
         .server_hello(Request::new(req("ada")))
         .await
@@ -17682,9 +17677,105 @@ async fn a_streaming_producer_is_not_cancelled_when_the_handler_returns() {
         n += 1;
     }
     assert_eq!(n, 3, "producer must outlive handler return");
-    wait_flag(&cancelled).await;
+    wait_flag(cancelled).await;
     drop(client);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_streaming_producer_is_not_cancelled_when_the_handler_returns() {
+    let (svc, go, cancelled) = spawn_stream_svc();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_listener(listener).await.ok();
+    });
+    assert_streaming_producer_is_not_cancelled_when_the_handler_returns(
+        GreeterClient::new(channel(addr).await),
+        go,
+        &cancelled,
+    )
+    .await;
     task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_streaming_producer_is_not_cancelled_when_the_handler_returns() {
+    let (svc, go, cancelled) = spawn_stream_svc();
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_streaming_producer_is_not_cancelled_when_the_handler_returns(
+        GreeterClient::new(tls_channel(addr).await),
+        go,
+        &cancelled,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_streaming_producer_is_not_cancelled_when_the_handler_returns() {
+    let (svc, go, cancelled) = spawn_stream_svc();
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_streaming_producer_is_not_cancelled_when_the_handler_returns(
+        GreeterClient::new(tls_channel_with(addr, client_tls).await),
+        go,
+        &cancelled,
+    )
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_streaming_producer_is_not_cancelled_when_the_handler_returns() {
+    let (svc, go, cancelled) = spawn_stream_svc();
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    assert_streaming_producer_is_not_cancelled_when_the_handler_returns(
+        GreeterClient::new(unix_channel(&path).await),
+        go,
+        &cancelled,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_streaming_producer_is_not_cancelled_when_the_handler_returns() {
+    let (svc, go, cancelled) = spawn_stream_svc();
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io(client_io, "localhost")
+        .await
+        .expect("from_io");
+    assert_streaming_producer_is_not_cancelled_when_the_handler_returns(
+        GreeterClient::new(channel),
+        go,
+        &cancelled,
+    )
+    .await;
+    server.abort();
 }
 
 async fn assert_dropping_the_channel_does_not_kill_a_live_stream(
@@ -17712,21 +17803,26 @@ async fn assert_dropping_the_channel_does_not_kill_a_live_stream(
     assert_eq!(n, 3, "stream must outlive dropping the client");
 }
 
-fn spawn_stream_svc() -> (SpawnStream, tokio::sync::watch::Sender<bool>) {
+fn spawn_stream_svc() -> (
+    SpawnStream,
+    tokio::sync::watch::Sender<bool>,
+    Arc<AtomicUsize>,
+) {
     let cancelled = Arc::new(AtomicUsize::new(0));
     let (go, go_rx) = tokio::sync::watch::channel(false);
     (
         SpawnStream {
-            cancelled,
+            cancelled: Arc::clone(&cancelled),
             go: go_rx,
         },
         go,
+        cancelled,
     )
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dropping_the_client_does_not_kill_a_live_stream() {
-    let (svc, go) = spawn_stream_svc();
+    let (svc, go, _) = spawn_stream_svc();
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(svc).serve_listener(listener).await.ok();
@@ -17741,7 +17837,7 @@ async fn dropping_the_client_does_not_kill_a_live_stream() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tls_dropping_the_client_does_not_kill_a_live_stream() {
-    let (svc, go) = spawn_stream_svc();
+    let (svc, go, _) = spawn_stream_svc();
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -17760,7 +17856,7 @@ async fn tls_dropping_the_client_does_not_kill_a_live_stream() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mtls_dropping_the_client_does_not_kill_a_live_stream() {
-    let (svc, go) = spawn_stream_svc();
+    let (svc, go, _) = spawn_stream_svc();
     let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
@@ -17781,7 +17877,7 @@ async fn mtls_dropping_the_client_does_not_kill_a_live_stream() {
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn unix_dropping_the_client_does_not_kill_a_live_stream() {
-    let (svc, go) = spawn_stream_svc();
+    let (svc, go, _) = spawn_stream_svc();
     let (path, _guard) = unix_test_path();
     let sock = path.clone();
     let task = tokio::spawn(async move {
@@ -17797,7 +17893,7 @@ async fn unix_dropping_the_client_does_not_kill_a_live_stream() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn from_io_dropping_the_client_does_not_kill_a_live_stream() {
-    let (svc, go) = spawn_stream_svc();
+    let (svc, go, _) = spawn_stream_svc();
     let (client_io, server_io) = duplex_pair();
     let server = tokio::spawn(async move {
         GreeterServer::new(svc)

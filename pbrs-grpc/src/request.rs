@@ -466,7 +466,8 @@ impl<T> Request<T> {
     /// Resolves when the RPC ends: after the response is written (unary) or
     /// the stream drains (streaming), not when the handler function returns.
     /// A server-streaming producer spawned before `Ok(Response::new(stream))`
-    /// stays live until that drain. A client RST while drain is waiting for
+    /// stays live until that drain, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`]. A client RST while drain is waiting for
     /// the next message aborts the drain, so this (and
     /// [`crate::StreamSender::closed`]) resolve without another send. On a
     /// request you built to send this never resolves.
