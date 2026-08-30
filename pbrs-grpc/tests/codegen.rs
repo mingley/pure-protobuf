@@ -4275,6 +4275,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated client on_response rustdoc must name received rpc_timeout is None"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::ResponseParts::accepts_compressed`] is the inbound gzip overlay. Distinct from [`::pbrs_grpc::ResponseParts::accepts_gzip`]."),
+        "generated on_response rustdoc must name inbound gzip overlay"
+    );
+    assert!(
+        src.contains("[`::pbrs_grpc::Response::accepts_compressed`] on a received reply is `false` (this overlay is not a received-reply field)."),
+        "generated client on_response rustdoc must name received accepts_compressed is false"
+    );
+    assert!(
         src.contains(
             "Bind `addr` and serve over TLS until the listener fails. Applies to every call shape."
         ),

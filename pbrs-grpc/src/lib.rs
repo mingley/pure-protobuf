@@ -275,6 +275,9 @@
 //! [`Response::rpc_timeout`] is the server overlay in a response interceptor.
 //! Distinct from [`Response::peer_timeout`].
 //! Distinct from [`Rpc::rpc_timeout`].
+//! [`Response::accepts_compressed`] is the inbound overlay in a response interceptor.
+//! Distinct from [`Response::accepts_gzip`].
+//! Distinct from [`Rpc::accepts_compressed`].
 //! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block

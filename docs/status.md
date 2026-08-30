@@ -387,6 +387,7 @@ See `docs/upb.md`. Short list:
   `Response::limits` is the encode cap in a response interceptor. Distinct from `Request::limits` (inbound). Distinct from `Rpc::limits` (before the handler). An interceptor cannot change it.
   `Response::peer_timeout` is the client's `grpc-timeout` in a response interceptor. Distinct from `timeout` (effective). Distinct from `Rpc::peer_timeout` (before the handler). An interceptor cannot change it.
   `Response::rpc_timeout` is the server overlay in a response interceptor. Distinct from `timeout` (effective). Distinct from `Rpc::rpc_timeout` (before the handler). An interceptor cannot change it.
+  `Response::accepts_compressed` is the inbound overlay in a response interceptor. Distinct from `accepts_gzip` (peer advertisement). Distinct from `Rpc::accepts_compressed` (before the handler). An interceptor cannot change it.
   Inbound gzip is on by default; `Server::accept_compressed(false)` /
   `Channel::accept_compressed(false)` refuse `grpc-encoding: gzip` as
   `UNIMPLEMENTED` and advertise `identity` only (distinct from tonic's

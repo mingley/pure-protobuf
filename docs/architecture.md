@@ -217,6 +217,8 @@ Distinct from `Request::limits` (inbound). Distinct from `Rpc::limits`
 Distinct from `timeout` (effective). Distinct from `Rpc::peer_timeout`
 (before the handler). Closures see `ResponseParts::rpc_timeout` (server overlay).
 Distinct from `timeout` (effective). Distinct from `Rpc::rpc_timeout`
+(before the handler). Closures see `ResponseParts::accepts_compressed` (inbound gzip overlay).
+Distinct from `accepts_gzip` (peer advertisement). Distinct from `Rpc::accepts_compressed`
 (before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,

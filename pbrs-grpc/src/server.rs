@@ -535,6 +535,7 @@ impl Rpc {
     /// Generated handlers see the same value on [`Request::accepts_compressed`].
     /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this overlay.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay.
+    /// Response interceptors see the same value on [`crate::Response::accepts_compressed`].
     /// An interceptor cannot change this; the kernel applies it when decoding.
     /// Applies to every call shape.
     #[must_use]
@@ -684,6 +685,7 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
+                        .with_accepts_compressed(wire.accept_gzip)
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
@@ -751,6 +753,7 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
+                        .with_accepts_compressed(wire.accept_gzip)
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
@@ -825,6 +828,7 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
+                        .with_accepts_compressed(wire.accept_gzip)
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
@@ -906,6 +910,7 @@ impl Rpc {
                         .with_gzip_level(gzip_level)
                         .with_compresses_outbound(prefer_gzip)
                         .with_accepts_gzip(peer_accepts_gzip)
+                        .with_accepts_compressed(wire.accept_gzip)
                         .with_deadline(deadline)
                         .with_timeout(timeout)
                         .with_peer_timeout(peer_timeout)
@@ -1902,6 +1907,8 @@ impl<S: Service> Server<S> {
     /// [`crate::ResponseParts::rpc_timeout`] is the server overlay.
     /// Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay.
     /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
+    /// [`crate::ResponseParts::accepts_compressed`] is the inbound gzip overlay.
+    /// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted
@@ -2696,6 +2703,8 @@ impl Router {
     /// [`crate::ResponseParts::rpc_timeout`] is the server overlay.
     /// Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay.
     /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
+    /// [`crate::ResponseParts::accepts_compressed`] is the inbound gzip overlay.
+    /// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
     /// Same surface as [`Server::on_response`].
     #[must_use]
     pub fn on_response<I: crate::ResponseInterceptor>(mut self, interceptor: I) -> Self {

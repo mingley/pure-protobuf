@@ -1693,6 +1693,7 @@ pub struct Response<T> {
     gzip_level: u32,
     compresses_outbound: bool,
     accepts_gzip: bool,
+    accepts_compressed: bool,
     deadline: Option<tokio::time::Instant>,
     timeout: Option<Duration>,
     peer_timeout: Option<Duration>,
@@ -1715,6 +1716,7 @@ impl<T> Response<T> {
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             compresses_outbound: false,
             accepts_gzip: false,
+            accepts_compressed: false,
             deadline: None,
             timeout: None,
             peer_timeout: None,
@@ -1751,6 +1753,7 @@ impl<T> Response<T> {
                 gzip_level: self.gzip_level,
                 compresses_outbound: self.compresses_outbound,
                 accepts_gzip: self.accepts_gzip,
+                accepts_compressed: self.accepts_compressed,
                 deadline: self.deadline,
                 timeout: self.timeout,
                 peer_timeout: self.peer_timeout,
@@ -1774,6 +1777,7 @@ impl<T> Response<T> {
             gzip_level: parts.gzip_level,
             compresses_outbound: parts.compresses_outbound,
             accepts_gzip: parts.accepts_gzip,
+            accepts_compressed: parts.accepts_compressed,
             deadline: parts.deadline,
             timeout: parts.timeout,
             peer_timeout: parts.peer_timeout,
@@ -2028,6 +2032,31 @@ impl<T> Response<T> {
         self.accepts_gzip
     }
 
+    pub(crate) fn with_accepts_compressed(mut self, accepts_compressed: bool) -> Self {
+        self.accepts_compressed = accepts_compressed;
+        self
+    }
+
+    /// Server [`crate::Server::accept_compressed`] overlay, when the kernel is writing this reply.
+    ///
+    /// Same overlay as [`crate::Rpc::accepts_compressed`] / [`crate::Request::accepts_compressed`].
+    /// Distinct from [`Self::accepts_gzip`]: that is the peer advertisement, not this overlay.
+    /// Distinct from [`crate::Rpc::accepts_compressed`]: that is a server interceptor before the handler.
+    /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay, not this server stamp.
+    /// Distinct from [`Self::compresses_outbound`]: that is whether this reply is gzipped.
+    /// Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not this advertisement.
+    /// `false` on a response you built or a received reply (this overlay is not a received-reply field).
+    /// An interceptor cannot change this; the kernel still advertises `grpc-accept-encoding` from this.
+    ///
+    /// ```
+    /// let resp = pbrs_grpc::Response::new(());
+    /// assert!(!resp.accepts_compressed());
+    /// ```
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.accepts_compressed
+    }
+
     pub(crate) fn with_deadline(mut self, deadline: Option<tokio::time::Instant>) -> Self {
         self.deadline = deadline;
         self
@@ -2169,6 +2198,7 @@ impl<T> Response<T> {
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             compresses_outbound: false,
             accepts_gzip: false,
+            accepts_compressed: false,
             deadline: None,
             timeout: None,
             peer_timeout: None,
@@ -2194,6 +2224,7 @@ impl<T> Response<T> {
             gzip_level: crate::config::DEFAULT_GZIP_COMPRESSION_LEVEL,
             compresses_outbound: false,
             accepts_gzip: false,
+            accepts_compressed: false,
             deadline: None,
             timeout: None,
             peer_timeout: None,
@@ -2227,6 +2258,7 @@ pub struct ResponseParts {
     gzip_level: u32,
     compresses_outbound: bool,
     accepts_gzip: bool,
+    accepts_compressed: bool,
     deadline: Option<tokio::time::Instant>,
     timeout: Option<Duration>,
     peer_timeout: Option<Duration>,
@@ -2332,6 +2364,12 @@ impl ResponseParts {
         self.accepts_gzip
     }
 
+    /// Inbound gzip overlay. See [`Response::accepts_compressed`].
+    #[must_use]
+    pub fn accepts_compressed(&self) -> bool {
+        self.accepts_compressed
+    }
+
     /// Remaining Instant when writing. See [`Response::deadline`].
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
@@ -2388,6 +2426,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("gzip_level", &self.gzip_level)
             .field("compresses_outbound", &self.compresses_outbound)
             .field("accepts_gzip", &self.accepts_gzip)
+            .field("accepts_compressed", &self.accepts_compressed)
             .field("deadline", &self.deadline)
             .field("timeout", &self.timeout)
             .field("peer_timeout", &self.peer_timeout)
@@ -2805,6 +2844,7 @@ mod tests {
         );
         assert!(!mapped.compresses_outbound());
         assert!(!mapped.accepts_gzip());
+        assert!(!mapped.accepts_compressed());
         assert!(mapped.deadline().is_none());
         assert!(mapped.timeout().is_none());
         assert!(mapped.peer_timeout().is_none());
@@ -2815,6 +2855,7 @@ mod tests {
             .with_gzip_level(9)
             .with_compresses_outbound(true)
             .with_accepts_gzip(true)
+            .with_accepts_compressed(true)
             .with_deadline(Some(at))
             .with_timeout(Some(Duration::from_secs(5)))
             .with_peer_timeout(Some(Duration::from_secs(30)))
@@ -2826,6 +2867,7 @@ mod tests {
         assert_eq!(stamped.gzip_level(), 9);
         assert!(stamped.compresses_outbound());
         assert!(stamped.accepts_gzip());
+        assert!(stamped.accepts_compressed());
         assert_eq!(stamped.deadline(), Some(at));
         assert_eq!(stamped.timeout(), Some(Duration::from_secs(5)));
         assert_eq!(stamped.peer_timeout(), Some(Duration::from_secs(30)));
@@ -2842,6 +2884,7 @@ mod tests {
         assert_eq!(parts.gzip_level(), 9);
         assert!(parts.compresses_outbound());
         assert!(parts.accepts_gzip());
+        assert!(parts.accepts_compressed());
         assert_eq!(parts.deadline(), Some(at));
         assert_eq!(parts.timeout(), Some(Duration::from_secs(5)));
         assert_eq!(parts.peer_timeout(), Some(Duration::from_secs(30)));
@@ -2864,6 +2907,7 @@ mod tests {
         assert_eq!(rebuilt.gzip_level(), 9);
         assert!(rebuilt.compresses_outbound());
         assert!(rebuilt.accepts_gzip());
+        assert!(rebuilt.accepts_compressed());
         assert_eq!(rebuilt.deadline(), Some(at));
         assert_eq!(rebuilt.timeout(), Some(Duration::from_secs(5)));
         assert_eq!(rebuilt.peer_timeout(), Some(Duration::from_secs(30)));
@@ -2876,6 +2920,7 @@ mod tests {
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
+        assert!(shown.contains("accepts_compressed: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("timeout: Some("), "{shown}");
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
@@ -2896,6 +2941,7 @@ mod tests {
         assert!(Response::new(0u32).extensions().get::<u8>().is_none());
         assert!(!Response::new(0u32).compresses_outbound());
         assert!(!Response::new(0u32).accepts_gzip());
+        assert!(!Response::new(0u32).accepts_compressed());
         assert!(Response::new(0u32).deadline().is_none());
         assert!(Response::new(0u32).timeout().is_none());
         assert!(Response::new(0u32).peer_timeout().is_none());

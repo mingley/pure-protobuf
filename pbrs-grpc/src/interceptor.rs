@@ -113,6 +113,8 @@ where
 /// [`crate::ResponseParts::rpc_timeout`] is the server overlay.
 /// Distinct from [`crate::ResponseParts::timeout`]: that is soonest-of-three, not the overlay.
 /// Distinct from [`crate::ResponseParts::peer_timeout`]: that is the client's `grpc-timeout`.
+/// [`crate::ResponseParts::accepts_compressed`] is the inbound gzip overlay.
+/// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
@@ -585,6 +587,7 @@ mod tests {
         assert!(resp.path().is_none());
         assert!(!resp.compresses_outbound());
         assert!(!resp.accepts_gzip());
+        assert!(!resp.accepts_compressed());
         assert!(resp.deadline().is_none());
         assert!(resp.timeout().is_none());
         assert!(resp.peer_timeout().is_none());
@@ -601,6 +604,7 @@ mod tests {
             assert_eq!(parts.gzip_level(), 9);
             assert!(parts.compresses_outbound());
             assert!(parts.accepts_gzip());
+            assert!(parts.accepts_compressed());
             assert!(parts.deadline().is_some());
             assert_eq!(parts.timeout(), Some(std::time::Duration::from_secs(5)));
             assert_eq!(
@@ -618,6 +622,7 @@ mod tests {
                 .with_gzip_level(9)
                 .with_compresses_outbound(true)
                 .with_accepts_gzip(true)
+                .with_accepts_compressed(true)
                 .with_deadline(Some(at))
                 .with_timeout(Some(std::time::Duration::from_secs(5)))
                 .with_peer_timeout(Some(std::time::Duration::from_secs(30)))
@@ -632,6 +637,7 @@ mod tests {
         assert_eq!(resp.gzip_level(), 9);
         assert!(resp.compresses_outbound());
         assert!(resp.accepts_gzip());
+        assert!(resp.accepts_compressed());
         assert_eq!(resp.deadline(), Some(at));
         assert_eq!(resp.timeout(), Some(std::time::Duration::from_secs(5)));
         assert_eq!(
@@ -647,6 +653,7 @@ mod tests {
         assert!(shown.contains("gzip_level: 9"), "{shown}");
         assert!(shown.contains("compresses_outbound: true"), "{shown}");
         assert!(shown.contains("accepts_gzip: true"), "{shown}");
+        assert!(shown.contains("accepts_compressed: true"), "{shown}");
         assert!(shown.contains("deadline: Some("), "{shown}");
         assert!(shown.contains("timeout: Some("), "{shown}");
         assert!(shown.contains("peer_timeout: Some("), "{shown}");
@@ -661,6 +668,7 @@ mod tests {
         );
         assert!(!crate::Response::new(0u32).compresses_outbound());
         assert!(!crate::Response::new(0u32).accepts_gzip());
+        assert!(!crate::Response::new(0u32).accepts_compressed());
         assert!(crate::Response::new(0u32).deadline().is_none());
         assert!(crate::Response::new(0u32).timeout().is_none());
         assert!(crate::Response::new(0u32).peer_timeout().is_none());
