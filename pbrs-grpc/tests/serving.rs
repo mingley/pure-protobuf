@@ -1542,6 +1542,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must not name tonic stubs as the compile_protos default"
     );
     assert!(
+        guide.contains("The `protoc-gen-pbrs` plugin is the same default."),
+        "guide must name kernel stubs as the protoc plugin default"
+    );
+    assert!(
+        guide.contains("`PURE_PROTOBUF_STUBS=tonic`"),
+        "guide must name PURE_PROTOBUF_STUBS=tonic as the plugin tonic opt-in"
+    );
+    assert!(
         guide.contains(
             "`Channel::max_concurrent_rpcs` / `ChannelConfig::max_concurrent_rpcs` is the"
         ),

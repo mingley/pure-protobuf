@@ -74,6 +74,8 @@ fn main() {
 `emit_tonic_stubs(true)` selects the tonic adapter. The two are mutually
 exclusive because they claim the same `FooClient` / `FooServer` names.
 `emit_kernel_stubs(true)` is still valid and explicit.
+The `protoc-gen-pbrs` plugin is the same default. `PURE_PROTOBUF_STUBS=tonic`
+selects the adapter; `none` is messages only.
 
 Then implement the generated trait:
 

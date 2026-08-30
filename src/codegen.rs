@@ -43,6 +43,8 @@ pub enum Stubs {
     /// to depend on `pbrs-grpc`. `FooClient` dials with `connect` /
     /// `connect_tls` / `connect_unix` / `from_io`; `FooServer` serves with
     /// `serve` / `serve_tls` / `serve_unix`.
+    /// The `protoc-gen-pbrs` plugin uses this default; set
+    /// `PURE_PROTOBUF_STUBS=tonic` for tonic stubs.
     #[default]
     Kernel,
 }

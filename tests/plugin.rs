@@ -230,15 +230,23 @@ fn gen_script_emits_person() {
     assert!(generated.contains("use pbrs::prelude::*"), "{generated}");
 }
 
-#[test]
-fn plugin_generates_grpc_stubs() {
+fn generate_hello_stubs(out_name: &str, stubs_env: Option<&str>) -> String {
     let tmp = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target")
-        .join("plugin-test-grpc");
+        .join(out_name);
     let _ = std::fs::remove_dir_all(&tmp);
     std::fs::create_dir_all(&tmp).unwrap();
     let proto = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("proto/hello.proto");
-    let status = Command::new("protoc")
+    let mut cmd = Command::new("protoc");
+    match stubs_env {
+        Some(value) => {
+            cmd.env("PURE_PROTOBUF_STUBS", value);
+        }
+        None => {
+            cmd.env_remove("PURE_PROTOBUF_STUBS");
+        }
+    }
+    let status = cmd
         .arg(format!(
             "--plugin=protoc-gen-pbrs={}",
             plugin_bin().display()
@@ -249,8 +257,16 @@ fn plugin_generates_grpc_stubs() {
         .arg(&proto)
         .status()
         .expect("run protoc");
-    assert!(status.success(), "protoc plugin failed for hello.proto");
-    let generated = std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs");
+    assert!(
+        status.success(),
+        "protoc plugin failed for hello.proto ({out_name})"
+    );
+    std::fs::read_to_string(tmp.join("hello.rs")).expect("hello.rs")
+}
+
+#[test]
+fn plugin_generates_grpc_stubs() {
+    let generated = generate_hello_stubs("plugin-test-grpc", None);
     assert!(
         generated.contains("pub struct HelloRequest"),
         "missing HelloRequest:\n{}",
@@ -284,9 +300,22 @@ fn plugin_generates_grpc_stubs() {
         "missing GreeterServer"
     );
     assert!(
-        generated.contains("fn with_interceptor"),
-        "missing with_interceptor:\n{}",
+        generated.contains("pub fn intercept"),
+        "kernel stubs must expose intercept:\n{}",
         &generated[generated.len().saturating_sub(2500)..]
+    );
+    assert!(
+        generated.contains("::pbrs_grpc::Channel"),
+        "kernel stubs must name Channel:\n{}",
+        &generated[generated.len().saturating_sub(2500)..]
+    );
+    assert!(
+        !generated.contains("fn with_interceptor"),
+        "kernel default must not emit tonic with_interceptor"
+    );
+    assert!(
+        !generated.contains("ProtobufCodec"),
+        "kernel default must not emit protobuf-tonic codec"
     );
     assert!(
         generated.contains("fn max_decoding_message_size"),
@@ -304,8 +333,35 @@ fn plugin_generates_grpc_stubs() {
         "missing stream_hello"
     );
     assert!(
+        !generated.contains("tonic_prost") && !generated.contains("prost::Message"),
+        "must not use prost"
+    );
+}
+
+#[test]
+fn plugin_generates_tonic_stubs_when_env_is_tonic() {
+    let generated = generate_hello_stubs("plugin-test-grpc-tonic", Some("tonic"));
+    assert!(
+        generated.contains("pub struct GreeterClient"),
+        "missing GreeterClient:\n{}",
+        &generated[generated.len().saturating_sub(2000)..]
+    );
+    assert!(
+        generated.contains("pub struct GreeterServer"),
+        "missing GreeterServer"
+    );
+    assert!(
+        generated.contains("fn with_interceptor"),
+        "missing with_interceptor:\n{}",
+        &generated[generated.len().saturating_sub(2500)..]
+    );
+    assert!(
         generated.contains("ProtobufCodec"),
-        "stubs must use protobuf-tonic codec, not tonic-prost"
+        "tonic stubs must use protobuf-tonic codec, not tonic-prost"
+    );
+    assert!(
+        !generated.contains("::pbrs_grpc::Channel"),
+        "tonic stubs must not name the kernel Channel"
     );
     assert!(
         !generated.contains("tonic_prost") && !generated.contains("prost::Message"),

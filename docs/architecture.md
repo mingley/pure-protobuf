@@ -305,7 +305,8 @@ TAT is not closed.
 
 `protoc-gen-pbrs` is a normal protoc plugin (`--pbrs_out`).
 `./scripts/gen.sh` finds or builds it, runs protoc, and rustfmts the `.rs`
-it wrote.
+it wrote. The plugin emits `pbrs-grpc` stubs by default, same as
+`compile_protos`. `PURE_PROTOBUF_STUBS=tonic` selects the tonic adapter.
 
 Generated messages are field-wise Rust structs plus `impl_typed_message!`.
 They are not `DynamicMessage` wrappers and not Google `OwnedMessageInner`.
