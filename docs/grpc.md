@@ -924,7 +924,8 @@ and the transport `:scheme` unset (`serve_connection` is the same empty
 set). Override `Incoming::peer` and return a `ConnectionInfo` when you
 already know those facts — a vsock, a TLS stack you drove, a Unix socket
 you accepted yourself. `IncomingAccept` is unchanged; the kernel does
-not probe `Io`. `TcpListener` / `UnixListener` stay on
+not probe `Io`. The `Incoming` rustdoc compiles a `ConnectionInfo` peer dump.
+`TcpListener` / `UnixListener` stay on
 `serve_listener` / `serve_unix_listener` so `TCP_NODELAY`, TCP keepalive,
 and TLS stay applied.
 

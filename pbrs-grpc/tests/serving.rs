@@ -3916,6 +3916,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must point at the compiling hello intercept and on_response overlay dumps"
     );
     assert!(
+        guide.contains("The `Incoming` rustdoc compiles a `ConnectionInfo` peer dump."),
+        "guide must point at the compiling Incoming ConnectionInfo peer dump"
+    );
+    assert!(
         guide.contains("`compile_protos` emits `pbrs-grpc` stubs by default."),
         "guide must name kernel stubs as the compile_protos default"
     );
