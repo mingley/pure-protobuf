@@ -19,7 +19,11 @@
 //! server. [`HealthServer::max_frame_size`] still serves Check and Watch at
 //! the HTTP/2 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
-//! server. A [`HealthClient`] pool larger than
+//! server. [`HealthServer::max_pending_accept_reset_streams`] still serves Check
+//! and Watch at a pending-reset cap of 1, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. A well-behaved client never fills that
+//! queue. Distinct from wrapping only a Greeter server.
+//! A [`HealthClient`] pool larger than
 //! [`HealthServer::max_concurrent_connections`] fails the whole dial as
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]
 //! cannot pool. An interceptor
