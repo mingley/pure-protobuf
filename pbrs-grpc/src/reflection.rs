@@ -42,6 +42,10 @@
 //! still serves the one bidi method at a pending-reset cap of 1, including over
 //! TLS, mTLS, Unix, and [`crate::Server::serve_connection`]. A well-behaved
 //! client never fills that queue. Distinct from wrapping only a Greeter server.
+//! [`ServerReflectionServer::max_send_buffer_size`] still serves the one bidi
+//! method at a 16 KiB send buffer, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server.
 //! A [`ServerReflectionClient`] pool larger than
 //! [`ServerReflectionServer::max_concurrent_connections`] fails the whole dial
 //! as `UNAVAILABLE` on TLS, mTLS, and Unix.

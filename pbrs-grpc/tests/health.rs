@@ -568,6 +568,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "[`HealthServer::max_send_buffer_size`] still serves Check and Watch at a\n//! 16 KiB send buffer, including over TLS, mTLS, Unix, and\n//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter\n//! server."
+        ),
+        "Health crate rustdoc must name send-buffer still-serves on Check and Watch"
+    );
+    assert!(
+        src.contains(
             "A [`HealthClient`] pool larger than\n//! [`HealthServer::max_concurrent_connections`] fails the whole dial as\n//! `UNAVAILABLE` on TLS, mTLS, and Unix. [`HealthClient::from_io_with`]\n//! cannot pool."
         ),
         "Health crate rustdoc must name pool-vs-cap UNAVAILABLE on TLS, mTLS, and Unix"
@@ -4243,6 +4249,77 @@ async fn from_io_health_pending_reset_still_serves_check_and_watch() {
     let (c, s) = tokio::io::duplex(1024 * 1024);
     let handle = tokio::spawn(async move {
         health_pending_reset().serve_connection(s).await.ok();
+    });
+    echo_health_check_and_watch(
+        &HealthClient::from_io(c, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    handle.abort();
+}
+
+fn health_send_buffer() -> HealthServer<impl Health> {
+    health_serving().max_send_buffer_size(16 * 1024)
+}
+
+#[tokio::test]
+async fn health_send_buffer_still_serves_check_and_watch() {
+    let (addr, listener) = bind_health().await;
+    let handle = tokio::spawn(async move {
+        health_send_buffer().serve_listener(listener).await.ok();
+    });
+    echo_health_check_and_watch(&client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn tls_health_send_buffer_still_serves_check_and_watch() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind_health().await;
+    let handle = tokio::spawn(async move {
+        health_send_buffer()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_health_check_and_watch(&tls_client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn mtls_health_send_buffer_still_serves_check_and_watch() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind_health().await;
+    let handle = tokio::spawn(async move {
+        health_send_buffer()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_health_check_and_watch(&tls_client_with(addr, client_tls).await).await;
+    handle.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_health_send_buffer_still_serves_check_and_watch() {
+    let path = unix_sock("health-send-buffer");
+    let sock = path.clone();
+    let handle = tokio::spawn(async move {
+        health_send_buffer().serve_unix(sock).await.ok();
+    });
+    echo_health_check_and_watch(&unix_client(&path).await).await;
+    handle.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn from_io_health_send_buffer_still_serves_check_and_watch() {
+    let (c, s) = tokio::io::duplex(1024 * 1024);
+    let handle = tokio::spawn(async move {
+        health_send_buffer().serve_connection(s).await.ok();
     });
     echo_health_check_and_watch(
         &HealthClient::from_io(c, "localhost")
