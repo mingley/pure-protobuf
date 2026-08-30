@@ -17,6 +17,10 @@
 //! refuses oversize metadata on EmptyCall / StreamingOutputCall /
 //! StreamingInputCall / FullDuplexCall, including over TLS, mTLS, Unix, and
 //! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
+//! server. [`TestServiceServer::max_frame_size`] still serves EmptyCall /
+//! StreamingOutputCall / StreamingInputCall / FullDuplexCall at the HTTP/2
+//! 16 KiB SETTINGS minimum, including over TLS, mTLS, Unix, and
+//! [`crate::Server::serve_connection`]. Distinct from wrapping only a Greeter
 //! server.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
