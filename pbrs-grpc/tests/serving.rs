@@ -3828,6 +3828,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must Distinct Channel::on_response from Channel overlays on a received reply"
     );
     assert!(
+        guide.contains("The dogfooded `hello` module rustdoc compiles intercept and on_response overlay dumps for `GreeterClient` and `GreeterServer`."),
+        "guide must point at the compiling hello intercept and on_response overlay dumps"
+    );
+    assert!(
         guide.contains("`compile_protos` emits `pbrs-grpc` stubs by default."),
         "guide must name kernel stubs as the compile_protos default"
     );
