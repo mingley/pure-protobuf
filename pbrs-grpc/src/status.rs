@@ -906,6 +906,36 @@ impl Status {
         self.error_details().ok()?.resource_info
     }
 
+    /// Packed `google.rpc.DebugInfo`, if this status carries one.
+    ///
+    /// Distinct from [`Self::localized_message`]: that is a locale, not an operator stack.
+    /// Distinct from [`Self::help`]: that is a docs URL, not an operator stack.
+    /// Distinct from [`Self::error_details`]: this is one typed message, not the bag.
+    /// Corrupt bytes are `None`. Build the payload with
+    /// [`crate::pb::DebugInfo::with_stack`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{DebugInfo, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     debug_info: Some(DebugInfo::with_stack("handler.rs:9", "nil pointer")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
+    /// let debug = status.debug_info().expect("DebugInfo");
+    /// assert_eq!(
+    ///     debug.stack_entries().get(0).expect("frame").to_str().unwrap_or(""),
+    ///     "handler.rs:9"
+    /// );
+    /// assert!(Status::internal("boom").debug_info().is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn debug_info(&self) -> Option<crate::pb::DebugInfo> {
+        self.error_details().ok()?.debug_info
+    }
+
     /// Wrap a local error as a [`Status`].
     ///
     /// If `err` is already a [`Status`], or one appears in
@@ -2087,6 +2117,58 @@ mod tests {
             bytes::Bytes::from_static(b"not-protobuf")
         )
         .resource_info()
+        .is_none());
+    }
+
+    #[test]
+    fn debug_info_reads_packed_operator_stack() {
+        let details = crate::pb::ErrorDetails {
+            debug_info: Some(crate::pb::DebugInfo::with_stack(
+                "handler.rs:9",
+                "nil pointer",
+            )),
+            localized_message: Some(crate::pb::LocalizedMessage::with_locale("fr-FR", "boom")),
+            help: Some(crate::pb::Help::with_link(
+                "docs",
+                "https://example.com/boom",
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status = Status::from_error_details(Code::Internal, "boom", &details).expect("encode");
+        let debug = status.debug_info().expect("DebugInfo");
+        assert_eq!(
+            debug
+                .stack_entries()
+                .get(0)
+                .expect("frame")
+                .to_str()
+                .unwrap_or(""),
+            "handler.rs:9"
+        );
+        assert_eq!(debug.detail().to_str().unwrap_or(""), "nil pointer");
+        assert!(status.localized_message().is_some());
+        assert!(status.help().is_some());
+
+        let local_only = crate::pb::ErrorDetails {
+            localized_message: Some(crate::pb::LocalizedMessage::with_locale("fr-FR", "boom")),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let local_status =
+            Status::from_error_details(Code::Internal, "boom", &local_only).expect("encode");
+        assert!(local_status.debug_info().is_none());
+        assert!(local_status.localized_message().is_some());
+
+        assert!(Status::internal("boom").debug_info().is_none());
+        assert!(Status::internal("boom")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .debug_info()
+            .is_none());
+        assert!(Status::with_details(
+            Code::Internal,
+            "junk",
+            bytes::Bytes::from_static(b"not-protobuf")
+        )
+        .debug_info()
         .is_none());
     }
 

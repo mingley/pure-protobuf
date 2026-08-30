@@ -394,6 +394,7 @@ Or `status.help()` for documentation links without unpacking the bag. Distinct f
 Or `status.localized_message()` for a locale without unpacking the bag. Distinct from `status.message()`. `LocalizedMessage::with_locale` builds that payload. Distinct from `status.help()`.
 Or `status.request_info()` for a request_id without unpacking the bag. Distinct from `status.error_info()`. `RequestInfo::with_request_id` builds that payload. Distinct from `status.help()`.
 Or `status.resource_info()` for resource type and name without unpacking the bag. Distinct from `status.quota_failure()`. `ResourceInfo::with_resource` builds that payload. Distinct from `status.request_info()`.
+Or `status.debug_info()` for an operator stack without unpacking the bag. Distinct from `status.localized_message()`. `DebugInfo::with_stack` builds that payload. Distinct from `status.help()`.
 
 Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `PreconditionFailure.Violation`, `Help.Link` — live in modules named after the parent:
@@ -406,6 +407,7 @@ Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `LocalizedMessage::with_locale` builds one locale.
 `RequestInfo::with_request_id` builds one request_id.
 `ResourceInfo::with_resource` builds one resource identity.
+`DebugInfo::with_stack` builds one operator stack frame.
 
 Raw bytes still work (`Status::set_details`) when you are forwarding a trailer
 you do not parse.

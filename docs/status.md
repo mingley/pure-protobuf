@@ -524,7 +524,10 @@ See `docs/upb.md`. Short list:
   `RequestInfo::with_request_id` builds that payload.
   `Status::resource_info` is packed resource type and name. Distinct from
   `quota_failure` (a quota subject). Distinct from `request_info` (a request_id).
-  `ResourceInfo::with_resource` builds that payload. A
+  `ResourceInfo::with_resource` builds that payload.
+  `Status::debug_info` is packed operator stack. Distinct from
+  `localized_message` (a locale). Distinct from `help` (a docs URL).
+  `DebugInfo::with_stack` builds that payload. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
   metadata. `StreamSender::fail` after headers ships those trailers and

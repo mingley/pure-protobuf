@@ -506,6 +506,36 @@ impl ResourceInfo {
     }
 }
 
+impl DebugInfo {
+    /// `DebugInfo` with one stack `entry` and `detail`.
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::debug_info`].
+    /// Distinct from [`crate::Status::localized_message`]: that is a locale, not an operator stack.
+    /// Distinct from [`crate::Status::help`]: that is a docs URL, not an operator stack.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{DebugInfo, ErrorDetails};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     debug_info: Some(DebugInfo::with_stack("handler.rs:9", "nil pointer")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
+    /// let debug = status.debug_info().expect("DebugInfo");
+    /// assert_eq!(debug.detail().to_str().unwrap_or(""), "nil pointer");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_stack(entry: impl Into<String>, detail: impl Into<String>) -> Self {
+        let mut info = Self::new();
+        info.stack_entries_mut().push(entry.into());
+        info.set_detail(detail.into());
+        info
+    }
+}
+
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
     pub fn with_details(
@@ -673,9 +703,10 @@ fn fill_standard(out: &mut ErrorDetails, any: &Any) -> Result<bool, crate::Statu
 #[cfg(test)]
 mod tests {
     use super::{
-        bad_request, help, precondition_failure, quota_failure, Any, BadRequest, Duration,
-        ErrorDetails, ErrorInfo, FieldViolation, Help, LocalizedMessage, PreconditionFailure,
-        QuotaFailure, RequestInfo, ResourceInfo, RetryInfo, Status, TYPE_URL_PREFIX,
+        bad_request, help, precondition_failure, quota_failure, Any, BadRequest, DebugInfo,
+        Duration, ErrorDetails, ErrorInfo, FieldViolation, Help, LocalizedMessage,
+        PreconditionFailure, QuotaFailure, RequestInfo, ResourceInfo, RetryInfo, Status,
+        TYPE_URL_PREFIX,
     };
     use crate::Code;
 
@@ -1055,5 +1086,38 @@ mod tests {
         );
         assert!(status.quota_failure().is_none());
         assert!(status.request_info().is_none());
+    }
+
+    #[test]
+    fn debug_info_with_stack_round_trips() {
+        let debug = DebugInfo::with_stack("handler.rs:9", "nil pointer");
+        assert_eq!(
+            debug
+                .stack_entries()
+                .get(0)
+                .expect("frame")
+                .to_str()
+                .unwrap_or(""),
+            "handler.rs:9"
+        );
+        assert_eq!(debug.detail().to_str().unwrap_or(""), "nil pointer");
+        let details = ErrorDetails {
+            debug_info: Some(debug),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::Internal, "boom", &details).expect("encode");
+        let got = status.debug_info().expect("DebugInfo");
+        assert_eq!(
+            got.stack_entries()
+                .get(0)
+                .expect("frame")
+                .to_str()
+                .unwrap_or(""),
+            "handler.rs:9"
+        );
+        assert_eq!(got.detail().to_str().unwrap_or(""), "nil pointer");
+        assert!(status.localized_message().is_none());
+        assert!(status.help().is_none());
     }
 }

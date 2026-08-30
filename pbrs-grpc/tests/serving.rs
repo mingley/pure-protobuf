@@ -1916,6 +1916,39 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ResourceInfo::with_resource must Distinct quota subject from resource identity"
     );
     assert!(
+        crate_src.contains("[`Status::debug_info`]"),
+        "crate map must name Status::debug_info"
+    );
+    assert!(
+        crate_src.contains("[`pb::DebugInfo::with_stack`]"),
+        "crate map must name DebugInfo::with_stack"
+    );
+    assert!(
+        status_src.contains("Packed `google.rpc.DebugInfo`, if this status carries one."),
+        "Status::debug_info must name packed DebugInfo"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::localized_message`]: that is a locale, not an operator stack."
+        ),
+        "Status::debug_info must Distinct locale from operator stack"
+    );
+    assert!(
+        status_src
+            .contains("Distinct from [`Self::help`]: that is a docs URL, not an operator stack."),
+        "Status::debug_info must Distinct Help docs URL from operator stack"
+    );
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::debug_info`]"),
+        "DebugInfo::with_stack must name Status::debug_info unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::localized_message`]: that is a locale, not an operator stack."
+        ),
+        "DebugInfo::with_stack must Distinct locale from operator stack"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
@@ -2232,6 +2265,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`ResourceInfo::with_resource` builds that payload"),
         "guide must name ResourceInfo::with_resource as the builder"
+    );
+    assert!(
+        guide.contains("`status.debug_info()` for an operator stack"),
+        "guide must name Status::debug_info as an operator stack"
+    );
+    assert!(
+        guide.contains("`DebugInfo::with_stack` builds that payload"),
+        "guide must name DebugInfo::with_stack as the builder"
     );
     assert!(
         guide.contains("`Status::from_error` wraps any local `std::error::Error`"),
