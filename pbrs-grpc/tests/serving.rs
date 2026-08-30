@@ -4745,6 +4745,18 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Server::intercept rustdoc must name a single intercept reject on every transport"
     );
+    assert!(
+        src.contains("server.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
+        "Server::intercept rustdoc example must attach a closure"
+    );
+    assert!(
+        src.contains("///         rpc.send_buffer_size(),"),
+        "Server::intercept rustdoc example must read send_buffer_size"
+    );
+    assert!(
+        src.contains("///         rpc.concurrent_rpc_limit(),"),
+        "Server::intercept rustdoc example must read concurrent_rpc_limit"
+    );
     assert_eq!(
         src.matches(
             "Those extensions are not on the\n    /// wire; stamp [`crate::ResponseParts::metadata_mut`] to send a header."

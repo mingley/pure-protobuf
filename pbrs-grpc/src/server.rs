@@ -1907,6 +1907,26 @@ impl<S: Service> Server<S> {
     /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
     /// service, or wrap one service with [`crate::Intercepted`].
+    ///
+    /// ```
+    /// # fn demo<S: pbrs_grpc::Service>(server: pbrs_grpc::Server<S>) -> pbrs_grpc::Server<S> {
+    /// server.intercept(|rpc: &mut pbrs_grpc::Rpc| {
+    ///     let _ = (
+    ///         rpc.path(),
+    ///         rpc.peer_timeout(),
+    ///         rpc.rpc_timeout(),
+    ///         rpc.effective_timeout(),
+    ///         rpc.deadline(),
+    ///         rpc.gzip_level(),
+    ///         rpc.accepts_compressed(),
+    ///         rpc.concurrent_rpc_limit(),
+    ///         rpc.send_buffer_size(),
+    ///         rpc.limits(),
+    ///     );
+    ///     Ok(())
+    /// })
+    /// # }
+    /// ```
     #[must_use]
     pub fn intercept<I: crate::Interceptor>(mut self, interceptor: I) -> Self {
         self.interceptor = Some(match self.interceptor {
