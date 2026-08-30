@@ -327,8 +327,9 @@ as a header, including over TLS, mTLS, Unix, and `from_io`.
 
 A reply you want to rewrite without losing headers splits the same way as a
 request: `Response::into_message_and_parts` yields `ResponseParts` (initial
-headers, trailers, and the gzip flag). Rebuild with
-`from_message_and_parts`.
+headers, trailers, the gzip flag, and local extensions). Rebuild with
+`from_message_and_parts`. `Response::extensions` is local typed context, not
+on the wire. Distinct from metadata. A received reply starts empty.
 
 To attach metadata to an *error*, put it on the `Status`; error responses have
 no separate trailers:
@@ -1823,7 +1824,6 @@ Deliberate omissions, with what to do instead.
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
 | GCP-auth and ORCA | Out of scope. |
 | `from_io` TLS handshake | `connect_tls` / `serve_tls`. `from_io` is already-connected bytes; `https_scheme` labels an encrypted stream. |
-| Response extensions | Request / `Rpc` extensions only. |
 | crates.io publish | Path or git dependency until a registry version exists. `pbrs-grpc` has `publish = false`. |
 
 `pbrs` does not depend on this crate, and this crate does not depend on tonic

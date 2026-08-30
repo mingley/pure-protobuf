@@ -1389,6 +1389,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must not list client max_connection_age as an omission"
     );
     assert!(
+        guide.contains("`Response::extensions` is local typed context"),
+        "guide must name Response::extensions as local typed context"
+    );
+    assert!(
+        !guide.contains("| Response extensions |"),
+        "guide must not list Response extensions as an omission"
+    );
+    assert!(
         guide
             .contains("`List` returns that same snapshot as `HealthCheckResponse` values keyed by"),
         "guide must name Health List as a snapshot of known names"
@@ -1802,6 +1810,14 @@ fn request_deadline_documents_every_transport() {
             "A `-bin` trailer must not appear as a header, including over TLS,\n    /// mTLS, Unix, and [`crate::Channel::from_io`]."
         ),
         "Response::trailers rustdoc must name -bin trailers on every transport"
+    );
+    assert!(
+        src.contains("They are not headers and they are not\n    /// on the wire. Distinct from [`Self::metadata`]."),
+        "Response::extensions must Distinct local typed context from metadata"
+    );
+    assert!(
+        src.contains("A received reply starts empty: the peer\n    /// cannot insert here."),
+        "Response::extensions must name that a received reply starts empty"
     );
     assert!(
         src.contains(
@@ -14073,6 +14089,64 @@ async fn client_max_connection_age_resets_a_delayed_stream() {
         .expect("age hung")
         .expect_err("age must reset a delayed stream that idle would hold");
     assert_ne!(err.code(), Code::Ok);
+    task.abort();
+}
+
+struct StampExt;
+
+impl pbrs_grpc::Greeter for StampExt {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        let mut resp = Response::new(common::reply(name_of_request(request.get_ref())));
+        resp.extensions_mut().insert(7u8);
+        resp.metadata_mut().insert("x-local", "1")?;
+        Ok(resp)
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("stamp-ext"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("stamp-ext"))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(Status::unimplemented("stamp-ext"))
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_extensions_are_not_on_the_wire() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(StampExt)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel_with(addr, ChannelConfig::new()).await);
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    assert_eq!(reply.metadata().get("x-local"), Some("1"));
+    assert!(
+        reply.extensions().get::<u8>().is_none(),
+        "response extensions must not travel on the wire"
+    );
     task.abort();
 }
 

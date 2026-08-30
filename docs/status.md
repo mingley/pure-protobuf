@@ -327,7 +327,9 @@ See `docs/upb.md`. Short list:
   surface `grpc-encoding` on
   `Response::encoding` (`None` for identity, including an explicit
   `identity` token, and a default server with no `send_compressed` on every
-  call shape over TLS, mTLS, Unix, and `from_io`). `Server::send_compressed` / `Router::send_compressed`
+  call shape over TLS, mTLS, Unix, and `from_io`). `Response::extensions` is
+  local typed context, not on the wire. Distinct from metadata. A received
+  reply starts empty. `Server::send_compressed` / `Router::send_compressed`
   gzip every call shape when the client advertises gzip (`Response::compressed`
   and `encoding()` are gzip), including over TLS, mTLS, Unix, and `from_io`.
   `Server::send_compressed` / `Response::set_compress(false)`

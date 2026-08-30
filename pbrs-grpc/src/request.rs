@@ -1462,6 +1462,9 @@ impl fmt::Debug for Parts {
 /// Trailing metadata set here survives on the OK path; to attach metadata to
 /// an error, put it on the [`Status`] instead.
 ///
+/// [`Self::extensions`] is local typed context. It is not on the wire.
+/// Distinct from [`Self::metadata`]. A received reply starts empty.
+///
 /// ```
 /// use pbrs_grpc::Response;
 ///
@@ -1469,12 +1472,15 @@ impl fmt::Debug for Parts {
 /// resp.metadata_mut().insert("x-cache", "miss")?;
 /// resp.trailers_mut().insert("x-rows-scanned", "17")?;
 /// resp.set_compress(true);
+/// resp.extensions_mut().insert(7u8);
 /// let (n, mut parts) = resp.into_message_and_parts();
 /// assert_eq!(parts.metadata().get("x-cache"), Some("miss"));
+/// assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
 /// assert!(parts.compressed());
 /// parts.set_compress(false);
 /// let resp = Response::from_message_and_parts(n, parts);
 /// assert!(!resp.compressed());
+/// assert_eq!(resp.extensions().get::<u8>().copied(), Some(7));
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
 #[derive(Clone)]
@@ -1484,6 +1490,7 @@ pub struct Response<T> {
     trailers: Metadata,
     compress: Option<bool>,
     encoding: Option<String>,
+    extensions: http::Extensions,
 }
 
 impl<T> Response<T> {
@@ -1496,20 +1503,21 @@ impl<T> Response<T> {
             trailers: Metadata::new(),
             compress: None,
             encoding: None,
+            extensions: http::Extensions::new(),
         }
     }
 
     /// Take the message, discarding the envelope.
     ///
-    /// Headers, trailers, compress intent, and received [`Self::encoding`]
-    /// go with it. Use [`Self::into_message_and_parts`] to keep them.
+    /// Headers, trailers, compress intent, received [`Self::encoding`], and
+    /// extensions go with it. Use [`Self::into_message_and_parts`] to keep them.
     #[must_use]
     pub fn into_inner(self) -> T {
         self.message
     }
 
     /// Split into message and envelope, keeping headers, trailers, compression,
-    /// and received [`Self::encoding`].
+    /// received [`Self::encoding`], and extensions.
     ///
     /// Same idea as [`Request::into_message_and_parts`]. Rebuild with
     /// [`Self::from_message_and_parts`].
@@ -1522,6 +1530,7 @@ impl<T> Response<T> {
                 trailers: self.trailers,
                 compress: self.compress,
                 encoding: self.encoding,
+                extensions: self.extensions,
             },
         )
     }
@@ -1535,6 +1544,7 @@ impl<T> Response<T> {
             trailers: parts.trailers,
             compress: parts.compress,
             encoding: parts.encoding,
+            extensions: parts.extensions,
         }
     }
 
@@ -1549,7 +1559,7 @@ impl<T> Response<T> {
         &mut self.message
     }
 
-    /// Replace the message, keeping headers and trailers.
+    /// Replace the message, keeping headers, trailers, and extensions.
     #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> Response<U> {
         let (message, parts) = self.into_message_and_parts();
@@ -1584,6 +1594,24 @@ impl<T> Response<T> {
     /// Mutable trailing metadata.
     pub fn trailers_mut(&mut self) -> &mut Metadata {
         &mut self.trailers
+    }
+
+    /// Typed values on this envelope. They are not headers and they are not
+    /// on the wire. Distinct from [`Self::metadata`].
+    ///
+    /// Empty on a reply you built until something inserts into
+    /// [`Self::extensions_mut`]. A received reply starts empty: the peer
+    /// cannot insert here. Same map on [`ResponseParts::extensions`] after
+    /// [`Self::into_message_and_parts`].
+    #[must_use]
+    pub fn extensions(&self) -> &http::Extensions {
+        &self.extensions
+    }
+
+    /// Insert typed values that stay on this envelope and on
+    /// [`ResponseParts`] after a message swap. Not sent to the peer.
+    pub fn extensions_mut(&mut self) -> &mut http::Extensions {
+        &mut self.extensions
     }
 
     /// gzip this payload and set the Compressed-Flag.
@@ -1658,6 +1686,7 @@ impl<T> Response<T> {
             trailers,
             compress: Some(false),
             encoding: None,
+            extensions: http::Extensions::new(),
         }
     }
 
@@ -1673,6 +1702,7 @@ impl<T> Response<T> {
             trailers,
             compress: Some(compress),
             encoding: None,
+            extensions: http::Extensions::new(),
         }
     }
 
@@ -1688,13 +1718,15 @@ impl<T> Response<T> {
 }
 
 /// A [`Response`] envelope without its message, including received
-/// [`Response::encoding`]. See [`Response::into_message_and_parts`].
+/// [`Response::encoding`] and local [`Response::extensions`].
+/// See [`Response::into_message_and_parts`].
 #[derive(Clone, Debug)]
 pub struct ResponseParts {
     metadata: Metadata,
     trailers: Metadata,
     compress: Option<bool>,
     encoding: Option<String>,
+    extensions: http::Extensions,
 }
 
 impl ResponseParts {
@@ -1757,6 +1789,17 @@ impl ResponseParts {
     pub fn encoding(&self) -> Option<&str> {
         self.encoding.as_deref()
     }
+
+    /// Typed values on this envelope. See [`Response::extensions`].
+    #[must_use]
+    pub fn extensions(&self) -> &http::Extensions {
+        &self.extensions
+    }
+
+    /// Insert typed values that stay on this envelope. See [`Response::extensions_mut`].
+    pub fn extensions_mut(&mut self) -> &mut http::Extensions {
+        &mut self.extensions
+    }
 }
 
 impl<T: fmt::Debug> fmt::Debug for Response<T> {
@@ -1767,6 +1810,7 @@ impl<T: fmt::Debug> fmt::Debug for Response<T> {
             .field("trailers", &self.trailers)
             .field("compress", &self.compress)
             .field("encoding", &self.encoding)
+            .field("extensions", &self.extensions.len())
             .finish()
     }
 }
@@ -2142,16 +2186,20 @@ mod tests {
         resp.metadata_mut().insert("h", "v").expect("insert");
         resp.trailers_mut().insert("t", "1").expect("insert");
         resp.set_compress(true);
+        resp.extensions_mut().insert(7u8);
         let mapped = resp.map(|n| n * 21);
         assert_eq!(mapped.metadata().get("h"), Some("v"));
         assert_eq!(mapped.trailers().get("t"), Some("1"));
+        assert_eq!(mapped.extensions().get::<u8>().copied(), Some(7));
         assert!(mapped.compressed());
         assert!(mapped.compress());
         let (n, mut parts) = mapped.into_message_and_parts();
         assert_eq!(n, 42);
         assert!(parts.compress());
         assert!(parts.encoding().is_none());
+        assert_eq!(parts.extensions().get::<u8>().copied(), Some(7));
         parts.set_compress(false);
+        parts.extensions_mut().insert(9u8);
         assert!(!parts.compress());
         assert!(parts.compress_is_set());
         let rebuilt = Response::from_message_and_parts(n, parts);
@@ -2160,16 +2208,20 @@ mod tests {
         assert!(rebuilt.compress_is_set());
         assert!(rebuilt.encoding().is_none());
         assert_eq!(rebuilt.metadata().get("h"), Some("v"));
+        assert_eq!(rebuilt.extensions().get::<u8>().copied(), Some(9));
         assert_eq!(rebuilt.into_inner(), 42);
         let stamped = Response::new(1u32).with_encoding(Some("gzip".into()));
         assert_eq!(stamped.encoding(), Some("gzip"));
+        assert!(stamped.extensions().get::<u8>().is_none());
         let shown = format!("{stamped:?}");
         assert!(shown.contains("encoding: Some("), "{shown}");
+        assert!(shown.contains("extensions: 0"), "{shown}");
         let (_, parts) = stamped.into_message_and_parts();
         assert_eq!(parts.encoding(), Some("gzip"));
         let rebuilt = Response::from_message_and_parts(1u32, parts);
         assert_eq!(rebuilt.encoding(), Some("gzip"));
         assert!(Response::new(0u32).encoding().is_none());
+        assert!(Response::new(0u32).extensions().get::<u8>().is_none());
     }
 
     #[test]

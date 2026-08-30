@@ -179,7 +179,8 @@ keeps that outbound cap on every mount on those transports (EmptyCall and
 StreamingInputCall stay under a 16-byte encode cap). A wrapping `Service` `Rpc::reject` turns
 the call away before the inner `call` on those transports too.
 Interceptor extensions on `Rpc` reach handler `Request` / `Parts` on those
-transports. Closures see `Rpc` (path, service/method,
+transports. `Response::extensions` is local typed context, not on the wire.
+Distinct from metadata. A received reply starts empty. Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, peer, `:authority` / `:scheme`, limits).
