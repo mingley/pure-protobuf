@@ -3942,6 +3942,14 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must name Outgoing::accepts_compressed"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::Outgoing::limits`] is the channel message-cap overlay"),
+        "generated intercept rustdoc must name Outgoing::limits as the message-cap overlay"
+    );
+    assert!(
+        src.contains("Same overlay as [`::pbrs_grpc::Channel::limits`]."),
+        "generated intercept rustdoc must Distinct Outgoing::limits as the same overlay as Channel::limits"
+    );
+    assert!(
         src.contains("[`::pbrs_grpc::Outgoing::set_user_agent`] prefixes this RPC."),
         "generated intercept rustdoc must name Outgoing::set_user_agent"
     );

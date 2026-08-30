@@ -371,6 +371,8 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Outgoing::compresses_outbound`] (on or off). An interceptor cannot change it.
 /// [`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay
 /// (default on).
+/// [`crate::Outgoing::limits`] is the channel message-cap overlay.
+/// Same overlay as [`crate::Channel::limits`].
 /// [`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay.
 /// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
 /// [`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay.

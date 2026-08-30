@@ -1498,6 +1498,14 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must name Outgoing::accepts_compressed"
     );
     assert!(
+        intercept.contains("[`crate::Outgoing::limits`] is the channel message-cap overlay."),
+        "ClientInterceptor rustdoc must name Outgoing::limits as the message-cap overlay"
+    );
+    assert!(
+        intercept.contains("Same overlay as [`crate::Channel::limits`]."),
+        "ClientInterceptor rustdoc must Distinct Outgoing::limits as the same overlay as Channel::limits"
+    );
+    assert!(
         intercept
             .contains("[`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay"),
         "ClientInterceptor rustdoc must name Outgoing::concurrent_rpc_limit"
@@ -1977,6 +1985,10 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
+    );
+    assert!(
+        src.contains("[`crate::Outgoing::limits`] is the channel message-cap overlay."),
+        "Channel::intercept rustdoc must name Outgoing::limits as the message-cap overlay"
     );
     assert!(
         src.contains("[`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay"),
