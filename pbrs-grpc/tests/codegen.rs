@@ -4471,6 +4471,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::connected`]: that getter is a live snapshot, not this overlay."
+        ),
+        "generated waits_for_ready rustdoc must Distinct the live-socket snapshot"
+    );
+    assert!(
+        src.contains(
             "Open `connections` slots. See [`::pbrs_grpc::Channel::connect_pool`]. Applies to every call shape."
         ),
         "generated connect_pool rustdoc must name every call shape"

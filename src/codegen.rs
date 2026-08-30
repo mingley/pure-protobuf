@@ -4928,7 +4928,7 @@ fn emit_kernel_client_dialers(src: &mut String) {
     );
     let _ = writeln!(
         src,
-        "    /// Whether this client waits for a connection instead of failing fast. See [`{G}::Channel::waits_for_ready`]. Applies to every call shape."
+        "    /// Whether this client waits for a connection instead of failing fast. See [`{G}::Channel::waits_for_ready`]. Applies to every call shape. Distinct from [`Self::connected`]: that getter is a live snapshot, not this overlay."
     );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(
