@@ -220,7 +220,7 @@ See `docs/upb.md`. Short list:
   client leaves, without waiting for the next status change. A server-streaming
   drain waiting for the next message ends on client RST. Dropping a received
   `Streaming` before the end resets that RPC, including bidi while the send
-  half is still held. A `CallHandle` taken before await still cancels that
+  half is still held, over h2c, TLS (including mTLS), Unix, and `from_io`. A `CallHandle` taken before await still cancels that
   live stream after headers, still cancels a server-streaming or bidi call
   waiting for headers, and a client-streaming handle still cancels
   after the sender is closed while the unary response is pending (dropping

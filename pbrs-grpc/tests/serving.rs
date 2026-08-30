@@ -13201,6 +13201,198 @@ async fn dropping_a_bidi_stream_cancels_a_waiting_producer() {
     task.abort();
 }
 
+async fn assert_drop_server_stream_cancels_producer(client: &GreeterClient, left: &AtomicUsize) {
+    let mut stream = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("headers")
+        .into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "0");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait for the client to leave"
+    );
+    drop(stream);
+    wait_flag(left).await;
+}
+
+async fn assert_drop_bidi_stream_cancels_producer(client: &GreeterClient, left: &AtomicUsize) {
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.send(req("ada")).await.expect("send");
+    let mut stream = call.await.expect("headers").into_inner();
+    let first = stream
+        .message()
+        .await
+        .expect("item")
+        .expect("first message");
+    assert_eq!(name_of(&first), "ada");
+    assert_eq!(
+        left.load(Ordering::Relaxed),
+        0,
+        "producer must wait for the client to leave"
+    );
+    drop(stream);
+    wait_flag(left).await;
+    drop(tx);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_dropping_a_received_stream_cancels_a_waiting_producer() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_drop_server_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_drop_bidi_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_dropping_a_received_stream_cancels_a_waiting_producer() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_drop_server_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_drop_bidi_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_dropping_a_received_stream_cancels_a_waiting_producer() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_drop_server_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    task.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_drop_bidi_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_dropping_a_received_stream_cancels_a_waiting_producer() {
+    let left = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = WaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_drop_server_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    server.abort();
+
+    let left = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = BidiWaitAfterFirst {
+        left: Arc::clone(&left),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_drop_bidi_stream_cancels_producer(&client, &left).await;
+    drop(client);
+    server.abort();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_call_handle_cancels_a_live_bidi_stream_after_headers() {
     let left = Arc::new(AtomicUsize::new(0));
