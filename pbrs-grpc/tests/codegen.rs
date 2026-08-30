@@ -4880,3 +4880,109 @@ async fn generated_from_io_server_config_message_limits_is_resource_exhausted() 
     assert_store_oversize_every_shape(&client).await;
     server.abort();
 }
+
+fn store_header_list_cap() -> StoreServer<MemStore> {
+    StoreServer::new(MemStore).max_header_list_size(1024)
+}
+
+fn flood_get() -> Request<GetRequest> {
+    let mut get = GetRequest::new();
+    get.set_key("alpha");
+    let mut request = Request::new(get);
+    request
+        .metadata_mut()
+        .insert("x-flood", "v".repeat(4096))
+        .expect("meta");
+    request
+}
+
+async fn assert_store_header_flood_then_echo(flood: StoreClient, healthy: StoreClient) {
+    let _ = tokio::time::timeout(Duration::from_secs(2), flood.get(flood_get())).await;
+    echo_store_every_shape(&healthy).await;
+}
+
+#[tokio::test]
+async fn generated_header_list_cap_refuses_oversize_metadata() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_header_list_cap().serve_listener(listener).await.ok();
+    });
+    assert_store_header_flood_then_echo(client(addr).await, client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_header_flood_then_echo(tls_client(addr).await, tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_header_list_cap_refuses_oversize_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_header_list_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_header_flood_then_echo(
+        tls_client_with(addr, client_tls.clone()).await,
+        tls_client_with(addr, client_tls).await,
+    )
+    .await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_header_list_cap_refuses_oversize_metadata() {
+    let path = unix_sock("hdr-list");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        store_header_list_cap().serve_unix(sock).await.ok();
+    });
+    assert_store_header_flood_then_echo(unix_client(&path).await, unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_header_list_cap_refuses_oversize_metadata() {
+    let (c1, s1) = tokio::io::duplex(1024 * 1024);
+    let server1 = tokio::spawn(async move {
+        store_header_list_cap().serve_connection(s1).await.ok();
+    });
+    let flood = StoreClient::from_io(c1, "localhost")
+        .await
+        .expect("from_io flood");
+    let (c2, s2) = tokio::io::duplex(1024 * 1024);
+    let server2 = tokio::spawn(async move {
+        store_header_list_cap().serve_connection(s2).await.ok();
+    });
+    let healthy = StoreClient::from_io(c2, "localhost")
+        .await
+        .expect("from_io healthy");
+    assert_store_header_flood_then_echo(flood, healthy).await;
+    server1.abort();
+    server2.abort();
+}
