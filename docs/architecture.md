@@ -39,7 +39,9 @@ verified client chain on every call shape. The default copies the accept address
 and does not probe `Io`. `serve_connection` leaves those fields unset
 on `Rpc`, and generated handlers see the same empty facts on `Request`
 and `Parts` (the peer's `:scheme` / `:authority` still apply, including
-after `https_scheme`).
+after `https_scheme`). `Server::max_connection_age` / `max_connection_idle`
+send GOAWAY; the next RPC of every call shape redials, including over TLS,
+mTLS, and Unix. `from_io` cannot redial.
 
 ### Dispatch
 

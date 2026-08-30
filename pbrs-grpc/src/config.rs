@@ -280,7 +280,8 @@ impl ServerConfig {
     /// The actual lifetime is jittered by ±10% so a process with many
     /// connections does not reconnect in lockstep. In-flight RPCs get
     /// [`Self::max_connection_age_grace`] to finish; a [`crate::Channel`] on
-    /// the other end redials the next RPC of every call shape. Transparent
+    /// the other end redials the next RPC of every call shape, including over
+    /// TLS, mTLS, and Unix. Transparent
     /// retry of the same in-flight RPC after GOAWAY is unary and
     /// server-streaming only.
     #[must_use]
@@ -295,7 +296,7 @@ impl ServerConfig {
     /// Idle is measured from accept until the first RPC, and from the moment
     /// the last in-flight RPC finishes thereafter. A long-running stream does
     /// not look idle. Keepalive PINGs do not count as activity. The next RPC
-    /// of every call shape redials.
+    /// of every call shape redials, including over TLS, mTLS, and Unix.
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));

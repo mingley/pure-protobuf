@@ -797,6 +797,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "ServerConfig::timeout must name every transport"
     );
+    assert!(
+        src.contains(
+            "the other end redials the next RPC of every call shape, including over\n    /// TLS, mTLS, and Unix."
+        ),
+        "ServerConfig::max_connection_age must name redial on TLS, mTLS, and Unix"
+    );
+    assert!(
+        src.contains("of every call shape redials, including over TLS, mTLS, and Unix."),
+        "ServerConfig::max_connection_idle must name redial on TLS, mTLS, and Unix"
+    );
 }
 
 #[test]
@@ -858,11 +868,19 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert_eq!(
         src.matches(
-            "Send GOAWAY this long after accept. The next RPC of every call shape\n    /// redials; transparent retry of the same in-flight RPC is unary and\n    /// server-streaming only."
+            "Send GOAWAY this long after accept. The next RPC of every call shape\n    /// redials, including over TLS, mTLS, and Unix; transparent retry of the\n    /// same in-flight RPC is unary and server-streaming only."
         )
         .count(),
         2,
-        "Server::max_connection_age and Router::max_connection_age must name redial on every shape and in-flight retry only on unary and server-streaming"
+        "Server::max_connection_age and Router::max_connection_age must name redial on TLS, mTLS, and Unix"
+    );
+    assert_eq!(
+        src.matches(
+            "Send GOAWAY after this long with no outstanding RPCs. The next RPC of\n    /// every call shape redials, including over TLS, mTLS, and Unix."
+        )
+        .count(),
+        2,
+        "Server::max_connection_idle and Router::max_connection_idle must name redial on TLS, mTLS, and Unix"
     );
     assert_eq!(
         src.matches("fails. Applies to every call shape.").count(),
@@ -11095,6 +11113,29 @@ async fn a_mute_tcp_peer_does_not_stop_the_server_serving() {
     task.abort();
 }
 
+async fn assert_age_goaway_redials(client: GreeterClient) {
+    echo_every_shape(&client, None).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        echo_every_shape(&client, Some(Duration::from_secs(5))),
+    )
+    .await
+    .expect("redial hung");
+}
+
+async fn assert_idle_goaway_redials(client: GreeterClient) {
+    echo_every_shape(&client, None).await;
+    // Keepalive PINGs must not reset idle. Wait well past the idle cap.
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        echo_every_shape(&client, Some(Duration::from_secs(5))),
+    )
+    .await
+    .expect("redial hung");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn max_connection_age_goaway_then_the_channel_redials() {
     let (addr, listener) = bind().await;
@@ -11106,16 +11147,57 @@ async fn max_connection_age_goaway_then_the_channel_redials() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    echo_every_shape(&client, None).await;
+    assert_age_goaway_redials(GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
 
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    tokio::time::timeout(
-        Duration::from_secs(5),
-        echo_every_shape(&client, Some(Duration::from_secs(5))),
-    )
-    .await
-    .expect("redial hung");
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_max_connection_age_goaway_then_the_channel_redials() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_age_goaway_redials(GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_max_connection_age_goaway_then_the_channel_redials() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_age_goaway_redials(GreeterClient::new(tls_channel_with(addr, client_tls).await)).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_max_connection_age_goaway_then_the_channel_redials() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_connection_age(Duration::from_millis(80))
+            .max_connection_age_grace(Duration::from_secs(2))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_age_goaway_redials(GreeterClient::new(unix_channel(&path).await)).await;
     task.abort();
 }
 
@@ -11131,17 +11213,60 @@ async fn max_connection_idle_goaway_then_the_channel_redials() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await);
-    echo_every_shape(&client, None).await;
+    assert_idle_goaway_redials(GreeterClient::new(channel(addr).await)).await;
+    task.abort();
+}
 
-    // Keepalive PINGs must not reset idle. Wait well past the idle cap.
-    tokio::time::sleep(Duration::from_millis(250)).await;
-    tokio::time::timeout(
-        Duration::from_secs(5),
-        echo_every_shape(&client, Some(Duration::from_secs(5))),
-    )
-    .await
-    .expect("redial hung");
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_max_connection_idle_goaway_then_the_channel_redials() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_connection_age_grace(Duration::from_secs(2))
+            .max_connection_idle(Duration::from_millis(80))
+            .keep_alive_interval(Duration::from_millis(20))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_idle_goaway_redials(GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_max_connection_idle_goaway_then_the_channel_redials() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_connection_age_grace(Duration::from_secs(2))
+            .max_connection_idle(Duration::from_millis(80))
+            .keep_alive_interval(Duration::from_millis(20))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_idle_goaway_redials(GreeterClient::new(tls_channel_with(addr, client_tls).await)).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_max_connection_idle_goaway_then_the_channel_redials() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .max_connection_age_grace(Duration::from_secs(2))
+            .max_connection_idle(Duration::from_millis(80))
+            .keep_alive_interval(Duration::from_millis(20))
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_idle_goaway_redials(GreeterClient::new(unix_channel(&path).await)).await;
     task.abort();
 }
 

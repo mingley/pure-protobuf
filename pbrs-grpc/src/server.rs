@@ -1462,16 +1462,18 @@ impl<S: Service> Server<S> {
     }
 
     /// Send GOAWAY this long after accept. The next RPC of every call shape
-    /// redials; transparent retry of the same in-flight RPC is unary and
-    /// server-streaming only. See [`ServerConfig::max_connection_age`].
+    /// redials, including over TLS, mTLS, and Unix; transparent retry of the
+    /// same in-flight RPC is unary and server-streaming only. See
+    /// [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.config = self.config.max_connection_age(age);
         self
     }
 
-    /// Send GOAWAY after this long with no outstanding RPCs. Applies to
-    /// every call shape. See [`ServerConfig::max_connection_idle`].
+    /// Send GOAWAY after this long with no outstanding RPCs. The next RPC of
+    /// every call shape redials, including over TLS, mTLS, and Unix. See
+    /// [`ServerConfig::max_connection_idle`].
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.config = self.config.max_connection_idle(idle);
@@ -2015,16 +2017,18 @@ impl Router {
     }
 
     /// Send GOAWAY this long after accept. The next RPC of every call shape
-    /// redials; transparent retry of the same in-flight RPC is unary and
-    /// server-streaming only. See [`ServerConfig::max_connection_age`].
+    /// redials, including over TLS, mTLS, and Unix; transparent retry of the
+    /// same in-flight RPC is unary and server-streaming only. See
+    /// [`ServerConfig::max_connection_age`].
     #[must_use]
     pub fn max_connection_age(mut self, age: Duration) -> Self {
         self.config = self.config.max_connection_age(age);
         self
     }
 
-    /// Send GOAWAY after this long with no outstanding RPCs. Applies to
-    /// every call shape. See [`ServerConfig::max_connection_idle`].
+    /// Send GOAWAY after this long with no outstanding RPCs. The next RPC of
+    /// every call shape redials, including over TLS, mTLS, and Unix. See
+    /// [`ServerConfig::max_connection_idle`].
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.config = self.config.max_connection_idle(idle);

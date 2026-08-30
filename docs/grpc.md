@@ -1006,8 +1006,9 @@ ChannelConfig::new()
 
 On the server, when either fires the kernel sends `GOAWAY`, waits the grace
 period (default 10 s, override with `max_connection_age_grace`) for in-flight
-RPCs, then drops the socket. The next RPC of every call shape redials.
-Transparent retry of the same in-flight RPC after GOAWAY is unary and
+RPCs, then drops the socket. The next RPC of every call shape redials,
+including over TLS, mTLS, and Unix. `Channel::from_io` cannot redial after
+that GOAWAY. Transparent retry of the same in-flight RPC after GOAWAY is unary and
 server-streaming only. Age is
 jittered by ±10% so a process with many connections does not reconnect in
 lockstep. Idle only arms while no RPC is in flight, so grace is for a race
