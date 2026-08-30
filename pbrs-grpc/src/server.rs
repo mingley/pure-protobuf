@@ -1511,8 +1511,9 @@ impl<S: Service> Server<S> {
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).intercept(auth).serve(addr)`.
     /// Calling this twice stacks: the first interceptor runs first, matching
-    /// [`Router::intercept`] and [`crate::Channel::intercept`]. Applies to
-    /// every call shape.
+    /// [`Router::intercept`] and [`crate::Channel::intercept`]. A single
+    /// interceptor still rejects before the handler on every call shape,
+    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
     /// service, or wrap one service with [`crate::Intercepted`].
     #[must_use]

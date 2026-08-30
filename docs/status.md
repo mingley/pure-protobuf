@@ -207,7 +207,8 @@ See `docs/upb.md`. Short list:
   metadata is `INVALID_ARGUMENT`, not `UNAUTHENTICATED`). A single
   `ServiceExt::intercept` on a hand-written `Service` still rejects before
   the handler (`UNAUTHENTICATED` without a token; the handler never runs)
-  on those transports too. Interceptor extensions on a
+  on those transports too. A single `FooServer::intercept` (no `add_service`)
+  still rejects before the handler the same way on those transports. Interceptor extensions on a
   wrapping `Service` reach the handler `Request` and `Parts` on every call
   shape, including over TLS, mTLS, Unix, and `from_io`. `FooServer::intercept` then
   `add_service` keeps that reject on every mount and every call shape,

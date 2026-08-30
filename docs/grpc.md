@@ -1393,7 +1393,9 @@ let tenant = request.extensions().get::<String>().cloned();
 `Router::intercept` and `Server::intercept` (and the generated
 `FooServer::intercept`) run before every RPC on that server, on every call
 shape, including over TLS, mTLS, Unix, and `from_io`, and `Err` rejects before
-the body is read. Calling any of
+the body is read. A single `FooServer::intercept` (no second hop, no
+`add_service`) still rejects before the handler on those transports too.
+Calling any of
 them twice stacks: the first interceptor runs first, on those transports
 too. `FooServer::intercept`
 then `add_service` keeps that interceptor on every mounted service, on

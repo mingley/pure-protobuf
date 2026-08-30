@@ -945,6 +945,12 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Server rustdoc must name hand-written unknown-method UNIMPLEMENTED on every transport"
     );
+    assert!(
+        src.contains(
+            "A single\n    /// interceptor still rejects before the handler on every call shape,\n    /// including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
+        ),
+        "Server::intercept rustdoc must name a single intercept reject on every transport"
+    );
 }
 
 #[test]
@@ -1803,6 +1809,11 @@ async fn a_from_io_handler_deadline_is_an_instant_that_elapses() {
     server.abort();
 }
 
+async fn assert_generated_intercept(ch: Channel) {
+    assert_err_on_every_shape(&GreeterClient::new(ch.clone()), Code::Unauthenticated).await;
+    echo_every_shape(&GreeterClient::new(ch).intercept(inject_bearer), None).await;
+}
+
 #[tokio::test]
 async fn a_generated_server_interceptor_rejects_before_the_handler() {
     let (addr, listener) = bind().await;
@@ -1813,14 +1824,74 @@ async fn a_generated_server_interceptor_rejects_before_the_handler() {
             .await
             .ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await);
-    assert_err_on_every_shape(&client, Code::Unauthenticated).await;
-
-    let allowed = GreeterClient::new(channel(addr).await).intercept(inject_bearer);
-    echo_every_shape(&allowed, None).await;
-
+    assert_generated_intercept(channel(addr).await).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_generated_server_interceptor_rejects_before_the_handler() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_generated_intercept(tls_channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_generated_server_interceptor_rejects_before_the_handler() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_generated_intercept(tls_channel_with(addr, client_tls).await).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_generated_server_interceptor_rejects_before_the_handler() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_generated_intercept(unix_channel(&path).await).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_generated_server_interceptor_rejects_before_the_handler() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(require_bearer)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_generated_intercept(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]
