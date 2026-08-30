@@ -3202,8 +3202,17 @@ async fn assert_health_protocol(client: &HealthClient, reporter: &HealthReporter
         .expect("msg");
     assert_eq!(third.status(), ServingStatus::Serving);
     drop(stream);
-
-    assert_eq!(reporter.watchers(), 0);
+    for _ in 0..80 {
+        if reporter.watchers() == 0 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(
+        reporter.watchers(),
+        0,
+        "shutdown Watch must release after drop"
+    );
     let mut stream = client
         .watch(Request::new(HealthCheckRequest::new()))
         .await
