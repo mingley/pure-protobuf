@@ -5381,3 +5381,69 @@ async fn generated_from_io_send_buffer_still_serves_every_shape() {
     echo_store_every_shape(&StoreClient::from_io(c, "localhost").await.expect("from_io")).await;
     server.abort();
 }
+
+fn store_pending_reset() -> StoreServer<MemStore> {
+    StoreServer::new(MemStore).max_pending_accept_reset_streams(1)
+}
+
+#[tokio::test]
+async fn generated_pending_reset_cap_still_serves_every_shape() {
+    let (addr, listener) = bind_store().await;
+    let server = tokio::spawn(async move {
+        store_pending_reset().serve_listener(listener).await.ok();
+    });
+    echo_store_every_shape(&client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_tls_pending_reset_cap_still_serves_every_shape() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind_store().await;
+    let server = tokio::spawn(async move {
+        store_pending_reset()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    echo_store_every_shape(&tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_pending_reset_cap_still_serves_every_shape() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind_store().await;
+    let server = tokio::spawn(async move {
+        store_pending_reset()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    echo_store_every_shape(&tls_client_with(addr, client_tls).await).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_pending_reset_cap_still_serves_every_shape() {
+    let path = unix_sock("pending-reset");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        store_pending_reset().serve_unix(sock).await.ok();
+    });
+    echo_store_every_shape(&unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_pending_reset_cap_still_serves_every_shape() {
+    let (c, s) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        store_pending_reset().serve_connection(s).await.ok();
+    });
+    echo_store_every_shape(&StoreClient::from_io(c, "localhost").await.expect("from_io")).await;
+    server.abort();
+}
