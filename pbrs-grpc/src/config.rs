@@ -293,6 +293,10 @@ impl ServerConfig {
     /// default.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    /// `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
+    /// There is no `tcp_nodelay(bool)` setter. Distinct from tonic, which
+    /// defaults Nagle off but lets you turn it back on. Unix domain sockets
+    /// and [`crate::Channel::from_io`] skip TCP socket tuning entirely.
     /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {
@@ -915,6 +919,10 @@ impl ChannelConfig {
     /// default.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    /// `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
+    /// There is no `tcp_nodelay(bool)` setter. Distinct from tonic, which
+    /// defaults Nagle off but lets you turn it back on. Unix domain sockets
+    /// and [`crate::Channel::from_io`] skip TCP socket tuning entirely.
     /// Applies to every call shape.
     #[must_use]
     pub fn tcp_keepalive(mut self, time: Duration) -> Self {

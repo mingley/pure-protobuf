@@ -2,6 +2,9 @@
 //!
 //! `socket2` is a safe wrapper around the same libc syscalls tokio already
 //! issues. It does not compile C. Unix domain sockets skip this module.
+//! `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
+//! There is no `tcp_nodelay(bool)` setter. Distinct from tonic, which
+//! defaults Nagle off but lets you turn it back on.
 
 use std::time::Duration;
 use tokio::net::TcpStream;

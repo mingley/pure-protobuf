@@ -163,6 +163,11 @@ impl Duration {
 
 impl RetryInfo {
     /// `RetryInfo` whose `retry_delay` is `delay`.
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::retry_delay`]. Distinct from
+    /// [`crate::Status::is_retryable`]: a delay is a wait hint, not
+    /// permission to retry.
     #[must_use]
     pub fn with_retry_delay(delay: std::time::Duration) -> Self {
         let mut info = Self::new();

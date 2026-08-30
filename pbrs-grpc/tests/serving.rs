@@ -600,9 +600,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "do not keep it. The next RPC of every call shape redials, including over\n/// TLS, mTLS, and Unix. [`Self::from_io`] cannot redial and fails with"
+            "TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and\n/// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct"
         ),
-        "Channel rustdoc must name client idle redial on TLS, mTLS, and Unix"
+        "Channel rustdoc must Distinct TCP_NODELAY always-on from tonic tcp_nodelay"
     );
     assert!(
         src.contains(
@@ -1072,9 +1072,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
-            "shape redials, including over TLS, mTLS, and Unix, except on\n    /// [`crate::Channel::from_io`], which cannot redial and fails with"
+            "`TCP_NODELAY` is always on for TCP connect and accept (Nagle off).\n    /// There is no `tcp_nodelay(bool)` setter. Distinct from tonic, which"
         ),
-        "ChannelConfig::max_connection_idle must name client idle redial on TLS, mTLS, and Unix"
+        "ChannelConfig/ServerConfig::tcp_keepalive must Distinct TCP_NODELAY always-on from tonic"
+    );
+    assert_eq!(
+        src.matches("`TCP_NODELAY` is always on for TCP connect and accept (Nagle off).")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig tcp_keepalive must both name TCP_NODELAY"
     );
     assert!(
         src.contains("a long-running stream is not idle, but"),
@@ -1426,8 +1432,28 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::rpc must Distinct receive-path ASCII from a mismatched packed google.rpc.Status"
     );
     assert!(
-        status_src.contains("A peer trailer has no cause. Distinct"),
-        "crate Status rustdoc must Distinct Error::source from a peer trailer"
+        status_src.contains("gRPC A6 default retryable set: [`Self::Unavailable`] only."),
+        "Code::is_retryable must name the A6 default set"
+    );
+    assert!(
+        status_src.contains("Distinct from a packed [`crate::pb::RetryInfo`] delay"),
+        "Code::is_retryable must Distinct RetryInfo delay from A6 retryable"
+    );
+    assert!(
+        status_src.contains("ResourceExhausted`] is not retryable"),
+        "Code::is_retryable must Distinct RESOURCE_EXHAUSTED from A6 retryable"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),
+        "Status::retry_delay must Distinct wait hint from is_retryable"
+    );
+    assert!(
+        status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
+        "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
+    );
+    assert!(
+        status_src.contains("this builds one. A peer trailer has no cause."),
+        "Status::from_error must Distinct with_cause from building a status"
     );
     assert!(
         crate_src.contains(
@@ -1572,8 +1598,24 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name kernel stubs as the protoc plugin default"
     );
     assert!(
-        guide.contains("`accept_compressed(false)` refuses `grpc-encoding: gzip` as"),
-        "guide must name accept_compressed(false) as inbound gzip opt-out"
+        guide.contains("`Code::is_retryable` / `Status::is_retryable` is the gRPC A6 default"),
+        "guide must name Code::is_retryable as the A6 default"
+    );
+    assert!(
+        guide.contains("`Status::retry_delay`, a wait hint"),
+        "guide must name Status::retry_delay as a wait hint"
+    );
+    assert!(
+        guide.contains("`Status::from_error` wraps any local `std::error::Error`"),
+        "guide must name Status::from_error as local wrapping"
+    );
+    assert!(
+        guide.contains("`TCP_NODELAY` is always on for TCP connect and accept"),
+        "guide must name TCP_NODELAY always-on for TCP"
+    );
+    assert!(
+        guide.contains("Distinct from tonic, which defaults Nagle off but lets you turn"),
+        "guide must Distinct TCP_NODELAY from tonic tcp_nodelay setter"
     );
     assert!(
         guide.contains("Distinct from tonic's `accept_compressed`, which starts"),
@@ -12050,6 +12092,109 @@ fn assert_api_disabled(err: &Status) {
     let unpacked = details.error_info.expect("ErrorInfo");
     assert_eq!(unpacked.reason().to_str().unwrap_or(""), "API_DISABLED");
     assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
+fn quota_with_retry() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        retry_info: Some(pbrs_grpc::pb::RetryInfo::with_retry_delay(
+            Duration::from_millis(1500),
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    Status::from_error_details(Code::ResourceExhausted, "quota", &details).expect("details")
+}
+
+fn assert_quota_retry(err: &Status) {
+    assert_eq!(err.code(), Code::ResourceExhausted, "{err}");
+    assert_eq!(err.message(), "quota");
+    assert!(
+        !err.is_retryable(),
+        "RESOURCE_EXHAUSTED must not be A6-retryable: {err}"
+    );
+    assert_eq!(err.retry_delay(), Some(Duration::from_millis(1500)));
+}
+
+async fn assert_retry_hint_every_shape(client: &GreeterClient) {
+    assert_quota_retry(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    match client.server_hello(Request::new(req("ada"))).await {
+        Err(err) => assert_quota_retry(&err),
+        Ok(resp) => match resp.into_inner().message().await {
+            Err(err) => assert_quota_retry(&err),
+            Ok(_) => panic!("server-stream retry-hint must fail"),
+        },
+    }
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_quota_retry(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_quota_retry(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+struct RetryHint;
+
+impl Greeter for RetryHint {
+    async fn say_hello(&self, _: Request<HelloRequest>) -> Result<Response<HelloReply>, Status> {
+        Err(quota_with_retry())
+    }
+
+    async fn client_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(quota_with_retry())
+    }
+
+    async fn server_hello(
+        &self,
+        _: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(quota_with_retry())
+    }
+
+    async fn stream_hello(
+        &self,
+        _: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Err(quota_with_retry())
+    }
+}
+
+#[tokio::test]
+async fn retry_info_is_status_retry_delay_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(RetryHint)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    assert_retry_hint_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_retry_info_is_status_retry_delay() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(RetryHint)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_retry_hint_every_shape(&client).await;
+    server.abort();
 }
 
 fn one_ok_one_exhausted(codes: [Code; 2], what: &str) {

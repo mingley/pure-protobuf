@@ -385,6 +385,8 @@ if let Some(retry) = details.retry_info {
 }
 ```
 
+Or `status.retry_delay()` for that wait hint without unpacking the bag. Distinct from `status.is_retryable()`: a delay is not permission to retry.
+
 Nested payloads — `BadRequest.FieldViolation`, `QuotaFailure.Violation`,
 `Help.Link` — live in modules named after the parent:
 `pb::bad_request::FieldViolation`, `pb::quota_failure::Violation`,
@@ -411,7 +413,12 @@ Err(Status::not_found(format!("row {id}")))
 ```rust
 match client.say_hello(request).await {
     Ok(reply) => { /* ... */ }
-    Err(status) if status.code() == Code::Unavailable => retry().await,
+    Err(status) if status.is_retryable() => {
+        if let Some(delay) = status.retry_delay() {
+            tokio::time::sleep(delay).await;
+        }
+        retry().await
+    }
     Err(status) => eprintln!("{status}"),   // "NOT_FOUND: row 7"
 }
 ```
@@ -419,7 +426,7 @@ match client.say_hello(request).await {
 `Status` is two machine words. Its message, metadata, and
 `grpc-status-details-bin` live behind a pointer that is only allocated when
 one of them is set, so `Result<T, Status>` stays cheap on paths where nothing
-goes wrong. It implements `std::error::Error`. Local I/O, a TLS handshake, and HTTP/2 connection death attach the original error as `Error::source`; a peer trailer has no cause. `set_code` / `with_code` and `set_message` / `with_message`
+goes wrong. It implements `std::error::Error`. Local I/O, a TLS handshake, and HTTP/2 connection death attach the original error as `Error::source`; a peer trailer has no cause. `Status::from_error` wraps any local `std::error::Error`: an already-`Status` (including in the source chain) is returned as-is; a top-level `std::io::Error` uses the same mapping as `From` (timeouts `DEADLINE_EXCEEDED`, connection failures `UNAVAILABLE`); anything else is `UNKNOWN` with that error as `Error::source`. Distinct from `with_error_details` (a packed `google.rpc.Status` on the wire) and from `with_cause` (attach onto an existing status). `Code::is_retryable` / `Status::is_retryable` is the gRPC A6 default (`UNAVAILABLE` only). Packed `RetryInfo` is `Status::retry_delay`, a wait hint, not a larger retryable set. `RESOURCE_EXHAUSTED` from `max_concurrent_rpcs` is not retryable. `set_code` / `with_code` and `set_message` / `with_message`
 rewrite a packed `google.rpc.Status` whose code or message still matches,
 so the ASCII trailers and the protobuf stay in sync; opaque or mismatched
 detail bytes are left alone.
@@ -798,6 +805,11 @@ ChannelConfig::new().tcp_keepalive(Duration::from_secs(30))
 PING sees a half-open HTTP/2 session. TCP keepalive sees a half-open socket
 when there is no HTTP/2 traffic, including when PING is off. Use both when
 the path has a NAT.
+
+`TCP_NODELAY` is always on for TCP connect and accept (Nagle off). There is
+no `tcp_nodelay(bool)` setter. Distinct from tonic, which defaults Nagle off
+but lets you turn it back on. Unix sockets and `Channel::from_io` skip
+TCP socket tuning entirely.
 
 A `Channel` also redials after a peer `GOAWAY` or a TCP reset, including
 over TLS, mTLS, and Unix, so restarting the server on the same address does
@@ -1865,7 +1877,7 @@ Deliberate omissions, with what to do instead.
 | Missing | Instead |
 |---|---|
 | Load balancing and service discovery | `ChannelConfig::connections` pools to one authority. For more, resolve addresses yourself and hold a `Channel` per backend. |
-| Retries and hedging | Application retries stay at the call site. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
+| Retries and hedging | Application retries stay at the call site. `Code::is_retryable` / `Status::is_retryable` is the gRPC A6 default (`UNAVAILABLE` only). Packed `RetryInfo` is `Status::retry_delay`, a wait hint, not a larger retryable set. `RESOURCE_EXHAUSTED` from `max_concurrent_rpcs` is not retryable. Unary and server-streaming that race a connection death after the slot looked live already redial once (gRPC transparent retry), including after request bytes. Client-streaming and bidi retry once if HEADERS never went out. `from_io` does not. Hedging is not implemented. |
 | Channel connectivity state | `Channel::connected` is a snapshot of live sockets. There is no `GetState` / `WaitForStateChange`. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |

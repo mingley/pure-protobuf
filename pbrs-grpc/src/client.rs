@@ -227,6 +227,9 @@ impl Endpoint {
 /// SETTINGS. A peer that accepts the socket and never speaks fails with
 /// [`Code::Unavailable`] instead of hanging forever. Connection refused
 /// still fails immediately.
+/// TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and
+/// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct
+/// from tonic, which defaults Nagle off but lets you turn it back on.
 ///
 /// On Unix, [`Self::connect_unix`] / [`Self::connect_unix_lazy`] speak the
 /// same protocol over a domain socket. TLS is TCP-only.

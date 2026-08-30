@@ -133,6 +133,19 @@ impl Code {
             Self::Unauthenticated => "The request does not have valid authentication credentials",
         }
     }
+
+    /// gRPC A6 default retryable set: [`Self::Unavailable`] only.
+    ///
+    /// Distinct from a packed [`crate::pb::RetryInfo`] delay, which is a
+    /// server wait hint and does not enlarge this set. Distinct from
+    /// transparent retry of HTTP/2 connection death (already one redial).
+    /// [`Self::ResourceExhausted`] is not retryable: a
+    /// [`crate::Channel::max_concurrent_rpcs`] refusal would loop, and a
+    /// quota trailer should wait [`Status::retry_delay`] instead.
+    #[must_use]
+    pub fn is_retryable(self) -> bool {
+        matches!(self, Self::Unavailable)
+    }
 }
 
 impl fmt::Display for Code {
@@ -209,7 +222,11 @@ struct Detail {
 /// a TLS handshake, and HTTP/2 connection death attach the original error
 /// as [`std::error::Error::source`]. A peer trailer has no cause. Distinct
 /// from [`Self::with_error_details`] (a packed `google.rpc.Status` on the
-/// wire).
+/// wire). [`Self::from_error`] wraps an arbitrary local error: an already-
+/// [`Status`] (including in the source chain) is returned as-is.
+/// [`Self::is_retryable`] is the gRPC A6 default ([`Code::Unavailable`]
+/// only). Packed [`crate::pb::RetryInfo`] is [`Self::retry_delay`], a wait
+/// hint, not a larger retryable set.
 ///
 /// ```
 /// use pbrs_grpc::{Code, Status};
@@ -218,6 +235,10 @@ struct Detail {
 /// assert_eq!(status.code(), Code::NotFound);
 /// assert_eq!(status.message(), "no such row");
 /// assert_eq!(status.to_string(), "NOT_FOUND: no such row");
+/// assert!(!status.is_retryable());
+///
+/// assert!(Code::Unavailable.is_retryable());
+/// assert!(!Code::ResourceExhausted.is_retryable());
 ///
 /// // Two words, whatever the payload.
 /// assert!(std::mem::size_of::<Status>() <= 2 * std::mem::size_of::<usize>());
@@ -578,6 +599,73 @@ impl Status {
         self.code == Code::Ok
     }
 
+    /// Whether [`Self::code`] is gRPC A6-retryable ([`Code::Unavailable`]).
+    ///
+    /// Distinct from [`Self::retry_delay`]: a packed wait hint is not
+    /// permission to retry. [`Code::ResourceExhausted`] from
+    /// [`crate::Channel::max_concurrent_rpcs`] is this process, not a peer,
+    /// and is not retryable.
+    #[must_use]
+    pub fn is_retryable(&self) -> bool {
+        self.code.is_retryable()
+    }
+
+    /// Packed `google.rpc.RetryInfo.retry_delay`, if this status carries one.
+    ///
+    /// Distinct from [`Self::is_retryable`]: a delay is a wait hint, not
+    /// permission to retry. Peer trailers unpack `grpc-status-details-bin`;
+    /// a local [`Self::with_cause`] has no packed details. Negative or
+    /// unparseable protobuf durations are `None`, so a retry loop can treat
+    /// absence as "no hint". A zero delay is `Some(Duration::ZERO)`, not
+    /// `None`.
+    #[must_use]
+    pub fn retry_delay(&self) -> Option<std::time::Duration> {
+        let retry = self.error_details().ok()?.retry_info?;
+        retry.retry_delay().try_to_std().ok()
+    }
+
+    /// Wrap a local error as a [`Status`].
+    ///
+    /// If `err` is already a [`Status`], or one appears in
+    /// [`std::error::Error::source`], that status is returned as-is (cause
+    /// and packed details stay). A top-level [`std::io::Error`] uses the
+    /// same mapping as `From` (timeouts [`Code::DeadlineExceeded`],
+    /// connection failures [`Code::Unavailable`], ...). Anything else is
+    /// [`Code::Unknown`] with `err`'s display as the message and `err` as
+    /// [`std::error::Error::source`].
+    ///
+    /// Distinct from [`Self::with_error_details`]: this is local wrapping,
+    /// not a packed `google.rpc.Status` on the wire. Distinct from
+    /// [`Self::with_cause`]: that attaches a cause onto an existing status;
+    /// this builds one. A peer trailer has no cause.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let refused = Status::from_error(std::io::Error::new(
+    ///     std::io::ErrorKind::ConnectionRefused,
+    ///     "refused",
+    /// ));
+    /// assert_eq!(refused.code(), Code::Unavailable);
+    /// assert!(refused.is_retryable());
+    /// assert!(std::error::Error::source(&refused).is_some());
+    ///
+    /// let inner = Status::not_found("row");
+    /// assert_eq!(Status::from_error(inner.clone()).code(), Code::NotFound);
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn from_error(err: impl Into<Box<dyn std::error::Error + Send + Sync + 'static>>) -> Self {
+        let err = err.into();
+        if let Some(status) = status_in_chain(err.as_ref()) {
+            return status;
+        }
+        match err.downcast::<std::io::Error>() {
+            Ok(io) => Self::from(*io),
+            Err(err) => Self::unknown(err.to_string()).with_boxed_cause(err),
+        }
+    }
+
     /// [`Code::Cancelled`]: the caller gave up or reset the stream.
     #[must_use]
     pub fn cancelled() -> Self {
@@ -687,6 +775,14 @@ impl Status {
         self
     }
 
+    fn with_boxed_cause(
+        mut self,
+        cause: Box<dyn std::error::Error + Send + Sync + 'static>,
+    ) -> Self {
+        self.detail.get_or_insert_with(Box::default).source = Some(Arc::from(cause));
+        self
+    }
+
     /// Map an HTTP/2 error onto [`Code::Unavailable`].
     ///
     /// Connection death (`GOAWAY`, I/O, `REFUSED_STREAM`) is marked so a
@@ -736,6 +832,17 @@ impl Status {
 
 fn h2_lost_connection(err: &h2::Error) -> bool {
     err.is_io() || err.is_go_away() || err.reason() == Some(h2::Reason::REFUSED_STREAM)
+}
+
+fn status_in_chain(err: &(dyn std::error::Error + 'static)) -> Option<Status> {
+    let mut cur = Some(err);
+    while let Some(cause) = cur {
+        if let Some(status) = cause.downcast_ref::<Status>() {
+            return Some(status.clone());
+        }
+        cur = cause.source();
+    }
+    None
 }
 
 impl fmt::Display for Status {
@@ -1176,5 +1283,123 @@ mod tests {
         let status = Status::internal("write failed").with_cause(cause);
         let src = std::error::Error::source(&status).expect("cause");
         assert!(src.to_string().contains("disk"), "{src}");
+    }
+
+    #[test]
+    fn a6_retryable_is_unavailable_only() {
+        assert!(Code::Unavailable.is_retryable());
+        assert!(Status::unavailable("gone").is_retryable());
+        for code in [
+            Code::Ok,
+            Code::Cancelled,
+            Code::Unknown,
+            Code::InvalidArgument,
+            Code::DeadlineExceeded,
+            Code::NotFound,
+            Code::AlreadyExists,
+            Code::PermissionDenied,
+            Code::ResourceExhausted,
+            Code::FailedPrecondition,
+            Code::Aborted,
+            Code::OutOfRange,
+            Code::Unimplemented,
+            Code::Internal,
+            Code::DataLoss,
+            Code::Unauthenticated,
+        ] {
+            assert!(
+                !code.is_retryable(),
+                "{code} must not be A6-retryable by default"
+            );
+            assert!(!Status::from_code(code).is_retryable());
+        }
+        let cap = Status::resource_exhausted("too many concurrent RPCs");
+        assert!(!cap.is_retryable());
+        assert!(cap.retry_delay().is_none());
+    }
+
+    #[test]
+    fn retry_delay_reads_packed_retry_info() {
+        let delay = std::time::Duration::from_millis(1500);
+        let details = crate::pb::ErrorDetails {
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(delay)),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let status =
+            Status::from_error_details(Code::Unavailable, "backoff", &details).expect("encode");
+        assert!(status.is_retryable());
+        assert_eq!(status.retry_delay(), Some(delay));
+
+        let quota =
+            Status::from_error_details(Code::ResourceExhausted, "quota", &details).expect("encode");
+        assert!(!quota.is_retryable());
+        assert_eq!(quota.retry_delay(), Some(delay));
+
+        let zero = crate::pb::ErrorDetails {
+            retry_info: Some(crate::pb::RetryInfo::with_retry_delay(
+                std::time::Duration::ZERO,
+            )),
+            ..crate::pb::ErrorDetails::default()
+        };
+        let zero_status =
+            Status::from_error_details(Code::Unavailable, "now", &zero).expect("encode");
+        assert_eq!(zero_status.retry_delay(), Some(std::time::Duration::ZERO));
+        assert!(Status::unavailable("gone").retry_delay().is_none());
+        assert!(Status::unavailable("gone")
+            .with_cause(std::io::Error::new(std::io::ErrorKind::Other, "local"))
+            .retry_delay()
+            .is_none());
+    }
+
+    #[test]
+    fn from_error_wraps_local_errors() {
+        let refused = Status::from_error(std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "refused",
+        ));
+        assert_eq!(refused.code(), Code::Unavailable);
+        assert!(refused.is_retryable());
+        let cause = std::error::Error::source(&refused).expect("io cause");
+        assert_eq!(
+            cause.downcast_ref::<std::io::Error>().expect("io").kind(),
+            std::io::ErrorKind::ConnectionRefused
+        );
+
+        let inner = Status::not_found("row");
+        let same = Status::from_error(inner.clone());
+        assert_eq!(same.code(), Code::NotFound);
+        assert_eq!(same.message(), "row");
+        assert!(!same.is_retryable());
+
+        #[derive(Debug)]
+        struct Wrapped(Status);
+        impl std::fmt::Display for Wrapped {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "wrapped: {}", self.0)
+            }
+        }
+        impl std::error::Error for Wrapped {
+            fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+                Some(&self.0)
+            }
+        }
+        let chained = Status::from_error(Wrapped(Status::permission_denied("no")));
+        assert_eq!(chained.code(), Code::PermissionDenied);
+        assert_eq!(chained.message(), "no");
+
+        #[derive(Debug)]
+        struct Boom;
+        impl std::fmt::Display for Boom {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("boom")
+            }
+        }
+        impl std::error::Error for Boom {}
+        let unknown = Status::from_error(Boom);
+        assert_eq!(unknown.code(), Code::Unknown);
+        assert!(unknown.message().contains("boom"));
+        assert!(std::error::Error::source(&unknown).is_some());
+        assert!(!unknown.is_retryable());
+        assert!(unknown.retry_delay().is_none());
     }
 }
