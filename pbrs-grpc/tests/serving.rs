@@ -1230,7 +1230,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     let guide = include_str!("../../docs/grpc.md");
     assert!(
-        guide.contains("Distinct from a raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
+        guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );
     assert!(

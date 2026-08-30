@@ -307,6 +307,14 @@ before the next request, so scheduler luck shows up as RTT. This axis is a
 loopback capture in `rpc-bench`; it is not the 4-core Xeon unary/QPS/stream
 tables above.
 
+This host, one release run, kernel and tonic sharing one process:
+
+| kernel round-trips/s | tonic round-trips/s | ratio |
+|---|---:|---:|
+| **33919** | 22595 | **1.50x** |
+
+The 90% gate passed. These numbers are not the Xeon tables.
+
 ### Re-run
 
 ```bash
