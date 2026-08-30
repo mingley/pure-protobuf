@@ -110,7 +110,9 @@ See `docs/upb.md`. Short list:
   over TLS, mTLS, Unix, and `from_io`. An inbound Health Check or Watch over
   the decoding cap is `RESOURCE_EXHAUSTED` on those transports. An inbound
   reflection message over the decoding cap fails that bidi stream as
-  `RESOURCE_EXHAUSTED` trailers on those transports. TLS
+  `RESOURCE_EXHAUSTED` trailers on those transports. Generated Store
+  `max_decoding_message_size` is `RESOURCE_EXHAUSTED` on Get / Watch / PutAll
+  / Sync over TLS, mTLS, Unix, and `from_io`. TLS
   (rustls + Graviola), `grpc.health.v1` Check/Watch, and
   `grpc.reflection.v1` ship in the kernel. Unary/server-streaming that race
   a connection death after the slot looked live redial once (transparent

@@ -3755,6 +3755,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Cap inbound messages at `limit` bytes. Default 4 MiB. Applies to every call shape, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated server max_decoding rustdoc must name every transport"
+    );
+    assert!(
+        src.contains(
             "Mount alongside another service. [`Self::max_decoding_message_size`] and [`Self::max_encoding_message_size`] stay in effect on every mounted service, on every call shape of those mounts, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
         ),
         "generated add_service rustdoc must name decode and encode caps on every mount and transport"
@@ -3989,4 +3995,69 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         ),
         "generated stream_buffer rustdoc must name the streaming shapes it queues"
     );
+}
+
+fn store_decode_cap() -> StoreServer<MemStore> {
+    StoreServer::new(MemStore).message_limits(MessageLimits::new().with_max_decoding(16))
+}
+
+#[tokio::test]
+async fn generated_tls_oversize_is_resource_exhausted() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_decode_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_store_oversize_every_shape(&tls_client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_mtls_oversize_is_resource_exhausted() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        store_decode_cap()
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_store_oversize_every_shape(&tls_client_with(addr, client_tls).await).await;
+    server.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn generated_unix_oversize_is_resource_exhausted() {
+    let path = unix_sock("oversize");
+    let sock = path.clone();
+    let server = tokio::spawn(async move {
+        store_decode_cap().serve_unix(sock).await.ok();
+    });
+    assert_store_oversize_every_shape(&unix_client(&path).await).await;
+    server.abort();
+    let _ = std::fs::remove_file(&path);
+}
+
+#[tokio::test]
+async fn generated_from_io_oversize_is_resource_exhausted() {
+    let (client_io, server_io) = tokio::io::duplex(1024 * 1024);
+    let server = tokio::spawn(async move {
+        store_decode_cap().serve_connection(server_io).await.ok();
+    });
+    let client = StoreClient::from_io_with(client_io, "localhost", ChannelConfig::default())
+        .await
+        .expect("from_io");
+    assert_store_oversize_every_shape(&client).await;
+    server.abort();
 }
