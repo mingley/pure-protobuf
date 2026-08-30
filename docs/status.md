@@ -204,7 +204,10 @@ See `docs/upb.md`. Short list:
   `ServiceExt::intercept` reject before the
   body is read and stack in declaration order on every call shape, including
   over those transports (a later hop without the first interceptor's required
-  metadata is `INVALID_ARGUMENT`, not `UNAUTHENTICATED`). Interceptor extensions on a
+  metadata is `INVALID_ARGUMENT`, not `UNAUTHENTICATED`). A single
+  `ServiceExt::intercept` on a hand-written `Service` still rejects before
+  the handler (`UNAUTHENTICATED` without a token; the handler never runs)
+  on those transports too. Interceptor extensions on a
   wrapping `Service` reach the handler `Request` and `Parts` on every call
   shape, including over TLS, mTLS, Unix, and `from_io`. `FooServer::intercept` then
   `add_service` keeps that reject on every mount and every call shape,

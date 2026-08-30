@@ -58,7 +58,9 @@ use std::sync::Arc;
 /// one-service form; calling `.intercept` twice stacks (first interceptor
 /// first). Wrapping a hand-written [`Service`] with [`ServiceExt::intercept`]
 /// stacks the same way: [`Intercepted::intercept`] is inherent, so
-/// `svc.intercept(a).intercept(b)` runs `a` then `b`. On a [`crate::Router`],
+/// `svc.intercept(a).intercept(b)` runs `a` then `b`. A single interceptor
+/// still rejects before the handler on every call shape, including over TLS,
+/// mTLS, Unix, and [`crate::Channel::from_io`]. On a [`crate::Router`],
 /// call [`crate::Router::intercept`] or wrap one service with [`Intercepted`].
 /// Applies to every call shape.
 pub trait Interceptor: Send + Sync + 'static {
@@ -148,8 +150,9 @@ pub trait ServiceExt: Service + Sized {
     /// Run `interceptor` before this service sees the RPC.
     ///
     /// Calling this on an [`Intercepted`] uses [`Intercepted::intercept`]
-    /// instead, which stacks first-interceptor-first. Applies to every call
-    /// shape.
+    /// instead, which stacks first-interceptor-first. A single interceptor
+    /// still rejects before the handler on every call shape, including over
+    /// TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     #[must_use]
     fn intercept<I: Interceptor>(self, interceptor: I) -> Intercepted<Self, I> {
         Intercepted::new(self, interceptor)

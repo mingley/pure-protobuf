@@ -643,6 +643,18 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor rustdoc must name typed extensions on Request/Parts every transport"
     );
     assert!(
+        intercept.contains(
+            "A single interceptor\n/// still rejects before the handler on every call shape, including over TLS,\n/// mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "Interceptor rustdoc must name a single ServiceExt intercept reject on every transport"
+    );
+    assert!(
+        intercept.contains(
+            "A single interceptor\n    /// still rejects before the handler on every call shape, including over\n    /// TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
+        ),
+        "ServiceExt::intercept rustdoc must name a single intercept reject on every transport"
+    );
+    assert!(
         src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),
@@ -2469,6 +2481,13 @@ async fn test_service_from_io_typed_google_rpc_status_after_a_streamed_message()
     task.abort();
 }
 
+async fn assert_hand_written_intercept(ch: Channel, seen: &AtomicUsize) {
+    assert_reverser_err_every_shape(&ch, Code::Unauthenticated).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+    echo_reverser_every_shape(&ch.clone().intercept(inject_bearer)).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 4);
+}
+
 #[tokio::test]
 async fn service_ext_intercept_wraps_a_hand_written_service() {
     let (addr, listener) = bind().await;
@@ -2477,15 +2496,77 @@ async fn service_ext_intercept_wraps_a_hand_written_service() {
     let task = tokio::spawn(async move {
         Server::new(service).serve_listener(listener).await.ok();
     });
-
-    let ch = channel(addr).await;
-    assert_reverser_err_every_shape(&ch, Code::Unauthenticated).await;
-    assert_eq!(seen.load(Ordering::Relaxed), 0);
-
-    echo_reverser_every_shape(&ch.clone().intercept(inject_bearer)).await;
-    assert_eq!(seen.load(Ordering::Relaxed), 4);
-
+    assert_hand_written_intercept(channel(addr).await, &seen).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn tls_service_ext_intercept_wraps_a_hand_written_service() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_bearer);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_hand_written_intercept(tls_channel(addr).await, &seen).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_service_ext_intercept_wraps_a_hand_written_service() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::mtls(
+        Arc::clone(&seen),
+        client_identity().certificates().next().expect("leaf"),
+    )
+    .intercept(require_bearer);
+    let task = tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_hand_written_intercept(tls_channel_with(addr, client_tls).await, &seen).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_service_ext_intercept_wraps_a_hand_written_service() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_bearer);
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_unix(sock).await.ok();
+    });
+    assert_hand_written_intercept(unix_channel(&path).await, &seen).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_service_ext_intercept_wraps_a_hand_written_service() {
+    let (client_io, server_io) = duplex_pair();
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen)).intercept(require_bearer);
+    let server = tokio::spawn(async move {
+        Server::new(service).serve_connection(server_io).await.ok();
+    });
+    assert_hand_written_intercept(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+        &seen,
+    )
+    .await;
+    server.abort();
 }
 
 #[tokio::test]

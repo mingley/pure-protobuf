@@ -1397,7 +1397,9 @@ then `add_service` keeps that interceptor on every mounted service, on
 every call shape of those mounts, including over TLS, mTLS, Unix, and
 `from_io`. Per-service wrapping is
 `Intercepted::new` or `ServiceExt::intercept` when you do not want the
-generated server's `.serve()` chain. Chaining `ServiceExt::intercept` is
+generated server's `.serve()` chain. A single interceptor still rejects
+before the inner `Service` runs on every call shape, including over TLS,
+mTLS, Unix, and `from_io`. Chaining `ServiceExt::intercept` is
 first-to-last too (`svc.intercept(a).intercept(b)` runs `a` then `b`):
 `Intercepted::intercept` is an inherent method, so it does not wrap
 onion-style. That reject-and-stack contract is the same on every call

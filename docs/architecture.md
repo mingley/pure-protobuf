@@ -124,7 +124,9 @@ Server: `Server` / `Router` / `FooServer::intercept` and `Intercepted`.
 `Intercepted` is `Clone` when the interceptor is.
 The first registered runs first, including over TLS, mTLS, Unix, and
 `from_io` (`FooServer::intercept`, `Router::intercept`, and
-`ServiceExt::intercept`). `FooServer::intercept` then `add_service` keeps that reject on
+`ServiceExt::intercept`). A single `ServiceExt::intercept` wrapping a
+hand-written `Service` still rejects before the handler on those
+transports. `FooServer::intercept` then `add_service` keeps that reject on
 every mount on those transports. `FooServer::max_decoding_message_size`
 then `add_service` keeps that inbound cap on every mount on those
 transports too. `FooServer::max_encoding_message_size` then `add_service`
