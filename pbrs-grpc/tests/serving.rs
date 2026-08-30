@@ -748,6 +748,22 @@ fn channel_call_apis_document_hand_written_services() {
         "Request::concurrent_rpc_limit must Distinct message size from the process RPC cap"
     );
     assert!(
+        outgoing.contains("Channel [`crate::Channel::stream_buffer`] overlay."),
+        "Outgoing::stream_buffer_size must name the channel stream_buffer overlay"
+    );
+    assert!(
+        outgoing.contains(
+            "Distinct from [`Self::limits`]: that is message size, not how many messages sit in the outbound queue."
+        ),
+        "Outgoing::stream_buffer_size must Distinct message size from queue depth"
+    );
+    assert!(
+        outgoing.contains(
+            "Applies to client-streaming and bidi request streams. Unary and server-streaming have no request stream to queue."
+        ),
+        "Outgoing::stream_buffer_size must name the streaming shapes it queues"
+    );
+    assert!(
         outgoing
             .contains("An interceptor cannot change this; the kernel applies it when encoding."),
         "Outgoing::gzip_level must Distinct interceptor-visible overlay from per-RPC mutation"
@@ -899,6 +915,18 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must Distinct concurrent_rpc_limit from waits_for_ready"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay"
+        ),
+        "ClientInterceptor rustdoc must name Outgoing::stream_buffer_size"
+    );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth."
+        ),
+        "ClientInterceptor rustdoc must Distinct stream_buffer_size from limits"
+    );
+    assert!(
         intercept.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
         "ClientInterceptor rustdoc must name Outgoing::connected"
     );
@@ -1010,6 +1038,14 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::stream_buffer must name the streaming shapes it queues"
     );
     assert!(
+        src.contains("Configured outbound streaming queue depth. See [`Self::stream_buffer`]."),
+        "Channel::stream_buffer_size must Distinct the setter"
+    );
+    assert!(
+        src.contains("Distinct from [`Self::stream_buffer`], which sets it."),
+        "Channel::stream_buffer_size must Distinct from the setter"
+    );
+    assert!(
         src.contains(
             "Further RPCs are refused with [`Code::ResourceExhausted`] before the\n    /// stream opens. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`"
         ),
@@ -1056,6 +1092,18 @@ fn channel_call_apis_document_hand_written_services() {
             "Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras."
         ),
         "Channel::intercept rustdoc must Distinct concurrent_rpc_limit from waits_for_ready"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay"
+        ),
+        "Channel::intercept rustdoc must name Outgoing::stream_buffer_size"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth."
+        ),
+        "Channel::intercept rustdoc must Distinct stream_buffer_size from limits"
     );
     assert!(
         src.contains("[`crate::Outgoing::connected`] is the live-socket snapshot"),
@@ -2137,6 +2185,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate docs must name Rpc::concurrent_rpc_limit as the server interceptor overlay"
     );
     assert!(
+        crate_src
+            .contains("[`Outgoing::stream_buffer_size`] is that overlay in a client interceptor"),
+        "crate docs must name Outgoing::stream_buffer_size as the interceptor overlay"
+    );
+    assert!(
+        crate_src.contains("Distinct from [`Outgoing::limits`]"),
+        "crate docs must Distinct Outgoing::stream_buffer_size from limits"
+    );
+    assert!(
         crate_src.contains("HPACK dynamic table, default 4096"),
         "crate docs must name header_table_size default 4096"
     );
@@ -2527,6 +2584,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("`Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits)."),
         "guide must name Rpc::concurrent_rpc_limit as the server interceptor overlay"
+    );
+    assert!(
+        guide.contains("`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it."),
+        "guide must name Outgoing::stream_buffer_size as the interceptor overlay"
     );
     assert!(
         guide.contains("`add_optional_service` mounts when `Some`"),
@@ -8265,6 +8326,12 @@ fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
             call.gzip_level()
         )));
     }
+    if call.stream_buffer_size() != 32 {
+        return Err(Status::internal(format!(
+            "stream_buffer_size {}",
+            call.stream_buffer_size()
+        )));
+    }
     if call.timeout() != Some(Duration::from_secs(5)) {
         return Err(Status::internal(format!("timeout {:?}", call.timeout())));
     }
@@ -8281,6 +8348,7 @@ fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
         || !call.waits_for_ready()
         || !call.compresses_outbound()
         || call.gzip_level() != 9
+        || call.stream_buffer_size() != 32
     {
         return Err(Status::internal("overlays vanished after clear"));
     }
@@ -8293,6 +8361,7 @@ fn overlay_after_clear_channel(channel: Channel) -> Channel {
         .wait_for_ready()
         .send_compressed()
         .gzip_compression_level(9)
+        .stream_buffer(32)
         .intercept(overlays_survive_clear)
 }
 

@@ -1645,6 +1645,7 @@ fn generated_client_debug_and_into_inner() {
     .message_limits(pbrs_grpc::MessageLimits::unlimited());
     assert!(format!("{client:?}").contains("127.0.0.1:1"), "{client:?}");
     assert_eq!(client.channel().config().stream_buffer_size(), 64);
+    assert_eq!(client.stream_buffer_size(), 64);
     assert_eq!(client.channel().config().limits().max_decoding(), None);
     assert_eq!(client.config(), client.channel().config());
     assert_eq!(client.rpc_timeout(), Some(Duration::from_secs(5)));
@@ -3948,6 +3949,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must name Outgoing::concurrent_rpc_limit"
     );
     assert!(
+        src.contains(
+            "[`::pbrs_grpc::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay"
+        ),
+        "generated intercept rustdoc must name Outgoing::stream_buffer_size"
+    );
+    assert!(
         src.contains("`peer_timeout` / `rpc_timeout` / `effective_timeout`"),
         "generated server intercept rustdoc must name the server timeout overlay"
     );
@@ -4514,6 +4521,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "How many messages sit between a client-streaming caller and the wire. See [`::pbrs_grpc::Channel::stream_buffer`]. Applies to client-streaming and bidi request streams."
         ),
         "generated stream_buffer rustdoc must name the streaming shapes it queues"
+    );
+    assert!(
+        src.contains(
+            "Configured outbound streaming queue depth. Distinct from [`Self::stream_buffer`], which sets it."
+        ),
+        "generated stream_buffer_size rustdoc must Distinct the setter"
     );
 }
 

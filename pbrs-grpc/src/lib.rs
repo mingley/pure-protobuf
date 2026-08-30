@@ -246,6 +246,8 @@
 //! [`Outgoing::concurrent_rpc_limit`] is that overlay in a client interceptor.
 //! Distinct from [`Outgoing::waits_for_ready`].
 //! [`Rpc::concurrent_rpc_limit`] is that overlay in a server interceptor.
+//! [`Outgoing::stream_buffer_size`] is that overlay in a client interceptor.
+//! Distinct from [`Outgoing::limits`].
 //! [`ServerConfig::header_table_size`] / [`ChannelConfig::header_table_size`]
 //! is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 //! Distinct from `max_header_list_size`, which caps uncompressed header-block

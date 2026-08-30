@@ -336,6 +336,8 @@ impl<S: Service> ServiceExt for S {}
 /// (default on).
 /// [`crate::Outgoing::concurrent_rpc_limit`] is the channel RPC cap overlay.
 /// Distinct from [`crate::Outgoing::waits_for_ready`]: that waits for a connection; this refuses extras.
+/// [`crate::Outgoing::stream_buffer_size`] is the outbound streaming queue overlay.
+/// Distinct from [`crate::Outgoing::limits`]: that is message size, not queue depth.
 /// [`crate::Outgoing::connected`] is the live-socket snapshot
 /// ([`crate::Channel::connected`]), taken when this interceptor runs.
 /// Distinct from wait-for-ready: a lazy first RPC sees `false` even when

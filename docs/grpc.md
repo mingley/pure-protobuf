@@ -1165,6 +1165,7 @@ compression is off. Distinct from `send_compressed`, which is on or off.
 `Rpc::accepts_compressed` is that overlay in a server interceptor. Distinct from `Rpc::accepts_gzip` (peer advertisement). An interceptor cannot change it.
 `Outgoing::concurrent_rpc_limit` is that overlay in a client interceptor. Distinct from `waits_for_ready` (connection). An interceptor cannot change it.
 `Rpc::concurrent_rpc_limit` is that overlay in a server interceptor. Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS` (waits).
+`Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). Applies to client-streaming and bidi. An interceptor cannot change it.
 
 `header_table_size` is HTTP/2 `SETTINGS_HEADER_TABLE_SIZE` (HPACK dynamic table, default 4096).
 Distinct from `max_header_list_size`, which caps uncompressed header-block bytes.
@@ -1503,7 +1504,7 @@ let (tx, stream) = Streaming::channel(64);
 ```
 
 On the client it is configuration, because the client's outbound queue belongs
-to the channel:
+to the channel. `Outgoing::stream_buffer_size` is that overlay in a client interceptor. Distinct from `limits` (message size). An interceptor cannot change it.
 
 ```rust
 channel.stream_buffer(64)
