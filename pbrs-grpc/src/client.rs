@@ -692,7 +692,12 @@ impl Channel {
         Ok(())
     }
 
-    /// The `:authority` sent with every request. Applies to every call shape.
+    /// The `:authority` sent with every request.
+    ///
+    /// Taken from the [`Target`] used to dial. A [`SocketAddr`] is that
+    /// address (`127.0.0.1:port`), not TLS SNI (`ClientTls` verifies a name
+    /// such as `localhost` separately). Unix sockets send `localhost`.
+    /// Applies to every call shape.
     #[must_use]
     pub fn authority(&self) -> &str {
         self.inner.authority.as_str()

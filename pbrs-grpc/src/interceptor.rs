@@ -13,7 +13,9 @@ use std::sync::Arc;
 /// Closures with this signature implement the trait, so most interceptors
 /// are one function. Mutate inbound metadata with [`Rpc::metadata_mut`]
 /// (strip with [`crate::Metadata::remove`] or [`crate::Metadata::retain`],
-/// overwrite a hop with [`crate::Metadata::set`]), cap the deadline with
+/// overwrite a hop with [`crate::Metadata::set`]; those mutations reach the
+/// handler on h2c, TLS including mTLS, Unix, and [`crate::Channel::from_io`]),
+/// cap the deadline with
 /// [`Rpc::set_timeout`], read the client's `grpc-timeout` with [`Rpc::peer_timeout`],
 /// the server overlay with [`Rpc::rpc_timeout`],
 /// or the effective remaining budget with [`Rpc::effective_timeout`] /

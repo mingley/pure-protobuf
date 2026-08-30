@@ -186,8 +186,13 @@ See `docs/upb.md`. Short list:
   interceptor on those transports plus `from_io`, including official TestService
   methods and hand-written Reverser `Channel` APIs, generated Store Get / Watch /
   PutAll / Sync, Health Check and Watch, and reflection `ServerReflectionInfo`. A `Channel::user_agent` prefix
-  is `Outgoing::user_agent` on those same paths. Server interceptor `set` / `remove` /
-  `retain` reach the handler on every shape.
+  is `Outgoing::user_agent` on those same paths.   Server interceptor `set` / `remove` /
+  `retain` reach the handler on every shape, including over TLS, mTLS, Unix,
+  and `from_io` (`set` replaces a peer-smuggled hop, `remove` strips before
+  the handler, `retain` keeps a subset including `-bin` keys). TLS
+  (including mTLS) interceptor `:authority` is the dial `Target`
+  (`SocketAddr` is `127.0.0.1:port`), not SNI `localhost`; Unix interceptor
+  `:authority` is `localhost` on both sides even after `https_scheme`.
   `Outgoing::set_timeout` is that Call's deadline on every call shape, including when
   a client interceptor stamps it over h2c, TLS (including mTLS), Unix, and `from_io`.
   `Outgoing::clear_timeout` opts out of a channel timeout on those transports plus

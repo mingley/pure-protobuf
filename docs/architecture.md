@@ -123,7 +123,8 @@ metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).
 `metadata_mut().set` / `remove` / `retain` reach the handler on every call
-shape.
+shape, including over TLS, mTLS, Unix, and `from_io`. TLS `:authority` is
+the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
 gzip, and the

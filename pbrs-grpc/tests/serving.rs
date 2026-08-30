@@ -548,6 +548,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Channel::timeout must name interceptor clear_timeout"
     );
+    assert!(
+        src.contains(
+            "Taken from the [`Target`] used to dial. A [`SocketAddr`] is that\n    /// address"
+        ),
+        "Channel::authority must name Target, not TLS SNI"
+    );
     let intercept = include_str!("../src/interceptor.rs");
     assert!(
         intercept.contains(
@@ -560,6 +566,12 @@ fn channel_call_apis_document_hand_written_services() {
             "stamps [`crate::StreamSender::compress`] on client-streaming and bidi\n/// request streams."
         ),
         "ClientInterceptor rustdoc must name StreamSender gzip stamp"
+    );
+    assert!(
+        intercept.contains(
+            "overwrite a hop with [`crate::Metadata::set`]; those mutations reach the\n/// handler on h2c, TLS including mTLS, Unix, and [`crate::Channel::from_io`]"
+        ),
+        "Interceptor rustdoc must name set/remove/retain on every transport"
     );
     assert!(
         src.contains(
@@ -817,6 +829,10 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server::serve_with_incoming_shutdown and Router::serve_with_incoming_shutdown must name every call shape"
+    );
+    assert!(
+        src.contains("TLS uses the client's [`crate::Target`], not SNI."),
+        "Rpc::authority must name Target, not TLS SNI"
     );
 }
 
@@ -2752,6 +2768,88 @@ async fn a_server_interceptor_sees_the_authority() {
     });
     let client = GreeterClient::new(channel(addr).await);
     echo_every_shape(&client, None).await;
+    task.abort();
+}
+
+fn interceptor_require_https_authority(want: String) -> impl Fn(&mut Rpc) -> Result<(), Status> {
+    move |rpc: &mut Rpc| {
+        if rpc.authority() != Some(want.as_str()) {
+            return Err(Status::internal(format!(
+                "authority {:?} want {want}",
+                rpc.authority()
+            )));
+        }
+        if rpc.scheme() != Some("https") {
+            return Err(Status::internal(format!("scheme {:?}", rpc.scheme())));
+        }
+        Ok(())
+    }
+}
+
+fn interceptor_require_client_https_authority(
+    want: String,
+) -> impl Fn(&mut Outgoing<'_>) -> Result<(), Status> {
+    move |call: &mut Outgoing<'_>| {
+        if call.authority() != want.as_str() {
+            return Err(Status::internal(format!(
+                "authority {} want {want}",
+                call.authority()
+            )));
+        }
+        if call.scheme() != "https" {
+            return Err(Status::internal(format!("scheme {}", call.scheme())));
+        }
+        Ok(())
+    }
+}
+
+async fn assert_tls_socket_authority_not_sni(channel: Channel, want: &str) {
+    assert_eq!(channel.authority(), want);
+    assert_eq!(channel.scheme(), "https");
+    assert_ne!(
+        channel.authority(),
+        "localhost",
+        "TLS :authority follows Target, not SNI"
+    );
+    let client = GreeterClient::new(channel);
+    assert_eq!(client.authority(), want);
+    assert_eq!(client.scheme(), "https");
+    let client = client.intercept(interceptor_require_client_https_authority(want.to_owned()));
+    echo_every_shape(&client, None).await;
+}
+
+#[tokio::test]
+async fn tls_interceptors_see_socket_authority_not_sni() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let want = addr.to_string();
+    let server_want = want.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_https_authority(server_want))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_tls_socket_authority_not_sni(tls_channel(addr).await, &want).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_interceptors_see_socket_authority_not_sni() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let want = addr.to_string();
+    let server_want = want.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(interceptor_require_https_authority(server_want))
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_tls_socket_authority_not_sni(tls_channel_with(addr, client_tls).await, &want).await;
     task.abort();
 }
 
@@ -6954,87 +7052,79 @@ async fn a_client_interceptor_can_reject_with_typed_status_details() {
     drop(tx);
 }
 
-#[tokio::test]
-async fn a_server_interceptor_injects_metadata_the_handler_sees() {
-    struct ActorEcho;
+struct ActorEcho;
 
-    fn actor_is_kernel<T>(request: &Request<T>) -> Result<(), Status> {
-        let actors: Vec<_> = request.metadata().get_all("x-actor").collect();
-        if actors != ["kernel"] {
-            return Err(Status::internal(format!("x-actor {actors:?}")));
-        }
-        Ok(())
+fn actor_is_kernel<T>(request: &Request<T>) -> Result<(), Status> {
+    let actors: Vec<_> = request.metadata().get_all("x-actor").collect();
+    if actors != ["kernel"] {
+        return Err(Status::internal(format!("x-actor {actors:?}")));
+    }
+    Ok(())
+}
+
+fn kernel_stream() -> Response<pbrs_grpc::Streaming<HelloReply>> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        tx.send(common::reply("kernel")).await.ok();
+    }));
+    Response::new(stream)
+}
+
+impl pbrs_grpc::Greeter for ActorEcho {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        actor_is_kernel(&request)?;
+        Ok(Response::new(common::reply("kernel")))
     }
 
-    fn kernel_stream() -> Response<pbrs_grpc::Streaming<HelloReply>> {
-        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
-        drop(tokio::spawn(async move {
-            tx.send(common::reply("kernel")).await.ok();
-        }));
-        Response::new(stream)
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        actor_is_kernel(&request)?;
+        Ok(Response::new(common::reply("kernel")))
     }
 
-    impl pbrs_grpc::Greeter for ActorEcho {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            actor_is_kernel(&request)?;
-            Ok(Response::new(common::reply("kernel")))
-        }
-
-        async fn client_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<HelloReply>, Status> {
-            actor_is_kernel(&request)?;
-            Ok(Response::new(common::reply("kernel")))
-        }
-
-        async fn server_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            actor_is_kernel(&request)?;
-            Ok(kernel_stream())
-        }
-
-        async fn stream_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            actor_is_kernel(&request)?;
-            Ok(kernel_stream())
-        }
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        actor_is_kernel(&request)?;
+        Ok(kernel_stream())
     }
 
-    let (addr, listener) = bind().await;
-    let task = tokio::spawn(async move {
-        GreeterServer::new(ActorEcho)
-            .intercept(|rpc: &mut Rpc| {
-                rpc.metadata_mut().set("x-actor", "kernel")?;
-                Ok(())
-            })
-            .serve_listener(listener)
-            .await
-            .ok();
-    });
-
-    let client = GreeterClient::new(channel(addr).await);
-    fn smuggled<T>(mut request: Request<T>) -> Request<T> {
-        request
-            .metadata_mut()
-            .insert("x-actor", "smuggled")
-            .expect("metadata");
-        request
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        actor_is_kernel(&request)?;
+        Ok(kernel_stream())
     }
+}
+
+fn interceptor_inject_actor(rpc: &mut Rpc) -> Result<(), Status> {
+    rpc.metadata_mut().set("x-actor", "kernel")?;
+    Ok(())
+}
+
+fn smuggled_actor<T>(mut request: Request<T>) -> Request<T> {
+    request
+        .metadata_mut()
+        .insert("x-actor", "smuggled")
+        .expect("metadata");
+    request
+}
+
+async fn assert_injected_actor(client: &GreeterClient) {
     let reply = client
-        .say_hello(smuggled(Request::new(req("ignored"))))
+        .say_hello(smuggled_actor(Request::new(req("ignored"))))
         .await
         .expect("unary");
     assert_eq!(name_of(reply.get_ref()), "kernel");
     let mut stream = client
-        .server_hello(smuggled(Request::new(req("ignored"))))
+        .server_hello(smuggled_actor(Request::new(req("ignored"))))
         .await
         .expect("server-stream")
         .into_inner();
@@ -7042,12 +7132,12 @@ async fn a_server_interceptor_injects_metadata_the_handler_sees() {
         name_of(&stream.message().await.expect("item").expect("first")),
         "kernel"
     );
-    let (tx, call) = client.client_hello(smuggled(Request::new(())));
+    let (tx, call) = client.client_hello(smuggled_actor(Request::new(())));
     tx.send(req("ignored")).await.expect("send");
     tx.close();
     let reply = call.await.expect("client-stream");
     assert_eq!(name_of(reply.get_ref()), "kernel");
-    let (tx, call) = client.stream_hello(smuggled(Request::new(())));
+    let (tx, call) = client.stream_hello(smuggled_actor(Request::new(())));
     tx.send(req("ignored")).await.expect("send");
     tx.close();
     let mut inbound = call.await.expect("bidi").into_inner();
@@ -7055,235 +7145,463 @@ async fn a_server_interceptor_injects_metadata_the_handler_sees() {
         name_of(&inbound.message().await.expect("item").expect("first")),
         "kernel"
     );
+}
 
+struct SeesAuth;
+
+fn auth_stripped<T>(request: &Request<T>) -> Result<(), Status> {
+    if request.metadata().get("authorization").is_some() {
+        return Err(Status::internal("authorization leaked to handler"));
+    }
+    Ok(())
+}
+
+impl pbrs_grpc::Greeter for SeesAuth {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        auth_stripped(&request)?;
+        Ok(Response::new(common::reply(common::name_of_request(
+            request.get_ref(),
+        ))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        auth_stripped(&request)?;
+        Ok(Response::new(common::reply("ada")))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        auth_stripped(&request)?;
+        let name = common::name_of_request(request.get_ref());
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply(name)).await.ok();
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        auth_stripped(&request)?;
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply("ada")).await.ok();
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+fn interceptor_strip_authorization(rpc: &mut Rpc) -> Result<(), Status> {
+    rpc.metadata_mut().remove("authorization");
+    Ok(())
+}
+
+fn bearer_secret<T>(mut request: Request<T>) -> Request<T> {
+    request
+        .metadata_mut()
+        .insert("authorization", "Bearer secret")
+        .expect("metadata");
+    request
+}
+
+async fn assert_stripped_authorization(client: &GreeterClient) {
+    let reply = client
+        .say_hello(bearer_secret(Request::new(req("ada"))))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream = client
+        .server_hello(bearer_secret(Request::new(req("ada"))))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    assert_eq!(
+        name_of(&stream.message().await.expect("item").expect("first")),
+        "ada"
+    );
+    let (tx, call) = client.client_hello(bearer_secret(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let (tx, call) = client.stream_hello(bearer_secret(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    assert_eq!(
+        name_of(&inbound.message().await.expect("item").expect("first")),
+        "ada"
+    );
+}
+
+struct SeesHops;
+
+fn hops_ok<T>(request: &Request<T>) -> Result<(), Status> {
+    if request.metadata().get("y-drop").is_some() {
+        return Err(Status::internal("y-drop leaked to handler"));
+    }
+    if request.metadata().get("x-keep") != Some("v") {
+        return Err(Status::internal(format!(
+            "x-keep {:?}",
+            request.metadata().get("x-keep")
+        )));
+    }
+    if request.metadata().get_bin("x-trace-bin").as_deref() != Some(&[1u8][..]) {
+        return Err(Status::internal("x-trace-bin missing"));
+    }
+    Ok(())
+}
+
+impl pbrs_grpc::Greeter for SeesHops {
+    async fn say_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        hops_ok(&request)?;
+        Ok(Response::new(common::reply(common::name_of_request(
+            request.get_ref(),
+        ))))
+    }
+
+    async fn client_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        hops_ok(&request)?;
+        Ok(Response::new(common::reply("ada")))
+    }
+
+    async fn server_hello(
+        &self,
+        request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        hops_ok(&request)?;
+        let name = common::name_of_request(request.get_ref());
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply(name)).await.ok();
+        }));
+        Ok(Response::new(stream))
+    }
+
+    async fn stream_hello(
+        &self,
+        request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        hops_ok(&request)?;
+        let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+        drop(tokio::spawn(async move {
+            tx.send(common::reply("ada")).await.ok();
+        }));
+        Ok(Response::new(stream))
+    }
+}
+
+fn interceptor_retain_x_metadata(rpc: &mut Rpc) -> Result<(), Status> {
+    rpc.metadata_mut().retain(|k| k.starts_with("x-"));
+    Ok(())
+}
+
+fn hop_metadata<T>(mut request: Request<T>) -> Request<T> {
+    request.metadata_mut().insert("x-keep", "v").expect("keep");
+    request
+        .metadata_mut()
+        .insert("y-drop", "secret")
+        .expect("drop");
+    request
+        .metadata_mut()
+        .insert_bin("x-trace-bin", [1u8])
+        .expect("bin");
+    request
+}
+
+async fn assert_retained_x_metadata(client: &GreeterClient) {
+    let reply = client
+        .say_hello(hop_metadata(Request::new(req("ada"))))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let mut stream = client
+        .server_hello(hop_metadata(Request::new(req("ada"))))
+        .await
+        .expect("server-stream")
+        .into_inner();
+    assert_eq!(
+        name_of(&stream.message().await.expect("item").expect("first")),
+        "ada"
+    );
+    let (tx, call) = client.client_hello(hop_metadata(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let reply = call.await.expect("client-stream");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    let (tx, call) = client.stream_hello(hop_metadata(Request::new(())));
+    tx.send(req("ada")).await.expect("send");
+    tx.close();
+    let mut inbound = call.await.expect("bidi").into_inner();
+    assert_eq!(
+        name_of(&inbound.message().await.expect("item").expect("first")),
+        "ada"
+    );
+}
+
+#[tokio::test]
+async fn a_server_interceptor_injects_metadata_the_handler_sees() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(ActorEcho)
+            .intercept(interceptor_inject_actor)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_injected_actor(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_server_interceptor_injects_metadata_the_handler_sees() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(ActorEcho)
+            .intercept(interceptor_inject_actor)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_injected_actor(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_interceptor_injects_metadata_the_handler_sees() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(ActorEcho)
+            .intercept(interceptor_inject_actor)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_injected_actor(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_interceptor_injects_metadata_the_handler_sees() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(ActorEcho)
+            .intercept(interceptor_inject_actor)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_injected_actor(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_interceptor_injects_metadata_the_handler_sees() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(ActorEcho)
+            .intercept(interceptor_inject_actor)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_injected_actor(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
 }
 
 #[tokio::test]
 async fn a_server_interceptor_strips_metadata_before_the_handler() {
-    struct SeesAuth;
-
-    fn auth_stripped<T>(request: &Request<T>) -> Result<(), Status> {
-        if request.metadata().get("authorization").is_some() {
-            return Err(Status::internal("authorization leaked to handler"));
-        }
-        Ok(())
-    }
-
-    impl pbrs_grpc::Greeter for SeesAuth {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            auth_stripped(&request)?;
-            Ok(Response::new(common::reply(common::name_of_request(
-                request.get_ref(),
-            ))))
-        }
-
-        async fn client_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<HelloReply>, Status> {
-            auth_stripped(&request)?;
-            Ok(Response::new(common::reply("ada")))
-        }
-
-        async fn server_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            auth_stripped(&request)?;
-            let name = common::name_of_request(request.get_ref());
-            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
-            drop(tokio::spawn(async move {
-                tx.send(common::reply(name)).await.ok();
-            }));
-            Ok(Response::new(stream))
-        }
-
-        async fn stream_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            auth_stripped(&request)?;
-            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
-            drop(tokio::spawn(async move {
-                tx.send(common::reply("ada")).await.ok();
-            }));
-            Ok(Response::new(stream))
-        }
-    }
-
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(SeesAuth)
-            .intercept(|rpc: &mut Rpc| {
-                rpc.metadata_mut().remove("authorization");
-                Ok(())
-            })
+            .intercept(interceptor_strip_authorization)
             .serve_listener(listener)
             .await
             .ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await);
-    fn bearer<T>(mut request: Request<T>) -> Request<T> {
-        request
-            .metadata_mut()
-            .insert("authorization", "Bearer secret")
-            .expect("metadata");
-        request
-    }
-    let reply = client
-        .say_hello(bearer(Request::new(req("ada"))))
-        .await
-        .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-    let mut stream = client
-        .server_hello(bearer(Request::new(req("ada"))))
-        .await
-        .expect("server-stream")
-        .into_inner();
-    assert_eq!(
-        name_of(&stream.message().await.expect("item").expect("first")),
-        "ada"
-    );
-    let (tx, call) = client.client_hello(bearer(Request::new(())));
-    tx.send(req("ada")).await.expect("send");
-    tx.close();
-    let reply = call.await.expect("client-stream");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-    let (tx, call) = client.stream_hello(bearer(Request::new(())));
-    tx.send(req("ada")).await.expect("send");
-    tx.close();
-    let mut inbound = call.await.expect("bidi").into_inner();
-    assert_eq!(
-        name_of(&inbound.message().await.expect("item").expect("first")),
-        "ada"
-    );
+    assert_stripped_authorization(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
 }
 
 #[tokio::test]
+async fn a_tls_server_interceptor_strips_metadata_before_the_handler() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesAuth)
+            .intercept(interceptor_strip_authorization)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_stripped_authorization(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_interceptor_strips_metadata_before_the_handler() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesAuth)
+            .intercept(interceptor_strip_authorization)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_stripped_authorization(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_interceptor_strips_metadata_before_the_handler() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesAuth)
+            .intercept(interceptor_strip_authorization)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_stripped_authorization(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_interceptor_strips_metadata_before_the_handler() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesAuth)
+            .intercept(interceptor_strip_authorization)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_stripped_authorization(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn a_server_interceptor_retains_a_subset_of_metadata() {
-    struct SeesHops;
-
-    fn hops_ok<T>(request: &Request<T>) -> Result<(), Status> {
-        if request.metadata().get("y-drop").is_some() {
-            return Err(Status::internal("y-drop leaked to handler"));
-        }
-        if request.metadata().get("x-keep") != Some("v") {
-            return Err(Status::internal(format!(
-                "x-keep {:?}",
-                request.metadata().get("x-keep")
-            )));
-        }
-        if request.metadata().get_bin("x-trace-bin").as_deref() != Some(&[1u8][..]) {
-            return Err(Status::internal("x-trace-bin missing"));
-        }
-        Ok(())
-    }
-
-    impl pbrs_grpc::Greeter for SeesHops {
-        async fn say_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<HelloReply>, Status> {
-            hops_ok(&request)?;
-            Ok(Response::new(common::reply(common::name_of_request(
-                request.get_ref(),
-            ))))
-        }
-
-        async fn client_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<HelloReply>, Status> {
-            hops_ok(&request)?;
-            Ok(Response::new(common::reply("ada")))
-        }
-
-        async fn server_hello(
-            &self,
-            request: Request<HelloRequest>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            hops_ok(&request)?;
-            let name = common::name_of_request(request.get_ref());
-            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
-            drop(tokio::spawn(async move {
-                tx.send(common::reply(name)).await.ok();
-            }));
-            Ok(Response::new(stream))
-        }
-
-        async fn stream_hello(
-            &self,
-            request: Request<pbrs_grpc::Streaming<HelloRequest>>,
-        ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
-            hops_ok(&request)?;
-            let (tx, stream) = pbrs_grpc::Streaming::channel(1);
-            drop(tokio::spawn(async move {
-                tx.send(common::reply("ada")).await.ok();
-            }));
-            Ok(Response::new(stream))
-        }
-    }
-
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
         GreeterServer::new(SeesHops)
-            .intercept(|rpc: &mut Rpc| {
-                rpc.metadata_mut().retain(|k| k.starts_with("x-"));
-                Ok(())
-            })
+            .intercept(interceptor_retain_x_metadata)
             .serve_listener(listener)
             .await
             .ok();
     });
-
-    let client = GreeterClient::new(channel(addr).await);
-    fn hops<T>(mut request: Request<T>) -> Request<T> {
-        request.metadata_mut().insert("x-keep", "v").expect("keep");
-        request
-            .metadata_mut()
-            .insert("y-drop", "secret")
-            .expect("drop");
-        request
-            .metadata_mut()
-            .insert_bin("x-trace-bin", [1u8])
-            .expect("bin");
-        request
-    }
-    let reply = client
-        .say_hello(hops(Request::new(req("ada"))))
-        .await
-        .expect("unary");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-    let mut stream = client
-        .server_hello(hops(Request::new(req("ada"))))
-        .await
-        .expect("server-stream")
-        .into_inner();
-    assert_eq!(
-        name_of(&stream.message().await.expect("item").expect("first")),
-        "ada"
-    );
-    let (tx, call) = client.client_hello(hops(Request::new(())));
-    tx.send(req("ada")).await.expect("send");
-    tx.close();
-    let reply = call.await.expect("client-stream");
-    assert_eq!(name_of(reply.get_ref()), "ada");
-    let (tx, call) = client.stream_hello(hops(Request::new(())));
-    tx.send(req("ada")).await.expect("send");
-    tx.close();
-    let mut inbound = call.await.expect("bidi").into_inner();
-    assert_eq!(
-        name_of(&inbound.message().await.expect("item").expect("first")),
-        "ada"
-    );
-
+    assert_retained_x_metadata(&GreeterClient::new(channel(addr).await)).await;
     task.abort();
+}
+
+#[tokio::test]
+async fn a_tls_server_interceptor_retains_a_subset_of_metadata() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesHops)
+            .intercept(interceptor_retain_x_metadata)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_retained_x_metadata(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_server_interceptor_retains_a_subset_of_metadata() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesHops)
+            .intercept(interceptor_retain_x_metadata)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_retained_x_metadata(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_server_interceptor_retains_a_subset_of_metadata() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(SeesHops)
+            .intercept(interceptor_retain_x_metadata)
+            .serve_unix(sock)
+            .await
+            .ok();
+    });
+    assert_retained_x_metadata(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_server_interceptor_retains_a_subset_of_metadata() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(SeesHops)
+            .intercept(interceptor_retain_x_metadata)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_retained_x_metadata(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
 }
 
 fn interceptor_set_timeout_5s(rpc: &mut Rpc) -> Result<(), Status> {
@@ -9801,6 +10119,21 @@ async fn a_client_interceptor_sees_unix_localhost_authority() {
     let listener = tokio::net::UnixListener::bind(&path).expect("bind");
     let task = tokio::spawn(async move {
         GreeterServer::new(Echo)
+            .intercept(|rpc: &mut Rpc| {
+                if rpc.authority() != Some("localhost") {
+                    return Err(Status::internal(format!(
+                        "unix server authority {:?}",
+                        rpc.authority()
+                    )));
+                }
+                if rpc.scheme() != Some("http") {
+                    return Err(Status::internal(format!(
+                        "unix https_scheme must stay http, got {:?}",
+                        rpc.scheme()
+                    )));
+                }
+                Ok(())
+            })
             .serve_unix_listener(listener)
             .await
             .ok();

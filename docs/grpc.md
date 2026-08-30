@@ -711,6 +711,8 @@ certificate chain (DER, leaf first) on every call shape. TLS without a client ce
 Unix, `serve_connection`, and the default `Incoming` yield `None`.
 `Incoming::peer` can supply a chain the acceptor already verified
 (`PeerIdentity::from_der_certs`). `:scheme` is `https` on every call shape.
+`:authority` is the client's `Target` (a `SocketAddr` is `127.0.0.1:port`),
+not TLS SNI.
 The kernel does not parse X.509;
 an interceptor that needs a CN or SAN decodes the leaf:
 
@@ -1288,9 +1290,10 @@ GreeterServer::new(MyGreeter)
 ```
 
 The handler sees the mutated metadata on `request.metadata()`, including
-injected keys and without stripped ones. `set` / `set_bin` replace a hop the
+injected keys and without stripped ones, on h2c, TLS, mTLS, Unix, and
+`from_io`. `set` / `set_bin` replace a hop the
 interceptor owns (a peer-supplied `x-actor` does not survive). `retain` keeps
-a subset of names. `Rpc::peer_timeout` is the client's
+a subset of names, including `-bin` keys. `Rpc::peer_timeout` is the client's
 `grpc-timeout`; `Rpc::rpc_timeout` is the server cap overlay (`Server::timeout`)
 and stays visible after `set_timeout`; `Rpc::effective_timeout` is the soonest of
 that overlay, the client header, and `set_timeout`. `Rpc::deadline` is that same duration as an
@@ -1304,7 +1307,11 @@ Stacked server interceptors can only tighten that cap, on those transports
 too. The handler Instant is stamped once at dispatch. That original duration is
 `Request::peer_timeout` / `Parts::peer_timeout`. The server overlay is
 `Request::rpc_timeout` / `Parts::rpc_timeout` and stays visible after
-`Rpc::set_timeout`, including over TLS, mTLS, Unix, and `from_io`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent.
+`Rpc::set_timeout`, including over TLS, mTLS, Unix, and `from_io`. `Rpc::authority` is the HTTP/2 `:authority` the peer sent. On TLS (including
+mTLS) that is the client's `Target` — a `SocketAddr` is `127.0.0.1:port`,
+not TLS SNI (`ClientTls` verifies `localhost` separately) — and matches
+`Channel::authority` / `Outgoing::authority`. Unix is `localhost` even after
+`Channel::https_scheme`.
 `Rpc::scheme` is `http` on h2c (including Unix) and `https` on TLS, taken from
 the transport so a peer cannot claim TLS on cleartext. The default `Incoming`
 and `serve_connection` keep the peer's `:scheme`; `Incoming::peer` can set a
