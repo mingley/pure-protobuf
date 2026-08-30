@@ -261,8 +261,9 @@ impl Endpoint {
 /// Read those overlays with [`Self::rpc_timeout`], [`Self::waits_for_ready`],
 /// [`Self::compresses_outbound`], [`Self::accepts_compressed`], [`Self::concurrent_rpc_limit`], and
 /// [`Self::config`]. Keepalive, idle, age, TCP
-/// keepalive, connection count, HTTP/2 windows, and the rapid-reset cap are
-/// set at handshake ([`ChannelConfig`] / [`Self::connect_with`]).
+/// keepalive, connection count, HTTP/2 windows, the rapid-reset cap, and the
+/// protocol-error RST cap are set at handshake ([`ChannelConfig`] /
+/// [`Self::connect_with`]).
 ///
 /// [`Debug`] prints the authority, pool size, and config. It does not dump
 /// live HTTP/2 state.

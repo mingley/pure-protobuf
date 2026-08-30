@@ -4188,6 +4188,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error. Default 1024. Exceeding this is `ENHANCE_YOUR_CALM`. Distinct from [`Self::max_pending_accept_reset_streams`], which caps remotely-reset streams (rapid reset). This caps RSTs we send after an invalid frame. A well-behaved client never triggers one; every call shape still completes, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::max_local_error_reset_streams`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {{ self.config = self.config.max_local_error_reset_streams(n); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Cap every RPC even when the client omits `grpc-timeout`. Applies to every call shape, including over TLS, mTLS, Unix, and [`{G}::Server::serve_connection`]. See [`{G}::ServerConfig::timeout`]."
     );
     let _ = writeln!(src, "    #[must_use]");

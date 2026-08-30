@@ -52,6 +52,14 @@ pub const DEFAULT_MAX_CONNECTION_AGE_GRACE: Duration = Duration::from_secs(10);
 /// `ENHANCE_YOUR_CALM` and the connection is dropped.
 pub const DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS: usize = 20;
 
+/// HTTP/2 protocol-error RST cap: locally-reset streams after an invalid frame.
+///
+/// h2's default, set explicitly. A peer that forces protocol-error RSTs
+/// (invalid frames) increments this count; exceeding it is
+/// `ENHANCE_YOUR_CALM` and the connection is dropped. Distinct from
+/// [`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`] (rapid reset, remote RSTs).
+pub const DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS: usize = 1024;
+
 /// The per-stream settings the wire layer needs: message caps plus how much
 /// the connection will buffer before a write has to wait for flow control.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,6 +94,7 @@ pub struct ServerConfig {
     max_send_buffer_size: usize,
     max_header_list_size: u32,
     max_pending_accept_reset_streams: usize,
+    max_local_error_reset_streams: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
@@ -111,6 +120,7 @@ impl Default for ServerConfig {
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
+            max_local_error_reset_streams: DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
@@ -257,6 +267,27 @@ impl ServerConfig {
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.max_pending_accept_reset_streams = n;
+        self
+    }
+
+    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error.
+    /// Default 1024 ([`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`]). Exceeding
+    /// this is `ENHANCE_YOUR_CALM` and the connection is dropped.
+    /// Distinct from [`Self::max_pending_accept_reset_streams`]: that caps
+    /// remotely-reset streams waiting in the accept queue (rapid reset).
+    /// This caps RSTs we send after an invalid frame.
+    /// h2's `None` disable is not exposed. Applies to every call shape.
+    /// A well-behaved client never triggers one; every call shape still
+    /// completes, including over TLS, mTLS, Unix, and
+    /// [`crate::Server::serve_connection`].
+    ///
+    /// [`crate::Server::max_local_error_reset_streams`],
+    /// [`crate::Router::max_local_error_reset_streams`], and generated
+    /// `FooServer::max_local_error_reset_streams` set this without building a
+    /// [`ServerConfig`].
+    #[must_use]
+    pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
+        self.max_local_error_reset_streams = n;
         self
     }
 
@@ -566,6 +597,13 @@ impl ServerConfig {
         self.max_pending_accept_reset_streams
     }
 
+    /// Locally-reset HTTP/2 streams caused by a peer protocol error.
+    /// See [`Self::max_local_error_reset_streams`]. Applies to every call shape.
+    #[must_use]
+    pub fn local_error_reset_streams(self) -> usize {
+        self.max_local_error_reset_streams
+    }
+
     /// TLS accept and HTTP/2 preface bound. See [`Self::handshake_timeout`].
     /// Applies to every call shape.
     #[must_use]
@@ -627,7 +665,8 @@ impl ServerConfig {
             .max_concurrent_streams(self.max_concurrent_streams)
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
-            .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams);
+            .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
+            .max_local_error_reset_streams(Some(self.max_local_error_reset_streams));
         builder
     }
 }
@@ -670,6 +709,7 @@ pub struct ChannelConfig {
     max_send_buffer_size: usize,
     max_header_list_size: u32,
     max_pending_accept_reset_streams: usize,
+    max_local_error_reset_streams: usize,
     stream_buffer: usize,
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
@@ -697,6 +737,7 @@ impl Default for ChannelConfig {
             max_send_buffer_size: DEFAULT_MAX_SEND_BUFFER_SIZE,
             max_header_list_size: DEFAULT_MAX_HEADER_LIST_SIZE,
             max_pending_accept_reset_streams: DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
+            max_local_error_reset_streams: DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
             stream_buffer: DEFAULT_STREAM_BUFFER,
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
@@ -870,6 +911,24 @@ impl ChannelConfig {
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.max_pending_accept_reset_streams = n;
+        self
+    }
+
+    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error.
+    /// Default 1024 ([`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`]). Exceeding
+    /// this is `ENHANCE_YOUR_CALM` and the connection is dropped.
+    /// Applied at handshake, not as a live overlay.
+    /// Distinct from [`ServerConfig::max_local_error_reset_streams`], which
+    /// still serves when the server caps protocol-error RSTs. Distinct from
+    /// [`Self::max_pending_accept_reset_streams`] (rapid reset, remote RSTs).
+    /// This caps RSTs we send after an invalid frame.
+    /// h2's `None` disable is not exposed.
+    /// A well-behaved server never forces this; every call shape still
+    /// completes, including over TLS, mTLS, Unix, and
+    /// [`crate::Channel::from_io`].
+    #[must_use]
+    pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
+        self.max_local_error_reset_streams = n;
         self
     }
 
@@ -1175,6 +1234,13 @@ impl ChannelConfig {
         self.max_pending_accept_reset_streams
     }
 
+    /// Locally-reset HTTP/2 streams caused by a peer protocol error.
+    /// See [`Self::max_local_error_reset_streams`]. Applies to every call shape.
+    #[must_use]
+    pub fn local_error_reset_streams(self) -> usize {
+        self.max_local_error_reset_streams
+    }
+
     /// Dial bound: TCP/Unix connect, optional TLS, peer SETTINGS.
     /// See [`Self::connect_timeout`]. Applies to every call shape once that
     /// dial happens.
@@ -1269,6 +1335,7 @@ impl ChannelConfig {
             .max_send_buffer_size(self.max_send_buffer_size)
             .max_header_list_size(self.max_header_list_size)
             .max_pending_accept_reset_streams(self.max_pending_accept_reset_streams)
+            .max_local_error_reset_streams(Some(self.max_local_error_reset_streams))
             .enable_push(false)
             // h2's handshake future returns after writing the client preface,
             // before the peer speaks. Starting send capacity at 0 lets
@@ -1310,8 +1377,16 @@ mod tests {
             super::DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS
         );
         assert_eq!(
+            config.local_error_reset_streams(),
+            super::DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS
+        );
+        assert_eq!(
             ChannelConfig::new().pending_accept_reset_streams(),
             super::DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS
+        );
+        assert_eq!(
+            ChannelConfig::new().local_error_reset_streams(),
+            super::DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS
         );
         assert_eq!(
             ServerConfig::new()
@@ -1329,6 +1404,24 @@ mod tests {
             ServerConfig::new()
                 .max_pending_accept_reset_streams(0)
                 .pending_accept_reset_streams(),
+            0
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .max_local_error_reset_streams(5)
+                .local_error_reset_streams(),
+            5
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .max_local_error_reset_streams(5)
+                .local_error_reset_streams(),
+            5
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .max_local_error_reset_streams(0)
+                .local_error_reset_streams(),
             0
         );
         assert_eq!(config.handshake_wait(), super::DEFAULT_CONNECT_TIMEOUT);
@@ -1484,13 +1577,15 @@ mod tests {
             .max_frame_size(16_384)
             .max_concurrent_streams(8)
             .max_header_list_size(32)
-            .max_pending_accept_reset_streams(3);
+            .max_pending_accept_reset_streams(3)
+            .max_local_error_reset_streams(7);
         assert_eq!(server.stream_window(), 1);
         assert_eq!(server.connection_window(), 2);
         assert_eq!(server.frame_size(), 16_384);
         assert_eq!(server.concurrent_streams(), 8);
         assert_eq!(server.header_list_size(), 32);
         assert_eq!(server.pending_accept_reset_streams(), 3);
+        assert_eq!(server.local_error_reset_streams(), 7);
 
         let channel = ChannelConfig::new()
             .initial_stream_window_size(3)
@@ -1498,13 +1593,15 @@ mod tests {
             .max_frame_size(16_384)
             .max_concurrent_streams(9)
             .max_header_list_size(64)
-            .max_pending_accept_reset_streams(11);
+            .max_pending_accept_reset_streams(11)
+            .max_local_error_reset_streams(13);
         assert_eq!(channel.stream_window(), 3);
         assert_eq!(channel.connection_window(), 4);
         assert_eq!(channel.frame_size(), 16_384);
         assert_eq!(channel.concurrent_streams(), 9);
         assert_eq!(channel.header_list_size(), 64);
         assert_eq!(channel.pending_accept_reset_streams(), 11);
+        assert_eq!(channel.local_error_reset_streams(), 13);
         assert!(!ChannelConfig::new().compresses_outbound());
         assert!(ChannelConfig::new()
             .send_compressed(true)

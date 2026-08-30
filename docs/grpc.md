@@ -1228,6 +1228,7 @@ guards is committed.
 | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in |
 | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in |
 | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 (`ServerConfig::max_pending_accept_reset_streams`) |
+| HTTP/2 protocol-error RST flood | Cap locally-reset streams caused by invalid frames | 1024 (`ServerConfig::max_local_error_reset_streams`) |
 | HTTP/2 CONTINUATION flood | Cap CONTINUATION frames on an unfinished header block; that connection drops | always (`h2`, scaled from `max_header_list_size`) |
 | Unfinished HEADERS | Header block without `END_HEADERS` stalls that stream only | always |
 | Client RST after the request is read | Drop the handler; abort a stream drain waiting for the next message | always |
@@ -1259,6 +1260,16 @@ as `ENHANCE_YOUR_CALM`; the accept loop still serves a well-behaved client.
 The raw flood is h2c-only (`tests/hostile.rs`; no TLS raw peer).
 `ChannelConfig::max_pending_accept_reset_streams` is the client accept queue,
 not the server cap.
+
+A well-behaved client never triggers a protocol-error RST; every call
+shape still completes over TLS, mTLS, Unix, and `from_io`. Distinct from a
+raw HTTP/2 peer that forces those RSTs: that connection drops as
+`ENHANCE_YOUR_CALM`; the accept loop still serves a well-behaved client.
+Distinct from rapid reset, this cap is RSTs we send after an invalid frame.
+Exceeding it is `ENHANCE_YOUR_CALM` (h2 `too_many_internal_resets`). The
+raw flood is h2c-only (`tests/hostile.rs`; no TLS raw peer).
+`ChannelConfig::max_local_error_reset_streams` is the client handshake cap,
+not the server cap. h2's `None` disable is not exposed.
 
 A raw peer that sends more CONTINUATION frames than the header-list cap
 allows drops that connection (`ENHANCE_YOUR_CALM`); an unfinished HEADERS
@@ -1310,8 +1321,9 @@ Two layers of tests enforce this.
 `tests/hostile.rs` speaks raw HTTP/2 so it can send bytes no real client would
 — a length prefix claiming 4 GiB, a 64 MiB gzip bomb small enough on the wire
 to pass the frame check, reserved compressed-flag values, truncated frames,
-malformed paths, garbage protobuf, `application/grpc+json`, GET/PUT, and a
-rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`
+malformed paths, garbage protobuf, `application/grpc+json`, GET/PUT, a
+rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`,
+and a protocol-error RST flood that exceeds `max_local_error_reset_streams`
 — and requires that every case answers with a status (or HTTP 405/415, or
 drops that connection as `ENHANCE_YOUR_CALM`) and leaves the server serving.
 The rapid-reset flood is h2c-only.
@@ -1403,9 +1415,10 @@ to size in either direction.
 
 Everything else — `max_frame_size`, `max_concurrent_streams`,
 `max_send_buffer_size`, `max_header_list_size`,
-`max_pending_accept_reset_streams` — is available on `Server` /
-`Router` / generated `FooServer` as well as `ServerConfig` and `ChannelConfig`,
-and is more likely to be a safety decision than a performance one.
+`max_pending_accept_reset_streams`, `max_local_error_reset_streams` — is
+available on `Server` / `Router` / generated `FooServer` as well as
+`ServerConfig` and `ChannelConfig`, and is more likely to be a safety
+decision than a performance one.
 
 ## Interceptors and middleware
 

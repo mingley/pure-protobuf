@@ -2,10 +2,11 @@
 //!
 //! These tests speak raw HTTP/2 so they can send bytes no real client would:
 //! oversize length prefixes, gzip bombs, reserved flag values, truncated
-//! frames, wrong content types, an HTTP/2 rapid-reset flood, and a HEADERS
-//! block split across CONTINUATION frames. Every case must produce a `Status`
-//! (or drop that connection) and leave the server serving. Rapid reset and
-//! CONTINUATION floods are h2c-only here; TLS has no raw `h2` peer.
+//! frames, wrong content types, an HTTP/2 rapid-reset flood, a protocol-error
+//! RST flood, and a HEADERS block split across CONTINUATION frames. Every
+//! case must produce a `Status` (or drop that connection) and leave the
+//! server serving. Rapid reset, protocol-error RST, and CONTINUATION floods
+//! are h2c-only here; TLS has no raw `h2` peer.
 
 #![allow(
     clippy::disallowed_methods,
@@ -659,10 +660,29 @@ async fn rst_flood_beyond_pending_reset_cap_drops_that_connection() {
 }
 
 const H2_PREFACE: &[u8] = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
+const FRAME_DATA: u8 = 0x0;
 const FRAME_HEADERS: u8 = 0x1;
+const FRAME_PRIORITY: u8 = 0x2;
 const FRAME_SETTINGS: u8 = 0x4;
+const FRAME_GOAWAY: u8 = 0x7;
 const FRAME_CONTINUATION: u8 = 0x9;
 const FLAG_ACK: u8 = 0x1;
+const FLAG_END_STREAM: u8 = 0x1;
+const FLAG_END_HEADERS: u8 = 0x4;
+
+/// PRIORITY frame whose stream depends on itself: h2 `library_reset`
+/// `PROTOCOL_ERROR`. Distinct from DATA after `END_STREAM`, which h2 0.4
+/// treats as a connection `PROTOCOL_ERROR` (not a counted library RST).
+fn priority_self_dep(stream_id: u32) -> Vec<u8> {
+    let payload = [
+        ((stream_id >> 24) & 0x7f) as u8,
+        (stream_id >> 16) as u8,
+        (stream_id >> 8) as u8,
+        stream_id as u8,
+        16,
+    ];
+    h2_frame(FRAME_PRIORITY, 0, stream_id, &payload)
+}
 
 /// Length-prefixed HTTP/2 frame. `h2::client` always sends a complete header
 /// block; this is how a test splits HEADERS across CONTINUATION.
@@ -814,7 +834,7 @@ async fn continuation_flood_drops_that_connection() {
     let started = std::time::Instant::now();
     let dropped = loop {
         match tokio::time::timeout(Duration::from_millis(200), peer.read_frame()).await {
-            Ok(Ok((0x7, _, _, _))) => break true, // GOAWAY
+            Ok(Ok((FRAME_GOAWAY, _, _, _))) => break true,
             Ok(Ok(_)) => {
                 if started.elapsed() > Duration::from_millis(800) {
                     break false;
@@ -826,6 +846,44 @@ async fn continuation_flood_drops_that_connection() {
     assert!(
         dropped,
         "CONTINUATION flood must trip too_many_continuations and drop that connection"
+    );
+    assert_accept_loop_still_serves(addr).await;
+}
+
+/// A raw peer that forces library RSTs (PRIORITY self-dependency) beyond
+/// [`ServerConfig::max_local_error_reset_streams`] drops that connection
+/// (`ENHANCE_YOUR_CALM` / `too_many_internal_resets`). A well-behaved client
+/// on a fresh connection still serves. Distinct from rapid-reset (remote
+/// `RST_STREAM`s in the accept queue) and from DATA after `END_STREAM`
+/// (`FRAME_DATA` after HEADERS with `FLAG_END_HEADERS | FLAG_END_STREAM`),
+/// which h2 0.4 treats as a connection `PROTOCOL_ERROR`, not a counted
+/// library RST. h2c-only (`RawH2`).
+#[tokio::test]
+async fn protocol_error_rst_flood_drops_that_connection() {
+    let _ = (FRAME_DATA, FLAG_END_HEADERS | FLAG_END_STREAM);
+    let (addr, _guard) =
+        spawn_greeter_server(ServerConfig::new().max_local_error_reset_streams(1)).await;
+    let mut peer = RawH2::connect(addr).await;
+    // Cap 1: the first library RST is sent; the second GOAWAYs.
+    peer.write_all(&priority_self_dep(1)).await;
+    peer.write_all(&priority_self_dep(3)).await;
+    peer.write_all(&priority_self_dep(5)).await;
+
+    let started = std::time::Instant::now();
+    let dropped = loop {
+        match tokio::time::timeout(Duration::from_millis(200), peer.read_frame()).await {
+            Ok(Ok((FRAME_GOAWAY, _, _, _))) => break true,
+            Ok(Ok(_)) => {
+                if started.elapsed() > Duration::from_millis(800) {
+                    break false;
+                }
+            }
+            Ok(Err(_)) | Err(_) => break true,
+        }
+    };
+    assert!(
+        dropped,
+        "protocol-error RST flood must trip max_local_error_reset_streams and drop that connection"
     );
     assert_accept_loop_still_serves(addr).await;
 }

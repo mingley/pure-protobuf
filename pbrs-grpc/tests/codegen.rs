@@ -1375,6 +1375,7 @@ async fn generated_servers_accept_configuration() {
             .max_header_list_size(8 * 1024)
             .max_send_buffer_size(512 * 1024)
             .max_pending_accept_reset_streams(3)
+            .max_local_error_reset_streams(8)
             .serve_listener(listener)
             .await
             .ok();
@@ -3981,6 +3982,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
             "A well-behaved client never fills that queue; every call shape still completes, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]. Distinct from a raw HTTP/2 peer."
         ),
         "generated max_pending_accept_reset_streams rustdoc must name still-serves Distinct from a raw RST flood"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`Self::max_pending_accept_reset_streams`], which caps remotely-reset streams (rapid reset). This caps RSTs we send after an invalid frame. A well-behaved client never triggers one; every call shape still completes, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."
+        ),
+        "generated max_local_error_reset_streams rustdoc must Distinct library RSTs from rapid reset on every transport"
     );
     assert!(
         src.contains(

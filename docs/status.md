@@ -267,6 +267,13 @@ See `docs/upb.md`. Short list:
   that exceeds `max_pending_accept_reset_streams` drops that connection
   (`ENHANCE_YOUR_CALM`); the accept loop still serves a well-behaved client.
   Distinct from wrap still-serves. h2c-only (`RawPeer`; no TLS raw peer).
+  `ServerConfig::max_local_error_reset_streams` (default 1024) caps RSTs we
+  send after an invalid frame. Exceeding it is `ENHANCE_YOUR_CALM`; the
+  accept loop still serves. Distinct from rapid reset (remotely-reset
+  streams). h2's `None` disable is not exposed. A raw PRIORITY
+  self-dependency flood is h2c-only (`RawH2`). `Server` / `Router` /
+  generated `FooServer` / `ChannelConfig` still serve at that cap on h2c
+  and `from_io`.
   The gRPC guide Distincts that well-behaved still-serves from the raw flood,
   and Distincts `ChannelConfig::max_pending_accept_reset_streams` as the
   client accept queue, not the server cap.

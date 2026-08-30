@@ -142,6 +142,7 @@
 //! | Handler that never returns | Cap the RPC even when the client omits `grpc-timeout` | opt-in [`ServerConfig::timeout`] |
 //! | Silent TCP half-open | TCP `SO_KEEPALIVE` (not HTTP/2 PING) | opt-in [`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`] |
 //! | HTTP/2 rapid reset | Cap remotely-reset streams waiting in the accept queue | 20 ([`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`], override [`ServerConfig::max_pending_accept_reset_streams`]) |
+//! | HTTP/2 protocol-error RST flood | Cap locally-reset streams caused by invalid frames | 1024 ([`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`], override [`ServerConfig::max_local_error_reset_streams`]) |
 //! | HTTP/2 CONTINUATION flood | Cap CONTINUATION frames on an unfinished header block; that connection drops | always (`h2`, scaled from [`ServerConfig::max_header_list_size`]) |
 //! | Unfinished HEADERS | Header block without `END_HEADERS` stalls that stream only; the accept loop still serves | always |
 //! | Client RST after the request is read | Signal [`Request::cancelled`], then drop a still-pending handler; abort a stream drain waiting for the next message | always |
@@ -160,6 +161,11 @@
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as
 //! `ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client.
 //! The flood is h2c-only. A well-behaved client never fills that queue.
+//! Distinct from a protocol-error RST flood: invalid frames force RSTs *we*
+//! send, capped by [`ServerConfig::max_local_error_reset_streams`] (default
+//! [`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`]). Exceeding that is also
+//! `ENHANCE_YOUR_CALM`; the accept loop still serves a well-behaved client.
+//! h2's `None` disable is not exposed.
 //! A raw peer that sends more CONTINUATION frames than the header-list cap
 //! allows also drops that connection (`ENHANCE_YOUR_CALM`); an unfinished
 //! HEADERS frame (no `END_HEADERS`) does not take the accept loop down.
@@ -295,8 +301,9 @@ pub use client::{Channel, Target};
 pub use config::{
     ChannelConfig, ServerConfig, DEFAULT_CONNECT_TIMEOUT, DEFAULT_KEEP_ALIVE_TIMEOUT,
     DEFAULT_MAX_CONCURRENT_STREAMS, DEFAULT_MAX_CONNECTION_AGE_GRACE, DEFAULT_MAX_FRAME_SIZE,
-    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS,
-    DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER, DEFAULT_WINDOW_SIZE,
+    DEFAULT_MAX_HEADER_LIST_SIZE, DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS,
+    DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS, DEFAULT_MAX_SEND_BUFFER_SIZE, DEFAULT_STREAM_BUFFER,
+    DEFAULT_WINDOW_SIZE,
 };
 /// `futures_core::future::FusedFuture`, so a finished [`Call`] is skipped by
 /// combinators that honour termination.

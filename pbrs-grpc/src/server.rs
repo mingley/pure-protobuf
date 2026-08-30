@@ -1473,6 +1473,20 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error.
+    /// Applies to every call shape. See
+    /// [`ServerConfig::max_local_error_reset_streams`].
+    /// Exceeding this is `ENHANCE_YOUR_CALM`. Distinct from
+    /// [`Self::max_pending_accept_reset_streams`]: that caps remotely-reset
+    /// streams (rapid reset). This caps RSTs we send after an invalid frame.
+    /// A well-behaved client never triggers one; every call shape still
+    /// completes, including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
+        self.config = self.config.max_local_error_reset_streams(n);
+        self
+    }
+
     /// Cap every RPC even when the client omits `grpc-timeout`. Applies to
     /// every call shape, including over TLS, mTLS, Unix, and
     /// [`Self::serve_connection`]. See [`ServerConfig::timeout`].
@@ -2125,6 +2139,20 @@ impl Router {
     #[must_use]
     pub fn max_pending_accept_reset_streams(mut self, n: usize) -> Self {
         self.config = self.config.max_pending_accept_reset_streams(n);
+        self
+    }
+
+    /// Cap locally-reset HTTP/2 streams caused by a peer protocol error.
+    /// Applies to every call shape. See
+    /// [`ServerConfig::max_local_error_reset_streams`].
+    /// Exceeding this is `ENHANCE_YOUR_CALM`. Distinct from
+    /// [`Self::max_pending_accept_reset_streams`]: that caps remotely-reset
+    /// streams (rapid reset). This caps RSTs we send after an invalid frame.
+    /// A well-behaved client never triggers one; every call shape still
+    /// completes, including over TLS, mTLS, Unix, and [`Self::serve_connection`].
+    #[must_use]
+    pub fn max_local_error_reset_streams(mut self, n: usize) -> Self {
+        self.config = self.config.max_local_error_reset_streams(n);
         self
     }
 

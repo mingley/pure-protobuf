@@ -1102,6 +1102,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must Distinct keepalive PINGs from postponing age"
     );
     assert!(
+        channel.contains("protocol-error RST cap are set at handshake"),
+        "Channel rustdoc must name protocol-error RST cap as handshake-only"
+    );
+    assert!(
         src.contains(
             "Open `n` independent HTTP/2 connections and spread RPCs round-robin.\n    /// Applies to every call shape, including over TLS, mTLS, and Unix.\n    /// [`crate::Channel::from_io`] cannot pool: [`crate::Channel::from_io_with`]\n    /// forces `connections` to 1."
         ),
@@ -1388,6 +1392,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ServerConfig::max_pending_accept_reset_streams must name still-serves Distinct from a raw RST flood"
     );
     assert_eq!(
+        src.matches("This caps RSTs we send after an invalid frame.")
+            .count(),
+        2,
+        "ServerConfig and ChannelConfig max_local_error_reset_streams must Distinct library RSTs from rapid reset"
+    );
+    assert!(
+        src.contains("h2's `None` disable is not exposed"),
+        "ServerConfig::max_local_error_reset_streams must not expose h2's None disable"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`ServerConfig::max_local_error_reset_streams`], which\n    /// still serves when the server caps protocol-error RSTs."
+        ),
+        "ChannelConfig::max_local_error_reset_streams must name client handshake Distinct from server still-serves"
+    );
+    assert_eq!(
         src.matches("A well-behaved client never fills that queue; every call shape still")
             .count(),
         1,
@@ -1473,6 +1493,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("does not take the accept loop down."),
         "crate docs must Distinct unfinished HEADERS from taking the accept loop down"
+    );
+    assert!(
+        crate_src.contains("HTTP/2 protocol-error RST flood"),
+        "crate threat table must name protocol-error RST flood"
+    );
+    assert!(
+        crate_src.contains("Distinct from a protocol-error RST flood: invalid frames force RSTs"),
+        "crate docs must Distinct protocol-error RST flood from rapid reset"
+    );
+    assert!(
+        crate_src.contains("h2's `None` disable is not exposed"),
+        "crate docs must not expose h2's None disable for protocol-error RSTs"
     );
     assert!(
         crate_src.contains("so a finished [`Streaming`] is skipped by"),
@@ -1661,6 +1693,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`"
         ),
         "guide must name the hostile.rs rapid-reset flood"
+    );
+    assert!(
+        guide.contains("HTTP/2 protocol-error RST flood"),
+        "guide threat table must name protocol-error RST flood"
+    );
+    assert!(
+        guide.contains("this cap is RSTs we send after an invalid frame"),
+        "guide must Distinct protocol-error RST cap from rapid reset"
+    );
+    assert!(
+        guide.contains("a protocol-error RST flood that exceeds `max_local_error_reset_streams`"),
+        "guide must name the hostile.rs protocol-error RST flood"
     );
     let benches = include_str!("../../docs/benchmarks.md");
     assert!(
@@ -1924,6 +1968,20 @@ fn server_and_router_config_document_every_call_shape() {
         .count(),
         2,
         "Server and Router max_pending_accept_reset_streams must name still-serves Distinct from a raw RST flood"
+    );
+    assert_eq!(
+        src.matches(
+            "Cap locally-reset HTTP/2 streams caused by a peer protocol error.\n    /// Applies to every call shape."
+        )
+        .count(),
+        2,
+        "Server::max_local_error_reset_streams and Router::max_local_error_reset_streams must name every call shape"
+    );
+    assert_eq!(
+        src.matches("This caps RSTs we send after an invalid frame.")
+            .count(),
+        2,
+        "Server and Router max_local_error_reset_streams must Distinct library RSTs from rapid reset"
     );
     assert_eq!(
         src.matches(
@@ -12925,12 +12983,14 @@ fn http2_tuning_knobs_are_fluent_on_server_and_router() {
         .initial_connection_window_size(7 * 1024 * 1024)
         .max_header_list_size(4096)
         .max_send_buffer_size(123_456)
-        .max_pending_accept_reset_streams(3);
+        .max_pending_accept_reset_streams(3)
+        .max_local_error_reset_streams(7);
     let dbg = format!("{router:?}");
     assert!(dbg.contains("7340032"), "{dbg}");
     assert!(dbg.contains("4096"), "{dbg}");
     assert!(dbg.contains("123456"), "{dbg}");
     assert!(dbg.contains("max_pending_accept_reset_streams: 3"), "{dbg}");
+    assert!(dbg.contains("max_local_error_reset_streams: 7"), "{dbg}");
 }
 
 async fn assert_dead_channel_redials(client: &GreeterClient) {
@@ -29585,6 +29645,112 @@ async fn from_io_pending_reset_config_and_router_still_serve_every_shape() {
     echo_every_shape(
         &GreeterClient::new(
             Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+fn local_error_reset_server() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).max_local_error_reset_streams(1)
+}
+
+fn local_error_reset_config() -> GreeterServer<Echo> {
+    GreeterServer::new(Echo).config(ServerConfig::new().max_local_error_reset_streams(1))
+}
+
+fn local_error_reset_router() -> Router {
+    Router::new()
+        .max_local_error_reset_streams(1)
+        .add_service(GreeterServer::new(Echo))
+}
+
+fn client_local_error_reset() -> ChannelConfig {
+    ChannelConfig::new().max_local_error_reset_streams(1)
+}
+
+#[tokio::test]
+async fn local_error_reset_cap_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        local_error_reset_server()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_local_error_reset_cap_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        local_error_reset_server()
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io(client_io, "localhost")
+                .await
+                .expect("from_io"),
+        ),
+        None,
+    )
+    .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn local_error_reset_config_and_router_still_serve_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        local_error_reset_config()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        local_error_reset_router()
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    echo_every_shape(&GreeterClient::new(channel(addr).await), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn client_local_error_reset_still_serves_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        echo_uncapped().serve_listener(listener).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(channel_cfg(addr, client_local_error_reset()).await),
+        None,
+    )
+    .await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_client_local_error_reset_still_serves_every_shape() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        echo_uncapped().serve_connection(server_io).await.ok();
+    });
+    echo_every_shape(
+        &GreeterClient::new(
+            Channel::from_io_with(client_io, "localhost", client_local_error_reset())
                 .await
                 .expect("from_io"),
         ),
