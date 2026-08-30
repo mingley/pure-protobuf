@@ -126,7 +126,10 @@ See `docs/upb.md`. Short list:
   `set_compress(false)` opts out of `send_compressed`, on
   h2c, TLS including mTLS, Unix, and `from_io`), and the channel overlays
   (`Outgoing::rpc_timeout` / `waits_for_ready` / `compresses_outbound`)
-  after `clear_*`.   Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
+  after `clear_*` on h2c, TLS including mTLS, and Unix lazy dialers (fail-fast
+  after `clear_wait_for_ready`) and on `from_io` (already connected; the RPC
+  still runs). `clear_compress` then `set_compress(compresses_outbound())`
+  reapplies channel gzip on those transports plus `from_io`. Wait-for-ready completes on h2c, TLS (`connect_tls_lazy`,
   including mTLS), and Unix (`connect_unix_lazy`) on every call shape, including the channel
   overlay, a client interceptor `set_wait_for_ready(true)`, per-RPC opt-out, a client interceptor `set_wait_for_ready(false)`, and a waiting Call's deadline, including mTLS.
   Official TestService EmptyCall / StreamingOutputCall /

@@ -520,6 +520,18 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "visible even after `clear_*` opts out of\n    /// the already-applied default."
+        ),
+        "Channel::intercept must name overlays after clear_*"
+    );
+    assert!(
+        src.contains(
+            "[`crate::Outgoing::clear_compress`] then\n    /// [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`]\n    /// reapplies channel gzip on every call shape."
+        ),
+        "Channel::intercept must name gzip reapply after clear"
+    );
+    assert!(
+        src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),
         "Channel::stream_buffer must name the streaming shapes it queues"
@@ -2985,64 +2997,109 @@ async fn a_client_interceptor_sees_channel_overlays_after_clear() {
     let (addr, listener) = bind().await;
     drop(listener);
 
-    let client = GreeterClient::new(
-        Channel::connect_lazy(addr)
-            .expect("lazy")
+    let client = overlay_after_clear_client(Channel::connect_lazy(addr).expect("lazy"));
+    assert_cleared_wait_fails_fast(&client).await;
+}
+
+fn overlays_survive_clear(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if call.rpc_timeout() != Some(Duration::from_secs(5)) {
+        return Err(Status::internal(format!(
+            "rpc_timeout {:?}",
+            call.rpc_timeout()
+        )));
+    }
+    if !call.waits_for_ready() {
+        return Err(Status::internal("waits_for_ready overlay"));
+    }
+    if !call.compresses_outbound() {
+        return Err(Status::internal("compresses_outbound overlay"));
+    }
+    if call.timeout() != Some(Duration::from_secs(5)) {
+        return Err(Status::internal(format!("timeout {:?}", call.timeout())));
+    }
+    if !call.wait_for_ready_is_set() || !call.wait_for_ready() {
+        return Err(Status::internal("wait-for-ready not filled"));
+    }
+    if !call.compress_is_set() || !call.compress() {
+        return Err(Status::internal("compress not filled"));
+    }
+    call.clear_timeout();
+    call.clear_wait_for_ready();
+    call.clear_compress();
+    if call.rpc_timeout() != Some(Duration::from_secs(5))
+        || !call.waits_for_ready()
+        || !call.compresses_outbound()
+    {
+        return Err(Status::internal("overlays vanished after clear"));
+    }
+    Ok(())
+}
+
+fn overlay_after_clear_client(channel: Channel) -> GreeterClient {
+    GreeterClient::new(
+        channel
             .timeout(Duration::from_secs(5))
             .wait_for_ready()
             .send_compressed(),
     )
-    .intercept(|call: &mut Outgoing<'_>| {
-        if call.rpc_timeout() != Some(Duration::from_secs(5)) {
-            return Err(Status::internal(format!(
-                "rpc_timeout {:?}",
-                call.rpc_timeout()
-            )));
-        }
-        if !call.waits_for_ready() {
-            return Err(Status::internal("waits_for_ready overlay"));
-        }
-        if !call.compresses_outbound() {
-            return Err(Status::internal("compresses_outbound overlay"));
-        }
-        if call.timeout() != Some(Duration::from_secs(5)) {
-            return Err(Status::internal(format!("timeout {:?}", call.timeout())));
-        }
-        if !call.wait_for_ready_is_set() || !call.wait_for_ready() {
-            return Err(Status::internal("wait-for-ready not filled"));
-        }
-        if !call.compress_is_set() || !call.compress() {
-            return Err(Status::internal("compress not filled"));
-        }
-        call.clear_timeout();
-        call.clear_wait_for_ready();
-        call.clear_compress();
-        if call.rpc_timeout() != Some(Duration::from_secs(5))
-            || !call.waits_for_ready()
-            || !call.compresses_outbound()
-        {
-            return Err(Status::internal("overlays vanished after clear"));
-        }
-        Ok(())
+    .intercept(overlays_survive_clear)
+}
+
+async fn assert_cleared_wait_fails_fast(client: &GreeterClient) {
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        assert_err_on_every_shape(client, Code::Unavailable),
+    )
+    .await
+    .expect("cleared wait-for-ready hung");
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let client =
+        overlay_after_clear_client(Channel::connect_tls_lazy(addr, client_tls).expect("lazy"));
+    assert_cleared_wait_fails_fast(&client).await;
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_sees_channel_overlays_after_clear() {
+    let (addr, listener) = bind().await;
+    drop(listener);
+
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client =
+        overlay_after_clear_client(Channel::connect_tls_lazy(addr, client_tls).expect("lazy"));
+    assert_cleared_wait_fails_fast(&client).await;
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_sees_channel_overlays_after_clear() {
+    let (path, _guard) = unix_test_path();
+    let client = overlay_after_clear_client(Channel::connect_unix_lazy(&path).expect("lazy"));
+    assert_cleared_wait_fails_fast(&client).await;
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_sees_channel_overlays_after_clear() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
     });
-    let err = client
-        .say_hello(Request::new(req("ada")))
-        .await
-        .expect_err("fail-fast after clearing wait-for-ready");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
-    let err = client
-        .server_hello(Request::new(req("ada")))
-        .await
-        .expect_err("server-stream");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
-    let (tx, call) = client.client_hello(Request::new(()));
-    let err = call.await.expect_err("client-stream");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
-    drop(tx);
-    let (tx, call) = client.stream_hello(Request::new(()));
-    let err = call.await.expect_err("bidi");
-    assert_eq!(err.code(), Code::Unavailable, "{err}");
-    drop(tx);
+    let client = overlay_after_clear_client(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    echo_every_shape(&client, None).await;
+    server.abort();
 }
 
 #[tokio::test]
@@ -3054,18 +3111,86 @@ async fn a_client_interceptor_can_reapply_channel_gzip_after_clear() {
             .await
             .ok();
     });
-    let client = GreeterClient::new(channel(addr).await.send_compressed()).intercept(
-        |call: &mut Outgoing<'_>| {
-            if !call.compresses_outbound() {
-                return Err(Status::internal("compresses_outbound overlay"));
-            }
-            call.clear_compress();
-            call.set_compress(call.compresses_outbound());
-            Ok(())
-        },
-    );
+    let client =
+        GreeterClient::new(channel(addr).await.send_compressed()).intercept(reapply_channel_gzip);
     gzip_every_shape(&client).await;
     task.abort();
+}
+
+fn reapply_channel_gzip(call: &mut Outgoing<'_>) -> Result<(), Status> {
+    if !call.compresses_outbound() {
+        return Err(Status::internal("compresses_outbound overlay"));
+    }
+    call.clear_compress();
+    call.set_compress(call.compresses_outbound());
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_tls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await.send_compressed())
+        .intercept(reapply_channel_gzip);
+    gzip_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn an_mtls_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await.send_compressed())
+        .intercept(reapply_channel_gzip);
+    gzip_every_shape(&client).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_unix_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await.send_compressed())
+        .intercept(reapply_channel_gzip);
+    gzip_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn a_from_io_client_interceptor_can_reapply_channel_gzip_after_clear() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(GzipProbe)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io")
+            .send_compressed(),
+    )
+    .intercept(reapply_channel_gzip);
+    gzip_every_shape(&client).await;
+    server.abort();
 }
 
 #[tokio::test]

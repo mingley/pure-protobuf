@@ -1050,7 +1050,11 @@ overlay. That overlay fills compress only when the request omitted a choice, so
 `send_compressed`. An interceptor can still `Outgoing::set_compress(false)`
 (or `true`) on h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_compress` then
 `set_compress(compresses_outbound())` reapplies the channel overlay on every
-call shape. Client- and bidi-streaming `StreamSender::send` is stamped
+call shape, on h2c, TLS (including mTLS), Unix, and `from_io`. Channel overlays
+(`rpc_timeout`, `waits_for_ready`, `compresses_outbound`) stay visible after
+`clear_*` on those dialers. On a lazy channel that is not listening,
+`clear_wait_for_ready` fail-fasts; `from_io` is already connected so the RPC
+still runs. Client- and bidi-streaming `StreamSender::send` is stamped
 after overlays and interceptors run, so `Outgoing::set_compress` on that
 RPC is the same flag `send()` consults.
 `Server::compresses_outbound` / `Router` / `FooServer` read the
