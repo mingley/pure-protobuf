@@ -235,7 +235,7 @@ See `docs/upb.md`. Short list:
   `CallHandle` drops a hanging handler on every call shape over TLS, mTLS,
   Unix, and `from_io` too. A handler that ignores its inbound request
   stream still answers on client-streaming and bidi rather than stalling the
-  window. `max_concurrent_rpcs` refuses extra RPCs on streaming the same as
+  window, including over TLS, mTLS, Unix, and `from_io`. `max_concurrent_rpcs` refuses extra RPCs on streaming the same as
   unary.
   A server-streaming or bidi deadline RSTs the send half before headers and
   after a half-close;
@@ -244,7 +244,8 @@ See `docs/upb.md`. Short list:
   before headers also fires on unary and client-streaming on those transports. Spawned handler work awaiting `Request::cancelled` sees the RST, including
   when the server deadline wins (signalled before trailers). CallHandle cancel
   of spawned work on every call shape also runs over TLS, mTLS, Unix, and
-  `from_io`. Generated trait
+  `from_io`. Spawned work also observes `Request::cancelled` when the RPC
+  completes on those transports. Generated trait
   rustdoc names `Request::cancelled` on every call shape (and
   `StreamSender::closed` on server-streaming); unary `Channel` / generated
   client methods name `CallHandle`. Generated client-streaming and bidi

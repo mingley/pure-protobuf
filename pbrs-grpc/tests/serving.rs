@@ -7923,6 +7923,104 @@ async fn a_handler_that_ignores_its_request_stream_still_answers() {
     task.abort();
 }
 
+async fn assert_deaf_handler_answers(client: &GreeterClient) {
+    let (tx, call) = client.client_hello(Request::new(()));
+    let sender = tokio::spawn(async move {
+        for i in 0..512 {
+            if tx.send(req(&format!("n{i}"))).await.is_err() {
+                break;
+            }
+        }
+    });
+    let reply = tokio::time::timeout(Duration::from_secs(10), call)
+        .await
+        .expect("must not hang")
+        .expect("must answer");
+    assert_eq!(name_of(reply.get_ref()), "ignored your stream");
+    sender.abort();
+
+    let (tx, call) = client.stream_hello(Request::new(()));
+    let sender = tokio::spawn(async move {
+        for i in 0..512 {
+            if tx.send(req(&format!("n{i}"))).await.is_err() {
+                break;
+            }
+        }
+    });
+    let mut inbound = tokio::time::timeout(Duration::from_secs(10), call)
+        .await
+        .expect("bidi must not hang")
+        .expect("bidi must answer")
+        .into_inner();
+    assert!(
+        inbound.message().await.expect("end").is_none(),
+        "Deaf bidi returns an empty stream without reading inbound"
+    );
+    sender.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_handler_that_ignores_its_request_stream_still_answers() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Deaf)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    assert_deaf_handler_answers(&GreeterClient::new(tls_channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_handler_that_ignores_its_request_stream_still_answers() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Deaf)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    assert_deaf_handler_answers(&GreeterClient::new(
+        tls_channel_with(addr, client_tls).await,
+    ))
+    .await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_handler_that_ignores_its_request_stream_still_answers() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Deaf).serve_unix(sock).await.ok();
+    });
+    assert_deaf_handler_answers(&GreeterClient::new(unix_channel(&path).await)).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_handler_that_ignores_its_request_stream_still_answers() {
+    let (client_io, server_io) = duplex_pair();
+    let server = tokio::spawn(async move {
+        GreeterServer::new(Deaf)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    assert_deaf_handler_answers(&GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    ))
+    .await;
+    server.abort();
+}
+
 #[tokio::test]
 async fn config_flows_from_the_generated_server_to_the_router() {
     let (addr, listener) = bind().await;
@@ -12992,6 +13090,113 @@ async fn spawned_work_stops_when_the_rpc_completes() {
     let _ = call.await.expect("bidi");
     wait_flag(&child_done).await;
     task.abort();
+}
+
+async fn assert_spawned_complete_on_every_shape(client: &GreeterClient, child_done: &AtomicUsize) {
+    child_done.store(0, Ordering::Relaxed);
+    let reply = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect("unary");
+    assert_eq!(name_of(reply.get_ref()), "ada");
+    wait_flag(child_done).await;
+
+    child_done.store(0, Ordering::Relaxed);
+    let _ = client
+        .server_hello(Request::new(req("ada")))
+        .await
+        .expect("server-stream");
+    wait_flag(child_done).await;
+
+    child_done.store(0, Ordering::Relaxed);
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    let _ = call.await.expect("client-stream");
+    wait_flag(child_done).await;
+
+    child_done.store(0, Ordering::Relaxed);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    let _ = call.await.expect("bidi");
+    wait_flag(child_done).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn tls_spawned_work_stops_when_the_rpc_completes() {
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let svc = SpawnOk {
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(tls_channel(addr).await);
+    assert_spawned_complete_on_every_shape(&client, &child_done).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mtls_spawned_work_stops_when_the_rpc_completes() {
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let svc = SpawnOk {
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let client = GreeterClient::new(tls_channel_with(addr, client_tls).await);
+    assert_spawned_complete_on_every_shape(&client, &child_done).await;
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn unix_spawned_work_stops_when_the_rpc_completes() {
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let svc = SpawnOk {
+        child_done: Arc::clone(&child_done),
+    };
+    let task = tokio::spawn(async move {
+        GreeterServer::new(svc).serve_unix(sock).await.ok();
+    });
+    let client = GreeterClient::new(unix_channel(&path).await);
+    assert_spawned_complete_on_every_shape(&client, &child_done).await;
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn from_io_spawned_work_stops_when_the_rpc_completes() {
+    let child_done = Arc::new(AtomicUsize::new(0));
+    let (client_io, server_io) = duplex_pair();
+    let svc = SpawnOk {
+        child_done: Arc::clone(&child_done),
+    };
+    let server = tokio::spawn(async move {
+        GreeterServer::new(svc)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        Channel::from_io(client_io, "localhost")
+            .await
+            .expect("from_io"),
+    );
+    assert_spawned_complete_on_every_shape(&client, &child_done).await;
+    server.abort();
 }
 
 /// Watches [`Request::cancelled`] while a separate task produces the stream.
