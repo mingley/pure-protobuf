@@ -1198,6 +1198,14 @@ waits on that connection; both RPCs still complete over TLS, mTLS, Unix, and
 `UNAVAILABLE` while the connection cap is full; dropping a live connection lets the next
 dial in, and every Greeter call shape still serves.
 
+A well-behaved client never fills the pending-reset accept queue; every call
+shape still completes over TLS, mTLS, Unix, and `from_io`. Distinct from a
+raw HTTP/2 peer that `RST_STREAM`s faster than accept: that connection drops
+as `ENHANCE_YOUR_CALM`; the accept loop still serves a well-behaved client.
+The raw flood is h2c-only (`tests/hostile.rs`; no TLS raw peer).
+`ChannelConfig::max_pending_accept_reset_streams` is the client accept queue,
+not the server cap.
+
 The inbound cap is 4 MiB, matching gRPC's cross-language default. The outbound
 cap is unlimited, because a peer does not control what your own service
 produces. An interceptor reads those caps with `Rpc::limits`; a generated
@@ -1242,9 +1250,11 @@ Two layers of tests enforce this.
 `tests/hostile.rs` speaks raw HTTP/2 so it can send bytes no real client would
 — a length prefix claiming 4 GiB, a 64 MiB gzip bomb small enough on the wire
 to pass the frame check, reserved compressed-flag values, truncated frames,
-malformed paths, garbage protobuf, `application/grpc+json`, GET/PUT — and
-requires that every case answers with a status (or HTTP 405/415) and leaves
-the server serving.
+malformed paths, garbage protobuf, `application/grpc+json`, GET/PUT, and a
+rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`
+— and requires that every case answers with a status (or HTTP 405/415, or
+drops that connection as `ENHANCE_YOUR_CALM`) and leaves the server serving.
+The rapid-reset flood is h2c-only.
 
 Property tests in the wire module cover what fixed cases cannot, using a
 deterministic xorshift generator so a failure reproduces from its seed:

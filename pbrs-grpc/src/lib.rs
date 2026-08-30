@@ -155,9 +155,15 @@
 //! There is no constructor that skips certificate verification.
 //!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
-//! and property tests in the wire module cover what fixed cases cannot: frames
-//! survive arbitrary chunk boundaries, arbitrary bytes yield a `Status` rather
-//! than a panic, and a compressed frame never inflates past the cap.
+//! including a rapid-reset flood that exceeds
+//! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as
+//! `ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client.
+//! The flood is h2c-only. A well-behaved client never fills that queue.
+//! [`ChannelConfig::max_pending_accept_reset_streams`] is the client accept
+//! queue, not the server cap. Property tests in the wire module cover what
+//! fixed cases cannot: frames survive arbitrary chunk boundaries, arbitrary
+//! bytes yield a `Status` rather than a panic, and a compressed frame never
+//! inflates past the cap.
 //!
 //! ## `unsafe`
 //!

@@ -249,10 +249,13 @@ See `docs/upb.md`. Short list:
   Store shape at that cap, distinct from wrapping only the generated Greeter
   setter. `ChannelConfig::max_pending_accept_reset_streams` caps the client's
   accept queue and still serves every Greeter shape when a well-behaved server
-  never fills it, over TLS, mTLS, Unix, and `from_io`. A raw HTTP/2 RST flood
+  never fills it, over TLS, mTLS, Unix, and `from_io`.   A raw HTTP/2 RST flood
   that exceeds `max_pending_accept_reset_streams` drops that connection
   (`ENHANCE_YOUR_CALM`); the accept loop still serves a well-behaved client.
   Distinct from wrap still-serves. h2c-only (`RawPeer`; no TLS raw peer).
+  The gRPC guide Distincts that well-behaved still-serves from the raw flood,
+  and Distincts `ChannelConfig::max_pending_accept_reset_streams` as the
+  client accept queue, not the server cap.
   `HealthServer::max_pending_accept_reset_streams` still serves Check and Watch
   at a pending-reset cap of 1 over TLS, mTLS, Unix, and `serve_connection`.
   `ServerReflectionServer::max_pending_accept_reset_streams` still serves the

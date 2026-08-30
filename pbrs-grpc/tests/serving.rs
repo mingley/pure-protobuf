@@ -1213,6 +1213,38 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "crate docs must name stream-cap serialize vs RESOURCE_EXHAUSTED"
     );
+    assert!(
+        crate_src.contains("including a rapid-reset flood that exceeds"),
+        "crate docs must name the hostile rapid-reset flood"
+    );
+    assert!(
+        crate_src.contains(
+            "`ENHANCE_YOUR_CALM` and the accept loop still serves a well-behaved client."
+        ),
+        "crate docs must Distinct well-behaved pending-reset from a rapid-reset flood"
+    );
+    assert!(
+        crate_src
+            .contains("[`ChannelConfig::max_pending_accept_reset_streams`] is the client accept"),
+        "crate docs must Distinct ChannelConfig pending-reset as the client queue"
+    );
+    let guide = include_str!("../../docs/grpc.md");
+    assert!(
+        guide.contains("Distinct from a raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
+        "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
+    );
+    assert!(
+        guide.contains(
+            "`ChannelConfig::max_pending_accept_reset_streams` is the client accept queue"
+        ),
+        "guide must Distinct ChannelConfig pending-reset as the client queue"
+    );
+    assert!(
+        guide.contains(
+            "rapid-reset `RST_STREAM` flood that exceeds `max_pending_accept_reset_streams`"
+        ),
+        "guide must name the hostile.rs rapid-reset flood"
+    );
 }
 
 #[test]
