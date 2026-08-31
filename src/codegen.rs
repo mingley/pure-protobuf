@@ -3906,6 +3906,10 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
             src,
             "    /// Spawned work should await [`{G}::Request::cancelled`]; the kernel drops a still-pending handler on client RST."
         );
+        let _ = writeln!(
+            src,
+            "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated handler Err; those trailers reach the client."
+        );
         if m.server_streaming {
             let _ = writeln!(
                 src,
