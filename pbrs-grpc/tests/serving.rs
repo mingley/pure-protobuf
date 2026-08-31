@@ -1805,6 +1805,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::clear_compress`] restores the server gzip overlay on this reply envelope."
+        ),
+        "Response rustdoc must name clear_compress next to compress occupancy"
+    );
+    assert!(
+        outgoing.contains(
             "Server [`crate::Server::gzip_compression_level`] overlay, when the kernel is encoding this reply."
         ),
         "Response::gzip_level must name the server encode overlay"

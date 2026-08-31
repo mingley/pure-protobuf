@@ -1909,6 +1909,7 @@ impl fmt::Debug for Parts {
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
 /// [`Self::compress_is_set`] is occupancy on this reply envelope, so a later interceptor can fill compress only when unset.
+/// [`Self::clear_compress`] restores the server gzip overlay on this reply envelope.
 #[derive(Clone)]
 pub struct Response<T> {
     message: T,
