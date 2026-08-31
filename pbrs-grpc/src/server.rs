@@ -1923,6 +1923,7 @@ impl<S: Service> Server<S> {
     /// including over TLS, mTLS, Unix, and [`Self::serve_connection`].
     /// On a [`Router`], call [`Router::intercept`] to cover every mounted
     /// service, or wrap one service with [`crate::Intercepted`].
+    /// [`Status::from_error_details`] is the typed bag after this Server intercept Err; those trailers reach the client without reading the body.
     ///
     /// ```
     /// # fn demo<S: pbrs_grpc::Service>(server: pbrs_grpc::Server<S>) -> pbrs_grpc::Server<S> {

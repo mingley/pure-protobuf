@@ -7228,6 +7228,12 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::intercept rustdoc must name a single intercept reject on every transport"
     );
     assert!(
+        src.contains(
+            "[`Status::from_error_details`] is the typed bag after this Server intercept Err; those trailers reach the client without reading the body."
+        ),
+        "Server::intercept rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
         src.contains("server.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "Server::intercept rustdoc example must attach a closure"
     );
