@@ -654,6 +654,7 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// for every call shape. [`crate::Outgoing::set_timeout`] is that Call's
     /// deadline on every call shape. [`crate::Outgoing::clear_timeout`] opts
     /// out of the channel timeout on every call shape.
+    /// [`crate::Outgoing::clear_user_agent`] drops a method-level interceptor prefix so this RPC uses the channel user-agent again.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 
