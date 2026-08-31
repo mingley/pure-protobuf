@@ -5630,6 +5630,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
     );
     assert!(
+        guide.contains(
+            "`ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path."
+        ),
+        "guide must name ResponseParts::clear_compress next to on_response occupancy"
+    );
+    assert!(
         guide.contains("`user_agent` (`user_agent_is_set`), `limits`,"),
         "guide Outgoing getter inventory must name user_agent_is_set next to user_agent"
     );
