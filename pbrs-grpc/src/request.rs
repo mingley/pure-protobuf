@@ -1738,6 +1738,8 @@ impl Parts {
     }
 
     /// Server write-time send buffer overlay. See [`Request::send_buffer_size`].
+    ///
+    /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this split envelope's server overlay.
     #[must_use]
     pub fn send_buffer_size(&self) -> usize {
         self.send_buffer_size
