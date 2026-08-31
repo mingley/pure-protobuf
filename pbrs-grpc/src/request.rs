@@ -2640,6 +2640,7 @@ impl ResponseParts {
     ///
     /// Distinct from [`crate::Request::deadline`]: that is the inbound request, not this split reply envelope.
     /// Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs, not this split reply envelope.
+    /// Distinct from [`crate::Request::timeout`]: that is the duration stamped at dispatch, not this split reply envelope.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.deadline
