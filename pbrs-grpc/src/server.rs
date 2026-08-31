@@ -3533,6 +3533,7 @@ impl ConnectionInfo {
     }
 
     /// mTLS client certificate chain, if set.
+    /// Distinct from [`Self::with_peer_identity`], which sets it.
     #[must_use]
     pub fn peer_identity(&self) -> Option<&PeerIdentity> {
         self.identity.as_ref()
