@@ -96,7 +96,7 @@ gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`,
 Dumping `Response` prints metadata, trailers, compress intent, received
 `encoding`, path / service / method, `gzip_level` / `compresses_outbound` /
 `accepts_gzip` / `accepts_compressed`, `deadline` / `timeout` / `peer_timeout` /
-`rpc_timeout`, `limits`, and `send_buffer_size`.
+`rpc_timeout`, `limits`, `send_buffer_size`, and extensions.
 Handlers that spawn work await `Request::cancelled` (client RST, deadline, or
 after the response is written / the stream drains), including over TLS, mTLS,
 Unix, and `serve_connection`. A drain waiting for the

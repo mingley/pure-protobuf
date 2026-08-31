@@ -4344,8 +4344,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Request and Parts interceptor extensions"
     );
     assert!(
-        architecture.contains("`rpc_timeout`, `limits`, and `send_buffer_size`."),
-        "architecture must dump Response send_buffer_size"
+        architecture.contains("`rpc_timeout`, `limits`, `send_buffer_size`, and extensions."),
+        "architecture must dump Response send_buffer_size and interceptor extensions"
     );
     assert!(
         architecture.contains(
