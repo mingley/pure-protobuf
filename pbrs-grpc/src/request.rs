@@ -1456,6 +1456,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.compresses_outbound(),
 ///         parts.gzip_level(),
 ///         parts.accepts_compressed(),
+///         parts.concurrent_rpc_limit(),
 ///     );
 /// }
 /// # let _ = dump_parts;
