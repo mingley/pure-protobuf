@@ -3891,6 +3891,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::Outgoing::user_agent_is_set`] is occupancy on this generated intercept path, so a later interceptor can prefix only when unset."
+        ),
+        "generated client intercept rustdoc must name Outgoing::user_agent_is_set occupancy next to clear_user_agent"
+    );
+    assert!(
+        src.contains(
             "`set_compress` stamps [`::pbrs_grpc::StreamSender::compress`] on client-streaming and bidi request streams."
         ),
         "generated client intercept rustdoc must name StreamSender gzip stamp"
