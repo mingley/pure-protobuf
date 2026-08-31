@@ -5606,6 +5606,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Outgoing::clear_timeout next to clear_compress"
     );
     assert!(
+        guide.contains(
+            "`ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset."
+        ),
+        "guide must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
+    );
+    assert!(
         guide.contains("`user_agent` (`user_agent_is_set`), `limits`,"),
         "guide Outgoing getter inventory must name user_agent_is_set next to user_agent"
     );
