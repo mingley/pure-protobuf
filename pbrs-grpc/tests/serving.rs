@@ -2548,6 +2548,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor::intercept rustdoc must name clear_compress opt-out"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Status::from_error_details`] is the typed bag on this method-level intercept Err; a local reject never opens a stream."
+        ),
+        "ClientInterceptor::intercept rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
         intercept.contains("prefix ([`crate::Outgoing::set_user_agent`]), or typed"),
         "ClientInterceptor rustdoc must name Outgoing::set_user_agent"
     );

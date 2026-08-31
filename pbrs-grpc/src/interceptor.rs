@@ -675,6 +675,7 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// [`crate::Outgoing::user_agent_is_set`] is occupancy on this method-level intercept, so a later interceptor can prefix only when unset.
     /// [`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill wait-for-ready only when unset.
     /// [`crate::Outgoing::compress_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill compress only when unset.
+    /// [`crate::Status::from_error_details`] is the typed bag on this method-level intercept Err; a local reject never opens a stream.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 
