@@ -1170,6 +1170,7 @@ impl<'a> Outgoing<'a> {
 
     /// Absolute Instant matching [`Self::timeout`].
     ///
+    /// Distinct from [`Self::timeout`]: that is the duration; this Instant is computed when the getter runs.
     /// Computed when you call this, so an interceptor that just set
     /// [`Self::set_timeout`] sees the new Instant. Same contract as
     /// [`crate::Rpc::deadline`]. Visible on every call shape.

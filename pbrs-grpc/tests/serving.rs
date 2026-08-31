@@ -753,6 +753,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::timeout`]: that is the duration; this Instant is computed when the getter runs."
+        ),
+        "Outgoing::deadline must Distinct the duration from the computed Instant"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::rpc_timeout`]: that is the channel overlay; this is the Call `grpc-timeout`."
         ),
         "Outgoing::timeout must Distinct the channel overlay from the Call grpc-timeout"
