@@ -748,6 +748,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc example must read timeout Distinct from rpc_timeout"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::rpc_timeout`]: that is the channel overlay; this is the Call `grpc-timeout`."
+        ),
+        "Outgoing::timeout must Distinct the channel overlay from the Call grpc-timeout"
+    );
+    assert!(
         outgoing.contains("Channel [`crate::Channel::max_send_buffer_size`] overlay."),
         "Outgoing::send_buffer_size must name the channel max_send_buffer_size overlay"
     );

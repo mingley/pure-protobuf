@@ -1158,6 +1158,7 @@ impl<'a> Outgoing<'a> {
 
     /// Relative timeout that becomes `grpc-timeout` on the wire.
     ///
+    /// Distinct from [`Self::rpc_timeout`]: that is the channel overlay; this is the Call `grpc-timeout`.
     /// `None` when neither the request nor a channel overlay set one. Fill
     /// that case with [`Self::set_timeout`]. The matching Instant is
     /// [`Self::deadline`]. Applies to every call shape.
