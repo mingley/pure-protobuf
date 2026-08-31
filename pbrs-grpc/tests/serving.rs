@@ -1328,6 +1328,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::compresses_outbound must Distinct compress as the per-RPC flag"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::compresses_outbound`]: that is a client interceptor overlay, not this split reply envelope's server overlay."
+        ),
+        "ResponseParts::compresses_outbound must Distinct Outgoing overlay"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );

@@ -2604,6 +2604,7 @@ impl ResponseParts {
     /// Server encode overlay. See [`Response::compresses_outbound`].
     ///
     /// Distinct from [`Self::compress`]: that is the per-RPC choice after overlay and interceptor mutation on this split reply envelope.
+    /// Distinct from [`crate::Outgoing::compresses_outbound`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.compresses_outbound
