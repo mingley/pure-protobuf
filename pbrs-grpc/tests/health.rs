@@ -12,6 +12,9 @@
     reason = "integration tests"
 )]
 
+mod common;
+
+use common::reserve_loopback;
 use pbrs_grpc::health::{
     service, Health, HealthCheckRequest, HealthCheckResponse, HealthClient, HealthListRequest,
     HealthListResponse, HealthReporter, HealthServer, ServingStatus,
@@ -143,46 +146,20 @@ fn health_server() -> HealthServer<impl Health> {
     svc
 }
 
-async fn serve_health_at(addr: SocketAddr) -> Result<ServeGuard, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let svc = health_server();
-                let handle = tokio::spawn(async move {
-                    svc.serve_listener(listener).await.ok();
-                });
-                return Ok(ServeGuard(handle));
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_health_on(listener: TcpListener) -> ServeGuard {
+    let svc = health_server();
+    ServeGuard(tokio::spawn(async move {
+        svc.serve_listener(listener).await.ok();
+    }))
 }
 
-async fn serve_health_tls_at(addr: SocketAddr, tls: ServerTls) -> Result<ServeGuard, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let svc = health_server();
-                let handle = tokio::spawn(async move {
-                    svc.serve_tls_with_shutdown(listener, std::future::pending(), tls)
-                        .await
-                        .ok();
-                });
-                return Ok(ServeGuard(handle));
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_health_tls_on(listener: TcpListener, tls: ServerTls) -> ServeGuard {
+    let svc = health_server();
+    ServeGuard(tokio::spawn(async move {
+        svc.serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    }))
 }
 
 fn stamp_wait_ready<T>(
@@ -1378,96 +1355,98 @@ async fn health_tls_round_trips_check_and_watch() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = HealthClient::connect_lazy(addr).expect("lazy");
-    wait_then_complete_health(&client, true, async {
-        serve_health_at(addr).await.expect("serve")
-    })
+    wait_then_complete_health(
+        &client,
+        true,
+        async move { serve_health_on(reserved.listen()) },
+    )
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = HealthClient::connect_lazy(addr)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_health(&client, false, async {
-        serve_health_at(addr).await.expect("serve")
-    })
+    wait_then_complete_health(
+        &client,
+        false,
+        async move { serve_health_on(reserved.listen()) },
+    )
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_tls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_health(&client, true, async {
-        serve_health_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_health(&client, true, async move {
+        serve_health_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_tls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = HealthClient::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_health(&client, false, async {
-        serve_health_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_health(&client, false, async move {
+        serve_health_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_mtls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = HealthClient::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_health(&client, true, async {
-        serve_health_tls_at(
-            addr,
+    wait_then_complete_health(&client, true, async move {
+        serve_health_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn health_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = HealthClient::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_health(&client, false, async {
-        serve_health_tls_at(
-            addr,
+    wait_then_complete_health(&client, false, async move {
+        serve_health_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
@@ -1508,8 +1487,8 @@ async fn health_unix_channel_wait_for_ready_completes_once_the_server_listens() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_health_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client =
         HealthClient::connect_lazy(addr)
@@ -1518,16 +1497,18 @@ async fn a_health_client_interceptor_can_set_wait_for_ready() {
                 call.set_wait_for_ready(true);
                 Ok(())
             });
-    wait_then_complete_health(&client, false, async {
-        serve_health_at(addr).await.expect("serve")
-    })
+    wait_then_complete_health(
+        &client,
+        false,
+        async move { serve_health_on(reserved.listen()) },
+    )
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_health_tls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = HealthClient::connect_tls_lazy(addr, client_tls)
@@ -1536,18 +1517,19 @@ async fn a_health_tls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_health(&client, false, async {
-        serve_health_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_health(&client, false, async move {
+        serve_health_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_health_mtls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind_health().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = HealthClient::connect_tls_lazy(addr, client_tls)
@@ -1556,13 +1538,11 @@ async fn a_health_mtls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_health(&client, false, async {
-        serve_health_tls_at(
-            addr,
+    wait_then_complete_health(&client, false, async move {
+        serve_health_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }

@@ -14,7 +14,7 @@
 
 mod common;
 
-use common::{Echo, ServerGuard};
+use common::{reserve_loopback, Echo, ServerGuard};
 use pbrs_grpc::hello::{GreeterServer, FILE_DESCRIPTOR_SET};
 use pbrs_grpc::reflection::{
     service, ExtensionRequest, ListServiceResponse, ServerReflection, ServerReflectionClient,
@@ -133,47 +133,21 @@ async fn bind_reflection() -> (SocketAddr, TcpListener) {
     (addr, listener)
 }
 
-async fn serve_reflection_at(addr: SocketAddr) -> Result<ServerGuard, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let reflection = reflection_server();
-                let handle = tokio::spawn(async move {
-                    reflection.serve_listener(listener).await.ok();
-                });
-                return Ok(ServerGuard(handle));
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_reflection_on(listener: TcpListener) -> ServerGuard {
+    let reflection = reflection_server();
+    ServerGuard(tokio::spawn(async move {
+        reflection.serve_listener(listener).await.ok();
+    }))
 }
 
-async fn serve_reflection_tls_at(addr: SocketAddr, tls: ServerTls) -> Result<ServerGuard, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let reflection = reflection_server();
-                let handle = tokio::spawn(async move {
-                    reflection
-                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
-                        .await
-                        .ok();
-                });
-                return Ok(ServerGuard(handle));
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_reflection_tls_on(listener: TcpListener, tls: ServerTls) -> ServerGuard {
+    let reflection = reflection_server();
+    ServerGuard(tokio::spawn(async move {
+        reflection
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    }))
 }
 
 fn stamp_wait_ready<T>(
@@ -1140,96 +1114,94 @@ async fn reflection_tls_lists_the_registered_greeter() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = ServerReflectionClient::connect_lazy(addr).expect("lazy");
-    wait_then_complete_reflection(&client, true, async {
-        serve_reflection_at(addr).await.expect("serve")
+    wait_then_complete_reflection(&client, true, async move {
+        serve_reflection_on(reserved.listen())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = ServerReflectionClient::connect_lazy(addr)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_reflection(&client, false, async {
-        serve_reflection_at(addr).await.expect("serve")
+    wait_then_complete_reflection(&client, false, async move {
+        serve_reflection_on(reserved.listen())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_tls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_reflection(&client, true, async {
-        serve_reflection_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_reflection(&client, true, async move {
+        serve_reflection_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_tls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_reflection(&client, false, async {
-        serve_reflection_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_reflection(&client, false, async move {
+        serve_reflection_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_mtls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_reflection(&client, true, async {
-        serve_reflection_tls_at(
-            addr,
+    wait_then_complete_reflection(&client, true, async move {
+        serve_reflection_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_reflection(&client, false, async {
-        serve_reflection_tls_at(
-            addr,
+    wait_then_complete_reflection(&client, false, async move {
+        serve_reflection_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
@@ -1270,8 +1242,8 @@ async fn reflection_unix_channel_wait_for_ready_completes_once_the_server_listen
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reflection_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = ServerReflectionClient::connect_lazy(addr)
         .expect("lazy")
@@ -1279,16 +1251,16 @@ async fn a_reflection_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_reflection(&client, false, async {
-        serve_reflection_at(addr).await.expect("serve")
+    wait_then_complete_reflection(&client, false, async move {
+        serve_reflection_on(reserved.listen())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reflection_tls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
@@ -1297,18 +1269,19 @@ async fn a_reflection_tls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_reflection(&client, false, async {
-        serve_reflection_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_reflection(&client, false, async move {
+        serve_reflection_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reflection_mtls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
@@ -1317,13 +1290,11 @@ async fn a_reflection_mtls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_reflection(&client, false, async {
-        serve_reflection_tls_at(
-            addr,
+    wait_then_complete_reflection(&client, false, async move {
+        serve_reflection_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }

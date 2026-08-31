@@ -26,6 +26,53 @@ use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
+/// Loopback TCP socket that is bound but not listening.
+///
+/// Occupies the port so another test cannot steal it: Tokio's
+/// [`TcpListener::bind`] sets `SO_REUSEADDR`, which can reuse a port after
+/// `drop(listener)` while wait-for-ready is still connecting. Connects get
+/// `ECONNREFUSED` until [`Self::listen`].
+pub struct ReservedLoopback {
+    socket: socket2::Socket,
+    addr: SocketAddr,
+}
+
+/// Bind `127.0.0.1:0` without `listen` and without `SO_REUSEADDR`.
+pub fn reserve_loopback() -> ReservedLoopback {
+    let socket = socket2::Socket::new(
+        socket2::Domain::IPV4,
+        socket2::Type::STREAM,
+        Some(socket2::Protocol::TCP),
+    )
+    .expect("socket");
+    socket
+        .bind(&socket2::SockAddr::from(SocketAddr::from((
+            [127, 0, 0, 1],
+            0,
+        ))))
+        .expect("bind");
+    socket.set_nonblocking(true).expect("nonblocking");
+    let addr = socket
+        .local_addr()
+        .expect("local_addr")
+        .as_socket()
+        .expect("tcp");
+    ReservedLoopback { socket, addr }
+}
+
+impl ReservedLoopback {
+    /// Address wait-for-ready clients connect to while this socket holds the port.
+    pub fn addr(&self) -> SocketAddr {
+        self.addr
+    }
+
+    /// Start accepting so the wait-for-ready client can complete.
+    pub fn listen(self) -> TcpListener {
+        self.socket.listen(1024).expect("listen");
+        TcpListener::from_std(self.socket.into()).expect("tokio listener")
+    }
+}
+
 /// Keeps the server task alive for the duration of a test and aborts it after.
 pub struct ServerGuard(pub JoinHandle<()>);
 
@@ -128,6 +175,22 @@ pub async fn serve_at<G: Greeter>(
         }
     }
     Err(last)
+}
+
+/// Serve `service` on an already-bound listener.
+pub fn serve_on<G: Greeter>(
+    listener: TcpListener,
+    service: G,
+    config: ServerConfig,
+) -> ServerGuard {
+    let handle = tokio::spawn(async move {
+        GreeterServer::new(service)
+            .config(config)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    ServerGuard(handle)
 }
 
 pub fn name_of(reply: &HelloReply) -> String {

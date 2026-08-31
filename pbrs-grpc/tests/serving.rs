@@ -22,7 +22,10 @@
 
 mod common;
 
-use common::{name_of, name_of_request, req, serve_at, spawn_greeter, until_ok, Echo};
+use common::{
+    name_of, name_of_request, req, reserve_loopback, serve_at, serve_on, spawn_greeter, until_ok,
+    Echo,
+};
 use pbrs_grpc::hello::{Greeter, GreeterClient, GreeterServer, HelloReply, HelloRequest};
 use pbrs_grpc::{
     Call, Channel, ChannelConfig, ClientTls, Code, ConnectionInfo, Empty, FusedStream, Identity,
@@ -288,6 +291,15 @@ async fn tls_channel(addr: SocketAddr) -> Channel {
     tls_channel_with(addr, ClientTls::ca("localhost", CA).expect("client tls")).await
 }
 
+fn serve_tls_on(listener: TcpListener, tls: ServerTls) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    })
+}
+
 async fn serve_tls_at(
     addr: SocketAddr,
     tls: ServerTls,
@@ -295,15 +307,7 @@ async fn serve_tls_at(
     let mut last = Status::unavailable("bind");
     for _ in 0..100 {
         match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let handle = tokio::spawn(async move {
-                    GreeterServer::new(Echo)
-                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
-                        .await
-                        .ok();
-                });
-                return Ok(handle);
-            }
+            Ok(listener) => return Ok(serve_tls_on(listener, tls)),
             Err(e) => {
                 last = Status::unavailable(e.to_string());
                 tokio::time::sleep(Duration::from_millis(10)).await;
@@ -313,125 +317,51 @@ async fn serve_tls_at(
     Err(last)
 }
 
-async fn serve_test_at(addr: SocketAddr) -> Result<tokio::task::JoinHandle<()>, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let handle = tokio::spawn(async move {
-                    TestServiceServer::new(InteropTestService)
-                        .serve_listener(listener)
-                        .await
-                        .ok();
-                });
-                return Ok(handle);
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_test_on(listener: TcpListener) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    })
 }
 
-async fn serve_test_tls_at(
-    addr: SocketAddr,
-    tls: ServerTls,
-) -> Result<tokio::task::JoinHandle<()>, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let handle = tokio::spawn(async move {
-                    TestServiceServer::new(InteropTestService)
-                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
-                        .await
-                        .ok();
-                });
-                return Ok(handle);
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_test_tls_on(listener: TcpListener, tls: ServerTls) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    })
 }
 
-async fn serve_reverser_at(addr: SocketAddr) -> Result<tokio::task::JoinHandle<()>, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let service = Reverser::new(Arc::new(AtomicUsize::new(0)));
-                let handle = tokio::spawn(async move {
-                    Server::new(service).serve_listener(listener).await.ok();
-                });
-                return Ok(handle);
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_reverser_on(listener: TcpListener) -> tokio::task::JoinHandle<()> {
+    let service = Reverser::new(Arc::new(AtomicUsize::new(0)));
+    tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    })
 }
 
-async fn serve_reverser_tls_at(
-    addr: SocketAddr,
-    tls: ServerTls,
-) -> Result<tokio::task::JoinHandle<()>, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let service = Reverser::new(Arc::new(AtomicUsize::new(0)));
-                let handle = tokio::spawn(async move {
-                    Server::new(service)
-                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
-                        .await
-                        .ok();
-                });
-                return Ok(handle);
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_reverser_tls_on(listener: TcpListener, tls: ServerTls) -> tokio::task::JoinHandle<()> {
+    let service = Reverser::new(Arc::new(AtomicUsize::new(0)));
+    tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    })
 }
 
-async fn serve_reverser_mtls_at(
-    addr: SocketAddr,
-    tls: ServerTls,
-) -> Result<tokio::task::JoinHandle<()>, Status> {
-    let mut last = Status::unavailable("bind");
-    for _ in 0..100 {
-        match TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let identity = client_identity();
-                let leaf = identity.certificates().next().expect("leaf");
-                let service = Reverser::mtls(Arc::new(AtomicUsize::new(0)), leaf);
-                let handle = tokio::spawn(async move {
-                    Server::new(service)
-                        .serve_tls_with_shutdown(listener, std::future::pending(), tls)
-                        .await
-                        .ok();
-                });
-                return Ok(handle);
-            }
-            Err(e) => {
-                last = Status::unavailable(e.to_string());
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-        }
-    }
-    Err(last)
+fn serve_reverser_mtls_on(listener: TcpListener, tls: ServerTls) -> tokio::task::JoinHandle<()> {
+    let identity = client_identity();
+    let leaf = identity.certificates().next().expect("leaf");
+    let service = Reverser::mtls(Arc::new(AtomicUsize::new(0)), leaf);
+    tokio::spawn(async move {
+        Server::new(service)
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    })
 }
 
 async fn assert_hand_written_serves(channel: Channel, seen: &AtomicUsize) {
@@ -12961,26 +12891,24 @@ async fn reverser_from_io_client_interceptors_stack_and_share_extensions() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let channel = Channel::connect_lazy(addr).expect("lazy");
     let client = GreeterClient::new(channel).intercept(|call: &mut Outgoing<'_>| {
         call.set_wait_for_ready(true);
         Ok(())
     });
-    wait_then_complete_every_shape(&client, false, async {
-        serve_at(addr, Echo, ServerConfig::default())
-            .await
-            .expect("serve")
+    wait_then_complete_every_shape(&client, false, async move {
+        serve_on(reserved.listen(), Echo, ServerConfig::default())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_tls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
@@ -12988,18 +12916,19 @@ async fn a_tls_client_interceptor_can_set_wait_for_ready() {
         call.set_wait_for_ready(true);
         Ok(())
     });
-    wait_then_complete_every_shape(&client, false, async {
-        serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_every_shape(&client, false, async move {
+        serve_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_mtls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
@@ -13007,13 +12936,11 @@ async fn an_mtls_client_interceptor_can_set_wait_for_ready() {
         call.set_wait_for_ready(true);
         Ok(())
     });
-    wait_then_complete_every_shape(&client, false, async {
-        serve_tls_at(
-            addr,
+    wait_then_complete_every_shape(&client, false, async move {
+        serve_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
@@ -16836,8 +16763,8 @@ async fn unix_a_dead_channel_fails_fast_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn connect_lazy_fails_fast_when_nothing_is_listening() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
     assert_lazy_fails_fast(GreeterClient::new(
         Channel::connect_lazy(addr).expect("lazy"),
     ))
@@ -16846,8 +16773,8 @@ async fn connect_lazy_fails_fast_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tls_connect_lazy_fails_fast_when_nothing_is_listening() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     assert_lazy_fails_fast(GreeterClient::new(
         Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
@@ -16857,8 +16784,8 @@ async fn tls_connect_lazy_fails_fast_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mtls_connect_lazy_fails_fast_when_nothing_is_listening() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     assert_lazy_fails_fast(GreeterClient::new(
         Channel::connect_tls_lazy(addr, client_tls).expect("lazy"),
@@ -16868,106 +16795,100 @@ async fn mtls_connect_lazy_fails_fast_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let channel = Channel::connect_lazy(addr).expect("lazy");
     let client = GreeterClient::new(channel);
     // Creating a Call does not start the RPC; first poll does. Drive all
-    // four shapes long enough to prove they are retrying, then bind.
-    wait_then_complete_every_shape(&client, true, async {
-        serve_at(addr, Echo, ServerConfig::default())
-            .await
-            .expect("serve")
+    // four shapes long enough to prove they are retrying, then listen.
+    wait_then_complete_every_shape(&client, true, async move {
+        serve_on(reserved.listen(), Echo, ServerConfig::default())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
     let client = GreeterClient::new(channel);
-    wait_then_complete_every_shape(&client, false, async {
-        serve_at(addr, Echo, ServerConfig::default())
-            .await
-            .expect("serve")
+    wait_then_complete_every_shape(&client, false, async move {
+        serve_on(reserved.listen(), Echo, ServerConfig::default())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
     let client = GreeterClient::new(channel);
-    wait_then_complete_every_shape(&client, true, async {
-        serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_every_shape(&client, true, async move {
+        serve_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let channel = Channel::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
     let client = GreeterClient::new(channel);
-    wait_then_complete_every_shape(&client, false, async {
-        serve_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_every_shape(&client, false, async move {
+        serve_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mtls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
     let client = GreeterClient::new(channel);
-    wait_then_complete_every_shape(&client, true, async {
-        serve_tls_at(
-            addr,
+    wait_then_complete_every_shape(&client, true, async move {
+        serve_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mtls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let channel = Channel::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
     let client = GreeterClient::new(channel);
-    wait_then_complete_every_shape(&client, false, async {
-        serve_tls_at(
-            addr,
+    wait_then_complete_every_shape(&client, false, async move {
+        serve_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
@@ -19617,96 +19538,98 @@ async fn unix_channel_wait_for_ready_completes_once_the_server_listens() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = TestServiceClient::connect_lazy(addr).expect("lazy");
-    wait_then_complete_test(&client, true, async {
-        serve_test_at(addr).await.expect("serve")
-    })
+    wait_then_complete_test(
+        &client,
+        true,
+        async move { serve_test_on(reserved.listen()) },
+    )
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = TestServiceClient::connect_lazy(addr)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_test(&client, false, async {
-        serve_test_at(addr).await.expect("serve")
-    })
+    wait_then_complete_test(
+        &client,
+        false,
+        async move { serve_test_on(reserved.listen()) },
+    )
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_tls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = TestServiceClient::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_test(&client, true, async {
-        serve_test_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_test(&client, true, async move {
+        serve_test_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_tls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_test(&client, false, async {
-        serve_test_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_test(&client, false, async move {
+        serve_test_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_mtls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = TestServiceClient::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_test(&client, true, async {
-        serve_test_tls_at(
-            addr,
+    wait_then_complete_test(&client, true, async move {
+        serve_test_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_test(&client, false, async {
-        serve_test_tls_at(
-            addr,
+    wait_then_complete_test(&client, false, async move {
+        serve_test_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
@@ -19749,8 +19672,8 @@ async fn test_unix_channel_wait_for_ready_completes_once_the_server_listens() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_test_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = TestServiceClient::connect_lazy(addr)
         .expect("lazy")
@@ -19758,16 +19681,18 @@ async fn a_test_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_test(&client, false, async {
-        serve_test_at(addr).await.expect("serve")
-    })
+    wait_then_complete_test(
+        &client,
+        false,
+        async move { serve_test_on(reserved.listen()) },
+    )
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_test_tls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
@@ -19776,18 +19701,19 @@ async fn a_test_tls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_test(&client, false, async {
-        serve_test_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_test(&client, false, async move {
+        serve_test_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_test_mtls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
@@ -19796,13 +19722,11 @@ async fn a_test_mtls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_test(&client, false, async {
-        serve_test_tls_at(
-            addr,
+    wait_then_complete_test(&client, false, async move {
+        serve_test_tls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
@@ -19884,8 +19808,8 @@ async fn a_test_tls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_test_mtls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = TestServiceClient::connect_tls_lazy(addr, client_tls)
@@ -19936,94 +19860,92 @@ async fn a_test_unix_client_interceptor_can_opt_out_of_channel_wait_for_ready() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reverser_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let channel = Channel::connect_lazy(addr).expect("lazy");
-    wait_then_complete_reverser(&channel, true, async {
-        serve_reverser_at(addr).await.expect("serve")
+    wait_then_complete_reverser(&channel, true, async move {
+        serve_reverser_on(reserved.listen())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reverser_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let channel = Channel::connect_lazy(addr).expect("lazy").wait_for_ready();
-    wait_then_complete_reverser(&channel, false, async {
-        serve_reverser_at(addr).await.expect("serve")
+    wait_then_complete_reverser(&channel, false, async move {
+        serve_reverser_on(reserved.listen())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reverser_tls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_reverser(&channel, true, async {
-        serve_reverser_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_reverser(&channel, true, async move {
+        serve_reverser_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reverser_tls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let channel = Channel::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_reverser(&channel, false, async {
-        serve_reverser_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_reverser(&channel, false, async move {
+        serve_reverser_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reverser_mtls_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let channel = Channel::connect_tls_lazy(addr, client_tls).expect("lazy");
-    wait_then_complete_reverser(&channel, true, async {
-        serve_reverser_mtls_at(
-            addr,
+    wait_then_complete_reverser(&channel, true, async move {
+        serve_reverser_mtls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reverser_mtls_channel_wait_for_ready_completes_once_the_server_listens() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let channel = Channel::connect_tls_lazy(addr, client_tls)
         .expect("lazy")
         .wait_for_ready();
-    wait_then_complete_reverser(&channel, false, async {
-        serve_reverser_mtls_at(
-            addr,
+    wait_then_complete_reverser(&channel, false, async move {
+        serve_reverser_mtls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
@@ -20066,8 +19988,8 @@ async fn reverser_unix_channel_wait_for_ready_completes_once_the_server_listens(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reverser_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let channel =
         Channel::connect_lazy(addr)
@@ -20076,16 +19998,16 @@ async fn a_reverser_client_interceptor_can_set_wait_for_ready() {
                 call.set_wait_for_ready(true);
                 Ok(())
             });
-    wait_then_complete_reverser(&channel, false, async {
-        serve_reverser_at(addr).await.expect("serve")
+    wait_then_complete_reverser(&channel, false, async move {
+        serve_reverser_on(reserved.listen())
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reverser_tls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let channel = Channel::connect_tls_lazy(addr, client_tls)
@@ -20094,18 +20016,19 @@ async fn a_reverser_tls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_reverser(&channel, false, async {
-        serve_reverser_tls_at(addr, ServerTls::new(server_identity()).expect("server tls"))
-            .await
-            .expect("serve")
+    wait_then_complete_reverser(&channel, false, async move {
+        serve_reverser_tls_on(
+            reserved.listen(),
+            ServerTls::new(server_identity()).expect("server tls"),
+        )
     })
     .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reverser_mtls_client_interceptor_can_set_wait_for_ready() {
-    let (addr, listener) = bind().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let channel = Channel::connect_tls_lazy(addr, client_tls)
@@ -20114,13 +20037,11 @@ async fn a_reverser_mtls_client_interceptor_can_set_wait_for_ready() {
             call.set_wait_for_ready(true);
             Ok(())
         });
-    wait_then_complete_reverser(&channel, false, async {
-        serve_reverser_mtls_at(
-            addr,
+    wait_then_complete_reverser(&channel, false, async move {
+        serve_reverser_mtls_on(
+            reserved.listen(),
             ServerTls::mtls(server_identity(), CA).expect("mtls server"),
         )
-        .await
-        .expect("serve")
     })
     .await;
 }
