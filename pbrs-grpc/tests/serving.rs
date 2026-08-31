@@ -1562,6 +1562,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::limits Distinct from Request::limits: that is the inbound request, not this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler, not this split reply envelope."
+        ),
+        "ResponseParts::limits Distinct from Rpc::limits: that is a server interceptor before the handler, not this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
