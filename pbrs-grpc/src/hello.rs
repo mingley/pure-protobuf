@@ -66,6 +66,7 @@
 //!         rpc.deadline(),
 //!         rpc.accepts_gzip(),
 //!         rpc.encoding(),
+//!         rpc.compresses_outbound(),
 //!         rpc.gzip_level(),
 //!         rpc.accepts_compressed(),
 //!         rpc.concurrent_rpc_limit(),
