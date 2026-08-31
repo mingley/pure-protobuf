@@ -4476,6 +4476,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name Rpc::extensions_mut as the interceptor insert API"
     );
     assert!(
+        architecture.contains("`concurrent_rpc_limit`, `send_buffer_size`, and extensions."),
+        "architecture interceptor inspect list must name extensions"
+    );
+    assert!(
         architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions, user-agent. Dumping"),
         "architecture must name Incoming-stamped peer facts, extensions, and user-agent on generated handlers"
     );

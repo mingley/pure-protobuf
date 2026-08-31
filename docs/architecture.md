@@ -71,7 +71,7 @@ Compiling `ConnectionInfo` peer dumps live on the `Incoming` rustdoc.
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
 / cred, `Rpc::limits`, gzip accept/encoding, `compresses_outbound`,
-`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, and `send_buffer_size`.
+`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, and extensions.
 `Router` splits on the service half of the path. An unmounted service, or a
 method a mounted service does not have, is `UNIMPLEMENTED` on every call
 shape, including over TLS, mTLS, Unix, and `from_io`. Remounting the same
