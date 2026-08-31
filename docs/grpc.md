@@ -1243,9 +1243,8 @@ overlay. That overlay fills compress only when the request omitted a choice, so
 and `from_io`. An interceptor can still `Outgoing::set_compress(false)`
 (or `true`) on h2c, TLS (including mTLS), Unix, and `from_io`. `Outgoing::clear_compress` then
 `set_compress(compresses_outbound())` reapplies the channel overlay on every
-call shape, on h2c, TLS (including mTLS), Unix, and `from_io`. Channel overlays
-(`rpc_timeout`, `waits_for_ready`, `compresses_outbound`, `gzip_level`) stay visible after
-`clear_*` on those dialers. On a lazy channel that is not listening,
+call shape, on h2c, TLS (including mTLS), Unix, and `from_io`. Channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`) stay visible after `clear_*` on those dialers.
+On a lazy channel that is not listening,
 `clear_wait_for_ready` fail-fasts; `from_io` is already connected so the RPC
 still runs. Official TestService EmptyCall / StreamingOutputCall /
 StreamingInputCall / FullDuplexCall and hand-written Reverser `Channel`

@@ -5072,6 +5072,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
     );
     assert!(
+        guide.contains(
+            "Channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`) stay visible after `clear_*` on those dialers."
+        ),
+        "guide must name the full channel overlay set next to clear_* visibility"
+    );
+    assert!(
         !guide.contains("Prefix with `Channel::user_agent`. Interceptors read"),
         "guide must not list Outgoing::set_user_agent as an omission"
     );
