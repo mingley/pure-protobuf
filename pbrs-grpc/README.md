@@ -68,6 +68,7 @@ RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent
 `Outgoing::clear_wait_for_ready` restores the channel wait-for-ready overlay after a crate README interceptor choice.
 `Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a crate README interceptor choice.
 `Outgoing::clear_timeout` opts out of the channel timeout after a crate README interceptor choice.
+`Status::from_error_details` is the typed bag after this crate README interceptor Err; a local reject never opens a stream.
 `ResponseParts::compress_is_set` is occupancy on this crate README on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this crate README on_response path.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this crate README on_response path; a received reply has no server gzip overlay to restore.
