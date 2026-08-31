@@ -2683,6 +2683,7 @@ impl ResponseParts {
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the server overlay on this split reply envelope.
     /// Distinct from [`crate::Outgoing::rpc_timeout`]: that is a client interceptor overlay, not this split reply envelope.
+    /// Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope, not the server overlay.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.rpc_timeout

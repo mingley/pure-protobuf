@@ -1550,6 +1550,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::rpc_timeout Distinct from Outgoing::rpc_timeout: that is a client interceptor overlay, not this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope, not the server overlay."
+        ),
+        "ResponseParts::rpc_timeout Distinct from deadline: that is the Instant on this split reply envelope, not the server overlay"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
