@@ -2704,6 +2704,7 @@ impl ResponseParts {
     /// Write-time send buffer when writing. See [`Response::send_buffer_size`].
     ///
     /// Distinct from [`crate::Request::send_buffer_size`]: that is the inbound request, not this split reply envelope.
+    /// Distinct from [`crate::Rpc::send_buffer_size`]: that is a server interceptor before the handler, not this split reply envelope.
     #[must_use]
     pub fn send_buffer_size(&self) -> Option<usize> {
         self.send_buffer_size
