@@ -1463,6 +1463,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.peer_identity(),
 ///         parts.peer_cred(),
 ///         parts.authority(),
+///         parts.scheme(),
 ///     );
 /// }
 /// # let _ = dump_parts;
