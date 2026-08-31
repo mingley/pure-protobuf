@@ -1770,6 +1770,7 @@ apply to every call shape. `Outgoing::connected` is the same live-socket snapsho
 TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent` into metadata succeeds on every shape — that name is not reserved — but the kernel overwrites it after user metadata, so a smuggled value cannot win. A `Channel::user_agent` prefix is sent on every shape. `Outgoing::set_user_agent` prefixes this RPC the same way (kernel suffix stays). `Request::set_user_agent` prefixes this RPC the same way at the call site. An interceptor `Outgoing::set_user_agent` that runs after the call site wins.
 `Outgoing::user_agent_is_set` distinguishes that override from the channel value, so a later interceptor can fill only when neither the request nor an earlier interceptor set a prefix — the same occupancy pattern as `wait_for_ready_is_set`.
 `Outgoing::wait_for_ready_is_set` is occupancy on this guide interceptor path, so a later interceptor can fill wait-for-ready only when unset.
+`Outgoing::compress_is_set` is occupancy on this guide interceptor path, so a later interceptor can fill compress only when unset.
 `Outgoing::clear_user_agent` restores the channel user-agent after a client interceptor prefix on those transports plus `from_io`.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
