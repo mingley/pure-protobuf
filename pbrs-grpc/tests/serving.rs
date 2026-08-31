@@ -950,6 +950,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::clear_wait_for_ready`] restores the channel wait-for-ready overlay on this outbound envelope."
+        ),
+        "Outgoing rustdoc must name clear_wait_for_ready next to clear_timeout"
+    );
+    assert!(
+        outgoing.contains(
             "[`Self::clear_compress`] / [`Self::clear_user_agent`] opt out of an already-applied default."
         ),
         "Outgoing rustdoc must name clear_user_agent next to the other clear_* opt-outs"
