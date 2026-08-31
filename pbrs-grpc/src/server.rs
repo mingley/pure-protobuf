@@ -1925,6 +1925,7 @@ impl<S: Service> Server<S> {
     /// server.intercept(|rpc: &mut pbrs_grpc::Rpc| {
     ///     let _ = (
     ///         rpc.path(),
+    ///         rpc.service(),
     ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),
@@ -2795,6 +2796,7 @@ impl Router {
     /// router.intercept(|rpc: &mut pbrs_grpc::Rpc| {
     ///     let _ = (
     ///         rpc.path(),
+    ///         rpc.service(),
     ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),
