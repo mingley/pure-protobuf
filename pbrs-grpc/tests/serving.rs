@@ -1550,7 +1550,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
-            "rpc.metadata_mut().set(\"x-actor\", \"gateway\")?;\n///     let _ = (\n///         rpc.path(),\n///         rpc.peer_timeout(),\n///         rpc.rpc_timeout(),\n///         rpc.effective_timeout(),\n///         rpc.deadline(),\n///         rpc.gzip_level(),\n///         rpc.accepts_compressed(),\n///         rpc.concurrent_rpc_limit(),\n///         rpc.send_buffer_size(),\n///         rpc.limits(),\n///         rpc.local_addr(),\n///         rpc.remote_addr(),\n///         rpc.peer_identity(),\n///         rpc.peer_cred(),\n///         rpc.authority(),\n///         rpc.scheme(),"
+            "rpc.metadata_mut().set(\"x-actor\", \"gateway\")?;\n///     let _ = (\n///         rpc.path(),\n///         rpc.peer_timeout(),\n///         rpc.rpc_timeout(),\n///         rpc.effective_timeout(),\n///         rpc.deadline(),\n///         rpc.accepts_gzip(),\n///         rpc.gzip_level(),\n///         rpc.accepts_compressed(),\n///         rpc.concurrent_rpc_limit(),\n///         rpc.send_buffer_size(),\n///         rpc.limits(),\n///         rpc.local_addr(),\n///         rpc.remote_addr(),\n///         rpc.peer_identity(),\n///         rpc.peer_cred(),\n///         rpc.authority(),\n///         rpc.scheme(),"
         ),
         "Interceptor rustdoc example must read Incoming-stamped peer facts"
     );
@@ -1598,7 +1598,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
-            "svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
+            "svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.accepts_gzip(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
         ),
         "ServiceExt::intercept rustdoc example must read Incoming-stamped peer facts"
     );
@@ -1793,7 +1793,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
-            "wrapped.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
+            "wrapped.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.accepts_gzip(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
         ),
         "Intercepted::intercept rustdoc example must read Incoming-stamped peer facts"
     );
@@ -2079,7 +2079,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {\n//!     let _ = (\n//!         rpc.path(),\n//!         rpc.peer_timeout(),\n//!         rpc.rpc_timeout(),\n//!         rpc.effective_timeout(),\n//!         rpc.deadline(),\n//!         rpc.gzip_level(),\n//!         rpc.accepts_compressed(),\n//!         rpc.concurrent_rpc_limit(),\n//!         rpc.send_buffer_size(),\n//!         rpc.limits(),\n//!         rpc.local_addr(),\n//!         rpc.remote_addr(),\n//!         rpc.peer_identity(),\n//!         rpc.peer_cred(),\n//!         rpc.authority(),\n//!         rpc.scheme(),"
+            "pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {\n//!     let _ = (\n//!         rpc.path(),\n//!         rpc.peer_timeout(),\n//!         rpc.rpc_timeout(),\n//!         rpc.effective_timeout(),\n//!         rpc.deadline(),\n//!         rpc.accepts_gzip(),\n//!         rpc.gzip_level(),\n//!         rpc.accepts_compressed(),\n//!         rpc.concurrent_rpc_limit(),\n//!         rpc.send_buffer_size(),\n//!         rpc.limits(),\n//!         rpc.local_addr(),\n//!         rpc.remote_addr(),\n//!         rpc.peer_identity(),\n//!         rpc.peer_cred(),\n//!         rpc.authority(),\n//!         rpc.scheme(),"
         ),
         "hello GreeterServer::intercept rustdoc example must read Incoming-stamped peer facts"
     );
@@ -5155,7 +5155,7 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
-            "server.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
+            "server.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.accepts_gzip(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
         ),
         "Server::intercept rustdoc example must read Incoming-stamped peer facts"
     );
@@ -5173,7 +5173,7 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
-            "router.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
+            "router.intercept(|rpc: &mut pbrs_grpc::Rpc| {\n    ///     let _ = (\n    ///         rpc.path(),\n    ///         rpc.peer_timeout(),\n    ///         rpc.rpc_timeout(),\n    ///         rpc.effective_timeout(),\n    ///         rpc.deadline(),\n    ///         rpc.accepts_gzip(),\n    ///         rpc.gzip_level(),\n    ///         rpc.accepts_compressed(),\n    ///         rpc.concurrent_rpc_limit(),\n    ///         rpc.send_buffer_size(),\n    ///         rpc.limits(),\n    ///         rpc.local_addr(),\n    ///         rpc.remote_addr(),\n    ///         rpc.peer_identity(),\n    ///         rpc.peer_cred(),\n    ///         rpc.authority(),\n    ///         rpc.scheme(),"
         ),
         "Router::intercept rustdoc example must read Incoming-stamped peer facts"
     );
