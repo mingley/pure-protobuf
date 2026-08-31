@@ -1287,6 +1287,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::metadata`]: that is headers on this split reply envelope; this is typed local state, not on the wire."
+        ),
+        "ResponseParts::extensions Distinct from metadata: that is headers on this split reply envelope; this is typed local state, not on the wire"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Request::path`]: that is the inbound request, not this split reply envelope."
         ),
         "ResponseParts::path must Distinct inbound Request::path from the split reply"

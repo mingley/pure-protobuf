@@ -2720,6 +2720,7 @@ impl ResponseParts {
     /// Typed values on this envelope. See [`Response::extensions`].
     ///
     /// Distinct from [`Self::extensions_mut`]: that inserts typed values this split reply envelope carries; this borrows them.
+    /// Distinct from [`Self::metadata`]: that is headers on this split reply envelope; this is typed local state, not on the wire.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions
