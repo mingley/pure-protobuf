@@ -4321,8 +4321,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Response::send_buffer_size as the response interceptor overlay"
     );
     assert!(
-        architecture.contains("`concurrent_rpc_limit` / `send_buffer_size`, `limits`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`."),
-        "architecture must dump Rpc send_buffer_size and Incoming-stamped peer facts"
+        architecture.contains("`concurrent_rpc_limit` / `send_buffer_size`, `limits`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, and extensions."),
+        "architecture must dump Rpc Incoming-stamped peer facts and interceptor extensions"
     );
     assert!(
         architecture.contains("gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"),
