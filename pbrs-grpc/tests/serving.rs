@@ -3232,6 +3232,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::Outgoing::compress_is_set`] is occupancy on this hello intercept path, so a later interceptor can fill compress only when unset."
+        ),
+        "hello GreeterClient::intercept rustdoc must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
+    );
+    assert!(
+        hello.contains(
             "//!         call.connected(),\n//!         call.extensions(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"
