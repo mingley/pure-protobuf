@@ -6597,6 +6597,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name ResponseParts::clear_compress receive-path next to Server restore"
     );
+    assert!(
+        architecture.contains(
+            "`Status::from_error_details` is the typed bag after this architecture Channel on_response Err; a local reject fails the Call after a successful receive."
+        ),
+        "architecture must name from_error_details typed bag next to Channel on_response Err"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
