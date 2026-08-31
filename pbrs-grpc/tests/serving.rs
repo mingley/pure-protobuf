@@ -3083,6 +3083,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `stream_buffer_size`, `send_buffer_size`, `limits`) are visible even after `clear_*`"
+        ),
+        "Channel::intercept rustdoc must name the full channel overlay set next to gzip_level"
+    );
+    assert!(
+        src.contains(
             "[`crate::Outgoing::clear_user_agent`] restores the channel user-agent after this Channel intercept prefix."
         ),
         "Channel::intercept rustdoc must name clear_user_agent opt-out"
