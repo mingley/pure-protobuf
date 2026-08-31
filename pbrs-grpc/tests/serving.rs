@@ -10601,6 +10601,19 @@ async fn reverser_handlers_return_typed_status_on_every_shape() {
 }
 
 #[tokio::test]
+async fn reverser_handlers_return_from_error_details_on_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(FailReverserFromErrorDetails)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_blocked_every_shape(&channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn reverser_tls_handlers_return_typed_status_on_every_shape() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
@@ -16186,6 +16199,46 @@ impl Service for FailReverser {
             "Bidi" => {
                 rpc.bidi_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
                     Err::<Response<pbrs_grpc::Streaming<HelloReply>>, _>(interceptor_blocked())
+                })
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
+    }
+}
+
+struct FailReverserFromErrorDetails;
+
+impl Service for FailReverserFromErrorDetails {
+    const NAME: &'static str = "demo.Reverser";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Reverse" => {
+                rpc.unary(|_: Request<HelloRequest>| async {
+                    Err::<Response<HelloReply>, _>(interceptor_blocked_from_error_details())
+                })
+                .await;
+            }
+            "Server" => {
+                rpc.server_streaming(|_: Request<HelloRequest>| async {
+                    Err::<Response<pbrs_grpc::Streaming<HelloReply>>, _>(
+                        interceptor_blocked_from_error_details(),
+                    )
+                })
+                .await;
+            }
+            "Client" => {
+                rpc.client_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Err::<Response<HelloReply>, _>(interceptor_blocked_from_error_details())
+                })
+                .await;
+            }
+            "Bidi" => {
+                rpc.bidi_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Err::<Response<pbrs_grpc::Streaming<HelloReply>>, _>(
+                        interceptor_blocked_from_error_details(),
+                    )
                 })
                 .await;
             }
