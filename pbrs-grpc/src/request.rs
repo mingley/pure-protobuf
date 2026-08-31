@@ -1465,6 +1465,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.authority(),
 ///         parts.scheme(),
 ///         parts.wait_for_ready(),
+///         parts.limits(),
 ///     );
 /// }
 /// # let _ = dump_parts;
