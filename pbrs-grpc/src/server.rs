@@ -1942,6 +1942,7 @@ impl<S: Service> Server<S> {
     ///         rpc.peer_cred(),
     ///         rpc.authority(),
     ///         rpc.scheme(),
+    ///         rpc.extensions(),
     ///     );
     ///     Ok(())
     /// })
@@ -2811,6 +2812,7 @@ impl Router {
     ///         rpc.peer_cred(),
     ///         rpc.authority(),
     ///         rpc.scheme(),
+    ///         rpc.extensions(),
     ///     );
     ///     Ok(())
     /// })

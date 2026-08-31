@@ -72,6 +72,7 @@ use std::sync::Arc;
 ///         rpc.peer_cred(),
 ///         rpc.authority(),
 ///         rpc.scheme(),
+///         rpc.extensions(),
 ///     );
 ///     Ok(())
 /// }
@@ -351,6 +352,7 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     ///         rpc.peer_cred(),
     ///         rpc.authority(),
     ///         rpc.scheme(),
+    ///         rpc.extensions(),
     ///     );
     ///     Ok(())
     /// })
@@ -437,6 +439,7 @@ pub trait ServiceExt: Service + Sized {
     ///         rpc.peer_cred(),
     ///         rpc.authority(),
     ///         rpc.scheme(),
+    ///         rpc.extensions(),
     ///     );
     ///     Ok(())
     /// })

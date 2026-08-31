@@ -79,6 +79,7 @@
 //!         rpc.peer_cred(),
 //!         rpc.authority(),
 //!         rpc.scheme(),
+//!         rpc.extensions(),
 //!     );
 //!     Ok(())
 //! })
