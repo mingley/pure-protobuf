@@ -1139,6 +1139,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::user_agent`]: that is the effective header this RPC will send; this is occupancy."
+        ),
+        "Outgoing::user_agent_is_set Distinct from user_agent: that is the effective header this RPC will send; this is occupancy"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Rpc::scheme`]: that is the inbound `:scheme`; this is the `:scheme` this channel sends."
         ),
         "Outgoing::scheme must Distinct the inbound :scheme from the outbound :scheme"

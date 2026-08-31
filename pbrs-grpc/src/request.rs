@@ -1055,6 +1055,8 @@ impl<'a> Outgoing<'a> {
 
     /// Whether [`Self::set_user_agent`] has already overridden the channel
     /// value. Applies to every call shape.
+    ///
+    /// Distinct from [`Self::user_agent`]: that is the effective header this RPC will send; this is occupancy.
     #[must_use]
     pub fn user_agent_is_set(&self) -> bool {
         self.user_agent.is_some()
