@@ -2363,6 +2363,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "[`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "ClientInterceptor::intercept rustdoc must name Outgoing::wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip on this method-level intercept."
         ),
         "ClientInterceptor::intercept rustdoc must name clear_compress opt-out"
