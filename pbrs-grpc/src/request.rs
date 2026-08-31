@@ -1713,6 +1713,7 @@ impl Parts {
     /// Server gzip deflate overlay. See [`Request::gzip_level`].
     ///
     /// Distinct from [`Self::compresses_outbound`]: that is on or off on this split envelope; this is deflate effort.
+    /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay, not this split envelope's server overlay.
     #[must_use]
     pub fn gzip_level(&self) -> u32 {
         self.gzip_level

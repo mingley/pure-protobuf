@@ -748,6 +748,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::gzip_level must Distinct on/off from deflate effort"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay, not this split envelope's server overlay."
+        ),
+        "Parts::gzip_level must Distinct client interceptor overlay from server overlay"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
