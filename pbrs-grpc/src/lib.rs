@@ -118,6 +118,8 @@
 //!
 //! [`Outgoing::compress_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can fill compress only when unset.
 //!
+//! [`Outgoing::clear_user_agent`] restores the channel user-agent after a crate-map interceptor prefix.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!
