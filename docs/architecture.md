@@ -124,7 +124,7 @@ channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`),
 extensions, `connected`). Those Outgoing getters apply to every call shape.
 Dumping `Outgoing` prints path / service / method, `:authority` / `:scheme`,
-`user-agent`, `limits`, `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
+`user-agent` (`user_agent_is_set`), `limits`, `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /
 `send_buffer_size`, metadata, timeout / deadline, wait-for-ready (`wait_for_ready_is_set`), `connected`,
 compress (`compress_is_set`), and extensions.

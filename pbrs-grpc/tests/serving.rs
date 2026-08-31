@@ -5557,6 +5557,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Outgoing compress_is_set next to compress"
     );
     assert!(
+        architecture.contains("`user-agent` (`user_agent_is_set`), `limits`,"),
+        "architecture must dump Outgoing user_agent_is_set next to user-agent"
+    );
+    assert!(
         architecture.contains("`stream_buffer_size`, `send_buffer_size`, and `limits` read"),
         "architecture must name FooClient send-buffer and limits overlay getters"
     );
