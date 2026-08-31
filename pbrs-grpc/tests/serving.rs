@@ -5807,6 +5807,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ResponseParts::clear_compress receive-path next to Server restore"
     );
     assert!(
+        status_guide.contains(
+            "`Status::from_error_details` is the typed bag after this packed-status Channel on_response Err; a local reject fails the Call after a successful receive."
+        ),
+        "status guide must name from_error_details typed bag next to Channel on_response Err"
+    );
+    assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );
