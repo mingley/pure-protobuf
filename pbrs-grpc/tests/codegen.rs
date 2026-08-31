@@ -934,6 +934,18 @@ fn interceptor_blocked() -> Status {
     .expect("details")
 }
 
+fn interceptor_blocked_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "BLOCKED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    Status::from_error_details(Code::FailedPrecondition, "blocked locally", &details)
+        .expect("details")
+}
+
 fn assert_store_blocked(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "blocked locally");
@@ -1476,6 +1488,23 @@ async fn generated_server_interceptor_rejects_with_typed_status() {
     let server = tokio::spawn(async move {
         StoreServer::new(MemStore)
             .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_blocked_every_shape(&client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_server_interceptor_rejects_with_from_error_details() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(MemStore)
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked_from_error_details()))
             .serve_listener(listener)
             .await
             .ok();
