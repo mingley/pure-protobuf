@@ -1352,6 +1352,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::accepts_gzip must Distinct received encoding from accept-encoding"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::accepts_gzip`]: that is a server interceptor before the handler, not this split reply envelope."
+        ),
+        "ResponseParts::accepts_gzip must Distinct Rpc overlay before the handler"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );

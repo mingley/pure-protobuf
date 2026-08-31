@@ -2615,6 +2615,7 @@ impl ResponseParts {
     /// Peer gzip advertisement. See [`Response::accepts_gzip`].
     ///
     /// Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding` on this split reply envelope.
+    /// Distinct from [`crate::Rpc::accepts_gzip`]: that is a server interceptor before the handler, not this split reply envelope.
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
         self.accepts_gzip
