@@ -599,6 +599,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump encoding Distinct from compressed"
     );
     assert!(
+        outgoing.contains("///         request.encoding(),\n///         request.accepts_gzip(),"),
+        "Request rustdoc must dump accepts_gzip Distinct from encoding"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );

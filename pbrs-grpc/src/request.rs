@@ -50,6 +50,7 @@ use tokio::sync::watch;
 ///         request.compress(),
 ///         request.compressed(),
 ///         request.encoding(),
+///         request.accepts_gzip(),
 ///     );
 /// }
 /// # let _ = dump_request;
