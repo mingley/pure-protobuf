@@ -5131,6 +5131,10 @@ fn emit_kernel_client(
         src,
         "    /// `clear_wait_for_ready` restores the channel wait-for-ready overlay after a generated intercept choice."
     );
+    let _ = writeln!(
+        src,
+        "    /// `clear_timeout` opts out of the channel timeout after a generated intercept choice."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");
