@@ -7174,6 +7174,12 @@ fn server_and_router_config_document_every_call_shape() {
         2,
         "Server::on_response and Router::on_response must Distinct send_buffer_size from encode caps"
     );
+    assert!(
+        src.contains(
+            "[`crate::ResponseParts::compress_is_set`] is occupancy after this Server on_response, so a later interceptor can fill compress only when unset."
+        ),
+        "Server::on_response rustdoc must name compress_is_set occupancy next to send_buffer Distinct"
+    );
     assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
