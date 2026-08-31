@@ -742,6 +742,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::accepts_gzip must Distinct inbound overlay from peer advertisement"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compresses_outbound`]: that is on or off on this split envelope; this is deflate effort."
+        ),
+        "Parts::gzip_level must Distinct on/off from deflate effort"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
