@@ -927,6 +927,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must name user_agent_is_set occupancy next to cancelled dump"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::wait_for_ready_is_set`] is occupancy on this request envelope, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "Request rustdoc must name wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );
