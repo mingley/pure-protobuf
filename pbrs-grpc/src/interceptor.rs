@@ -41,6 +41,7 @@ use std::sync::Arc;
 /// service, method, client timeout, server timeout overlay, gzip facts, response-gzip overlay, deflate effort, inbound-gzip overlay, process RPC cap, write-time send buffer, peer, and caps on
 /// [`crate::Request`]. `Err` may
 /// carry [`crate::Status::with_error_details`]; those trailers reach the client.
+/// [`crate::Status::from_error_details`] is the typed bag on this Interceptor Err; those trailers reach the client without reading the body.
 ///
 /// ```
 /// use pbrs_grpc::{Rpc, Service, ServiceExt, Status};

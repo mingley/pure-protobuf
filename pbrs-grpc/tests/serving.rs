@@ -2767,6 +2767,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor rustdoc example must read gzip_level"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Status::from_error_details`] is the typed bag on this Interceptor Err; those trailers reach the client without reading the body."
+        ),
+        "Interceptor rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
         "ClientInterceptor rustdoc must Distinct connected from wait-for-ready"
     );
