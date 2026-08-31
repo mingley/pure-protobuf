@@ -3519,6 +3519,7 @@ impl ConnectionInfo {
     }
 
     /// Peer address, if set.
+    /// Distinct from [`Self::with_remote_addr`], which sets it.
     #[must_use]
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote
