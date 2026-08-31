@@ -4365,8 +4365,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Parts without the message"
     );
     assert!(
-        architecture.contains("wait-for-ready, `limits`, cancel, and extensions."),
-        "architecture must dump Request and Parts interceptor extensions"
+        architecture.contains("wait-for-ready, `limits`, cancel, extensions, and user-agent."),
+        "architecture must dump Request and Parts interceptor extensions and user-agent"
     );
     assert!(
         architecture.contains("`rpc_timeout`, `limits`, `send_buffer_size`, and extensions."),
