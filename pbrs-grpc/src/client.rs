@@ -882,6 +882,7 @@ impl Channel {
     /// at the call site; an interceptor [`crate::Outgoing::set_user_agent`]
     /// that runs after wins.
     /// [`crate::Outgoing::clear_user_agent`] restores the channel user-agent after this Channel intercept prefix.
+    /// [`crate::Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after this Channel intercept choice.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {

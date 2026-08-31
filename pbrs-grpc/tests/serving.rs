@@ -3166,6 +3166,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must name clear_user_agent opt-out"
     );
     assert!(
+        src.contains(
+            "[`crate::Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after this Channel intercept choice."
+        ),
+        "Channel::intercept rustdoc must name clear_wait_for_ready opt-out next to clear_user_agent"
+    );
+    assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
     );
