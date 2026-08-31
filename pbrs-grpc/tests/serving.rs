@@ -2990,7 +2990,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::error_info"
     );
     assert!(
-        crate_src.contains("[`Status::rpc`], [`Status::error_details`], [`Status::from_rpc`], [`Status::set_rpc`]"),
+        crate_src.contains(
+            "[`Status::rpc`], [`Status::error_details`], [`Status::from_rpc`], [`Status::set_rpc`]"
+        ),
         "crate map must name Status::rpc, error_details, from_rpc, and set_rpc together"
     );
     assert!(
@@ -3324,6 +3326,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`crate::Status::localized_message`]: that is a locale, not an operator stack."
         ),
         "DebugInfo::with_stack must Distinct locale from operator stack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag."
+        ),
+        "ErrorDetails::from_rpc must Distinct the Status encode constructor from this typed-bag unpack"
     );
     assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
@@ -4356,7 +4364,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Rpc Incoming-stamped peer facts and interceptor extensions"
     );
     assert!(
-        architecture.contains("`Rpc` prints path / service / method, metadata, interceptor `timeout`"),
+        architecture
+            .contains("`Rpc` prints path / service / method, metadata, interceptor `timeout`"),
         "architecture must dump Rpc path and metadata"
     );
     assert!(

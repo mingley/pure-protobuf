@@ -630,6 +630,7 @@ impl ErrorDetails {
     /// Decode a `google.rpc.Status` details list. The first value of each
     /// standard type fills the matching field; anything else, including a
     /// second value of a known type, goes to [`Self::unknown`].
+    /// Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag.
     pub fn from_rpc(rpc: &Status) -> Result<Self, crate::Status> {
         let mut out = Self::new();
         let details = rpc.details();
