@@ -2666,6 +2666,7 @@ impl ResponseParts {
     /// Distinct from [`crate::Request::peer_timeout`]: that is the inbound request, not this split reply envelope.
     /// Distinct from [`Self::timeout`]: that is the effective cap on this split reply envelope; this is the client's original header.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the client header on this split reply envelope.
+    /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the client header on this split reply envelope.
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         self.peer_timeout
