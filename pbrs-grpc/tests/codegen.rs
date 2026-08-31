@@ -3945,6 +3945,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "server-streaming trait methods must name StreamSender::fail trailers"
     );
     assert!(
+        src.contains("[`::pbrs_grpc::Status::from_error_details`] is the typed bag after a generated StreamSender fail on a server response producer; those trailers ship after any messages already sent."),
+        "server-streaming trait methods must name from_error_details typed bag next to StreamSender fail"
+    );
+    assert!(
         src.contains("Spawned work should await [`::pbrs_grpc::Request::cancelled`]"),
         "trait methods must name spawned cancelled"
     );
