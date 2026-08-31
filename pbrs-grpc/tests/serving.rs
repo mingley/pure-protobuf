@@ -809,6 +809,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`crate::Outgoing::user_agent_is_set`]: that is the same flag after interceptors run, not this split envelope."
+        ),
+        "Parts::user_agent_is_set Distinct from Outgoing::user_agent_is_set: that is the same flag after interceptors run, not this split envelope"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::wait_for_ready`], which is `false` when unset on this split envelope."
         ),
         "Parts::wait_for_ready_is_set must Distinct occupancy from the fail-fast snapshot"

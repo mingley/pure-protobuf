@@ -1631,6 +1631,8 @@ impl Parts {
 
     /// Whether [`Self::set_user_agent`] has already overridden the channel
     /// value. See [`Request::user_agent_is_set`].
+    ///
+    /// Distinct from [`crate::Outgoing::user_agent_is_set`]: that is the same flag after interceptors run, not this split envelope.
     #[must_use]
     pub fn user_agent_is_set(&self) -> bool {
         self.user_agent.is_some()
