@@ -5836,6 +5836,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Status::retry_delay as a wait hint"
     );
     assert!(
+        guide.contains("`RetryInfo::with_retry_delay` builds that payload"),
+        "guide must name RetryInfo::with_retry_delay as the builder"
+    );
+    assert!(
         guide.contains("`status.error_info()` for the reason and domain"),
         "guide must name Status::error_info as reason and domain"
     );
