@@ -4915,6 +4915,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::with_error_details must Distinct the typed-bag constructor from this Any packer"
     );
     assert!(
+        status_src
+            .contains("let info = ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\");"),
+        "Status::with_error_details must build ErrorInfo with with_reason"
+    );
+    assert!(
         status_src.contains(
             "Distinct from [`Self::set_from_error_details`]: that takes the typed bag, not packed `Any` values."
         ),
