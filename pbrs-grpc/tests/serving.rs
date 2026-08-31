@@ -3986,6 +3986,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must Distinct error_info from the ErrorDetails bag"
     );
     assert!(
+        guide.contains("`Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`."),
+        "guide must Distinct Status::rpc packed protobuf from the typed error_details bag"
+    );
+    assert!(
         guide.contains("`status.bad_request()` for field violations"),
         "guide must name Status::bad_request as field violations"
     );

@@ -351,7 +351,7 @@ Rich errors travel as `grpc-status-details-bin`. The spec puts a serialized
 plus a repeated `google.protobuf.Any`. `Status::with_error_details` builds
 that protobuf from packed `Any` values; `Status::from_error_details` does
 the same from an `ErrorDetails` bag of the standard `google.rpc` messages.
-`Status::rpc` / `Status::error_details` parse it back. A handler or interceptor
+`Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,
 including Health `Check` / `Watch` and the reflection bidi method.
 `from_rpc` / `with_error_details` mint a fresh status (empty trailers). To change
