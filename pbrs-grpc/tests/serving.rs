@@ -5542,6 +5542,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
     );
     assert!(
+        status_guide.contains("`ErrorInfo::with_reason` builds that payload."),
+        "status guide must name ErrorInfo::with_reason as the builder"
+    );
+    assert!(
         status_guide.contains(
             "`Outgoing::user_agent_is_set` distinguishes that override from the channel value on this packed-status interceptor path."
         ),
