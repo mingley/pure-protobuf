@@ -2045,6 +2045,8 @@ impl<T> Response<T> {
     /// Typed values on this envelope. They are not headers and they are not
     /// on the wire. Distinct from [`Self::metadata`].
     ///
+    /// Distinct from [`Self::extensions_mut`]: that inserts typed values this reply envelope carries; this borrows them.
+    ///
     /// Empty on a reply you built until something inserts into
     /// [`Self::extensions_mut`]. A received reply starts empty: the peer
     /// cannot insert here. Same map on [`ResponseParts::extensions`] after
