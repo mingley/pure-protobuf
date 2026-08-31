@@ -601,6 +601,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump peer_timeout Distinct from timeout"
     );
     assert!(
+        outgoing.contains("///         parts.peer_timeout(),\n///         parts.deadline(),"),
+        "Parts rustdoc must dump deadline Distinct from timeout"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
