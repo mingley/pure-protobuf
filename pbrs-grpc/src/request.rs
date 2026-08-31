@@ -61,6 +61,7 @@ use tokio::sync::watch;
 ///         request.peer_identity(),
 ///         request.peer_cred(),
 ///         request.authority(),
+///         request.scheme(),
 ///     );
 /// }
 /// # let _ = dump_request;
