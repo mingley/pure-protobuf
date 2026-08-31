@@ -1406,6 +1406,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::accepts_compressed Distinct from encoding: that is received grpc-encoding, not this advertisement on this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Request::deadline`]: that is the inbound request, not this split reply envelope."
+        ),
+        "ResponseParts::deadline Distinct from Request::deadline: that is the inbound request, not this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
