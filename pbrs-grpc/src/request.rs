@@ -2695,6 +2695,7 @@ impl ResponseParts {
     /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::limits`]: that is a client interceptor overlay, not this split reply envelope.
     /// Distinct from [`Self::timeout`]: that is a duration on this split reply envelope, not a size cap.
+    /// Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not message size on this split reply envelope.
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
         self.limits

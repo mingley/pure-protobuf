@@ -1580,6 +1580,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::limits Distinct from timeout: that is a duration on this split reply envelope, not a size cap"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::stream_buffer_size`]: that is queue depth, not message size on this split reply envelope."
+        ),
+        "ResponseParts::limits Distinct from Outgoing::stream_buffer_size: that is queue depth, not message size on this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
