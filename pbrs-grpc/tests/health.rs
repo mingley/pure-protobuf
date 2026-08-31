@@ -658,6 +658,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must name from_error_details typed bag next to interceptor Err"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this health handler Err; those trailers reach the client."
+        ),
+        "Health crate rustdoc must name from_error_details typed bag next to handler Err"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {

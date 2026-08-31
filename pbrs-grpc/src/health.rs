@@ -42,7 +42,9 @@
 //! the client on Check, List, and Watch.
 //! [`crate::Status::from_error_details`] is the typed bag after this health interceptor Err; those trailers reach the client without reading the body.
 //! A handler `Err` may carry the same packed
-//! status; those trailers reach the client on Check, List, and Watch. Watch
+//! status; those trailers reach the client on Check, List, and Watch.
+//! [`crate::Status::from_error_details`] is the typed bag after this health handler Err; those trailers reach the client.
+//! Watch
 //! [`crate::StreamSender::fail`] after a streamed DATA frame ships those
 //! trailers the same way (Check is unary: no response DATA then trailers).
 //! Unix (`serve_unix` /
