@@ -4216,6 +4216,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after a crate-map interceptor choice."
+        ),
+        "crate docs must name Outgoing::clear_wait_for_ready next to clear_user_agent"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::set_rpc`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"

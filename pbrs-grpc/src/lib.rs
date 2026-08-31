@@ -120,6 +120,8 @@
 //!
 //! [`Outgoing::clear_user_agent`] restores the channel user-agent after a crate-map interceptor prefix.
 //!
+//! [`Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after a crate-map interceptor choice.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!
