@@ -483,6 +483,7 @@ impl Status {
     /// present. A peer can send a protobuf whose code or message disagrees
     /// with the ASCII half. [`Self::set_code`] / [`Self::set_message`] only
     /// rewrite the protobuf when it still matches.
+    /// Distinct from [`Self::error_details`]: that is the typed bag, not this packed `google.rpc.Status`.
     ///
     /// A handler or interceptor [`Err`] built with [`Self::with_error_details`]
     /// is this protobuf on the client for every call shape, including a

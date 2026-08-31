@@ -3003,6 +3003,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::rpc must Distinct receive-path ASCII from a mismatched packed google.rpc.Status"
     );
     assert!(
+        status_src.contains(
+            "Distinct from [`Self::error_details`]: that is the typed bag, not this packed `google.rpc.Status`."
+        ),
+        "Status::rpc must Distinct the typed bag from the packed google.rpc.Status"
+    );
+    assert!(
         status_src.contains("gRPC A6 default retryable set: [`Self::Unavailable`] only."),
         "Code::is_retryable must name the A6 default set"
     );
