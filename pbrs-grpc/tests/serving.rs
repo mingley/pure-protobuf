@@ -5090,6 +5090,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Outgoing::clear_user_agent next to user_agent occupancy"
     );
     assert!(
+        guide.contains("`user_agent` (`user_agent_is_set`), `limits`,"),
+        "guide Outgoing getter inventory must name user_agent_is_set next to user_agent"
+    );
+    assert!(
         guide.contains(
             "Channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`) stay visible after `clear_*` on those dialers."
         ),
