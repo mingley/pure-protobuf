@@ -2813,6 +2813,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::intercept rustdoc must name a single intercept reject on every transport"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this ServiceExt intercept Err; those trailers reach the client without reading the body."
+        ),
+        "ServiceExt::intercept rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
         intercept.contains("svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "ServiceExt::intercept rustdoc example must attach a closure"
     );

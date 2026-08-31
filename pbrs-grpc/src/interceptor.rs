@@ -443,6 +443,7 @@ pub trait ServiceExt: Service + Sized {
     /// instead, which stacks first-interceptor-first. A single interceptor
     /// still rejects before the handler on every call shape, including over
     /// TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+    /// [`crate::Status::from_error_details`] is the typed bag after this ServiceExt intercept Err; those trailers reach the client without reading the body.
     ///
     /// ```
     /// use pbrs_grpc::ServiceExt;
