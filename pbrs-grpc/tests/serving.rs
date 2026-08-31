@@ -956,6 +956,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::clear_compress`] then [`Self::set_compress`] from [`Self::compresses_outbound`] reapplies channel gzip on this outbound envelope."
+        ),
+        "Outgoing rustdoc must name clear_compress reapply next to clear_wait_for_ready"
+    );
+    assert!(
+        outgoing.contains(
             "[`Self::clear_compress`] / [`Self::clear_user_agent`] opt out of an already-applied default."
         ),
         "Outgoing rustdoc must name clear_user_agent next to the other clear_* opt-outs"

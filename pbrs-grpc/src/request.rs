@@ -906,6 +906,7 @@ impl<T> Request<T> {
 /// [`Self::compress_is_set`] is occupancy on this outbound envelope, so a later interceptor can fill compress only when unset.
 /// [`Self::clear_timeout`] opts out of the channel timeout on this outbound envelope.
 /// [`Self::clear_wait_for_ready`] restores the channel wait-for-ready overlay on this outbound envelope.
+/// [`Self::clear_compress`] then [`Self::set_compress`] from [`Self::compresses_outbound`] reapplies channel gzip on this outbound envelope.
 /// Typed values the caller inserted on [`crate::Request::extensions_mut`] are on this map.
 /// [`Self::connected`] is whether a pool slot holds a live socket (same
 /// snapshot as [`crate::Channel::connected`]), taken when this interceptor
