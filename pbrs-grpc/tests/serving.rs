@@ -1388,6 +1388,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::accepts_compressed Distinct from Rpc::accepts_compressed: that is a server interceptor before the handler, not this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay, not this split reply envelope's inbound overlay."
+        ),
+        "ResponseParts::accepts_compressed Distinct from Outgoing::accepts_compressed: that is a client interceptor overlay, not this split reply envelope's inbound overlay"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
