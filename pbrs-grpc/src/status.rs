@@ -549,8 +549,7 @@ impl Status {
     ///
     /// let mut status = Status::not_found("gone");
     /// status.metadata_mut().insert("x-retry-after", "30")?;
-    /// let mut info = ErrorInfo::new();
-    /// info.set_reason("STOCKOUT");
+    /// let info = ErrorInfo::with_reason("STOCKOUT", "example.com");
     /// status.set_error_details(
     ///     Code::ResourceExhausted,
     ///     "out of stock",
