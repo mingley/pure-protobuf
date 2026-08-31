@@ -8,6 +8,7 @@
 //! Generated [`GreeterClient::intercept`] reads the same Outgoing overlays as
 //! [`crate::Channel::intercept`]:
 //! [`crate::Outgoing::user_agent_is_set`] is occupancy on this hello intercept path, so a later interceptor can prefix only when unset.
+//! [`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this hello intercept path, so a later interceptor can fill wait-for-ready only when unset.
 //!
 //! ```
 //! # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::hello::GreeterClient {
