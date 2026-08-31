@@ -4498,6 +4498,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path."
+        ),
+        "crate docs must name ResponseParts::clear_compress next to on_response occupancy"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::set_rpc`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
