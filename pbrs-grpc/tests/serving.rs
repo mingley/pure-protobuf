@@ -752,6 +752,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc example must read deadline Distinct from timeout"
     );
     assert!(
+        outgoing.contains("        call.metadata(),"),
+        "Outgoing rustdoc example must read metadata Distinct from metadata_mut"
+    );
+    assert!(
         outgoing.contains(
             "Distinct from [`Self::timeout`]: that is the duration; this Instant is computed when the getter runs."
         ),
@@ -1541,6 +1545,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc example must read deadline Distinct from timeout"
     );
     assert!(
+        intercept.contains("        call.metadata(),"),
+        "ClientInterceptor rustdoc example must read metadata Distinct from metadata_mut"
+    );
+    assert!(
         intercept.contains("[`Rpc::gzip_level`] is deflate effort"),
         "Interceptor rustdoc must name Rpc::gzip_level as deflate effort"
     );
@@ -2092,9 +2100,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),"
+            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.metadata(),\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),"
         ),
-        "Channel::intercept rustdoc example must read deadline Distinct from timeout"
+        "Channel::intercept rustdoc example must read metadata Distinct from metadata_mut"
     );
     let hello = include_str!("../src/hello.rs");
     assert!(
@@ -2105,9 +2113,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),"
+            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.metadata(),\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),"
         ),
-        "hello GreeterClient::intercept rustdoc example must read deadline Distinct from timeout"
+        "hello GreeterClient::intercept rustdoc example must read metadata Distinct from metadata_mut"
     );
     assert!(
         hello.contains(

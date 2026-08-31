@@ -883,6 +883,7 @@ impl Channel {
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
     /// channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {
     ///     let _ = (
+    ///         call.metadata(),
     ///         call.timeout(),
     ///         call.deadline(),
     ///         call.rpc_timeout(),
