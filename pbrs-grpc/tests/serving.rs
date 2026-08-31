@@ -672,6 +672,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump extensions Distinct from limits"
     );
     assert!(
+        outgoing.contains("///         request.extensions(),\n///         request.user_agent(),"),
+        "Request rustdoc must dump user_agent Distinct from extensions"
+    );
+    assert!(
         outgoing.contains("///     let _ = request.cancelled();"),
         "Request rustdoc must dump cancelled Distinct from limits"
     );
