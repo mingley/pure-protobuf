@@ -3292,6 +3292,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::Outgoing::clear_timeout`] opts out of the channel timeout after a hello intercept choice."
+        ),
+        "hello GreeterClient::intercept rustdoc must name clear_timeout next to clear_compress"
+    );
+    assert!(
+        hello.contains(
             "//!         call.connected(),\n//!         call.extensions(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"
