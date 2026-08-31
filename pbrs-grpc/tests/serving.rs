@@ -766,6 +766,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::accepts_compressed must Distinct client interceptor overlay from server overlay"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay, not this split envelope's server overlay."
+        ),
+        "Parts::concurrent_rpc_limit must Distinct client interceptor overlay from server overlay"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
