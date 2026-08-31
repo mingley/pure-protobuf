@@ -5080,6 +5080,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Outgoing::wait_for_ready_is_set occupancy next to clear_user_agent"
     );
     assert!(
+        status_guide.contains(
+            "`Outgoing::compress_is_set` distinguishes unset compress from an explicit `false` on this packed-status interceptor path."
+        ),
+        "status guide must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
+    );
+    assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );
