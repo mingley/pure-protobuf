@@ -122,6 +122,7 @@
 //! Generated [`GreeterServer::on_response`] reads the same ResponseParts overlays as
 //! [`crate::Server::on_response`]:
 //! [`crate::ResponseParts::compress_is_set`] is occupancy after a hello server on_response, so a later interceptor can fill compress only when unset.
+//! [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after a hello server on_response.
 //!
 //! ```
 //! # struct Svc;

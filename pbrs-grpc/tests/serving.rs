@@ -3570,6 +3570,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::ResponseParts::clear_compress`] restores the server gzip overlay after a hello server on_response."
+        ),
+        "hello GreeterServer::on_response rustdoc must name clear_compress next to compress occupancy"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.compress_is_set(),\n//!         parts.encoding(),"
         ),
         "hello GreeterServer::on_response rustdoc example must dump service Distinct from path"
