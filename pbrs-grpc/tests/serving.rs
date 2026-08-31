@@ -1514,6 +1514,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::peer_timeout Distinct from deadline: that is the Instant on this split reply envelope, not the client header"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Request::rpc_timeout`]: that is the inbound request, not this split reply envelope."
+        ),
+        "ResponseParts::rpc_timeout Distinct from Request::rpc_timeout: that is the inbound request, not this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );

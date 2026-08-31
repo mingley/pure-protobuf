@@ -2676,6 +2676,8 @@ impl ResponseParts {
     }
 
     /// Server timeout overlay. See [`Response::rpc_timeout`].
+    ///
+    /// Distinct from [`crate::Request::rpc_timeout`]: that is the inbound request, not this split reply envelope.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.rpc_timeout
