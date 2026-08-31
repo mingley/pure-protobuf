@@ -5205,6 +5205,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Outgoing::wait_for_ready_is_set` is occupancy on this guide interceptor path, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "guide must name Outgoing::wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
+        guide.contains(
             "`Outgoing::clear_user_agent` restores the channel user-agent after a client interceptor prefix on those transports plus `from_io`."
         ),
         "guide must name Outgoing::clear_user_agent next to user_agent occupancy"
