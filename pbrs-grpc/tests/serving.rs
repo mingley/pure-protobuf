@@ -6238,6 +6238,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorInfo::with_reason as the builder"
     );
     assert!(
+        architecture.contains("`RetryInfo::with_retry_delay` builds that payload."),
+        "architecture must name RetryInfo::with_retry_delay as the builder"
+    );
+    assert!(
         architecture.contains(
             "`set_rpc` / `set_error_details` / `set_from_error_details` replace the protobuf"
         ),
