@@ -569,6 +569,8 @@ impl Status {
 
     /// Encode a typed [`crate::pb::ErrorDetails`] bag as
     /// `grpc-status-details-bin`.
+    ///
+    /// Distinct from [`Self::with_error_details`]: that packs `Any` values; this takes the typed bag.
     pub fn from_error_details(
         code: Code,
         message: impl Into<String>,
