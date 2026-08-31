@@ -3350,6 +3350,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::from_error_details must Distinct the Any packer from this typed-bag constructor"
     );
     assert!(
+        status_src.contains(
+            "Distinct from [`Self::from_rpc`]: that encodes a packed `google.rpc.Status`; this encodes the typed bag."
+        ),
+        "Status::from_error_details must Distinct the packed protobuf constructor from this typed-bag constructor"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );

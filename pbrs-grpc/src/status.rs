@@ -571,6 +571,7 @@ impl Status {
     /// `grpc-status-details-bin`.
     ///
     /// Distinct from [`Self::with_error_details`]: that packs `Any` values; this takes the typed bag.
+    /// Distinct from [`Self::from_rpc`]: that encodes a packed `google.rpc.Status`; this encodes the typed bag.
     pub fn from_error_details(
         code: Code,
         message: impl Into<String>,
