@@ -3019,6 +3019,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::error_details must Distinct the packed google.rpc.Status from the typed bag"
     );
     assert!(
+        status_src
+            .contains("Distinct from [`Self::rpc`]: that parses the trailer; this encodes it."),
+        "Status::from_rpc must Distinct the parse getter from this encode constructor"
+    );
+    assert!(
         status_src.contains("gRPC A6 default retryable set: [`Self::Unavailable`] only."),
         "Code::is_retryable must name the A6 default set"
     );

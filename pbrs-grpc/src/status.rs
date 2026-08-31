@@ -433,6 +433,7 @@ impl Status {
 
     /// Encode `rpc` as `grpc-status-details-bin`.
     ///
+    /// Distinct from [`Self::rpc`]: that parses the trailer; this encodes it.
     /// The kernel [`Status`] code and message come from `rpc`. The same
     /// protobuf is the trailer payload, which is what grpc-go, grpc-java,
     /// and tonic-types expect to find there. This mints a fresh status:
