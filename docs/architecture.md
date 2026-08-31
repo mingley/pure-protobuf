@@ -93,7 +93,7 @@ path / service / method, metadata, `timeout` / `rpc_timeout` / `peer_timeout`, `
 gzip intent vs wire flag, `encoding`, `accepts_gzip`, `compresses_outbound`, `gzip_level`,
 `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,
 `:authority` / `:scheme`, wait-for-ready, `limits`, cancel, extensions, and user-agent.
-Dumping `Response` prints metadata, trailers, compress intent, received
+Dumping `Response` prints metadata, trailers, compress intent (`compress_is_set`), received
 `encoding`, path / service / method, `gzip_level` / `compresses_outbound` /
 `accepts_gzip` / `accepts_compressed`, `deadline` / `timeout` / `peer_timeout` /
 `rpc_timeout`, `limits`, `send_buffer_size`, and extensions.

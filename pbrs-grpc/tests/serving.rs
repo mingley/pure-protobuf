@@ -5575,6 +5575,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Response send_buffer_size and interceptor extensions"
     );
     assert!(
+        architecture.contains("compress intent (`compress_is_set`), received"),
+        "architecture must dump Response compress_is_set next to compress intent"
+    );
+    assert!(
         architecture.contains(
             "Dumping `Outgoing` prints path / service / method, `:authority` / `:scheme`,"
         ),
