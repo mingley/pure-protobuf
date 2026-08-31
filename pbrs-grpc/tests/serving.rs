@@ -756,6 +756,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc example must read metadata Distinct from metadata_mut"
     );
     assert!(
+        outgoing.contains("        call.path(),"),
+        "Outgoing rustdoc example must read path Distinct from Request::path"
+    );
+    assert!(
         outgoing.contains("        call.extensions(),"),
         "Outgoing rustdoc example must read extensions Distinct from extensions_mut"
     );
@@ -1585,6 +1589,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc example must read metadata Distinct from metadata_mut"
     );
     assert!(
+        intercept.contains("        call.path(),"),
+        "ClientInterceptor rustdoc example must read path Distinct from Request::path"
+    );
+    assert!(
         intercept.contains("        call.extensions(),"),
         "ClientInterceptor rustdoc example must read extensions Distinct from extensions_mut"
     );
@@ -2148,9 +2156,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.metadata(),\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),\n    ///         call.wait_for_ready(),\n    ///         call.waits_for_ready(),\n    ///         call.compress(),"
+            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.path(),\n    ///         call.metadata(),\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),\n    ///         call.wait_for_ready(),\n    ///         call.waits_for_ready(),\n    ///         call.compress(),"
         ),
-        "Channel::intercept rustdoc example must read compress Distinct from compresses_outbound"
+        "Channel::intercept rustdoc example must read path Distinct from Request::path"
     );
     let hello = include_str!("../src/hello.rs");
     assert!(
@@ -2161,9 +2169,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.metadata(),\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),\n//!         call.wait_for_ready(),\n//!         call.waits_for_ready(),\n//!         call.compress(),"
+            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.path(),\n//!         call.metadata(),\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),\n//!         call.wait_for_ready(),\n//!         call.waits_for_ready(),\n//!         call.compress(),"
         ),
-        "hello GreeterClient::intercept rustdoc example must read compress Distinct from compresses_outbound"
+        "hello GreeterClient::intercept rustdoc example must read path Distinct from Request::path"
     );
     assert!(
         hello.contains(

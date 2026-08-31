@@ -589,6 +589,7 @@ impl<S: Service> ServiceExt for S {}
 ///         call.set_compress(true);
 ///     }
 ///     let _ = (
+///         call.path(),
 ///         call.metadata(),
 ///         call.timeout(),
 ///         call.deadline(),

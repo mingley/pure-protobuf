@@ -893,6 +893,7 @@ impl<T> Request<T> {
 ///         call.set_compress(true);
 ///     }
 ///     let _ = (
+///         call.path(),
 ///         call.metadata(),
 ///         call.timeout(),
 ///         call.deadline(),
