@@ -897,6 +897,7 @@ impl<T> Request<T> {
 ///         call.service(),
 ///         call.method(),
 ///         call.authority(),
+///         call.scheme(),
 ///         call.metadata(),
 ///         call.timeout(),
 ///         call.deadline(),
