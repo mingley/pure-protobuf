@@ -1172,6 +1172,16 @@ async fn health_client_interceptor_rejects_check_and_watch() {
 }
 
 #[tokio::test]
+async fn health_client_interceptor_rejects_check_and_watch_with_from_error_details() {
+    let (addr, _reporter, handle) = serve().await;
+    let client = client(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked_from_error_details()));
+    assert_health_blocked(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
 async fn health_client_interceptor_sees_check_and_watch_context() {
     let (svc, reporter) = service();
     reporter.set_serving("helloworld.Greeter");
