@@ -2662,6 +2662,8 @@ impl ResponseParts {
     }
 
     /// Client `grpc-timeout`. See [`Response::peer_timeout`].
+    ///
+    /// Distinct from [`crate::Request::peer_timeout`]: that is the inbound request, not this split reply envelope.
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         self.peer_timeout
