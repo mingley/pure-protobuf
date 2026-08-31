@@ -1444,6 +1444,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.path(),
 ///         parts.service(),
 ///         parts.method(),
+///         parts.metadata(),
 ///     );
 /// }
 /// # let _ = dump_parts;
