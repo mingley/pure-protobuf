@@ -1731,6 +1731,7 @@ impl Parts {
     /// Server process RPC cap overlay. See [`Request::concurrent_rpc_limit`].
     ///
     /// Distinct from [`crate::Outgoing::concurrent_rpc_limit`]: that is a client interceptor overlay, not this split envelope's server overlay.
+    /// Distinct from [`Self::limits`]: that is message size on this split envelope, not how many RPCs.
     #[must_use]
     pub fn concurrent_rpc_limit(&self) -> Option<usize> {
         self.concurrent_rpc_limit

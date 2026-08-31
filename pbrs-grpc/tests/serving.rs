@@ -772,6 +772,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::concurrent_rpc_limit must Distinct client interceptor overlay from server overlay"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::limits`]: that is message size on this split envelope, not how many RPCs."
+        ),
+        "Parts::concurrent_rpc_limit must Distinct message size from the process RPC cap"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
