@@ -7573,6 +7573,12 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Router::on_response rustdoc must name clear_compress next to compress occupancy"
     );
+    assert!(
+        src.contains(
+            "[`Status::from_error_details`] is the typed bag after this Router on_response Err; a local reject is trailers-only after handler Ok."
+        ),
+        "Router::on_response rustdoc must name from_error_details typed bag next to on_response Err"
+    );
     assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
