@@ -84,12 +84,12 @@ gzip accept/encoding, the
 `Rpc` prints service/method, interceptor `timeout` / server `rpc_timeout` /
 `peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
 encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, `limits`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, and extensions.
-Dumping `Request` prints path / service / method, `timeout` / `rpc_timeout` /
+Dumping `Request` prints path / service / method, metadata, `timeout` / `rpc_timeout` /
 `peer_timeout`,
 `deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,
 `:authority` / `:scheme`, wait-for-ready, `limits`, cancel, extensions, and user-agent.
 Dumping `Parts` prints the same facts as `Request` without the message:
-path / service / method, `timeout` / `rpc_timeout` / `peer_timeout`, `deadline`,
+path / service / method, metadata, `timeout` / `rpc_timeout` / `peer_timeout`, `deadline`,
 gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`,
 `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,
 `:authority` / `:scheme`, wait-for-ready, `limits`, cancel, extensions, and user-agent.

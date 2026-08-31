@@ -4371,6 +4371,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Parts without the message"
     );
     assert!(
+        architecture.contains("Dumping `Request` prints path / service / method, metadata,"),
+        "architecture must dump Request metadata"
+    );
+    assert!(
+        architecture.contains(
+            "path / service / method, metadata, `timeout` / `rpc_timeout` / `peer_timeout`, `deadline`,"
+        ),
+        "architecture must dump Parts metadata"
+    );
+    assert!(
         architecture.contains("wait-for-ready, `limits`, cancel, extensions, and user-agent."),
         "architecture must dump Request and Parts interceptor extensions and user-agent"
     );
