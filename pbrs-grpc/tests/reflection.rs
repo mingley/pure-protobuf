@@ -710,6 +710,23 @@ fn typed_after_headers_status() -> Status {
     status
 }
 
+fn typed_after_headers_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "API_DISABLED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    let mut status = Status::from_error_details(Code::FailedPrecondition, "api disabled", &details)
+        .expect("encode");
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
 fn assert_typed_after_headers(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "api disabled");
@@ -749,6 +766,22 @@ fn fail_reflection_after_one() -> pbrs_grpc::Streaming<ServerReflectionResponse>
     stream
 }
 
+fn fail_reflection_after_one_from_error_details() -> pbrs_grpc::Streaming<ServerReflectionResponse>
+{
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut list = ListServiceResponse::new();
+        let mut svc = ServiceResponse::new();
+        svc.set_name("ada");
+        list.service_mut().push(svc);
+        let mut resp = ServerReflectionResponse::new();
+        resp.set_list_services_response(list);
+        tx.send(resp).await.ok();
+        tx.fail(typed_after_headers_from_error_details()).await;
+    }));
+    stream
+}
+
 /// One bidi method: send a list_services-shaped reply, then trailers.
 struct TypedAfterHeadersReflection;
 
@@ -758,6 +791,17 @@ impl ServerReflection for TypedAfterHeadersReflection {
         _: Request<pbrs_grpc::Streaming<ServerReflectionRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<ServerReflectionResponse>>, Status> {
         Ok(Response::new(fail_reflection_after_one()))
+    }
+}
+
+struct TypedAfterHeadersReflectionFromErrorDetails;
+
+impl ServerReflection for TypedAfterHeadersReflectionFromErrorDetails {
+    async fn server_reflection_info(
+        &self,
+        _: Request<pbrs_grpc::Streaming<ServerReflectionRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<ServerReflectionResponse>>, Status> {
+        Ok(Response::new(fail_reflection_after_one_from_error_details()))
     }
 }
 
@@ -3222,6 +3266,22 @@ async fn reflection_typed_google_rpc_status_after_a_streamed_message() {
     let addr = listener.local_addr().expect("local_addr");
     let handle = tokio::spawn(async move {
         ServerReflectionServer::new(TypedAfterHeadersReflection)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_typed_status_after_streamed_message(&client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_from_error_details_after_a_streamed_message() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(TypedAfterHeadersReflectionFromErrorDetails)
             .serve_listener(listener)
             .await
             .ok();
