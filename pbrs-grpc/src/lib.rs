@@ -138,6 +138,8 @@
 //!
 //! [`ResponseParts::clear_compress`] drops a compress choice after Channel on_response on this crate-map on_response path; a received reply has no server gzip overlay to restore.
 //!
+//! [`Status::from_error_details`] is the typed bag after this crate-map Channel on_response Err; a local reject fails the Call after a successful receive.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!
