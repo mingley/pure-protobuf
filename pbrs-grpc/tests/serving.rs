@@ -921,6 +921,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump cancelled Distinct from limits"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::user_agent_is_set`] is occupancy on this request envelope, so a later interceptor can prefix only when unset."
+        ),
+        "Request rustdoc must name user_agent_is_set occupancy next to cancelled dump"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );

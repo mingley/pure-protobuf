@@ -71,6 +71,7 @@ use tokio::sync::watch;
 /// }
 /// # let _ = dump_request;
 /// ```
+/// [`Self::user_agent_is_set`] is occupancy on this request envelope, so a later interceptor can prefix only when unset.
 #[derive(Clone)]
 pub struct Request<T> {
     message: T,
