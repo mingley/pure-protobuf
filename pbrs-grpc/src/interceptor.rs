@@ -583,6 +583,7 @@ impl<S: Service> ServiceExt for S {}
 /// request streams. Outgoing getters apply to
 /// every call shape.
 /// [`crate::Outgoing::clear_user_agent`] drops an interceptor prefix so this RPC uses the channel user-agent again.
+/// [`crate::Outgoing::clear_wait_for_ready`] drops an interceptor wait-for-ready choice so this RPC uses the channel overlay again.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
