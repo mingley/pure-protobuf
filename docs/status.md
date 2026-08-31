@@ -486,6 +486,7 @@ See `docs/upb.md`. Short list:
   after the call site wins.
   `Outgoing::user_agent_is_set` distinguishes that override from the channel value on this packed-status interceptor path.
   `Outgoing::clear_user_agent` restores the channel user-agent after a packed-status interceptor prefix.
+  `Outgoing::wait_for_ready_is_set` distinguishes an unset wait-for-ready from an explicit `false` on this packed-status interceptor path.
   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
   interceptor on those transports plus `from_io`, including official TestService
