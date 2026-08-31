@@ -736,6 +736,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::compress must Distinct outbound gzip intent from the inbound Compressed-Flag"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::accepts_compressed`]: that is the inbound overlay on this split envelope, not the peer advertisement."
+        ),
+        "Parts::accepts_gzip must Distinct inbound overlay from peer advertisement"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
