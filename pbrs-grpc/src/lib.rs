@@ -134,6 +134,8 @@
 //!
 //! [`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path.
 //!
+//! [`Status::from_error_details`] is the typed bag after this crate-map server on_response Err; a local reject is trailers-only after handler Ok.
+//!
 //! [`ResponseParts::clear_compress`] drops a compress choice after Channel on_response on this crate-map on_response path; a received reply has no server gzip overlay to restore.
 //!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
