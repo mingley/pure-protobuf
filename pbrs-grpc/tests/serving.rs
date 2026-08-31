@@ -662,6 +662,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump peer_identity Distinct from local_addr"
     );
     assert!(
+        outgoing.contains("///         parts.peer_identity(),\n///         parts.peer_cred(),"),
+        "Parts rustdoc must dump peer_cred Distinct from peer_identity"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
