@@ -587,6 +587,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     let outgoing = include_str!("../src/request.rs");
     assert!(
+        outgoing.contains(
+            "fn dump_request(request: &pbrs_grpc::Request<()>) {\n///     let _ = (\n///         request.path(),"
+        ),
+        "Request rustdoc must dump path Distinct from Outgoing::path"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );

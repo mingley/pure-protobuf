@@ -35,6 +35,15 @@ use tokio::sync::watch;
 /// assert_eq!(req.timeout(), Some(Duration::from_secs(5)));
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
+///
+/// ```
+/// fn dump_request(request: &pbrs_grpc::Request<()>) {
+///     let _ = (
+///         request.path(),
+///     );
+/// }
+/// # let _ = dump_request;
+/// ```
 #[derive(Clone)]
 pub struct Request<T> {
     message: T,
