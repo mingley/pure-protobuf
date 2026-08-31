@@ -4506,6 +4506,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name Incoming-stamped peer facts, extensions, and user-agent on interceptor generated handlers"
     );
     assert!(
+        architecture.contains(
+            "the server timeout overlay,\n`accepts_gzip` / encoding, the `compresses_outbound` overlay"
+        ),
+        "architecture interceptor generated-handler inventory must name accepts_gzip like Dumping Rpc"
+    );
+    assert!(
         architecture.contains("A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`."),
         "architecture must Distinct Channel::on_response from Channel overlays on a received reply"
     );
