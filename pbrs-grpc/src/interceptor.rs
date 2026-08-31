@@ -600,6 +600,7 @@ impl<S: Service> ServiceExt for S {}
 ///         call.deadline(),
 ///         call.rpc_timeout(),
 ///         call.wait_for_ready(),
+///         call.wait_for_ready_is_set(),
 ///         call.waits_for_ready(),
 ///         call.compress(),
 ///         call.compresses_outbound(),

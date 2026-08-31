@@ -126,7 +126,7 @@ extensions, `connected`). Those Outgoing getters apply to every call shape.
 Dumping `Outgoing` prints path / service / method, `:authority` / `:scheme`,
 `user-agent`, `limits`, `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /
-`send_buffer_size`, metadata, timeout / deadline, wait-for-ready, `connected`,
+`send_buffer_size`, metadata, timeout / deadline, wait-for-ready (`wait_for_ready_is_set`), `connected`,
 compress, and extensions.
 The next RPC of every call shape redials a dead slot, including over TLS,
 mTLS, and Unix. Unary and server-streaming retry once when the connection
