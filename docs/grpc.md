@@ -363,9 +363,7 @@ forwarding received metadata cannot inject it.
 use pbrs_grpc::pb::{Any, ErrorInfo};
 use pbrs_grpc::{Code, Status};
 
-let mut info = ErrorInfo::new();
-info.set_reason("API_DISABLED");
-info.set_domain("example.com");
+let info = ErrorInfo::with_reason("API_DISABLED", "example.com");
 return Err(Status::with_error_details(
     Code::FailedPrecondition,
     "api disabled",

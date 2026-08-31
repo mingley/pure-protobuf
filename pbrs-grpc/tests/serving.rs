@@ -5879,6 +5879,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ErrorInfo::with_reason as the builder"
     );
     assert!(
+        guide.contains("let info = ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\");"),
+        "guide with_error_details example must build ErrorInfo with with_reason"
+    );
+    assert!(
         guide.contains("`Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`."),
         "guide must Distinct Status::rpc packed protobuf from the typed error_details bag"
     );
