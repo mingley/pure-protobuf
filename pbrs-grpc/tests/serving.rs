@@ -9998,6 +9998,20 @@ async fn test_service_typed_google_rpc_status_after_a_streamed_message() {
 }
 
 #[tokio::test]
+async fn test_service_from_error_details_after_a_streamed_message() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(TypedAfterHeadersTestFromErrorDetails)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_typed_status_after_streamed_message(&TestServiceClient::new(channel(addr).await))
+        .await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn test_service_tls_typed_google_rpc_status_after_a_streamed_message() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
@@ -16081,6 +16095,19 @@ fn fail_test_after_one() -> pbrs_grpc::Streaming<StreamingOutputCallResponse> {
     stream
 }
 
+fn fail_test_after_one_from_error_details() -> pbrs_grpc::Streaming<StreamingOutputCallResponse> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut reply = StreamingOutputCallResponse::new();
+        let mut payload = Payload::new();
+        payload.set_body(b"ada".to_vec());
+        reply.set_payload(payload);
+        tx.send(reply).await.ok();
+        tx.fail(typed_after_headers_from_error_details()).await;
+    }));
+    stream
+}
+
 /// Server-streaming and bidi only: EmptyCall / StreamingInputCall have no
 /// response DATA then trailers.
 struct TypedAfterHeadersTest;
@@ -16123,6 +16150,60 @@ impl TestService for TypedAfterHeadersTest {
         _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
     ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
         Ok(Response::new(fail_test_after_one()))
+    }
+
+    async fn half_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn unimplemented_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+}
+
+struct TypedAfterHeadersTestFromErrorDetails;
+
+impl TestService for TypedAfterHeadersTestFromErrorDetails {
+    async fn empty_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn cacheable_unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn streaming_output_call(
+        &self,
+        _: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Ok(Response::new(fail_test_after_one_from_error_details()))
+    }
+
+    async fn streaming_input_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingInputCallRequest>>,
+    ) -> Result<Response<StreamingInputCallResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn full_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Ok(Response::new(fail_test_after_one_from_error_details()))
     }
 
     async fn half_duplex_call(
