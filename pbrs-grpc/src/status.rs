@@ -588,6 +588,7 @@ impl Status {
 
     /// Decode [`crate::pb::ErrorDetails`] from this status.
     ///
+    /// Distinct from [`Self::rpc`]: that is the packed `google.rpc.Status`, not this typed bag.
     /// Absent or empty `grpc-status-details-bin` yields an empty bag, not an
     /// error. Corrupt bytes are [`Code::Internal`].
     pub fn error_details(&self) -> Result<crate::pb::ErrorDetails, Self> {
