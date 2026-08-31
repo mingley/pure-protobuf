@@ -654,6 +654,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump remote_addr Distinct from send_buffer_size"
     );
     assert!(
+        outgoing.contains("///         parts.remote_addr(),\n///         parts.local_addr(),"),
+        "Parts rustdoc must dump local_addr Distinct from remote_addr"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );

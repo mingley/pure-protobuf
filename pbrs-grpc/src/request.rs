@@ -1459,6 +1459,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.concurrent_rpc_limit(),
 ///         parts.send_buffer_size(),
 ///         parts.remote_addr(),
+///         parts.local_addr(),
 ///     );
 /// }
 /// # let _ = dump_parts;
