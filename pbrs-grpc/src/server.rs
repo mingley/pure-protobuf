@@ -3540,6 +3540,7 @@ impl ConnectionInfo {
     }
 
     /// Unix credentials, if set.
+    /// Distinct from [`Self::with_peer_cred`], which sets it.
     #[must_use]
     pub fn peer_cred(&self) -> Option<PeerCred> {
         self.cred
