@@ -6222,6 +6222,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name Outgoing::clear_timeout next to clear_compress"
     );
+    assert!(
+        architecture.contains(
+            "`ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset."
+        ),
+        "architecture must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,

@@ -293,6 +293,7 @@ before `metadata_mut`.
 `Outgoing::clear_wait_for_ready` restores the channel wait-for-ready overlay after an architecture interceptor choice.
 `Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after an architecture interceptor choice.
 `Outgoing::clear_timeout` opts out of the channel timeout after an architecture interceptor choice.
+`ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset.
 
 ### Status
 
