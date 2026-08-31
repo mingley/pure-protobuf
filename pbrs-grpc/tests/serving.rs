@@ -1799,6 +1799,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::compress_is_set`] is occupancy on this reply envelope, so a later interceptor can fill compress only when unset."
+        ),
+        "Response rustdoc must name compress_is_set occupancy next to path Distincts"
+    );
+    assert!(
+        outgoing.contains(
             "Server [`crate::Server::gzip_compression_level`] overlay, when the kernel is encoding this reply."
         ),
         "Response::gzip_level must name the server encode overlay"

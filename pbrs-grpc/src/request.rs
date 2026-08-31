@@ -1908,6 +1908,7 @@ impl fmt::Debug for Parts {
 /// assert_eq!(resp.extensions().get::<u8>().copied(), Some(7));
 /// # Ok::<(), pbrs_grpc::Status>(())
 /// ```
+/// [`Self::compress_is_set`] is occupancy on this reply envelope, so a later interceptor can fill compress only when unset.
 #[derive(Clone)]
 pub struct Response<T> {
     message: T,
