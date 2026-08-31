@@ -950,6 +950,7 @@ impl<'a> Outgoing<'a> {
     /// The HTTP/2 `:authority` this channel sends, e.g. `127.0.0.1:50051`
     /// or `localhost` on a Unix socket.
     ///
+    /// Distinct from [`crate::Rpc::authority`]: that is the inbound `:authority`; this is the `:authority` this channel sends.
     /// TLS uses the channel [`crate::Target`], not SNI. Applies to every call
     /// shape.
     #[must_use]

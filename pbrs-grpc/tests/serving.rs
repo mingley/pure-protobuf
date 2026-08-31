@@ -773,6 +773,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`crate::Rpc::authority`]: that is the inbound `:authority`; this is the `:authority` this channel sends."
+        ),
+        "Outgoing::authority must Distinct the inbound :authority from the outbound :authority"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Rpc::method`]: that is a server interceptor; this is a client interceptor before send."
         ),
         "Outgoing::method must Distinct the server interceptor method from the outbound split"
