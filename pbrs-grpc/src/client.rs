@@ -839,7 +839,9 @@ impl Channel {
     /// `:scheme`, `user-agent`, and message caps, and can set metadata, a
     /// user-agent prefix ([`crate::Outgoing::set_user_agent`]), a
     /// timeout / deadline Instant, wait-for-ready, compression, or typed
-    /// extensions. Channel overlays (`rpc_timeout`, `waits_for_ready`,
+    /// extensions.
+    /// [`crate::Outgoing::user_agent_is_set`] is occupancy after this Channel intercept, so a later interceptor can prefix only when unset.
+    /// Channel overlays (`rpc_timeout`, `waits_for_ready`,
     /// `compresses_outbound`, `gzip_level`) are visible even after `clear_*` opts out of
     /// the already-applied default.
     /// [`crate::Outgoing::gzip_level`] is deflate effort.

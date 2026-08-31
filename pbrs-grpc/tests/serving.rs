@@ -3044,6 +3044,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must name Outgoing::set_user_agent"
     );
     assert!(
+        src.contains(
+            "[`crate::Outgoing::user_agent_is_set`] is occupancy after this Channel intercept, so a later interceptor can prefix only when unset."
+        ),
+        "Channel::intercept rustdoc must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
+    );
+    assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
     );
