@@ -56,6 +56,7 @@
 //! as `UNAVAILABLE` on TLS, mTLS, and Unix.
 //! [`ServerReflectionClient::from_io_with`] cannot pool. An interceptor `Err` may carry
 //! [`crate::Status::with_error_details`]; those trailers reach the client.
+//! [`crate::Status::from_error_details`] is the typed bag after this reflection interceptor Err; those trailers reach the client without reading the body.
 //! A handler `Err` may carry the same packed status; those trailers reach
 //! the client. [`crate::StreamSender::fail`] after a streamed DATA frame on
 //! `ServerReflectionInfo` ships those trailers the same way. Unix (`serve_unix` /

@@ -398,6 +398,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name pool-vs-cap UNAVAILABLE on TLS, mTLS, and Unix"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this reflection interceptor Err; those trailers reach the client without reading the body."
+        ),
+        "reflection crate rustdoc must name from_error_details typed bag next to interceptor Err"
+    );
 }
 
 #[tokio::test]
