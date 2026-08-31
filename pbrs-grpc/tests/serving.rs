@@ -5261,6 +5261,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`Outgoing::clear_timeout` opts out of the channel timeout after a packed-status interceptor choice."
+        ),
+        "status guide must name Outgoing::clear_timeout next to clear_compress"
+    );
+    assert!(
+        status_guide.contains(
             "`Outgoing::wait_for_ready_is_set` distinguishes an unset wait-for-ready from an explicit `false` on this packed-status interceptor path."
         ),
         "status guide must name Outgoing::wait_for_ready_is_set occupancy next to clear_user_agent"
