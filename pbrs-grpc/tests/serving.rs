@@ -5009,6 +5009,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README interceptor inventory must name user_agent_is_set next to user-agent"
     );
     assert!(
+        readme.contains(
+            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`; `clear_*` opts out of the already-applied default)"
+        ),
+        "crate README interceptor inventory must name the full channel overlay set"
+    );
+    assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
         "status guide must name accepts_gzip like Dumping Rpc"
