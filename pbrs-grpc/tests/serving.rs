@@ -769,6 +769,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::compresses_outbound`]: that is the channel overlay; this is the per-RPC choice."
+        ),
+        "Outgoing::compress must Distinct the channel overlay from the per-RPC choice"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::waits_for_ready`]: that is the channel overlay; this is the per-RPC choice."
         ),
         "Outgoing::wait_for_ready must Distinct the channel overlay from the per-RPC choice"

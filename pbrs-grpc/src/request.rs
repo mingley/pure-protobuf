@@ -1257,6 +1257,7 @@ impl<'a> Outgoing<'a> {
 
     /// Whether the request payload will be gzipped.
     ///
+    /// Distinct from [`Self::compresses_outbound`]: that is the channel overlay; this is the per-RPC choice.
     /// `false` when unset. Use [`Self::compress_is_set`] to tell `None`
     /// from an explicit `false`. Applies to every call shape.
     #[must_use]
