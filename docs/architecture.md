@@ -314,8 +314,7 @@ resource type and name. Distinct from `quota_failure`. Distinct from `request_in
 `ResourceInfo::with_resource` builds that payload. `Status::debug_info` is packed
 operator stack. Distinct from `localized_message`. Distinct from `help`.
 `DebugInfo::with_stack` builds that payload. `set_code` / `set_message` rewrite a packed protobuf
-whose code or message still matches. `set_rpc` / `set_error_details`
-replace the protobuf without dropping trailing metadata. Handler `Err` and
+whose code or message still matches. `set_rpc` / `set_error_details` / `set_from_error_details` replace the protobuf without dropping trailing metadata. Handler `Err` and
 `StreamSender::fail` after headers both put that protobuf on trailing
 `grpc-status-details-bin` for a server response stream. A client request
 `fail` resets CANCEL; a client-streaming `Call`, or a bidi `Call` that has

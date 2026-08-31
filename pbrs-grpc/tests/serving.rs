@@ -4357,6 +4357,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must Distinct from_error_details typed bag from the Any packer"
     );
     assert!(
+        architecture.contains(
+            "`set_rpc` / `set_error_details` / `set_from_error_details` replace the protobuf"
+        ),
+        "architecture must name set_from_error_details next to the in-place Any packer"
+    );
+    assert!(
         architecture.contains("gzip intent vs wire flag, `encoding`, `accepts_gzip`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"),
         "architecture must dump Request Incoming-stamped peer facts and accepts_gzip"
     );
