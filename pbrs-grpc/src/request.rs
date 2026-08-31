@@ -42,6 +42,7 @@ use tokio::sync::watch;
 ///         request.path(),
 ///         request.service(),
 ///         request.method(),
+///         request.metadata(),
 ///     );
 /// }
 /// # let _ = dump_request;
