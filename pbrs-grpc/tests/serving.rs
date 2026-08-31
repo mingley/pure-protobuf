@@ -10160,6 +10160,22 @@ async fn service_ext_intercept_rejects_with_typed_status() {
 }
 
 #[tokio::test]
+async fn service_ext_intercept_rejects_with_from_error_details() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let service = Reverser::new(Arc::clone(&seen))
+        .intercept(|_rpc: &mut Rpc| Err(interceptor_blocked_from_error_details()));
+    let task = tokio::spawn(async move {
+        Server::new(service).serve_listener(listener).await.ok();
+    });
+
+    assert_reverser_blocked_every_shape(&channel(addr).await).await;
+    assert_eq!(seen.load(Ordering::Relaxed), 0);
+
+    task.abort();
+}
+
+#[tokio::test]
 async fn a_client_interceptor_rejects_reverser_with_typed_status() {
     let (addr, listener) = bind().await;
     let seen = Arc::new(AtomicUsize::new(0));
