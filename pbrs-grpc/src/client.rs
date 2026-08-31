@@ -884,6 +884,7 @@ impl Channel {
     /// channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {
     ///     let _ = (
     ///         call.path(),
+    ///         call.service(),
     ///         call.metadata(),
     ///         call.timeout(),
     ///         call.deadline(),

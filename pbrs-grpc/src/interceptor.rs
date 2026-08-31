@@ -590,6 +590,7 @@ impl<S: Service> ServiceExt for S {}
 ///     }
 ///     let _ = (
 ///         call.path(),
+///         call.service(),
 ///         call.metadata(),
 ///         call.timeout(),
 ///         call.deadline(),

@@ -894,6 +894,7 @@ impl<T> Request<T> {
 ///     }
 ///     let _ = (
 ///         call.path(),
+///         call.service(),
 ///         call.metadata(),
 ///         call.timeout(),
 ///         call.deadline(),
