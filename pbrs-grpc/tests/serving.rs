@@ -2352,6 +2352,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
     );
     assert!(
+        intercept.contains(
+            "`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `stream_buffer_size`, `send_buffer_size`, `limits`) stay visible after `clear_*`"
+        ),
+        "ClientInterceptor rustdoc must name the full channel overlay set next to gzip_level"
+    );
+    assert!(
         intercept.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "ClientInterceptor rustdoc must name Outgoing::accepts_compressed"
     );

@@ -545,8 +545,7 @@ impl<S: Service> ServiceExt for S {}
 /// same prefix at the call site; an interceptor
 /// [`crate::Outgoing::set_user_agent`] that runs after wins.
 /// [`crate::Outgoing::user_agent_is_set`] distinguishes that override from the channel value, so a later interceptor can prefix only when unset.
-/// Channel overlays (`rpc_timeout`,
-/// `waits_for_ready`, `compresses_outbound`, `gzip_level`) stay visible after `clear_*`
+/// Channel overlays (`rpc_timeout`, `waits_for_ready`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `stream_buffer_size`, `send_buffer_size`, `limits`) stay visible after `clear_*`
 /// opts out of the already-applied default.
 /// [`crate::Outgoing::gzip_level`] is deflate effort. Distinct from
 /// [`crate::Outgoing::compresses_outbound`] (on or off). An interceptor cannot change it.
