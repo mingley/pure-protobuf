@@ -5469,6 +5469,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::accepts_compressed`]: that is this server overlay, not the peer advertisement."
+        ),
+        "Rpc::accepts_gzip must Distinct this server overlay from the peer advertisement"
+    );
+    assert!(
+        src.contains(
             "Response interceptors see the same Instant as [`Request::deadline`] on [`crate::Response::deadline`]."
         ),
         "Rpc::deadline must name the Response interceptor stamp"

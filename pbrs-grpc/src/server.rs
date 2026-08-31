@@ -510,6 +510,7 @@ impl Rpc {
     /// calls [`crate::Response::set_compress`] still only gzips when this is
     /// true: the kernel will not compress a peer that did not ask.
     /// Response interceptors see the same value on [`crate::Response::accepts_gzip`].
+    /// Distinct from [`Self::accepts_compressed`]: that is this server overlay, not the peer advertisement.
     #[must_use]
     pub fn accepts_gzip(&self) -> bool {
         crate::wire::accepts_gzip(self.request.headers())
