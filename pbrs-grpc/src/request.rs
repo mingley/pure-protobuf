@@ -2606,6 +2606,7 @@ impl ResponseParts {
     /// Distinct from [`Self::compress`]: that is the per-RPC choice after overlay and interceptor mutation on this split reply envelope.
     /// Distinct from [`crate::Outgoing::compresses_outbound`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
     /// Distinct from [`crate::Rpc::compresses_outbound`]: that is a server interceptor before the handler, not this split reply envelope.
+    /// Distinct from [`Self::gzip_level`]: that is deflate effort on this split reply envelope, not on or off.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.compresses_outbound
