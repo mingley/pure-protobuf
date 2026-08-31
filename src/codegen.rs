@@ -5183,6 +5183,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated client on_response Err; a local reject fails the Call after a successful receive."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterClient::new(channel).on_response`)."
     );
     let _ = writeln!(src, "    #[must_use]");
