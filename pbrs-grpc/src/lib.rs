@@ -124,6 +124,8 @@
 //!
 //! [`Outgoing::clear_compress`] then [`Outgoing::set_compress`] from [`Outgoing::compresses_outbound`] reapplies channel gzip after a crate-map interceptor choice.
 //!
+//! [`Outgoing::clear_timeout`] opts out of the channel timeout after a crate-map interceptor choice.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!

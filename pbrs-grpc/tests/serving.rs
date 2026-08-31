@@ -4246,6 +4246,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`Outgoing::clear_timeout`] opts out of the channel timeout after a crate-map interceptor choice."
+        ),
+        "crate docs must name Outgoing::clear_timeout next to clear_compress"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::set_rpc`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
