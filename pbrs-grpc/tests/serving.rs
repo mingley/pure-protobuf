@@ -4496,6 +4496,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name Incoming-stamped peer facts, extensions, and user-agent on generated handlers"
     );
     assert!(
+        architecture.contains(
+            "`peer_timeout`, the server `rpc_timeout` overlay,\n`accepts_gzip` / encoding, the"
+        ),
+        "architecture generated-handler inventory must name accepts_gzip like Dumping Rpc"
+    );
+    assert!(
         architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions, user-agent. `Server::timeout`"),
         "architecture must name Incoming-stamped peer facts, extensions, and user-agent on interceptor generated handlers"
     );

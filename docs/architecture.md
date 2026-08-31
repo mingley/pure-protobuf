@@ -79,7 +79,7 @@ service name keeps the last handler on those transports.
 Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
-gzip accept/encoding, the
+`accepts_gzip` / encoding, the
 `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions, user-agent. Dumping
 `Rpc` prints path / service / method, metadata, interceptor `timeout` / server `rpc_timeout` /
 `peer_timeout` / `effective_timeout`, `deadline`, `accepts_gzip` /
