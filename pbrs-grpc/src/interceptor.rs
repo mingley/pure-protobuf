@@ -207,6 +207,7 @@ pub trait ResponseInterceptor: Send + Sync + 'static {
     /// Inspect and mutate the envelope.
     /// [`crate::ResponseParts::compress_is_set`] is occupancy on this method-level on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay on this method-level on_response.
+    /// [`crate::Status::from_error_details`] is the typed bag on this method-level on_response Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
     fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
 }
 

@@ -3009,6 +3009,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "[`crate::Status::from_error_details`] is the typed bag on this method-level on_response Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive."
+        ),
+        "ResponseInterceptor::intercept rustdoc must name from_error_details typed bag next to on_response Err"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::ResponseParts::compress_is_set`] is occupancy on this method-level on_response, so a later interceptor can fill compress only when unset."
         ),
         "ResponseInterceptor::intercept rustdoc must name compress_is_set occupancy next to the envelope"
