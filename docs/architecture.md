@@ -244,7 +244,7 @@ Distinct from `limits` (encode cap). Distinct from `Rpc::send_buffer_size`
 (before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
-`compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, peer, `:authority` / `:scheme`, limits).
+`compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, limits).
 They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).
 `metadata_mut().set` / `remove` / `retain` reach the handler on every call
