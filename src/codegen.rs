@@ -5119,6 +5119,10 @@ fn emit_kernel_client(
         src,
         "    /// [`{G}::Outgoing::user_agent_is_set`] is occupancy on this generated intercept path, so a later interceptor can prefix only when unset."
     );
+    let _ = writeln!(
+        src,
+        "    /// [`{G}::Outgoing::wait_for_ready_is_set`] is occupancy on this generated intercept path, so a later interceptor can fill wait-for-ready only when unset."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");
