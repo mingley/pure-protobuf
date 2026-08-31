@@ -9903,6 +9903,19 @@ async fn test_service_handlers_return_typed_status_on_every_shape() {
 }
 
 #[tokio::test]
+async fn test_service_handlers_return_from_error_details_on_every_shape() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(FailTestServiceFromErrorDetails)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_test_blocked_every_shape(&TestServiceClient::new(channel(addr).await)).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn test_service_tls_handlers_return_typed_status_on_every_shape() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
@@ -15985,6 +15998,60 @@ impl TestService for FailTestService {
 
     async fn unimplemented_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
         Err(interceptor_blocked())
+    }
+}
+
+struct FailTestServiceFromErrorDetails;
+
+impl TestService for FailTestServiceFromErrorDetails {
+    async fn empty_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn cacheable_unary_call(
+        &self,
+        _: Request<SimpleRequest>,
+    ) -> Result<Response<SimpleResponse>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn streaming_output_call(
+        &self,
+        _: Request<StreamingOutputCallRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn streaming_input_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingInputCallRequest>>,
+    ) -> Result<Response<StreamingInputCallResponse>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn full_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn half_duplex_call(
+        &self,
+        _: Request<pbrs_grpc::Streaming<StreamingOutputCallRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<StreamingOutputCallResponse>>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn unimplemented_call(&self, _: Request<Empty>) -> Result<Response<Empty>, Status> {
+        Err(interceptor_blocked_from_error_details())
     }
 }
 
