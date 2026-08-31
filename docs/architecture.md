@@ -86,11 +86,11 @@ gzip accept/encoding, the
 encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, `limits`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, and extensions.
 Dumping `Request` prints path / service / method, metadata, `timeout` / `rpc_timeout` /
 `peer_timeout`,
-`deadline`, gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,
+`deadline`, gzip intent vs wire flag, `encoding`, `accepts_gzip`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,
 `:authority` / `:scheme`, wait-for-ready, `limits`, cancel, extensions, and user-agent.
 Dumping `Parts` prints the same facts as `Request` without the message:
 path / service / method, metadata, `timeout` / `rpc_timeout` / `peer_timeout`, `deadline`,
-gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`,
+gzip intent vs wire flag, `encoding`, `accepts_gzip`, `compresses_outbound`, `gzip_level`,
 `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,
 `:authority` / `:scheme`, wait-for-ready, `limits`, cancel, extensions, and user-agent.
 Dumping `Response` prints metadata, trailers, compress intent, received

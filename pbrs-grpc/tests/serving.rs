@@ -4379,12 +4379,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Rpc path and metadata"
     );
     assert!(
-        architecture.contains("gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"),
-        "architecture must dump Request Incoming-stamped peer facts"
+        architecture.contains("gzip intent vs wire flag, `encoding`, `accepts_gzip`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"),
+        "architecture must dump Request Incoming-stamped peer facts and accepts_gzip"
     );
     assert!(
         architecture.contains(
-            "gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`,\n`accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"
+            "gzip intent vs wire flag, `encoding`, `accepts_gzip`, `compresses_outbound`, `gzip_level`,\n`accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"
         ),
         "architecture must dump Parts Incoming-stamped peer facts"
     );
