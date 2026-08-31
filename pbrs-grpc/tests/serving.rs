@@ -632,6 +632,11 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump gzip_level Distinct from compresses_outbound"
     );
     assert!(
+        outgoing
+            .contains("///         parts.gzip_level(),\n///         parts.accepts_compressed(),"),
+        "Parts rustdoc must dump accepts_compressed Distinct from gzip_level"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
