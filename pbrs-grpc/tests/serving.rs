@@ -1448,6 +1448,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::timeout Distinct from Rpc::timeout: that is the interceptor cap, not the effective duration on this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::effective_timeout`]: that is computed when that getter runs, not this split reply envelope."
+        ),
+        "ResponseParts::timeout Distinct from Rpc::effective_timeout: that is computed when that getter runs, not this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
