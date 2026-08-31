@@ -596,9 +596,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
-            "fn dump_parts(parts: &pbrs_grpc::Parts) {\n///     let _ = (\n///         parts.path(),\n///         parts.service(),\n///         parts.method(),\n///         parts.metadata(),\n///         parts.timeout(),\n///         parts.rpc_timeout(),"
+            "fn dump_parts(parts: &pbrs_grpc::Parts) {\n///     let _ = (\n///         parts.path(),\n///         parts.service(),\n///         parts.method(),\n///         parts.metadata(),\n///         parts.timeout(),\n///         parts.rpc_timeout(),\n///         parts.peer_timeout(),"
         ),
-        "Parts rustdoc must dump rpc_timeout Distinct from timeout"
+        "Parts rustdoc must dump peer_timeout Distinct from timeout"
     );
     assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
