@@ -776,6 +776,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc example must read scheme Distinct from Rpc::scheme"
     );
     assert!(
+        outgoing.contains("        call.user_agent(),"),
+        "Outgoing rustdoc example must read user_agent Distinct from inserting user-agent into metadata"
+    );
+    assert!(
         outgoing.contains(
             "Distinct from [`crate::Rpc::scheme`]: that is the inbound `:scheme`; this is the `:scheme` this channel sends."
         ),
@@ -1655,6 +1659,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc example must read scheme Distinct from Rpc::scheme"
     );
     assert!(
+        intercept.contains("        call.user_agent(),"),
+        "ClientInterceptor rustdoc example must read user_agent Distinct from inserting user-agent into metadata"
+    );
+    assert!(
         intercept.contains("        call.extensions(),"),
         "ClientInterceptor rustdoc example must read extensions Distinct from extensions_mut"
     );
@@ -2218,9 +2226,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.path(),\n    ///         call.service(),\n    ///         call.method(),\n    ///         call.authority(),\n    ///         call.scheme(),\n    ///         call.metadata(),\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),\n    ///         call.wait_for_ready(),\n    ///         call.waits_for_ready(),\n    ///         call.compress(),"
+            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.path(),\n    ///         call.service(),\n    ///         call.method(),\n    ///         call.authority(),\n    ///         call.scheme(),\n    ///         call.user_agent(),\n    ///         call.metadata(),\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),\n    ///         call.wait_for_ready(),\n    ///         call.waits_for_ready(),\n    ///         call.compress(),"
         ),
-        "Channel::intercept rustdoc example must read scheme Distinct from Rpc::scheme"
+        "Channel::intercept rustdoc example must read user_agent Distinct from inserting user-agent into metadata"
     );
     let hello = include_str!("../src/hello.rs");
     assert!(
@@ -2231,9 +2239,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.path(),\n//!         call.service(),\n//!         call.method(),\n//!         call.authority(),\n//!         call.scheme(),\n//!         call.metadata(),\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),\n//!         call.wait_for_ready(),\n//!         call.waits_for_ready(),\n//!         call.compress(),"
+            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.path(),\n//!         call.service(),\n//!         call.method(),\n//!         call.authority(),\n//!         call.scheme(),\n//!         call.user_agent(),\n//!         call.metadata(),\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),\n//!         call.wait_for_ready(),\n//!         call.waits_for_ready(),\n//!         call.compress(),"
         ),
-        "hello GreeterClient::intercept rustdoc example must read scheme Distinct from Rpc::scheme"
+        "hello GreeterClient::intercept rustdoc example must read user_agent Distinct from inserting user-agent into metadata"
     );
     assert!(
         hello.contains(

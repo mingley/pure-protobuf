@@ -594,6 +594,7 @@ impl<S: Service> ServiceExt for S {}
 ///         call.method(),
 ///         call.authority(),
 ///         call.scheme(),
+///         call.user_agent(),
 ///         call.metadata(),
 ///         call.timeout(),
 ///         call.deadline(),
