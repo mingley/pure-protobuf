@@ -704,7 +704,9 @@ See `docs/upb.md`. Short list:
   Check/List/Watch, the reflection bidi method, and generated Store Get / Watch
   / PutAll / Sync, including over TLS, mTLS, Unix, and `from_io`. A packed `google.rpc.Status` from interceptor
   `Err(with_error_details)` unpacks on those Store, Health, and reflection
-  methods the same way, including over TLS, mTLS, Unix, and `from_io`. A generated Store handler `Err(with_error_details)`
+  methods the same way, including over TLS, mTLS, Unix, and `from_io`.
+  `Status::from_error_details` is the typed bag after this packed-status Health interceptor Err; those trailers reach the client without reading the body.
+  A generated Store handler `Err(with_error_details)`
   unpacks on Get / Watch / PutAll / Sync too, including over TLS, mTLS, Unix, and `from_io`. A Health handler
   `Err(with_error_details)` unpacks on Check, List, and Watch too, including over TLS, mTLS, Unix, and `from_io`. A reflection
   handler `Err(with_error_details)` unpacks on the bidi `list_services` method too, including over TLS, mTLS, Unix,
