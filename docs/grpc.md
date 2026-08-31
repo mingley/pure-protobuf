@@ -1772,6 +1772,7 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 `Outgoing::wait_for_ready_is_set` is occupancy on this guide interceptor path, so a later interceptor can fill wait-for-ready only when unset.
 `Outgoing::compress_is_set` is occupancy on this guide interceptor path, so a later interceptor can fill compress only when unset.
 `Outgoing::clear_user_agent` restores the channel user-agent after a client interceptor prefix on those transports plus `from_io`.
+`Outgoing::clear_wait_for_ready` restores the channel wait-for-ready overlay after a client interceptor choice on those transports plus `from_io`.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor on h2c, TLS (including mTLS), Unix, and `from_io`, including official
