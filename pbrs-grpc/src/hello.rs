@@ -12,6 +12,7 @@
 //! # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::hello::GreeterClient {
 //! pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {
 //!     let _ = (
+//!         call.timeout(),
 //!         call.rpc_timeout(),
 //!         call.waits_for_ready(),
 //!         call.compresses_outbound(),

@@ -893,6 +893,7 @@ impl<T> Request<T> {
 ///         call.set_compress(true);
 ///     }
 ///     let _ = (
+///         call.timeout(),
 ///         call.rpc_timeout(),
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
