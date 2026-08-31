@@ -3483,6 +3483,7 @@ impl ConnectionInfo {
     }
 
     /// Peer address reported as [`Rpc::remote_addr`].
+    /// Distinct from [`Self::from_accept`]: that starts from IncomingAccept; this overlays a builder.
     #[must_use]
     pub fn with_remote_addr(mut self, addr: SocketAddr) -> Self {
         self.remote = Some(addr);

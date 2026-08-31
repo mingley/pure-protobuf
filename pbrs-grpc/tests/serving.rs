@@ -5007,6 +5007,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Peer address reported as [`Rpc::remote_addr`].\n    /// Distinct from [`Self::from_accept`]: that starts from IncomingAccept; this overlays a builder."
+        ),
+        "ConnectionInfo::with_remote_addr must Distinct the accept-tuple constructor"
+    );
+    assert!(
+        src.contains(
             "Serve connections from `incoming` until it is exhausted.\n    /// Applies to every call shape. See [`Server::serve_with_incoming`]."
         ),
         "Router::serve_with_incoming must name every call shape"
