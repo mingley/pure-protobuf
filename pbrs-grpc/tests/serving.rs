@@ -15695,6 +15695,23 @@ fn typed_after_headers_status() -> Status {
     status
 }
 
+fn typed_after_headers_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "API_DISABLED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    let mut status = Status::from_error_details(Code::FailedPrecondition, "api disabled", &details)
+        .expect("encode");
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
 fn assert_typed_after_headers(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "api disabled");
@@ -15726,6 +15743,17 @@ fn fail_after_one() -> pbrs_grpc::Streaming<HelloReply> {
         reply.set_message("ada");
         tx.send(reply).await.ok();
         tx.fail(typed_after_headers_status()).await;
+    }));
+    stream
+}
+
+fn fail_after_one_from_error_details() -> pbrs_grpc::Streaming<HelloReply> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut reply = HelloReply::new();
+        reply.set_message("ada");
+        tx.send(reply).await.ok();
+        tx.fail(typed_after_headers_from_error_details()).await;
     }));
     stream
 }
@@ -15764,6 +15792,38 @@ impl Greeter for TypedAfterHeaders {
     }
 }
 
+struct TypedAfterHeadersFromErrorDetails;
+
+impl Greeter for TypedAfterHeadersFromErrorDetails {
+    async fn say_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn client_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<HelloReply>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn server_hello(
+        &self,
+        _request: Request<HelloRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one_from_error_details()))
+    }
+
+    async fn stream_hello(
+        &self,
+        _request: Request<pbrs_grpc::Streaming<HelloRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HelloReply>>, Status> {
+        Ok(Response::new(fail_after_one_from_error_details()))
+    }
+}
+
 async fn assert_typed_status_after_streamed_message(client: &GreeterClient) {
     let mut stream = client
         .server_hello(Request::new(req("ada")))
@@ -15796,6 +15856,19 @@ async fn assert_typed_status_after_streamed_message(client: &GreeterClient) {
     let first = stream.message().await.expect("msg").expect("item");
     assert_eq!(name_of(&first), "ada");
     assert_typed_after_headers(&stream.trailers().await.expect_err("trailers"));
+}
+
+#[tokio::test]
+async fn from_error_details_after_a_streamed_message() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(TypedAfterHeadersFromErrorDetails)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_typed_status_after_streamed_message(&GreeterClient::new(channel(addr).await)).await;
+    task.abort();
 }
 
 struct FailTestService;
