@@ -1480,6 +1480,16 @@ async fn generated_client_interceptor_rejects_with_typed_status() {
 }
 
 #[tokio::test]
+async fn generated_client_interceptor_rejects_with_from_error_details() {
+    let (addr, server) = serve().await;
+    let client = client(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked_from_error_details()));
+    assert_store_blocked_every_shape(&client).await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn generated_server_interceptor_rejects_with_typed_status() {
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
         .await
