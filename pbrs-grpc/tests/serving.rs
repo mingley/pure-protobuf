@@ -633,6 +633,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump send_buffer_size Distinct from concurrent_rpc_limit"
     );
     assert!(
+        outgoing.contains(
+            "///         request.send_buffer_size(),\n///         request.remote_addr(),"
+        ),
+        "Request rustdoc must dump remote_addr Distinct from send_buffer_size"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );
