@@ -1412,6 +1412,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::deadline Distinct from Request::deadline: that is the inbound request, not this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::deadline`]: that is computed when that getter runs, not this split reply envelope."
+        ),
+        "ResponseParts::deadline Distinct from Rpc::deadline: that is computed when that getter runs, not this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
