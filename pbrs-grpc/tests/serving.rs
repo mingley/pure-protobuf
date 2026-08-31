@@ -1394,6 +1394,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::accepts_compressed Distinct from Outgoing::accepts_compressed: that is a client interceptor overlay, not this split reply envelope's inbound overlay"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compresses_outbound`]: that is whether this reply is gzipped on this split reply envelope."
+        ),
+        "ResponseParts::accepts_compressed Distinct from compresses_outbound: that is whether this reply is gzipped on this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );

@@ -2629,6 +2629,7 @@ impl ResponseParts {
     /// Distinct from [`Self::accepts_gzip`]: that is the peer advertisement on this split reply envelope, not this overlay.
     /// Distinct from [`crate::Rpc::accepts_compressed`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay, not this split reply envelope's inbound overlay.
+    /// Distinct from [`Self::compresses_outbound`]: that is whether this reply is gzipped on this split reply envelope.
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
         self.accepts_compressed
