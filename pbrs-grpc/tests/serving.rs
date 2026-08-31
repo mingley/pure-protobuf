@@ -5085,6 +5085,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Outgoing::clear_user_agent` restores the channel user-agent after a client interceptor prefix on those transports plus `from_io`."
+        ),
+        "guide must name Outgoing::clear_user_agent next to user_agent occupancy"
+    );
+    assert!(
+        guide.contains(
             "Channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`) stay visible after `clear_*` on those dialers."
         ),
         "guide must name the full channel overlay set next to clear_* visibility"
