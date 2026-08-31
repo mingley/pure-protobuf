@@ -74,6 +74,7 @@ use tokio::sync::watch;
 /// [`Self::user_agent_is_set`] is occupancy on this request envelope, so a later interceptor can prefix only when unset.
 /// [`Self::wait_for_ready_is_set`] is occupancy on this request envelope, so a later interceptor can fill wait-for-ready only when unset.
 /// [`Self::compress_is_set`] is occupancy on this request envelope, so a later interceptor can fill compress only when unset.
+/// [`Self::clear_timeout`] opts out of the channel timeout on this request envelope.
 #[derive(Clone)]
 pub struct Request<T> {
     message: T,

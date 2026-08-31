@@ -939,6 +939,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must name compress_is_set occupancy next to wait_for_ready occupancy"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::clear_timeout`] opts out of the channel timeout on this request envelope."
+        ),
+        "Request rustdoc must name clear_timeout next to compress occupancy"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );
