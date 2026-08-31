@@ -145,6 +145,7 @@ where
 /// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
 /// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
 /// [`crate::ResponseParts::compress_is_set`] is occupancy on this ResponseInterceptor path, so a later interceptor can fill compress only when unset.
+/// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay on this ResponseInterceptor path.
 ///
 /// On the server, [`crate::Server::on_response`] /
 /// [`crate::Router::on_response`] / generated `FooServer::on_response`
