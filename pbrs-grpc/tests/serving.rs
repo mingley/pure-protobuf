@@ -1794,6 +1794,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts rustdoc must name compress_is_set occupancy next to the method Distinct"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::clear_compress`] restores the server gzip overlay on this split reply envelope."
+        ),
+        "ResponseParts rustdoc must name clear_compress next to compress occupancy"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );

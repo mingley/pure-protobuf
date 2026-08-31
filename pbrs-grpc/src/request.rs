@@ -2514,6 +2514,7 @@ impl<T> Response<T> {
 /// [`Response::encoding`] and local [`Response::extensions`].
 /// See [`Response::into_message_and_parts`].
 /// [`Self::compress_is_set`] is occupancy on this split reply envelope, so a later interceptor can fill compress only when unset.
+/// [`Self::clear_compress`] restores the server gzip overlay on this split reply envelope.
 #[derive(Clone, Debug)]
 pub struct ResponseParts {
     metadata: Metadata,
