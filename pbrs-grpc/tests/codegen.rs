@@ -221,6 +221,23 @@ fn typed_after_headers_status() -> Status {
     status
 }
 
+fn typed_after_headers_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "API_DISABLED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    let mut status = Status::from_error_details(Code::FailedPrecondition, "api disabled", &details)
+        .expect("encode");
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
 fn assert_typed_after_headers(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "api disabled");
@@ -254,6 +271,15 @@ fn fail_store_after_one() -> Streaming<Event> {
     stream
 }
 
+fn fail_store_after_one_from_error_details() -> Streaming<Event> {
+    let (tx, stream) = Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        tx.send(event(Kind::Put, "ada")).await.ok();
+        tx.fail(typed_after_headers_from_error_details()).await;
+    }));
+    stream
+}
+
 /// Watch and Sync only: Get / PutAll have no response DATA then trailers.
 struct TypedAfterHeadersStore;
 
@@ -275,6 +301,29 @@ impl Store for TypedAfterHeadersStore {
         _: Request<Streaming<Entry>>,
     ) -> Result<Response<Streaming<Event>>, Status> {
         Ok(Response::new(fail_store_after_one()))
+    }
+}
+
+struct TypedAfterHeadersStoreFromErrorDetails;
+
+impl Store for TypedAfterHeadersStoreFromErrorDetails {
+    async fn get(&self, _: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn put_all(&self, _: Request<Streaming<Entry>>) -> Result<Response<PutSummary>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn watch(&self, _: Request<WatchRequest>) -> Result<Response<Streaming<Event>>, Status> {
+        Ok(Response::new(fail_store_after_one_from_error_details()))
+    }
+
+    async fn sync(
+        &self,
+        _: Request<Streaming<Entry>>,
+    ) -> Result<Response<Streaming<Event>>, Status> {
+        Ok(Response::new(fail_store_after_one_from_error_details()))
     }
 }
 
@@ -1141,6 +1190,22 @@ async fn generated_typed_google_rpc_status_after_a_streamed_message() {
     let addr = listener.local_addr().expect("addr");
     let server = tokio::spawn(async move {
         StoreServer::new(TypedAfterHeadersStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_typed_status_after_streamed_message(&client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_from_error_details_after_a_streamed_message() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedAfterHeadersStoreFromErrorDetails)
             .serve_listener(listener)
             .await
             .ok();
