@@ -588,9 +588,9 @@ fn channel_call_apis_document_hand_written_services() {
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains(
-            "fn dump_request(request: &pbrs_grpc::Request<()>) {\n///     let _ = (\n///         request.path(),\n///         request.service(),\n///         request.method(),\n///         request.metadata(),"
+            "fn dump_request(request: &pbrs_grpc::Request<()>) {\n///     let _ = (\n///         request.path(),\n///         request.service(),\n///         request.method(),\n///         request.metadata(),\n///         request.timeout(),"
         ),
-        "Request rustdoc must dump metadata Distinct from metadata_mut"
+        "Request rustdoc must dump timeout Distinct from rpc_timeout"
     );
     assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
