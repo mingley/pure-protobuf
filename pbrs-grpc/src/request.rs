@@ -1590,6 +1590,8 @@ impl Parts {
 
     /// Whether [`Self::set_wait_for_ready`] has been called.
     /// See [`Request::wait_for_ready_is_set`].
+    ///
+    /// Distinct from [`Self::wait_for_ready`], which is `false` when unset on this split envelope.
     #[must_use]
     pub fn wait_for_ready_is_set(&self) -> bool {
         self.wait_for_ready.is_some()

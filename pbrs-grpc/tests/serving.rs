@@ -808,6 +808,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::user_agent must Distinct the Outgoing effective header from the override"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::wait_for_ready`], which is `false` when unset on this split envelope."
+        ),
+        "Parts::wait_for_ready_is_set must Distinct occupancy from the fail-fast snapshot"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
