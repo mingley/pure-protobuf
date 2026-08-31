@@ -5477,6 +5477,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
     );
     assert!(
+        readme.contains(
+            "`ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this crate README on_response path."
+        ),
+        "crate README must name ResponseParts::clear_compress next to on_response occupancy"
+    );
+    assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
         "status guide must name accepts_gzip like Dumping Rpc"

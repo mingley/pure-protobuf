@@ -69,6 +69,7 @@ RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent
 `Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a crate README interceptor choice.
 `Outgoing::clear_timeout` opts out of the channel timeout after a crate README interceptor choice.
 `ResponseParts::compress_is_set` is occupancy on this crate README on_response path, so a later interceptor can fill compress only when unset.
+`ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this crate README on_response path.
 `Streaming` implements
 `futures_core::Stream`.
 
