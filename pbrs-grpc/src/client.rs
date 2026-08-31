@@ -967,6 +967,7 @@ impl Channel {
     ///         parts.metadata(),
     ///         parts.trailers(),
     ///         parts.compress(),
+    ///         parts.compress_is_set(),
     ///         parts.encoding(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),

@@ -2762,12 +2762,16 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc example must dump compress intent Distinct from gzip_level"
     );
     assert!(
+        intercept.contains("///         parts.compress_is_set(),"),
+        "ResponseInterceptor rustdoc example must dump compress_is_set Distinct from compress"
+    );
+    assert!(
         intercept.contains("///         parts.encoding(),"),
         "ResponseInterceptor rustdoc example must dump received encoding Distinct from compress"
     );
     assert!(
         intercept.contains(
-            "fn stamp_trace(parts: &mut ResponseParts) -> Result<(), Status> {\n///     if let Some(n) = parts.extensions().get::<u8>().copied() {\n///         parts.metadata_mut().insert(\"x-trace\", n.to_string())?;\n///     }\n///     let _ = (\n///         parts.path(),\n///         parts.service(),\n///         parts.method(),\n///         parts.metadata(),\n///         parts.trailers(),\n///         parts.compress(),\n///         parts.encoding(),"
+            "fn stamp_trace(parts: &mut ResponseParts) -> Result<(), Status> {\n///     if let Some(n) = parts.extensions().get::<u8>().copied() {\n///         parts.metadata_mut().insert(\"x-trace\", n.to_string())?;\n///     }\n///     let _ = (\n///         parts.path(),\n///         parts.service(),\n///         parts.method(),\n///         parts.metadata(),\n///         parts.trailers(),\n///         parts.compress(),\n///         parts.compress_is_set(),\n///         parts.encoding(),"
         ),
         "ResponseInterceptor rustdoc example must dump service after path with unique stamp_trace attach"
     );
@@ -2794,13 +2798,13 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
-            "svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.encoding(),"
+            "svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.compress_is_set(),\n    ///         parts.encoding(),"
         ),
         "ServiceExt::on_response rustdoc example must dump service Distinct from path"
     );
     assert!(
         intercept.contains(
-            "wrapped.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.encoding(),"
+            "wrapped.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.compress_is_set(),\n    ///         parts.encoding(),"
         ),
         "Intercepted::on_response rustdoc example must dump service Distinct from path"
     );
@@ -2929,7 +2933,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.encoding(),"
+            "channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.compress_is_set(),\n    ///         parts.encoding(),"
         ),
         "Channel::on_response rustdoc example must dump service Distinct from path"
     );
@@ -2956,6 +2960,10 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("///         parts.compress(),"),
         "Channel::on_response rustdoc example must dump compress intent Distinct from gzip_level"
+    );
+    assert!(
+        src.contains("///         parts.compress_is_set(),"),
+        "Channel::on_response rustdoc example must dump compress_is_set Distinct from compress"
     );
     assert!(
         src.contains("///         parts.encoding(),"),
@@ -3164,9 +3172,13 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.encoding(),"
+            "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.compress_is_set(),\n//!         parts.encoding(),"
         ),
         "hello GreeterClient::on_response rustdoc example must dump service Distinct from path"
+    );
+    assert!(
+        hello.contains("//!         parts.compress_is_set(),"),
+        "hello on_response rustdoc example must dump compress_is_set Distinct from compress"
     );
     assert!(
         hello.contains("//!         parts.send_buffer_size(),\n//!         parts.extensions(),"),
@@ -3192,7 +3204,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.encoding(),"
+            "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.compress_is_set(),\n//!         parts.encoding(),"
         ),
         "hello GreeterServer::on_response rustdoc example must dump service Distinct from path"
     );
@@ -6418,13 +6430,17 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
-            "server.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.encoding(),"
+            "server.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.compress_is_set(),\n    ///         parts.encoding(),"
         ),
         "Server::on_response rustdoc example must dump service Distinct from path"
     );
     assert!(
+        src.contains("///         parts.compress_is_set(),"),
+        "Server::on_response rustdoc example must dump compress_is_set Distinct from compress"
+    );
+    assert!(
         src.contains(
-            "router.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.encoding(),"
+            "router.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),\n    ///         parts.metadata(),\n    ///         parts.trailers(),\n    ///         parts.compress(),\n    ///         parts.compress_is_set(),\n    ///         parts.encoding(),"
         ),
         "Router::on_response rustdoc example must dump service Distinct from path"
     );
