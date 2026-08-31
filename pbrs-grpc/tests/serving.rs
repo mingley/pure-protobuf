@@ -664,6 +664,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump wait_for_ready Distinct from scheme"
     );
     assert!(
+        outgoing.contains("///         request.wait_for_ready(),\n///         request.limits(),"),
+        "Request rustdoc must dump limits Distinct from wait_for_ready"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );

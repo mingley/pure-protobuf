@@ -63,6 +63,7 @@ use tokio::sync::watch;
 ///         request.authority(),
 ///         request.scheme(),
 ///         request.wait_for_ready(),
+///         request.limits(),
 ///     );
 /// }
 /// # let _ = dump_request;
