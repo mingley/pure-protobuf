@@ -925,6 +925,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::user_agent_is_set`] is occupancy on this outbound envelope, so a later interceptor can prefix only when unset."
+        ),
+        "Outgoing rustdoc must name user_agent_is_set occupancy next to set_user_agent"
+    );
+    assert!(
         outgoing.contains("Distinct from inserting `user-agent` into metadata"),
         "Outgoing::set_user_agent must Distinct metadata overwrite"
     );

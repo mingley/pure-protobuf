@@ -900,8 +900,9 @@ impl<T> Request<T> {
 /// [`Self::set_user_agent`] prefixes this RPC's `user-agent` (kernel suffix
 /// stays). Distinct from inserting `user-agent` into metadata, which the
 /// kernel overwrites. [`crate::Request::set_user_agent`] is the same prefix
-/// at the call site; this method wins if an interceptor runs after. Typed values
-/// the caller inserted on [`crate::Request::extensions_mut`] are on this map.
+/// at the call site; this method wins if an interceptor runs after.
+/// [`Self::user_agent_is_set`] is occupancy on this outbound envelope, so a later interceptor can prefix only when unset.
+/// Typed values the caller inserted on [`crate::Request::extensions_mut`] are on this map.
 /// [`Self::connected`] is whether a pool slot holds a live socket (same
 /// snapshot as [`crate::Channel::connected`]), taken when this interceptor
 /// runs. Applies to every call shape.
