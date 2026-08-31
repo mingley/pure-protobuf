@@ -20704,6 +20704,39 @@ fn deny_after_ok(_: &mut ResponseParts) -> Result<(), Status> {
     Err(Status::permission_denied("hook"))
 }
 
+fn deny_after_ok_from_error_details(_: &mut ResponseParts) -> Result<(), Status> {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "HOOK_DENIED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    Err(Status::from_error_details(Code::PermissionDenied, "hook", &details).expect("details"))
+}
+
+fn assert_hook_denied(err: &Status) {
+    assert_eq!(err.code(), Code::PermissionDenied, "{err}");
+    assert_eq!(err.message(), "hook");
+    let info = err
+        .rpc()
+        .expect("google.rpc.Status")
+        .details()
+        .get(0)
+        .expect("one Any")
+        .unpack::<pbrs_grpc::pb::ErrorInfo>()
+        .expect("ErrorInfo");
+    assert_eq!(info.reason().to_str().unwrap_or(""), "HOOK_DENIED");
+    assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    let unpacked = err
+        .error_details()
+        .expect("ErrorDetails")
+        .error_info
+        .expect("ErrorInfo");
+    assert_eq!(unpacked.reason().to_str().unwrap_or(""), "HOOK_DENIED");
+    assert_eq!(unpacked.domain().to_str().unwrap_or(""), "example.com");
+}
+
 fn interceptor_stack_a(parts: &mut ResponseParts) -> Result<(), Status> {
     parts.metadata_mut().insert("x-stack", "a")?;
     Ok(())
@@ -20948,6 +20981,30 @@ async fn response_interceptor_err_is_trailers_only_after_handler() {
         .await
         .expect_err("hook must replace the response");
     assert_eq!(err.code(), Code::PermissionDenied);
+    assert_eq!(ran.load(Ordering::SeqCst), 1, "handler must have run");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn response_interceptor_err_from_error_details_is_trailers_only_after_handler() {
+    let ran = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let ran = Arc::clone(&ran);
+        async move {
+            GreeterServer::new(CountedEcho { ran })
+                .on_response(deny_after_ok_from_error_details)
+                .serve_listener(listener)
+                .await
+                .ok();
+        }
+    });
+    let client = GreeterClient::new(channel(addr).await);
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("hook must replace the response");
+    assert_hook_denied(&err);
     assert_eq!(ran.load(Ordering::SeqCst), 1, "handler must have run");
     task.abort();
 }
