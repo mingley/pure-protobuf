@@ -1491,6 +1491,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 /// }
 /// # let _ = dump_parts;
 /// ```
+/// [`Self::user_agent_is_set`] is occupancy on this split envelope, so a later interceptor can prefix only when unset.
 #[derive(Clone)]
 pub struct Parts {
     metadata: Metadata,

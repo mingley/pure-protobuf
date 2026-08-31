@@ -695,6 +695,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::user_agent_is_set`] is occupancy on this split envelope, so a later interceptor can prefix only when unset."
+        ),
+        "Parts rustdoc must name user_agent_is_set occupancy next to cancelled dump"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it."
         ),
         "Parts::metadata must Distinct the mutable split envelope from the borrow"
