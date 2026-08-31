@@ -973,6 +973,7 @@ over TLS, mTLS, Unix, and `from_io`.
 A handler `Err(Status::with_error_details(...))` unpacks the same way on Check, List, and Watch, including over TLS, mTLS, Unix, and
 `from_io`.
 `Status::from_error_details` is the typed bag after this guide Health handler Err; those trailers reach the client.
+`Status::from_error_details` is the typed bag after this guide Health client interceptor Err; a local reject never opens a stream.
 Watch `StreamSender::fail` after a streamed DATA frame unpacks the
 same way (Check is unary: no response DATA then trailers), including over TLS,
 mTLS, Unix, and `from_io`.
