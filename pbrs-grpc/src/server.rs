@@ -3543,6 +3543,7 @@ impl ConnectionInfo {
     }
 
     /// Transport `:scheme` override, if set.
+    /// Distinct from [`Self::with_scheme`], which sets it.
     #[must_use]
     pub fn scheme(&self) -> Option<&'static str> {
         self.scheme

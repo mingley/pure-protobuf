@@ -4941,6 +4941,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Transport `:scheme` override, if set.\n    /// Distinct from [`Self::with_scheme`], which sets it."
+        ),
+        "ConnectionInfo::scheme must Distinct the setter"
+    );
+    assert!(
+        src.contains(
             "Serve connections from `incoming` until it is exhausted.\n    /// Applies to every call shape. See [`Server::serve_with_incoming`]."
         ),
         "Router::serve_with_incoming must name every call shape"
