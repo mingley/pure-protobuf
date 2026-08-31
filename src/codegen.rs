@@ -4404,6 +4404,10 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated server intercept Err; those trailers reach the client without reading the body."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterServer::new(Svc).intercept`)."
     );
     let _ = writeln!(src, "    #[must_use]");

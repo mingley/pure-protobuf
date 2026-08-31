@@ -4262,6 +4262,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server intercept rustdoc must name typed Err trailers"
     );
     assert!(
+        src.contains(
+            "[`::pbrs_grpc::Status::from_error_details`] is the typed bag after a generated server intercept Err; those trailers reach the client without reading the body."
+        ),
+        "generated server intercept rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
         src.contains("Applies to every call shape; `Err` rejects before the body is read, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."),
         "generated server intercept rustdoc must name a single intercept reject on every transport"
     );
