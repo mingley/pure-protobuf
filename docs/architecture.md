@@ -70,7 +70,7 @@ Compiling `ConnectionInfo` peer dumps live on the `Incoming` rustdoc.
 `unary` / `client_streaming` / `server_streaming` / `bidi_streaming` /
 `unimplemented`. Interceptors run first and may inspect metadata,
 deadline, `:authority` / `:scheme`, path / service / method, peer identity
-/ cred, `Rpc::limits`, gzip accept/encoding, `compresses_outbound`,
+/ cred, `Rpc::limits`, `accepts_gzip` / encoding, `compresses_outbound`,
 `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, and extensions.
 `Router` splits on the service half of the path. An unmounted service, or a
 method a mounted service does not have, is `UNIMPLEMENTED` on every call

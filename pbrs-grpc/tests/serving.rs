@@ -4488,6 +4488,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture interceptor inspect list must name extensions"
     );
     assert!(
+        architecture.contains("`Rpc::limits`, `accepts_gzip` / encoding, `compresses_outbound`,"),
+        "architecture interceptor inspect list must name accepts_gzip like Dumping Rpc"
+    );
+    assert!(
         architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions, user-agent. Dumping"),
         "architecture must name Incoming-stamped peer facts, extensions, and user-agent on generated handlers"
     );
