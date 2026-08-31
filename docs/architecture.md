@@ -80,7 +80,7 @@ Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
 gzip accept/encoding, the
-`compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, and `send_buffer_size`. Dumping
+`compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`. Dumping
 `Rpc` prints service/method, interceptor `timeout` / server `rpc_timeout` /
 `peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
 encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, `limits`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`.
