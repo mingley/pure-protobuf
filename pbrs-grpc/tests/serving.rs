@@ -5543,6 +5543,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name ErrorInfo::with_reason next to Status::error_info"
     );
     assert!(
+        readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
+        "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
+    );
+    assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
         "status guide must name accepts_gzip like Dumping Rpc"
