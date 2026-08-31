@@ -430,6 +430,7 @@ impl Rpc {
 
     /// Deadline cap an interceptor set with [`Self::set_timeout`], if any.
     ///
+    /// Distinct from [`Self::rpc_timeout`]: that is the server overlay; this is the interceptor cap.
     /// This is not the effective deadline: that also includes the client's
     /// `grpc-timeout` and [`ServerConfig::timeout`]. See
     /// [`Self::effective_timeout`]. The server overlay itself is
