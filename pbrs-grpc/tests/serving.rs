@@ -3174,6 +3174,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::on_response must name received send_buffer_size is None"
     );
     assert!(
+        src.contains(
+            "[`crate::ResponseParts::compress_is_set`] is occupancy after this Channel on_response, so a later interceptor can fill compress only when unset."
+        ),
+        "Channel::on_response rustdoc must name compress_is_set occupancy next to received send_buffer"
+    );
+    assert!(
         src.contains("channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {"),
         "Channel::on_response rustdoc example must attach a closure"
     );

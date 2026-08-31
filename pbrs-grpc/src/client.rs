@@ -960,6 +960,7 @@ impl Channel {
     /// [`crate::Response::rpc_timeout`] on a received reply is `None` (the server overlay is not on the reply wire).
     /// [`crate::Response::accepts_compressed`] on a received reply is `false` (this overlay is not a received-reply field).
     /// [`crate::Response::send_buffer_size`] on a received reply is `None` (the peer send buffer is not on the reply wire).
+    /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Channel on_response, so a later interceptor can fill compress only when unset.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
