@@ -5886,6 +5886,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name Outgoing::clear_user_agent next to compress occupancy"
     );
+    assert!(
+        architecture.contains(
+            "`Outgoing::clear_wait_for_ready` restores the channel wait-for-ready overlay after an architecture interceptor choice."
+        ),
+        "architecture must name Outgoing::clear_wait_for_ready next to clear_user_agent"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
