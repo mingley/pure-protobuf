@@ -1705,6 +1705,8 @@ impl Parts {
 
     /// Whether this server gzips responses when the peer advertised gzip.
     /// See [`Request::compresses_outbound`].
+    ///
+    /// Distinct from [`Self::compress`]: that is outbound request-payload gzip on this split envelope; this is the server encode overlay.
     #[must_use]
     pub fn compresses_outbound(&self) -> bool {
         self.compresses_outbound

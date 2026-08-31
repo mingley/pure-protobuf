@@ -796,6 +796,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::send_buffer_size must Distinct handshake SETTINGS from the write-time send buffer"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compress`]: that is outbound request-payload gzip on this split envelope; this is the server encode overlay."
+        ),
+        "Parts::compresses_outbound must Distinct request-payload gzip from the server encode overlay"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
