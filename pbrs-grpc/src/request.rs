@@ -1292,6 +1292,7 @@ impl<'a> Outgoing<'a> {
 
     /// Typed values earlier interceptors or the caller attached to this RPC.
     ///
+    /// Distinct from [`Self::extensions_mut`]: that inserts typed values; this borrows the map.
     /// The caller inserts on [`crate::Request::extensions_mut`] before the
     /// call; stacked interceptors share the same map. These values are not
     /// sent on the wire. Visible on every call shape.
