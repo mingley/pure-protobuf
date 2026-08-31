@@ -493,6 +493,7 @@ See `docs/upb.md`. Short list:
   `Outgoing::compress_is_set` distinguishes unset compress from an explicit `false` on this packed-status interceptor path.
   `ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset.
   `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this packed-status on_response path.
+  `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this packed-status on_response path; a received reply has no server gzip overlay to restore.
   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
   interceptor on those transports plus `from_io`, including official TestService
