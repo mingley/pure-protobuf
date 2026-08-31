@@ -4926,6 +4926,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name accepts_gzip like Dumping Rpc"
     );
     assert!(
+        status_guide.contains(
+            "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
+        ),
+        "status guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
+    );
+    assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );
