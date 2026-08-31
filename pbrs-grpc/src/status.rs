@@ -573,6 +573,20 @@ impl Status {
     ///
     /// Distinct from [`Self::with_error_details`]: that packs `Any` values; this takes the typed bag.
     /// Distinct from [`Self::from_rpc`]: that encodes a packed `google.rpc.Status`; this encodes the typed bag.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     error_info: Some(ErrorInfo::with_reason("API_DISABLED", "example.com")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "typed-bag", &details)?;
+    /// let info = status.error_details()?.error_info.expect("ErrorInfo");
+    /// assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn from_error_details(
         code: Code,
         message: impl Into<String>,

@@ -4920,6 +4920,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Status::from_error_details(Code::FailedPrecondition, \"typed-bag\", &details)"
+        ),
+        "Status::from_error_details must compile a typed-bag ErrorInfo example"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::from_error_details`]: that takes the typed bag, not packed `Any` values."
         ),
         "Status::with_error_details must Distinct the typed-bag constructor from this Any packer"
