@@ -3934,6 +3934,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated intercept rustdoc must name Outgoing::set_user_agent"
     );
     assert!(
+        src.contains("`user-agent` (`user_agent_is_set`), message caps,"),
+        "generated intercept rustdoc must name user_agent_is_set next to user-agent"
+    );
+    assert!(
         src.contains(
             "[`::pbrs_grpc::Request::set_user_agent`] is the same prefix at the call site."
         ),
