@@ -591,6 +591,7 @@ impl Rpc {
     /// handlers see the same value on [`Request::encoding`]. `grpc-*` keys
     /// are not in [`Self::metadata`]. Bind it before [`Self::metadata_mut`]:
     /// `let enc = rpc.encoding();`.
+    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this received `grpc-encoding`.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         crate::wire::grpc_encoding(self.request.headers())

@@ -5475,6 +5475,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this received `grpc-encoding`."
+        ),
+        "Rpc::encoding must Distinct peer advertisement from received grpc-encoding"
+    );
+    assert!(
+        src.contains(
             "Response interceptors see the same Instant as [`Request::deadline`] on [`crate::Response::deadline`]."
         ),
         "Rpc::deadline must name the Response interceptor stamp"
