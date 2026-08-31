@@ -4989,6 +4989,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Start from the `SocketAddr` [`Incoming::accept`] returned.\n    /// Distinct from [`Self::new`]: that is empty facts, not this accept tuple."
+        ),
+        "ConnectionInfo::from_accept must Distinct empty facts"
+    );
+    assert!(
+        src.contains(
             "Serve connections from `incoming` until it is exhausted.\n    /// Applies to every call shape. See [`Server::serve_with_incoming`]."
         ),
         "Router::serve_with_incoming must name every call shape"
