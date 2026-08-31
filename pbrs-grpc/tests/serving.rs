@@ -643,6 +643,11 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump local_addr Distinct from remote_addr"
     );
     assert!(
+        outgoing
+            .contains("///         request.local_addr(),\n///         request.peer_identity(),"),
+        "Request rustdoc must dump peer_identity Distinct from local_addr"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );

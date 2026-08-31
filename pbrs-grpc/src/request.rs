@@ -58,6 +58,7 @@ use tokio::sync::watch;
 ///         request.send_buffer_size(),
 ///         request.remote_addr(),
 ///         request.local_addr(),
+///         request.peer_identity(),
 ///     );
 /// }
 /// # let _ = dump_request;
