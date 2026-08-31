@@ -4960,6 +4960,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     let guide = include_str!("../../docs/grpc.md");
     let architecture = include_str!("../../docs/architecture.md");
     let status_guide = include_str!("../../docs/status.md");
+    let readme = include_str!("../README.md");
+    assert!(
+        readme
+            .contains("`user-agent` (`user_agent_is_set`), message caps, timeout/deadline Instant"),
+        "crate README interceptor inventory must name user_agent_is_set next to user-agent"
+    );
     assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
