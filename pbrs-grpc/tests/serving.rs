@@ -668,6 +668,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump limits Distinct from wait_for_ready"
     );
     assert!(
+        outgoing.contains("///     let _ = request.cancelled();"),
+        "Request rustdoc must dump cancelled Distinct from limits"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );
