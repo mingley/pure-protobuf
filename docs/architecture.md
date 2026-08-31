@@ -292,11 +292,10 @@ before `metadata_mut`.
 `Status` is two machine words; message, metadata, and
 `grpc-status-details-bin` live behind a pointer. Local I/O, a TLS handshake,
 and HTTP/2 connection death attach the original error as
-`std::error::Error::source`; a peer trailer has no cause. `with_error_details` /
-`from_error_details` pack the standard `google.rpc` payloads
+`std::error::Error::source`; a peer trailer has no cause. `from_error_details` packs a typed `ErrorDetails` bag of the standard `google.rpc` payloads
 (`ErrorInfo`, `RetryInfo`, `DebugInfo`, `QuotaFailure`, `PreconditionFailure`,
 `BadRequest`, `RequestInfo`, `ResourceInfo`, `Help`, `LocalizedMessage`) as
-`google.rpc.Status`. `Status::error_info` is that packed `ErrorInfo` without
+`google.rpc.Status`. Distinct from `with_error_details`: that packs `Any` values, not the typed bag. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `Status::bad_request` is packed field violations. Distinct from
 `error_info`. `BadRequest::with_field` builds that payload. `Status::quota_failure`

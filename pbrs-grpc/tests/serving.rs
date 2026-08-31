@@ -4391,6 +4391,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Rpc path and metadata"
     );
     assert!(
+        architecture.contains(
+            "Distinct from `with_error_details`: that packs `Any` values, not the typed bag."
+        ),
+        "architecture must Distinct from_error_details typed bag from the Any packer"
+    );
+    assert!(
         architecture.contains("gzip intent vs wire flag, `encoding`, `accepts_gzip`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"),
         "architecture must dump Request Incoming-stamped peer facts and accepts_gzip"
     );
