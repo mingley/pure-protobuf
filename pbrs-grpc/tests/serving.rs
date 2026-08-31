@@ -814,6 +814,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::wait_for_ready_is_set must Distinct occupancy from the fail-fast snapshot"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compress`], which is `false` when unset on this split envelope."
+        ),
+        "Parts::compress_is_set must Distinct occupancy from outbound gzip intent"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );

@@ -1557,6 +1557,8 @@ impl Parts {
 
     /// Whether [`Self::set_compress`] has been called.
     /// See [`Request::compress_is_set`].
+    ///
+    /// Distinct from [`Self::compress`], which is `false` when unset on this split envelope.
     #[must_use]
     pub fn compress_is_set(&self) -> bool {
         self.compress.is_some()
