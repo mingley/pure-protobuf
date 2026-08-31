@@ -61,6 +61,7 @@
 //!     let _ = (
 //!         rpc.path(),
 //!         rpc.service(),
+//!         rpc.method(),
 //!         rpc.timeout(),
 //!         rpc.peer_timeout(),
 //!         rpc.rpc_timeout(),

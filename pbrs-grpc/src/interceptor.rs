@@ -54,6 +54,7 @@ use std::sync::Arc;
 ///     let _ = (
 ///         rpc.path(),
 ///         rpc.service(),
+///         rpc.method(),
 ///         rpc.timeout(),
 ///         rpc.peer_timeout(),
 ///         rpc.rpc_timeout(),
@@ -335,6 +336,7 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     ///     let _ = (
     ///         rpc.path(),
     ///         rpc.service(),
+    ///         rpc.method(),
     ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),
@@ -423,6 +425,7 @@ pub trait ServiceExt: Service + Sized {
     ///     let _ = (
     ///         rpc.path(),
     ///         rpc.service(),
+    ///         rpc.method(),
     ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),

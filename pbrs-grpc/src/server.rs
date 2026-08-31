@@ -1926,6 +1926,7 @@ impl<S: Service> Server<S> {
     ///     let _ = (
     ///         rpc.path(),
     ///         rpc.service(),
+    ///         rpc.method(),
     ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),
@@ -2797,6 +2798,7 @@ impl Router {
     ///     let _ = (
     ///         rpc.path(),
     ///         rpc.service(),
+    ///         rpc.method(),
     ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),
