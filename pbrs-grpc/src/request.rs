@@ -295,6 +295,7 @@ impl<T> Request<T> {
 
     /// Typed values an interceptor attached to this RPC.
     ///
+    /// Distinct from [`Self::extensions_mut`]: that inserts typed values this envelope carries; this borrows them.
     /// Empty on a request you built yourself until something inserts into
     /// [`Self::extensions_mut`]. On the server, this is the map an
     /// [`crate::Interceptor`] filled on the [`crate::Rpc`] before the
