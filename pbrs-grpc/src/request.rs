@@ -2625,6 +2625,8 @@ impl ResponseParts {
     }
 
     /// Inbound gzip overlay. See [`Response::accepts_compressed`].
+    ///
+    /// Distinct from [`Self::accepts_gzip`]: that is the peer advertisement on this split reply envelope, not this overlay.
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
         self.accepts_compressed
