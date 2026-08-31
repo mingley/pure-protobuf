@@ -906,6 +906,7 @@ impl<T> Request<T> {
 ///         call.send_buffer_size(),
 ///         call.limits(),
 ///         call.connected(),
+///         call.extensions(),
 ///     );
 ///     Ok(())
 /// }

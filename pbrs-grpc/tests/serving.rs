@@ -756,6 +756,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc example must read metadata Distinct from metadata_mut"
     );
     assert!(
+        outgoing.contains("        call.extensions(),"),
+        "Outgoing rustdoc example must read extensions Distinct from extensions_mut"
+    );
+    assert!(
         outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates the outbound map; this borrows it."
         ),
@@ -1555,6 +1559,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc example must read metadata Distinct from metadata_mut"
     );
     assert!(
+        intercept.contains("        call.extensions(),"),
+        "ClientInterceptor rustdoc example must read extensions Distinct from extensions_mut"
+    );
+    assert!(
         intercept.contains("[`Rpc::gzip_level`] is deflate effort"),
         "Interceptor rustdoc must name Rpc::gzip_level as deflate effort"
     );
@@ -2125,6 +2133,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "//!         call.connected(),\n//!         call.extensions(),"
+        ),
+        "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {"
         ),
         "hello module rustdoc must attach a compiling GreeterClient::on_response example"
@@ -2162,6 +2176,10 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("///         call.connected(),"),
         "Channel::intercept rustdoc example must read connected"
+    );
+    assert!(
+        src.contains("    ///         call.connected(),\n    ///         call.extensions(),"),
+        "Channel::intercept rustdoc example must read extensions Distinct from extensions_mut"
     );
     assert!(
         src.contains(
