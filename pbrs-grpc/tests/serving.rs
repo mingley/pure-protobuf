@@ -10704,6 +10704,19 @@ async fn reverser_typed_google_rpc_status_after_a_streamed_message() {
 }
 
 #[tokio::test]
+async fn reverser_from_error_details_after_a_streamed_message() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        Server::new(TypedAfterHeadersReverserFromErrorDetails)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_reverser_typed_status_after_streamed_message(&channel(addr).await).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn reverser_tls_typed_google_rpc_status_after_a_streamed_message() {
     let tls = ServerTls::new(server_identity()).expect("server tls");
     let (addr, listener) = bind().await;
@@ -16361,6 +16374,46 @@ impl Service for TypedAfterHeadersReverser {
                 rpc.bidi_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
                     Ok::<Response<pbrs_grpc::Streaming<HelloReply>>, Status>(Response::new(
                         fail_after_one(),
+                    ))
+                })
+                .await;
+            }
+            _ => rpc.unimplemented(),
+        }
+    }
+}
+
+struct TypedAfterHeadersReverserFromErrorDetails;
+
+impl Service for TypedAfterHeadersReverserFromErrorDetails {
+    const NAME: &'static str = "demo.Reverser";
+
+    async fn call(&self, rpc: Rpc) {
+        match rpc.method() {
+            "Reverse" => {
+                rpc.unary(|_: Request<HelloRequest>| async {
+                    Err::<Response<HelloReply>, _>(Status::unimplemented("typed-after-headers"))
+                })
+                .await;
+            }
+            "Server" => {
+                rpc.server_streaming(|_: Request<HelloRequest>| async {
+                    Ok::<Response<pbrs_grpc::Streaming<HelloReply>>, Status>(Response::new(
+                        fail_after_one_from_error_details(),
+                    ))
+                })
+                .await;
+            }
+            "Client" => {
+                rpc.client_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Err::<Response<HelloReply>, _>(Status::unimplemented("typed-after-headers"))
+                })
+                .await;
+            }
+            "Bidi" => {
+                rpc.bidi_streaming(|_: Request<pbrs_grpc::Streaming<HelloRequest>>| async {
+                    Ok::<Response<pbrs_grpc::Streaming<HelloReply>>, Status>(Response::new(
+                        fail_after_one_from_error_details(),
                     ))
                 })
                 .await;
