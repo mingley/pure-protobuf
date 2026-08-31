@@ -1720,6 +1720,8 @@ impl Parts {
     }
 
     /// Server inbound gzip overlay. See [`Request::accepts_compressed`].
+    ///
+    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this split envelope's inbound overlay.
     #[must_use]
     pub fn accepts_compressed(&self) -> bool {
         self.accepts_compressed

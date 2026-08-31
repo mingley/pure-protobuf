@@ -754,6 +754,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::gzip_level must Distinct client interceptor overlay from server overlay"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this split envelope's inbound overlay."
+        ),
+        "Parts::accepts_compressed must Distinct peer advertisement from inbound overlay"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
