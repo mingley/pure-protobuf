@@ -880,6 +880,7 @@ impl Channel {
     /// every call shape. [`crate::Request::set_user_agent`] is the same prefix
     /// at the call site; an interceptor [`crate::Outgoing::set_user_agent`]
     /// that runs after wins.
+    /// [`crate::Outgoing::clear_user_agent`] restores the channel user-agent after this Channel intercept prefix.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
