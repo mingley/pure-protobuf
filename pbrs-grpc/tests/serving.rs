@@ -706,6 +706,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::extensions must Distinct the mutable split envelope map from the borrow"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this split envelope's inbound `grpc-encoding`."
+        ),
+        "Parts::encoding must Distinct peer advertisement from split envelope grpc-encoding"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );

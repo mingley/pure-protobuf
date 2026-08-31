@@ -1726,6 +1726,8 @@ impl Parts {
 
     /// The `grpc-encoding` token the peer used on this call, if any.
     /// See [`Request::encoding`].
+    ///
+    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this split envelope's inbound `grpc-encoding`.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         self.encoding.as_deref()
