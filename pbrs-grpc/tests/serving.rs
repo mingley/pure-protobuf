@@ -957,6 +957,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must name clear_compress next to clear_wait_for_ready"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::clear_user_agent`] restores the channel user-agent on this request envelope."
+        ),
+        "Request rustdoc must name clear_user_agent next to clear_compress"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );

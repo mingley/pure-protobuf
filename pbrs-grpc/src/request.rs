@@ -77,6 +77,7 @@ use tokio::sync::watch;
 /// [`Self::clear_timeout`] opts out of the channel timeout on this request envelope.
 /// [`Self::clear_wait_for_ready`] restores the channel wait-for-ready overlay on this request envelope.
 /// [`Self::clear_compress`] restores the channel gzip overlay on this request envelope.
+/// [`Self::clear_user_agent`] restores the channel user-agent on this request envelope.
 #[derive(Clone)]
 pub struct Request<T> {
     message: T,
