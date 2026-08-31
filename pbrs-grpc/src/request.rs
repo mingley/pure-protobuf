@@ -2572,6 +2572,7 @@ impl ResponseParts {
     /// Full gRPC path. See [`Response::path`].
     ///
     /// Distinct from [`crate::Request::path`]: that is the inbound request, not this split reply envelope.
+    /// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send, not this split reply envelope.
     #[must_use]
     pub fn path(&self) -> Option<&str> {
         self.path.as_deref()
