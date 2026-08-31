@@ -80,6 +80,7 @@
 //! deadline applies on those dialers. A client interceptor sees
 //! [`crate::Outgoing`] path / service / method / `:authority` / `:scheme` on
 //! that method.
+//! [`crate::Status::from_error_details`] is the typed bag after this reflection client interceptor Err; a local reject never opens a stream.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 

@@ -410,6 +410,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name from_error_details typed bag next to handler Err"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this reflection client interceptor Err; a local reject never opens a stream."
+        ),
+        "reflection crate rustdoc must name from_error_details typed bag next to client interceptor Err"
+    );
 }
 
 #[tokio::test]
