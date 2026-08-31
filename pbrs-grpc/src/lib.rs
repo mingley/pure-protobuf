@@ -126,6 +126,8 @@
 //!
 //! [`Outgoing::clear_timeout`] opts out of the channel timeout after a crate-map interceptor choice.
 //!
+//! [`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!
