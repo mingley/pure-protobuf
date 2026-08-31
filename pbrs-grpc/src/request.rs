@@ -1496,6 +1496,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 /// [`Self::compress_is_set`] is occupancy on this split envelope, so a later interceptor can fill compress only when unset.
 /// [`Self::clear_timeout`] opts out of the channel timeout on this split envelope.
 /// [`Self::clear_wait_for_ready`] restores the channel wait-for-ready overlay on this split envelope.
+/// [`Self::clear_compress`] restores the channel gzip overlay on this split envelope.
 #[derive(Clone)]
 pub struct Parts {
     metadata: Metadata,

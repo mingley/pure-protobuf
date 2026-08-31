@@ -725,6 +725,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::clear_compress`] restores the channel gzip overlay on this split envelope."
+        ),
+        "Parts rustdoc must name clear_compress next to clear_wait_for_ready"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it."
         ),
         "Parts::metadata must Distinct the mutable split envelope from the borrow"
