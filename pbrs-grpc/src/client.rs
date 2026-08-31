@@ -884,6 +884,7 @@ impl Channel {
     /// [`crate::Outgoing::clear_user_agent`] restores the channel user-agent after this Channel intercept prefix.
     /// [`crate::Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after this Channel intercept choice.
     /// [`crate::Outgoing::clear_timeout`] opts out of the channel timeout after this Channel intercept choice.
+    /// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`] reapplies channel gzip after this Channel intercept choice.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {

@@ -3184,6 +3184,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must name clear_timeout opt-out next to clear_wait_for_ready"
     );
     assert!(
+        src.contains(
+            "[`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`] reapplies channel gzip after this Channel intercept choice."
+        ),
+        "Channel::intercept rustdoc must name clear_compress reapply next to clear_timeout"
+    );
+    assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
     );
