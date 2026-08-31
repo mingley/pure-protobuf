@@ -2972,6 +2972,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must name clear_compress next to compress occupancy"
     );
     assert!(
+        intercept.contains(
+            "[`crate::ResponseParts::compress_is_set`] is occupancy on this method-level on_response, so a later interceptor can fill compress only when unset."
+        ),
+        "ResponseInterceptor::intercept rustdoc must name compress_is_set occupancy next to the envelope"
+    );
+    assert!(
         intercept.contains("///         parts.path(),"),
         "ResponseInterceptor rustdoc example must read path"
     );
