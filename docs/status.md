@@ -485,6 +485,7 @@ See `docs/upb.md`. Short list:
   (kernel suffix stays); an interceptor `Outgoing::set_user_agent` that runs
   after the call site wins.
   `Outgoing::user_agent_is_set` distinguishes that override from the channel value on this packed-status interceptor path.
+  `Outgoing::clear_user_agent` restores the channel user-agent after a packed-status interceptor prefix.
   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
   interceptor on those transports plus `from_io`, including official TestService
