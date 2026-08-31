@@ -6294,6 +6294,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name ResponseParts::clear_compress next to on_response occupancy"
     );
+    assert!(
+        architecture.contains(
+            "`ResponseParts::clear_compress` drops a compress choice after Channel on_response on this architecture on_response path; a received reply has no server gzip overlay to restore."
+        ),
+        "architecture must name ResponseParts::clear_compress receive-path next to Server restore"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,

@@ -295,6 +295,7 @@ before `metadata_mut`.
 `Outgoing::clear_timeout` opts out of the channel timeout after an architecture interceptor choice.
 `ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this architecture on_response path.
+`ResponseParts::clear_compress` drops a compress choice after Channel on_response on this architecture on_response path; a received reply has no server gzip overlay to restore.
 
 ### Status
 
