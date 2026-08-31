@@ -594,11 +594,8 @@ impl Status {
 /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
 /// use pbrs_grpc::{Code, Status};
 ///
-/// let mut info = ErrorInfo::new();
-/// info.set_reason("API_DISABLED");
-/// info.set_domain("example.com");
 /// let details = ErrorDetails {
-///     error_info: Some(info),
+///     error_info: Some(ErrorInfo::with_reason("API_DISABLED", "example.com")),
 ///     ..ErrorDetails::default()
 /// };
 /// let status = Status::from_error_details(Code::FailedPrecondition, "disabled", &details)?;
