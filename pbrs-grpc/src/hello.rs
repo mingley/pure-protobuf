@@ -51,6 +51,7 @@
 //! ```
 //! Generated [`GreeterClient::on_response`] reads the same ResponseParts overlays as
 //! [`crate::Channel::on_response`]:
+//! [`crate::ResponseParts::compress_is_set`] is occupancy after a hello client on_response, so a later interceptor can fill compress only when unset.
 //!
 //! ```
 //! # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::hello::GreeterClient {

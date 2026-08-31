@@ -3526,6 +3526,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::ResponseParts::compress_is_set`] is occupancy after a hello client on_response, so a later interceptor can fill compress only when unset."
+        ),
+        "hello GreeterClient::on_response rustdoc must name compress_is_set occupancy next to Channel::on_response"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.compress_is_set(),\n//!         parts.encoding(),"
         ),
         "hello GreeterClient::on_response rustdoc example must dump service Distinct from path"
