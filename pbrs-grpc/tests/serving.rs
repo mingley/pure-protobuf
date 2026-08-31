@@ -760,6 +760,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc example must read path Distinct from Request::path"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::path`]: that is a server interceptor; this is a client interceptor before send."
+        ),
+        "Outgoing::path must Distinct the server interceptor path from the outbound path"
+    );
+    assert!(
         outgoing.contains("        call.extensions(),"),
         "Outgoing rustdoc example must read extensions Distinct from extensions_mut"
     );

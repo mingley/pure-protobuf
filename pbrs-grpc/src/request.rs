@@ -1126,6 +1126,8 @@ impl<'a> Outgoing<'a> {
 
     /// The full gRPC path, `/<package>.<Service>/<Method>`. Visible on every
     /// call shape.
+    ///
+    /// Distinct from [`crate::Rpc::path`]: that is a server interceptor; this is a client interceptor before send.
     #[must_use]
     pub fn path(&self) -> &'static str {
         self.path
