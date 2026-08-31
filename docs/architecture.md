@@ -80,7 +80,7 @@ Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
 gzip accept/encoding, the
-`compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`. Dumping
+`compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions. Dumping
 `Rpc` prints service/method, interceptor `timeout` / server `rpc_timeout` /
 `peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
 encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, `limits`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, and extensions.
@@ -253,7 +253,7 @@ survive `into_message_and_parts`. TLS `:authority` is
 the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
-gzip, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`. `Server::timeout` / `Router::timeout`
+gzip, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions. `Server::timeout` / `Router::timeout`
 expire Slow handlers when the client omits a deadline and cap a longer client
 deadline, including over TLS, mTLS, Unix, and `from_io`.
 `Server::send_compressed` / `Router::send_compressed`
