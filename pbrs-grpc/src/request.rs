@@ -2025,6 +2025,8 @@ impl<T> Response<T> {
 
     /// Trailing metadata, sent alongside `grpc-status`.
     ///
+    /// Distinct from [`Self::trailers_mut`]: that mutates this reply envelope; this borrows it.
+    ///
     /// On unary and client-streaming [`crate::Call`] results this is the
     /// OK-path custom trailer map. Server-streaming and bidi clients read
     /// the same map with [`crate::Streaming::trailers`] after end-of-stream.
