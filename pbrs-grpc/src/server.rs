@@ -2885,6 +2885,7 @@ impl Router {
     /// Distinct from [`crate::ResponseParts::accepts_gzip`]: that is the peer advertisement.
     /// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
     /// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
+    /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Router on_response, so a later interceptor can fill compress only when unset.
     /// Same surface as [`Server::on_response`].
     ///
     /// ```
