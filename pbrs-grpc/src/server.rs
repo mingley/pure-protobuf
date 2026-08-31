@@ -600,6 +600,7 @@ impl Rpc {
 
     /// Typed values an interceptor may attach for the handler.
     ///
+    /// Distinct from [`Self::extensions_mut`]: that inserts typed values the handler will see; this borrows the map.
     /// Empty until an [`crate::Interceptor`] (or wrapping [`Service`]) inserts
     /// into [`Self::extensions_mut`]. Survives onto the [`Request`] the
     /// handler receives.
