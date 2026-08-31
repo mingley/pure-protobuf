@@ -625,6 +625,18 @@ fn interceptor_blocked() -> Status {
     .expect("details")
 }
 
+fn interceptor_blocked_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "BLOCKED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    Status::from_error_details(Code::FailedPrecondition, "blocked locally", &details)
+        .expect("details")
+}
+
 fn assert_interceptor_blocked(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "blocked locally");
@@ -768,6 +780,27 @@ async fn reflection_interceptor_rejects_with_typed_status() {
     let handle = tokio::spawn(async move {
         reflection
             .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    let client = client(addr).await;
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+#[tokio::test]
+async fn reflection_interceptor_rejects_with_from_error_details() {
+    let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        reflection
+            .intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked_from_error_details()))
             .serve_listener(listener)
             .await
             .ok();
