@@ -6214,6 +6214,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
     );
     assert!(
+        architecture.contains("`ErrorInfo::with_reason` builds that payload."),
+        "architecture must name ErrorInfo::with_reason as the builder"
+    );
+    assert!(
         architecture.contains(
             "`set_rpc` / `set_error_details` / `set_from_error_details` replace the protobuf"
         ),
