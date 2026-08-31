@@ -175,6 +175,7 @@ where
 ///     }
 ///     let _ = (
 ///         parts.path(),
+///         parts.service(),
 ///         parts.gzip_level(),
 ///         parts.compresses_outbound(),
 ///         parts.accepts_gzip(),
@@ -282,6 +283,7 @@ impl<S, I> Intercepted<S, I> {
     /// wrapped.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
     ///     let _ = (
     ///         parts.path(),
+    ///         parts.service(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),
@@ -483,6 +485,7 @@ pub trait ServiceExt: Service + Sized {
     /// svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
     ///     let _ = (
     ///         parts.path(),
+    ///         parts.service(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),

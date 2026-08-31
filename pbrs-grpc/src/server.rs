@@ -2014,6 +2014,7 @@ impl<S: Service> Server<S> {
     /// server.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
     ///     let _ = (
     ///         parts.path(),
+    ///         parts.service(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),
@@ -2883,6 +2884,7 @@ impl Router {
     /// router.on_response(|parts: &mut pbrs_grpc::ResponseParts| {
     ///     let _ = (
     ///         parts.path(),
+    ///         parts.service(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),

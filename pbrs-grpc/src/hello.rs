@@ -49,6 +49,7 @@
 //! pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {
 //!     let _ = (
 //!         parts.path(),
+//!         parts.service(),
 //!         parts.gzip_level(),
 //!         parts.compresses_outbound(),
 //!         parts.accepts_gzip(),
@@ -112,6 +113,7 @@
 //! pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {
 //!     let _ = (
 //!         parts.path(),
+//!         parts.service(),
 //!         parts.gzip_level(),
 //!         parts.compresses_outbound(),
 //!         parts.accepts_gzip(),
