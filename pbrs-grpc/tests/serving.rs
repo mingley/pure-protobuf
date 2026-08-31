@@ -1346,6 +1346,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::compresses_outbound must Distinct gzip_level deflate effort"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::encoding`]: that is received `grpc-encoding`, not `grpc-accept-encoding` on this split reply envelope."
+        ),
+        "ResponseParts::accepts_gzip must Distinct received encoding from accept-encoding"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
