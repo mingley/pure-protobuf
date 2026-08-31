@@ -2517,6 +2517,8 @@ impl ResponseParts {
     }
 
     /// Trailing metadata, sent alongside `grpc-status`.
+    ///
+    /// Distinct from [`Self::trailers_mut`]: that mutates this split reply envelope; this borrows it.
     #[must_use]
     pub fn trailers(&self) -> &Metadata {
         &self.trailers
