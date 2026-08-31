@@ -5001,6 +5001,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "override. Same as [`Default`].\n    /// Distinct from [`Self::from_accept`]: that copies the IncomingAccept tuple."
+        ),
+        "ConnectionInfo::new must Distinct the accept-tuple constructor"
+    );
+    assert!(
+        src.contains(
             "Serve connections from `incoming` until it is exhausted.\n    /// Applies to every call shape. See [`Server::serve_with_incoming`]."
         ),
         "Router::serve_with_incoming must name every call shape"

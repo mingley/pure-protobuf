@@ -3465,6 +3465,7 @@ pub struct ConnectionInfo {
 impl ConnectionInfo {
     /// Empty facts: no addresses, no identity, no credentials, no scheme
     /// override. Same as [`Default`].
+    /// Distinct from [`Self::from_accept`]: that copies the IncomingAccept tuple.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
