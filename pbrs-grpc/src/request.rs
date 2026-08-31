@@ -896,7 +896,7 @@ impl<T> Request<T> {
 /// [`Self::compresses_outbound`] / [`Self::accepts_compressed`] / [`Self::gzip_level`] / [`Self::concurrent_rpc_limit`] / [`Self::stream_buffer_size`] / [`Self::send_buffer_size`] / [`Self::limits`]), and the service/method halves of the path,
 /// which the interceptor cannot otherwise see. Those overlays fill in before
 /// interceptors run; [`Self::clear_timeout`] / [`Self::clear_wait_for_ready`] /
-/// [`Self::clear_compress`] opt out of an already-applied default.
+/// [`Self::clear_compress`] / [`Self::clear_user_agent`] opt out of an already-applied default.
 /// [`Self::set_user_agent`] prefixes this RPC's `user-agent` (kernel suffix
 /// stays). Distinct from inserting `user-agent` into metadata, which the
 /// kernel overwrites. [`crate::Request::set_user_agent`] is the same prefix
