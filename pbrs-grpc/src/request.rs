@@ -208,6 +208,8 @@ impl<T> Request<T> {
     }
 
     /// Request headers, as gRPC metadata.
+    ///
+    /// Distinct from [`Self::metadata_mut`]: that mutates this envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
