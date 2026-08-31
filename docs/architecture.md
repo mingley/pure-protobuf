@@ -288,6 +288,7 @@ Bind borrowed getters
 before `metadata_mut`.
 `Outgoing::user_agent_is_set` is occupancy on this architecture interceptor path, so a later interceptor can prefix only when unset.
 `Outgoing::wait_for_ready_is_set` is occupancy on this architecture interceptor path, so a later interceptor can fill wait-for-ready only when unset.
+`Outgoing::compress_is_set` is occupancy on this architecture interceptor path, so a later interceptor can fill compress only when unset.
 
 ### Status
 

@@ -5796,6 +5796,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name Outgoing::wait_for_ready_is_set occupancy next to user_agent occupancy"
     );
+    assert!(
+        architecture.contains(
+            "`Outgoing::compress_is_set` is occupancy on this architecture interceptor path, so a later interceptor can fill compress only when unset."
+        ),
+        "architecture must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
