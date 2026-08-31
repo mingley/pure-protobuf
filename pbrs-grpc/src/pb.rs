@@ -62,9 +62,7 @@ impl Any {
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
     ///
-    /// let mut info = ErrorInfo::new();
-    /// info.set_reason("API_DISABLED");
-    /// info.set_domain("example.com");
+    /// let info = ErrorInfo::with_reason("API_DISABLED", "example.com");
     /// let any = Any::pack(&info)?;
     /// assert!(any.is::<ErrorInfo>());
     /// let got = any.unpack::<ErrorInfo>()?;
