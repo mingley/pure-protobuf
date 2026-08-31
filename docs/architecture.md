@@ -243,7 +243,7 @@ Distinct from `accepts_gzip` (peer advertisement). Distinct from `Rpc::accepts_c
 Distinct from `limits` (encode cap). Distinct from `Rpc::send_buffer_size`
 (before the handler). Closures see `Rpc` (path, service/method,
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
-`effective_timeout`, `deadline`, gzip accept/encoding,
+`effective_timeout`, `deadline`, `accepts_gzip` / encoding,
 `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, limits, extensions).
 Interceptors insert typed context on `Rpc::extensions_mut`. They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).

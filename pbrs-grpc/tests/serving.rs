@@ -4476,6 +4476,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name Incoming-stamped peer facts and extensions on interceptor Rpc closures"
     );
     assert!(
+        architecture.contains("`effective_timeout`, `deadline`, `accepts_gzip` / encoding,"),
+        "architecture interceptor Rpc closures must name accepts_gzip like Dumping Rpc"
+    );
+    assert!(
         architecture.contains("Interceptors insert typed context on `Rpc::extensions_mut`."),
         "architecture must name Rpc::extensions_mut as the interceptor insert API"
     );
