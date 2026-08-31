@@ -717,6 +717,7 @@ See `docs/upb.md`. Short list:
   A reflection handler `Err(with_error_details)` unpacks on the bidi `list_services` method too, including over TLS, mTLS, Unix,
   and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status reflection handler Err; those trailers reach the client.
+  `Status::from_error_details` is the typed bag after this packed-status reflection client interceptor Err; a local reject never opens a stream.
   A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written
   Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`, a wrapping
