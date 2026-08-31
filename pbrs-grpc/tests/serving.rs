@@ -5112,6 +5112,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide Outgoing getter inventory must name user_agent_is_set next to user_agent"
     );
     assert!(
+        guide.contains("timeout, wait-for-ready (`wait_for_ready_is_set`),"),
+        "guide Outgoing getter inventory must name wait_for_ready_is_set next to timeout"
+    );
+    assert!(
         guide.contains(
             "Channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`) stay visible after `clear_*` on those dialers."
         ),
