@@ -62,6 +62,7 @@
 //!         rpc.path(),
 //!         rpc.service(),
 //!         rpc.method(),
+//!         rpc.metadata(),
 //!         rpc.timeout(),
 //!         rpc.peer_timeout(),
 //!         rpc.rpc_timeout(),
