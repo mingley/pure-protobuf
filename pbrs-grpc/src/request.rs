@@ -1458,6 +1458,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.accepts_compressed(),
 ///         parts.concurrent_rpc_limit(),
 ///         parts.send_buffer_size(),
+///         parts.remote_addr(),
 ///     );
 /// }
 /// # let _ = dump_parts;
