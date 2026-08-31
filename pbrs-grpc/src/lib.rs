@@ -114,6 +114,8 @@
 //!
 //! [`Outgoing::user_agent_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can prefix only when unset.
 //!
+//! [`Outgoing::wait_for_ready_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can fill wait-for-ready only when unset.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!

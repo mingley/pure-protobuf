@@ -4108,6 +4108,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`Outgoing::wait_for_ready_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "crate docs must name Outgoing::wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::set_rpc`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
