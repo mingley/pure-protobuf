@@ -629,7 +629,7 @@ impl Status {
     /// a local [`Self::with_cause`] has no packed details. Negative or
     /// unparseable protobuf durations are `None`, so a retry loop can treat
     /// absence as "no hint". A zero delay is `Some(Duration::ZERO)`, not
-    /// `None`.
+    /// `None`. Build the payload with [`crate::pb::RetryInfo::with_retry_delay`].
     #[must_use]
     pub fn retry_delay(&self) -> Option<std::time::Duration> {
         let retry = self.error_details().ok()?.retry_info?;

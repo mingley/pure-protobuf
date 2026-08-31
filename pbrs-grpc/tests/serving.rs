@@ -4527,6 +4527,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
     );
     assert!(
+        crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
+        "crate map must name RetryInfo::with_retry_delay"
+    );
+    assert!(
         crate_src.contains("[`pb::ErrorInfo::with_reason`]"),
         "crate map must name ErrorInfo::with_reason"
     );
@@ -4581,6 +4585,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),
         "Status::retry_delay must Distinct wait hint from is_retryable"
+    );
+    assert!(
+        status_src.contains("Build the payload with [`crate::pb::RetryInfo::with_retry_delay`]."),
+        "Status::retry_delay must name RetryInfo::with_retry_delay as the builder"
     );
     assert!(
         status_src.contains("Packed `google.rpc.ErrorInfo`, if this status carries one."),
