@@ -110,6 +110,8 @@
 //! | Limits | [`MessageLimits`] |
 //! | Wire format | [`codec`], [`gzip`], [`timeout`] |
 //!
+//! Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!

@@ -4008,6 +4008,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip."
+        ),
+        "crate docs must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::set_rpc`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
