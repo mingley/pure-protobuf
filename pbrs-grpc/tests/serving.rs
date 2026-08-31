@@ -1316,6 +1316,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::gzip_level must Distinct Rpc overlay from the split reply"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::encoding`]: that is the received `grpc-encoding` token on this split reply envelope."
+        ),
+        "ResponseParts::gzip_level must Distinct received encoding from deflate effort"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
