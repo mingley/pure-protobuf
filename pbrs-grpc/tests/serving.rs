@@ -643,6 +643,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump concurrent_rpc_limit Distinct from accepts_compressed"
     );
     assert!(
+        outgoing.contains(
+            "///         parts.concurrent_rpc_limit(),\n///         parts.send_buffer_size(),"
+        ),
+        "Parts rustdoc must dump send_buffer_size Distinct from concurrent_rpc_limit"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
