@@ -505,6 +505,8 @@ impl Status {
     /// Pack `details` into a `google.rpc.Status` and attach it as
     /// `grpc-status-details-bin`.
     ///
+    /// Distinct from [`Self::from_error_details`]: that takes the typed bag, not packed `Any` values.
+    ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
     /// use pbrs_grpc::{Code, Status};
