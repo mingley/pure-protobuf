@@ -5086,6 +5086,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must Distinct from_error_details typed bag from the Any packer"
     );
     assert!(
+        guide.contains(
+            "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
+        ),
+        "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
+    );
+    assert!(
         guide.contains("`status.bad_request()` for field violations"),
         "guide must name Status::bad_request as field violations"
     );
