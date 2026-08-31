@@ -130,6 +130,8 @@
 //!
 //! [`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path.
 //!
+//! [`ResponseParts::clear_compress`] drops a compress choice after Channel on_response on this crate-map on_response path; a received reply has no server gzip overlay to restore.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!
