@@ -64,6 +64,7 @@
 //! `set_wait_for_ready(false)` opt out of a client default. A waiting Call's
 //! deadline applies on those dialers. A client interceptor sees [`crate::Outgoing`]
 //! path / service / method / `:authority` / `:scheme` on Check, List, and Watch.
+//! [`crate::Status::from_error_details`] is the typed bag after this health client interceptor Err; a local reject never opens a stream.
 //!
 //! ```no_run
 //! # async fn example() -> Result<(), pbrs_grpc::Status> {

@@ -664,6 +664,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must name from_error_details typed bag next to handler Err"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this health client interceptor Err; a local reject never opens a stream."
+        ),
+        "Health crate rustdoc must name from_error_details typed bag next to client interceptor Err"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
