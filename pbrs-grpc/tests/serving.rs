@@ -4357,6 +4357,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Rpc path and metadata"
     );
     assert!(
+        architecture.contains("`deadline`, `accepts_gzip` /\nencoding / `compresses_outbound`"),
+        "architecture Rpc dump must name accepts_gzip like Debug"
+    );
+    assert!(
         architecture.contains(
             "Distinct from `with_error_details`: that packs `Any` values, not the typed bag."
         ),

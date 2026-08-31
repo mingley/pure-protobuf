@@ -82,7 +82,7 @@ path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,
 gzip accept/encoding, the
 `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions, user-agent. Dumping
 `Rpc` prints path / service / method, metadata, interceptor `timeout` / server `rpc_timeout` /
-`peer_timeout` / `effective_timeout`, `deadline`, gzip accept /
+`peer_timeout` / `effective_timeout`, `deadline`, `accepts_gzip` /
 encoding / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `send_buffer_size`, `limits`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, and extensions.
 Dumping `Request` prints path / service / method, metadata, `timeout` / `rpc_timeout` /
 `peer_timeout`,
