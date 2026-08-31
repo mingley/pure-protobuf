@@ -596,9 +596,9 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
-            "fn dump_parts(parts: &pbrs_grpc::Parts) {\n///     let _ = (\n///         parts.path(),"
+            "fn dump_parts(parts: &pbrs_grpc::Parts) {\n///     let _ = (\n///         parts.path(),\n///         parts.service(),"
         ),
-        "Parts rustdoc must dump path Distinct from Request::path"
+        "Parts rustdoc must dump service Distinct from path"
     );
     assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),

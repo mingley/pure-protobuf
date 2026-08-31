@@ -1442,6 +1442,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 /// fn dump_parts(parts: &pbrs_grpc::Parts) {
 ///     let _ = (
 ///         parts.path(),
+///         parts.service(),
 ///     );
 /// }
 /// # let _ = dump_parts;
