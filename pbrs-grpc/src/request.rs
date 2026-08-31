@@ -44,6 +44,7 @@ use tokio::sync::watch;
 ///         request.method(),
 ///         request.metadata(),
 ///         request.timeout(),
+///         request.rpc_timeout(),
 ///     );
 /// }
 /// # let _ = dump_request;
