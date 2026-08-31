@@ -660,6 +660,7 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// [`crate::Outgoing::clear_user_agent`] drops a method-level interceptor prefix so this RPC uses the channel user-agent again.
     /// [`crate::Outgoing::user_agent_is_set`] is occupancy on this method-level intercept, so a later interceptor can prefix only when unset.
     /// [`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill wait-for-ready only when unset.
+    /// [`crate::Outgoing::compress_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill compress only when unset.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 
