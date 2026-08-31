@@ -2007,6 +2007,7 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Server on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Server on_response.
+    /// [`Status::from_error_details`] is the typed bag after this Server on_response Err; a local reject is trailers-only after handler Ok.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted

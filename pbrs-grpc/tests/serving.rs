@@ -7557,6 +7557,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "[`Status::from_error_details`] is the typed bag after this Server on_response Err; a local reject is trailers-only after handler Ok."
+        ),
+        "Server::on_response rustdoc must name from_error_details typed bag next to on_response Err"
+    );
+    assert!(
+        src.contains(
             "[`crate::ResponseParts::compress_is_set`] is occupancy after this Router on_response, so a later interceptor can fill compress only when unset."
         ),
         "Router::on_response rustdoc must name compress_is_set occupancy next to send_buffer Distinct"
