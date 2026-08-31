@@ -3146,6 +3146,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::on_response rustdoc must name clear_compress next to compress occupancy"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this ServiceExt on_response Err; a local reject is trailers-only after handler Ok."
+        ),
+        "ServiceExt::on_response rustdoc must name from_error_details typed bag next to on_response Err"
+    );
+    assert!(
         src.contains("starts empty; this is how a client inserts typed context after the"),
         "Channel::on_response must Distinct receive-side insert from the peer"
     );
