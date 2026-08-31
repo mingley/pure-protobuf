@@ -1539,6 +1539,8 @@ impl Parts {
     }
 
     /// Absolute deadline the server is enforcing, if any. See [`Request::deadline`].
+    ///
+    /// Distinct from [`timeout`](Self::timeout): that is the duration stamped at dispatch on this split envelope; this Instant does not shrink.
     #[must_use]
     pub fn deadline(&self) -> Option<tokio::time::Instant> {
         self.deadline
