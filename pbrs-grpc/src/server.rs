@@ -2887,6 +2887,7 @@ impl Router {
     /// [`crate::ResponseParts::send_buffer_size`] is the write-time HTTP/2 send buffer overlay.
     /// Distinct from [`crate::ResponseParts::limits`]: that is the encode cap, not this send buffer.
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Router on_response, so a later interceptor can fill compress only when unset.
+    /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Router on_response.
     /// Same surface as [`Server::on_response`].
     ///
     /// ```

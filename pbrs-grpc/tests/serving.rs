@@ -7192,6 +7192,12 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Router::on_response rustdoc must name compress_is_set occupancy next to send_buffer Distinct"
     );
+    assert!(
+        src.contains(
+            "[`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Router on_response."
+        ),
+        "Router::on_response rustdoc must name clear_compress next to compress occupancy"
+    );
     assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
