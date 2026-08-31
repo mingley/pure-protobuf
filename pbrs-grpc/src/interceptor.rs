@@ -203,6 +203,7 @@ where
 pub trait ResponseInterceptor: Send + Sync + 'static {
     /// Inspect and mutate the envelope.
     /// [`crate::ResponseParts::compress_is_set`] is occupancy on this method-level on_response, so a later interceptor can fill compress only when unset.
+    /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay on this method-level on_response.
     fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
 }
 
