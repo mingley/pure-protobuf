@@ -1610,6 +1610,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::send_buffer_size Distinct from limits: that is the encode cap on this split reply envelope, not this HTTP/2 send buffer"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::stream_buffer_size`]: that is decoded-message queue depth, not this send buffer on this split reply envelope."
+        ),
+        "ResponseParts::send_buffer_size Distinct from Outgoing::stream_buffer_size: that is decoded-message queue depth, not this send buffer on this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
