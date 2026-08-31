@@ -1788,6 +1788,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::compress_is_set Distinct from compress: which is false when unset on this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::compress_is_set`] is occupancy on this split reply envelope, so a later interceptor can fill compress only when unset."
+        ),
+        "ResponseParts rustdoc must name compress_is_set occupancy next to the method Distinct"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
