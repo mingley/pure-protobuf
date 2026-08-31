@@ -674,6 +674,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump scheme Distinct from authority"
     );
     assert!(
+        outgoing.contains("///         parts.scheme(),\n///         parts.wait_for_ready(),"),
+        "Parts rustdoc must dump wait_for_ready Distinct from scheme"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
