@@ -5237,6 +5237,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a packed-status interceptor choice."
+        ),
+        "status guide must name Outgoing::clear_compress reapply next to clear_wait_for_ready"
+    );
+    assert!(
+        status_guide.contains(
             "`Outgoing::wait_for_ready_is_set` distinguishes an unset wait-for-ready from an explicit `false` on this packed-status interceptor path."
         ),
         "status guide must name Outgoing::wait_for_ready_is_set occupancy next to clear_user_agent"
