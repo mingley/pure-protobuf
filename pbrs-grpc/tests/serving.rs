@@ -731,6 +731,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::clear_user_agent`] restores the channel user-agent on this split envelope."
+        ),
+        "Parts rustdoc must name clear_user_agent next to clear_compress"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it."
         ),
         "Parts::metadata must Distinct the mutable split envelope from the borrow"
