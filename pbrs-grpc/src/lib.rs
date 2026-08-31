@@ -112,6 +112,8 @@
 //!
 //! Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip.
 //!
+//! [`Outgoing::user_agent_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can prefix only when unset.
+//!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
 //! Compiling ConnectionInfo peer dumps live on [`Incoming`].
 //!
