@@ -2694,6 +2694,7 @@ impl ResponseParts {
     /// Distinct from [`crate::Request::limits`]: that is the inbound request, not this split reply envelope.
     /// Distinct from [`crate::Rpc::limits`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::limits`]: that is a client interceptor overlay, not this split reply envelope.
+    /// Distinct from [`Self::timeout`]: that is a duration on this split reply envelope, not a size cap.
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
         self.limits

@@ -1574,6 +1574,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::limits Distinct from Outgoing::limits: that is a client interceptor overlay, not this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::timeout`]: that is a duration on this split reply envelope, not a size cap."
+        ),
+        "ResponseParts::limits Distinct from timeout: that is a duration on this split reply envelope, not a size cap"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
