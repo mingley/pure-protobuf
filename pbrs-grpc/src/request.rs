@@ -1460,6 +1460,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.send_buffer_size(),
 ///         parts.remote_addr(),
 ///         parts.local_addr(),
+///         parts.peer_identity(),
 ///     );
 /// }
 /// # let _ = dump_parts;
