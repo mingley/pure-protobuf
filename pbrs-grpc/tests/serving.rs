@@ -5324,6 +5324,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Outgoing::clear_wait_for_ready next to clear_user_agent"
     );
     assert!(
+        guide.contains(
+            "`Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a client interceptor choice on those transports plus `from_io`."
+        ),
+        "guide must name Outgoing::clear_compress reapply next to clear_wait_for_ready"
+    );
+    assert!(
         guide.contains("`user_agent` (`user_agent_is_set`), `limits`,"),
         "guide Outgoing getter inventory must name user_agent_is_set next to user_agent"
     );
