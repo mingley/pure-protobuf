@@ -1681,6 +1681,8 @@ impl Parts {
 
     /// Server [`crate::Server::timeout`] overlay, when the kernel dispatched
     /// this call. See [`Request::rpc_timeout`].
+    ///
+    /// Distinct from [`timeout`](Self::timeout): that is the effective cap on this split envelope; this is the server overlay.
     #[must_use]
     pub fn rpc_timeout(&self) -> Option<Duration> {
         self.rpc_timeout

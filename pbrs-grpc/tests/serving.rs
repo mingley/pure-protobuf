@@ -712,6 +712,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::encoding must Distinct peer advertisement from split envelope grpc-encoding"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`timeout`](Self::timeout): that is the effective cap on this split envelope; this is the server overlay."
+        ),
+        "Parts::rpc_timeout must Distinct the effective cap from the server overlay"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
