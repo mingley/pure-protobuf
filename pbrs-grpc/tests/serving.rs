@@ -3538,6 +3538,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after a hello intercept Err; a local reject never opens a stream."
+        ),
+        "hello GreeterClient::intercept rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
+        hello.contains(
             "//!         call.connected(),\n//!         call.extensions(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"
