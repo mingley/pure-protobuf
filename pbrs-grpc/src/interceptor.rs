@@ -191,6 +191,7 @@ where
 ///         parts.rpc_timeout(),
 ///         parts.accepts_compressed(),
 ///         parts.send_buffer_size(),
+///         parts.extensions(),
 ///     );
 ///     Ok(())
 /// }
@@ -304,6 +305,7 @@ impl<S, I> Intercepted<S, I> {
     ///         parts.rpc_timeout(),
     ///         parts.accepts_compressed(),
     ///         parts.send_buffer_size(),
+    ///         parts.extensions(),
     ///     );
     ///     Ok(())
     /// })
@@ -511,6 +513,7 @@ pub trait ServiceExt: Service + Sized {
     ///         parts.rpc_timeout(),
     ///         parts.accepts_compressed(),
     ///         parts.send_buffer_size(),
+    ///         parts.extensions(),
     ///     );
     ///     Ok(())
     /// })

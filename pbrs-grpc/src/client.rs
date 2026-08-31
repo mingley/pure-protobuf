@@ -974,6 +974,7 @@ impl Channel {
     ///         parts.rpc_timeout(),
     ///         parts.accepts_compressed(),
     ///         parts.send_buffer_size(),
+    ///         parts.extensions(),
     ///     );
     ///     Ok(())
     /// })

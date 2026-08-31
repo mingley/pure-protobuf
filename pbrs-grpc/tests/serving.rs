@@ -2018,6 +2018,11 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc example must read send_buffer_size"
     );
     assert!(
+        intercept
+            .contains("///         parts.send_buffer_size(),\n///         parts.extensions(),"),
+        "ResponseInterceptor rustdoc example must dump extensions after send_buffer_size"
+    );
+    assert!(
         intercept.contains("///         parts.limits(),"),
         "ResponseInterceptor rustdoc example must read limits"
     );
@@ -2200,6 +2205,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "    ///         parts.send_buffer_size(),\n    ///         parts.extensions(),"
+        ),
+        "Channel::on_response rustdoc example must dump extensions Distinct from extensions_mut"
+    );
+    assert!(
+        src.contains(
             "Applies to client-streaming and bidi request streams opened from this\n    /// clone."
         ),
         "Channel::stream_buffer must name the streaming shapes it queues"
@@ -2378,6 +2389,10 @@ fn channel_call_apis_document_hand_written_services() {
             "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.encoding(),"
         ),
         "hello GreeterClient::on_response rustdoc example must dump service Distinct from path"
+    );
+    assert!(
+        hello.contains("//!         parts.send_buffer_size(),\n//!         parts.extensions(),"),
+        "hello on_response rustdoc example must dump extensions Distinct from extensions_mut"
     );
     assert!(
         hello.contains(
@@ -5584,6 +5599,12 @@ fn server_and_router_config_document_every_call_shape() {
     assert!(
         src.contains("///         parts.send_buffer_size(),"),
         "Server::on_response rustdoc example must read send_buffer_size"
+    );
+    assert!(
+        src.contains(
+            "    ///         parts.send_buffer_size(),\n    ///         parts.extensions(),"
+        ),
+        "Server::on_response rustdoc example must dump extensions Distinct from extensions_mut"
     );
     assert_eq!(
         src.matches("Distinct from [`crate::Request::path`]: that is the inbound request.")

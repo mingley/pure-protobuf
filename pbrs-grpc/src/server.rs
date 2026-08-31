@@ -2030,6 +2030,7 @@ impl<S: Service> Server<S> {
     ///         parts.rpc_timeout(),
     ///         parts.accepts_compressed(),
     ///         parts.send_buffer_size(),
+    ///         parts.extensions(),
     ///     );
     ///     Ok(())
     /// })
@@ -2905,6 +2906,7 @@ impl Router {
     ///         parts.rpc_timeout(),
     ///         parts.accepts_compressed(),
     ///         parts.send_buffer_size(),
+    ///         parts.extensions(),
     ///     );
     ///     Ok(())
     /// })
