@@ -882,6 +882,17 @@ async fn reflection_client_interceptor_rejects_with_typed_status() {
 }
 
 #[tokio::test]
+async fn reflection_client_interceptor_rejects_with_from_error_details() {
+    let (addr, _guard) = serve().await;
+    let client = client(addr)
+        .await
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked_from_error_details()));
+    let (tx, call) = client.server_reflection_info(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+#[tokio::test]
 async fn reflection_client_interceptor_sees_list_services_context() {
     let reflection = service([FILE_DESCRIPTOR_SET]).expect("reflection");
     let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
