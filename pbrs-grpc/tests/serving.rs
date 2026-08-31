@@ -4114,6 +4114,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`Outgoing::compress_is_set`] is occupancy on this crate-map interceptor path, so a later interceptor can fill compress only when unset."
+        ),
+        "crate docs must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::set_rpc`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
