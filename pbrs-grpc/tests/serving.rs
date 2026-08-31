@@ -2357,6 +2357,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "[`crate::Outgoing::clear_timeout`] opts out of the channel timeout on this ClientInterceptor path."
+        ),
+        "ClientInterceptor rustdoc must name clear_timeout opt-out next to clear_wait_for_ready"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Outgoing::clear_user_agent`] drops a method-level interceptor prefix so this RPC uses the channel user-agent again."
         ),
         "ClientInterceptor::intercept rustdoc must name clear_user_agent opt-out"
