@@ -2650,6 +2650,7 @@ impl ResponseParts {
     /// Duration stamped at dispatch. See [`Response::timeout`].
     ///
     /// Distinct from [`crate::Request::timeout`]: that is the inbound request, not this split reply envelope.
+    /// Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope; this duration does not shrink.
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
