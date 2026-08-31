@@ -707,6 +707,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::compress_is_set`] is occupancy on this split envelope, so a later interceptor can fill compress only when unset."
+        ),
+        "Parts rustdoc must name compress_is_set occupancy next to wait_for_ready occupancy"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it."
         ),
         "Parts::metadata must Distinct the mutable split envelope from the borrow"
