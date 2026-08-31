@@ -962,6 +962,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::clear_user_agent`] restores the channel user-agent on this outbound envelope."
+        ),
+        "Outgoing rustdoc must name clear_user_agent next to clear_compress"
+    );
+    assert!(
+        outgoing.contains(
             "[`Self::clear_compress`] / [`Self::clear_user_agent`] opt out of an already-applied default."
         ),
         "Outgoing rustdoc must name clear_user_agent next to the other clear_* opt-outs"
