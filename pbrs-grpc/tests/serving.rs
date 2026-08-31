@@ -777,6 +777,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`crate::Rpc::scheme`]: that is the inbound `:scheme`; this is the `:scheme` this channel sends."
+        ),
+        "Outgoing::scheme must Distinct the inbound :scheme from the outbound :scheme"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Rpc::authority`]: that is the inbound `:authority`; this is the `:authority` this channel sends."
         ),
         "Outgoing::authority must Distinct the inbound :authority from the outbound :authority"

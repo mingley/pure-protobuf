@@ -961,6 +961,7 @@ impl<'a> Outgoing<'a> {
 
     /// HTTP/2 `:scheme` this channel sends.
     ///
+    /// Distinct from [`crate::Rpc::scheme`]: that is the inbound `:scheme`; this is the `:scheme` this channel sends.
     /// Same string as [`crate::Channel::scheme`]: `https` when the channel was
     /// built with [`crate::ClientTls`], or when a [`crate::Channel::from_io`]
     /// clone called [`crate::Channel::https_scheme`]. Otherwise `http`
