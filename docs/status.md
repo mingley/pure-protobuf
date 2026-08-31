@@ -564,7 +564,7 @@ See `docs/upb.md`. Short list:
   `google.rpc.Status` from `with_error_details` is `Status::rpc` /
   `Status::error_details` on every call shape. Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is the
   packed `ErrorInfo` without unpacking the bag. Distinct from `error_details`.
-  Distinct from `retry_delay` (a wait hint). `ErrorInfo::with_reason` builds that payload. `Status::bad_request` is packed
+  Distinct from `retry_delay` (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload. `Status::bad_request` is packed
   field violations.   Distinct from `error_info`. `BadRequest::with_field` builds
   that payload. `Status::quota_failure` is packed quota subjects.
   Distinct from `is_retryable` (`RESOURCE_EXHAUSTED` is never A6-retryable)

@@ -5558,6 +5558,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ErrorInfo::with_reason as the builder"
     );
     assert!(
+        status_guide.contains("`RetryInfo::with_retry_delay` builds that payload."),
+        "status guide must name RetryInfo::with_retry_delay as the builder"
+    );
+    assert!(
         status_guide.contains(
             "`Outgoing::user_agent_is_set` distinguishes that override from the channel value on this packed-status interceptor path."
         ),
