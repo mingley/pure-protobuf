@@ -2669,6 +2669,7 @@ impl ResponseParts {
     /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the client header on this split reply envelope.
     /// Distinct from [`crate::Rpc::peer_timeout`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Rpc::effective_timeout`]: that is the soonest of the three caps on this split reply envelope.
+    /// Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope, not the client header.
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         self.peer_timeout
