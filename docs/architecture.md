@@ -286,6 +286,7 @@ RPC method is invoked, not when the `Call` is first polled. `Err` fails that
 is sent. `Outgoing::set_timeout` is that Call's deadline on every call shape.
 Bind borrowed getters
 before `metadata_mut`.
+`Outgoing::user_agent_is_set` is occupancy on this architecture interceptor path, so a later interceptor can prefix only when unset.
 
 ### Status
 

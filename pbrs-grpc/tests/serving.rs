@@ -5784,6 +5784,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         architecture.contains("`:scheme`, `user-agent` (`user_agent_is_set`),"),
         "architecture Channel::intercept inventory must name user_agent_is_set next to user-agent"
     );
+    assert!(
+        architecture.contains(
+            "`Outgoing::user_agent_is_set` is occupancy on this architecture interceptor path, so a later interceptor can prefix only when unset."
+        ),
+        "architecture must name Outgoing::user_agent_is_set occupancy next to Channel::intercept inventory"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
