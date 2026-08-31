@@ -4996,6 +4996,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name Request::set_user_agent as a call-site prefix"
     );
     assert!(
+        guide.contains("`Outgoing::user_agent_is_set` distinguishes that override from the channel value, so a later interceptor can fill only when neither the request nor an earlier interceptor set a prefix — the same occupancy pattern as `wait_for_ready_is_set`."),
+        "guide must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
+    );
+    assert!(
         !guide.contains("Prefix with `Channel::user_agent`. Interceptors read"),
         "guide must not list Outgoing::set_user_agent as an omission"
     );
