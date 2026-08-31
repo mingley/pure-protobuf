@@ -4377,6 +4377,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::ResponseParts::clear_compress`] restores the server gzip overlay after a generated server on_response."
+        ),
+        "generated server on_response rustdoc must name clear_compress next to compress occupancy"
+    );
+    assert!(
+        src.contains(
             "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterServer::new(Svc).on_response`)."
         ),
         "generated server on_response rustdoc must point at the compiling hello overlay dump"

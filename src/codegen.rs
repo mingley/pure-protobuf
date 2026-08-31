@@ -4426,6 +4426,10 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::ResponseParts::clear_compress`] restores the server gzip overlay after a generated server on_response."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterServer::new(Svc).on_response`)."
     );
     let _ = writeln!(src, "    #[must_use]");
