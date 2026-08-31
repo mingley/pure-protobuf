@@ -2109,8 +2109,8 @@ async fn a_generated_unix_client_interceptor_can_set_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_generated_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = StoreClient::connect_lazy(addr)
         .expect("lazy")
@@ -2132,8 +2132,8 @@ async fn a_generated_client_interceptor_can_opt_out_of_channel_wait_for_ready() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_generated_tls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = StoreClient::connect_tls_lazy(addr, client_tls)
@@ -2156,8 +2156,8 @@ async fn a_generated_tls_client_interceptor_can_opt_out_of_channel_wait_for_read
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_generated_mtls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = StoreClient::connect_tls_lazy(addr, client_tls)
@@ -2251,8 +2251,8 @@ async fn assert_cleared_wait_fails_fast_store(client: &StoreClient) {
 
 #[tokio::test]
 async fn a_generated_client_interceptor_sees_channel_overlays_after_clear() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = overlay_after_clear_store(StoreClient::connect_lazy(addr).expect("lazy"));
     assert_cleared_wait_fails_fast_store(&client).await;
@@ -2260,8 +2260,8 @@ async fn a_generated_client_interceptor_sees_channel_overlays_after_clear() {
 
 #[tokio::test]
 async fn a_generated_tls_client_interceptor_sees_channel_overlays_after_clear() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client =
@@ -2271,8 +2271,8 @@ async fn a_generated_tls_client_interceptor_sees_channel_overlays_after_clear() 
 
 #[tokio::test]
 async fn a_generated_mtls_client_interceptor_sees_channel_overlays_after_clear() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client =
@@ -3394,8 +3394,8 @@ fn assert_interceptors_run_on_create_store(client: &StoreClient, ran: &Arc<Atomi
 
 #[tokio::test]
 async fn generated_client_interceptors_run_when_the_call_is_created() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let ran = Arc::new(AtomicUsize::new(0));
     let client =
@@ -3405,8 +3405,8 @@ async fn generated_client_interceptors_run_when_the_call_is_created() {
 
 #[tokio::test]
 async fn a_generated_tls_client_interceptor_runs_when_the_call_is_created() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let ran = Arc::new(AtomicUsize::new(0));
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
@@ -3419,8 +3419,8 @@ async fn a_generated_tls_client_interceptor_runs_when_the_call_is_created() {
 
 #[tokio::test]
 async fn a_generated_mtls_client_interceptor_runs_when_the_call_is_created() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let ran = Arc::new(AtomicUsize::new(0));
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
@@ -3464,8 +3464,8 @@ async fn a_generated_from_io_client_interceptor_runs_when_the_call_is_created() 
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_request_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = StoreClient::connect_lazy(addr)
         .expect("lazy")
@@ -3483,8 +3483,8 @@ async fn generated_request_can_opt_out_of_channel_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_wait_for_ready_times_out_when_nothing_is_listening() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = StoreClient::connect_lazy(addr).expect("lazy");
     assert_store_wait_deadline(&client).await;
@@ -3492,8 +3492,8 @@ async fn generated_wait_for_ready_times_out_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_tls_request_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = StoreClient::connect_tls_lazy(addr, client_tls)
@@ -3512,8 +3512,8 @@ async fn generated_tls_request_can_opt_out_of_channel_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_tls_wait_for_ready_times_out_when_nothing_is_listening() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = StoreClient::connect_tls_lazy(addr, client_tls).expect("lazy");
@@ -3522,8 +3522,8 @@ async fn generated_tls_wait_for_ready_times_out_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_mtls_request_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = StoreClient::connect_tls_lazy(addr, client_tls)
@@ -3542,8 +3542,8 @@ async fn generated_mtls_request_can_opt_out_of_channel_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn generated_mtls_wait_for_ready_times_out_when_nothing_is_listening() {
-    let (addr, listener) = bind_store().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = StoreClient::connect_tls_lazy(addr, client_tls).expect("lazy");

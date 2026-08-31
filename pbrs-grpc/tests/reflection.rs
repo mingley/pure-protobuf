@@ -1322,8 +1322,8 @@ async fn a_reflection_unix_client_interceptor_can_set_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reflection_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = ServerReflectionClient::connect_lazy(addr)
         .expect("lazy")
@@ -1348,8 +1348,8 @@ async fn a_reflection_client_interceptor_can_opt_out_of_channel_wait_for_ready()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reflection_tls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
@@ -1375,8 +1375,8 @@ async fn a_reflection_tls_client_interceptor_can_opt_out_of_channel_wait_for_rea
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_reflection_mtls_client_interceptor_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
@@ -1479,8 +1479,8 @@ async fn assert_cleared_wait_fails_fast_reflection(client: &ServerReflectionClie
 
 #[tokio::test]
 async fn a_reflection_client_interceptor_sees_channel_overlays_after_clear() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client =
         overlay_after_clear_reflection(ServerReflectionClient::connect_lazy(addr).expect("lazy"));
@@ -1489,8 +1489,8 @@ async fn a_reflection_client_interceptor_sees_channel_overlays_after_clear() {
 
 #[tokio::test]
 async fn a_reflection_tls_client_interceptor_sees_channel_overlays_after_clear() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = overlay_after_clear_reflection(
@@ -1501,8 +1501,8 @@ async fn a_reflection_tls_client_interceptor_sees_channel_overlays_after_clear()
 
 #[tokio::test]
 async fn a_reflection_mtls_client_interceptor_sees_channel_overlays_after_clear() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = overlay_after_clear_reflection(
@@ -2633,8 +2633,8 @@ fn assert_interceptors_run_on_create_reflection(
 
 #[tokio::test]
 async fn reflection_client_interceptors_run_when_the_call_is_created() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let ran = Arc::new(AtomicUsize::new(0));
     let client = intercept_counts_create_reflection(
@@ -2646,8 +2646,8 @@ async fn reflection_client_interceptors_run_when_the_call_is_created() {
 
 #[tokio::test]
 async fn a_reflection_tls_client_interceptor_runs_when_the_call_is_created() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let ran = Arc::new(AtomicUsize::new(0));
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
@@ -2660,8 +2660,8 @@ async fn a_reflection_tls_client_interceptor_runs_when_the_call_is_created() {
 
 #[tokio::test]
 async fn a_reflection_mtls_client_interceptor_runs_when_the_call_is_created() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let ran = Arc::new(AtomicUsize::new(0));
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
@@ -2705,8 +2705,8 @@ async fn a_reflection_from_io_client_interceptor_runs_when_the_call_is_created()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_request_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = ServerReflectionClient::connect_lazy(addr)
         .expect("lazy")
@@ -2724,8 +2724,8 @@ async fn reflection_request_can_opt_out_of_channel_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_wait_for_ready_times_out_when_nothing_is_listening() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client = ServerReflectionClient::connect_lazy(addr).expect("lazy");
     assert_reflection_wait_deadline(&client).await;
@@ -2733,8 +2733,8 @@ async fn reflection_wait_for_ready_times_out_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_tls_request_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
@@ -2753,8 +2753,8 @@ async fn reflection_tls_request_can_opt_out_of_channel_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_tls_wait_for_ready_times_out_when_nothing_is_listening() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
@@ -2763,8 +2763,8 @@ async fn reflection_tls_wait_for_ready_times_out_when_nothing_is_listening() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_mtls_request_can_opt_out_of_channel_wait_for_ready() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls)
@@ -2783,8 +2783,8 @@ async fn reflection_mtls_request_can_opt_out_of_channel_wait_for_ready() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reflection_mtls_wait_for_ready_times_out_when_nothing_is_listening() {
-    let (addr, listener) = bind_reflection().await;
-    drop(listener);
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
 
     let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
     let client = ServerReflectionClient::connect_tls_lazy(addr, client_tls).expect("lazy");
