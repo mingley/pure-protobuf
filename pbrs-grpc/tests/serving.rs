@@ -15270,6 +15270,18 @@ fn interceptor_blocked() -> Status {
     .expect("details")
 }
 
+fn interceptor_blocked_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "BLOCKED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    Status::from_error_details(Code::FailedPrecondition, "blocked locally", &details)
+        .expect("details")
+}
+
 fn assert_interceptor_blocked(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "blocked locally");
@@ -15955,6 +15967,33 @@ async fn a_client_interceptor_can_reject_with_typed_status_details() {
     let addr = reserved.addr();
     let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy"))
         .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked()));
+
+    assert_interceptor_blocked(
+        &client
+            .say_hello(Request::new(req("ada")))
+            .await
+            .expect_err("unary"),
+    );
+    assert_interceptor_blocked(
+        &client
+            .server_hello(Request::new(req("ada")))
+            .await
+            .expect_err("server-stream"),
+    );
+    let (tx, call) = client.client_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("client-stream"));
+    drop(tx);
+    let (tx, call) = client.stream_hello(Request::new(()));
+    assert_interceptor_blocked(&call.await.expect_err("bidi"));
+    drop(tx);
+}
+
+#[tokio::test]
+async fn a_client_interceptor_can_reject_with_from_error_details() {
+    let reserved = reserve_loopback();
+    let addr = reserved.addr();
+    let client = GreeterClient::new(Channel::connect_lazy(addr).expect("lazy"))
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked_from_error_details()));
 
     assert_interceptor_blocked(
         &client
