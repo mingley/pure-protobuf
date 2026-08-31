@@ -253,7 +253,7 @@ survive `into_message_and_parts`. TLS `:authority` is
 the dial `Target`, not SNI.
 Generated handlers read the same facts on `Request` / `Parts`, including
 the method path, the client's `grpc-timeout`, the server timeout overlay,
-gzip, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, and `send_buffer_size`. `Server::timeout` / `Router::timeout`
+gzip, the `compresses_outbound` overlay, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`. `Server::timeout` / `Router::timeout`
 expire Slow handlers when the client omits a deadline and cap a longer client
 deadline, including over TLS, mTLS, Unix, and `from_io`.
 `Server::send_compressed` / `Router::send_compressed`

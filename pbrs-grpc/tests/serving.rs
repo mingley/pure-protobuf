@@ -4418,6 +4418,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name Incoming-stamped peer facts on generated handlers"
     );
     assert!(
+        architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`. `Server::timeout`"),
+        "architecture must name Incoming-stamped peer facts on interceptor generated handlers"
+    );
+    assert!(
         architecture.contains("A received reply does not carry Channel overlays: `gzip_level` is not the peer's deflate effort; `compresses_outbound`, `accepts_gzip`, and `accepts_compressed` are `false`; `deadline`, `timeout`, `limits`, `peer_timeout`, `rpc_timeout`, and `send_buffer_size` are `None`."),
         "architecture must Distinct Channel::on_response from Channel overlays on a received reply"
     );
