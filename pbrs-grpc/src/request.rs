@@ -1202,6 +1202,7 @@ impl<'a> Outgoing<'a> {
 
     /// Whether this RPC waits for a connection instead of failing fast.
     ///
+    /// Distinct from [`Self::waits_for_ready`]: that is the channel overlay; this is the per-RPC choice.
     /// `false` when unset. Use [`Self::wait_for_ready_is_set`] to tell
     /// `None` from an explicit `false`. Applies to every call shape.
     #[must_use]
