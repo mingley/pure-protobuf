@@ -17918,6 +17918,50 @@ async fn a_server_interceptor_can_reject_with_typed_status_details() {
     task.abort();
 }
 
+#[tokio::test]
+async fn a_server_interceptor_can_reject_with_from_error_details() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(|_: &mut Rpc| Err(interceptor_api_disabled_from_error_details()))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+
+    let client = GreeterClient::new(channel(addr).await);
+    let unary = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("unary");
+    assert_api_disabled(&unary);
+    assert_api_disabled(
+        &client
+            .server_hello(Request::new(req("ada")))
+            .await
+            .expect_err("server-stream"),
+    );
+    let (tx, call) = client.client_hello(Request::new(()));
+    tx.close();
+    assert_api_disabled(&call.await.expect_err("client-stream"));
+    let (tx, call) = client.stream_hello(Request::new(()));
+    tx.close();
+    assert_api_disabled(&call.await.expect_err("bidi"));
+
+    task.abort();
+}
+
+fn interceptor_api_disabled_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "API_DISABLED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    Status::from_error_details(Code::FailedPrecondition, "api disabled", &details).expect("details")
+}
+
 fn assert_api_disabled(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "api disabled");
