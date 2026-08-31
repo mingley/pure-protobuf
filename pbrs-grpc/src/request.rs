@@ -1148,6 +1148,7 @@ impl<'a> Outgoing<'a> {
     }
 
     /// Request headers, as gRPC metadata. Applies to every call shape.
+    /// Distinct from [`Self::metadata_mut`]: that mutates the outbound map; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         self.metadata
