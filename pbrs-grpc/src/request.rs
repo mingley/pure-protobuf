@@ -1609,6 +1609,8 @@ impl Parts {
 
     /// The `user-agent` prefix override on this envelope, if any.
     /// See [`Request::user_agent`]. The override only, like [`Self::timeout`].
+    ///
+    /// Distinct from [`crate::Outgoing::user_agent`]: that is the effective header; this split envelope is the override only.
     #[must_use]
     pub fn user_agent(&self) -> Option<&str> {
         self.user_agent

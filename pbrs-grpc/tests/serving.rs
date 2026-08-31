@@ -802,6 +802,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::compresses_outbound must Distinct request-payload gzip from the server encode overlay"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::user_agent`]: that is the effective header; this split envelope is the override only."
+        ),
+        "Parts::user_agent must Distinct the Outgoing effective header from the override"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
