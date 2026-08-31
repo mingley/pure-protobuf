@@ -5542,6 +5542,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ResponseParts::compress_is_set occupancy next to intercept compress occupancy"
     );
     assert!(
+        status_guide.contains(
+            "`ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this packed-status on_response path."
+        ),
+        "status guide must name ResponseParts::clear_compress next to on_response occupancy"
+    );
+    assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );
