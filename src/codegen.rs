@@ -5167,6 +5167,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::ResponseParts::clear_compress`] drops a compress choice after a generated client on_response; a received reply has no server gzip overlay to restore."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterClient::new(channel).on_response`)."
     );
     let _ = writeln!(src, "    #[must_use]");

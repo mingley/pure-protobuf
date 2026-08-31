@@ -4399,6 +4399,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::ResponseParts::clear_compress`] drops a compress choice after a generated client on_response; a received reply has no server gzip overlay to restore."
+        ),
+        "generated client on_response rustdoc must name clear_compress receive-path next to compress occupancy"
+    );
+    assert!(
+        src.contains(
             "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterClient::new(channel).on_response`)."
         ),
         "generated client on_response rustdoc must point at the compiling hello overlay dump"
