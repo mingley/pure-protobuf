@@ -1777,6 +1777,7 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 `Outgoing::clear_timeout` opts out of the channel timeout after a client interceptor choice on those transports plus `from_io`.
 `ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path.
+`ResponseParts::clear_compress` drops a compress choice after Channel on_response on this guide on_response path; a received reply has no server gzip overlay to restore.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor on h2c, TLS (including mTLS), Unix, and `from_io`, including official

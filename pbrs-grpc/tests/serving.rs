@@ -5666,6 +5666,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ResponseParts::clear_compress next to on_response occupancy"
     );
     assert!(
+        guide.contains(
+            "`ResponseParts::clear_compress` drops a compress choice after Channel on_response on this guide on_response path; a received reply has no server gzip overlay to restore."
+        ),
+        "guide must name ResponseParts::clear_compress receive-path next to Server restore"
+    );
+    assert!(
         guide.contains("`user_agent` (`user_agent_is_set`), `limits`,"),
         "guide Outgoing getter inventory must name user_agent_is_set next to user_agent"
     );
