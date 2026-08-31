@@ -652,6 +652,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         src.contains("retry Check, List, and Watch until listen when"),
         "Health crate rustdoc must name wait-for-ready on Check, List, and Watch"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this health interceptor Err; those trailers reach the client without reading the body."
+        ),
+        "Health crate rustdoc must name from_error_details typed bag next to interceptor Err"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
