@@ -820,6 +820,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::compress_is_set must Distinct occupancy from outbound gzip intent"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`compressed`](Self::compressed): that is the per-message Compressed-Flag on this split envelope; this is the HTTP header."
+        ),
+        "Parts::encoding must Distinct Compressed-Flag from inbound grpc-encoding"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );

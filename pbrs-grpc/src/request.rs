@@ -1759,6 +1759,7 @@ impl Parts {
     /// See [`Request::encoding`].
     ///
     /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this split envelope's inbound `grpc-encoding`.
+    /// Distinct from [`compressed`](Self::compressed): that is the per-message Compressed-Flag on this split envelope; this is the HTTP header.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         self.encoding.as_deref()
