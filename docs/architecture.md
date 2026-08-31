@@ -291,6 +291,7 @@ before `metadata_mut`.
 `Outgoing::compress_is_set` is occupancy on this architecture interceptor path, so a later interceptor can fill compress only when unset.
 `Outgoing::clear_user_agent` restores the channel user-agent after an architecture interceptor prefix.
 `Outgoing::clear_wait_for_ready` restores the channel wait-for-ready overlay after an architecture interceptor choice.
+`Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after an architecture interceptor choice.
 
 ### Status
 
