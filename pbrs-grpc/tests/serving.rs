@@ -6252,6 +6252,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
     );
+    assert!(
+        architecture.contains(
+            "`ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this architecture on_response path."
+        ),
+        "architecture must name ResponseParts::clear_compress next to on_response occupancy"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
