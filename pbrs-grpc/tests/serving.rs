@@ -3252,6 +3252,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::on_response rustdoc must name clear_compress receive-path next to compress occupancy"
     );
     assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this Channel on_response Err; a local reject fails the Call after a successful receive."
+        ),
+        "Channel::on_response rustdoc must name from_error_details typed bag next to on_response Err"
+    );
+    assert!(
         src.contains("channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {"),
         "Channel::on_response rustdoc example must attach a closure"
     );
