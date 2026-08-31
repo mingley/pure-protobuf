@@ -3472,6 +3472,7 @@ impl ConnectionInfo {
 
     /// Start from the `SocketAddr` [`Incoming::accept`] returned.
     /// Distinct from [`Self::new`]: that is empty facts, not this accept tuple.
+    /// Distinct from [`Self::with_remote_addr`]: that overlays a builder; this starts from IncomingAccept.
     #[must_use]
     pub fn from_accept(remote: Option<SocketAddr>) -> Self {
         Self {

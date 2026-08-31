@@ -4995,6 +4995,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::with_remote_addr`]: that overlays a builder; this starts from IncomingAccept.\n    #[must_use]\n    pub fn from_accept"
+        ),
+        "ConnectionInfo::from_accept must Distinct the remote-addr overlay"
+    );
+    assert!(
+        src.contains(
             "Serve connections from `incoming` until it is exhausted.\n    /// Applies to every call shape. See [`Server::serve_with_incoming`]."
         ),
         "Router::serve_with_incoming must name every call shape"
