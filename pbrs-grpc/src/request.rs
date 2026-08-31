@@ -1148,6 +1148,7 @@ impl<'a> Outgoing<'a> {
 
     /// Method half of the path, e.g. `SayHello`.
     ///
+    /// Distinct from [`crate::Rpc::method`]: that is a server interceptor; this is a client interceptor before send.
     /// Same split as [`crate::Rpc::method`]. Unparseable paths yield `""`.
     /// Bind it before [`Self::metadata_mut`]: `let method = call.method();`.
     /// Applies to every call shape.
