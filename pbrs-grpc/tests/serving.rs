@@ -5731,6 +5731,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::timeout`]: that is the interceptor duration cap; this Instant is computed when the getter runs."
+        ),
+        "Rpc::deadline must Distinct the interceptor duration cap from the computed Instant"
+    );
+    assert!(
+        src.contains(
             "Response interceptors see the same duration on [`crate::Response::timeout`]."
         ),
         "Rpc::effective_timeout must name the Response interceptor stamp"

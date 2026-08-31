@@ -480,6 +480,7 @@ impl Rpc {
 
     /// Absolute Instant matching [`Self::effective_timeout`].
     ///
+    /// Distinct from [`Self::timeout`]: that is the interceptor duration cap; this Instant is computed when the getter runs.
     /// Computed when you call this, so an interceptor that just tightened
     /// [`Self::set_timeout`] sees the new Instant. The handler's
     /// [`Request::deadline`] is stamped once when dispatch starts. Visible
