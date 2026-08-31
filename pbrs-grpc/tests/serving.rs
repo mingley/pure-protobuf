@@ -5679,6 +5679,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`Status::from_error_details` is the typed bag after this crate README server on_response Err; a local reject is trailers-only after handler Ok."
+        ),
+        "crate README must name from_error_details typed bag next to server on_response Err"
+    );
+    assert!(
+        readme.contains(
             "`ResponseParts::clear_compress` drops a compress choice after Channel on_response on this crate README on_response path; a received reply has no server gzip overlay to restore."
         ),
         "crate README must name ResponseParts::clear_compress receive-path next to Server restore"
