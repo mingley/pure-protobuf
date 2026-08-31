@@ -1598,6 +1598,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::send_buffer_size Distinct from Rpc::send_buffer_size: that is a server interceptor before the handler, not this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this split reply envelope's server overlay."
+        ),
+        "ResponseParts::send_buffer_size Distinct from Outgoing::send_buffer_size: that is a client interceptor overlay, not this split reply envelope's server overlay"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
