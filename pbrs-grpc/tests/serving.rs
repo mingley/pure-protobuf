@@ -2365,6 +2365,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "[`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this ClientInterceptor path, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "ClientInterceptor rustdoc must name Outgoing::wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
+        intercept.contains(
             "`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `stream_buffer_size`, `send_buffer_size`, `limits`) stay visible after `clear_*`"
         ),
         "ClientInterceptor rustdoc must name the full channel overlay set next to gzip_level"
