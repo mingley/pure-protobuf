@@ -1437,6 +1437,15 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 
 /// A [`Request`] envelope without its message, including [`Self::cancelled`].
 /// See [`Request::into_message_and_parts`].
+///
+/// ```
+/// fn dump_parts(parts: &pbrs_grpc::Parts) {
+///     let _ = (
+///         parts.path(),
+///     );
+/// }
+/// # let _ = dump_parts;
+/// ```
 #[derive(Clone)]
 pub struct Parts {
     metadata: Metadata,

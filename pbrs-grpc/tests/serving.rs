@@ -591,6 +591,16 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must attach a compiling dump_request example"
     );
     assert!(
+        outgoing.contains("fn dump_parts(parts: &pbrs_grpc::Parts) {"),
+        "Parts rustdoc must attach a compiling dump_parts example"
+    );
+    assert!(
+        outgoing.contains(
+            "fn dump_parts(parts: &pbrs_grpc::Parts) {\n///     let _ = (\n///         parts.path(),"
+        ),
+        "Parts rustdoc must dump path Distinct from Request::path"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
