@@ -76,6 +76,7 @@ use tokio::sync::watch;
 /// [`Self::compress_is_set`] is occupancy on this request envelope, so a later interceptor can fill compress only when unset.
 /// [`Self::clear_timeout`] opts out of the channel timeout on this request envelope.
 /// [`Self::clear_wait_for_ready`] restores the channel wait-for-ready overlay on this request envelope.
+/// [`Self::clear_compress`] restores the channel gzip overlay on this request envelope.
 #[derive(Clone)]
 pub struct Request<T> {
     message: T,

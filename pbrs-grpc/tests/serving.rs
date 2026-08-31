@@ -951,6 +951,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must name clear_wait_for_ready next to clear_timeout"
     );
     assert!(
+        outgoing.contains(
+            "[`Self::clear_compress`] restores the channel gzip overlay on this request envelope."
+        ),
+        "Request rustdoc must name clear_compress next to clear_wait_for_ready"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );
