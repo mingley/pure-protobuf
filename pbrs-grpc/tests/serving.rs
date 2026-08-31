@@ -585,6 +585,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Streaming::trailers rustdoc must name -bin trailers on every transport"
     );
+    assert!(
+        stream.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "StreamSender::fail rustdoc must name from_error_details typed bag next to server-producer trailers"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

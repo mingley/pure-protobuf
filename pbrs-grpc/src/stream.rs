@@ -493,6 +493,7 @@ impl<T> StreamSender<T> {
     /// `grpc-status-details-bin` (see [`crate::Status::with_error_details`])
     /// both ship after any messages already sent, the same as a handler
     /// `Err`.
+    /// [`crate::Status::from_error_details`] is the typed bag after this StreamSender fail on a server response producer; those trailers ship after any messages already sent.
     ///
     /// On a **client request** sender (client-streaming or bidi), gRPC has no
     /// request-side `grpc-status`. This resets the HTTP/2 stream with CANCEL,
