@@ -652,6 +652,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Request rustdoc must dump peer_cred Distinct from peer_identity"
     );
     assert!(
+        outgoing.contains("///         request.peer_cred(),\n///         request.authority(),"),
+        "Request rustdoc must dump authority Distinct from peer_cred"
+    );
+    assert!(
         outgoing.contains("prefixes this RPC's `user-agent` (kernel suffix"),
         "Outgoing rustdoc must name set_user_agent kernel suffix"
     );

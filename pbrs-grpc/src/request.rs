@@ -60,6 +60,7 @@ use tokio::sync::watch;
 ///         request.local_addr(),
 ///         request.peer_identity(),
 ///         request.peer_cred(),
+///         request.authority(),
 ///     );
 /// }
 /// # let _ = dump_request;
