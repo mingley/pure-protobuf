@@ -719,6 +719,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::clear_wait_for_ready`] restores the channel wait-for-ready overlay on this split envelope."
+        ),
+        "Parts rustdoc must name clear_wait_for_ready next to clear_timeout"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it."
         ),
         "Parts::metadata must Distinct the mutable split envelope from the borrow"
