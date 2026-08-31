@@ -2690,6 +2690,8 @@ impl ResponseParts {
     }
 
     /// Encode caps when writing. See [`Response::limits`].
+    ///
+    /// Distinct from [`crate::Request::limits`]: that is the inbound request, not this split reply envelope.
     #[must_use]
     pub fn limits(&self) -> Option<MessageLimits> {
         self.limits
