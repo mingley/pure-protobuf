@@ -2363,6 +2363,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "[`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip on this ClientInterceptor path."
+        ),
+        "ClientInterceptor rustdoc must name clear_compress reapply next to clear_timeout"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Outgoing::clear_user_agent`] drops a method-level interceptor prefix so this RPC uses the channel user-agent again."
         ),
         "ClientInterceptor::intercept rustdoc must name clear_user_agent opt-out"
