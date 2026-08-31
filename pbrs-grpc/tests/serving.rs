@@ -1298,6 +1298,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::path must Distinct Outgoing::path from the split reply"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compress`]: that is on or off on this split reply envelope; this is deflate effort."
+        ),
+        "ResponseParts::gzip_level must Distinct on/off from deflate effort"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
