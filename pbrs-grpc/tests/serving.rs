@@ -5038,6 +5038,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
     );
     assert!(
+        status_guide.contains(
+            "`Outgoing::user_agent_is_set` distinguishes that override from the channel value on this packed-status interceptor path."
+        ),
+        "status guide must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
+    );
+    assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );
