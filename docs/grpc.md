@@ -1019,6 +1019,7 @@ A handler `Err(Status::with_error_details(...))` unpacks the same way on that me
 `Status::from_error_details` is the typed bag after this guide reflection client interceptor Err; a local reject never opens a stream.
 `StreamSender::fail` after a streamed DATA frame on `ServerReflectionInfo`
 unpacks the same way, including over TLS, mTLS, Unix, and `from_io`.
+`Status::from_error_details` is the typed bag after this guide reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 
 ## Graceful shutdown
 
