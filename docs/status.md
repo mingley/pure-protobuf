@@ -720,6 +720,7 @@ See `docs/upb.md`. Short list:
   `Err(with_error_details)` unpacks on those methods too, including over TLS, mTLS,
   Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
   on those methods, including over TLS, mTLS, Unix, and `from_io`.
+  `Status::from_error_details` is the typed bag after this packed-status TestService interceptor Err; those trailers reach the client without reading the body.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
