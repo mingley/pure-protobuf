@@ -4371,6 +4371,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::ResponseParts::compress_is_set`] is occupancy after a generated server on_response, so a later interceptor can fill compress only when unset."
+        ),
+        "generated server on_response rustdoc must name compress_is_set occupancy next to send_buffer overlay"
+    );
+    assert!(
+        src.contains(
             "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterServer::new(Svc).on_response`)."
         ),
         "generated server on_response rustdoc must point at the compiling hello overlay dump"

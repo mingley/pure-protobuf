@@ -4422,6 +4422,10 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::ResponseParts::compress_is_set`] is occupancy after a generated server on_response, so a later interceptor can fill compress only when unset."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterServer::new(Svc).on_response`)."
     );
     let _ = writeln!(src, "    #[must_use]");
