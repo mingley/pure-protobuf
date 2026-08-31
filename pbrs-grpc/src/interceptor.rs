@@ -578,6 +578,7 @@ impl<S: Service> ServiceExt for S {}
 /// stamps [`crate::StreamSender::compress`] on client-streaming and bidi
 /// request streams. Outgoing getters apply to
 /// every call shape.
+/// [`crate::Outgoing::clear_user_agent`] drops an interceptor prefix so this RPC uses the channel user-agent again.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
