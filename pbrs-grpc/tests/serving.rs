@@ -1478,6 +1478,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::peer_timeout Distinct from Request::peer_timeout: that is the inbound request, not this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::timeout`]: that is the effective cap on this split reply envelope; this is the client's original header."
+        ),
+        "ResponseParts::peer_timeout Distinct from timeout: that is the effective cap on this split reply envelope; this is the client's original header"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
