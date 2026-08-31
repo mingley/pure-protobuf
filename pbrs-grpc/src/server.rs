@@ -2807,6 +2807,7 @@ impl Router {
     /// Run `interceptor` before every mounted service. Calling this twice
     /// stacks: the first interceptor runs first. Same inspect/reject surface
     /// as [`Server::intercept`]. Applies to every call shape.
+    /// [`Status::from_error_details`] is the typed bag after this Router intercept Err; those trailers reach the client without reading the body.
     ///
     /// ```
     /// # fn demo(router: pbrs_grpc::Router) -> pbrs_grpc::Router {
