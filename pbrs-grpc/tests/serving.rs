@@ -3852,6 +3852,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     let guide = include_str!("../../docs/grpc.md");
     let architecture = include_str!("../../docs/architecture.md");
+    let status_guide = include_str!("../../docs/status.md");
+    assert!(
+        status_guide
+            .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
+        "status guide must name accepts_gzip like Dumping Rpc"
+    );
     assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
