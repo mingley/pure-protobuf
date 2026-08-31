@@ -1322,6 +1322,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::gzip_level must Distinct received encoding from deflate effort"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compress`]: that is the per-RPC choice after overlay and interceptor mutation on this split reply envelope."
+        ),
+        "ResponseParts::compresses_outbound must Distinct compress as the per-RPC flag"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
