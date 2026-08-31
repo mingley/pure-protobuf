@@ -2328,6 +2328,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc must Distinct Request::set_user_agent at the call site"
     );
     assert!(
+        intercept.contains(
+            "[`crate::Outgoing::user_agent_is_set`] distinguishes that override from the channel value, so a later interceptor can prefix only when unset."
+        ),
+        "ClientInterceptor rustdoc must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
+    );
+    assert!(
         intercept.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "ClientInterceptor rustdoc must name Outgoing::accepts_compressed"
     );

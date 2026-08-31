@@ -540,7 +540,9 @@ impl<S: Service> ServiceExt for S {}
 /// prefix ([`crate::Outgoing::set_user_agent`]), or typed
 /// extensions — not only metadata. [`crate::Request::set_user_agent`] is the
 /// same prefix at the call site; an interceptor
-/// [`crate::Outgoing::set_user_agent`] that runs after wins. Channel overlays (`rpc_timeout`,
+/// [`crate::Outgoing::set_user_agent`] that runs after wins.
+/// [`crate::Outgoing::user_agent_is_set`] distinguishes that override from the channel value, so a later interceptor can prefix only when unset.
+/// Channel overlays (`rpc_timeout`,
 /// `waits_for_ready`, `compresses_outbound`, `gzip_level`) stay visible after `clear_*`
 /// opts out of the already-applied default.
 /// [`crate::Outgoing::gzip_level`] is deflate effort. Distinct from
