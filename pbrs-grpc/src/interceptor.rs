@@ -546,6 +546,7 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Outgoing::set_user_agent`] that runs after wins.
 /// [`crate::Outgoing::user_agent_is_set`] distinguishes that override from the channel value, so a later interceptor can prefix only when unset.
 /// [`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this ClientInterceptor path, so a later interceptor can fill wait-for-ready only when unset.
+/// [`crate::Outgoing::compress_is_set`] is occupancy on this ClientInterceptor path, so a later interceptor can fill compress only when unset.
 /// Channel overlays (`rpc_timeout`, `waits_for_ready`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `stream_buffer_size`, `send_buffer_size`, `limits`) stay visible after `clear_*`
 /// opts out of the already-applied default.
 /// [`crate::Outgoing::gzip_level`] is deflate effort. Distinct from

@@ -2371,6 +2371,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "[`crate::Outgoing::compress_is_set`] is occupancy on this ClientInterceptor path, so a later interceptor can fill compress only when unset."
+        ),
+        "ClientInterceptor rustdoc must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
+    );
+    assert!(
+        intercept.contains(
             "`gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `stream_buffer_size`, `send_buffer_size`, `limits`) stay visible after `clear_*`"
         ),
         "ClientInterceptor rustdoc must name the full channel overlay set next to gzip_level"
