@@ -2363,6 +2363,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "[`crate::Outgoing::clear_wait_for_ready`] drops a method-level interceptor wait-for-ready choice so this RPC uses the channel overlay again."
+        ),
+        "ClientInterceptor::intercept rustdoc must name clear_wait_for_ready opt-out next to clear_user_agent"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Outgoing::user_agent_is_set`] is occupancy on this method-level intercept, so a later interceptor can prefix only when unset."
         ),
         "ClientInterceptor::intercept rustdoc must name Outgoing::user_agent_is_set occupancy next to clear_user_agent"
