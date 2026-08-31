@@ -594,6 +594,7 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Outgoing::clear_wait_for_ready`] drops an interceptor wait-for-ready choice so this RPC uses the channel overlay again.
 /// [`crate::Outgoing::clear_timeout`] opts out of the channel timeout on this ClientInterceptor path.
 /// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip on this ClientInterceptor path.
+/// [`crate::Status::from_error_details`] is the typed bag on this ClientInterceptor Err; a local reject never opens a stream.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
