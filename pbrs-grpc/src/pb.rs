@@ -161,6 +161,38 @@ impl Duration {
     }
 }
 
+impl ErrorInfo {
+    /// `ErrorInfo` whose `reason` is `reason` and `domain` is `domain`.
+    ///
+    /// Packed onto a status with [`crate::Status::from_error_details`];
+    /// unpack with [`crate::Status::error_info`].
+    /// Distinct from [`crate::Status::retry_delay`]: that is a wait hint, not a cause.
+    /// Distinct from [`crate::Status::bad_request`]: that is a field path, not reason and domain.
+    /// Distinct from [`crate::Status::failed_precondition`], which is the ASCII code with no packed reason.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     error_info: Some(ErrorInfo::with_reason("API_DISABLED", "example.com")),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "disabled", &details)?;
+    /// let info = status.error_info().expect("ErrorInfo");
+    /// assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+    /// assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_reason(reason: impl Into<String>, domain: impl Into<String>) -> Self {
+        let mut info = Self::new();
+        info.set_reason(reason.into());
+        info.set_domain(domain.into());
+        info
+    }
+}
+
 impl RetryInfo {
     /// `RetryInfo` whose `retry_delay` is `delay`.
     ///
@@ -731,6 +763,28 @@ mod tests {
             .get("resource")
             .and_then(|s| s.to_str().ok().map(str::to_owned));
         assert_eq!(resource.as_deref(), Some("projects/123"));
+    }
+
+    #[test]
+    fn error_info_with_reason_round_trips() {
+        let info = ErrorInfo::with_reason("API_DISABLED", "example.com");
+        assert_eq!(info.reason().to_str().unwrap_or(""), "API_DISABLED");
+        assert_eq!(info.domain().to_str().unwrap_or(""), "example.com");
+        let details = ErrorDetails {
+            error_info: Some(info),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::FailedPrecondition, "disabled", &details)
+                .expect("encode");
+        let got = status.error_info().expect("ErrorInfo");
+        assert_eq!(got.reason().to_str().unwrap_or(""), "API_DISABLED");
+        assert_eq!(got.domain().to_str().unwrap_or(""), "example.com");
+        assert!(status.retry_delay().is_none());
+        assert!(status.bad_request().is_none());
+        assert!(crate::Status::failed_precondition("disabled")
+            .error_info()
+            .is_none());
     }
 
     #[test]

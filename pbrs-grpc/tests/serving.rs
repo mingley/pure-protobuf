@@ -4527,6 +4527,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
     );
     assert!(
+        crate_src.contains("[`pb::ErrorInfo::with_reason`]"),
+        "crate map must name ErrorInfo::with_reason"
+    );
+    assert!(
         crate_src.contains("[`Status::bad_request`]"),
         "crate map must name Status::bad_request"
     );
@@ -4592,6 +4596,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::error_info must Distinct retry_delay wait hint"
     );
     assert!(
+        status_src.contains("Build the payload with [`crate::pb::ErrorInfo::with_reason`]."),
+        "Status::error_info must name ErrorInfo::with_reason as the builder"
+    );
+    assert!(
         status_src.contains("Packed `google.rpc.BadRequest`, if this status carries one."),
         "Status::bad_request must name packed BadRequest"
     );
@@ -4604,6 +4612,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::bad_request must Distinct ASCII invalid_argument"
     );
     let pb_src = include_str!("../src/pb.rs");
+    assert!(
+        pb_src.contains("unpack with [`crate::Status::error_info`]"),
+        "ErrorInfo::with_reason must name Status::error_info unpack"
+    );
+    assert!(
+        pb_src.contains("that is a wait hint, not a cause"),
+        "ErrorInfo::with_reason must Distinct retry_delay wait hint"
+    );
+    assert!(
+        pb_src.contains("that is a field path, not reason and domain"),
+        "ErrorInfo::with_reason must Distinct field path from reason and domain"
+    );
+    assert!(
+        pb_src.contains("which is the ASCII code with no packed reason"),
+        "ErrorInfo::with_reason must Distinct ASCII failed_precondition"
+    );
     assert!(
         pb_src.contains("unpack with [`crate::Status::bad_request`]"),
         "BadRequest::with_field must name Status::bad_request unpack"

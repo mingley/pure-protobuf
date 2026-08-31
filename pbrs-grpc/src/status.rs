@@ -642,16 +642,14 @@ impl Status {
     /// the bag. Distinct from [`Self::retry_delay`]: that is a wait hint.
     /// Peer trailers unpack `grpc-status-details-bin`; a local
     /// [`Self::with_cause`] has no packed details. Corrupt bytes are `None`.
+    /// Build the payload with [`crate::pb::ErrorInfo::with_reason`].
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let mut info = ErrorInfo::new();
-    /// info.set_reason("API_DISABLED");
-    /// info.set_domain("example.com");
     /// let details = ErrorDetails {
-    ///     error_info: Some(info),
+    ///     error_info: Some(ErrorInfo::with_reason("API_DISABLED", "example.com")),
     ///     ..ErrorDetails::default()
     /// };
     /// let status = Status::from_error_details(
