@@ -701,6 +701,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::wait_for_ready_is_set`] is occupancy on this split envelope, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "Parts rustdoc must name wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it."
         ),
         "Parts::metadata must Distinct the mutable split envelope from the borrow"
