@@ -4356,8 +4356,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Rpc Incoming-stamped peer facts and interceptor extensions"
     );
     assert!(
-        architecture.contains("`Rpc` prints service/method, metadata, interceptor `timeout`"),
-        "architecture must dump Rpc metadata"
+        architecture.contains("`Rpc` prints path / service / method, metadata, interceptor `timeout`"),
+        "architecture must dump Rpc path and metadata"
     );
     assert!(
         architecture.contains("gzip intent vs wire flag, `encoding`, `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`,"),
