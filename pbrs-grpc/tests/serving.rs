@@ -2996,6 +2996,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::rpc, error_details, from_rpc, and set_rpc together"
     );
     assert!(
+        crate_src.contains("[`Status::with_error_details`], [`Status::from_error_details`]"),
+        "crate map must name Status::from_error_details next to the Any packer"
+    );
+    assert!(
         crate_src.contains("[`Status::bad_request`]"),
         "crate map must name Status::bad_request"
     );
