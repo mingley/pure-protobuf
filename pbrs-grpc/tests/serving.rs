@@ -730,6 +730,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::deadline must Distinct the dispatch duration from the Instant"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compressed`]: that is the inbound unary Compressed-Flag on this split envelope; this is outbound gzip intent."
+        ),
+        "Parts::compress must Distinct outbound gzip intent from the inbound Compressed-Flag"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );

@@ -1548,6 +1548,8 @@ impl Parts {
 
     /// Whether the payload will be gzipped. Outbound only.
     /// See [`Request::compress`].
+    ///
+    /// Distinct from [`Self::compressed`]: that is the inbound unary Compressed-Flag on this split envelope; this is outbound gzip intent.
     #[must_use]
     pub fn compress(&self) -> bool {
         self.compress.unwrap_or(false)
