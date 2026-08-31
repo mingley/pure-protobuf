@@ -1145,6 +1145,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`crate::Request::user_agent_is_set`]: that is the call-site occupancy; this is the same flag after interceptors run."
+        ),
+        "Outgoing::user_agent_is_set Distinct from Request::user_agent_is_set: that is the call-site occupancy; this is the same flag after interceptors run"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Rpc::scheme`]: that is the inbound `:scheme`; this is the `:scheme` this channel sends."
         ),
         "Outgoing::scheme must Distinct the inbound :scheme from the outbound :scheme"
