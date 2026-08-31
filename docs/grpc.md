@@ -2048,7 +2048,9 @@ call shape on those transports too.
 `Status::from_error_details` is the typed bag after this guide Reverser client interceptor Err; a local reject never opens a stream.
 Official `TestService` handler `Err(with_error_details)` unpacks
 on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
-those transports too. A Reverser `StreamSender::fail` after a streamed DATA
+those transports too.
+`Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client.
+A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
 client-streaming have no response DATA then trailers).
 `Status::from_error_details` is the typed bag after this guide Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent.
