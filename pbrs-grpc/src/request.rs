@@ -2594,6 +2594,7 @@ impl ResponseParts {
     ///
     /// Distinct from [`Self::compress`]: that is on or off on this split reply envelope; this is deflate effort.
     /// Distinct from [`crate::Outgoing::gzip_level`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
+    /// Distinct from [`crate::Rpc::gzip_level`]: that is a server interceptor before the handler, not this split reply envelope.
     #[must_use]
     pub fn gzip_level(&self) -> u32 {
         self.gzip_level

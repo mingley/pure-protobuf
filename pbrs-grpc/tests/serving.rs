@@ -1310,6 +1310,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::gzip_level must Distinct client interceptor overlay from server overlay"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::gzip_level`]: that is a server interceptor before the handler, not this split reply envelope."
+        ),
+        "ResponseParts::gzip_level must Distinct Rpc overlay from the split reply"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
