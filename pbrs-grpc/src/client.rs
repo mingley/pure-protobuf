@@ -887,6 +887,7 @@ impl Channel {
     ///         call.timeout(),
     ///         call.deadline(),
     ///         call.rpc_timeout(),
+    ///         call.wait_for_ready(),
     ///         call.waits_for_ready(),
     ///         call.compresses_outbound(),
     ///         call.accepts_compressed(),
