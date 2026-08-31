@@ -40,6 +40,7 @@ use tokio::sync::watch;
 /// fn dump_request(request: &pbrs_grpc::Request<()>) {
 ///     let _ = (
 ///         request.path(),
+///         request.service(),
 ///     );
 /// }
 /// # let _ = dump_request;
