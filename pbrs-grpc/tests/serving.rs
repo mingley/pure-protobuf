@@ -5105,6 +5105,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README interceptor inventory must name the full channel overlay set"
     );
     assert!(
+        readme.contains(
+            "`Outgoing::user_agent_is_set` is occupancy on this crate README interceptor path, so a later interceptor can prefix only when unset."
+        ),
+        "crate README must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
+    );
+    assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
         "status guide must name accepts_gzip like Dumping Rpc"

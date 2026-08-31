@@ -60,7 +60,9 @@ cancellation (dropping a `Call` or a received `Streaming` resets the stream; a `
 mTLS client certificates on `Rpc::peer_identity`, Unix `SO_PEERCRED` on `Rpc::peer_cred`,
 `Incoming::peer` / `ConnectionInfo` for custom acceptors, `Channel::https_scheme`
 for already-encrypted `from_io` streams. Outbound
-RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`, `Request::set_user_agent`, or `Outgoing::set_user_agent`. `Streaming` implements
+RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent`, `Request::set_user_agent`, or `Outgoing::set_user_agent`.
+`Outgoing::user_agent_is_set` is occupancy on this crate README interceptor path, so a later interceptor can prefix only when unset.
+`Streaming` implements
 `futures_core::Stream`.
 
 **[Guide](../docs/grpc.md)** — building services, streaming, metadata, errors,
