@@ -542,6 +542,7 @@ impl Status {
 
     /// [`Self::with_error_details`] in place. Trailing metadata is left
     /// alone; [`Self::with_error_details`] mints a fresh status.
+    /// Distinct from [`Self::set_from_error_details`]: that takes the typed bag, not packed `Any` values.
     ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
@@ -584,6 +585,7 @@ impl Status {
 
     /// [`Self::from_error_details`] in place. Trailing metadata is left
     /// alone.
+    /// Distinct from [`Self::set_error_details`]: that packs `Any` values; this takes the typed bag.
     pub fn set_from_error_details(
         &mut self,
         code: Code,

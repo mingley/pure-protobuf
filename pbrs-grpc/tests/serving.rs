@@ -3292,6 +3292,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::with_error_details must Distinct the typed-bag constructor from this Any packer"
     );
     assert!(
+        status_src.contains(
+            "Distinct from [`Self::set_from_error_details`]: that takes the typed bag, not packed `Any` values."
+        ),
+        "Status::set_error_details must Distinct the typed-bag setter from this Any packer"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::set_error_details`]: that packs `Any` values; this takes the typed bag."
+        ),
+        "Status::set_from_error_details must Distinct the Any packer from this typed-bag setter"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::with_error_details`]: this is local wrapping,"),
         "Status::from_error must Distinct local wrapping from packed google.rpc.Status"
     );
