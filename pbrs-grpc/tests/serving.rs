@@ -3280,6 +3280,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after a hello intercept choice."
+        ),
+        "hello GreeterClient::intercept rustdoc must name clear_wait_for_ready next to clear_user_agent"
+    );
+    assert!(
+        hello.contains(
             "//!         call.connected(),\n//!         call.extensions(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"
