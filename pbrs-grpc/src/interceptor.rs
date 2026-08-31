@@ -603,6 +603,7 @@ impl<S: Service> ServiceExt for S {}
 ///         call.wait_for_ready_is_set(),
 ///         call.waits_for_ready(),
 ///         call.compress(),
+///         call.compress_is_set(),
 ///         call.compresses_outbound(),
 ///         call.accepts_compressed(),
 ///         call.gzip_level(),

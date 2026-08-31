@@ -850,6 +850,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing rustdoc example must read compress Distinct from compresses_outbound"
     );
     assert!(
+        outgoing.contains("        call.compress_is_set(),"),
+        "Outgoing rustdoc example must dump compress_is_set Distinct from compress"
+    );
+    assert!(
         outgoing.contains(
             "Distinct from [`Self::compresses_outbound`]: that is the channel overlay; this is the per-RPC choice."
         ),
@@ -1713,6 +1717,10 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor rustdoc example must read compress Distinct from compresses_outbound"
     );
     assert!(
+        intercept.contains("        call.compress_is_set(),"),
+        "ClientInterceptor rustdoc example must dump compress_is_set Distinct from compress"
+    );
+    assert!(
         intercept.contains("[`Rpc::gzip_level`] is deflate effort"),
         "Interceptor rustdoc must name Rpc::gzip_level as deflate effort"
     );
@@ -2264,7 +2272,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.path(),\n    ///         call.service(),\n    ///         call.method(),\n    ///         call.authority(),\n    ///         call.scheme(),\n    ///         call.user_agent(),\n    ///         call.metadata(),\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),\n    ///         call.wait_for_ready(),\n    ///         call.wait_for_ready_is_set(),\n    ///         call.waits_for_ready(),\n    ///         call.compress(),"
+            "channel.intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n    ///     let _ = (\n    ///         call.path(),\n    ///         call.service(),\n    ///         call.method(),\n    ///         call.authority(),\n    ///         call.scheme(),\n    ///         call.user_agent(),\n    ///         call.metadata(),\n    ///         call.timeout(),\n    ///         call.deadline(),\n    ///         call.rpc_timeout(),\n    ///         call.wait_for_ready(),\n    ///         call.wait_for_ready_is_set(),\n    ///         call.waits_for_ready(),\n    ///         call.compress(),\n    ///         call.compress_is_set(),"
         ),
         "Channel::intercept rustdoc example must read user_agent Distinct from inserting user-agent into metadata"
     );
@@ -2277,7 +2285,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.path(),\n//!         call.service(),\n//!         call.method(),\n//!         call.authority(),\n//!         call.scheme(),\n//!         call.user_agent(),\n//!         call.metadata(),\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),\n//!         call.wait_for_ready(),\n//!         call.wait_for_ready_is_set(),\n//!         call.waits_for_ready(),\n//!         call.compress(),"
+            "pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {\n//!     let _ = (\n//!         call.path(),\n//!         call.service(),\n//!         call.method(),\n//!         call.authority(),\n//!         call.scheme(),\n//!         call.user_agent(),\n//!         call.metadata(),\n//!         call.timeout(),\n//!         call.deadline(),\n//!         call.rpc_timeout(),\n//!         call.wait_for_ready(),\n//!         call.wait_for_ready_is_set(),\n//!         call.waits_for_ready(),\n//!         call.compress(),\n//!         call.compress_is_set(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read user_agent Distinct from inserting user-agent into metadata"
     );
@@ -2318,6 +2326,10 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("///         call.wait_for_ready_is_set(),"),
         "Channel::intercept rustdoc example must dump wait_for_ready_is_set Distinct from wait_for_ready"
+    );
+    assert!(
+        src.contains("///         call.compress_is_set(),"),
+        "Channel::intercept rustdoc example must dump compress_is_set Distinct from compress"
     );
     assert!(
         src.contains("///         call.send_buffer_size(),"),
@@ -4688,8 +4700,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must dump Outgoing wait_for_ready_is_set next to wait-for-ready"
     );
     assert!(
-        architecture.contains("compress, and extensions."),
-        "architecture must dump Outgoing compress and extensions"
+        architecture.contains("compress (`compress_is_set`), and extensions."),
+        "architecture must dump Outgoing compress_is_set next to compress"
     );
     assert!(
         architecture.contains("`stream_buffer_size`, `send_buffer_size`, and `limits` read"),

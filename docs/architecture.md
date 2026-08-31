@@ -127,7 +127,7 @@ Dumping `Outgoing` prints path / service / method, `:authority` / `:scheme`,
 `user-agent`, `limits`, `rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `accepts_compressed` / `gzip_level` / `concurrent_rpc_limit` / `stream_buffer_size` /
 `send_buffer_size`, metadata, timeout / deadline, wait-for-ready (`wait_for_ready_is_set`), `connected`,
-compress, and extensions.
+compress (`compress_is_set`), and extensions.
 The next RPC of every call shape redials a dead slot, including over TLS,
 mTLS, and Unix. Unary and server-streaming retry once when the connection
 dies after the stream slot looked live. Client-streaming and bidi retry once
