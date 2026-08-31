@@ -2653,6 +2653,7 @@ impl ResponseParts {
     /// Distinct from [`Self::deadline`]: that is the Instant on this split reply envelope; this duration does not shrink.
     /// Distinct from [`crate::Rpc::timeout`]: that is the interceptor cap, not the effective duration on this split reply envelope.
     /// Distinct from [`crate::Rpc::effective_timeout`]: that is computed when that getter runs, not this split reply envelope.
+    /// Distinct from [`crate::Rpc::rpc_timeout`]: that is the server overlay, not the effective cap on this split reply envelope.
     #[must_use]
     pub fn timeout(&self) -> Option<Duration> {
         self.timeout
