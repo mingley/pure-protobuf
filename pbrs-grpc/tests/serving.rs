@@ -790,6 +790,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::send_buffer_size must Distinct message size from the HTTP/2 send buffer"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake SETTINGS, not this split envelope's write-time threshold."
+        ),
+        "Parts::send_buffer_size must Distinct handshake SETTINGS from the write-time send buffer"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );

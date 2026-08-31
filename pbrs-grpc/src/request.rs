@@ -1741,6 +1741,7 @@ impl Parts {
     ///
     /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this split envelope's server overlay.
     /// Distinct from [`Self::limits`]: that is message size on this split envelope, not this HTTP/2 send buffer.
+    /// Distinct from HTTP/2 `SETTINGS_MAX_FRAME_SIZE` and stream/connection windows: those are handshake SETTINGS, not this split envelope's write-time threshold.
     #[must_use]
     pub fn send_buffer_size(&self) -> usize {
         self.send_buffer_size
