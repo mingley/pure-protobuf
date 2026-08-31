@@ -4395,6 +4395,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::Status::from_error_details`] is the typed bag after a generated server on_response Err; a local reject is trailers-only after handler Ok."
+        ),
+        "generated server on_response rustdoc must name from_error_details typed bag next to on_response Err"
+    );
+    assert!(
+        src.contains(
             "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterServer::new(Svc).on_response`)."
         ),
         "generated server on_response rustdoc must point at the compiling hello overlay dump"

@@ -4434,6 +4434,10 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated server on_response Err; a local reject is trailers-only after handler Ok."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterServer::new(Svc).on_response`)."
     );
     let _ = writeln!(src, "    #[must_use]");
