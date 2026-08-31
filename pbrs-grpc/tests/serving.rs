@@ -5670,6 +5670,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`Status::from_error_details` is the typed bag after this packed-status interceptor Err; a local reject never opens a stream."
+        ),
+        "status guide must name from_error_details typed bag next to interceptor Err"
+    );
+    assert!(
+        status_guide.contains(
             "`ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset."
         ),
         "status guide must name ResponseParts::compress_is_set occupancy next to intercept compress occupancy"
