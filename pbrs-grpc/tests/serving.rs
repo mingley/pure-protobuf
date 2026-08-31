@@ -5696,6 +5696,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name ResponseParts::clear_compress receive-path next to Server restore"
     );
     assert!(
+        readme.contains(
+            "`Status::from_error_details` is the typed bag after this crate README Channel on_response Err; a local reject fails the Call after a successful receive."
+        ),
+        "crate README must name from_error_details typed bag next to Channel on_response Err"
+    );
+    assert!(
         readme.contains("`Status::error_info` / `ErrorInfo::with_reason`"),
         "crate README must name ErrorInfo::with_reason next to Status::error_info"
     );
