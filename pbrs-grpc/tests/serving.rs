@@ -5952,6 +5952,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name Outgoing::clear_compress reapply next to clear_wait_for_ready"
     );
+    assert!(
+        architecture.contains(
+            "`Outgoing::clear_timeout` opts out of the channel timeout after an architecture interceptor choice."
+        ),
+        "architecture must name Outgoing::clear_timeout next to clear_compress"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
