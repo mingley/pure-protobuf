@@ -118,7 +118,7 @@ age/idle) are enforced before the memory they guard is committed.
 
 `Channel` pools HTTP/2 connections to one authority. A client interceptor
 sees `Outgoing` (path, service/method, `:authority`, `:scheme`,
-`user-agent`, message caps, metadata, timeout / deadline Instant,
+`user-agent` (`user_agent_is_set`), message caps, metadata, timeout / deadline Instant,
 wait-for-ready (`wait_for_ready_is_set`), compression (`compress_is_set`),
 channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` /
 `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`),

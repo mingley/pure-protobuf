@@ -5540,6 +5540,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name connected on the interceptor-visible Outgoing inventory"
     );
+    assert!(
+        architecture.contains("`user-agent` (`user_agent_is_set`), message caps,"),
+        "architecture interceptor-visible Outgoing inventory must name user_agent_is_set next to user-agent"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
