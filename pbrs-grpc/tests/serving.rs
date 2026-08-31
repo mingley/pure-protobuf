@@ -3014,6 +3014,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Distinct from [`Self::from_rpc`]: that encodes the trailer; this parses it."
+        ),
+        "Status::rpc must Distinct the encode constructor from this parse getter"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::rpc`]: that is the packed `google.rpc.Status`, not this typed bag."
         ),
         "Status::error_details must Distinct the packed google.rpc.Status from the typed bag"
