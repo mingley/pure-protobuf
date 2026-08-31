@@ -2551,6 +2551,8 @@ impl ResponseParts {
 
     /// Whether [`Self::set_compress`] has been called.
     /// See [`Response::compress_is_set`].
+    ///
+    /// Distinct from [`Self::compress`], which is `false` when unset on this split reply envelope.
     #[must_use]
     pub fn compress_is_set(&self) -> bool {
         self.compress.is_some()
