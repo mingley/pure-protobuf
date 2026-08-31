@@ -1779,6 +1779,7 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path.
 `Status::from_error_details` is the typed bag after this guide server on_response Err; a local reject is trailers-only after handler Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this guide on_response path; a received reply has no server gzip overlay to restore.
+`Status::from_error_details` is the typed bag after this guide Channel on_response Err; a local reject fails the Call after a successful receive.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
 interceptor on h2c, TLS (including mTLS), Unix, and `from_io`, including official

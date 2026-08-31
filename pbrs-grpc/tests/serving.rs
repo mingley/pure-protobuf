@@ -5925,6 +5925,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ResponseParts::clear_compress receive-path next to Server restore"
     );
     assert!(
+        guide.contains(
+            "`Status::from_error_details` is the typed bag after this guide Channel on_response Err; a local reject fails the Call after a successful receive."
+        ),
+        "guide must name from_error_details typed bag next to Channel on_response Err"
+    );
+    assert!(
         guide.contains("`user_agent` (`user_agent_is_set`), `limits`,"),
         "guide Outgoing getter inventory must name user_agent_is_set next to user_agent"
     );
