@@ -5111,6 +5111,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Outgoing::user_agent_is_set occupancy next to set_user_agent"
     );
     assert!(
+        readme.contains(
+            "`Outgoing::wait_for_ready_is_set` is occupancy on this crate README interceptor path, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "crate README must name Outgoing::wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
         "status guide must name accepts_gzip like Dumping Rpc"
