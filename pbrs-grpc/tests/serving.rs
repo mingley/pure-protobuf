@@ -5828,6 +5828,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must Distinct error_info from the ErrorDetails bag"
     );
     assert!(
+        guide.contains("`ErrorInfo::with_reason` builds that payload"),
+        "guide must name ErrorInfo::with_reason as the builder"
+    );
+    assert!(
         guide.contains("`Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`."),
         "guide must Distinct Status::rpc packed protobuf from the typed error_details bag"
     );
