@@ -4443,6 +4443,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name Incoming-stamped peer facts and extensions on interceptor Rpc closures"
     );
     assert!(
+        architecture.contains("Interceptors insert typed context on `Rpc::extensions_mut`."),
+        "architecture must name Rpc::extensions_mut as the interceptor insert API"
+    );
+    assert!(
         architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`, extensions. Dumping"),
         "architecture must name Incoming-stamped peer facts and extensions on generated handlers"
     );

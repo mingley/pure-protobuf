@@ -245,7 +245,7 @@ Distinct from `limits` (encode cap). Distinct from `Rpc::send_buffer_size`
 metadata, interceptor `timeout`, server overlay `rpc_timeout`, `peer_timeout`,
 `effective_timeout`, `deadline`, gzip accept/encoding,
 `compresses_outbound`, `gzip_level`, `accepts_compressed`, `concurrent_rpc_limit`, `send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, limits, extensions).
-They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
+Interceptors insert typed context on `Rpc::extensions_mut`. They may only tighten the deadline. `Err(Status)` is `rpc.reject`,
 including `with_error_details` (those trailers reach the client).
 `metadata_mut().set` / `remove` / `retain` reach the handler on every call
 shape, including over TLS, mTLS, Unix, and `from_io`. Those mutations
