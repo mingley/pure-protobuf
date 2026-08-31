@@ -844,6 +844,23 @@ fn typed_after_headers_status() -> Status {
     status
 }
 
+fn typed_after_headers_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "API_DISABLED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    let mut status = Status::from_error_details(Code::FailedPrecondition, "api disabled", &details)
+        .expect("encode");
+    status
+        .metadata_mut()
+        .insert("x-retry-after", "30")
+        .expect("md");
+    status
+}
+
 fn assert_typed_after_headers(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "api disabled");
@@ -879,6 +896,17 @@ fn fail_health_after_one() -> pbrs_grpc::Streaming<HealthCheckResponse> {
     stream
 }
 
+fn fail_health_after_one_from_error_details() -> pbrs_grpc::Streaming<HealthCheckResponse> {
+    let (tx, stream) = pbrs_grpc::Streaming::channel(1);
+    drop(tokio::spawn(async move {
+        let mut reply = HealthCheckResponse::new();
+        reply.set_status(ServingStatus::Serving);
+        tx.send(reply).await.ok();
+        tx.fail(typed_after_headers_from_error_details()).await;
+    }));
+    stream
+}
+
 /// Watch only: Check is unary and has no response DATA then trailers.
 struct TypedAfterHeadersHealth;
 
@@ -895,6 +923,24 @@ impl Health for TypedAfterHeadersHealth {
         _: Request<HealthCheckRequest>,
     ) -> Result<Response<pbrs_grpc::Streaming<HealthCheckResponse>>, Status> {
         Ok(Response::new(fail_health_after_one()))
+    }
+}
+
+struct TypedAfterHeadersHealthFromErrorDetails;
+
+impl Health for TypedAfterHeadersHealthFromErrorDetails {
+    async fn check(
+        &self,
+        _: Request<HealthCheckRequest>,
+    ) -> Result<Response<HealthCheckResponse>, Status> {
+        Err(Status::unimplemented("typed-after-headers"))
+    }
+
+    async fn watch(
+        &self,
+        _: Request<HealthCheckRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HealthCheckResponse>>, Status> {
+        Ok(Response::new(fail_health_after_one_from_error_details()))
     }
 }
 
@@ -3445,6 +3491,22 @@ async fn health_typed_google_rpc_status_after_a_streamed_message() {
     let addr = listener.local_addr().expect("local_addr");
     let handle = tokio::spawn(async move {
         HealthServer::new(TypedAfterHeadersHealth)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_health_typed_status_after_streamed_message(&client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_from_error_details_after_a_streamed_message() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        HealthServer::new(TypedAfterHeadersHealthFromErrorDetails)
             .serve_listener(listener)
             .await
             .ok();
