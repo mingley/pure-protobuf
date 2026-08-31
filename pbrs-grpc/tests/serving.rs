@@ -3274,6 +3274,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::Outgoing::clear_user_agent`] restores the channel user-agent after a hello intercept prefix."
+        ),
+        "hello GreeterClient::intercept rustdoc must name clear_user_agent next to compress occupancy"
+    );
+    assert!(
+        hello.contains(
             "//!         call.connected(),\n//!         call.extensions(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"

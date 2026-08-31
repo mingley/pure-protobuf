@@ -10,6 +10,7 @@
 //! [`crate::Outgoing::user_agent_is_set`] is occupancy on this hello intercept path, so a later interceptor can prefix only when unset.
 //! [`crate::Outgoing::wait_for_ready_is_set`] is occupancy on this hello intercept path, so a later interceptor can fill wait-for-ready only when unset.
 //! [`crate::Outgoing::compress_is_set`] is occupancy on this hello intercept path, so a later interceptor can fill compress only when unset.
+//! [`crate::Outgoing::clear_user_agent`] restores the channel user-agent after a hello intercept prefix.
 //!
 //! ```
 //! # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::hello::GreeterClient {
