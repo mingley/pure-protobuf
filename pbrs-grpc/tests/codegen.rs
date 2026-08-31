@@ -3885,6 +3885,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "`clear_user_agent` restores the channel user-agent after a generated intercept prefix."
+        ),
+        "generated client intercept rustdoc must name clear_user_agent opt-out"
+    );
+    assert!(
+        src.contains(
             "`set_compress` stamps [`::pbrs_grpc::StreamSender::compress`] on client-streaming and bidi request streams."
         ),
         "generated client intercept rustdoc must name StreamSender gzip stamp"
