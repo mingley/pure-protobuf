@@ -1529,6 +1529,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor rustdoc must Distinct Rpc::accepts_compressed from peer accepts_gzip"
     );
     assert!(
+        intercept.contains("[`Rpc::limits`], `accepts_gzip` / encoding with"),
+        "Interceptor rustdoc must name accepts_gzip like Dumping Rpc"
+    );
+    assert!(
         intercept.contains(
             "Distinct from HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`, which waits; [`Rpc::concurrent_rpc_limit`] is this overlay."
         ),

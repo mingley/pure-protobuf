@@ -26,7 +26,7 @@ use std::sync::Arc;
 /// [`Rpc::authority`] and `:scheme` with [`Rpc::scheme`], read the mTLS
 /// client certificate with [`Rpc::peer_identity`], Unix credentials with
 /// [`Rpc::peer_cred`] (including values [`crate::Incoming::peer`] stamped),
-/// message caps with [`Rpc::limits`], gzip accept/encoding with
+/// message caps with [`Rpc::limits`], `accepts_gzip` / encoding with
 /// [`Rpc::accepts_gzip`] / [`Rpc::encoding`] / [`Rpc::compresses_outbound`]
 /// / [`Rpc::gzip_level`] / [`Rpc::accepts_compressed`] / [`Rpc::concurrent_rpc_limit`] / [`Rpc::send_buffer_size`] (`encoding` is `None` for identity).
 /// Distinct from [`Rpc::compresses_outbound`]: that is on or off; [`Rpc::gzip_level`] is deflate effort.
