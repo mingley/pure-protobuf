@@ -1453,6 +1453,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.compressed(),
 ///         parts.encoding(),
 ///         parts.accepts_gzip(),
+///         parts.compresses_outbound(),
 ///     );
 /// }
 /// # let _ = dump_parts;
