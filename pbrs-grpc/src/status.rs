@@ -262,7 +262,7 @@ struct Detail {
 /// [`Self::with_error_details`] builds one from [`crate::pb::Any`] values;
 /// [`Self::rpc`] parses it back. [`Self::set_code`] / [`Self::set_message`]
 /// rewrite a packed protobuf that still matches the ASCII trailers.
-/// [`Self::set_rpc`] / [`Self::set_error_details`] replace the protobuf
+/// [`Self::set_rpc`] / [`Self::set_error_details`] / [`Self::set_from_error_details`] replace the protobuf
 /// without dropping trailing metadata.
 #[derive(Clone, Debug)]
 pub struct Status {
