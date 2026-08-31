@@ -5165,6 +5165,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
     );
     assert!(
+        readme.contains(
+            "`Outgoing::clear_user_agent` restores the channel user-agent after a crate README interceptor prefix."
+        ),
+        "crate README must name Outgoing::clear_user_agent next to compress occupancy"
+    );
+    assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
         "status guide must name accepts_gzip like Dumping Rpc"
