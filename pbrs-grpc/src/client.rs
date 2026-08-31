@@ -960,6 +960,7 @@ impl Channel {
     ///         parts.path(),
     ///         parts.service(),
     ///         parts.method(),
+    ///         parts.metadata(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),
