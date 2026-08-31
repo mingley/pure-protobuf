@@ -4037,6 +4037,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must Distinct Status::rpc packed protobuf from the typed error_details bag"
     );
     assert!(
+        guide.contains(
+            "Distinct from `Status::from_error_details`: that takes the typed bag, not packed `Any` values."
+        ),
+        "guide must Distinct from_error_details typed bag from the Any packer"
+    );
+    assert!(
         guide.contains("`status.bad_request()` for field violations"),
         "guide must name Status::bad_request as field violations"
     );
