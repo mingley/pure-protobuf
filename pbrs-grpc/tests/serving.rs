@@ -682,6 +682,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump limits Distinct from wait_for_ready"
     );
     assert!(
+        outgoing.contains("///         parts.limits(),\n///         parts.extensions(),"),
+        "Parts rustdoc must dump extensions Distinct from limits"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
