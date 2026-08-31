@@ -9557,6 +9557,21 @@ async fn test_service_client_interceptor_rejects_with_typed_status() {
 }
 
 #[tokio::test]
+async fn test_service_client_interceptor_rejects_with_from_error_details() {
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn(async move {
+        TestServiceServer::new(InteropTestService)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = TestServiceClient::new(channel(addr).await)
+        .intercept(|_: &mut Outgoing<'_>| Err(interceptor_blocked_from_error_details()));
+    assert_test_blocked_every_shape(&client).await;
+    task.abort();
+}
+
+#[tokio::test]
 async fn test_service_client_interceptor_sees_every_shape_context() {
     let (addr, listener) = bind().await;
     let task = tokio::spawn(async move {
