@@ -1364,6 +1364,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::accepts_gzip must Distinct inbound Request::accepts_gzip"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compresses_outbound`]: that is the server encode overlay on this split reply envelope, not the peer advertisement."
+        ),
+        "ResponseParts::accepts_gzip must Distinct send_compressed overlay from peer advertisement"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
