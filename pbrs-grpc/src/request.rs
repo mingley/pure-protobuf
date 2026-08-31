@@ -2706,6 +2706,7 @@ impl ResponseParts {
     /// Distinct from [`crate::Request::send_buffer_size`]: that is the inbound request, not this split reply envelope.
     /// Distinct from [`crate::Rpc::send_buffer_size`]: that is a server interceptor before the handler, not this split reply envelope.
     /// Distinct from [`crate::Outgoing::send_buffer_size`]: that is a client interceptor overlay, not this split reply envelope's server overlay.
+    /// Distinct from [`Self::limits`]: that is the encode cap on this split reply envelope, not this HTTP/2 send buffer.
     #[must_use]
     pub fn send_buffer_size(&self) -> Option<usize> {
         self.send_buffer_size
