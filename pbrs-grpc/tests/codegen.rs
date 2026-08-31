@@ -3903,7 +3903,7 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level`; `clear_*` opts out of the already-applied default)"
+            "channel overlays (`rpc_timeout` / `waits_for_ready` / `compresses_outbound` / `gzip_level` / `accepts_compressed` / `concurrent_rpc_limit` / `stream_buffer_size` / `send_buffer_size` / `limits`; `clear_*` opts out of the already-applied default)"
         ),
         "generated intercept rustdoc must name channel overlays and clear_*"
     );
