@@ -796,6 +796,31 @@ impl Health for FailHealth {
     }
 }
 
+struct FailHealthFromErrorDetails;
+
+impl Health for FailHealthFromErrorDetails {
+    async fn check(
+        &self,
+        _: Request<HealthCheckRequest>,
+    ) -> Result<Response<HealthCheckResponse>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn list(
+        &self,
+        _: Request<HealthListRequest>,
+    ) -> Result<Response<HealthListResponse>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn watch(
+        &self,
+        _: Request<HealthCheckRequest>,
+    ) -> Result<Response<pbrs_grpc::Streaming<HealthCheckResponse>>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+}
+
 fn typed_after_headers_status() -> Status {
     let mut info = pbrs_grpc::pb::ErrorInfo::new();
     info.set_reason("API_DISABLED");
@@ -3306,6 +3331,22 @@ async fn health_handlers_return_typed_status_on_check_and_watch() {
     let addr = listener.local_addr().expect("local_addr");
     let handle = tokio::spawn(async move {
         HealthServer::new(FailHealth)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_health_blocked(&client(addr).await).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_handlers_return_from_error_details_on_check_and_watch() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        HealthServer::new(FailHealthFromErrorDetails)
             .serve_listener(listener)
             .await
             .ok();
