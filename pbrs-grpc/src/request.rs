@@ -2502,6 +2502,8 @@ pub struct ResponseParts {
 
 impl ResponseParts {
     /// Initial headers, sent before the first message.
+    ///
+    /// Distinct from [`Self::metadata_mut`]: that mutates this split reply envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata

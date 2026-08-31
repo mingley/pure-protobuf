@@ -1256,6 +1256,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::metadata must Distinct the mutable reply envelope from the borrow"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::metadata_mut`]: that mutates this split reply envelope; this borrows it."
+        ),
+        "ResponseParts::metadata must Distinct the mutable split reply envelope from the borrow"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
