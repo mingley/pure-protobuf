@@ -5677,6 +5677,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::metadata_mut`]: that mutates the inbound map; this borrows it."
+        ),
+        "Rpc::metadata must Distinct the mutable inbound map from the borrow"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this received `grpc-encoding`."
         ),
         "Rpc::encoding must Distinct peer advertisement from received grpc-encoding"

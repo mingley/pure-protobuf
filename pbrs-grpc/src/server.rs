@@ -397,6 +397,7 @@ impl Rpc {
 
     /// Request metadata the handler will see.
     ///
+    /// Distinct from [`Self::metadata_mut`]: that mutates the inbound map; this borrows it.
     /// Same map as [`Request::metadata`] after an interceptor returns `Ok`.
     /// Bind it if you need more than one lookup: `let md = rpc.metadata()`.
     #[must_use]
