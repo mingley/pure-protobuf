@@ -21273,6 +21273,30 @@ async fn channel_on_response_err_after_peer_ok() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn channel_on_response_err_from_error_details_after_peer_ok() {
+    let ran = Arc::new(AtomicUsize::new(0));
+    let (addr, listener) = bind().await;
+    let task = tokio::spawn({
+        let ran = Arc::clone(&ran);
+        async move {
+            GreeterServer::new(CountedEcho { ran })
+                .serve_listener(listener)
+                .await
+                .ok();
+        }
+    });
+    let client =
+        GreeterClient::new(channel(addr).await).on_response(deny_after_ok_from_error_details);
+    let err = client
+        .say_hello(Request::new(req("ada")))
+        .await
+        .expect_err("hook must fail the Call after peer OK");
+    assert_hook_denied(&err);
+    assert_eq!(ran.load(Ordering::SeqCst), 1, "handler must have run");
+    task.abort();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn channel_on_response_skips_non_ok() {
     let ran = Arc::new(AtomicUsize::new(0));
     let (addr, listener) = bind().await;
