@@ -894,6 +894,7 @@ impl<T> Request<T> {
 ///     }
 ///     let _ = (
 ///         call.timeout(),
+///         call.deadline(),
 ///         call.rpc_timeout(),
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),

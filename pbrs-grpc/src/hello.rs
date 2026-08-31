@@ -13,6 +13,7 @@
 //! pbrs_grpc::hello::GreeterClient::new(channel).intercept(|call: &mut pbrs_grpc::Outgoing<'_>| {
 //!     let _ = (
 //!         call.timeout(),
+//!         call.deadline(),
 //!         call.rpc_timeout(),
 //!         call.waits_for_ready(),
 //!         call.compresses_outbound(),

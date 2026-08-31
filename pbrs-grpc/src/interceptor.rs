@@ -590,6 +590,7 @@ impl<S: Service> ServiceExt for S {}
 ///     }
 ///     let _ = (
 ///         call.timeout(),
+///         call.deadline(),
 ///         call.rpc_timeout(),
 ///         call.waits_for_ready(),
 ///         call.compresses_outbound(),
