@@ -883,6 +883,7 @@ impl Channel {
     /// that runs after wins.
     /// [`crate::Outgoing::clear_user_agent`] restores the channel user-agent after this Channel intercept prefix.
     /// [`crate::Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after this Channel intercept choice.
+    /// [`crate::Outgoing::clear_timeout`] opts out of the channel timeout after this Channel intercept choice.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
