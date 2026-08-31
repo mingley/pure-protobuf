@@ -885,6 +885,7 @@ impl Channel {
     ///     let _ = (
     ///         call.path(),
     ///         call.service(),
+    ///         call.method(),
     ///         call.metadata(),
     ///         call.timeout(),
     ///         call.deadline(),
