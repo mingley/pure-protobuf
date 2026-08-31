@@ -2564,6 +2564,8 @@ impl ResponseParts {
 
     /// The `grpc-encoding` token on a received reply, if any.
     /// See [`Response::encoding`].
+    ///
+    /// Distinct from [`Self::compressed`]: that is the unary Compressed-Flag (and outbound intent) on this split reply envelope; this is the HTTP header.
     #[must_use]
     pub fn encoding(&self) -> Option<&str> {
         self.encoding.as_deref()

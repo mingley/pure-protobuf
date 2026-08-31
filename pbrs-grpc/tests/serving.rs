@@ -1616,6 +1616,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::send_buffer_size Distinct from Outgoing::stream_buffer_size: that is decoded-message queue depth, not this send buffer on this split reply envelope"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::compressed`]: that is the unary Compressed-Flag (and outbound intent) on this split reply envelope; this is the HTTP header."
+        ),
+        "ResponseParts::encoding Distinct from compressed: that is the unary Compressed-Flag (and outbound intent) on this split reply envelope; this is the HTTP header"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
