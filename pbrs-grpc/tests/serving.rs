@@ -781,6 +781,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`crate::Request::user_agent`]: that is the override only; this is the effective header this RPC will send."
+        ),
+        "Outgoing::user_agent must Distinct the Request override from the effective header"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Rpc::scheme`]: that is the inbound `:scheme`; this is the `:scheme` this channel sends."
         ),
         "Outgoing::scheme must Distinct the inbound :scheme from the outbound :scheme"

@@ -975,6 +975,7 @@ impl<'a> Outgoing<'a> {
 
     /// The `user-agent` this RPC will send, including the kernel suffix.
     ///
+    /// Distinct from [`crate::Request::user_agent`]: that is the override only; this is the effective header this RPC will send.
     /// Same value as [`crate::Channel::grpc_user_agent`] until
     /// [`Self::set_user_agent`]. A prefix set with [`crate::Channel::user_agent`]
     /// is visible here. Inserting `user-agent` into metadata succeeds — that
