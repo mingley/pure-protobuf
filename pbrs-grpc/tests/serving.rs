@@ -7182,6 +7182,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "[`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Server on_response."
+        ),
+        "Server::on_response rustdoc must name clear_compress next to compress occupancy"
+    );
+    assert!(
+        src.contains(
             "[`crate::ResponseParts::compress_is_set`] is occupancy after this Router on_response, so a later interceptor can fill compress only when unset."
         ),
         "Router::on_response rustdoc must name compress_is_set occupancy next to send_buffer Distinct"
