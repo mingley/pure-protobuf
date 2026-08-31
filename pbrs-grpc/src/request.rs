@@ -1674,6 +1674,8 @@ impl Parts {
 
     /// The client's own `grpc-timeout`, when the kernel dispatched this call.
     /// See [`Request::peer_timeout`].
+    ///
+    /// Distinct from [`timeout`](Self::timeout): that is the effective cap on this split envelope; this is the client's original header.
     #[must_use]
     pub fn peer_timeout(&self) -> Option<Duration> {
         self.peer_timeout
