@@ -5147,6 +5147,10 @@ fn emit_kernel_client(
         src,
         "    /// `clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a generated intercept choice."
     );
+    let _ = writeln!(
+        src,
+        "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated intercept Err; a local reject never opens a stream."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");

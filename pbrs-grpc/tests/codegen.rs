@@ -3927,6 +3927,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::Status::from_error_details`] is the typed bag after a generated intercept Err; a local reject never opens a stream."
+        ),
+        "generated client intercept rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
+        src.contains(
             "`set_compress` stamps [`::pbrs_grpc::StreamSender::compress`] on client-streaming and bidi request streams."
         ),
         "generated client intercept rustdoc must name StreamSender gzip stamp"
