@@ -50,6 +50,7 @@
 //!     let _ = (
 //!         parts.path(),
 //!         parts.service(),
+//!         parts.method(),
 //!         parts.gzip_level(),
 //!         parts.compresses_outbound(),
 //!         parts.accepts_gzip(),
@@ -114,6 +115,7 @@
 //!     let _ = (
 //!         parts.path(),
 //!         parts.service(),
+//!         parts.method(),
 //!         parts.gzip_level(),
 //!         parts.compresses_outbound(),
 //!         parts.accepts_gzip(),

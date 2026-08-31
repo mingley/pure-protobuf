@@ -176,6 +176,7 @@ where
 ///     let _ = (
 ///         parts.path(),
 ///         parts.service(),
+///         parts.method(),
 ///         parts.gzip_level(),
 ///         parts.compresses_outbound(),
 ///         parts.accepts_gzip(),
@@ -284,6 +285,7 @@ impl<S, I> Intercepted<S, I> {
     ///     let _ = (
     ///         parts.path(),
     ///         parts.service(),
+    ///         parts.method(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),
@@ -486,6 +488,7 @@ pub trait ServiceExt: Service + Sized {
     ///     let _ = (
     ///         parts.path(),
     ///         parts.service(),
+    ///         parts.method(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),

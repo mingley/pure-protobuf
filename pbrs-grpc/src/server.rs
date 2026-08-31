@@ -2015,6 +2015,7 @@ impl<S: Service> Server<S> {
     ///     let _ = (
     ///         parts.path(),
     ///         parts.service(),
+    ///         parts.method(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),
@@ -2885,6 +2886,7 @@ impl Router {
     ///     let _ = (
     ///         parts.path(),
     ///         parts.service(),
+    ///         parts.method(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),

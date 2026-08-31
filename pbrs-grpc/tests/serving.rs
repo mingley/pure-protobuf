@@ -1984,8 +1984,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc example must dump service Distinct from path"
     );
     assert!(
+        intercept.contains("///         parts.method(),"),
+        "ResponseInterceptor rustdoc example must dump method Distinct from path"
+    );
+    assert!(
         intercept.contains(
-            "fn stamp_trace(parts: &mut ResponseParts) -> Result<(), Status> {\n///     if let Some(n) = parts.extensions().get::<u8>().copied() {\n///         parts.metadata_mut().insert(\"x-trace\", n.to_string())?;\n///     }\n///     let _ = (\n///         parts.path(),\n///         parts.service(),"
+            "fn stamp_trace(parts: &mut ResponseParts) -> Result<(), Status> {\n///     if let Some(n) = parts.extensions().get::<u8>().copied() {\n///         parts.metadata_mut().insert(\"x-trace\", n.to_string())?;\n///     }\n///     let _ = (\n///         parts.path(),\n///         parts.service(),\n///         parts.method(),"
         ),
         "ResponseInterceptor rustdoc example must dump service after path with unique stamp_trace attach"
     );
@@ -2007,13 +2011,13 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
-            "svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),"
+            "svc.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),"
         ),
         "ServiceExt::on_response rustdoc example must dump service Distinct from path"
     );
     assert!(
         intercept.contains(
-            "wrapped.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),"
+            "wrapped.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),"
         ),
         "Intercepted::on_response rustdoc example must dump service Distinct from path"
     );
@@ -2142,7 +2146,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
-            "channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),"
+            "channel.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),"
         ),
         "Channel::on_response rustdoc example must dump service Distinct from path"
     );
@@ -2153,6 +2157,10 @@ fn channel_call_apis_document_hand_written_services() {
     assert!(
         src.contains("///         parts.service(),"),
         "Channel::on_response rustdoc example must dump service Distinct from path"
+    );
+    assert!(
+        src.contains("///         parts.method(),"),
+        "Channel::on_response rustdoc example must dump method Distinct from path"
     );
     assert!(
         src.contains("///         parts.send_buffer_size(),"),
@@ -2335,7 +2343,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),"
+            "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),"
         ),
         "hello GreeterClient::on_response rustdoc example must dump service Distinct from path"
     );
@@ -2359,7 +2367,7 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
-            "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),"
+            "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),"
         ),
         "hello GreeterServer::on_response rustdoc example must dump service Distinct from path"
     );
@@ -5531,13 +5539,13 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
-            "server.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),"
+            "server.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),"
         ),
         "Server::on_response rustdoc example must dump service Distinct from path"
     );
     assert!(
         src.contains(
-            "router.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),"
+            "router.on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n    ///     let _ = (\n    ///         parts.path(),\n    ///         parts.service(),\n    ///         parts.method(),"
         ),
         "Router::on_response rustdoc example must dump service Distinct from path"
     );
