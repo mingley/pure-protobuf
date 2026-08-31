@@ -903,6 +903,7 @@ impl<T> Request<T> {
 /// at the call site; this method wins if an interceptor runs after.
 /// [`Self::user_agent_is_set`] is occupancy on this outbound envelope, so a later interceptor can prefix only when unset.
 /// [`Self::wait_for_ready_is_set`] is occupancy on this outbound envelope, so a later interceptor can fill wait-for-ready only when unset.
+/// [`Self::compress_is_set`] is occupancy on this outbound envelope, so a later interceptor can fill compress only when unset.
 /// Typed values the caller inserted on [`crate::Request::extensions_mut`] are on this map.
 /// [`Self::connected`] is whether a pool slot holds a live socket (same
 /// snapshot as [`crate::Channel::connected`]), taken when this interceptor
