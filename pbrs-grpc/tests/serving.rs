@@ -1250,6 +1250,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Response::path must name kernel stamp after Ok and after receive"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::metadata_mut`]: that mutates this reply envelope; this borrows it."
+        ),
+        "Response::metadata must Distinct the mutable reply envelope from the borrow"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );

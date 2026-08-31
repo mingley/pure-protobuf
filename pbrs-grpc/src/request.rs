@@ -2011,6 +2011,8 @@ impl<T> Response<T> {
     /// Initial headers, sent before the first message. Applies to every call
     /// shape: a streaming [`crate::Call`] exposes these on the [`Response`]
     /// before [`crate::Streaming`] messages.
+    ///
+    /// Distinct from [`Self::metadata_mut`]: that mutates this reply envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata
