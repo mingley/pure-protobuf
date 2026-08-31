@@ -492,6 +492,7 @@ See `docs/upb.md`. Short list:
   `Outgoing::wait_for_ready_is_set` distinguishes an unset wait-for-ready from an explicit `false` on this packed-status interceptor path.
   `Outgoing::compress_is_set` distinguishes unset compress from an explicit `false` on this packed-status interceptor path.
   `Status::from_error_details` is the typed bag after this packed-status interceptor Err; a local reject never opens a stream.
+  `Status::from_error_details` is the typed bag after this packed-status server intercept Err; those trailers reach the client without reading the body.
   `ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset.
   `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this packed-status on_response path.
   `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this packed-status on_response path; a received reply has no server gzip overlay to restore.
