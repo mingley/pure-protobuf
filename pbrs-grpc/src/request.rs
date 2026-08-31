@@ -1633,6 +1633,8 @@ impl Parts {
     }
 
     /// Typed values an interceptor attached to this RPC. See [`Request::extensions`].
+    ///
+    /// Distinct from [`Self::extensions_mut`]: that inserts typed values this split envelope carries; this borrows them.
     #[must_use]
     pub fn extensions(&self) -> &http::Extensions {
         &self.extensions

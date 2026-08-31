@@ -700,6 +700,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts::metadata must Distinct the mutable split envelope from the borrow"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::extensions_mut`]: that inserts typed values this split envelope carries; this borrows them."
+        ),
+        "Parts::extensions must Distinct the mutable split envelope map from the borrow"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
