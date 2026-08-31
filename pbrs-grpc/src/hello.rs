@@ -60,6 +60,7 @@
 //! pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {
 //!     let _ = (
 //!         rpc.path(),
+//!         rpc.timeout(),
 //!         rpc.peer_timeout(),
 //!         rpc.rpc_timeout(),
 //!         rpc.effective_timeout(),

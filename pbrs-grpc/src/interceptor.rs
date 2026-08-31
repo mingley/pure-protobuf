@@ -53,6 +53,7 @@ use std::sync::Arc;
 ///     rpc.metadata_mut().set("x-actor", "gateway")?;
 ///     let _ = (
 ///         rpc.path(),
+///         rpc.timeout(),
 ///         rpc.peer_timeout(),
 ///         rpc.rpc_timeout(),
 ///         rpc.effective_timeout(),
@@ -331,6 +332,7 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     /// wrapped.intercept(|rpc: &mut pbrs_grpc::Rpc| {
     ///     let _ = (
     ///         rpc.path(),
+    ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),
     ///         rpc.effective_timeout(),
@@ -416,6 +418,7 @@ pub trait ServiceExt: Service + Sized {
     /// svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {
     ///     let _ = (
     ///         rpc.path(),
+    ///         rpc.timeout(),
     ///         rpc.peer_timeout(),
     ///         rpc.rpc_timeout(),
     ///         rpc.effective_timeout(),
