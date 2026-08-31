@@ -971,7 +971,9 @@ unpacks as `Status::rpc` / `Status::error_details` on Check, List, and Watch, in
 over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this guide Health interceptor Err; those trailers reach the client without reading the body.
 A handler `Err(Status::with_error_details(...))` unpacks the same way on Check, List, and Watch, including over TLS, mTLS, Unix, and
-`from_io`. Watch `StreamSender::fail` after a streamed DATA frame unpacks the
+`from_io`.
+`Status::from_error_details` is the typed bag after this guide Health handler Err; those trailers reach the client.
+Watch `StreamSender::fail` after a streamed DATA frame unpacks the
 same way (Check is unary: no response DATA then trailers), including over TLS,
 mTLS, Unix, and `from_io`.
 
