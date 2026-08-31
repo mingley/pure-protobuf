@@ -57,6 +57,7 @@ use tokio::sync::watch;
 ///         request.concurrent_rpc_limit(),
 ///         request.send_buffer_size(),
 ///         request.remote_addr(),
+///         request.local_addr(),
 ///     );
 /// }
 /// # let _ = dump_request;
