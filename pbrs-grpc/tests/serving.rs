@@ -932,6 +932,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "[`Self::wait_for_ready_is_set`] is occupancy on this outbound envelope, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "Outgoing rustdoc must name wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
+    assert!(
+        outgoing.contains(
             "[`Self::clear_compress`] / [`Self::clear_user_agent`] opt out of an already-applied default."
         ),
         "Outgoing rustdoc must name clear_user_agent next to the other clear_* opt-outs"
