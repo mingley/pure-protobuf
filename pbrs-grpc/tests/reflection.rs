@@ -676,6 +676,17 @@ impl ServerReflection for FailReflection {
     }
 }
 
+struct FailReflectionFromErrorDetails;
+
+impl ServerReflection for FailReflectionFromErrorDetails {
+    async fn server_reflection_info(
+        &self,
+        _: Request<pbrs_grpc::Streaming<ServerReflectionRequest>>,
+    ) -> Result<Response<pbrs_grpc::Streaming<ServerReflectionResponse>>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+}
+
 fn typed_after_headers_status() -> Status {
     let mut info = pbrs_grpc::pb::ErrorInfo::new();
     info.set_reason("API_DISABLED");
@@ -3093,6 +3104,22 @@ async fn reflection_handlers_return_typed_status() {
     let addr = listener.local_addr().expect("local_addr");
     let handle = tokio::spawn(async move {
         ServerReflectionServer::new(FailReflection)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let _guard = ServerGuard(handle);
+    assert_reflection_blocked(&client(addr).await).await;
+}
+
+#[tokio::test]
+async fn reflection_handlers_return_from_error_details() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        ServerReflectionServer::new(FailReflectionFromErrorDetails)
             .serve_listener(listener)
             .await
             .ok();
