@@ -4410,8 +4410,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ResponseParts::send_buffer_size in on_response closures"
     );
     assert!(
-        architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, limits)."),
-        "architecture must name Incoming-stamped peer facts on interceptor Rpc closures"
+        architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, `:authority` / `:scheme`, limits, extensions)."),
+        "architecture must name Incoming-stamped peer facts and extensions on interceptor Rpc closures"
     );
     assert!(
         architecture.contains("`send_buffer_size`, `remote_addr` / `local_addr` / `peer_identity` / `peer_cred`, and `:authority` / `:scheme`. Dumping"),
