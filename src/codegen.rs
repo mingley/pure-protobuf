@@ -5127,6 +5127,10 @@ fn emit_kernel_client(
         src,
         "    /// [`{G}::Outgoing::compress_is_set`] is occupancy on this generated intercept path, so a later interceptor can fill compress only when unset."
     );
+    let _ = writeln!(
+        src,
+        "    /// `clear_wait_for_ready` restores the channel wait-for-ready overlay after a generated intercept choice."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");
