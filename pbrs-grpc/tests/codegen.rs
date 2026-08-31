@@ -4393,6 +4393,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::ResponseParts::compress_is_set`] is occupancy after a generated client on_response, so a later interceptor can fill compress only when unset."
+        ),
+        "generated client on_response rustdoc must name compress_is_set occupancy next to received send_buffer"
+    );
+    assert!(
+        src.contains(
             "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterClient::new(channel).on_response`)."
         ),
         "generated client on_response rustdoc must point at the compiling hello overlay dump"

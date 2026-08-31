@@ -5163,6 +5163,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::ResponseParts::compress_is_set`] is occupancy after a generated client on_response, so a later interceptor can fill compress only when unset."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterClient::new(channel).on_response`)."
     );
     let _ = writeln!(src, "    #[must_use]");
