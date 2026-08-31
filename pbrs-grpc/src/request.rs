@@ -1469,6 +1469,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.extensions(),
 ///         parts.user_agent(),
 ///     );
+///     let _ = parts.cancelled();
 /// }
 /// # let _ = dump_parts;
 /// ```
