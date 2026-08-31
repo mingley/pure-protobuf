@@ -1286,6 +1286,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::extensions must Distinct the mutable split reply envelope map from the borrow"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Request::path`]: that is the inbound request, not this split reply envelope."
+        ),
+        "ResponseParts::path must Distinct inbound Request::path from the split reply"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
