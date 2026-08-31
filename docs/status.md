@@ -735,6 +735,7 @@ See `docs/upb.md`. Short list:
   on those methods, including over TLS, mTLS, Unix, and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status TestService interceptor Err; those trailers reach the client without reading the body.
   `Status::from_error_details` is the typed bag after this packed-status TestService handler Err; those trailers reach the client.
+  `Status::from_error_details` is the typed bag after this packed-status TestService client interceptor Err; a local reject never opens a stream.
   GCP-auth and ORCA stay out; load balancing, application retries, and
   hedging are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
