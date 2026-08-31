@@ -287,6 +287,7 @@ is sent. `Outgoing::set_timeout` is that Call's deadline on every call shape.
 Bind borrowed getters
 before `metadata_mut`.
 `Outgoing::user_agent_is_set` is occupancy on this architecture interceptor path, so a later interceptor can prefix only when unset.
+`Outgoing::wait_for_ready_is_set` is occupancy on this architecture interceptor path, so a later interceptor can fill wait-for-ready only when unset.
 
 ### Status
 

@@ -5790,6 +5790,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name Outgoing::user_agent_is_set occupancy next to Channel::intercept inventory"
     );
+    assert!(
+        architecture.contains(
+            "`Outgoing::wait_for_ready_is_set` is occupancy on this architecture interceptor path, so a later interceptor can fill wait-for-ready only when unset."
+        ),
+        "architecture must name Outgoing::wait_for_ready_is_set occupancy next to user_agent occupancy"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
