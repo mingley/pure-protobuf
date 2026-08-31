@@ -1136,6 +1136,7 @@ impl<'a> Outgoing<'a> {
 
     /// Service half of the path, e.g. `helloworld.Greeter`.
     ///
+    /// Distinct from [`crate::Rpc::service`]: that is a server interceptor; this is a client interceptor before send.
     /// Same split as [`crate::Rpc::service`]. Unparseable paths yield `""`.
     /// Bind it before [`Self::metadata_mut`]: `let svc = call.service();`.
     /// Applies to every call shape.

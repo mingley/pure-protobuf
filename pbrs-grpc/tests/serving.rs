@@ -765,6 +765,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`crate::Rpc::service`]: that is a server interceptor; this is a client interceptor before send."
+        ),
+        "Outgoing::service must Distinct the server interceptor service from the outbound split"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Rpc::path`]: that is a server interceptor; this is a client interceptor before send."
         ),
         "Outgoing::path must Distinct the server interceptor path from the outbound path"
