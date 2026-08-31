@@ -885,6 +885,7 @@ impl Channel {
     /// [`crate::Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after this Channel intercept choice.
     /// [`crate::Outgoing::clear_timeout`] opts out of the channel timeout after this Channel intercept choice.
     /// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`] reapplies channel gzip after this Channel intercept choice.
+    /// [`crate::Status::from_error_details`] is the typed bag after this Channel intercept Err; a local reject never opens a stream.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {

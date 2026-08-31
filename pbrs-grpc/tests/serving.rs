@@ -3400,6 +3400,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must name clear_compress reapply next to clear_timeout"
     );
     assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this Channel intercept Err; a local reject never opens a stream."
+        ),
+        "Channel::intercept rustdoc must name from_error_details typed bag next to intercept Err"
+    );
+    assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
     );
