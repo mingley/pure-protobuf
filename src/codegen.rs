@@ -5135,6 +5135,10 @@ fn emit_kernel_client(
         src,
         "    /// `clear_timeout` opts out of the channel timeout after a generated intercept choice."
     );
+    let _ = writeln!(
+        src,
+        "    /// `clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a generated intercept choice."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");
