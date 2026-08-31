@@ -472,6 +472,7 @@ impl<T> Request<T> {
 
     /// Whether the peer advertised gzip in `grpc-accept-encoding`.
     ///
+    /// Distinct from [`Self::accepts_compressed`]: that is the inbound overlay, not the peer advertisement.
     /// `true` after inbound dispatch when the client listed gzip. Kernel
     /// clients always advertise gzip, so a handler talking to
     /// [`crate::Channel`] sees `true` even when the request body itself is
