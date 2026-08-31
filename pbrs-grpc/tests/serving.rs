@@ -1532,6 +1532,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseParts::rpc_timeout Distinct from peer_timeout: that is the client's grpc-timeout on this split reply envelope, not the server overlay"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`crate::Rpc::rpc_timeout`]: that is a server interceptor before the handler, not this split reply envelope."
+        ),
+        "ResponseParts::rpc_timeout Distinct from Rpc::rpc_timeout: that is a server interceptor before the handler, not this split reply envelope"
+    );
+    assert!(
         outgoing.contains("Distinct from [`crate::Request::path`]: that is the inbound request."),
         "Response::path must Distinct inbound Request::path"
     );
