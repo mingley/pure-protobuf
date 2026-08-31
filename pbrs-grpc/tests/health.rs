@@ -731,6 +731,18 @@ fn interceptor_blocked() -> Status {
     .expect("details")
 }
 
+fn interceptor_blocked_from_error_details() -> Status {
+    let details = pbrs_grpc::pb::ErrorDetails {
+        error_info: Some(pbrs_grpc::pb::ErrorInfo::with_reason(
+            "BLOCKED",
+            "example.com",
+        )),
+        ..pbrs_grpc::pb::ErrorDetails::default()
+    };
+    Status::from_error_details(Code::FailedPrecondition, "blocked locally", &details)
+        .expect("details")
+}
+
 fn assert_interceptor_blocked(err: &Status) {
     assert_eq!(err.code(), Code::FailedPrecondition, "{err}");
     assert_eq!(err.message(), "blocked locally");
@@ -1090,6 +1102,25 @@ async fn health_interceptor_rejects_check_and_watch() {
     let addr = listener.local_addr().expect("local_addr");
     let handle = tokio::spawn(async move {
         svc.intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked()))
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = client(addr).await;
+    assert_health_blocked(&client).await;
+    handle.abort();
+}
+
+#[tokio::test]
+async fn health_interceptor_rejects_check_and_watch_with_from_error_details() {
+    let (svc, reporter) = service();
+    reporter.set_serving("");
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("local_addr");
+    let handle = tokio::spawn(async move {
+        svc.intercept(|_rpc: &mut pbrs_grpc::Rpc| Err(interceptor_blocked_from_error_details()))
             .serve_listener(listener)
             .await
             .ok();
