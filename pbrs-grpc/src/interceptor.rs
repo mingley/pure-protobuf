@@ -167,6 +167,7 @@ where
 /// envelope holds initial headers; [`crate::Streaming::trailers`] still come
 /// from the wire after end-of-stream. Applies to every call shape, including
 /// over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
+/// [`crate::Status::from_error_details`] is the typed bag on this ResponseInterceptor Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
 ///
 /// Calling either attach point twice stacks (first interceptor first).
 ///
