@@ -3526,6 +3526,7 @@ impl ConnectionInfo {
     }
 
     /// Local address, if set.
+    /// Distinct from [`Self::with_local_addr`], which sets it.
     #[must_use]
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.local

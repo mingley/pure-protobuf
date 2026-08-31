@@ -4971,6 +4971,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Local address, if set.\n    /// Distinct from [`Self::with_local_addr`], which sets it."
+        ),
+        "ConnectionInfo::local_addr must Distinct the setter"
+    );
+    assert!(
+        src.contains(
             "Serve connections from `incoming` until it is exhausted.\n    /// Applies to every call shape. See [`Server::serve_with_incoming`]."
         ),
         "Router::serve_with_incoming must name every call shape"
