@@ -1505,6 +1505,8 @@ pub struct Parts {
 
 impl Parts {
     /// Request headers.
+    ///
+    /// Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         &self.metadata

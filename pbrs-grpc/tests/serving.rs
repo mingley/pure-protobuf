@@ -694,6 +694,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump cancelled Distinct from the Parts tuple"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::metadata_mut`]: that mutates this split envelope; this borrows it."
+        ),
+        "Parts::metadata must Distinct the mutable split envelope from the borrow"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
