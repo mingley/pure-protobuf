@@ -709,8 +709,9 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status reflection interceptor Err; those trailers reach the client without reading the body.
   `Status::from_error_details` is the typed bag after this packed-status Store interceptor Err; those trailers reach the client without reading the body.
   A generated Store handler `Err(with_error_details)`
-  unpacks on Get / Watch / PutAll / Sync too, including over TLS, mTLS, Unix, and `from_io`. A Health handler
-  `Err(with_error_details)` unpacks on Check, List, and Watch too, including over TLS, mTLS, Unix, and `from_io`.
+  unpacks on Get / Watch / PutAll / Sync too, including over TLS, mTLS, Unix, and `from_io`.
+  `Status::from_error_details` is the typed bag after this packed-status Store handler Err; those trailers reach the client.
+  A Health handler `Err(with_error_details)` unpacks on Check, List, and Watch too, including over TLS, mTLS, Unix, and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status Health handler Err; those trailers reach the client.
   A reflection handler `Err(with_error_details)` unpacks on the bidi `list_services` method too, including over TLS, mTLS, Unix,
   and `from_io`.
