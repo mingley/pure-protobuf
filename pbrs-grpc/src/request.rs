@@ -1451,6 +1451,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.deadline(),
 ///         parts.compress(),
 ///         parts.compressed(),
+///         parts.encoding(),
 ///     );
 /// }
 /// # let _ = dump_parts;

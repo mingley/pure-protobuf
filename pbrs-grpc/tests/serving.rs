@@ -613,6 +613,10 @@ fn channel_call_apis_document_hand_written_services() {
         "Parts rustdoc must dump compressed Distinct from compress"
     );
     assert!(
+        outgoing.contains("///         parts.compressed(),\n///         parts.encoding(),"),
+        "Parts rustdoc must dump encoding Distinct from compressed"
+    );
+    assert!(
         outgoing.contains("///         request.compress(),\n///         request.compressed(),"),
         "Request rustdoc must dump compressed Distinct from compress"
     );
