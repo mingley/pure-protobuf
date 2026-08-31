@@ -2960,6 +2960,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ResponseInterceptor rustdoc must Distinct send_buffer_size from encode caps"
     );
     assert!(
+        intercept.contains(
+            "[`crate::ResponseParts::compress_is_set`] is occupancy on this ResponseInterceptor path, so a later interceptor can fill compress only when unset."
+        ),
+        "ResponseInterceptor rustdoc must name compress_is_set occupancy next to send_buffer Distinct"
+    );
+    assert!(
         intercept.contains("///         parts.path(),"),
         "ResponseInterceptor rustdoc example must read path"
     );
