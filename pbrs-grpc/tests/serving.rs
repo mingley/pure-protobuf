@@ -5531,6 +5531,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name ResponseParts::clear_compress receive-path next to Server restore"
     );
     assert!(
+        readme.contains("`Status::error_info` / `ErrorInfo::with_reason`"),
+        "crate README must name ErrorInfo::with_reason next to Status::error_info"
+    );
+    assert!(
         status_guide
             .contains("over those transports, `accepts_gzip` / encoding (unary Compressed-Flag on"),
         "status guide must name accepts_gzip like Dumping Rpc"
