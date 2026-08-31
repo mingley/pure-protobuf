@@ -3315,6 +3315,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Distinct from [`Self::set_error_details`]: that packs `Any` values; this encodes a packed `google.rpc.Status`."
+        ),
+        "Status::set_rpc must Distinct packing Anys from encoding a packed google.rpc.Status"
+    );
+    assert!(
+        status_src.contains(
             "[`Self::set_rpc`] / [`Self::set_error_details`] / [`Self::set_from_error_details`] replace the protobuf"
         ),
         "Status type rustdoc must name set_from_error_details next to the in-place Any packer"

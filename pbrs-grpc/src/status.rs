@@ -450,6 +450,7 @@ impl Status {
     ///
     /// Prefer this over [`Self::from_rpc`] when the status already carries
     /// trailers such as `x-retry-after`.
+    /// Distinct from [`Self::set_error_details`]: that packs `Any` values; this encodes a packed `google.rpc.Status`.
     pub fn set_rpc(&mut self, rpc: &crate::pb::Status) -> Result<(), Self> {
         let bytes = pbrs::Serialize::serialize(rpc)
             .map_err(|e| Self::internal(format!("serialize google.rpc.Status: {e}")))?;
