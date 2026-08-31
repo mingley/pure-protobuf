@@ -961,6 +961,7 @@ impl Channel {
     ///         parts.service(),
     ///         parts.method(),
     ///         parts.metadata(),
+    ///         parts.trailers(),
     ///         parts.gzip_level(),
     ///         parts.compresses_outbound(),
     ///         parts.accepts_gzip(),
