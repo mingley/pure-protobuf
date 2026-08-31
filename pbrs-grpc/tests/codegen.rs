@@ -181,6 +181,29 @@ impl Store for TypedFailStore {
     }
 }
 
+struct TypedFailStoreFromErrorDetails;
+
+impl Store for TypedFailStoreFromErrorDetails {
+    async fn get(&self, _: Request<GetRequest>) -> Result<Response<GetResponse>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn put_all(&self, _: Request<Streaming<Entry>>) -> Result<Response<PutSummary>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn watch(&self, _: Request<WatchRequest>) -> Result<Response<Streaming<Event>>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+
+    async fn sync(
+        &self,
+        _: Request<Streaming<Entry>>,
+    ) -> Result<Response<Streaming<Event>>, Status> {
+        Err(interceptor_blocked_from_error_details())
+    }
+}
+
 fn typed_after_headers_status() -> Status {
     let mut info = pbrs_grpc::pb::ErrorInfo::new();
     info.set_reason("API_DISABLED");
@@ -1020,6 +1043,22 @@ async fn generated_handlers_return_typed_status_on_every_shape() {
     let addr = listener.local_addr().expect("addr");
     let server = tokio::spawn(async move {
         StoreServer::new(TypedFailStore)
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    assert_store_blocked_every_shape(&client(addr).await).await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn generated_handlers_return_from_error_details_on_every_shape() {
+    let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], 0)))
+        .await
+        .expect("bind");
+    let addr = listener.local_addr().expect("addr");
+    let server = tokio::spawn(async move {
+        StoreServer::new(TypedFailStoreFromErrorDetails)
             .serve_listener(listener)
             .await
             .ok();
