@@ -2042,7 +2042,9 @@ every `Channel` call shape, including `send_compressed` gzip over TLS, mTLS,
 Unix, and `from_io`, interceptor `with_error_details` over TLS, mTLS, Unix,
 and `from_io`, and a handler `Err(with_error_details)` over TLS, mTLS, Unix,
 and `from_io`. Unknown methods on that `Service` are `UNIMPLEMENTED` on every
-call shape on those transports too. Official `TestService` handler `Err(with_error_details)` unpacks
+call shape on those transports too.
+`Status::from_error_details` is the typed bag after this guide Reverser interceptor Err; those trailers reach the client without reading the body.
+Official `TestService` handler `Err(with_error_details)` unpacks
 on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
 those transports too. A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
