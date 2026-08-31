@@ -2049,6 +2049,7 @@ call shape on those transports too.
 Official `TestService` handler `Err(with_error_details)` unpacks
 on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
 those transports too.
+`Status::from_error_details` is the typed bag after this guide TestService interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client.
 A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
