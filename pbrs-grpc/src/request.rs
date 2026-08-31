@@ -572,6 +572,7 @@ impl<T> Request<T> {
 
     /// The `grpc-encoding` token the peer used on this call, if any.
     ///
+    /// Distinct from [`Self::accepts_gzip`]: that is the peer's `grpc-accept-encoding`, not this inbound `grpc-encoding`.
     /// `Some("gzip")` when the request body (unary) or stream (client/bidi)
     /// is gzip-compressed. `None` means identity — header absent, empty, or
     /// an explicit `identity` token — or a request you built to send. Distinct
