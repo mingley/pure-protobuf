@@ -61,7 +61,9 @@
 //! the client.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection handler Err; those trailers reach the client.
 //! [`crate::StreamSender::fail`] after a streamed DATA frame on
-//! `ServerReflectionInfo` ships those trailers the same way. Unix (`serve_unix` /
+//! `ServerReflectionInfo` ships those trailers the same way.
+//! [`crate::Status::from_error_details`] is the typed bag after this reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
+//! Unix (`serve_unix` /
 //! `connect_unix`), TLS (`serve_tls` /
 //! `connect_tls`),
 //! and [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve

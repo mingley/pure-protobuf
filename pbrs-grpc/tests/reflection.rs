@@ -416,6 +416,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name from_error_details typed bag next to client interceptor Err"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "reflection crate rustdoc must name from_error_details typed bag next to StreamSender fail"
+    );
 }
 
 #[tokio::test]
