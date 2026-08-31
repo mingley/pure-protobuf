@@ -5880,6 +5880,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
     );
+    assert!(
+        architecture.contains(
+            "`Outgoing::clear_user_agent` restores the channel user-agent after an architecture interceptor prefix."
+        ),
+        "architecture must name Outgoing::clear_user_agent next to compress occupancy"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
