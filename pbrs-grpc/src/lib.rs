@@ -126,6 +126,8 @@
 //!
 //! [`Outgoing::clear_timeout`] opts out of the channel timeout after a crate-map interceptor choice.
 //!
+//! [`Status::from_error_details`] is the typed bag after this crate-map interceptor Err; a local reject never opens a stream.
+//!
 //! [`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset.
 //!
 //! [`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path.
