@@ -5524,6 +5524,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Outgoing::compress_is_set occupancy next to wait_for_ready occupancy"
     );
     assert!(
+        status_guide.contains(
+            "`ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset."
+        ),
+        "status guide must name ResponseParts::compress_is_set occupancy next to intercept compress occupancy"
+    );
+    assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );

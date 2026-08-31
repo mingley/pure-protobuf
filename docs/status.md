@@ -491,6 +491,7 @@ See `docs/upb.md`. Short list:
   `Outgoing::clear_timeout` opts out of the channel timeout after a packed-status interceptor choice.
   `Outgoing::wait_for_ready_is_set` distinguishes an unset wait-for-ready from an explicit `false` on this packed-status interceptor path.
   `Outgoing::compress_is_set` distinguishes unset compress from an explicit `false` on this packed-status interceptor path.
+  `ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset.
   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
   interceptor on those transports plus `from_io`, including official TestService
