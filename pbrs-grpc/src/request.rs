@@ -1446,6 +1446,7 @@ impl<T: fmt::Debug> fmt::Debug for Request<T> {
 ///         parts.method(),
 ///         parts.metadata(),
 ///         parts.timeout(),
+///         parts.rpc_timeout(),
 ///     );
 /// }
 /// # let _ = dump_parts;
