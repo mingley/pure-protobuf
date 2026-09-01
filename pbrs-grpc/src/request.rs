@@ -1587,6 +1587,8 @@ impl Parts {
 
     /// Clear a timeout previously set on this envelope.
     /// See [`Request::clear_timeout`].
+    ///
+    /// Distinct from [`Self::set_timeout`]: that writes the relative timeout this split envelope carries; this opts out.
     pub fn clear_timeout(&mut self) {
         self.timeout = None;
     }
