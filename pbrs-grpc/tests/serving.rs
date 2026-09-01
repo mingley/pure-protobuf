@@ -4993,6 +4993,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name ChannelConfig::max_connection_idle next to client age"
     );
     assert!(
+        crate_src
+            .contains("[`ChannelConfig::connect_timeout`] / [`ServerConfig::handshake_timeout`]"),
+        "crate threat table must name handshake_timeout next to connect_timeout"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
