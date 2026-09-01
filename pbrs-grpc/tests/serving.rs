@@ -6327,6 +6327,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name FieldViolation::with_field next to BadRequest::with_field"
     );
     assert!(
+        status_guide.contains(
+            "`quota_failure::Violation::with_subject` builds a nested quota subject on this packed-status."
+        ),
+        "status guide must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
+    );
+    assert!(
         status_guide.contains("`RetryInfo::with_retry_delay` builds that payload."),
         "status guide must name RetryInfo::with_retry_delay as the builder"
     );
