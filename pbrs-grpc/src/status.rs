@@ -77,6 +77,7 @@ impl Code {
     }
 
     /// The value used on the wire.
+    /// Distinct from [`Self::from_i32`]: that interprets a wire i32; this emits the wire i32.
     #[must_use]
     pub fn to_i32(self) -> i32 {
         self as i32

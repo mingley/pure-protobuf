@@ -4721,8 +4721,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Code::from_i32 next to Code"
     );
     assert!(
-        crate_src.contains("[`Code::from_i32`], [`ParseCodeError`]"),
-        "crate map must name ParseCodeError next to Code::from_i32"
+        crate_src.contains("[`Code::from_i32`], [`Code::to_i32`]"),
+        "crate map must name Code::to_i32 next to Code::from_i32"
+    );
+    assert!(
+        crate_src.contains("[`Code::to_i32`], [`ParseCodeError`]"),
+        "crate map must name ParseCodeError next to Code::to_i32"
     );
     assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
@@ -5721,6 +5725,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::to_i32`]: that emits the wire i32; this interprets a wire i32."
         ),
         "Code::from_i32 must Distinct emitting the wire i32 from interpreting a wire i32"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::from_i32`]: that interprets a wire i32; this emits the wire i32."
+        ),
+        "Code::to_i32 must Distinct interpreting a wire i32 from emitting the wire i32"
     );
     assert!(
         status_src.contains(
