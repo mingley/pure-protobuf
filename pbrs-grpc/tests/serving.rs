@@ -8031,6 +8031,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::set_code` mutates in place after this guide with_code builder, Distinct from being the builder."
+        ),
+        "guide must name Status::set_code next to Status::rpc"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
