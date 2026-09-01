@@ -8583,6 +8583,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::code` is the ASCII `grpc-status` trailer after this guide raw details bytes, Distinct from returning raw trailer bytes."
+        ),
+        "guide must name Status::code Distinct from raw details next to Status::details"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
