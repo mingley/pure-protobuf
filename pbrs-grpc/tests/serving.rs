@@ -4952,6 +4952,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         crate_src.contains("[`pb::BadRequest::with_field`]"),
         "crate map must name BadRequest::with_field"
     );
+    assert!(
+        crate_src.contains("[`pb::FieldViolation::with_field`]"),
+        "crate map must name FieldViolation::with_field next to BadRequest::with_field"
+    );
     let status_src = include_str!("../src/status.rs");
     assert!(
         status_src.contains("A peer can send a protobuf whose code or message disagrees"),
