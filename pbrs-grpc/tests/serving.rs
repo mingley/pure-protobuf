@@ -4821,6 +4821,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::to_anys next to ErrorDetails::new"
     );
     assert!(
+        crate_src.contains("[`pb`], [`Any::pack`]"),
+        "crate map must name Any::pack next to pb"
+    );
+    assert!(
         crate_src.contains("[`Any::pack`], [`Any::pack_with`]"),
         "crate map must name Any::pack_with next to Any::pack"
     );
