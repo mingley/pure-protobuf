@@ -8495,6 +8495,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::rpc` is the packed protobuf after this guide ASCII grpc-status trailer, Distinct from being the ASCII `grpc-status` trailer."
+        ),
+        "guide must name Status::rpc Distinct from ASCII code next to Status::message"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
