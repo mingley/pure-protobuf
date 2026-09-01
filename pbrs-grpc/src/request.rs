@@ -1356,6 +1356,7 @@ impl<'a> Outgoing<'a> {
 
     /// gzip this request's payload and set the Compressed-Flag.
     ///
+    /// Distinct from [`Self::compress`]: that reads the per-RPC Compressed-Flag; this writes it.
     /// Passing `false` opts out of a channel [`crate::Channel::send_compressed`]
     /// overlay. Applies to every call shape.
     pub fn set_compress(&mut self, compress: bool) {
