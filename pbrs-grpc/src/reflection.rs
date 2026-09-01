@@ -83,6 +83,7 @@
 //! [`crate::Outgoing`] path / service / method / `:authority` / `:scheme` on
 //! that method.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection client interceptor Err; a local reject never opens a stream.
+//! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this reflection client interceptor already ran, so a local Err never consumes that budget.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
