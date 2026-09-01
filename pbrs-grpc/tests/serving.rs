@@ -5613,6 +5613,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from [`ResponseInterceptor`]: that is the after-Ok hook; this crate-map [`Intercepted`] runs before the handler and may hold that hook for after Ok."
+        ),
+        "crate docs must Distinct ResponseInterceptor after-Ok hook from Intercepted wrapper"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body."
         ),
         "crate docs must name from_error_details typed bag next to crate-map server intercept Err"
