@@ -3945,6 +3945,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this testing client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "testing crate rustdoc must Distinct max_concurrent_rpcs slot grab after TestService client intercept"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "testing crate rustdoc must name from_error_details typed bag next to TestService StreamSender fail"
