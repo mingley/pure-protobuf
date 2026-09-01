@@ -393,6 +393,7 @@ Or `status.quota_failure()` for quota subjects without unpacking the bag. Distin
 Or `status.precondition_failure()` for precondition type and subject without unpacking the bag. Distinct from `status.quota_failure()`. `PreconditionFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 `precondition_failure::Violation::with_type` builds a nested precondition type after this guide PreconditionFailure builder.
 Or `status.help()` for documentation links without unpacking the bag. Distinct from `status.precondition_failure()`. `Help::with_link` builds that payload. Links can sit next to a retryable UNAVAILABLE.
+`help::Link::with_url` builds a nested docs URL after this guide Help builder.
 Or `status.localized_message()` for a locale without unpacking the bag. Distinct from `status.message()`. `LocalizedMessage::with_locale` builds that payload. Distinct from `status.help()`.
 Or `status.request_info()` for a request_id without unpacking the bag. Distinct from `status.error_info()`. `RequestInfo::with_request_id` builds that payload. Distinct from `status.help()`.
 Or `status.resource_info()` for resource type and name without unpacking the bag. Distinct from `status.quota_failure()`. `ResourceInfo::with_resource` builds that payload. Distinct from `status.request_info()`.
