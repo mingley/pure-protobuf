@@ -5211,6 +5211,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::with_rpc next to set_from_error_details"
     );
     assert!(
+        crate_src.contains("[`Status::with_rpc`], [`Status::from_error`]"),
+        "crate map must name Status::from_error next to Status::with_rpc"
+    );
+    assert!(
         crate_src.contains("[`pb::Duration::from_std`], [`pb::Duration::try_to_std`]"),
         "crate map must name Duration::try_to_std next to Duration::from_std"
     );
