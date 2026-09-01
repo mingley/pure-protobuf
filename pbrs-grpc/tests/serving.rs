@@ -8235,6 +8235,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Any::unpack` decodes the payload after this architecture is type-URL check, Distinct from checking the type URL."
+        ),
+        "architecture must name Any::unpack next to Status::set_details"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"

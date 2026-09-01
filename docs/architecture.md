@@ -357,6 +357,7 @@ and HTTP/2 connection death attach the original error as
 `Any::pack` packs one message into an `Any` after this architecture with_error_details packer, Distinct from packing Anys onto a status.
 `Any::pack_with` takes an explicit type URL after this architecture pack constructor, Distinct from using `type.googleapis.com/<FULL_NAME>`.
 `Status::set_details` ships raw trailer bytes after this architecture set_error_details packer, Distinct from packing Anys onto a status.
+`Any::unpack` decodes the payload after this architecture is type-URL check, Distinct from checking the type URL.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
