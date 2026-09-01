@@ -7249,6 +7249,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::metadata_mut next to Status::metadata"
     );
     assert!(
+        status_guide.contains(
+            "`ParseCodeError` rejects a string on this packed-status, Distinct from `Code::from_i32` mapping an unrecognised wire i32 to `Unknown`."
+        ),
+        "status guide must name ParseCodeError next to Status::metadata_mut"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
