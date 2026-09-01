@@ -6283,6 +6283,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README UnimplementedService client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "crate README must Distinct max_concurrent_rpcs slot grab after UnimplementedService client intercept"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README InteropTestService interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate README must name from_error_details typed bag next to InteropTestService interceptor Err"
