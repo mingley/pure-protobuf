@@ -4913,6 +4913,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Call next to Target"
     );
     assert!(
+        crate_src.contains("[`Call`], [`CallHandle`]"),
+        "crate map must name CallHandle next to Call"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
