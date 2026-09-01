@@ -604,6 +604,7 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip on this ClientInterceptor path.
 /// [`crate::Status::from_error_details`] is the typed bag on this ClientInterceptor Err; a local reject never opens a stream.
 /// Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this ClientInterceptor already ran, so a local Err never consumes that budget.
+/// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};
