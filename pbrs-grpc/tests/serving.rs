@@ -8660,6 +8660,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this guide Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "guide must Distinct Server inbound-before-handler from Channel outbound-before-stream"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide server intercept Err; those trailers reach the client without reading the body."
         ),
         "guide must name from_error_details typed bag next to server intercept Err"
