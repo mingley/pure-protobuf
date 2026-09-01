@@ -5193,6 +5193,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Distinct from [`Self::details`]: that returns raw trailer bytes; this parses a packed `google.rpc.Status`."
+        ),
+        "Status::rpc must Distinct raw trailer bytes from this packed google.rpc.Status parse"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::rpc`]: that is the packed `google.rpc.Status`, not this typed bag."
         ),
         "Status::error_details must Distinct the packed google.rpc.Status from the typed bag"
