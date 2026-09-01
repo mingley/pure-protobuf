@@ -8260,6 +8260,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this packed-status Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "status guide must Distinct Server inbound-before-handler from Channel outbound-before-stream"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status server intercept Err; those trailers reach the client without reading the body."
         ),
         "status guide must name from_error_details typed bag next to server intercept Err"
