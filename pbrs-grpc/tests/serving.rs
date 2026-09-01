@@ -611,6 +611,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         stream.contains(
+            "Distinct from [`Self::send`]: that follows [`Self::compress`]; this gzips one message regardless of that flag."
+        ),
+        "StreamSender::send_compressed must Distinct following the compress default from one-message gzip"
+    );
+    assert!(
+        stream.contains(
             "Distinct from [`Self::send_compressed`]: that gzips one message regardless of the default; this follows [`Self::compress`]."
         ),
         "StreamSender::send must Distinct one-message gzip from following the compress default"

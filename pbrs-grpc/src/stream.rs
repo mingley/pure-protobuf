@@ -469,6 +469,7 @@ impl<T> StreamSender<T> {
     /// Queue one gzip-compressed message (Compressed-Flag 1).
     ///
     /// Distinct from [`Self::set_compress`]: that sets the default for later send; this gzips one message regardless of that flag.
+    /// Distinct from [`Self::send`]: that follows [`Self::compress`]; this gzips one message regardless of that flag.
     pub async fn send_compressed(&self, message: T) -> Result<(), Status>
     where
         T: pbrs::Serialize,
