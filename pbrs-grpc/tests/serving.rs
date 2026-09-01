@@ -7529,6 +7529,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::from_error_details` is the typed bag after this architecture UnimplementedService client interceptor Err; a local reject never opens a stream."
+        ),
+        "architecture must name from_error_details typed bag next to UnimplementedService client interceptor Err"
+    );
+    assert!(
+        architecture.contains(
             "`ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset."
         ),
         "architecture must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
