@@ -9183,6 +9183,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::details` returns raw trailer bytes after this architecture ASCII grpc-message trailer, Distinct from being the ASCII `grpc-message` trailer."
+        ),
+        "architecture must name Status::details Distinct from ASCII message next to ASCII code"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
