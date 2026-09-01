@@ -3251,6 +3251,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::intercept rustdoc must Distinct Channel outbound-before-stream from inbound-before-handler"
     );
     assert!(
+        intercept.contains(
+            "Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this ServiceExt intercept runs on the inbound RPC before the handler."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct on_response after-Ok from inbound-before-handler"
+    );
+    assert!(
         intercept.contains("svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "ServiceExt::intercept rustdoc example must attach a closure"
     );
