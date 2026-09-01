@@ -5343,6 +5343,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name help::Link::with_url next to Help::with_link"
     );
     assert!(
+        crate_src.contains("[`pb::help::Link::with_url`], [`pb::help`]"),
+        "crate map must name pb::help next to help::Link::with_url"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
