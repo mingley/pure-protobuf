@@ -8623,6 +8623,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::with_message` is the builder after this architecture set_message mutation, Distinct from mutating in place."
+        ),
+        "architecture must name Status::with_message next to Status::set_message"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
