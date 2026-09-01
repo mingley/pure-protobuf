@@ -5008,6 +5008,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name max_pending_accept_reset_streams next to its default"
     );
     assert!(
+        crate_src.contains(
+            "[`DEFAULT_MAX_LOCAL_ERROR_RESET_STREAMS`], override [`ServerConfig::max_local_error_reset_streams`]"
+        ),
+        "crate threat table must name max_local_error_reset_streams next to its default"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
