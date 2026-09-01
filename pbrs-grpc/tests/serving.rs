@@ -3546,6 +3546,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Intercepted rustdoc must Distinct Interceptor inbound hook from the wrapper that runs it"
     );
+    assert!(
+        intercept.contains(
+            "Distinct from [`ClientInterceptor`]: that is the outbound hook; this wrapper runs an inbound [`Interceptor`] before the handler."
+        ),
+        "Intercepted rustdoc must Distinct ClientInterceptor outbound hook from the inbound wrapper"
+    );
     assert_eq!(
         intercept
             .matches("Same kernel-stamped [`crate::ResponseParts`] overlays as [`crate::Server::on_response`]:")
