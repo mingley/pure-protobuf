@@ -3620,6 +3620,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::on_response rustdoc must name from_error_details typed bag next to on_response Err"
     );
     assert!(
+        intercept.contains(
+            "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this ServiceExt on_response runs after the handler returns Ok."
+        ),
+        "ServiceExt::on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
+    );
+    assert!(
         src.contains("starts empty; this is how a client inserts typed context after the"),
         "Channel::on_response must Distinct receive-side insert from the peer"
     );
