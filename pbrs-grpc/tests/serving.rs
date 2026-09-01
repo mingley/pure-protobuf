@@ -5093,6 +5093,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name QuotaFailure::with_violation"
     );
     assert!(
+        crate_src.contains("[`pb::quota_failure::Violation::with_subject`]"),
+        "crate map must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
+    );
+    assert!(
         status_src.contains("Packed `google.rpc.QuotaFailure`, if this status carries one."),
         "Status::quota_failure must name packed QuotaFailure"
     );
