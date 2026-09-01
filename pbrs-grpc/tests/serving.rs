@@ -6905,6 +6905,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::new next to Status::details"
     );
     assert!(
+        status_guide.contains(
+            "`Status::from_code` is code-only on this packed-status, Distinct from `new` taking a code and message."
+        ),
+        "status guide must name Status::from_code next to Status::new"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
