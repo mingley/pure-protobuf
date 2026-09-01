@@ -365,6 +365,7 @@ and HTTP/2 connection death attach the original error as
 `Status::details` returns raw trailer bytes after this architecture rpc parse, Distinct from parsing a packed `google.rpc.Status`.
 `Status::new` takes a code and message after this architecture from_code constructor, Distinct from being code-only.
 `Status::from_code` is code-only after this architecture new constructor, Distinct from taking a code and message.
+`Status::rpc` parses a packed `google.rpc.Status` after this architecture details getter, Distinct from returning raw trailer bytes.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.

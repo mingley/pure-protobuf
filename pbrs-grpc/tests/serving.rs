@@ -8495,6 +8495,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::rpc` parses a packed `google.rpc.Status` after this architecture details getter, Distinct from returning raw trailer bytes."
+        ),
+        "architecture must name Status::rpc next to Status::from_code"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
