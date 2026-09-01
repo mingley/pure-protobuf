@@ -1080,6 +1080,8 @@ impl<'a> Outgoing<'a> {
 
     /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
     /// [`crate::Channel::grpc_user_agent`] again. Applies to every call shape.
+    ///
+    /// Distinct from [`Self::set_user_agent`]: that prefixes this RPC; this restores the channel value.
     pub fn clear_user_agent(&mut self) {
         *self.user_agent = None;
     }
