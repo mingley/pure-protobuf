@@ -1402,6 +1402,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::set_timeout must Distinct reading the Call grpc-timeout from writing it"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::set_timeout`]: that writes the Call `grpc-timeout`; this opts out."
+        ),
+        "Outgoing::clear_timeout must Distinct writing the Call grpc-timeout from opting out"
+    );
+    assert!(
         outgoing.contains("Channel [`crate::Channel::max_send_buffer_size`] overlay."),
         "Outgoing::send_buffer_size must name the channel max_send_buffer_size overlay"
     );

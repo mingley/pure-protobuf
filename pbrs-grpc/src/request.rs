@@ -1271,6 +1271,7 @@ impl<'a> Outgoing<'a> {
     /// Clear a timeout previously set on the request, by the channel overlay,
     /// or by an earlier interceptor.
     ///
+    /// Distinct from [`Self::set_timeout`]: that writes the Call `grpc-timeout`; this opts out.
     /// The channel overlay has already run; clearing here opts out of that
     /// default too. [`Self::rpc_timeout`] still reports the channel policy so
     /// a later interceptor can re-apply it. Applies to every call shape.
