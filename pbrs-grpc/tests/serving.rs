@@ -7345,6 +7345,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::details Distinct from ASCII code next to Status::rpc"
     );
     assert!(
+        status_guide.contains(
+            "`Status::details` returns raw trailer bytes on this packed-status, Distinct from `message` being the ASCII `grpc-message` trailer."
+        ),
+        "status guide must name Status::details Distinct from ASCII message next to ASCII code"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
