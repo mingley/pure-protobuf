@@ -5,6 +5,8 @@
 //! together with `grpc.health.v1` and `grpc.reflection.v1` on loopback, then
 //! calls `SayHello`. Tests cover all four RPC shapes, health `Check` and
 //! `Watch`, and reflection `list_services`.
+//!
+//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter handler Err; those trailers reach the client.
 
 #![allow(
     missing_docs,
@@ -171,6 +173,14 @@ pub async fn run() -> Result<String, Status> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn example_docs_name_from_error_details_on_handler_err() {
+        let src = include_str!("lib.rs");
+        assert!(src.contains(
+            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter handler Err; those trailers reach the client."
+        ));
+    }
 
     fn text(reply: &HelloReply) -> String {
         reply.message().to_str().unwrap_or_default().to_owned()
