@@ -1784,6 +1784,7 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 `Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a client interceptor choice on those transports plus `from_io`.
 `Outgoing::clear_timeout` opts out of the channel timeout after a client interceptor choice on those transports plus `from_io`.
 `Status::from_error_details` is the typed bag after this guide interceptor Err; a local reject never opens a stream.
+Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this guide server intercept Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this guide Store interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this guide Store handler Err; those trailers reach the client.
