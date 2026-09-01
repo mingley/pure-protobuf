@@ -671,6 +671,7 @@ pub struct ErrorDetails {
 
 impl ErrorDetails {
     /// No detail messages.
+    /// Distinct from [`Self::from_rpc`]: that unpacks the `Any` list on a packed `google.rpc.Status`; this is an empty bag.
     #[must_use]
     pub fn new() -> Self {
         Self::default()

@@ -4689,8 +4689,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::from_error_details next to the Any packer"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails`], [`ErrorDetails::to_anys`]"),
-        "crate map must name ErrorDetails::to_anys next to ErrorDetails"
+        crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
+        "crate map must name ErrorDetails::new next to ErrorDetails"
+    );
+    assert!(
+        crate_src.contains("[`ErrorDetails::new`], [`ErrorDetails::to_anys`]"),
+        "crate map must name ErrorDetails::to_anys next to ErrorDetails::new"
     );
     assert!(
         crate_src.contains("[`Any::pack`], [`Any::pack_with`]"),
@@ -5569,6 +5573,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`crate::Status::from_error_details`]: that encodes the bag as a trailer; this returns the `Any` list."
         ),
         "ErrorDetails::to_anys must Distinct the typed-bag trailer constructor from this Any list"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`Self::from_rpc`]: that unpacks the `Any` list on a packed `google.rpc.Status`; this is an empty bag."
+        ),
+        "ErrorDetails::new must Distinct the Any-list unpack from this empty bag"
     );
     assert!(
         pb_src.contains(
