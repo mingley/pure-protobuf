@@ -4725,6 +4725,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name pb::Status::with_details next to the raw-trailer constructor"
     );
     assert!(
+        crate_src.contains("[`pb::Status::with_details`], [`Status::details`]"),
+        "crate map must name Status::details next to pb::Status::with_details"
+    );
+    assert!(
+        crate_src.contains("[`Status::details`], [`Status::rpc`]"),
+        "crate map must name Status::rpc next to Status::details"
+    );
+    assert!(
         crate_src.contains("[`Status::from_error`], [`Status::with_cause`]"),
         "crate map must name Status::with_cause next to Status::from_error"
     );
@@ -5623,6 +5631,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::set_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes on an existing status."
         ),
         "Status::set_details must Distinct packing Anys from raw trailer bytes on an existing status"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::rpc`]: that parses a packed `google.rpc.Status`; this returns raw trailer bytes."
+        ),
+        "Status::details must Distinct packed google.rpc.Status parse from raw trailer bytes"
     );
     assert!(
         status_src.contains(

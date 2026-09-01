@@ -395,6 +395,7 @@ impl Status {
     /// Raw bytes still round-trip on every call shape, including over TLS,
     /// mTLS, Unix, and [`crate::Channel::from_io`]. They do not appear as a
     /// `grpc-status-details-bin` metadata key.
+    /// Distinct from [`Self::rpc`]: that parses a packed `google.rpc.Status`; this returns raw trailer bytes.
     #[must_use]
     pub fn details(&self) -> &[u8] {
         self.detail.as_ref().map_or(&[], |d| d.details.as_ref())
