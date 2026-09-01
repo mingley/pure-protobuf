@@ -618,6 +618,7 @@ See `docs/upb.md`. Short list:
   `ErrorDetails::new` is an empty bag on this packed-status, Distinct from `from_rpc` unpacking the `Any` list.
   `Duration::from_std` builds the protobuf from `std` on this packed-status, Distinct from `try_to_std` converting this protobuf to `std`.
   `Duration::try_to_std` converts this protobuf to `std` on this packed-status, Distinct from `from_std` building the protobuf from `std`.
+  `Status::details` returns raw trailer bytes on this packed-status, Distinct from `rpc` parsing a packed `google.rpc.Status`.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
