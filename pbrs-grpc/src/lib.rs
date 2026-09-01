@@ -144,6 +144,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map reflection client interceptor Err; a local reject never opens a stream.
 //!
+//! [`Status::from_error_details`] is the typed bag after this crate-map reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
+//!
 //! [`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset.
 //!
 //! [`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path.
