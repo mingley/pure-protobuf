@@ -3610,6 +3610,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; a hello intercept already ran, so a local Err never consumes that budget."
+        ),
+        "hello GreeterClient::intercept rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
+    );
+    assert!(
+        hello.contains(
             "//!         call.connected(),\n//!         call.extensions(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"

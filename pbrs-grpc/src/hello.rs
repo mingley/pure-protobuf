@@ -15,6 +15,7 @@
 //! [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip after a hello intercept choice.
 //! [`crate::Outgoing::clear_timeout`] opts out of the channel timeout after a hello intercept choice.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello intercept Err; a local reject never opens a stream.
+//! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; a hello intercept already ran, so a local Err never consumes that budget.
 //!
 //! ```
 //! # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::hello::GreeterClient {
