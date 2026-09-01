@@ -4929,6 +4929,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ClientTls next to ServerTls"
     );
     assert!(
+        crate_src.contains("[`ClientTls`], [`PeerIdentity`]"),
+        "crate map must name PeerIdentity next to ClientTls"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
