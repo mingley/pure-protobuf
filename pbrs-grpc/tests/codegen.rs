@@ -4622,6 +4622,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this generated client on_response runs after a successful receive."
+        ),
+        "generated client on_response rustdoc must Distinct intercept outbound-before-stream from after-receive"
+    );
+    assert!(
+        src.contains(
             "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterClient::new(channel).on_response`)."
         ),
         "generated client on_response rustdoc must point at the compiling hello overlay dump"
