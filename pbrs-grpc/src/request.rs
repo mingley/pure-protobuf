@@ -1668,6 +1668,8 @@ impl Parts {
 
     /// Queue this RPC until the channel is connected.
     /// See [`Request::set_wait_for_ready`].
+    ///
+    /// Distinct from [`Self::wait_for_ready`]: that reads the wait-for-ready choice this split envelope carries; this writes it.
     pub fn set_wait_for_ready(&mut self, wait: bool) {
         self.wait_for_ready = Some(wait);
     }
