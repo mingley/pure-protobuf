@@ -364,6 +364,8 @@ impl<T> Request<T> {
 
     /// gzip this request's payload and set the Compressed-Flag.
     ///
+    /// Distinct from [`Self::compress`]: that reads outbound payload gzip on this envelope; this writes it.
+    ///
     /// Passing `false` opts out of a later [`crate::Channel::send_compressed`]
     /// overlay on every call shape, including over TLS, mTLS, Unix, and
     /// [`crate::Channel::from_io`]. [`Self::clear_compress`] drops the choice so that overlay
