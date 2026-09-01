@@ -294,6 +294,7 @@ before `metadata_mut`.
 `Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after an architecture interceptor choice.
 `Outgoing::clear_timeout` opts out of the channel timeout after an architecture interceptor choice.
 `Status::from_error_details` is the typed bag after this architecture interceptor Err; a local reject never opens a stream.
+Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this architecture server intercept Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture Store interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture Store handler Err; those trailers reach the client.
