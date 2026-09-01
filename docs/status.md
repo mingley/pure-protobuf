@@ -752,6 +752,7 @@ See `docs/upb.md`. Short list:
   mTLS, Unix, and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status Reverser interceptor Err; those trailers reach the client without reading the body.
   `Status::from_error_details` is the typed bag after this packed-status Reverser handler Err; those trailers reach the client.
+  `Outgoing::connected` is the live-socket snapshot on this packed-status Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
   `Status::from_error_details` is the typed bag after this packed-status Reverser client interceptor Err; a local reject never opens a stream.
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status Reverser client interceptor already ran, so a local Err never consumes that budget.
   `Status::from_error_details` is the typed bag after this packed-status hello interceptor Err; those trailers reach the client without reading the body.
