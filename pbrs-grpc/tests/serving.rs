@@ -6782,6 +6782,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::new next to Status::details"
     );
     assert!(
+        readme.contains("`Status::from_code` is code-only on this crate README, Distinct from `new` taking a code and message."),
+        "crate README must name Status::from_code next to Status::new"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
