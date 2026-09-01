@@ -3245,6 +3245,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::intercept rustdoc must name from_error_details typed bag next to intercept Err"
     );
     assert!(
+        intercept.contains(
+            "Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this ServiceExt intercept runs on the inbound RPC before the handler."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct Channel outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
         intercept.contains("svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "ServiceExt::intercept rustdoc example must attach a closure"
     );
