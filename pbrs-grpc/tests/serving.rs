@@ -1388,6 +1388,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`crate::Outgoing::user_agent`]: that is the effective value after interceptors; this prefixes the override this envelope carries."
+        ),
+        "Request::set_user_agent must Distinct the effective interceptor header from prefixing this envelope"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::set_user_agent`]: that prefixes this envelope; this restores the channel value."
         ),
         "Request::clear_user_agent must Distinct prefixing from restoring the channel value"

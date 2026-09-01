@@ -426,10 +426,9 @@ impl<T> Request<T> {
     /// [`crate::Outgoing::set_user_agent`]: `prefix pbrs-grpc/<version>`.
     /// Empty prefix is the kernel identity alone. Invalid HTTP is
     /// [`crate::Code::InvalidArgument`]. Distinct from inserting `user-agent`
-    /// into metadata, which the kernel overwrites. Distinct from
-    /// [`crate::Outgoing::user_agent`], which is the effective value; this
-    /// getter is the override only, like [`Self::timeout`]. An interceptor
-    /// [`crate::Outgoing::set_user_agent`] that runs after the call site wins.
+    /// into metadata, which the kernel overwrites.
+    /// Distinct from [`crate::Outgoing::user_agent`]: that is the effective value after interceptors; this prefixes the override this envelope carries.
+    /// An interceptor [`crate::Outgoing::set_user_agent`] that runs after the call site wins.
     /// [`Self::clear_user_agent`] restores the channel value. Applies to
     /// every call shape.
     pub fn set_user_agent(&mut self, prefix: impl AsRef<str>) -> Result<(), Status> {
