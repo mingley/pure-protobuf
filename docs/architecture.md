@@ -356,6 +356,7 @@ stream, without waiting for a later status change.
 `file_containing_extension` / `all_extension_numbers_of_type` run on that
 one bidi method, including over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this architecture reflection interceptor Err; those trailers reach the client without reading the body.
+`Status::from_error_details` is the typed bag after this architecture reflection handler Err; those trailers reach the client.
 
 ## Parse / encode
 
