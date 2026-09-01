@@ -5030,6 +5030,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name Code::Cancelled next to Streaming"
     );
     assert!(
+        crate_src.contains("[`StreamSender::fail`]) | RST CANCEL; the [`Call`]"),
+        "crate threat table must name Call next to StreamSender::fail"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
