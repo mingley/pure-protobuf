@@ -389,6 +389,7 @@ Or `status.error_info()` for the reason and domain without unpacking the bag. Di
 Or `status.bad_request()` for field violations without unpacking the bag. Distinct from `status.error_info()`. `BadRequest::with_field` builds that payload.
 `FieldViolation::with_field` builds a nested field path after this guide BadRequest builder.
 Or `status.quota_failure()` for quota subjects without unpacking the bag. Distinct from `status.is_retryable()`. `QuotaFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
+`quota_failure::Violation::with_subject` builds a nested quota subject after this guide QuotaFailure builder.
 Or `status.precondition_failure()` for precondition type and subject without unpacking the bag. Distinct from `status.quota_failure()`. `PreconditionFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 Or `status.help()` for documentation links without unpacking the bag. Distinct from `status.precondition_failure()`. `Help::with_link` builds that payload. Links can sit next to a retryable UNAVAILABLE.
 Or `status.localized_message()` for a locale without unpacking the bag. Distinct from `status.message()`. `LocalizedMessage::with_locale` builds that payload. Distinct from `status.help()`.
