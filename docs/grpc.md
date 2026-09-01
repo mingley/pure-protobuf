@@ -2071,6 +2071,7 @@ client-streaming have no response DATA then trailers).
 `Status::from_error_details` is the typed bag after this guide InteropTestService interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this guide InteropTestService handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this guide InteropTestService client interceptor Err; a local reject never opens a stream.
+`Status::from_error_details` is the typed bag after this guide InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 
 ## One-shape proofs
 
