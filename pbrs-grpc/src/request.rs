@@ -267,6 +267,8 @@ impl<T> Request<T> {
 
     /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
     ///
+    /// Distinct from [`Self::timeout`]: that reads the relative timeout this envelope carries; this writes it.
+    ///
     /// Inbound, the kernel stamps the effective remaining duration at
     /// dispatch (client, server cap, interceptor). That value does not
     /// shrink as the handler runs; see [`Self::deadline`] for the absolute
