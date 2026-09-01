@@ -1629,6 +1629,8 @@ impl Parts {
 
     /// Drop a compression choice so a later channel default can fill it in.
     /// See [`Request::clear_compress`].
+    ///
+    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this split envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }
