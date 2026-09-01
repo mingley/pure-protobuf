@@ -8150,6 +8150,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Outgoing::connected` is the live-socket snapshot on this architecture TestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "architecture must name Outgoing::connected live-socket snapshot on TestService"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture TestService client interceptor Err; a local reject never opens a stream."
         ),
         "architecture must name from_error_details typed bag next to TestService client interceptor Err"
