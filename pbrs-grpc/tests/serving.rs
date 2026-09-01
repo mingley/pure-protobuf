@@ -7703,6 +7703,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`ErrorDetails::from_rpc` unpacks the `Any` list after this guide error_details unpack, Distinct from unpacking a kernel Status trailer."
+        ),
+        "guide must name ErrorDetails::from_rpc next to to_anys"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
