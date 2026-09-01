@@ -4829,6 +4829,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Outgoing next to ClientInterceptor"
     );
     assert!(
+        crate_src.contains("[`Outgoing`], [`Extensions`]"),
+        "crate map must name Extensions next to Outgoing"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
