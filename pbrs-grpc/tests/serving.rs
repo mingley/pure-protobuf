@@ -7065,6 +7065,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Code::to_i32 next to Code::from_i32"
     );
     assert!(
+        status_guide.contains(
+            "`Code::name` is the canonical name on this packed-status, Distinct from `description` being the one-line google.rpc.Code text."
+        ),
+        "status guide must name Code::name next to Code::to_i32"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
