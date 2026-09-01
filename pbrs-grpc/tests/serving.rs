@@ -4865,6 +4865,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Server next to Rpc"
     );
     assert!(
+        crate_src.contains("[`Server`], [`Router`]"),
+        "crate map must name Router next to Server"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
