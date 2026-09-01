@@ -6176,6 +6176,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name ErrorInfo::with_reason next to Status::error_info"
     );
     assert!(
+        readme.contains("`ErrorInfo::with_reason` / `ErrorInfo::with_metadata`"),
+        "crate README must name ErrorInfo::with_metadata next to ErrorInfo::with_reason"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
