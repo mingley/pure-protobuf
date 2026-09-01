@@ -7289,6 +7289,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Outgoing::connected` is the live-socket snapshot on this guide InteropTestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "guide must name Outgoing::connected live-socket snapshot on InteropTestService"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide InteropTestService client interceptor Err; a local reject never opens a stream."
         ),
         "guide must name from_error_details typed bag next to InteropTestService client interceptor Err"

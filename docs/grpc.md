@@ -2091,6 +2091,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide UnimplementedService client interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this guide InteropTestService interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this guide InteropTestService handler Err; those trailers reach the client.
+`Outgoing::connected` is the live-socket snapshot on this guide InteropTestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide InteropTestService client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide InteropTestService client interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this guide InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
