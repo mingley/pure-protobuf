@@ -350,6 +350,7 @@ and HTTP/2 connection death attach the original error as
 `BadRequest`, `RequestInfo`, `ResourceInfo`, `Help`, `LocalizedMessage`) as
 `google.rpc.Status`. Distinct from `with_error_details`: that packs `Any` values, not the typed bag.
 `Status::with_details` ships raw trailer bytes after this architecture with_error_details packer, Distinct from packing Anys onto a status.
+`Status::with_rpc` keeps existing trailers after this architecture from_rpc constructor, Distinct from minting a fresh status.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
