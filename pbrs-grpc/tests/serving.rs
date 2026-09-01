@@ -4998,6 +4998,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name handshake_timeout next to connect_timeout"
     );
     assert!(
+        crate_src.contains("[`ServerConfig::tcp_keepalive`] / [`ChannelConfig::tcp_keepalive`]"),
+        "crate threat table must name ChannelConfig::tcp_keepalive next to ServerConfig"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
