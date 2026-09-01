@@ -6704,6 +6704,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Any::is next to Any::unpack"
     );
     assert!(
+        readme.contains("`ErrorDetails::new` is an empty bag on this crate README, Distinct from `from_rpc` unpacking the `Any` list."),
+        "crate README must name ErrorDetails::new next to Any::is"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
