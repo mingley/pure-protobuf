@@ -408,8 +408,8 @@ impl<T> Request<T> {
     ///
     /// `None` uses the channel [`crate::Channel::grpc_user_agent`]. Distinct
     /// from [`crate::Outgoing::user_agent`], which is the effective header
-    /// this RPC will send (channel or override). The override only, like
-    /// [`Self::timeout`]. Bind it before [`Self::metadata_mut`]:
+    /// this RPC will send (channel or override). The override only, like [`Self::timeout`].
+    /// Bind it before [`Self::metadata_mut`]:
     /// `let ua = request.user_agent();`.
     #[must_use]
     pub fn user_agent(&self) -> Option<&str> {
