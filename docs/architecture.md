@@ -360,6 +360,7 @@ and HTTP/2 connection death attach the original error as
 `Any::unpack` decodes the payload after this architecture is type-URL check, Distinct from checking the type URL.
 `Any::is` is a type-URL check after this architecture unpack decode, Distinct from decoding the payload.
 `ErrorDetails::new` is an empty bag after this architecture from_rpc unpack, Distinct from unpacking the `Any` list.
+`Duration::from_std` builds the protobuf from `std` after this architecture try_to_std convert, Distinct from converting this protobuf to `std`.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
