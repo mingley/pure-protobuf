@@ -8363,6 +8363,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Duration::try_to_std` converts this protobuf to `std` after this architecture from_std builder, Distinct from building the protobuf from `std`."
+        ),
+        "architecture must name Duration::try_to_std next to Duration::from_std"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
