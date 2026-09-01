@@ -6757,6 +6757,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::set_details next to Any::pack_with"
     );
     assert!(
+        status_guide.contains(
+            "`Any::unpack` decodes the payload on this packed-status, Distinct from `is` checking the type URL."
+        ),
+        "status guide must name Any::unpack next to Status::set_details"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );

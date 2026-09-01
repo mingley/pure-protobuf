@@ -613,6 +613,7 @@ See `docs/upb.md`. Short list:
   `Any::pack` packs one message into an `Any` on this packed-status, Distinct from `with_error_details` packing Anys onto a status.
   `Any::pack_with` takes an explicit type URL on this packed-status, Distinct from `pack` using `type.googleapis.com/<FULL_NAME>`.
   `Status::set_details` ships raw trailer bytes on this packed-status, Distinct from `set_error_details` packing Anys onto a status.
+  `Any::unpack` decodes the payload on this packed-status, Distinct from `is` checking the type URL.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
