@@ -6652,6 +6652,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Any::pack next to ErrorDetails::from_rpc"
     );
     assert!(
+        readme.contains("`Any::pack_with` takes an explicit type URL on this crate README, Distinct from `pack` using `type.googleapis.com/<FULL_NAME>`."),
+        "crate README must name Any::pack_with next to Any::pack"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
