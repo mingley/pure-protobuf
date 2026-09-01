@@ -366,6 +366,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Status::details` returns raw trailer bytes after this guide rpc parse, Distinct from parsing a packed `google.rpc.Status`.
 `Status::new` takes a code and message after this guide from_code constructor, Distinct from being code-only.
 `Status::from_code` is code-only after this guide new constructor, Distinct from taking a code and message.
+`Status::rpc` parses a packed `google.rpc.Status` after this guide details getter, Distinct from returning raw trailer bytes.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip.
 `Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,

@@ -8005,6 +8005,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::rpc` parses a packed `google.rpc.Status` after this guide details getter, Distinct from returning raw trailer bytes."
+        ),
+        "guide must name Status::rpc next to Status::from_code"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
