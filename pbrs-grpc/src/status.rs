@@ -654,6 +654,7 @@ impl Status {
     /// Peer trailers unpack `grpc-status-details-bin`; a local
     /// [`Self::with_cause`] has no packed details. Corrupt bytes are `None`.
     /// Build the payload with [`crate::pb::ErrorInfo::with_reason`].
+    /// Fill a metadata pair with [`crate::pb::ErrorInfo::with_metadata`].
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
