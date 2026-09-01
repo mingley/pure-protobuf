@@ -4689,6 +4689,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::from_error_details next to the Any packer"
     );
     assert!(
+        crate_src.contains("[`ErrorDetails::from_rpc`], [`Status::new`]"),
+        "crate map must name Status::new next to ErrorDetails::from_rpc"
+    );
+    assert!(
+        crate_src.contains("[`Status::new`], [`Status::with_error_details`]"),
+        "crate map must name Status::with_error_details next to Status::new"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
@@ -5637,6 +5645,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::rpc`]: that parses a packed `google.rpc.Status`; this returns raw trailer bytes."
         ),
         "Status::details must Distinct packed google.rpc.Status parse from raw trailer bytes"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::from_code`]: that is code-only; this takes a code and message."
+        ),
+        "Status::new must Distinct the code-only constructor from this code-and-message constructor"
     );
     assert!(
         status_src.contains(

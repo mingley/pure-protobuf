@@ -279,6 +279,7 @@ fn empty_metadata() -> &'static Metadata {
 
 impl Status {
     /// A status with `code` and `message`, and no trailing metadata.
+    /// Distinct from [`Self::from_code`]: that is code-only; this takes a code and message.
     #[must_use]
     pub fn new(code: Code, message: impl Into<String>) -> Self {
         let message = message.into();
