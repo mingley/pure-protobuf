@@ -4891,6 +4891,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ServerConfig next to ConnectionInfo"
     );
     assert!(
+        crate_src.contains("[`ServerConfig`], [`PeerCred`]"),
+        "crate map must name PeerCred next to ServerConfig"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
