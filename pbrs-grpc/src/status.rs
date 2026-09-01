@@ -310,6 +310,7 @@ impl Status {
     /// The status code.
     /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the ASCII `grpc-status` code.
     /// Distinct from [`Self::rpc`]: that is the packed protobuf; this is the ASCII `grpc-status` code.
+    /// Distinct from [`Self::details`]: that returns raw trailer bytes; this is the ASCII `grpc-status` code.
     #[must_use]
     pub fn code(&self) -> Code {
         self.code
