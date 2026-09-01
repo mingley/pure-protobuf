@@ -312,6 +312,7 @@ before `metadata_mut`.
 `Status::from_error_details` is the typed bag after this architecture hello client interceptor Err; a local reject never opens a stream.
 `Status::from_error_details` is the typed bag after this architecture hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `Status::from_error_details` is the typed bag after this architecture UnimplementedService interceptor Err; those trailers reach the client without reading the body.
+`Status::from_error_details` is the typed bag after this architecture UnimplementedService handler Err; those trailers reach the client.
 `ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this architecture on_response path.
 `Status::from_error_details` is the typed bag after this architecture server on_response Err; a local reject is trailers-only after handler Ok.
