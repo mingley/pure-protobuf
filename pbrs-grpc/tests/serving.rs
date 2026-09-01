@@ -6258,6 +6258,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
     );
     assert!(
+        readme.contains(
+            "`Status::precondition_failure` / `PreconditionFailure::with_violation` builds packed type and subject on this crate README"
+        ),
+        "crate README must name PreconditionFailure::with_violation next to Status::precondition_failure"
+    );
+    assert!(
         readme.contains("`Status::with_cause` attaching `Error::source` onto an existing status"),
         "crate README must name Status::with_cause next to Status::from_error"
     );
