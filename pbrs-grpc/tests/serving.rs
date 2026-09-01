@@ -6276,6 +6276,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Help::with_link next to Status::help"
     );
     assert!(
+        readme.contains("`help::Link::with_url` builds a nested docs URL on this crate README"),
+        "crate README must name help::Link::with_url next to Help::with_link"
+    );
+    assert!(
         readme.contains("`Status::with_cause` attaching `Error::source` onto an existing status"),
         "crate README must name Status::with_cause next to Status::from_error"
     );
