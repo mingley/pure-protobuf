@@ -8403,6 +8403,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::metadata_mut` mutates this status trailers map after this guide metadata borrow, Distinct from borrowing it."
+        ),
+        "guide must name Status::metadata_mut next to Status::metadata"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
