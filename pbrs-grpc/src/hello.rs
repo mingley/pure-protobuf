@@ -17,6 +17,7 @@
 //! [`crate::Outgoing::connected`] is the live-socket snapshot on this hello intercept path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello intercept Err; a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; a hello intercept already ran, so a local Err never consumes that budget.
+//! Distinct from [`GreeterServer::intercept`]: that runs on the inbound RPC before the handler; this hello intercept runs on the outbound call before the stream opens.
 //!
 //! ```
 //! # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::hello::GreeterClient {

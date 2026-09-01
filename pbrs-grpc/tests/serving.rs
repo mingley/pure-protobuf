@@ -4102,6 +4102,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from [`GreeterServer::intercept`]: that runs on the inbound RPC before the handler; this hello intercept runs on the outbound call before the stream opens."
+        ),
+        "hello GreeterClient::intercept rustdoc must Distinct GreeterServer inbound-before-handler from outbound-before-stream"
+    );
+    assert!(
+        hello.contains(
             "//!         call.connected(),\n//!         call.extensions(),"
         ),
         "hello GreeterClient::intercept rustdoc example must read extensions Distinct from extensions_mut"
