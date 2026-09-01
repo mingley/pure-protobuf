@@ -421,6 +421,8 @@ impl Rpc {
     /// can only tighten, not extend. Calling this twice keeps the sooner
     /// value. Values below 1 ms are raised to 1 ms. This is the handler's
     /// deadline on every call shape.
+    ///
+    /// Distinct from [`Self::timeout`]: that reads the interceptor cap; this tightens it.
     pub fn set_timeout(&mut self, timeout: Duration) {
         let timeout = timeout.max(Duration::from_millis(1));
         self.timeout = Some(match self.timeout {

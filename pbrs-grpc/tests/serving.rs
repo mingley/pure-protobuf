@@ -11355,6 +11355,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::timeout`]: that reads the interceptor cap; this tightens it."
+        ),
+        "Rpc::set_timeout must Distinct the getter from tightening the interceptor cap"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::rpc_timeout`]: that is the server overlay; this is the interceptor cap."
         ),
         "Rpc::timeout must Distinct the server overlay from the interceptor cap"
