@@ -314,6 +314,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 `Status::from_error_details` is the typed bag after this architecture hello interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture hello handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this architecture hello client interceptor Err; a local reject never opens a stream.
+Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture hello client interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this architecture hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `Status::from_error_details` is the typed bag after this architecture UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture UnimplementedService handler Err; those trailers reach the client.
