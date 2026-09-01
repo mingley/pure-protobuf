@@ -6880,6 +6880,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Code::from_i32 next to Status::with_message"
     );
     assert!(
+        readme.contains("`Code::to_i32` emits the wire i32 on this crate README, Distinct from `from_i32` interpreting a wire i32."),
+        "crate README must name Code::to_i32 next to Code::from_i32"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
