@@ -68,6 +68,7 @@ RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent
 `Outgoing::clear_wait_for_ready` restores the channel wait-for-ready overlay after a crate README interceptor choice.
 `Outgoing::clear_compress` then `set_compress` from `compresses_outbound` reapplies channel gzip after a crate README interceptor choice.
 `Outgoing::clear_timeout` opts out of the channel timeout after a crate README interceptor choice.
+`Outgoing::connected` is the live-socket snapshot on this crate README interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README interceptor Err; a local reject never opens a stream.
 `Status::from_error_details` is the typed bag after this crate README server intercept Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this crate README Health interceptor Err; those trailers reach the client without reading the body.
