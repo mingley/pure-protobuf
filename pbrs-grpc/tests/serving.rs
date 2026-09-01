@@ -7639,6 +7639,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::with_details` ships raw trailer bytes after this guide with_error_details packer, Distinct from packing Anys onto a status."
+        ),
+        "guide must name Status::with_details next to the Any packer"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
