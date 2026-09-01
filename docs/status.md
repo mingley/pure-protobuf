@@ -740,6 +740,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status UnimplementedService interceptor Err; those trailers reach the client without reading the body.
   `Status::from_error_details` is the typed bag after this packed-status UnimplementedService handler Err; those trailers reach the client.
   `Status::from_error_details` is the typed bag after this packed-status UnimplementedService client interceptor Err; a local reject never opens a stream.
+  `Status::from_error_details` is the typed bag after this packed-status InteropTestService interceptor Err; those trailers reach the client without reading the body.
   Official `TestService` interceptor `Err(with_error_details)` unpacks on EmptyCall /
   StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over
   TLS, mTLS, Unix, and `from_io`, a generated TestService handler
