@@ -5299,6 +5299,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::metadata must Distinct the mutator from this borrow"
     );
     assert!(
+        status_src.contains(
+            "Distinct from [`Self::metadata`]: that borrows this status trailers map; this mutates it."
+        ),
+        "Status::metadata_mut must Distinct the borrow from this mutator"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),
         "Status::retry_delay must Distinct wait hint from is_retryable"
     );

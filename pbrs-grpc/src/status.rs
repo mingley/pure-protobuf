@@ -395,6 +395,7 @@ impl Status {
     }
 
     /// Trailing metadata, allocating the detail block on first use.
+    /// Distinct from [`Self::metadata`]: that borrows this status trailers map; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.detail.get_or_insert_with(Box::default).metadata
     }
