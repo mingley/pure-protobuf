@@ -651,6 +651,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "StreamSender::is_closed must Distinct waiting from a snapshot"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::is_closed`]: that is a snapshot; this waits until the reader is gone."
+        ),
+        "StreamSender::closed must Distinct a snapshot from waiting"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

@@ -541,6 +541,8 @@ impl<T> StreamSender<T> {
 
     /// Resolves when the reader has gone away.
     ///
+    /// Distinct from [`Self::is_closed`]: that is a snapshot; this waits until the reader is gone.
+    ///
     /// Same condition as [`Self::is_closed`], as a future. A producer that
     /// waits on something else (a status map, a timer) should select on this
     /// so it does not sit after the client has cancelled or dropped the stream.
