@@ -6240,6 +6240,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::with_cause next to Status::from_error"
     );
     assert!(
+        readme.contains("`Status::set_error_details` / `Status::set_from_error_details` replace the protobuf without dropping trailing metadata on this crate README"),
+        "crate README must name set_error_details and set_from_error_details next to with_cause"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
