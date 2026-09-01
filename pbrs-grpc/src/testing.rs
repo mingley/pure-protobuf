@@ -43,6 +43,7 @@
 //! cannot pool.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing interceptor Err; those trailers reach the client without reading the body.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing handler Err; those trailers reach the client.
+//! [`crate::Status::from_error_details`] is the typed bag after this testing client interceptor Err; a local reject never opens a stream.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
