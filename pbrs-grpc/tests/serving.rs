@@ -3853,6 +3853,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "[`crate::Outgoing::connected`] is the live-socket snapshot on this InteropTestService client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "InteropTestService rustdoc must name Outgoing::connected live-socket snapshot"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this InteropTestService client interceptor Err; a local reject never opens a stream."
         ),
         "InteropTestService rustdoc must name from_error_details typed bag next to client interceptor Err"
