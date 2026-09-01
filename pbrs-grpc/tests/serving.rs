@@ -11212,6 +11212,12 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::intercept rustdoc must name from_error_details typed bag next to intercept Err"
     );
     assert!(
+        src.contains(
+            "Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler."
+        ),
+        "Server::intercept rustdoc must Distinct Channel outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
         src.contains("server.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "Server::intercept rustdoc example must attach a closure"
     );
