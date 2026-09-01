@@ -1166,6 +1166,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::metadata`]: that borrows this envelope; this mutates it."
+        ),
+        "Request::metadata_mut must Distinct the borrow from the mutable envelope"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::extensions_mut`]: that inserts typed values this envelope carries; this borrows them."
         ),
         "Request::extensions must Distinct the mutable envelope map from the borrow"

@@ -259,6 +259,8 @@ impl<T> Request<T> {
     }
 
     /// Mutable request headers.
+    ///
+    /// Distinct from [`Self::metadata`]: that borrows this envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
