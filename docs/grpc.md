@@ -2062,6 +2062,7 @@ frame unpacks on server-streaming and bidi on those transports too (unary and
 client-streaming have no response DATA then trailers).
 `Status::from_error_details` is the typed bag after this guide Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `Status::from_error_details` is the typed bag after this guide hello interceptor Err; those trailers reach the client without reading the body.
+`Status::from_error_details` is the typed bag after this guide hello handler Err; those trailers reach the client.
 
 ## One-shape proofs
 
