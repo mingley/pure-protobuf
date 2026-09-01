@@ -6905,6 +6905,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::from_error_details` is the typed bag after this architecture TestService interceptor Err; those trailers reach the client without reading the body."
+        ),
+        "architecture must name from_error_details typed bag next to TestService interceptor Err"
+    );
+    assert!(
+        architecture.contains(
             "`ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset."
         ),
         "architecture must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
