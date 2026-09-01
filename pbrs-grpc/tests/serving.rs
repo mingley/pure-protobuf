@@ -8175,6 +8175,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Any::pack_with` takes an explicit type URL after this architecture pack constructor, Distinct from using `type.googleapis.com/<FULL_NAME>`."
+        ),
+        "architecture must name Any::pack_with next to Any::pack"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
