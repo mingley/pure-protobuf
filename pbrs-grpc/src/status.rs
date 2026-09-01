@@ -346,6 +346,7 @@ impl Status {
     /// whose message matches this status, that protobuf is rewritten so the
     /// ASCII trailer and the packed message stay the same. Opaque detail
     /// bytes that are not a matching `google.rpc.Status` are left alone.
+    /// Distinct from [`Self::with_message`]: that is the builder; this mutates in place.
     pub fn set_message(&mut self, message: impl Into<String>) {
         let message = message.into();
         if !self.details().is_empty() {
