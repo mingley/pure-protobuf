@@ -12,6 +12,8 @@
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream.
 //!
+//! Distinct from [`pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`pbrs_grpc::Call`] is polled; this example greeter client interceptor already ran, so a local Err never consumes that budget.
+//!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 
 #![allow(
@@ -201,6 +203,9 @@ mod tests {
         let src = include_str!("lib.rs");
         assert!(src.contains(
             "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream."
+        ));
+        assert!(src.contains(
+            "Distinct from [`pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`pbrs_grpc::Call`] is polled; this example greeter client interceptor already ran, so a local Err never consumes that budget."
         ));
     }
 
