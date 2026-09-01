@@ -699,6 +699,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Streaming::collect must Distinct one message from draining the stream"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::message`]: that yields payloads; this waits for trailing metadata."
+        ),
+        "Streaming::trailers must Distinct payloads from trailing metadata"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

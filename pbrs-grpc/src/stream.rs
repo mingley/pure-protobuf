@@ -279,6 +279,8 @@ impl<T> Streaming<T> {
 
     /// Trailing metadata, after the stream has ended.
     ///
+    /// Distinct from [`Self::message`]: that yields payloads; this waits for trailing metadata.
+    ///
     /// On a received stream this waits for end-of-stream, discarding any
     /// unread messages, then returns the trailers that followed the last
     /// DATA frame. Call it before [`Self::message`] when you only need
