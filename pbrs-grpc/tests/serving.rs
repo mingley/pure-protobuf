@@ -7129,6 +7129,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::is_ok next to Code::description"
     );
     assert!(
+        status_guide.contains(
+            "`Status::code` is the ASCII `grpc-status` code on this packed-status, Distinct from `message` being the ASCII `grpc-message`."
+        ),
+        "status guide must name Status::code next to Status::is_ok"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
