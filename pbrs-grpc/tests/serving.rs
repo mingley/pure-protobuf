@@ -4813,6 +4813,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::retry_delay next to Status::is_retryable"
     );
     assert!(
+        crate_src.contains("[`Status::retry_delay`], [`pb::Duration::from_std`]"),
+        "crate map must name Duration::from_std next to Status::retry_delay"
+    );
+    assert!(
         crate_src.contains(
             "Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip."
         ),
