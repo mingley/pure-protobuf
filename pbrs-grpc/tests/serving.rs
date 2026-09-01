@@ -4905,6 +4905,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ChannelConfig next to Channel"
     );
     assert!(
+        crate_src.contains("[`ChannelConfig`], [`Target`]"),
+        "crate map must name Target next to ChannelConfig"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
