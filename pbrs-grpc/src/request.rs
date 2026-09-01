@@ -1576,6 +1576,8 @@ impl Parts {
 
     /// Set the relative timeout. Outbound this becomes `grpc-timeout`.
     ///
+    /// Distinct from [`Self::timeout`]: that reads the relative timeout this split envelope carries; this writes it.
+    ///
     /// Same as [`Request::set_timeout`]. A proxy that split the envelope
     /// with [`Request::into_message_and_parts`] can tighten the deadline
     /// here without rebuilding a [`Request`] first.
