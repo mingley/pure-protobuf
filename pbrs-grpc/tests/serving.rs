@@ -7845,6 +7845,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`ErrorDetails::new` is an empty bag after this guide from_rpc unpack, Distinct from unpacking the `Any` list."
+        ),
+        "guide must name ErrorDetails::new next to Any::is"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"

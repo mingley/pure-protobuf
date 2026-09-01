@@ -360,6 +360,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Status::set_details` ships raw trailer bytes after this guide set_error_details packer, Distinct from packing Anys onto a status.
 `Any::unpack` decodes the payload after this guide is type-URL check, Distinct from checking the type URL.
 `Any::is` is a type-URL check after this guide unpack decode, Distinct from decoding the payload.
+`ErrorDetails::new` is an empty bag after this guide from_rpc unpack, Distinct from unpacking the `Any` list.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip.
 `Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,
