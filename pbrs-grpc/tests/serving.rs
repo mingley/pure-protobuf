@@ -1367,6 +1367,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::metadata`]: that borrows the outbound map; this mutates it."
+        ),
+        "Outgoing::metadata_mut must Distinct the borrow from the mutable outbound map"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::timeout`]: that is the duration; this Instant is computed when the getter runs."
         ),
         "Outgoing::deadline must Distinct the duration from the computed Instant"

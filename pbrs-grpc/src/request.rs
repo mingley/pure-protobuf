@@ -1231,6 +1231,8 @@ impl<'a> Outgoing<'a> {
     }
 
     /// Mutable request headers. Applies to every call shape.
+    ///
+    /// Distinct from [`Self::metadata`]: that borrows the outbound map; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         self.metadata
     }
