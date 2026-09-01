@@ -6834,6 +6834,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::with_code next to Status::set_code"
     );
     assert!(
+        readme.contains("`Status::set_message` mutates in place on this crate README, Distinct from `with_message` being the builder."),
+        "crate README must name Status::set_message next to Status::with_code"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
