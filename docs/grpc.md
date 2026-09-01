@@ -979,6 +979,7 @@ A handler `Err(Status::with_error_details(...))` unpacks the same way on Check, 
 `from_io`.
 `Status::from_error_details` is the typed bag after this guide Health handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this guide Health client interceptor Err; a local reject never opens a stream.
+Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide Health client interceptor already ran, so a local Err never consumes that budget.
 Watch `StreamSender::fail` after a streamed DATA frame unpacks the
 same way (Check is unary: no response DATA then trailers), including over TLS,
 mTLS, Unix, and `from_io`.
