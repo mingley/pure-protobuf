@@ -306,6 +306,7 @@ impl Status {
     }
 
     /// The status code.
+    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the ASCII `grpc-status` code.
     #[must_use]
     pub fn code(&self) -> Code {
         self.code

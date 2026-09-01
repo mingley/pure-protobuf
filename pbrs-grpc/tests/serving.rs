@@ -4697,8 +4697,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::from_code next to Status::new"
     );
     assert!(
-        crate_src.contains("[`Status::from_code`], [`Status::set_code`]"),
-        "crate map must name Status::set_code next to Status::from_code"
+        crate_src.contains("[`Status::from_code`], [`Status::code`]"),
+        "crate map must name Status::code next to Status::from_code"
+    );
+    assert!(
+        crate_src.contains("[`Status::code`], [`Status::set_code`]"),
+        "crate map must name Status::set_code next to Status::code"
     );
     assert!(
         crate_src.contains("[`Status::set_code`], [`Status::with_code`]"),
@@ -5765,6 +5769,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::is_retryable`]: that is UNAVAILABLE only; this is Code::Ok."
         ),
         "Status::is_ok must Distinct A6 retryable from this success check"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the ASCII `grpc-status` code."
+        ),
+        "Status::code must Distinct the ASCII grpc-message from this ASCII grpc-status code"
     );
     assert!(
         status_src.contains(
