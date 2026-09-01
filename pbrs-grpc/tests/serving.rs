@@ -4967,6 +4967,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name ChannelConfig::accept_compressed next to ServerConfig"
     );
     assert!(
+        crate_src.contains("[`Server::serve_tls`] / [`Channel::connect_tls`]"),
+        "crate threat table must name connect_tls next to serve_tls"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
