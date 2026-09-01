@@ -663,6 +663,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "StreamSender::closed must Distinct a snapshot from waiting"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::compressed`]: that sets the Compressed-Flag; this clears it."
+        ),
+        "Framed::new must Distinct setting the Compressed-Flag from clearing it"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

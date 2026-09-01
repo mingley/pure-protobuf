@@ -30,6 +30,8 @@ pub struct Framed<T> {
 
 impl<T> Framed<T> {
     /// A frame with the Compressed-Flag clear.
+    ///
+    /// Distinct from [`Self::compressed`]: that sets the Compressed-Flag; this clears it.
     #[must_use]
     pub fn new(message: T) -> Self {
         Self {
