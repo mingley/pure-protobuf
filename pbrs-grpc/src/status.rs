@@ -370,6 +370,7 @@ impl Status {
     }
 
     /// [`Self::set_message`] as a builder.
+    /// Distinct from [`Self::set_message`]: that mutates in place; this is the builder.
     #[must_use]
     pub fn with_message(mut self, message: impl Into<String>) -> Self {
         self.set_message(message);
