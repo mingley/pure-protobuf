@@ -1784,6 +1784,7 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 `Outgoing::clear_timeout` opts out of the channel timeout after a client interceptor choice on those transports plus `from_io`.
 `Status::from_error_details` is the typed bag after this guide interceptor Err; a local reject never opens a stream.
 `Status::from_error_details` is the typed bag after this guide server intercept Err; those trailers reach the client without reading the body.
+`Status::from_error_details` is the typed bag after this guide Store interceptor Err; those trailers reach the client without reading the body.
 `ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path.
 `Status::from_error_details` is the typed bag after this guide server on_response Err; a local reject is trailers-only after handler Ok.
