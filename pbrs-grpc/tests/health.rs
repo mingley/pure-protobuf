@@ -649,6 +649,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         "Health crate rustdoc must name client interceptor context on Check, List, and Watch"
     );
     assert!(
+        src.contains(
+            "[`crate::Outgoing::connected`] is the live-socket snapshot on this health client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "Health crate rustdoc must name Outgoing::connected live-socket snapshot on Check, List, and Watch"
+    );
+    assert!(
         src.contains("retry Check, List, and Watch until listen when"),
         "Health crate rustdoc must name wait-for-ready on Check, List, and Watch"
     );

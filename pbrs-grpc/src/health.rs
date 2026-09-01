@@ -65,6 +65,7 @@
 //! `set_wait_for_ready(false)` opt out of a client default. A waiting Call's
 //! deadline applies on those dialers. A client interceptor sees [`crate::Outgoing`]
 //! path / service / method / `:authority` / `:scheme` on Check, List, and Watch.
+//! [`crate::Outgoing::connected`] is the live-socket snapshot on this health client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //! [`crate::Status::from_error_details`] is the typed bag after this health client interceptor Err; a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this health client interceptor already ran, so a local Err never consumes that budget.
 //!
