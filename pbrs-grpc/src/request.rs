@@ -376,6 +376,8 @@ impl<T> Request<T> {
 
     /// Drop a compression choice so a later [`crate::Channel::send_compressed`]
     /// or interceptor can fill it in. See [`Self::clear_wait_for_ready`].
+    ///
+    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }
