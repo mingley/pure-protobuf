@@ -241,6 +241,8 @@ impl<T> Streaming<T> {
     }
 
     /// [`Self::message`] keeping the Compressed-Flag.
+    ///
+    /// Distinct from [`Self::message`]: that discards the Compressed-Flag; this keeps it.
     pub async fn next_framed(&mut self) -> Result<Option<Framed<T>>, Status> {
         poll_fn(|cx| self.poll_framed(cx)).await
     }
