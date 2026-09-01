@@ -9015,6 +9015,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`ParseCodeError` rejects a string after this architecture from_i32 Unknown map, Distinct from mapping an unrecognised wire i32 to Unknown."
+        ),
+        "architecture must name ParseCodeError next to Status::metadata_mut"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"

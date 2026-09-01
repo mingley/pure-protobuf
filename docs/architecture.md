@@ -381,6 +381,7 @@ and HTTP/2 connection death attach the original error as
 `Status::is_retryable` is the A6 set on a Status after this architecture Code is_retryable, Distinct from being the same A6 set on a Code.
 `Status::metadata` borrows this status trailers map after this architecture metadata_mut mutation, Distinct from mutating it.
 `Status::metadata_mut` mutates this status trailers map after this architecture metadata borrow, Distinct from borrowing it.
+`ParseCodeError` rejects a string after this architecture from_i32 Unknown map, Distinct from mapping an unrecognised wire i32 to Unknown.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
