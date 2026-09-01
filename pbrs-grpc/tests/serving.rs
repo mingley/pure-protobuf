@@ -7054,6 +7054,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::message Distinct from packed rpc next to Status::code"
     );
     assert!(
+        readme.contains("`Status::rpc` is the packed protobuf on this crate README, Distinct from `code` being the ASCII `grpc-status` trailer."),
+        "crate README must name Status::rpc Distinct from ASCII code next to Status::message"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
