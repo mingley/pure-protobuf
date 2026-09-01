@@ -6148,6 +6148,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::from_error_details` is the typed bag after this guide Store StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "guide must name from_error_details typed bag next to Store StreamSender fail"
+    );
+    assert!(
+        guide.contains(
             "`ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset."
         ),
         "guide must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"

@@ -1787,6 +1787,7 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 `Status::from_error_details` is the typed bag after this guide Store interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this guide Store handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this guide Store client interceptor Err; a local reject never opens a stream.
+`Status::from_error_details` is the typed bag after this guide Store StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path.
 `Status::from_error_details` is the typed bag after this guide server on_response Err; a local reject is trailers-only after handler Ok.
