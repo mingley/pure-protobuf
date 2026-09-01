@@ -239,6 +239,9 @@ mod tests {
         assert!(readme.contains(
             "`Status::from_error_details` is the typed bag after this example README greeter client interceptor Err; a local reject never opens a stream."
         ));
+        assert!(readme.contains(
+            "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this example README greeter client interceptor already ran, so a local Err never consumes that budget."
+        ));
     }
 
     #[test]
