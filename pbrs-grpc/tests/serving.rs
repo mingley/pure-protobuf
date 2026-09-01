@@ -5123,8 +5123,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::with_rpc next to set_from_error_details"
     );
     assert!(
-        crate_src.contains("[`pb::Duration::from_std`], [`pb::RetryInfo::with_retry_delay`]"),
-        "crate map must name Duration::from_std next to RetryInfo::with_retry_delay"
+        crate_src.contains("[`pb::Duration::from_std`], [`pb::Duration::try_to_std`]"),
+        "crate map must name Duration::try_to_std next to Duration::from_std"
+    );
+    assert!(
+        crate_src.contains("[`pb::Duration::try_to_std`], [`pb::RetryInfo::with_retry_delay`]"),
+        "crate map must name RetryInfo::with_retry_delay next to Duration::try_to_std"
     );
     assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
@@ -5589,6 +5593,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`Self::from_std`]: that builds the protobuf from `std`; this converts this protobuf to `std`."
+        ),
+        "Duration::try_to_std must Distinct building the protobuf from converting to std"
     );
     assert!(
         pb_src.contains(

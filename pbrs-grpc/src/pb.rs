@@ -142,6 +142,7 @@ impl Duration {
     /// Negative seconds or nanos, or nanos ≥ 1s, are
     /// [`crate::Code::InvalidArgument`]. An overflow of `std`'s range is the
     /// same code rather than a panic.
+    /// Distinct from [`Self::from_std`]: that builds the protobuf from `std`; this converts this protobuf to `std`.
     pub fn try_to_std(&self) -> Result<std::time::Duration, crate::Status> {
         let seconds = self.seconds();
         let nanos = self.nanos();
