@@ -262,6 +262,7 @@ pub(crate) fn intercept_response_all<T>(
 /// A per-service response hook does not cover other mounts; Distinct from
 /// [`crate::Server::on_response`] / [`crate::Router::on_response`].
 /// Cloning is cheap when `I: Clone`: the inner service is shared.
+/// Distinct from [`Interceptor`]: that is the inbound hook; this wrapper runs it before the handler.
 pub struct Intercepted<S, I> {
     inner: Arc<S>,
     interceptor: I,

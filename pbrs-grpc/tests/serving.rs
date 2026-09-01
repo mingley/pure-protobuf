@@ -3522,6 +3522,12 @@ fn channel_call_apis_document_hand_written_services() {
         intercept.contains("does not cover other mounts."),
         "ServiceExt::on_response must Distinct a per-service hook from other mounts"
     );
+    assert!(
+        intercept.contains(
+            "Distinct from [`Interceptor`]: that is the inbound hook; this wrapper runs it before the handler."
+        ),
+        "Intercepted rustdoc must Distinct Interceptor inbound hook from the wrapper that runs it"
+    );
     assert_eq!(
         intercept
             .matches("Same kernel-stamped [`crate::ResponseParts`] overlays as [`crate::Server::on_response`]:")
