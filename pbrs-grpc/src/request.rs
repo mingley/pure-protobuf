@@ -2089,6 +2089,8 @@ impl<T> Response<T> {
     }
 
     /// Mutable trailing metadata.
+    ///
+    /// Distinct from [`Self::trailers`]: that borrows this reply envelope; this mutates it.
     pub fn trailers_mut(&mut self) -> &mut Metadata {
         &mut self.trailers
     }
