@@ -6940,6 +6940,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::is_ok next to Code::description"
     );
     assert!(
+        readme.contains("`Status::code` is the ASCII `grpc-status` code on this crate README, Distinct from `message` being the ASCII `grpc-message`."),
+        "crate README must name Status::code next to Status::is_ok"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
