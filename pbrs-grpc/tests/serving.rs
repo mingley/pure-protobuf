@@ -1334,6 +1334,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::set_user_agent`]: that prefixes this envelope; this restores the channel value."
+        ),
+        "Request::clear_user_agent must Distinct prefixing from restoring the channel value"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay."
         ),
         "Request::accepts_compressed must Distinct client interceptor overlay from inbound dispatch"
