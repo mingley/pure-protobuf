@@ -6286,6 +6286,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name LocalizedMessage::with_locale next to Status::localized_message"
     );
     assert!(
+        readme.contains(
+            "`Status::request_info` / `RequestInfo::with_request_id` builds packed request_id on this crate README"
+        ),
+        "crate README must name RequestInfo::with_request_id next to Status::request_info"
+    );
+    assert!(
         readme.contains("`Status::with_cause` attaching `Error::source` onto an existing status"),
         "crate README must name Status::with_cause next to Status::from_error"
     );
