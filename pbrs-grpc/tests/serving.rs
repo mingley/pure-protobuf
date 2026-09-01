@@ -4689,6 +4689,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::from_error_details next to the Any packer"
     );
     assert!(
+        crate_src.contains("[`Status::from_error_details`], [`Status::with_details`]"),
+        "crate map must name Status::with_details next to the typed-bag constructor"
+    );
+    assert!(
         crate_src.contains("[`Status::from_error`], [`Status::with_cause`]"),
         "crate map must name Status::with_cause next to Status::from_error"
     );
@@ -5503,6 +5507,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::with_error_details`]: that packs `Any` values; this takes the typed bag."
         ),
         "Status::from_error_details must Distinct the Any packer from this typed-bag constructor"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::with_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes a proxy can forward without parsing."
+        ),
+        "Status::with_details must Distinct packing Anys from raw trailer bytes"
     );
     assert!(
         status_src.contains(

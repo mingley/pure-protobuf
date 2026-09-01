@@ -424,6 +424,8 @@ impl Status {
     }
 
     /// [`Self::new`] plus [`Self::set_details`].
+    ///
+    /// Distinct from [`Self::with_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes a proxy can forward without parsing.
     #[must_use]
     pub fn with_details(code: Code, message: impl Into<String>, details: impl Into<Bytes>) -> Self {
         let mut status = Self::new(code, message);
