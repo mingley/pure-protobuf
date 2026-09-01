@@ -242,6 +242,9 @@ mod tests {
     fn example_readme_names_from_error_details_on_client_interceptor_err() {
         let readme = include_str!("../README.md");
         assert!(readme.contains(
+            "`Outgoing::connected` is the live-socket snapshot on this example README greeter client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ));
+        assert!(readme.contains(
             "`Status::from_error_details` is the typed bag after this example README greeter client interceptor Err; a local reject never opens a stream."
         ));
         assert!(readme.contains(
