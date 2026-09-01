@@ -4588,6 +4588,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this generated server on_response runs after the handler returns Ok."
+        ),
+        "generated server on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
+    );
+    assert!(
+        src.contains(
             "Compiling overlay dumps live on [`::pbrs_grpc::hello`] (`GreeterServer::new(Svc).on_response`)."
         ),
         "generated server on_response rustdoc must point at the compiling hello overlay dump"
