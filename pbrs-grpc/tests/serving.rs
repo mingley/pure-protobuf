@@ -633,6 +633,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "StreamSender::send_framed must Distinct always-gzip from an explicit Compressed-Flag"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::close`]: that half-closes; this ends with an error status."
+        ),
+        "StreamSender::fail must Distinct a clean half-close from an error status"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

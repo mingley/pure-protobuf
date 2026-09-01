@@ -500,6 +500,8 @@ impl<T> StreamSender<T> {
 
     /// End the stream with an error status instead of a clean half-close.
     ///
+    /// Distinct from [`Self::close`]: that half-closes; this ends with an error status.
+    ///
     /// On a **server response** producer, trailing metadata and
     /// `grpc-status-details-bin` (see [`crate::Status::with_error_details`])
     /// both ship after any messages already sent, the same as a handler
