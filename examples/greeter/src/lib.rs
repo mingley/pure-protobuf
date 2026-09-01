@@ -11,6 +11,8 @@
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body.
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream.
+//!
+//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 
 #![allow(
     missing_docs,
@@ -199,6 +201,14 @@ mod tests {
         let src = include_str!("lib.rs");
         assert!(src.contains(
             "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream."
+        ));
+    }
+
+    #[test]
+    fn example_docs_name_from_error_details_on_stream_sender_fail() {
+        let src = include_str!("lib.rs");
+        assert!(src.contains(
+            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ));
     }
 
