@@ -7655,6 +7655,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::with_rpc` keeps existing trailers after this guide from_rpc constructor, Distinct from minting a fresh status."
+        ),
+        "guide must name Status::with_rpc next to with_details"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
