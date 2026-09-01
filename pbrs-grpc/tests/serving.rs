@@ -8919,6 +8919,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::is_retryable` is the A6 set on a Status after this architecture Code is_retryable, Distinct from being the same A6 set on a Code."
+        ),
+        "architecture must name Status::is_retryable next to Code::is_retryable"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
