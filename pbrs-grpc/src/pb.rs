@@ -189,6 +189,38 @@ impl ErrorInfo {
         info.set_domain(domain.into());
         info
     }
+
+    /// Inserts `key` → `value` into this payload's metadata map.
+    ///
+    /// Chain after [`Self::with_reason`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::error_info`].
+    /// Distinct from [`Self::with_reason`]: that is reason and domain, not a metadata pair.
+    /// Distinct from [`crate::Status::request_info`]: that is a typed request_id, not this metadata map.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let info = ErrorInfo::with_reason("API_DISABLED", "example.com")
+    ///     .with_metadata("resource", "projects/123");
+    /// let details = ErrorDetails {
+    ///     error_info: Some(info),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "disabled", &details)?;
+    /// let got = status.error_info().expect("ErrorInfo");
+    /// let resource = got
+    ///     .metadata()
+    ///     .get("resource")
+    ///     .and_then(|s| s.to_str().ok().map(str::to_owned));
+    /// assert_eq!(resource.as_deref(), Some("projects/123"));
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_metadata(mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        self.metadata_mut().insert(key.as_ref(), value.as_ref());
+        self
+    }
 }
 
 impl RetryInfo {
@@ -780,6 +812,28 @@ mod tests {
         assert!(crate::Status::failed_precondition("disabled")
             .error_info()
             .is_none());
+    }
+
+    #[test]
+    fn error_info_with_metadata_round_trips() {
+        let info = ErrorInfo::with_reason("API_DISABLED", "example.com")
+            .with_metadata("resource", "projects/123");
+        let details = ErrorDetails {
+            error_info: Some(info),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::FailedPrecondition, "disabled", &details)
+                .expect("encode");
+        let got = status.error_info().expect("ErrorInfo");
+        assert_eq!(got.reason().to_str().unwrap_or(""), "API_DISABLED");
+        assert_eq!(got.domain().to_str().unwrap_or(""), "example.com");
+        let resource = got
+            .metadata()
+            .get("resource")
+            .and_then(|s| s.to_str().ok().map(str::to_owned));
+        assert_eq!(resource.as_deref(), Some("projects/123"));
+        assert!(status.request_info().is_none());
     }
 
     #[test]
