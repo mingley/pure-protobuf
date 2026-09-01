@@ -90,6 +90,7 @@
 //! Generated [`GreeterServer::intercept`] reads the same Rpc overlays as
 //! [`crate::Server::intercept`]:
 //! [`crate::Status::from_error_details`] is the typed bag after a hello server intercept Err; those trailers reach the client without reading the body.
+//! Distinct from [`GreeterClient::intercept`]: that runs on the outbound call before the stream opens; this hello server intercept runs on the inbound RPC before the handler.
 //!
 //! ```
 //! # struct Svc;
