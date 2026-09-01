@@ -6634,6 +6634,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name ErrorDetails::to_anys next to pb::Status::with_details"
     );
     assert!(
+        readme.contains("`ErrorDetails::from_rpc` unpacks the `Any` list on this crate README, Distinct from `Status::error_details` unpacking a kernel Status trailer."),
+        "crate README must name ErrorDetails::from_rpc next to to_anys"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
