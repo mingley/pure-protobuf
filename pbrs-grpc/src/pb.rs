@@ -80,6 +80,7 @@ impl Any {
     /// Use this when talking to a peer that does not use the
     /// `type.googleapis.com/` prefix. [`Self::unpack`] still matches on the
     /// type name after the last `/`.
+    /// Distinct from [`Self::pack`]: that uses `type.googleapis.com/<FULL_NAME>`; this takes an explicit type URL.
     pub fn pack_with<M: pbrs::Serialize>(
         type_url: impl Into<String>,
         msg: &M,

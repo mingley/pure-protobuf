@@ -4693,8 +4693,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::to_anys next to ErrorDetails"
     );
     assert!(
-        crate_src.contains("[`Any::pack`], [`ErrorDetails`]"),
-        "crate map must name Any::pack next to ErrorDetails"
+        crate_src.contains("[`Any::pack`], [`Any::pack_with`]"),
+        "crate map must name Any::pack_with next to Any::pack"
+    );
+    assert!(
+        crate_src.contains("[`Any::pack_with`], [`ErrorDetails`]"),
+        "crate map must name ErrorDetails next to Any::pack_with"
     );
     assert!(
         crate_src.contains("[`ErrorDetails::to_anys`], [`ErrorDetails::from_rpc`]"),
@@ -5225,6 +5229,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`crate::Status::with_error_details`]: that packs `Any` values onto a status; this packs one message into an `Any`."
         ),
         "Any::pack must Distinct packing Anys onto a status from packing one message"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`Self::pack`]: that uses `type.googleapis.com/<FULL_NAME>`; this takes an explicit type URL."
+        ),
+        "Any::pack_with must Distinct the default type URL from an explicit type URL"
     );
     assert!(
         pb_src.contains(
