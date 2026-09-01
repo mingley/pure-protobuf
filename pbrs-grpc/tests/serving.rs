@@ -5102,9 +5102,9 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
-            "[`Status::set_rpc`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
+            "[`Status::set_rpc`], [`Status::set_details`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
-        "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
+        "crate map must name Status::set_details next to set_rpc and set_error_details"
     );
     assert!(
         crate_src.contains("[`Status::set_from_error_details`], [`Status::with_rpc`]"),
@@ -5567,6 +5567,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::with_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes a proxy can forward without parsing."
         ),
         "Status::with_details must Distinct packing Anys from raw trailer bytes"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::set_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes on an existing status."
+        ),
+        "Status::set_details must Distinct packing Anys from raw trailer bytes on an existing status"
     );
     assert!(
         status_src.contains(

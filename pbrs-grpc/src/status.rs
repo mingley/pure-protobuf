@@ -412,6 +412,7 @@ impl Status {
     /// call shape, including over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     /// [`Self::details`] returns those bytes; they do not appear as a metadata
     /// key.
+    /// Distinct from [`Self::set_error_details`]: that packs `Any` values into a `google.rpc.Status`; this ships raw trailer bytes on an existing status.
     pub fn set_details(&mut self, details: impl Into<Bytes>) {
         let details = details.into();
         if details.is_empty() {
