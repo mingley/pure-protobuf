@@ -6618,6 +6618,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name set_error_details and set_from_error_details next to with_cause"
     );
     assert!(
+        readme.contains("`Status::with_details` ships raw trailer bytes on this crate README, Distinct from `with_error_details` packing Anys onto a status."),
+        "crate README must name Status::with_details next to set_from_error_details"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
