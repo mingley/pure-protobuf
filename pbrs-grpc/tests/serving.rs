@@ -6219,6 +6219,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ErrorInfo::with_reason as the builder"
     );
     assert!(
+        status_guide.contains("`Status::with_cause` attaches `Error::source` onto an existing packed-status; a peer trailer has no cause."),
+        "status guide must name Status::with_cause next to packed ErrorInfo"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );

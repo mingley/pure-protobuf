@@ -568,6 +568,7 @@ See `docs/upb.md`. Short list:
   `google.rpc.Status` from `with_error_details` is `Status::rpc` /
   `Status::error_details` on every call shape. Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is the
   packed `ErrorInfo` without unpacking the bag. Distinct from `error_details`.
+  `Status::with_cause` attaches `Error::source` onto an existing packed-status; a peer trailer has no cause.
   Distinct from `retry_delay` (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload. `Status::bad_request` is packed
   field violations.
   `ErrorInfo::with_metadata` fills a metadata pair on that payload.
