@@ -7319,6 +7319,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::from_error_details` is the typed bag after this architecture hello StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "architecture must name from_error_details typed bag next to hello StreamSender fail"
+    );
+    assert!(
+        architecture.contains(
             "`ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset."
         ),
         "architecture must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
