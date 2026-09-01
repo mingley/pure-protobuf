@@ -2069,6 +2069,7 @@ client-streaming have no response DATA then trailers).
 `Status::from_error_details` is the typed bag after this guide UnimplementedService handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this guide UnimplementedService client interceptor Err; a local reject never opens a stream.
 `Status::from_error_details` is the typed bag after this guide InteropTestService interceptor Err; those trailers reach the client without reading the body.
+`Status::from_error_details` is the typed bag after this guide InteropTestService handler Err; those trailers reach the client.
 
 ## One-shape proofs
 
