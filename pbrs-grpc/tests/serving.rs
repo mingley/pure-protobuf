@@ -7001,6 +7001,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::set_message next to Status::with_code"
     );
     assert!(
+        status_guide.contains(
+            "`Status::with_message` is the builder on this packed-status, Distinct from `set_message` mutating in place."
+        ),
+        "status guide must name Status::with_message next to Status::set_message"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
