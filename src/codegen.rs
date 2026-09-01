@@ -5167,6 +5167,10 @@ fn emit_kernel_client(
         src,
         "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated intercept Err; a local reject never opens a stream."
     );
+    let _ = writeln!(
+        src,
+        "    /// Distinct from [`{G}::Channel::max_concurrent_rpcs`]: that takes a slot when the [`{G}::Call`] is polled; a generated intercept already ran, so a local Err never consumes that budget."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");

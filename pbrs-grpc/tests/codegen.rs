@@ -4084,6 +4084,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from [`::pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`::pbrs_grpc::Call`] is polled; a generated intercept already ran, so a local Err never consumes that budget."
+        ),
+        "generated client intercept rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
+    );
+    assert!(
+        src.contains(
             "`set_compress` stamps [`::pbrs_grpc::StreamSender::compress`] on client-streaming and bidi request streams."
         ),
         "generated client intercept rustdoc must name StreamSender gzip stamp"
