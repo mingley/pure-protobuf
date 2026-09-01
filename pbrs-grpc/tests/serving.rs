@@ -6885,6 +6885,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::details next to Duration::try_to_std"
     );
     assert!(
+        status_guide.contains(
+            "`Status::new` takes a code and message on this packed-status, Distinct from `from_code` being code-only."
+        ),
+        "status guide must name Status::new next to Status::details"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
