@@ -7043,6 +7043,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Outgoing::connected` is the live-socket snapshot on this guide reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "guide must name Outgoing::connected live-socket snapshot on reflection"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide reflection client interceptor Err; a local reject never opens a stream."
         ),
         "guide must name from_error_details typed bag next to reflection client interceptor Err"
