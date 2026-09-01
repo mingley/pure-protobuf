@@ -5183,6 +5183,10 @@ fn emit_kernel_client(
         src,
         "    /// Distinct from [`{G}::Server::intercept`]: that runs on the inbound RPC before the handler; this generated intercept runs on the outbound call before the stream opens."
     );
+    let _ = writeln!(
+        src,
+        "    /// Distinct from [`Self::on_response`]: that runs after a successful receive; this generated intercept runs on the outbound call before the stream opens."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");
