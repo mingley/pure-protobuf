@@ -6385,6 +6385,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`Outgoing::connected` is the live-socket snapshot on this crate README UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "crate README must name Outgoing::connected live-socket snapshot on UnimplementedService"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README UnimplementedService client interceptor Err; a local reject never opens a stream."
         ),
         "crate README must name from_error_details typed bag next to UnimplementedService client interceptor Err"
