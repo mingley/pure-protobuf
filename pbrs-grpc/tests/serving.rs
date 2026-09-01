@@ -7010,6 +7010,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::metadata next to Status::is_retryable"
     );
     assert!(
+        readme.contains("`Status::metadata_mut` mutates this status trailers map on this crate README, Distinct from `metadata` borrowing it."),
+        "crate README must name Status::metadata_mut next to Status::metadata"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
