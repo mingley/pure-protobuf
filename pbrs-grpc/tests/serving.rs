@@ -3604,6 +3604,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::Outgoing::connected`] is the live-socket snapshot on this hello intercept path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "hello GreeterClient::intercept rustdoc must name Outgoing::connected live-socket snapshot next to clear_timeout"
+    );
+    assert!(
+        hello.contains(
             "[`crate::Status::from_error_details`] is the typed bag after a hello intercept Err; a local reject never opens a stream."
         ),
         "hello GreeterClient::intercept rustdoc must name from_error_details typed bag next to intercept Err"

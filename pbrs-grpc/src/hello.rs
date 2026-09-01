@@ -14,6 +14,7 @@
 //! [`crate::Outgoing::clear_wait_for_ready`] restores the channel wait-for-ready overlay after a hello intercept choice.
 //! [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`crate::Outgoing::compresses_outbound`] reapplies channel gzip after a hello intercept choice.
 //! [`crate::Outgoing::clear_timeout`] opts out of the channel timeout after a hello intercept choice.
+//! [`crate::Outgoing::connected`] is the live-socket snapshot on this hello intercept path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello intercept Err; a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; a hello intercept already ran, so a local Err never consumes that budget.
 //!
