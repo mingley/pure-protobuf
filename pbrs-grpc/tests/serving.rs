@@ -4883,6 +4883,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name IncomingAccept next to Incoming"
     );
     assert!(
+        crate_src.contains("[`IncomingAccept`], [`ConnectionInfo`]"),
+        "crate map must name ConnectionInfo next to IncomingAccept"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
