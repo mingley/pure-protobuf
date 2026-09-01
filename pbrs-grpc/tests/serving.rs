@@ -705,6 +705,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Streaming::trailers must Distinct payloads from trailing metadata"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::empty`]: that is already finished; this is a live sender/receiver pair."
+        ),
+        "Streaming::channel must Distinct an already-finished stream from a live pair"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

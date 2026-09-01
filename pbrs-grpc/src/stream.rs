@@ -137,6 +137,8 @@ impl<T> Streaming<T> {
     /// A connected [`StreamSender`] / [`Streaming`] pair holding `buffer`
     /// messages in flight.
     ///
+    /// Distinct from [`Self::empty`]: that is already finished; this is a live sender/receiver pair.
+    ///
     /// This is how a server-streaming handler produces its response: keep the
     /// sender in a spawned task and return the receiver. A producer that waits
     /// on a timer or a status map, rather than on [`StreamSender::send`],
