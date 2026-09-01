@@ -146,6 +146,7 @@ impl Code {
     /// [`Self::ResourceExhausted`] is not retryable: a
     /// [`crate::Channel::max_concurrent_rpcs`] refusal would loop, and a
     /// quota trailer should wait [`Status::retry_delay`] instead.
+    /// Distinct from [`crate::Status::is_retryable`]: that is the same A6 set on a Status; this is the Code.
     #[must_use]
     pub fn is_retryable(self) -> bool {
         matches!(self, Self::Unavailable)

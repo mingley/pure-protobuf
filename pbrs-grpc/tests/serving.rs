@@ -4741,8 +4741,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Code::description next to Code::name"
     );
     assert!(
-        crate_src.contains("[`Code::description`], [`ParseCodeError`]"),
-        "crate map must name ParseCodeError next to Code::description"
+        crate_src.contains("[`Code::description`], [`Code::is_retryable`]"),
+        "crate map must name Code::is_retryable next to Code::description"
+    );
+    assert!(
+        crate_src.contains("[`Code::is_retryable`], [`ParseCodeError`]"),
+        "crate map must name ParseCodeError next to Code::is_retryable"
     );
     assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
@@ -5271,6 +5275,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         status_src.contains("ResourceExhausted`] is not retryable"),
         "Code::is_retryable must Distinct RESOURCE_EXHAUSTED from A6 retryable"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`crate::Status::is_retryable`]: that is the same A6 set on a Status; this is the Code."
+        ),
+        "Code::is_retryable must Distinct the Status-level A6 check from this Code"
     );
     assert!(
         status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),
