@@ -2614,6 +2614,8 @@ impl ResponseParts {
 
     /// gzip this payload and set the Compressed-Flag.
     /// See [`Response::set_compress`].
+    ///
+    /// Distinct from [`Self::compress`]: that reads outbound payload gzip on this split reply envelope; this writes it.
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = Some(compress);
     }
