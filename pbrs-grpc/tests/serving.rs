@@ -1361,6 +1361,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::extensions`]: that borrows the map; this inserts typed values."
+        ),
+        "Outgoing::extensions_mut must Distinct the borrow from the mutator"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::metadata_mut`]: that mutates the outbound map; this borrows it."
         ),
         "Outgoing::metadata must Distinct the mutable outbound map from the borrow"

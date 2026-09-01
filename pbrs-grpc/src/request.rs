@@ -1383,6 +1383,7 @@ impl<'a> Outgoing<'a> {
 
     /// Insert typed values for later interceptors.
     ///
+    /// Distinct from [`Self::extensions`]: that borrows the map; this inserts typed values.
     /// Use this to pass a parsed identity or span into the next interceptor
     /// without a metadata round-trip. Applies to every call shape.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
