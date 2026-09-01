@@ -294,6 +294,7 @@ impl<S, I> Intercepted<S, I> {
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Intercepted on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Intercepted on_response.
     /// [`crate::Status::from_error_details`] is the typed bag after this Intercepted on_response Err; a local reject is trailers-only after handler Ok.
+    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Intercepted on_response runs after the handler returns Ok.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent trailers-only instead of the response,
