@@ -6301,6 +6301,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`Outgoing::connected` is the live-socket snapshot on this crate README Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "crate README must name Outgoing::connected live-socket snapshot on Reverser"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README Reverser client interceptor Err; a local reject never opens a stream."
         ),
         "crate README must name from_error_details typed bag next to Reverser client interceptor Err"
