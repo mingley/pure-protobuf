@@ -406,6 +406,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a reflection client interceptor: that runs on the outbound call before the stream opens; this reflection interceptor runs on the inbound RPC before the handler."
+        ),
+        "reflection crate rustdoc must Distinct client outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
+        src.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this reflection handler Err; those trailers reach the client."
         ),
         "reflection crate rustdoc must name from_error_details typed bag next to handler Err"
