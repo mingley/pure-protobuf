@@ -353,6 +353,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Status::with_details` ships raw trailer bytes after this guide with_error_details packer, Distinct from packing Anys onto a status.
 `Status::with_rpc` keeps existing trailers after this guide from_rpc constructor, Distinct from minting a fresh status.
 `pb::Status::with_details` builds a packed `google.rpc.Status` after this guide with_details constructor, Distinct from shipping raw trailer bytes.
+`ErrorDetails::to_anys` returns the `Any` list after this guide from_error_details constructor, Distinct from encoding the bag as a trailer.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip.
 `Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,

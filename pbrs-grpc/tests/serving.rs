@@ -7687,6 +7687,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`ErrorDetails::to_anys` returns the `Any` list after this guide from_error_details constructor, Distinct from encoding the bag as a trailer."
+        ),
+        "guide must name ErrorDetails::to_anys next to pb::Status::with_details"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
