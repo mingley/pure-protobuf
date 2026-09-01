@@ -5880,6 +5880,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Distinct from [`Self::details`]: that returns raw trailer bytes; this is the ASCII `grpc-message`."
+        ),
+        "Status::message must Distinct raw trailer bytes from this ASCII grpc-message"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::from_rpc`]: that encodes a packed `google.rpc.Status`; this encodes the typed bag."
         ),
         "Status::from_error_details must Distinct the packed protobuf constructor from this typed-bag constructor"
