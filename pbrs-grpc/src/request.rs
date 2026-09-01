@@ -2788,6 +2788,8 @@ impl ResponseParts {
     }
 
     /// Insert typed values that stay on this envelope. See [`Response::extensions_mut`].
+    ///
+    /// Distinct from [`Self::extensions`]: that borrows them; this inserts typed values this split reply envelope carries.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }
