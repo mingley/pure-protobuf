@@ -91,6 +91,7 @@ impl Echo {
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService interceptor Err; those trailers reach the client without reading the body.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService handler Err; those trailers reach the client.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService client interceptor Err; a local reject never opens a stream.
+/// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 #[derive(Default)]
 pub struct InteropTestService;
 
