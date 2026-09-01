@@ -2513,6 +2513,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this ClientInterceptor already ran, so a local Err never consumes that budget."
+        ),
+        "ClientInterceptor rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Outgoing::clear_user_agent`] drops a method-level interceptor prefix so this RPC uses the channel user-agent again."
         ),
         "ClientInterceptor::intercept rustdoc must name clear_user_agent opt-out"
