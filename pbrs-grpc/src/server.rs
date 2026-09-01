@@ -1930,6 +1930,7 @@ impl<S: Service> Server<S> {
     /// service, or wrap one service with [`crate::Intercepted`].
     /// [`Status::from_error_details`] is the typed bag after this Server intercept Err; those trailers reach the client without reading the body.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler.
+    /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this runs on the inbound RPC before the handler.
     ///
     /// ```
     /// # fn demo<S: pbrs_grpc::Service>(server: pbrs_grpc::Server<S>) -> pbrs_grpc::Server<S> {
