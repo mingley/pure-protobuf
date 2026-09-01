@@ -597,6 +597,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "StreamSender::set_compress must Distinct the getter from the writer"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::send_compressed`]: that gzips one message regardless of this flag; this sets the default for later send."
+        ),
+        "StreamSender::set_compress must Distinct one-message gzip from the later-send default"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),
