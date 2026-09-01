@@ -4841,6 +4841,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Response next to Parts"
     );
     assert!(
+        crate_src.contains("[`Response`], [`ResponseParts`]"),
+        "crate map must name ResponseParts next to Response"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
