@@ -373,6 +373,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Status::with_message` is the builder after this guide set_message mutation, Distinct from mutating in place.
 `Code::from_i32` interprets a wire i32 after this guide to_i32 emit, Distinct from emitting the wire i32.
 `Code::to_i32` emits the wire i32 after this guide from_i32 interpret, Distinct from interpreting a wire i32.
+`Code::name` is the canonical name after this guide description text, Distinct from being the one-line google.rpc.Code text.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip.
 `Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,
