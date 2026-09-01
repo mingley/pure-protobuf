@@ -85,6 +85,7 @@ impl Code {
 
     /// The canonical `SCREAMING_SNAKE_CASE` spelling used across gRPC
     /// implementations and tooling.
+    /// Distinct from [`Self::description`]: that is the one-line google.rpc.Code text; this is the canonical name.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
