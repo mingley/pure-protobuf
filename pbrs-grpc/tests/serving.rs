@@ -3472,6 +3472,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must name from_error_details typed bag next to intercept Err"
     );
     assert!(
+        src.contains(
+            "Distinct from [`Self::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "Channel::intercept rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
+    );
+    assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
     );
