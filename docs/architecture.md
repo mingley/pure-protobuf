@@ -323,6 +323,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 `Status::from_error_details` is the typed bag after this architecture InteropTestService interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService client interceptor Err; a local reject never opens a stream.
+Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture InteropTestService client interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this architecture on_response path.
