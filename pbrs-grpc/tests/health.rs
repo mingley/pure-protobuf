@@ -672,6 +672,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this health client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "Health crate rustdoc must Distinct max_concurrent_rpcs slot grab after client intercept"
+    );
+    assert!(
+        src.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this health StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "Health crate rustdoc must name from_error_details typed bag next to StreamSender fail"
