@@ -1328,6 +1328,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::user_agent`]: that is the override this envelope carries; this prefixes it."
+        ),
+        "Request::set_user_agent must Distinct the override getter from prefixing"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay."
         ),
         "Request::accepts_compressed must Distinct client interceptor overlay from inbound dispatch"

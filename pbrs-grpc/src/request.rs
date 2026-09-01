@@ -420,6 +420,8 @@ impl<T> Request<T> {
 
     /// Prefix the kernel `user-agent` on this RPC.
     ///
+    /// Distinct from [`Self::user_agent`]: that is the override this envelope carries; this prefixes it.
+    ///
     /// Same construction as [`crate::Channel::user_agent`] /
     /// [`crate::Outgoing::set_user_agent`]: `prefix pbrs-grpc/<version>`.
     /// Empty prefix is the kernel identity alone. Invalid HTTP is
