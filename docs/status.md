@@ -641,6 +641,7 @@ See `docs/upb.md`. Short list:
   `Status::code` is the ASCII `grpc-status` trailer on this packed-status, Distinct from `rpc` being the packed protobuf.
   `Status::message` is the ASCII `grpc-message` trailer on this packed-status, Distinct from `rpc` being the packed protobuf.
   `Status::rpc` is the packed protobuf on this packed-status, Distinct from `code` being the ASCII `grpc-status` trailer.
+  `Status::rpc` is the packed protobuf on this packed-status, Distinct from `message` being the ASCII `grpc-message` trailer.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
