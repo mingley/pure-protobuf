@@ -4853,6 +4853,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status next to Metadata"
     );
     assert!(
+        crate_src.contains("[`Status`], [`Code`]"),
+        "crate map must name Code next to Status"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
