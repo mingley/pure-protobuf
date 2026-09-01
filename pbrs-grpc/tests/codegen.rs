@@ -4449,6 +4449,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "generated server intercept rustdoc must Distinct Channel outbound-before-stream from inbound-before-handler"
     );
     assert!(
+        src.contains(
+            "Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this generated server intercept runs on the inbound RPC before the handler."
+        ),
+        "generated server intercept rustdoc must Distinct on_response after-Ok from inbound-before-handler"
+    );
+    assert!(
         src.contains("Applies to every call shape; `Err` rejects before the body is read, including over TLS, mTLS, Unix, and [`::pbrs_grpc::Server::serve_connection`]."),
         "generated server intercept rustdoc must name a single intercept reject on every transport"
     );
