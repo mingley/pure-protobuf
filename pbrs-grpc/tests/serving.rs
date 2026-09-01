@@ -4749,6 +4749,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ParseCodeError next to Code::is_retryable"
     );
     assert!(
+        crate_src.contains("[`ParseCodeError`], [`Any`]"),
+        "crate map must name Any next to ParseCodeError"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
@@ -5303,6 +5307,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::metadata`]: that borrows this status trailers map; this mutates it."
         ),
         "Status::metadata_mut must Distinct the borrow from this mutator"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Code::from_i32`]: that maps an unrecognised wire i32 to [`Code::Unknown`]; this rejects the string."
+        ),
+        "ParseCodeError must Distinct from_i32 Unknown mapping from this string reject"
     );
     assert!(
         status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),

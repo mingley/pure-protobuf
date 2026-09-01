@@ -160,6 +160,7 @@ impl fmt::Display for Code {
 }
 
 /// The string was not a canonical gRPC code name or a code in `0..=16`.
+/// Distinct from [`Code::from_i32`]: that maps an unrecognised wire i32 to [`Code::Unknown`]; this rejects the string.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParseCodeError;
 
