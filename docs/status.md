@@ -611,6 +611,7 @@ See `docs/upb.md`. Short list:
   `ErrorDetails::to_anys` returns the `Any` list on this packed-status, Distinct from `from_error_details` encoding the bag as a trailer.
   `ErrorDetails::from_rpc` unpacks the `Any` list on this packed-status, Distinct from `Status::error_details` unpacking a kernel Status trailer.
   `Any::pack` packs one message into an `Any` on this packed-status, Distinct from `with_error_details` packing Anys onto a status.
+  `Any::pack_with` takes an explicit type URL on this packed-status, Distinct from `pack` using `type.googleapis.com/<FULL_NAME>`.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on

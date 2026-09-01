@@ -6721,6 +6721,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Any::pack next to ErrorDetails::from_rpc"
     );
     assert!(
+        status_guide.contains(
+            "`Any::pack_with` takes an explicit type URL on this packed-status, Distinct from `pack` using `type.googleapis.com/<FULL_NAME>`."
+        ),
+        "status guide must name Any::pack_with next to Any::pack"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
