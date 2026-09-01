@@ -6908,6 +6908,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Code::name next to Code::to_i32"
     );
     assert!(
+        readme.contains("`Code::description` is the one-line google.rpc.Code text on this crate README, Distinct from `name` being the canonical name."),
+        "crate README must name Code::description next to Code::name"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
