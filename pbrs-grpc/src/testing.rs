@@ -43,6 +43,7 @@
 //! cannot pool.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing interceptor Err; those trailers reach the client without reading the body.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing handler Err; those trailers reach the client.
+//! [`crate::Outgoing::connected`] is the live-socket snapshot on this testing client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing client interceptor Err; a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this testing client interceptor already ran, so a local Err never consumes that budget.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent.
