@@ -7345,6 +7345,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorInfo::with_reason as the builder"
     );
     assert!(
+        architecture.contains("`Status::with_cause` attaches `Error::source` onto an existing architecture status; a peer trailer has no cause."),
+        "architecture must name Status::with_cause next to Error::source"
+    );
+    assert!(
         architecture.contains("`ErrorInfo::with_metadata` fills a metadata pair after this architecture ErrorInfo builder."),
         "architecture must name ErrorInfo::with_metadata as the metadata builder"
     );
