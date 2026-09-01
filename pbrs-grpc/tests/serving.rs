@@ -6626,6 +6626,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::with_rpc next to with_details"
     );
     assert!(
+        readme.contains("`pb::Status::with_details` builds a packed `google.rpc.Status` on this crate README, Distinct from `Status::with_details` shipping raw trailer bytes."),
+        "crate README must name pb::Status::with_details next to with_rpc"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
