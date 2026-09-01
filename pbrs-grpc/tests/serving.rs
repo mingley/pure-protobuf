@@ -8267,6 +8267,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Any::is` is a type-URL check after this architecture unpack decode, Distinct from decoding the payload."
+        ),
+        "architecture must name Any::is next to Any::unpack"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
