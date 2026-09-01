@@ -264,6 +264,7 @@ pub(crate) fn intercept_response_all<T>(
 /// Cloning is cheap when `I: Clone`: the inner service is shared.
 /// Distinct from [`Interceptor`]: that is the inbound hook; this wrapper runs it before the handler.
 /// Distinct from [`ClientInterceptor`]: that is the outbound hook; this wrapper runs an inbound [`Interceptor`] before the handler.
+/// Distinct from [`ResponseInterceptor`]: that is the after-Ok hook; this wrapper runs before the handler and may hold that hook for after Ok.
 pub struct Intercepted<S, I> {
     inner: Arc<S>,
     interceptor: I,
