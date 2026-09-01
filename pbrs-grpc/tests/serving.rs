@@ -6294,6 +6294,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`Status::from_error_details` is the typed bag after this packed-status InteropTestService handler Err; those trailers reach the client."
+        ),
+        "status guide must name from_error_details typed bag next to InteropTestService handler Err"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status Health interceptor Err; those trailers reach the client without reading the body."
         ),
         "status guide must name from_error_details typed bag next to Health interceptor Err"
