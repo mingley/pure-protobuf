@@ -267,6 +267,8 @@ impl<T> Streaming<T> {
     }
 
     /// Collect the whole stream. Fails on the first error status.
+    ///
+    /// Distinct from [`Self::message`]: that yields one message; this drains the stream.
     pub async fn collect(&mut self) -> Result<Vec<T>, Status> {
         let mut out = Vec::new();
         while let Some(msg) = self.message().await? {
