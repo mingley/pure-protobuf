@@ -348,6 +348,7 @@ that name is `SERVICE_UNKNOWN`; Watch streams `set_not_serving` /
 over TLS, mTLS, Unix, and `from_io`. `Watch` ends when the client cancels or drops the
 stream, without waiting for a later status change.
 `Status::from_error_details` is the typed bag after this architecture Health interceptor Err; those trailers reach the client without reading the body.
+`Status::from_error_details` is the typed bag after this architecture Health handler Err; those trailers reach the client.
 `grpc.reflection.v1` is built from registered
 `FILE_DESCRIPTOR_SET`s. `file_containing_symbol` / `file_by_filename` /
 `file_containing_extension` / `all_extension_numbers_of_type` run on that
