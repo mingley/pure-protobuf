@@ -142,6 +142,8 @@
 //!
 //! Distinct from [`Interceptor`]: that is the inbound hook; this crate-map [`Intercepted`] is the wrapper that runs it before the handler.
 //!
+//! Distinct from [`ClientInterceptor`]: that is the outbound hook; this crate-map [`Intercepted`] is the wrapper that runs an inbound [`Interceptor`] before the handler.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.
