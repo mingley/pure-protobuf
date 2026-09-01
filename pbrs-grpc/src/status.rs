@@ -470,6 +470,8 @@ impl Status {
     }
 
     /// [`Self::set_rpc`] as a builder.
+    ///
+    /// Distinct from [`Self::from_rpc`]: that mints a fresh status with empty trailers; this keeps existing trailers.
     pub fn with_rpc(mut self, rpc: &crate::pb::Status) -> Result<Self, Self> {
         self.set_rpc(rpc)?;
         Ok(self)

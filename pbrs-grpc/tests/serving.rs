@@ -5087,6 +5087,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::set_error_details and set_from_error_details next to set_rpc"
     );
     assert!(
+        crate_src.contains("[`Status::set_from_error_details`], [`Status::with_rpc`]"),
+        "crate map must name Status::with_rpc next to set_from_error_details"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
@@ -5558,6 +5562,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::set_error_details`]: that packs `Any` values; this encodes a packed `google.rpc.Status`."
         ),
         "Status::set_rpc must Distinct packing Anys from encoding a packed google.rpc.Status"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::from_rpc`]: that mints a fresh status with empty trailers; this keeps existing trailers."
+        ),
+        "Status::with_rpc must Distinct the fresh from_rpc constructor from this trailer-preserving builder"
     );
     assert!(
         status_src.contains(
