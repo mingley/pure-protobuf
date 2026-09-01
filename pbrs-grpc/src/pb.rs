@@ -108,6 +108,7 @@ impl Any {
     ///
     /// [`crate::Code::InvalidArgument`] if the type URL names a different
     /// message; [`crate::Code::Internal`] if the bytes are not a valid `M`.
+    /// Distinct from [`Self::is`]: that is a type-URL check; this decodes the payload.
     pub fn unpack<M: pbrs::Parse + Default + pbrs::MessageName>(&self) -> Result<M, crate::Status> {
         if !self.is::<M>() {
             return Err(crate::Status::invalid_argument(format!(
