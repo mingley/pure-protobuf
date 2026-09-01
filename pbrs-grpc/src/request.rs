@@ -1713,6 +1713,8 @@ impl Parts {
 
     /// Drop a [`Self::set_user_agent`] override so this RPC uses the channel
     /// value again. See [`Request::clear_user_agent`].
+    ///
+    /// Distinct from [`Self::set_user_agent`]: that prefixes this split envelope; this restores the channel value.
     pub fn clear_user_agent(&mut self) {
         self.user_agent = None;
     }
