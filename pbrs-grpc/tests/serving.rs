@@ -5793,6 +5793,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`Status::from_error_details` is the typed bag after this crate README Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "crate README must name from_error_details typed bag next to Reverser StreamSender fail"
+    );
+    assert!(
+        readme.contains(
             "`ResponseParts::compress_is_set` is occupancy on this crate README on_response path, so a later interceptor can fill compress only when unset."
         ),
         "crate README must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
