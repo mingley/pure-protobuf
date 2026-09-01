@@ -695,6 +695,7 @@ impl ErrorDetails {
     /// standard type fills the matching field; anything else, including a
     /// second value of a known type, goes to [`Self::unknown`].
     /// Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag.
+    /// Distinct from [`crate::Status::error_details`]: that unpacks `grpc-status-details-bin` on a kernel Status; this unpacks the `Any` list on a packed `google.rpc.Status`.
     pub fn from_rpc(rpc: &Status) -> Result<Self, crate::Status> {
         let mut out = Self::new();
         let details = rpc.details();

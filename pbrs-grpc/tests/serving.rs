@@ -4693,6 +4693,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::to_anys next to ErrorDetails"
     );
     assert!(
+        crate_src.contains("[`ErrorDetails::to_anys`], [`ErrorDetails::from_rpc`]"),
+        "crate map must name ErrorDetails::from_rpc next to to_anys"
+    );
+    assert!(
         crate_src.contains("[`Status::from_error_details`], [`Status::with_details`]"),
         "crate map must name Status::with_details next to the typed-bag constructor"
     );
@@ -5513,6 +5517,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag."
         ),
         "ErrorDetails::from_rpc must Distinct the Status encode constructor from this typed-bag unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::error_details`]: that unpacks `grpc-status-details-bin` on a kernel Status; this unpacks the `Any` list on a packed `google.rpc.Status`."
+        ),
+        "ErrorDetails::from_rpc must Distinct the kernel Status trailer unpack from this google.rpc.Status Any list"
     );
     assert!(
         pb_src.contains(
