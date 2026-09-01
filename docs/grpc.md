@@ -385,6 +385,7 @@ if let Some(retry) = details.retry_info {
 
 Or `status.retry_delay()` for that wait hint without unpacking the bag. Distinct from `status.is_retryable()`: a delay is not permission to retry. `RetryInfo::with_retry_delay` builds that payload.
 Or `status.error_info()` for the reason and domain without unpacking the bag. Distinct from `status.error_details()`. `ErrorInfo::with_reason` builds that payload.
+`ErrorInfo::with_metadata` fills a metadata pair after this guide ErrorInfo builder.
 Or `status.bad_request()` for field violations without unpacking the bag. Distinct from `status.error_info()`. `BadRequest::with_field` builds that payload.
 Or `status.quota_failure()` for quota subjects without unpacking the bag. Distinct from `status.is_retryable()`. `QuotaFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 Or `status.precondition_failure()` for precondition type and subject without unpacking the bag. Distinct from `status.quota_failure()`. `PreconditionFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.

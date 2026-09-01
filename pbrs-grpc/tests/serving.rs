@@ -6921,6 +6921,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ErrorInfo::with_reason as the builder"
     );
     assert!(
+        guide.contains(
+            "`ErrorInfo::with_metadata` fills a metadata pair after this guide ErrorInfo builder."
+        ),
+        "guide must name ErrorInfo::with_metadata as the metadata builder"
+    );
+    assert!(
         guide.contains("let info = ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\");"),
         "guide with_error_details example must build ErrorInfo with with_reason"
     );
