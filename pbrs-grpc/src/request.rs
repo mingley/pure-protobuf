@@ -1262,6 +1262,7 @@ impl<'a> Outgoing<'a> {
 
     /// Set the relative timeout. Becomes `grpc-timeout` on the wire.
     ///
+    /// Distinct from [`Self::timeout`]: that reads the Call `grpc-timeout`; this writes it.
     /// This is the [`crate::Call`]'s deadline on every call shape.
     pub fn set_timeout(&mut self, timeout: Duration) {
         *self.timeout = Some(timeout);
