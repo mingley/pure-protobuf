@@ -6280,6 +6280,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name help::Link::with_url next to Help::with_link"
     );
     assert!(
+        readme.contains(
+            "`Status::localized_message` / `LocalizedMessage::with_locale` builds packed locale text on this crate README"
+        ),
+        "crate README must name LocalizedMessage::with_locale next to Status::localized_message"
+    );
+    assert!(
         readme.contains("`Status::with_cause` attaching `Error::source` onto an existing status"),
         "crate README must name Status::with_cause next to Status::from_error"
     );
