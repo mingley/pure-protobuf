@@ -6199,6 +6199,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ErrorInfo::with_reason as the builder"
     );
     assert!(
+        status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
+        "status guide must name ErrorInfo::with_metadata as the metadata builder"
+    );
+    assert!(
         status_guide.contains("`RetryInfo::with_retry_delay` builds that payload."),
         "status guide must name RetryInfo::with_retry_delay as the builder"
     );
