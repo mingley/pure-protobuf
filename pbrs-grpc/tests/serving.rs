@@ -1145,7 +1145,7 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::clear_user_agent must Distinct prefixing this RPC from restoring the channel value"
     );
     assert!(
-        outgoing.contains("the override only, like [`Self::timeout`]"),
+        outgoing.contains("The override only, like [`Self::timeout`]"),
         "Request::user_agent must Distinct the override from Outgoing's effective value"
     );
     assert!(
