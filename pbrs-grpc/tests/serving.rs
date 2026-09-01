@@ -6681,6 +6681,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name pb::Status::with_details next to with_rpc"
     );
     assert!(
+        status_guide.contains(
+            "`ErrorDetails::to_anys` returns the `Any` list on this packed-status, Distinct from `from_error_details` encoding the bag as a trailer."
+        ),
+        "status guide must name ErrorDetails::to_anys next to pb::Status::with_details"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
