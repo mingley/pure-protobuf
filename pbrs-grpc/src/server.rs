@@ -407,6 +407,7 @@ impl Rpc {
 
     /// Mutate inbound metadata the handler will see.
     ///
+    /// Distinct from [`Self::metadata`]: that borrows the inbound map; this mutates it.
     /// Insert, or strip with [`Metadata::remove`] / [`Metadata::remove_bin`].
     /// Reserved keys (`grpc-*`, `content-type`, hop-by-hop headers, ...)
     /// stay on the HTTP request for the kernel; they cannot be inserted or

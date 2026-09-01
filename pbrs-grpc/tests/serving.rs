@@ -11058,6 +11058,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::metadata`]: that borrows the inbound map; this mutates it."
+        ),
+        "Rpc::metadata_mut must Distinct the borrow from the mutable inbound map"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::extensions_mut`]: that inserts typed values the handler will see; this borrows the map."
         ),
         "Rpc::extensions must Distinct the mutator from the borrow"
