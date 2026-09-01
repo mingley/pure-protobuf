@@ -6292,6 +6292,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name RequestInfo::with_request_id next to Status::request_info"
     );
     assert!(
+        readme.contains(
+            "`Status::resource_info` / `ResourceInfo::with_resource` builds packed resource type and name on this crate README"
+        ),
+        "crate README must name ResourceInfo::with_resource next to Status::resource_info"
+    );
+    assert!(
         readme.contains("`Status::with_cause` attaching `Error::source` onto an existing status"),
         "crate README must name Status::with_cause next to Status::from_error"
     );
