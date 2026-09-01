@@ -1676,6 +1676,8 @@ impl Parts {
 
     /// Drop a wait-for-ready choice so a later channel default can fill it in.
     /// See [`Request::clear_wait_for_ready`].
+    ///
+    /// Distinct from [`Self::set_wait_for_ready`]: that writes the wait-for-ready choice this split envelope carries; this opts out.
     pub fn clear_wait_for_ready(&mut self) {
         self.wait_for_ready = None;
     }
