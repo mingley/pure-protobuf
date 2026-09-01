@@ -3973,6 +3973,12 @@ fn official_interop_rustdoc_names_every_transport() {
         ),
         "testing crate rustdoc must name from_error_details typed bag next to UnimplementedService client interceptor Err"
     );
+    assert!(
+        testing.contains(
+            "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this UnimplementedService client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "testing crate rustdoc must Distinct max_concurrent_rpcs slot grab after UnimplementedService client intercept"
+    );
     let cases = include_str!("../src/interop_cases.rs");
     assert!(
         cases.contains(
