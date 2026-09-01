@@ -435,6 +435,8 @@ impl<T> StreamSender<T> {
 
     /// gzip subsequent [`Self::send`] payloads.
     ///
+    /// Distinct from [`Self::compress`]: that reads whether subsequent send payloads gzip; this writes it.
+    ///
     /// Does not change already-queued messages. [`Self::send_compressed`]
     /// still gzips a single message regardless of this flag.
     pub fn set_compress(&mut self, compress: bool) {

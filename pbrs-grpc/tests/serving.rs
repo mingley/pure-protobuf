@@ -591,6 +591,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "StreamSender::fail rustdoc must name from_error_details typed bag next to server-producer trailers"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::compress`]: that reads whether subsequent send payloads gzip; this writes it."
+        ),
+        "StreamSender::set_compress must Distinct the getter from the writer"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),
