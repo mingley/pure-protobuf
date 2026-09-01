@@ -4945,6 +4945,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Stream next to Framed"
     );
     assert!(
+        crate_src.contains("[`Stream`], [`FusedStream`]"),
+        "crate map must name FusedStream next to Stream"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
