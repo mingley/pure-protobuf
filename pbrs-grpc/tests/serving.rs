@@ -669,6 +669,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Framed::new must Distinct setting the Compressed-Flag from clearing it"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::new`]: that clears the Compressed-Flag; this sets it."
+        ),
+        "Framed::compressed must Distinct clearing the Compressed-Flag from setting it"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

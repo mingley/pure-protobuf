@@ -41,6 +41,8 @@ impl<T> Framed<T> {
     }
 
     /// A frame with the Compressed-Flag set.
+    ///
+    /// Distinct from [`Self::new`]: that clears the Compressed-Flag; this sets it.
     #[must_use]
     pub fn compressed(message: T) -> Self {
         Self {
