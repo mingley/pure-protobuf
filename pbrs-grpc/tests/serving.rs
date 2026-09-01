@@ -8247,6 +8247,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::is_ok` is Code::Ok after this guide is_retryable A6, Distinct from being UNAVAILABLE only."
+        ),
+        "guide must name Status::is_ok next to Code::description"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
