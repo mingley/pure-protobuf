@@ -6448,6 +6448,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::from_error_details` is the typed bag after this guide hello StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "guide must name from_error_details typed bag next to hello StreamSender fail"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client."
         ),
         "guide must name from_error_details typed bag next to TestService handler Err"
