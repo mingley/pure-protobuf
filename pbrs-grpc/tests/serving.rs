@@ -7719,6 +7719,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Any::pack` packs one message into an `Any` after this guide with_error_details packer, Distinct from packing Anys onto a status."
+        ),
+        "guide must name Any::pack next to ErrorDetails::from_rpc"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
