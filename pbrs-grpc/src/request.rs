@@ -1309,6 +1309,7 @@ impl<'a> Outgoing<'a> {
 
     /// Drop a wait-for-ready choice so a later interceptor can fill it in.
     ///
+    /// Distinct from [`Self::set_wait_for_ready`]: that queues this RPC; this opts out.
     /// The channel overlay has already run; clearing here opts out of that
     /// default too, the same as [`Self::clear_timeout`]. [`Self::waits_for_ready`]
     /// still reports the channel policy so a later interceptor can re-apply it.

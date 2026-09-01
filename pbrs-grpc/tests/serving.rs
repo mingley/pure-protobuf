@@ -1085,6 +1085,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Outgoing::set_wait_for_ready must Distinct the live-socket snapshot"
     );
     assert!(
+        outgoing.contains(
+            "Distinct from [`Self::set_wait_for_ready`]: that queues this RPC; this opts out."
+        ),
+        "Outgoing::clear_wait_for_ready must Distinct queueing this RPC from opting out"
+    );
+    assert!(
         outgoing.contains("Distinct from [`Self::wait_for_ready`]: that queues"),
         "Outgoing::connected must Distinct wait-for-ready queueing from a live socket"
     );
