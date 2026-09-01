@@ -358,6 +358,7 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     /// [`Intercepted`], so `svc.intercept(a).intercept(b)` does not wrap
     /// onion-style (which would run `b` first). A response hook already
     /// attached with [`Self::on_response`] stays.
+    /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Intercepted intercept stacks another inbound hook before the handler.
     ///
     /// ```
     /// # fn demo<S, I>(wrapped: pbrs_grpc::Intercepted<S, I>) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor>
