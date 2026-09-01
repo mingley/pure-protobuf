@@ -334,7 +334,9 @@ and HTTP/2 connection death attach the original error as
 `BadRequest`, `RequestInfo`, `ResourceInfo`, `Help`, `LocalizedMessage`) as
 `google.rpc.Status`. Distinct from `with_error_details`: that packs `Any` values, not the typed bag. Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
-(a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload. `Status::bad_request` is packed field violations. Distinct from
+(a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
+`ErrorInfo::with_metadata` fills a metadata pair after this architecture ErrorInfo builder.
+`Status::bad_request` is packed field violations. Distinct from
 `error_info`. `BadRequest::with_field` builds that payload. `Status::quota_failure`
 is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `bad_request`. `QuotaFailure::with_violation` builds that payload.
