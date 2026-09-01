@@ -7189,6 +7189,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Code::is_retryable next to Status::message"
     );
     assert!(
+        status_guide.contains(
+            "`Status::is_retryable` is the A6 set on a Status on this packed-status, Distinct from `Code::is_retryable` being the same A6 set on a Code."
+        ),
+        "status guide must name Status::is_retryable next to Code::is_retryable"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
