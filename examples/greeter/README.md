@@ -15,3 +15,4 @@ cargo run -p pbrs-grpc-example-greeter
 `src/lib.rs` is the whole service. Tests cover every shape, health `Check`
 and `Watch` (dropping the stream ends the subscription), and reflection
 `list_services`.
+`Status::from_error_details` is the typed bag after this example README greeter interceptor Err; those trailers reach the client without reading the body.

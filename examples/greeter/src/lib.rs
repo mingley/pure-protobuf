@@ -212,6 +212,14 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn example_readme_names_from_error_details_on_interceptor_err() {
+        let readme = include_str!("../README.md");
+        assert!(readme.contains(
+            "`Status::from_error_details` is the typed bag after this example README greeter interceptor Err; those trailers reach the client without reading the body."
+        ));
+    }
+
     fn text(reply: &HelloReply) -> String {
         reply.message().to_str().unwrap_or_default().to_owned()
     }
