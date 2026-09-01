@@ -4778,6 +4778,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`Outgoing::connected`] is the live-socket snapshot on this crate-map Health client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "crate docs must name Outgoing::connected live-socket snapshot on crate-map Health"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map Health client interceptor Err; a local reject never opens a stream."
         ),
         "crate docs must name from_error_details typed bag next to crate-map Health client interceptor Err"
