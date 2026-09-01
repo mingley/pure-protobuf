@@ -690,6 +690,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health interceptor: that runs on the inbound RPC before the handler; this health client interceptor runs on the outbound call before the stream opens."
+        ),
+        "Health crate rustdoc must Distinct inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        src.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this health StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "Health crate rustdoc must name from_error_details typed bag next to StreamSender fail"
