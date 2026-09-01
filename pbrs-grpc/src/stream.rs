@@ -478,6 +478,8 @@ impl<T> StreamSender<T> {
 
     /// Queue a message with an explicit Compressed-Flag.
     ///
+    /// Distinct from [`Self::send`]: that follows [`Self::compress`]; this takes an explicit Compressed-Flag.
+    ///
     /// An oversize message fails this send with [`crate::Code::ResourceExhausted`]
     /// and, on a server response producer, ends the stream with that status
     /// so a handler that ignores the error cannot ship OK trailers.

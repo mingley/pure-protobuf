@@ -621,6 +621,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "StreamSender::send must Distinct an explicit Compressed-Flag from following the compress default"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::send`]: that follows [`Self::compress`]; this takes an explicit Compressed-Flag."
+        ),
+        "StreamSender::send_framed must Distinct following the compress default from an explicit Compressed-Flag"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),
