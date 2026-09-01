@@ -4416,6 +4416,10 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from [`{G}::Channel::intercept`]: that runs on the outbound call before the stream opens; this generated server intercept runs on the inbound RPC before the handler."
+    );
+    let _ = writeln!(
+        src,
         "    /// Compiling overlay dumps live on [`{G}::hello`] (`GreeterServer::new(Svc).intercept`)."
     );
     let _ = writeln!(src, "    #[must_use]");
