@@ -6837,6 +6837,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Duration::from_std next to ErrorDetails::new"
     );
     assert!(
+        status_guide.contains(
+            "`Duration::try_to_std` converts this protobuf to `std` on this packed-status, Distinct from `from_std` building the protobuf from `std`."
+        ),
+        "status guide must name Duration::try_to_std next to Duration::from_std"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
