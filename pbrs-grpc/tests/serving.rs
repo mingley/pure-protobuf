@@ -6697,6 +6697,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status Store client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "status guide must Distinct max_concurrent_rpcs slot grab after Store client intercept"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status TestService client interceptor Err; a local reject never opens a stream."
         ),
         "status guide must name from_error_details typed bag next to TestService client interceptor Err"
