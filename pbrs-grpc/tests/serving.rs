@@ -8203,6 +8203,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::set_details` ships raw trailer bytes after this architecture set_error_details packer, Distinct from packing Anys onto a status."
+        ),
+        "architecture must name Status::set_details next to Any::pack_with"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
