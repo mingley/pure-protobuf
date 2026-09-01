@@ -52,6 +52,8 @@ impl<T> Framed<T> {
     }
 
     /// Discard the flag.
+    ///
+    /// Distinct from keeping this frame: that still carries the Compressed-Flag; this returns the payload and drops the flag.
     #[must_use]
     pub fn into_inner(self) -> T {
         self.message
