@@ -978,6 +978,7 @@ over TLS, mTLS, Unix, and `from_io`.
 A handler `Err(Status::with_error_details(...))` unpacks the same way on Check, List, and Watch, including over TLS, mTLS, Unix, and
 `from_io`.
 `Status::from_error_details` is the typed bag after this guide Health handler Err; those trailers reach the client.
+`Outgoing::connected` is the live-socket snapshot on this guide Health client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide Health client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide Health client interceptor already ran, so a local Err never consumes that budget.
 Watch `StreamSender::fail` after a streamed DATA frame unpacks the
