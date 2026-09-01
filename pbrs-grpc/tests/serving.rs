@@ -8084,6 +8084,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture UnimplementedService client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "architecture must Distinct max_concurrent_rpcs slot grab after UnimplementedService client intercept"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture InteropTestService interceptor Err; those trailers reach the client without reading the body."
         ),
         "architecture must name from_error_details typed bag next to InteropTestService interceptor Err"
