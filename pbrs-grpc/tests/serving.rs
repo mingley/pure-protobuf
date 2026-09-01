@@ -4689,6 +4689,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::from_error_details next to the Any packer"
     );
     assert!(
+        crate_src.contains("[`ErrorDetails`], [`ErrorDetails::to_anys`]"),
+        "crate map must name ErrorDetails::to_anys next to ErrorDetails"
+    );
+    assert!(
         crate_src.contains("[`Status::from_error_details`], [`Status::with_details`]"),
         "crate map must name Status::with_details next to the typed-bag constructor"
     );
@@ -5509,6 +5513,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag."
         ),
         "ErrorDetails::from_rpc must Distinct the Status encode constructor from this typed-bag unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::from_error_details`]: that encodes the bag as a trailer; this returns the `Any` list."
+        ),
+        "ErrorDetails::to_anys must Distinct the typed-bag trailer constructor from this Any list"
     );
     assert!(
         pb_src.contains(

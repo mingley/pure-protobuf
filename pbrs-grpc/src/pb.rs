@@ -673,6 +673,8 @@ impl ErrorDetails {
 
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
+    ///
+    /// Distinct from [`crate::Status::from_error_details`]: that encodes the bag as a trailer; this returns the `Any` list.
     pub fn to_anys(&self) -> Result<Vec<Any>, crate::Status> {
         let mut out = Vec::new();
         push_named(&mut out, self.error_info.as_ref())?;
