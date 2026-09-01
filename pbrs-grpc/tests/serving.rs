@@ -8659,6 +8659,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Code::from_i32` interprets a wire i32 after this architecture to_i32 emit, Distinct from emitting the wire i32."
+        ),
+        "architecture must name Code::from_i32 next to Status::with_message"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
