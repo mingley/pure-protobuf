@@ -374,6 +374,7 @@ and HTTP/2 connection death attach the original error as
 `Code::to_i32` emits the wire i32 after this architecture from_i32 interpret, Distinct from interpreting a wire i32.
 `Code::name` is the canonical name after this architecture description text, Distinct from being the one-line google.rpc.Code text.
 `Code::description` is the one-line google.rpc.Code text after this architecture name spelling, Distinct from being the canonical name.
+`Status::is_ok` is Code::Ok after this architecture is_retryable A6, Distinct from being UNAVAILABLE only.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.

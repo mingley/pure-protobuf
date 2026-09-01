@@ -8791,6 +8791,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::is_ok` is Code::Ok after this architecture is_retryable A6, Distinct from being UNAVAILABLE only."
+        ),
+        "architecture must name Status::is_ok next to Code::description"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
