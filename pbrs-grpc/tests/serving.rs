@@ -5331,6 +5331,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name pb::precondition_failure next to precondition_failure::Violation::with_type"
     );
     assert!(
+        crate_src.contains("[`pb::precondition_failure`], [`Status::help`]"),
+        "crate map must name Status::help next to pb::precondition_failure"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
