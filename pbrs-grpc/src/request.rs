@@ -322,6 +322,8 @@ impl<T> Request<T> {
 
     /// Drop a wait-for-ready choice so a later [`crate::Channel::wait_for_ready`]
     /// or interceptor can fill it in. See [`Self::clear_timeout`].
+    ///
+    /// Distinct from [`Self::set_wait_for_ready`]: that writes the wait-for-ready choice this envelope carries; this opts out.
     pub fn clear_wait_for_ready(&mut self) {
         self.wait_for_ready = None;
     }

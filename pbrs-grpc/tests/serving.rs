@@ -1322,6 +1322,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::set_wait_for_ready`]: that writes the wait-for-ready choice this envelope carries; this opts out."
+        ),
+        "Request::clear_wait_for_ready must Distinct writing from opting out"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay."
         ),
         "Request::accepts_compressed must Distinct client interceptor overlay from inbound dispatch"
