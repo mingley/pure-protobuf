@@ -6339,6 +6339,11 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
     );
     assert!(
+        status_guide
+            .contains("`help::Link::with_url` builds a nested docs URL on this packed-status."),
+        "status guide must name help::Link::with_url next to Help::with_link"
+    );
+    assert!(
         status_guide.contains("`RetryInfo::with_retry_delay` builds that payload."),
         "status guide must name RetryInfo::with_retry_delay as the builder"
     );
