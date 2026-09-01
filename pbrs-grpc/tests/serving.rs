@@ -5263,6 +5263,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::bad_request next to ErrorInfo::with_metadata"
     );
     assert!(
+        crate_src.contains("[`Status::bad_request`], [`pb::BadRequest::with_field`]"),
+        "crate map must name BadRequest::with_field next to Status::bad_request"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
