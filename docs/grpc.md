@@ -383,6 +383,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Status::metadata` borrows this status trailers map after this guide metadata_mut mutation, Distinct from mutating it.
 `Status::metadata_mut` mutates this status trailers map after this guide metadata borrow, Distinct from borrowing it.
 `ParseCodeError` rejects a string after this guide from_i32 Unknown map, Distinct from mapping an unrecognised wire i32 to Unknown.
+`Status::code` is the ASCII `grpc-status` trailer after this guide packed rpc parse, Distinct from being the packed protobuf.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip.
 `Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,
