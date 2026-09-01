@@ -340,7 +340,9 @@ unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
 `ErrorInfo::with_metadata` fills a metadata pair after this architecture ErrorInfo builder.
 `Status::bad_request` is packed field violations. Distinct from
-`error_info`. `BadRequest::with_field` builds that payload. `Status::quota_failure`
+`error_info`. `BadRequest::with_field` builds that payload.
+`FieldViolation::with_field` builds a nested field path after this architecture BadRequest builder.
+`Status::quota_failure`
 is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `bad_request`. `QuotaFailure::with_violation` builds that payload.
 `Status::precondition_failure` is packed type and subject. Distinct from

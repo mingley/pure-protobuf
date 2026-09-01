@@ -7469,6 +7469,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorInfo::with_metadata as the metadata builder"
     );
     assert!(
+        architecture.contains("`FieldViolation::with_field` builds a nested field path after this architecture BadRequest builder."),
+        "architecture must name FieldViolation::with_field next to BadRequest::with_field"
+    );
+    assert!(
         architecture.contains("`RetryInfo::with_retry_delay` builds that payload."),
         "architecture must name RetryInfo::with_retry_delay as the builder"
     );
