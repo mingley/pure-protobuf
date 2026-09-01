@@ -150,6 +150,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Store handler Err; those trailers reach the client.
 //!
+//! [`Status::from_error_details`] is the typed bag after this crate-map Store client interceptor Err; a local reject never opens a stream.
+//!
 //! [`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset.
 //!
 //! [`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path.
