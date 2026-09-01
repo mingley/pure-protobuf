@@ -887,6 +887,7 @@ impl Channel {
     /// [`crate::Outgoing::clear_compress`] then [`crate::Outgoing::set_compress`] from [`Self::compresses_outbound`] reapplies channel gzip after this Channel intercept choice.
     /// [`crate::Status::from_error_details`] is the typed bag after this Channel intercept Err; a local reject never opens a stream.
     /// Distinct from [`Self::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this interceptor already ran, so a local Err never consumes that budget.
+    /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {

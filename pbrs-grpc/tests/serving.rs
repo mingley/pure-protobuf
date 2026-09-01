@@ -3868,6 +3868,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
     );
     assert!(
+        src.contains(
+            "Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens."
+        ),
+        "Channel::intercept rustdoc must Distinct Server inbound-before-handler from outbound-before-stream"
+    );
+    assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
     );
