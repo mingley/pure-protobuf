@@ -5293,6 +5293,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::is_retryable must Distinct the Code-level A6 check from this Status"
     );
     assert!(
+        status_src.contains(
+            "Distinct from [`Self::metadata_mut`]: that mutates this status trailers map; this borrows it."
+        ),
+        "Status::metadata must Distinct the mutator from this borrow"
+    );
+    assert!(
         status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),
         "Status::retry_delay must Distinct wait hint from is_retryable"
     );
@@ -5636,6 +5642,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("[`pb::DebugInfo::with_stack`]"),
         "crate map must name DebugInfo::with_stack"
+    );
+    assert!(
+        crate_src.contains("[`pb::DebugInfo::with_stack`], [`Status::metadata`]"),
+        "crate map must name Status::metadata next to DebugInfo::with_stack"
+    );
+    assert!(
+        crate_src.contains("[`Status::metadata`], [`Status::metadata_mut`]"),
+        "crate map must name Status::metadata_mut next to Status::metadata"
     );
     assert!(
         status_src.contains("Packed `google.rpc.DebugInfo`, if this status carries one."),

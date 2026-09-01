@@ -385,6 +385,7 @@ impl Status {
     }
 
     /// Trailing metadata carried with this status.
+    /// Distinct from [`Self::metadata_mut`]: that mutates this status trailers map; this borrows it.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {
         match &self.detail {
