@@ -3690,6 +3690,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after a hello StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "hello Greeter StreamSender rustdoc must name from_error_details typed bag next to StreamSender fail"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.compress_is_set(),\n//!         parts.encoding(),"
         ),
         "hello GreeterServer::on_response rustdoc example must dump service Distinct from path"

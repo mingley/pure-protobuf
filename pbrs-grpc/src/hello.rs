@@ -161,6 +161,8 @@
 //! ```
 //! Generated [`Greeter`] handler `Err` unpacks the same trailers as a generated trait method.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello handler Err; those trailers reach the client.
+//! Generated [`Greeter`] ServerHello / StreamHello [`crate::StreamSender::fail`] ships those trailers after a streamed DATA frame.
+//! [`crate::Status::from_error_details`] is the typed bag after a hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
