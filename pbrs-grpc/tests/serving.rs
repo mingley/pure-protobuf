@@ -8467,6 +8467,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Status::from_code` is code-only after this architecture new constructor, Distinct from taking a code and message."
+        ),
+        "architecture must name Status::from_code next to Status::new"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
