@@ -2622,6 +2622,8 @@ impl ResponseParts {
 
     /// Drop a compression choice so a later server overlay can fill it in.
     /// See [`Response::clear_compress`].
+    ///
+    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this split reply envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }
