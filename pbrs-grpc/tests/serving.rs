@@ -6264,6 +6264,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name PreconditionFailure::with_violation next to Status::precondition_failure"
     );
     assert!(
+        readme.contains(
+            "`precondition_failure::Violation::with_type` builds a nested precondition type on this crate README"
+        ),
+        "crate README must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
+    );
+    assert!(
         readme.contains("`Status::with_cause` attaching `Error::source` onto an existing status"),
         "crate README must name Status::with_cause next to Status::from_error"
     );
