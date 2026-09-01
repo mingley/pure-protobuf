@@ -86,6 +86,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 `Status::from_error_details` is the typed bag after this crate README reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `Status::from_error_details` is the typed bag after this crate README Store interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this crate README Store handler Err; those trailers reach the client.
+`Outgoing::connected` is the live-socket snapshot on this crate README Store client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README Store client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README Store client interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this crate README Store StreamSender fail on a server response producer; those trailers ship after any messages already sent.
