@@ -8217,6 +8217,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Code::description` is the one-line google.rpc.Code text after this guide name spelling, Distinct from being the canonical name."
+        ),
+        "guide must name Code::description next to Code::name"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
