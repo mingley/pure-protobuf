@@ -5371,6 +5371,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::request_info next to LocalizedMessage::with_locale"
     );
     assert!(
+        crate_src.contains("[`Status::request_info`], [`pb::RequestInfo::with_request_id`]"),
+        "crate map must name RequestInfo::with_request_id next to Status::request_info"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
