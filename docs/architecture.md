@@ -352,7 +352,9 @@ builds that payload.
 `precondition_failure::Violation::with_type` builds a nested precondition type after this architecture PreconditionFailure builder.
 `Status::help` is packed documentation links. Distinct from
 failure classifications: links can sit next to a retryable UNAVAILABLE.
-`Help::with_link` builds that payload. `Status::localized_message` is packed
+`Help::with_link` builds that payload.
+`help::Link::with_url` builds a nested docs URL after this architecture Help builder.
+`Status::localized_message` is packed
 locale text. Distinct from the ASCII `grpc-message`. Distinct from `help`.
 `LocalizedMessage::with_locale` builds that payload. `Status::request_info` is packed
 request_id for logs. Distinct from `error_info`. Distinct from `help`.
