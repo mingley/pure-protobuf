@@ -583,6 +583,7 @@ See `docs/upb.md`. Short list:
   `Status::precondition_failure` is packed type and subject.
   Distinct from `quota_failure` (`FAILED_PRECONDITION` is never A6-retryable)
   and from `bad_request`. `PreconditionFailure::with_violation` builds that payload.
+  `precondition_failure::Violation::with_type` builds a nested precondition type on this packed-status.
   `Status::help` is packed documentation links. Distinct from failure
   classifications: links can sit next to a retryable UNAVAILABLE.
   `Help::with_link` builds that payload.
