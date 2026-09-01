@@ -5601,6 +5601,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from [`Interceptor`]: that is the inbound hook; this crate-map [`Intercepted`] is the wrapper that runs it before the handler."
+        ),
+        "crate docs must Distinct Interceptor inbound hook from Intercepted wrapper"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body."
         ),
         "crate docs must name from_error_details typed bag next to crate-map server intercept Err"
