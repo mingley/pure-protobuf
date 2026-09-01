@@ -7229,6 +7229,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::metadata next to Status::is_retryable"
     );
     assert!(
+        status_guide.contains(
+            "`Status::metadata_mut` mutates this status trailers map on this packed-status, Distinct from `metadata` borrowing it."
+        ),
+        "status guide must name Status::metadata_mut next to Status::metadata"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );

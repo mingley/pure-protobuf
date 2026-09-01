@@ -636,6 +636,7 @@ See `docs/upb.md`. Short list:
   `Code::is_retryable` is the A6 set on a Code on this packed-status, Distinct from `Status::is_retryable` being the same A6 set on a Status.
   `Status::is_retryable` is the A6 set on a Status on this packed-status, Distinct from `Code::is_retryable` being the same A6 set on a Code.
   `Status::metadata` borrows this status trailers map on this packed-status, Distinct from `metadata_mut` mutating it.
+  `Status::metadata_mut` mutates this status trailers map on this packed-status, Distinct from `metadata` borrowing it.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
