@@ -1023,6 +1023,7 @@ interceptor `Err(Status::with_error_details(...))` unpacks as `Status::rpc` /
 A handler `Err(Status::with_error_details(...))` unpacks the same way on that method, including over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this guide reflection handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this guide reflection client interceptor Err; a local reject never opens a stream.
+Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide reflection client interceptor already ran, so a local Err never consumes that budget.
 `StreamSender::fail` after a streamed DATA frame on `ServerReflectionInfo`
 unpacks the same way, including over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this guide reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.

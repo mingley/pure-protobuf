@@ -6965,6 +6965,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide reflection client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "guide must Distinct max_concurrent_rpcs slot grab after reflection client intercept"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "guide must name from_error_details typed bag next to reflection StreamSender fail"
