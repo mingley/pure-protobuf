@@ -4641,6 +4641,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::from_error_details next to the Any packer"
     );
     assert!(
+        crate_src.contains("[`Status::from_error`], [`Status::with_cause`]"),
+        "crate map must name Status::with_cause next to Status::from_error"
+    );
+    assert!(
         crate_src.contains(
             "Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip."
         ),
