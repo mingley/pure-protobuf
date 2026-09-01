@@ -7310,6 +7310,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "crate README must Distinct Server inbound-before-handler from Channel outbound-before-stream"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README server intercept Err; those trailers reach the client without reading the body."
         ),
         "crate README must name from_error_details typed bag next to server intercept Err"
