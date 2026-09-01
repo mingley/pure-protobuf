@@ -2052,6 +2052,7 @@ those transports too.
 `Status::from_error_details` is the typed bag after this guide TestService interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this guide TestService client interceptor Err; a local reject never opens a stream.
+`Status::from_error_details` is the typed bag after this guide TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
 client-streaming have no response DATA then trailers).
