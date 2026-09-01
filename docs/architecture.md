@@ -355,6 +355,7 @@ stream, without waiting for a later status change.
 `FILE_DESCRIPTOR_SET`s. `file_containing_symbol` / `file_by_filename` /
 `file_containing_extension` / `all_extension_numbers_of_type` run on that
 one bidi method, including over TLS, mTLS, Unix, and `from_io`.
+`Status::from_error_details` is the typed bag after this architecture reflection interceptor Err; those trailers reach the client without reading the body.
 
 ## Parse / encode
 
