@@ -296,6 +296,7 @@ before `metadata_mut`.
 `Outgoing::connected` is the live-socket snapshot on this architecture interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture interceptor already ran, so a local Err never consumes that budget.
+Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this architecture Channel intercept runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this architecture server intercept Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture Store interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture Store handler Err; those trailers reach the client.
