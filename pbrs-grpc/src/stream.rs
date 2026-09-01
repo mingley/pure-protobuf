@@ -447,6 +447,7 @@ impl<T> StreamSender<T> {
     /// Queue one message, waiting if the buffer is full.
     ///
     /// Distinct from [`Self::send_compressed`]: that gzips one message regardless of the default; this follows [`Self::compress`].
+    /// Distinct from [`Self::send_framed`]: that takes an explicit Compressed-Flag; this follows [`Self::compress`].
     ///
     /// Uncompressed unless this sender was built with channel-wide gzip
     /// ([`crate::ChannelConfig::send_compressed`]), the request called
