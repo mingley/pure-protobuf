@@ -4785,6 +4785,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::with_cause next to Status::from_error"
     );
     assert!(
+        crate_src.contains("[`Status::with_cause`], [`Status::is_ok`]"),
+        "crate map must name Status::is_ok next to Status::with_cause"
+    );
+    assert!(
+        crate_src.contains("[`Status::is_ok`], [`Status::is_retryable`]"),
+        "crate map must name Status::is_retryable next to Status::is_ok"
+    );
+    assert!(
         crate_src.contains(
             "Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip."
         ),
@@ -5751,6 +5759,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::name`]: that is the canonical name; this is the one-line google.rpc.Code text."
         ),
         "Code::description must Distinct the canonical name from this one-line google.rpc.Code text"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::is_retryable`]: that is UNAVAILABLE only; this is Code::Ok."
+        ),
+        "Status::is_ok must Distinct A6 retryable from this success check"
     );
     assert!(
         status_src.contains(

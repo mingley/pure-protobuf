@@ -634,6 +634,7 @@ impl Status {
     }
 
     /// Whether this status represents success.
+    /// Distinct from [`Self::is_retryable`]: that is UNAVAILABLE only; this is Code::Ok.
     #[must_use]
     pub fn is_ok(&self) -> bool {
         self.code == Code::Ok
