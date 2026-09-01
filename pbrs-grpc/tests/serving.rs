@@ -711,6 +711,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Streaming::channel must Distinct an already-finished stream from a live pair"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::channel`]: that is a live sender/receiver pair; this is already finished."
+        ),
+        "Streaming::empty must Distinct a live pair from an already-finished stream"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

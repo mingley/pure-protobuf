@@ -186,6 +186,8 @@ impl<T> Streaming<T> {
     }
 
     /// An already-finished stream. Reading it yields `Ok(None)` at once.
+    ///
+    /// Distinct from [`Self::channel`]: that is a live sender/receiver pair; this is already finished.
     #[must_use]
     pub fn empty() -> Self {
         let (_, stream) = Self::channel(1);
