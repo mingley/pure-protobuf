@@ -109,6 +109,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 `Status::from_error_details` is the typed bag after this crate README InteropTestService interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this crate README InteropTestService handler Err; those trailers reach the client.
 `Status::from_error_details` is the typed bag after this crate README InteropTestService client interceptor Err; a local reject never opens a stream.
+Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README InteropTestService client interceptor already ran, so a local Err never consumes that budget.
 `Status::from_error_details` is the typed bag after this crate README InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `ResponseParts::compress_is_set` is occupancy on this crate README on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this crate README on_response path.
