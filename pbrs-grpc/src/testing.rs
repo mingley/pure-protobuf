@@ -42,6 +42,7 @@
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
 //! cannot pool.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing interceptor Err; those trailers reach the client without reading the body.
+//! [`crate::Status::from_error_details`] is the typed bag after this testing handler Err; those trailers reach the client.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
