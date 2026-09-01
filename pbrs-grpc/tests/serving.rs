@@ -7793,6 +7793,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Any::unpack` decodes the payload after this guide is type-URL check, Distinct from checking the type URL."
+        ),
+        "guide must name Any::unpack next to Status::set_details"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
