@@ -353,6 +353,7 @@ and HTTP/2 connection death attach the original error as
 `Status::with_rpc` keeps existing trailers after this architecture from_rpc constructor, Distinct from minting a fresh status.
 `pb::Status::with_details` builds a packed `google.rpc.Status` after this architecture with_details constructor, Distinct from shipping raw trailer bytes.
 `ErrorDetails::to_anys` returns the `Any` list after this architecture from_error_details constructor, Distinct from encoding the bag as a trailer.
+`ErrorDetails::from_rpc` unpacks the `Any` list after this architecture error_details unpack, Distinct from unpacking a kernel Status trailer.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
