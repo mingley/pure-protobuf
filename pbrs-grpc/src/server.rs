@@ -2902,6 +2902,7 @@ impl Router {
     /// [`crate::ResponseParts::compress_is_set`] is occupancy after this Router on_response, so a later interceptor can fill compress only when unset.
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Router on_response.
     /// [`Status::from_error_details`] is the typed bag after this Router on_response Err; a local reject is trailers-only after handler Ok.
+    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Router on_response runs after the handler returns Ok.
     /// Same surface as [`Server::on_response`].
     ///
     /// ```
