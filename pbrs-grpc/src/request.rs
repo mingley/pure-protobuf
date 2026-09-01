@@ -1621,6 +1621,8 @@ impl Parts {
 
     /// gzip this request's payload and set the Compressed-Flag.
     /// See [`Request::set_compress`].
+    ///
+    /// Distinct from [`Self::compress`]: that reads outbound payload gzip on this split envelope; this writes it.
     pub fn set_compress(&mut self, compress: bool) {
         self.compress = Some(compress);
     }
