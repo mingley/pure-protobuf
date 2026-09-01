@@ -159,6 +159,8 @@
 //! })
 //! # }
 //! ```
+//! Generated [`Greeter`] handler `Err` unpacks the same trailers as a generated trait method.
+//! [`crate::Status::from_error_details`] is the typed bag after a hello handler Err; those trailers reach the client.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
