@@ -7671,6 +7671,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`pb::Status::with_details` builds a packed `google.rpc.Status` after this guide with_details constructor, Distinct from shipping raw trailer bytes."
+        ),
+        "guide must name pb::Status::with_details next to with_rpc"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
