@@ -372,6 +372,7 @@ and HTTP/2 connection death attach the original error as
 `Status::with_message` is the builder after this architecture set_message mutation, Distinct from mutating in place.
 `Code::from_i32` interprets a wire i32 after this architecture to_i32 emit, Distinct from emitting the wire i32.
 `Code::to_i32` emits the wire i32 after this architecture from_i32 interpret, Distinct from interpreting a wire i32.
+`Code::name` is the canonical name after this architecture description text, Distinct from being the one-line google.rpc.Code text.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.

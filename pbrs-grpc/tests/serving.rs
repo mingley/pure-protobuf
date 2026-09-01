@@ -8723,6 +8723,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`Code::name` is the canonical name after this architecture description text, Distinct from being the one-line google.rpc.Code text."
+        ),
+        "architecture must name Code::name next to Code::to_i32"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
