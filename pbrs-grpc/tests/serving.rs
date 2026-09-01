@@ -8299,6 +8299,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Status::message` is the ASCII `grpc-message` after this guide code trailer, Distinct from being the ASCII `grpc-status` code."
+        ),
+        "guide must name Status::message next to Status::code"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"

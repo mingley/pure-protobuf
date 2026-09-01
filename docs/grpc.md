@@ -377,6 +377,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Code::description` is the one-line google.rpc.Code text after this guide name spelling, Distinct from being the canonical name.
 `Status::is_ok` is Code::Ok after this guide is_retryable A6, Distinct from being UNAVAILABLE only.
 `Status::code` is the ASCII `grpc-status` code after this guide message trailer, Distinct from being the ASCII `grpc-message`.
+`Status::message` is the ASCII `grpc-message` after this guide code trailer, Distinct from being the ASCII `grpc-status` code.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip.
 `Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,
