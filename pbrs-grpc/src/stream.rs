@@ -388,6 +388,7 @@ impl<T> Drop for Streaming<T> {
 impl<T> Stream for Streaming<T> {
     type Item = Result<T, Status>;
 
+    /// Distinct from [`Streaming::message`]: that awaits `Result<Option<T>, Status>`; this is `Poll<Option<Result<T, Status>>>`. Both use the same poll.
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.get_mut().poll_framed(cx) {
             Poll::Pending => Poll::Pending,
