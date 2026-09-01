@@ -389,6 +389,7 @@ and HTTP/2 connection death attach the original error as
 `Status::details` returns raw trailer bytes after this architecture ASCII grpc-status trailer, Distinct from being the ASCII `grpc-status` trailer.
 `Status::details` returns raw trailer bytes after this architecture ASCII grpc-message trailer, Distinct from being the ASCII `grpc-message` trailer.
 `Status::code` is the ASCII `grpc-status` trailer after this architecture raw details bytes, Distinct from returning raw trailer bytes.
+`Status::message` is the ASCII `grpc-message` trailer after this architecture raw details bytes, Distinct from returning raw trailer bytes.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
