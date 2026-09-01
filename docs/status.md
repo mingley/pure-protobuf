@@ -597,7 +597,9 @@ See `docs/upb.md`. Short list:
   `DebugInfo::with_stack` builds that payload. A
   server interceptor `Err` ships those trailers the same way a handler
   `Err` does. `Status::set_rpc` / `set_code` keep trailing
-  metadata. `StreamSender::fail` after headers ships those trailers and
+  metadata.
+  `Status::set_error_details` / `set_from_error_details` replace the protobuf without dropping trailing metadata on this packed-status.
+  `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
   server-streaming and bidi over h2c, TLS (including mTLS), Unix, and
