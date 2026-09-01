@@ -5165,6 +5165,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// [`{G}::Outgoing::connected`] is the live-socket snapshot on this generated intercept path ([`{G}::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+    );
+    let _ = writeln!(
+        src,
         "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated intercept Err; a local reject never opens a stream."
     );
     let _ = writeln!(

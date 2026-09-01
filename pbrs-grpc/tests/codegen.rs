@@ -4078,6 +4078,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "[`::pbrs_grpc::Outgoing::connected`] is the live-socket snapshot on this generated intercept path ([`::pbrs_grpc::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ),
+        "generated client intercept rustdoc must name Outgoing::connected live-socket snapshot next to clear_compress"
+    );
+    assert!(
+        src.contains(
             "[`::pbrs_grpc::Status::from_error_details`] is the typed bag after a generated intercept Err; a local reject never opens a stream."
         ),
         "generated client intercept rustdoc must name from_error_details typed bag next to intercept Err"
