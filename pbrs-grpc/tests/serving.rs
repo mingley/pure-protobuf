@@ -5139,6 +5139,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name PreconditionFailure::with_violation"
     );
     assert!(
+        crate_src.contains("[`pb::precondition_failure::Violation::with_type`]"),
+        "crate map must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
+    );
+    assert!(
         status_src.contains("Packed `google.rpc.PreconditionFailure`, if this status carries one."),
         "Status::precondition_failure must name packed PreconditionFailure"
     );
