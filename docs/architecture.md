@@ -348,7 +348,9 @@ is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `quota_failure::Violation::with_subject` builds a nested quota subject after this architecture QuotaFailure builder.
 `Status::precondition_failure` is packed type and subject. Distinct from
 `quota_failure`. Distinct from `bad_request`. `PreconditionFailure::with_violation`
-builds that payload. `Status::help` is packed documentation links. Distinct from
+builds that payload.
+`precondition_failure::Violation::with_type` builds a nested precondition type after this architecture PreconditionFailure builder.
+`Status::help` is packed documentation links. Distinct from
 failure classifications: links can sit next to a retryable UNAVAILABLE.
 `Help::with_link` builds that payload. `Status::localized_message` is packed
 locale text. Distinct from the ASCII `grpc-message`. Distinct from `help`.
