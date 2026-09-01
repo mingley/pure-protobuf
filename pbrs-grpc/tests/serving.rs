@@ -4754,6 +4754,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map Health client interceptor already ran, so a local Err never consumes that budget."
+        ),
+        "crate docs must Distinct max_concurrent_rpcs slot grab after crate-map Health client intercept"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map Health StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "crate docs must name from_error_details typed bag next to crate-map Health StreamSender fail"
