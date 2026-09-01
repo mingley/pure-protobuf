@@ -6651,6 +6651,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name set_error_details and set_from_error_details next to set_rpc"
     );
     assert!(
+        status_guide.contains(
+            "`Status::with_details` ships raw trailer bytes on this packed-status, Distinct from `with_error_details` packing Anys onto a status."
+        ),
+        "status guide must name Status::with_details next to set_from_error_details"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
