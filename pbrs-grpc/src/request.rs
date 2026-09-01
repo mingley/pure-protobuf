@@ -2152,6 +2152,8 @@ impl<T> Response<T> {
     }
 
     /// Drop a compression choice so a later server overlay can fill it in.
+    ///
+    /// Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this reply envelope; this opts out.
     pub fn clear_compress(&mut self) {
         self.compress = None;
     }

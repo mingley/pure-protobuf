@@ -1286,6 +1286,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::set_compress`]: that writes outbound payload gzip on this reply envelope; this opts out."
+        ),
+        "Response::clear_compress must Distinct writing from opting out"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay."
         ),
         "Request::accepts_compressed must Distinct client interceptor overlay from inbound dispatch"
