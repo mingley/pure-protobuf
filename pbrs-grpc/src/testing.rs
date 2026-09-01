@@ -47,6 +47,7 @@
 //! [`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 //! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 //! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService handler Err; those trailers reach the client.
+//! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService client interceptor Err; a local reject never opens a stream.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
