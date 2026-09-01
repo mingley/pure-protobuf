@@ -4987,6 +4987,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name ChannelConfig::max_connection_age next to server idle"
     );
     assert!(
+        crate_src.contains(
+            "[`ChannelConfig::max_connection_age`] / [`ChannelConfig::max_connection_idle`]"
+        ),
+        "crate threat table must name ChannelConfig::max_connection_idle next to client age"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
