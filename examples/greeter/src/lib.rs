@@ -10,6 +10,8 @@
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body.
 //!
+//! [`pbrs_grpc::Outgoing::connected`] is the live-socket snapshot on this example greeter client interceptor path ([`pbrs_grpc::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
+//!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream.
 //!
 //! Distinct from [`pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`pbrs_grpc::Call`] is polled; this example greeter client interceptor already ran, so a local Err never consumes that budget.
@@ -201,6 +203,9 @@ mod tests {
     #[test]
     fn example_docs_name_from_error_details_on_client_interceptor_err() {
         let src = include_str!("lib.rs");
+        assert!(src.contains(
+            "[`pbrs_grpc::Outgoing::connected`] is the live-socket snapshot on this example greeter client interceptor path ([`pbrs_grpc::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
+        ));
         assert!(src.contains(
             "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream."
         ));
