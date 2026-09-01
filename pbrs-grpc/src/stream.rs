@@ -532,6 +532,8 @@ impl<T> StreamSender<T> {
     }
 
     /// Whether the reader has gone away, so further sends would fail.
+    ///
+    /// Distinct from [`Self::closed`]: that waits until the reader is gone; this is a snapshot.
     #[must_use]
     pub fn is_closed(&self) -> bool {
         self.tx.is_closed()
