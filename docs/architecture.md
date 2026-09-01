@@ -379,6 +379,7 @@ and HTTP/2 connection death attach the original error as
 `Status::message` is the ASCII `grpc-message` after this architecture code trailer, Distinct from being the ASCII `grpc-status` code.
 `Code::is_retryable` is the A6 set on a Code after this architecture Status is_retryable, Distinct from being the same A6 set on a Status.
 `Status::is_retryable` is the A6 set on a Status after this architecture Code is_retryable, Distinct from being the same A6 set on a Code.
+`Status::metadata` borrows this status trailers map after this architecture metadata_mut mutation, Distinct from mutating it.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip. `Status::error_info` is that packed `ErrorInfo` without
 unpacking the bag. Distinct from `error_details`. Distinct from `retry_delay`
 (a wait hint). `RetryInfo::with_retry_delay` builds that payload. `ErrorInfo::with_reason` builds that payload.
