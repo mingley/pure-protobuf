@@ -4919,6 +4919,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorInfo::with_reason"
     );
     assert!(
+        crate_src.contains("[`pb::ErrorInfo::with_metadata`]"),
+        "crate map must name ErrorInfo::with_metadata"
+    );
+    assert!(
         crate_src.contains("[`Status::bad_request`]"),
         "crate map must name Status::bad_request"
     );
