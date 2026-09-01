@@ -601,6 +601,8 @@ impl DebugInfo {
 
 impl Status {
     /// A `google.rpc.Status` with `code`, `message`, and packed `details`.
+    ///
+    /// Distinct from [`crate::Status::with_details`]: that ships raw trailer bytes; this builds a packed `google.rpc.Status`.
     pub fn with_details(
         code: crate::Code,
         message: impl Into<String>,

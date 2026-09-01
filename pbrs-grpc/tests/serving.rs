@@ -4693,6 +4693,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::with_details next to the typed-bag constructor"
     );
     assert!(
+        crate_src.contains("[`Status::with_details`], [`pb::Status::with_details`]"),
+        "crate map must name pb::Status::with_details next to the raw-trailer constructor"
+    );
+    assert!(
         crate_src.contains("[`Status::from_error`], [`Status::with_cause`]"),
         "crate map must name Status::with_cause next to Status::from_error"
     );
@@ -5505,6 +5509,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`crate::Status::from_rpc`]: that encodes a packed protobuf as the trailer; this unpacks the typed bag."
         ),
         "ErrorDetails::from_rpc must Distinct the Status encode constructor from this typed-bag unpack"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::with_details`]: that ships raw trailer bytes; this builds a packed `google.rpc.Status`."
+        ),
+        "pb::Status::with_details must Distinct raw trailer bytes from this packed google.rpc.Status"
     );
     assert!(
         status_src.contains(
