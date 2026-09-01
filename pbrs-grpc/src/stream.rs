@@ -240,6 +240,7 @@ impl<T> Streaming<T> {
     /// The next message, `Ok(None)` at end of stream, `Err` on status.
     ///
     /// Distinct from [`Self::next_framed`]: that keeps the Compressed-Flag; this discards it.
+    /// Distinct from [`Stream::poll_next`]: that is `Poll<Option<Result<T, Status>>>`; this awaits `Result<Option<T>, Status>`. Both use the same poll.
     pub async fn message(&mut self) -> Result<Option<T>, Status> {
         Ok(self.next_framed().await?.map(Framed::into_inner))
     }

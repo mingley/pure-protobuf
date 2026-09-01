@@ -717,6 +717,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Streaming::empty must Distinct a live pair from an already-finished stream"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Stream::poll_next`]: that is `Poll<Option<Result<T, Status>>>`; this awaits `Result<Option<T>, Status>`. Both use the same poll."
+        ),
+        "Streaming::message must Distinct Stream poll shape from the await helper"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),
