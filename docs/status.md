@@ -622,6 +622,7 @@ See `docs/upb.md`. Short list:
   `Status::new` takes a code and message on this packed-status, Distinct from `from_code` being code-only.
   `Status::from_code` is code-only on this packed-status, Distinct from `new` taking a code and message.
   `Status::rpc` parses a packed `google.rpc.Status` on this packed-status, Distinct from `details` returning raw trailer bytes.
+  `Status::set_code` mutates in place on this packed-status, Distinct from `with_code` being the builder.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on

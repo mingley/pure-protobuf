@@ -6941,6 +6941,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::rpc next to Status::from_code"
     );
     assert!(
+        status_guide.contains(
+            "`Status::set_code` mutates in place on this packed-status, Distinct from `with_code` being the builder."
+        ),
+        "status guide must name Status::set_code next to Status::rpc"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
