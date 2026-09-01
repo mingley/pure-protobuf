@@ -210,6 +210,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService handler Err; those trailers reach the client.
 //!
+//! [`Outgoing::connected`] is the live-socket snapshot on this crate-map UnimplementedService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService client interceptor Err; a local reject never opens a stream.
 //!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map UnimplementedService client interceptor already ran, so a local Err never consumes that budget.
