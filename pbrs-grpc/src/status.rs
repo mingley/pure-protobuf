@@ -649,6 +649,7 @@ impl Status {
     /// permission to retry. [`Code::ResourceExhausted`] from
     /// [`crate::Channel::max_concurrent_rpcs`] is this process, not a peer,
     /// and is not retryable.
+    /// Distinct from [`Code::is_retryable`]: that is the same A6 set on a Code; this is the Status.
     #[must_use]
     pub fn is_retryable(&self) -> bool {
         self.code.is_retryable()

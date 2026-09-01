@@ -4805,6 +4805,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::is_retryable next to Status::is_ok"
     );
     assert!(
+        crate_src.contains("[`Status::is_retryable`], [`Status::retry_delay`]"),
+        "crate map must name Status::retry_delay next to Status::is_retryable"
+    );
+    assert!(
         crate_src.contains(
             "Unknown types stay in [`ErrorDetails::unknown`] so a custom detail is not dropped on a round-trip."
         ),
@@ -5281,6 +5285,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`crate::Status::is_retryable`]: that is the same A6 set on a Status; this is the Code."
         ),
         "Code::is_retryable must Distinct the Status-level A6 check from this Code"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Code::is_retryable`]: that is the same A6 set on a Code; this is the Status."
+        ),
+        "Status::is_retryable must Distinct the Code-level A6 check from this Status"
     );
     assert!(
         status_src.contains("Distinct from [`Self::is_retryable`]: a delay is a wait hint, not"),
