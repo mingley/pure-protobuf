@@ -4697,8 +4697,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Any::pack_with next to Any::pack"
     );
     assert!(
-        crate_src.contains("[`Any::pack_with`], [`Any::unpack`]"),
-        "crate map must name Any::unpack next to Any::pack_with"
+        crate_src.contains("[`Any::pack_with`], [`Any::is`]"),
+        "crate map must name Any::is next to Any::pack_with"
+    );
+    assert!(
+        crate_src.contains("[`Any::is`], [`Any::unpack`]"),
+        "crate map must name Any::unpack next to Any::is"
     );
     assert!(
         crate_src.contains("[`Any::unpack`], [`ErrorDetails`]"),
@@ -5245,6 +5249,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::is`]: that is a type-URL check; this decodes the payload."
         ),
         "Any::unpack must Distinct the type-URL check from decoding the payload"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`Self::unpack`]: that decodes the payload; this is a type-URL check."
+        ),
+        "Any::is must Distinct decoding the payload from this type-URL check"
     );
     assert!(
         pb_src.contains(

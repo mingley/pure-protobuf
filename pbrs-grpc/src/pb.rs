@@ -99,6 +99,7 @@ impl Any {
     /// Compares the protobuf full name, so
     /// `type.googleapis.com/google.rpc.ErrorInfo` and
     /// `example.com/google.rpc.ErrorInfo` both match [`ErrorInfo`].
+    /// Distinct from [`Self::unpack`]: that decodes the payload; this is a type-URL check.
     #[must_use]
     pub fn is<M: pbrs::MessageName>(&self) -> bool {
         type_name_of(type_url_str(self)) == M::FULL_NAME
