@@ -7745,6 +7745,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Any::pack_with` takes an explicit type URL after this guide pack constructor, Distinct from using `type.googleapis.com/<FULL_NAME>`."
+        ),
+        "guide must name Any::pack_with next to Any::pack"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
