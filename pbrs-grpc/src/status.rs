@@ -110,6 +110,7 @@ impl Code {
     }
 
     /// One-line description from `google.rpc.Code`.
+    /// Distinct from [`Self::name`]: that is the canonical name; this is the one-line google.rpc.Code text.
     #[must_use]
     pub fn description(self) -> &'static str {
         match self {

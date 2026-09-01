@@ -4729,8 +4729,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Code::name next to Code::to_i32"
     );
     assert!(
-        crate_src.contains("[`Code::name`], [`ParseCodeError`]"),
-        "crate map must name ParseCodeError next to Code::name"
+        crate_src.contains("[`Code::name`], [`Code::description`]"),
+        "crate map must name Code::description next to Code::name"
+    );
+    assert!(
+        crate_src.contains("[`Code::description`], [`ParseCodeError`]"),
+        "crate map must name ParseCodeError next to Code::description"
     );
     assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
@@ -5741,6 +5745,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::description`]: that is the one-line google.rpc.Code text; this is the canonical name."
         ),
         "Code::name must Distinct the one-line google.rpc.Code text from this canonical name"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::name`]: that is the canonical name; this is the one-line google.rpc.Code text."
+        ),
+        "Code::description must Distinct the canonical name from this one-line google.rpc.Code text"
     );
     assert!(
         status_src.contains(
