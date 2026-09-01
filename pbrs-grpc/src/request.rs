@@ -2068,6 +2068,8 @@ impl<T> Response<T> {
     }
 
     /// Mutable initial headers.
+    ///
+    /// Distinct from [`Self::metadata`]: that borrows this reply envelope; this mutates it.
     pub fn metadata_mut(&mut self) -> &mut Metadata {
         &mut self.metadata
     }
