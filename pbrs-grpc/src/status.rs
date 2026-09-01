@@ -295,6 +295,7 @@ impl Status {
     }
 
     /// A status with just a code.
+    /// Distinct from [`Self::new`]: that takes a code and message; this is code-only.
     #[must_use]
     pub fn from_code(code: Code) -> Self {
         Self { code, detail: None }

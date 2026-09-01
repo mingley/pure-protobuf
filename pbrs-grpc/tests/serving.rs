@@ -4693,8 +4693,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::new next to ErrorDetails::from_rpc"
     );
     assert!(
-        crate_src.contains("[`Status::new`], [`Status::with_error_details`]"),
-        "crate map must name Status::with_error_details next to Status::new"
+        crate_src.contains("[`Status::new`], [`Status::from_code`]"),
+        "crate map must name Status::from_code next to Status::new"
+    );
+    assert!(
+        crate_src.contains("[`Status::from_code`], [`Status::with_error_details`]"),
+        "crate map must name Status::with_error_details next to Status::from_code"
     );
     assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
@@ -5651,6 +5655,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::from_code`]: that is code-only; this takes a code and message."
         ),
         "Status::new must Distinct the code-only constructor from this code-and-message constructor"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::new`]: that takes a code and message; this is code-only."
+        ),
+        "Status::from_code must Distinct the code-and-message constructor from this code-only constructor"
     );
     assert!(
         status_src.contains(
