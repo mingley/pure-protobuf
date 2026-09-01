@@ -1055,6 +1055,7 @@ impl<'a> Outgoing<'a> {
 
     /// Prefix the kernel `user-agent` on this RPC.
     ///
+    /// Distinct from [`Self::user_agent`]: that is the effective header this RPC will send; this prefixes it.
     /// Same construction as [`crate::Channel::user_agent`]:
     /// `prefix pbrs-grpc/<version>`. Empty prefix is the kernel identity
     /// alone. Invalid HTTP is [`crate::Code::InvalidArgument`]. Distinct from

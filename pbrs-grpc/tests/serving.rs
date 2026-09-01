@@ -1068,6 +1068,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::user_agent`]: that is the effective header this RPC will send; this prefixes it."
+        ),
+        "Outgoing::set_user_agent must Distinct the effective header from prefixing it"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::set_user_agent`]: that prefixes this RPC; this restores the channel value."
         ),
         "Outgoing::clear_user_agent must Distinct prefixing this RPC from restoring the channel value"
