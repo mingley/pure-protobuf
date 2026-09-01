@@ -632,6 +632,7 @@ See `docs/upb.md`. Short list:
   `Code::description` is the one-line google.rpc.Code text on this packed-status, Distinct from `name` being the canonical name.
   `Status::is_ok` is Code::Ok on this packed-status, Distinct from `is_retryable` being UNAVAILABLE only.
   `Status::code` is the ASCII `grpc-status` code on this packed-status, Distinct from `message` being the ASCII `grpc-message`.
+  `Status::message` is the ASCII `grpc-message` on this packed-status, Distinct from `code` being the ASCII `grpc-status` code.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on
