@@ -7297,6 +7297,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::message Distinct from packed rpc next to Status::code"
     );
     assert!(
+        status_guide.contains(
+            "`Status::rpc` is the packed protobuf on this packed-status, Distinct from `code` being the ASCII `grpc-status` trailer."
+        ),
+        "status guide must name Status::rpc Distinct from ASCII code next to Status::message"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
