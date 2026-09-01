@@ -4717,6 +4717,14 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::with_error_details next to Status::with_message"
     );
     assert!(
+        crate_src.contains("[`Code`], [`Code::from_i32`]"),
+        "crate map must name Code::from_i32 next to Code"
+    );
+    assert!(
+        crate_src.contains("[`Code::from_i32`], [`ParseCodeError`]"),
+        "crate map must name ParseCodeError next to Code::from_i32"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
@@ -5707,6 +5715,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::set_message`]: that mutates in place; this is the builder."
         ),
         "Status::with_message must Distinct the in-place mutation from this builder"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::to_i32`]: that emits the wire i32; this interprets a wire i32."
+        ),
+        "Code::from_i32 must Distinct emitting the wire i32 from interpreting a wire i32"
     );
     assert!(
         status_src.contains(

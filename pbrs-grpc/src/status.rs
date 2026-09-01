@@ -52,6 +52,7 @@ pub enum Code {
 impl Code {
     /// Interpret a wire value. Unrecognised codes become [`Code::Unknown`],
     /// as the specification requires.
+    /// Distinct from [`Self::to_i32`]: that emits the wire i32; this interprets a wire i32.
     #[must_use]
     pub fn from_i32(n: i32) -> Self {
         match n {
