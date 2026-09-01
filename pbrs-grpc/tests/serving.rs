@@ -5709,6 +5709,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`Status::from_error_details` is the typed bag after this crate README reflection handler Err; those trailers reach the client."
+        ),
+        "crate README must name from_error_details typed bag next to reflection handler Err"
+    );
+    assert!(
+        readme.contains(
             "`ResponseParts::compress_is_set` is occupancy on this crate README on_response path, so a later interceptor can fill compress only when unset."
         ),
         "crate README must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
