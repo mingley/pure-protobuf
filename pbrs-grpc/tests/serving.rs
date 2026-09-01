@@ -4693,6 +4693,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::to_anys next to ErrorDetails"
     );
     assert!(
+        crate_src.contains("[`Any::pack`], [`ErrorDetails`]"),
+        "crate map must name Any::pack next to ErrorDetails"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails::to_anys`], [`ErrorDetails::from_rpc`]"),
         "crate map must name ErrorDetails::from_rpc next to to_anys"
     );
@@ -5215,6 +5219,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         pb_src.contains("ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\");\n    /// let any = Any::pack"),
         "Any::pack must build ErrorInfo with with_reason"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`crate::Status::with_error_details`]: that packs `Any` values onto a status; this packs one message into an `Any`."
+        ),
+        "Any::pack must Distinct packing Anys onto a status from packing one message"
     );
     assert!(
         pb_src.contains(

@@ -59,6 +59,8 @@ fn type_url_str(any: &Any) -> &str {
 impl Any {
     /// Pack `msg` as `type.googleapis.com/<FULL_NAME>`.
     ///
+    /// Distinct from [`crate::Status::with_error_details`]: that packs `Any` values onto a status; this packs one message into an `Any`.
+    ///
     /// ```
     /// use pbrs_grpc::pb::{Any, ErrorInfo};
     ///
