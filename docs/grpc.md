@@ -387,6 +387,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Status::message` is the ASCII `grpc-message` trailer after this guide packed rpc parse, Distinct from being the packed protobuf.
 `Status::rpc` is the packed protobuf after this guide ASCII grpc-status trailer, Distinct from being the ASCII `grpc-status` trailer.
 `Status::rpc` is the packed protobuf after this guide ASCII grpc-message trailer, Distinct from being the ASCII `grpc-message` trailer.
+`Status::details` returns raw trailer bytes after this guide ASCII grpc-status trailer, Distinct from being the ASCII `grpc-status` trailer.
 Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip.
 `Status::rpc` parses that packed protobuf. Distinct from `Status::error_details`: that is the typed bag, not the packed `google.rpc.Status`. A handler or interceptor
 `Err` built this way is that protobuf on the client for every call shape,
