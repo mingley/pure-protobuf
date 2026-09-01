@@ -729,6 +729,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Stream::poll_next must Distinct the await helper from the Stream poll shape"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Streaming::message`]: that awaits the next payload; this reports whether the stream already fused."
+        ),
+        "FusedStream::is_terminated must Distinct awaiting the next payload from the fuse snapshot"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

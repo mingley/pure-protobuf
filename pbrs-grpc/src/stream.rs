@@ -400,6 +400,7 @@ impl<T> Stream for Streaming<T> {
 }
 
 impl<T> FusedStream for Streaming<T> {
+    /// Distinct from [`Streaming::message`]: that awaits the next payload; this reports whether the stream already fused.
     fn is_terminated(&self) -> bool {
         self.terminated
     }
