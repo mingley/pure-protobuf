@@ -4096,6 +4096,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from [`::pbrs_grpc::Server::intercept`]: that runs on the inbound RPC before the handler; this generated intercept runs on the outbound call before the stream opens."
+        ),
+        "generated client intercept rustdoc must Distinct Server inbound-before-handler from outbound-before-stream"
+    );
+    assert!(
+        src.contains(
             "`set_compress` stamps [`::pbrs_grpc::StreamSender::compress`] on client-streaming and bidi request streams."
         ),
         "generated client intercept rustdoc must name StreamSender gzip stamp"

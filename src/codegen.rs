@@ -5175,6 +5175,10 @@ fn emit_kernel_client(
         src,
         "    /// Distinct from [`{G}::Channel::max_concurrent_rpcs`]: that takes a slot when the [`{G}::Call`] is polled; a generated intercept already ran, so a local Err never consumes that budget."
     );
+    let _ = writeln!(
+        src,
+        "    /// Distinct from [`{G}::Server::intercept`]: that runs on the inbound RPC before the handler; this generated intercept runs on the outbound call before the stream opens."
+    );
     let _ = writeln!(src, "    #[must_use]");
     let _ = writeln!(src, "    pub fn intercept<I>(self, interceptor: I) -> Self");
     let _ = writeln!(src, "    where");
