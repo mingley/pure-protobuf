@@ -318,6 +318,7 @@ impl Status {
     /// matches this status, that protobuf is rewritten so the ASCII
     /// `grpc-status` and the packed code stay the same. Opaque detail
     /// bytes that are not a matching `google.rpc.Status` are left alone.
+    /// Distinct from [`Self::with_code`]: that is the builder; this mutates in place.
     pub fn set_code(&mut self, code: Code) {
         if !self.details().is_empty() {
             if let Ok(mut rpc) = <crate::pb::Status as pbrs::Parse>::parse(self.details()) {
