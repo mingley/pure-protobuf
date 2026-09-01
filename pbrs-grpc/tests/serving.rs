@@ -4817,6 +4817,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ResponseInterceptor next to Interceptor"
     );
     assert!(
+        crate_src.contains("[`ResponseInterceptor`], [`Intercepted`]"),
+        "crate map must name Intercepted next to ResponseInterceptor"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
