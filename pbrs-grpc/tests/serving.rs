@@ -8165,6 +8165,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Code::to_i32` emits the wire i32 after this guide from_i32 interpret, Distinct from interpreting a wire i32."
+        ),
+        "guide must name Code::to_i32 next to Code::from_i32"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
