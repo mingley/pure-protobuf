@@ -1695,6 +1695,8 @@ impl Parts {
 
     /// Prefix the kernel `user-agent` on this envelope.
     /// See [`Request::set_user_agent`].
+    ///
+    /// Distinct from [`Self::user_agent`]: that is the override this split envelope carries; this prefixes it.
     pub fn set_user_agent(&mut self, prefix: impl AsRef<str>) -> Result<(), Status> {
         self.user_agent = Some(crate::wire::user_agent_value(prefix.as_ref())?);
         Ok(())
