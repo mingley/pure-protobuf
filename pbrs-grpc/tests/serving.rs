@@ -7897,6 +7897,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Duration::try_to_std` converts this protobuf to `std` after this guide from_std builder, Distinct from building the protobuf from `std`."
+        ),
+        "guide must name Duration::try_to_std next to Duration::from_std"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
