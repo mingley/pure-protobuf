@@ -627,6 +627,7 @@ See `docs/upb.md`. Short list:
   `Status::set_message` mutates in place on this packed-status, Distinct from `with_message` being the builder.
   `Status::with_message` is the builder on this packed-status, Distinct from `set_message` mutating in place.
   `Code::from_i32` interprets a wire i32 on this packed-status, Distinct from `to_i32` emitting the wire i32.
+  `Code::to_i32` emits the wire i32 on this packed-status, Distinct from `from_i32` interpreting a wire i32.
   `StreamSender::fail` after headers ships those trailers and
   a packed `google.rpc.Status` the same way a handler `Err` does on a
   server response stream, including after a streamed DATA frame on

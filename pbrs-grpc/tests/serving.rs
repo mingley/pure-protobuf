@@ -7045,6 +7045,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Code::from_i32 next to Status::with_message"
     );
     assert!(
+        status_guide.contains(
+            "`Code::to_i32` emits the wire i32 on this packed-status, Distinct from `from_i32` interpreting a wire i32."
+        ),
+        "status guide must name Code::to_i32 next to Code::from_i32"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
