@@ -132,6 +132,8 @@
 //!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map interceptor already ran, so a local Err never consumes that budget.
 //!
+//! Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this crate-map [`Interceptor`] runs on the inbound RPC before the handler.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.

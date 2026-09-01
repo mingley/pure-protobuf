@@ -5535,6 +5535,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this crate-map [`Interceptor`] runs on the inbound RPC before the handler."
+        ),
+        "crate docs must Distinct ClientInterceptor outbound-before-stream from inbound Interceptor"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body."
         ),
         "crate docs must name from_error_details typed bag next to crate-map server intercept Err"
