@@ -11074,6 +11074,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::extensions`]: that borrows the map; this inserts typed values the handler will see."
+        ),
+        "Rpc::extensions_mut must Distinct the borrow from the mutator"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::rpc_timeout`]: that is the server overlay; this is the interceptor cap."
         ),
         "Rpc::timeout must Distinct the server overlay from the interceptor cap"

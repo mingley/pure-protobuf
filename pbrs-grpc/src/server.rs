@@ -613,6 +613,8 @@ impl Rpc {
     }
 
     /// Insert typed values the handler will see on [`Request::extensions`].
+    ///
+    /// Distinct from [`Self::extensions`]: that borrows the map; this inserts typed values the handler will see.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }
