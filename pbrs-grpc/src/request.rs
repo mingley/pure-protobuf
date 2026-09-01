@@ -1365,6 +1365,7 @@ impl<'a> Outgoing<'a> {
 
     /// Drop a compression choice so a later interceptor can fill it in.
     ///
+    /// Distinct from [`Self::set_compress`]: that writes the per-RPC Compressed-Flag; this opts out.
     /// The channel overlay has already run; clearing here opts out of that
     /// default too, the same as [`Self::clear_timeout`].
     /// [`Self::compresses_outbound`] still reports the channel policy so a

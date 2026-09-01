@@ -1355,6 +1355,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::set_compress`]: that writes the per-RPC Compressed-Flag; this opts out."
+        ),
+        "Outgoing::clear_compress must Distinct writing the per-RPC Compressed-Flag from opting out"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::waits_for_ready`]: that is the channel overlay; this is the per-RPC choice."
         ),
         "Outgoing::wait_for_ready must Distinct the channel overlay from the per-RPC choice"
