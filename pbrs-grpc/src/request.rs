@@ -308,6 +308,8 @@ impl<T> Request<T> {
     /// Queue this RPC until the channel is connected instead of failing
     /// immediately with [`crate::Code::Unavailable`].
     ///
+    /// Distinct from [`Self::wait_for_ready`]: that reads the wait-for-ready choice this envelope carries; this writes it.
+    ///
     /// Pair this with a deadline. Without one, a lazy channel whose
     /// peer never comes up waits until cancellation. The usual source
     /// of a not-yet-connected channel is [`crate::Channel::connect_lazy`].
