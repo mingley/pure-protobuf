@@ -5379,6 +5379,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::resource_info next to RequestInfo::with_request_id"
     );
     assert!(
+        crate_src.contains("[`Status::resource_info`], [`pb::ResourceInfo::with_resource`]"),
+        "crate map must name ResourceInfo::with_resource next to Status::resource_info"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
