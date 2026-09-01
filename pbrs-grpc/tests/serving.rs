@@ -5034,6 +5034,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name Call next to StreamSender::fail"
     );
     assert!(
+        crate_src.contains(
+            "[`Call`] resolves with that status (client-streaming, or bidi before headers — not `UNAVAILABLE` from the reset); after bidi headers the received [`Streaming`]"
+        ),
+        "crate threat table must name Streaming next to Call"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
