@@ -89,6 +89,7 @@ impl Echo {
 /// Official uncompressed `_TEST_CASES` and the four gzip cases pass against
 /// this server over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService interceptor Err; those trailers reach the client without reading the body.
+/// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService handler Err; those trailers reach the client.
 #[derive(Default)]
 pub struct InteropTestService;
 
