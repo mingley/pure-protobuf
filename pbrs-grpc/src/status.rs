@@ -317,6 +317,7 @@ impl Status {
 
     /// The `grpc-message` text, or `""`.
     /// Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this is the ASCII `grpc-message`.
+    /// Distinct from [`Self::rpc`]: that is the packed protobuf; this is the ASCII `grpc-message`.
     #[must_use]
     pub fn message(&self) -> &str {
         self.detail.as_ref().map_or("", |d| d.message.as_str())
