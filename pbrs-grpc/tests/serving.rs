@@ -6926,6 +6926,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Code::description next to Code::name"
     );
     assert!(
+        readme.contains("`Status::is_ok` is Code::Ok on this crate README, Distinct from `is_retryable` being UNAVAILABLE only."),
+        "crate README must name Status::is_ok next to Code::description"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
