@@ -5283,6 +5283,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name QuotaFailure::with_violation next to Status::quota_failure"
     );
     assert!(
+        crate_src.contains("[`pb::QuotaFailure::with_violation`], [`pb::quota_failure::Violation::with_subject`]"),
+        "crate map must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
