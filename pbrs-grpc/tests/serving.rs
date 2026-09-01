@@ -8099,6 +8099,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "`ErrorDetails::to_anys` returns the `Any` list after this architecture from_error_details constructor, Distinct from encoding the bag as a trailer."
+        ),
+        "architecture must name ErrorDetails::to_anys next to pb::Status::with_details"
+    );
+    assert!(
+        architecture.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "architecture must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
