@@ -167,6 +167,7 @@ impl ErrorInfo {
     /// Distinct from [`crate::Status::retry_delay`]: that is a wait hint, not a cause.
     /// Distinct from [`crate::Status::bad_request`]: that is a field path, not reason and domain.
     /// Distinct from [`crate::Status::failed_precondition`], which is the ASCII code with no packed reason.
+    /// Distinct from [`Self::with_metadata`]: that is a metadata pair, not reason and domain.
     ///
     /// ```
     /// use pbrs_grpc::pb::{ErrorDetails, ErrorInfo};

@@ -5062,6 +5062,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`Self::with_metadata`]: that is a metadata pair, not reason and domain."
+        ),
+        "ErrorInfo::with_reason must Distinct with_metadata pair from reason and domain"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_reason`]: that is reason and domain, not a metadata pair."
         ),
         "ErrorInfo::with_metadata must Distinct reason and domain from a metadata pair"
