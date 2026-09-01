@@ -128,6 +128,7 @@ impl Duration {
     /// `google.protobuf.Duration` for a non-negative `std` duration.
     ///
     /// Seconds saturate at [`i64::MAX`]. Nanos always fit the protobuf range.
+    /// Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`.
     #[must_use]
     pub fn from_std(delay: std::time::Duration) -> Self {
         let mut out = Self::new();

@@ -5123,6 +5123,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::with_rpc next to set_from_error_details"
     );
     assert!(
+        crate_src.contains("[`pb::Duration::from_std`], [`pb::RetryInfo::with_retry_delay`]"),
+        "crate map must name Duration::from_std next to RetryInfo::with_retry_delay"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
@@ -5579,6 +5583,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::from_rpc`]: that unpacks the `Any` list on a packed `google.rpc.Status`; this is an empty bag."
         ),
         "ErrorDetails::new must Distinct the Any-list unpack from this empty bag"
+    );
+    assert!(
+        pb_src.contains(
+            "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
+        ),
+        "Duration::from_std must Distinct converting to std from building the protobuf"
     );
     assert!(
         pb_src.contains(
