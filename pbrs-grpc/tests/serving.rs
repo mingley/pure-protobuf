@@ -1092,6 +1092,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::wait_for_ready`]: that reads the per-RPC choice; this writes it."
+        ),
+        "Outgoing::set_wait_for_ready must Distinct reading the per-RPC choice from writing it"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`Self::set_wait_for_ready`]: that queues this RPC; this opts out."
         ),
         "Outgoing::clear_wait_for_ready must Distinct queueing this RPC from opting out"
