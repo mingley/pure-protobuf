@@ -4701,8 +4701,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name Status::set_code next to Status::from_code"
     );
     assert!(
-        crate_src.contains("[`Status::set_code`], [`Status::with_error_details`]"),
-        "crate map must name Status::with_error_details next to Status::set_code"
+        crate_src.contains("[`Status::set_code`], [`Status::with_code`]"),
+        "crate map must name Status::with_code next to Status::set_code"
+    );
+    assert!(
+        crate_src.contains("[`Status::with_code`], [`Status::with_error_details`]"),
+        "crate map must name Status::with_error_details next to Status::with_code"
     );
     assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
@@ -5677,6 +5681,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from [`Self::with_code`]: that is the builder; this mutates in place."
         ),
         "Status::set_code must Distinct the builder from this in-place mutation"
+    );
+    assert!(
+        status_src.contains(
+            "Distinct from [`Self::set_code`]: that mutates in place; this is the builder."
+        ),
+        "Status::with_code must Distinct the in-place mutation from this builder"
     );
     assert!(
         status_src.contains(

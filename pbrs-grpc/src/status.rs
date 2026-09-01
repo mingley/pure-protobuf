@@ -334,6 +334,7 @@ impl Status {
     }
 
     /// [`Self::set_code`] as a builder.
+    /// Distinct from [`Self::set_code`]: that mutates in place; this is the builder.
     #[must_use]
     pub fn with_code(mut self, code: Code) -> Self {
         self.set_code(code);
