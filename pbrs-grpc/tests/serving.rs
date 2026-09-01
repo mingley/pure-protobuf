@@ -681,6 +681,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Framed::into_inner must Distinct keeping the flag from dropping it"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::next_framed`]: that keeps the Compressed-Flag; this discards it."
+        ),
+        "Streaming::message must Distinct keeping the Compressed-Flag from discarding it"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),

@@ -234,6 +234,8 @@ impl<T> Streaming<T> {
     }
 
     /// The next message, `Ok(None)` at end of stream, `Err` on status.
+    ///
+    /// Distinct from [`Self::next_framed`]: that keeps the Compressed-Flag; this discards it.
     pub async fn message(&mut self) -> Result<Option<T>, Status> {
         Ok(self.next_framed().await?.map(Framed::into_inner))
     }
