@@ -6701,6 +6701,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name ErrorDetails::from_rpc next to to_anys"
     );
     assert!(
+        status_guide.contains(
+            "`Any::pack` packs one message into an `Any` on this packed-status, Distinct from `with_error_details` packing Anys onto a status."
+        ),
+        "status guide must name Any::pack next to ErrorDetails::from_rpc"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
