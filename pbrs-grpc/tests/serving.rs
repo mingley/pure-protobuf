@@ -5832,6 +5832,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Distinct from [`Self::rpc`]: that is the packed protobuf; this is the ASCII `grpc-status` code."
+        ),
+        "Status::code must Distinct the packed protobuf from this ASCII grpc-status code"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this is the ASCII `grpc-message`."
         ),
         "Status::message must Distinct the ASCII grpc-status code from this ASCII grpc-message"
