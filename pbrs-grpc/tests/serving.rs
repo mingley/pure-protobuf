@@ -5269,6 +5269,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the packed protobuf."
+        ),
+        "Status::rpc must Distinct the ASCII grpc-message from this packed protobuf"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::rpc`]: that is the packed `google.rpc.Status`, not this typed bag."
         ),
         "Status::error_details must Distinct the packed google.rpc.Status from the typed bag"

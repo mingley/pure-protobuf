@@ -513,6 +513,7 @@ impl Status {
     /// Distinct from [`Self::from_rpc`]: that encodes the trailer; this parses it.
     /// Distinct from [`Self::details`]: that returns raw trailer bytes; this parses a packed `google.rpc.Status`.
     /// Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this is the packed protobuf.
+    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this is the packed protobuf.
     ///
     /// A handler or interceptor [`Err`] built with [`Self::with_error_details`]
     /// is this protobuf on the client for every call shape, including a
