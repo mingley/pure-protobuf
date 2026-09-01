@@ -3192,6 +3192,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler."
+        ),
+        "Interceptor rustdoc must Distinct ClientInterceptor outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
+        intercept.contains(
             "A single interceptor\n    /// still rejects before the handler on every call shape, including over\n    /// TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
         ),
         "ServiceExt::intercept rustdoc must name a single intercept reject on every transport"
