@@ -278,6 +278,8 @@ impl<T> Request<T> {
     }
 
     /// Clear a timeout previously set on this request.
+    ///
+    /// Distinct from [`Self::set_timeout`]: that writes the relative timeout this envelope carries; this opts out.
     pub fn clear_timeout(&mut self) {
         self.timeout = None;
     }
