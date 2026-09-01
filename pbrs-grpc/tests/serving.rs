@@ -6676,6 +6676,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name Status::set_details next to Any::pack_with"
     );
     assert!(
+        readme.contains("`Any::unpack` decodes the payload on this crate README, Distinct from `is` checking the type URL."),
+        "crate README must name Any::unpack next to Status::set_details"
+    );
+    assert!(
         readme.contains("`Status::retry_delay` / `RetryInfo::with_retry_delay`"),
         "crate README must name RetryInfo::with_retry_delay next to Status::retry_delay"
     );
