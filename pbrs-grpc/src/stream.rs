@@ -521,6 +521,8 @@ impl<T> StreamSender<T> {
 
     /// Half-close this handle. Equivalent to dropping it.
     ///
+    /// Distinct from [`Self::fail`]: that ends with an error status; this half-closes.
+    ///
     /// The peer sees end-of-stream and may answer `OK` (an empty
     /// client-stream is a successful empty aggregate) once every clone is
     /// gone. If this sender was cloned, other clones keep the stream open.

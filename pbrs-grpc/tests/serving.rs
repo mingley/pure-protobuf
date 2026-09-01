@@ -639,6 +639,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "StreamSender::fail must Distinct a clean half-close from an error status"
     );
+    assert!(
+        stream.contains(
+            "Distinct from [`Self::fail`]: that ends with an error status; this half-closes."
+        ),
+        "StreamSender::close must Distinct an error status from a clean half-close"
+    );
     let outgoing = include_str!("../src/request.rs");
     assert!(
         outgoing.contains("fn dump_request(request: &pbrs_grpc::Request<()>) {"),
