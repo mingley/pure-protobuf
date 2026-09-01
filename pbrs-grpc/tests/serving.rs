@@ -8325,6 +8325,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "`Code::is_retryable` is the A6 set on a Code after this guide Status is_retryable, Distinct from being the same A6 set on a Status."
+        ),
+        "guide must name Code::is_retryable next to Status::message"
+    );
+    assert!(
+        guide.contains(
             "Unknown types stay in `ErrorDetails::unknown` so a custom detail is not dropped on a round-trip."
         ),
         "guide must name ErrorDetails::unknown so a custom detail is not dropped on a round-trip"
