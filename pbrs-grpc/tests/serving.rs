@@ -3901,6 +3901,12 @@ fn official_interop_rustdoc_names_every_transport() {
         ),
         "testing crate rustdoc must name from_error_details typed bag next to TestService client interceptor Err"
     );
+    assert!(
+        testing.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "testing crate rustdoc must name from_error_details typed bag next to TestService StreamSender fail"
+    );
     let cases = include_str!("../src/interop_cases.rs");
     assert!(
         cases.contains(
