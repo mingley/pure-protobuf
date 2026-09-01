@@ -1178,6 +1178,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         outgoing.contains(
+            "Distinct from [`Self::extensions`]: that borrows them; this inserts typed values this envelope carries."
+        ),
+        "Request::extensions_mut must Distinct the borrow from the mutator"
+    );
+    assert!(
+        outgoing.contains(
             "Distinct from [`crate::Outgoing::accepts_compressed`]: that is a client interceptor overlay."
         ),
         "Request::accepts_compressed must Distinct client interceptor overlay from inbound dispatch"

@@ -352,6 +352,8 @@ impl<T> Request<T> {
     }
 
     /// Insert typed values for later handlers or interceptors.
+    ///
+    /// Distinct from [`Self::extensions`]: that borrows them; this inserts typed values this envelope carries.
     pub fn extensions_mut(&mut self) -> &mut http::Extensions {
         &mut self.extensions
     }
