@@ -5778,6 +5778,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this returns raw trailer bytes."
+        ),
+        "Status::details must Distinct the ASCII grpc-message from raw trailer bytes"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::from_code`]: that is code-only; this takes a code and message."
         ),
         "Status::new must Distinct the code-only constructor from this code-and-message constructor"

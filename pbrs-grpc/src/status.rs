@@ -415,6 +415,7 @@ impl Status {
     /// `grpc-status-details-bin` metadata key.
     /// Distinct from [`Self::rpc`]: that parses a packed `google.rpc.Status`; this returns raw trailer bytes.
     /// Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this returns raw trailer bytes.
+    /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this returns raw trailer bytes.
     #[must_use]
     pub fn details(&self) -> &[u8] {
         self.detail.as_ref().map_or(&[], |d| d.details.as_ref())
