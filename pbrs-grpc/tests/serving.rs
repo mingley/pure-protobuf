@@ -7091,6 +7091,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name BadRequest::with_field as the builder"
     );
     assert!(
+        guide.contains("`FieldViolation::with_field` builds a nested field path after this guide BadRequest builder."),
+        "guide must name FieldViolation::with_field next to BadRequest::with_field"
+    );
+    assert!(
         guide.contains("Distinct from `status.error_info()`."),
         "guide must Distinct bad_request from error_info"
     );
