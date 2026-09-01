@@ -6671,6 +6671,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name Status::with_rpc next to with_details"
     );
     assert!(
+        status_guide.contains(
+            "`pb::Status::with_details` builds a packed `google.rpc.Status` on this packed-status, Distinct from `Status::with_details` shipping raw trailer bytes."
+        ),
+        "status guide must name pb::Status::with_details next to with_rpc"
+    );
+    assert!(
         status_guide.contains("`ErrorInfo::with_metadata` fills a metadata pair on that payload."),
         "status guide must name ErrorInfo::with_metadata as the metadata builder"
     );
