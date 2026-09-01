@@ -4971,6 +4971,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate threat table must name connect_tls next to serve_tls"
     );
     assert!(
+        crate_src.contains("[`ServerTls::mtls`]; verified client chain on [`Rpc::peer_identity`]"),
+        "crate threat table must name peer_identity next to ServerTls::mtls"
+    );
+    assert!(
         crate_src.contains("[`ErrorDetails`], [`ErrorDetails::new`]"),
         "crate map must name ErrorDetails::new next to ErrorDetails"
     );
