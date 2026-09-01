@@ -4870,6 +4870,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "[`Status::from_error_details`] is the typed bag after this crate-map InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ),
+        "crate docs must name from_error_details typed bag next to crate-map InteropTestService StreamSender fail"
+    );
+    assert!(
+        crate_src.contains(
             "[`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset."
         ),
         "crate docs must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
