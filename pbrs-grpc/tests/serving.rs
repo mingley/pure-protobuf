@@ -5223,6 +5223,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name RetryInfo::with_retry_delay next to Duration::try_to_std"
     );
     assert!(
+        crate_src.contains("[`pb::RetryInfo::with_retry_delay`], [`Status::error_info`]"),
+        "crate map must name Status::error_info next to RetryInfo::with_retry_delay"
+    );
+    assert!(
         crate_src.contains("[`pb::RetryInfo::with_retry_delay`]"),
         "crate map must name RetryInfo::with_retry_delay"
     );
