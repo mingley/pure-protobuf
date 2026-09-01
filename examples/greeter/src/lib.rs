@@ -220,6 +220,14 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn example_readme_names_from_error_details_on_handler_err() {
+        let readme = include_str!("../README.md");
+        assert!(readme.contains(
+            "`Status::from_error_details` is the typed bag after this example README greeter handler Err; those trailers reach the client."
+        ));
+    }
+
     fn text(reply: &HelloReply) -> String {
         reply.message().to_str().unwrap_or_default().to_owned()
     }
