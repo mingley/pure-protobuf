@@ -9,6 +9,8 @@
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter handler Err; those trailers reach the client.
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body.
+//!
+//! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream.
 
 #![allow(
     missing_docs,
@@ -189,6 +191,14 @@ mod tests {
         let src = include_str!("lib.rs");
         assert!(src.contains(
             "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body."
+        ));
+    }
+
+    #[test]
+    fn example_docs_name_from_error_details_on_client_interceptor_err() {
+        let src = include_str!("lib.rs");
+        assert!(src.contains(
+            "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client interceptor Err; a local reject never opens a stream."
         ));
     }
 
