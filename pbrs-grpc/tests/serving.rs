@@ -4773,6 +4773,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing handler Err: that is after the handler ran; this testing client interceptor Err is a local reject never opens a stream."
+        ),
+        "testing crate rustdoc must Distinct testing handler Err after the handler ran from this testing client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        testing.contains(
             "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this testing client interceptor already ran, so a local Err never consumes that budget."
         ),
         "testing crate rustdoc must Distinct max_concurrent_rpcs slot grab after TestService client intercept"
