@@ -418,6 +418,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection interceptor Err is trailers without reading the body."
+        ),
+        "reflection crate rustdoc must Distinct client interceptor Err local reject never opens a stream from this reflection interceptor Err without reading the body"
+    );
+    assert!(
+        src.contains(
             "Distinct from a reflection client interceptor: that runs on the outbound call before the stream opens; this reflection interceptor runs on the inbound RPC before the handler."
         ),
         "reflection crate rustdoc must Distinct client outbound-before-stream from inbound-before-handler"
