@@ -204,6 +204,8 @@
 //!
 //! Distinct from a crate-map Health handler Err: that is after the handler ran; this crate-map Health StreamSender fail is trailers after any messages already sent.
 //!
+//! Distinct from a crate-map Health interceptor Err: that is trailers without reading the body; this crate-map Health StreamSender fail is trailers after any messages already sent.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map reflection interceptor Err; those trailers reach the client without reading the body.
 //!
 //! Distinct from a crate-map reflection handler Err: that is after the handler ran; this crate-map reflection interceptor Err is trailers without reading the body.
