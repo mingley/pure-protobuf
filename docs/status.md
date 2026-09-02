@@ -770,6 +770,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status Health interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status Health client interceptor: that runs on the outbound call before the stream opens; this packed-status Health interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status reflection interceptor Err; those trailers reach the client without reading the body.
+  Distinct from a packed-status reflection client interceptor: that runs on the outbound call before the stream opens; this packed-status reflection interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status Store interceptor Err; those trailers reach the client without reading the body.
   A generated Store handler `Err(with_error_details)`
   unpacks on Get / Watch / PutAll / Sync too, including over TLS, mTLS, Unix, and `from_io`.
