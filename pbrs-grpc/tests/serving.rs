@@ -3471,6 +3471,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ResponseInterceptor runs after the handler returns Ok or after a successful receive."
+        ),
+        "ResponseInterceptor rustdoc must Distinct Interceptor inbound-before-handler from after-Ok-or-receive"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Status::from_error_details`] is the typed bag on this method-level on_response Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive."
         ),
         "ResponseInterceptor::intercept rustdoc must name from_error_details typed bag next to on_response Err"
