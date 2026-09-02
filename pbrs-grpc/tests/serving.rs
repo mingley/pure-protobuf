@@ -10850,6 +10850,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide reflection handler Err is after the handler ran."
+        ),
+        "guide must Distinct Channel on_response Err Call fail after receive from this guide reflection handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide reflection handler Err is after the handler ran."
         ),
         "guide must Distinct reflection StreamSender fail after any messages already sent from this guide reflection handler Err after the handler ran"

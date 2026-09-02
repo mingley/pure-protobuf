@@ -1079,6 +1079,7 @@ A handler `Err(Status::with_error_details(...))` unpacks the same way on that me
 Distinct from a guide reflection interceptor Err: that is trailers without reading the body; this guide reflection handler Err is after the handler ran.
 Distinct from a guide reflection client interceptor Err: that is a local reject never opens a stream; this guide reflection handler Err is after the handler ran.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide reflection handler Err is after the handler ran.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide reflection handler Err is after the handler ran.
 Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide reflection handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this guide reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide reflection client interceptor Err; a local reject never opens a stream.
