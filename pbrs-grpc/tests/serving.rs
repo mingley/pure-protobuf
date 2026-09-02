@@ -4176,6 +4176,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from [`GreeterServer::on_response`]: that runs after the handler returns Ok; this hello server intercept runs on the inbound RPC before the handler."
+        ),
+        "hello GreeterServer::intercept rustdoc must Distinct on_response after-Ok from inbound-before-handler"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterServer::new(Svc).intercept(|rpc: &mut pbrs_grpc::Rpc| {\n//!     let _ = (\n//!         rpc.path(),\n//!         rpc.service(),\n//!         rpc.method(),\n//!         rpc.metadata(),\n//!         rpc.timeout(),\n//!         rpc.peer_timeout(),\n//!         rpc.rpc_timeout(),\n//!         rpc.effective_timeout(),\n//!         rpc.deadline(),\n//!         rpc.accepts_gzip(),\n//!         rpc.encoding(),\n//!         rpc.compresses_outbound(),\n//!         rpc.gzip_level(),\n//!         rpc.accepts_compressed(),\n//!         rpc.concurrent_rpc_limit(),\n//!         rpc.send_buffer_size(),\n//!         rpc.limits(),\n//!         rpc.local_addr(),\n//!         rpc.remote_addr(),\n//!         rpc.peer_identity(),\n//!         rpc.peer_cred(),\n//!         rpc.authority(),\n//!         rpc.scheme(),\n//!         rpc.extensions(),"
         ),
         "hello GreeterServer::intercept rustdoc example must read Incoming-stamped peer facts"

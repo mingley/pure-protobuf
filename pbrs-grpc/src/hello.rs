@@ -92,6 +92,7 @@
 //! [`crate::Server::intercept`]:
 //! [`crate::Status::from_error_details`] is the typed bag after a hello server intercept Err; those trailers reach the client without reading the body.
 //! Distinct from [`GreeterClient::intercept`]: that runs on the outbound call before the stream opens; this hello server intercept runs on the inbound RPC before the handler.
+//! Distinct from [`GreeterServer::on_response`]: that runs after the handler returns Ok; this hello server intercept runs on the inbound RPC before the handler.
 //!
 //! ```
 //! # struct Svc;
