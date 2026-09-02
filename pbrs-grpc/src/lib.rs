@@ -130,6 +130,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map interceptor Err; a local reject never opens a stream.
 //!
+//! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map interceptor already ran, so a local Err never consumes that budget.
 //!
 //! Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this crate-map [`Interceptor`] runs on the inbound RPC before the handler.
