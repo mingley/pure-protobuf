@@ -11638,6 +11638,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status TestService StreamSender fail: that is trailers after any messages already sent; this packed-status TestService client interceptor Err is a local reject never opens a stream."
+        ),
+        "status guide must Distinct packed-status TestService StreamSender fail after any messages already sent from this packed-status TestService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status TestService client interceptor already ran, so a local Err never consumes that budget."
         ),
         "status guide must Distinct max_concurrent_rpcs slot grab after TestService client intercept"
