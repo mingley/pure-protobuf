@@ -109,6 +109,7 @@ pub trait Interceptor: Send + Sync + 'static {
     /// [`crate::Status::from_error_details`] is the typed bag on this method-level Interceptor Err; those trailers reach the client without reading the body.
     /// Distinct from a handler Err: that is after the handler ran; this method-level Interceptor Err is trailers without reading the body.
     /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this method-level Interceptor Err is trailers without reading the body.
+    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this method-level Interceptor Err is trailers without reading the body.
     fn intercept(&self, rpc: &mut Rpc) -> Result<(), Status>;
 }
 
