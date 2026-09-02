@@ -198,6 +198,8 @@
 //!
 //! Distinct from a crate-map Health handler Err: that is after the handler ran; this crate-map Health client interceptor Err is a local reject never opens a stream.
 //!
+//! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health client interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map Health client interceptor already ran, so a local Err never consumes that budget.
 //!
 //! Distinct from a crate-map Health interceptor: that runs on the inbound RPC before the handler; this crate-map Health client interceptor runs on the outbound call before the stream opens.
