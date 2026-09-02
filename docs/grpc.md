@@ -2155,6 +2155,7 @@ and `from_io`. Unknown methods on that `Service` are `UNIMPLEMENTED` on every
 call shape on those transports too.
 `Status::from_error_details` is the typed bag after this guide Reverser interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide Reverser handler Err: that is after the handler ran; this guide Reverser interceptor Err is trailers without reading the body.
+Distinct from a guide Reverser StreamSender fail: that is trailers after any messages already sent; this guide Reverser interceptor Err is trailers without reading the body.
 Distinct from a guide Reverser client interceptor: that runs on the outbound call before the stream opens; this guide Reverser interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide Reverser handler Err; those trailers reach the client.
 Distinct from a guide Reverser interceptor Err: that is trailers without reading the body; this guide Reverser handler Err is after the handler ran.
