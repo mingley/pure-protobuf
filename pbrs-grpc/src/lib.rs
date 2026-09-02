@@ -258,6 +258,8 @@
 //!
 //! Distinct from a crate-map TestService interceptor Err: that is trailers without reading the body; this crate-map TestService handler Err is after the handler ran.
 //!
+//! Distinct from a crate-map TestService client interceptor Err: that is a local reject never opens a stream; this crate-map TestService handler Err is after the handler ran.
+//!
 //! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService handler Err is after the handler ran.
 //!
 //! [`Outgoing::connected`] is the live-socket snapshot on this crate-map TestService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
