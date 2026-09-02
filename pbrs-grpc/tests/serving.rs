@@ -9020,6 +9020,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README UnimplementedService handler Err is after the handler ran."
+        ),
+        "crate README must Distinct Channel on_response Err Call fail after receive from this crate README UnimplementedService handler Err after the handler ran"
+    );
+    assert!(
+        readme.contains(
             "`Outgoing::connected` is the live-socket snapshot on this crate README UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "crate README must name Outgoing::connected live-socket snapshot on UnimplementedService"

@@ -181,6 +181,7 @@ Distinct from a crate README UnimplementedService client interceptor: that runs 
 Distinct from a crate README UnimplementedService interceptor Err: that is trailers without reading the body; this crate README UnimplementedService handler Err is after the handler ran.
 Distinct from a crate README UnimplementedService client interceptor Err: that is a local reject never opens a stream; this crate README UnimplementedService handler Err is after the handler ran.
 Distinct from a crate README server on_response Err: that is trailers-only after handler Ok; this crate README UnimplementedService handler Err is after the handler ran.
+Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README UnimplementedService handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this crate README UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README UnimplementedService client interceptor Err; a local reject never opens a stream.
 Distinct from a crate README UnimplementedService handler Err: that is after the handler ran; this crate README UnimplementedService client interceptor Err is a local reject never opens a stream.
