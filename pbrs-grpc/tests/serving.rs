@@ -665,6 +665,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         stream.contains(
+            "Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this StreamSender fail is trailers after any messages already sent."
+        ),
+        "StreamSender::fail rustdoc must Distinct method-level on_response Err trailers-only after handler Ok or Call fail after receive from this StreamSender fail after any messages already sent"
+    );
+    assert!(
+        stream.contains(
             "Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this StreamSender fail is trailers after any messages already sent."
         ),
         "StreamSender::fail rustdoc must Distinct ClientInterceptor Err local reject never opens a stream from this StreamSender fail after any messages already sent"
