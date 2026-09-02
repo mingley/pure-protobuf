@@ -522,6 +522,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status Channel on_response Err; a local reject fails the Call after a successful receive.
   Distinct from a packed-status handler Err: that is after the handler ran; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status interceptor Err: that is a local reject never opens a stream; this packed-status Channel on_response Err fails the Call after a successful receive.
+  Distinct from a packed-status Health StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this packed-status Channel on_response runs after a successful receive.
   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
