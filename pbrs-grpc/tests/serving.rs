@@ -13328,6 +13328,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide Store StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct guide Channel on_response Err Call fail after receive from this guide Store StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset."
         ),
         "guide must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
