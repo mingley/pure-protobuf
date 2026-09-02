@@ -11168,6 +11168,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide interceptor Err: that is a local reject never opens a stream; this guide server intercept Err is trailers without reading the body."
+        ),
+        "guide must Distinct guide interceptor Err local reject never opens a stream from this guide server intercept Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide Health interceptor Err; those trailers reach the client without reading the body."
         ),
         "guide must name from_error_details typed bag next to Health interceptor Err"
