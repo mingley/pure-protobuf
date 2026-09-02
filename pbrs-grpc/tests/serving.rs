@@ -4127,6 +4127,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Channel intercept Err is a local reject never opens a stream."
+        ),
+        "Channel::intercept rustdoc must Distinct Channel on_response Err Call fail after receive from this Channel intercept Err local reject never opens a stream"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this interceptor already ran, so a local Err never consumes that budget."
         ),
         "Channel::intercept rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
