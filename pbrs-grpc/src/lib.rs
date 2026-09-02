@@ -302,6 +302,8 @@
 //!
 //! Distinct from a crate-map Store client interceptor Err: that is a local reject never opens a stream; this crate-map Store StreamSender fail is trailers after any messages already sent.
 //!
+//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Store StreamSender fail is trailers after any messages already sent.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map TestService interceptor Err; those trailers reach the client without reading the body.
 //!
 //! Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService interceptor Err is trailers without reading the body.
