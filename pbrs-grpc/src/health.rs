@@ -62,6 +62,7 @@
 //! Distinct from a health interceptor Err: that is trailers without reading the body; this health server on_response Err is trailers-only after handler Ok.
 //! [`crate::Status::from_error_details`] is the typed bag after this health client on_response Err; a local reject fails the Call after a successful receive.
 //! Distinct from a health handler Err: that is after the handler ran; this health client on_response Err fails the Call after a successful receive.
+//! Distinct from a health client interceptor Err: that is a local reject never opens a stream; this health client on_response Err fails the Call after a successful receive.
 //! Unix (`serve_unix` /
 //! `connect_unix`), TLS (`serve_tls` / `connect_tls`), and
 //! [`crate::Server::serve_connection`] / [`crate::Channel::from_io`] serve
