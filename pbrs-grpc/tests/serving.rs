@@ -12166,6 +12166,12 @@ fn server_and_router_config_document_every_call_shape() {
         "Server::intercept rustdoc must Distinct on_response after-Ok from this Server intercept inbound-before-handler"
     );
     assert!(
+        src.contains(
+            "Distinct from [`Router::intercept`]: that runs on the inbound RPC before every mounted service on that Router; this Server intercept runs on the inbound RPC before the Server's Service."
+        ),
+        "Server::intercept rustdoc must Distinct Router mounted-service coverage from this Server intercept Service coverage"
+    );
+    assert!(
         src.contains("server.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "Server::intercept rustdoc example must attach a closure"
     );
