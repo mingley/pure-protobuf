@@ -976,6 +976,7 @@ impl Channel {
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
+    /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this Channel on_response runs after a successful receive.
     /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok; this Channel on_response runs after a successful receive.
