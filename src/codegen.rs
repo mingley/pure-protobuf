@@ -4470,6 +4470,10 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from a generated handler Err: that is after the handler ran; this generated server on_response Err is trailers-only after handler Ok."
+    );
+    let _ = writeln!(
+        src,
         "    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this generated server on_response runs after the handler returns Ok."
     );
     let _ = writeln!(
