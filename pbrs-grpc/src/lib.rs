@@ -280,6 +280,8 @@
 //!
 //! Distinct from a crate-map Store handler Err: that is after the handler ran; this crate-map Store interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Store interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map Store client interceptor Err: that is a local reject never opens a stream; this crate-map Store interceptor Err is trailers without reading the body.
 //!
 //! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map Store interceptor Err is trailers without reading the body.
