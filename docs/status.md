@@ -792,6 +792,7 @@ See `docs/upb.md`. Short list:
   `Outgoing::connected` is the live-socket snapshot on this packed-status reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
   `Status::from_error_details` is the typed bag after this packed-status reflection client interceptor Err; a local reject never opens a stream.
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status reflection client interceptor already ran, so a local Err never consumes that budget.
+  Distinct from a packed-status reflection interceptor: that runs on the inbound RPC before the handler; this packed-status reflection client interceptor runs on the outbound call before the stream opens.
   A wrapping `Service`
   interceptor `Err(with_error_details)` unpacks on every hand-written
   Reverser Channel API, including over TLS, mTLS, Unix, and `from_io`, a wrapping
