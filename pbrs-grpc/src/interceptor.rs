@@ -300,6 +300,7 @@ impl<S, I> Intercepted<S, I> {
     /// [`crate::Status::from_error_details`] is the typed bag after this Intercepted on_response Err; a local reject is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Intercepted on_response runs after the handler returns Ok.
     /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this Intercepted on_response runs after the handler returns Ok on one wrapped service.
+    /// Distinct from [`crate::Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this Intercepted on_response runs after the handler returns Ok on one wrapped service.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent trailers-only instead of the response,
