@@ -2147,6 +2147,7 @@ Distinct from a guide TestService interceptor Err: that is trailers without read
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide TestService client interceptor already ran, so a local Err never consumes that budget.
 Distinct from a guide TestService interceptor: that runs on the inbound RPC before the handler; this guide TestService client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this guide TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
+Distinct from a guide TestService handler Err: that is after the handler ran; this guide TestService StreamSender fail is trailers after any messages already sent.
 A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
 client-streaming have no response DATA then trailers).
