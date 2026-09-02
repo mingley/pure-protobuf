@@ -10018,6 +10018,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status handler Err: that is after the handler ran; this packed-status Channel on_response Err fails the Call after a successful receive."
+        ),
+        "status guide must Distinct packed-status handler Err after the handler ran from this packed-status Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this packed-status Channel on_response runs after a successful receive."
         ),
         "status guide must Distinct Channel on_response from Channel intercept"
