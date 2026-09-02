@@ -3801,6 +3801,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Intercepted on_response Err is trailers-only after handler Ok."
+        ),
+        "Intercepted::on_response rustdoc must Distinct ClientInterceptor Err local reject never opens a stream from this Intercepted on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Intercepted on_response runs after the handler returns Ok."
         ),
         "Intercepted::on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
