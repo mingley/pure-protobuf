@@ -678,6 +678,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health interceptor Err: that is trailers without reading the body; this health handler Err is after the handler ran."
+        ),
+        "Health crate rustdoc must Distinct interceptor Err without reading the body from this health handler Err after the handler ran"
+    );
+    assert!(
+        src.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this health client interceptor Err; a local reject never opens a stream."
         ),
         "Health crate rustdoc must name from_error_details typed bag next to client interceptor Err"
