@@ -1928,6 +1928,7 @@ Distinct from a guide Store client interceptor Err: that is a local reject never
 Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide TestService client interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide TestService StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
+Distinct from a guide Reverser client interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide Reverser StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
