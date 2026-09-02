@@ -36,6 +36,8 @@
 //!
 //! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter client interceptor Err is a local reject never opens a stream.
 //!
+//! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter client interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from [`pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`pbrs_grpc::Call`] is polled; this example greeter client interceptor already ran, so a local Err never consumes that budget.
 //!
 //! Distinct from an example greeter interceptor: that runs on the inbound RPC before the handler; this example greeter client interceptor runs on the outbound call before the stream opens.
@@ -279,6 +281,9 @@ mod tests {
         ));
         assert!(src.contains(
             "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter client interceptor Err is a local reject never opens a stream."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter client interceptor Err is a local reject never opens a stream."
         ));
         assert!(src.contains(
             "Distinct from [`pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`pbrs_grpc::Call`] is polled; this example greeter client interceptor already ran, so a local Err never consumes that budget."
