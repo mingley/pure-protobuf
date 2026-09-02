@@ -3965,6 +3965,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "Channel::intercept rustdoc must Distinct Server inbound-before-handler from this Channel intercept outbound-before-stream"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::on_response`]: that runs after a successful receive; this runs on the outbound call before the stream opens."
         ),
         "Channel::intercept rustdoc must Distinct on_response after-receive from outbound-before-stream"
