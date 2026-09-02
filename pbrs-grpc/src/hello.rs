@@ -139,6 +139,7 @@
 //! [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after a hello server on_response.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello server on_response Err; a local reject is trailers-only after handler Ok.
 //! Distinct from a hello handler Err: that is after the handler ran; this hello server on_response Err is trailers-only after handler Ok.
+//! Distinct from a hello server intercept Err: that is trailers without reading the body; this hello server on_response Err is trailers-only after handler Ok.
 //! Distinct from [`GreeterServer::intercept`]: that runs on the inbound RPC before the handler; this hello server on_response runs after the handler returns Ok.
 //!
 //! ```
