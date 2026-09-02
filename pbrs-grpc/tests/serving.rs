@@ -6207,6 +6207,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map Channel on_response runs after a successful receive."
+        ),
+        "crate docs must Distinct crate-map Channel on_response from Channel intercept"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::set_rpc`], [`Status::set_details`], [`Status::set_error_details`], [`Status::set_from_error_details`]"
         ),
         "crate map must name Status::set_details next to set_rpc and set_error_details"
