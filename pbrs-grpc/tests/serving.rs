@@ -3976,6 +3976,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::intercept rustdoc must Distinct on_response after-receive from outbound-before-stream"
     );
     assert!(
+        src.contains(
+            "Distinct from [`Self::on_response`]: that runs after a successful receive; this Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "Channel::intercept rustdoc must Distinct on_response after-receive from this Channel intercept outbound-before-stream"
+    );
+    assert!(
         src.contains("[`crate::Outgoing::accepts_compressed`] is the inbound gzip overlay"),
         "Channel::intercept rustdoc must name Outgoing::accepts_compressed"
     );

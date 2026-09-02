@@ -890,6 +890,7 @@ impl Channel {
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this Channel intercept runs on the outbound call before the stream opens.
     /// Distinct from [`Self::on_response`]: that runs after a successful receive; this runs on the outbound call before the stream opens.
+    /// Distinct from [`Self::on_response`]: that runs after a successful receive; this Channel intercept runs on the outbound call before the stream opens.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
