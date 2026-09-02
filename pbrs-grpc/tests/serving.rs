@@ -9698,6 +9698,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Reverser handler Err: that is after the handler ran; this guide Reverser interceptor Err is trailers without reading the body."
+        ),
+        "guide must Distinct Reverser handler Err after the handler ran from this guide Reverser interceptor Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide Reverser client interceptor: that runs on the outbound call before the stream opens; this guide Reverser interceptor runs on the inbound RPC before the handler."
         ),
         "guide must Distinct Reverser inbound interceptor from client outbound-before-stream"
