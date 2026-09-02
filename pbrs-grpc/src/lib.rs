@@ -246,6 +246,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Reverser handler Err; those trailers reach the client.
 //!
+//! Distinct from a crate-map Reverser interceptor Err: that is trailers without reading the body; this crate-map Reverser handler Err is after the handler ran.
+//!
 //! [`Outgoing::connected`] is the live-socket snapshot on this crate-map Reverser client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Reverser client interceptor Err; a local reject never opens a stream.
