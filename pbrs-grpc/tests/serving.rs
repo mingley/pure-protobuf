@@ -5931,6 +5931,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map Reverser client interceptor: that runs on the outbound call before the stream opens; this crate-map Reverser interceptor runs on the inbound RPC before the handler."
+        ),
+        "crate docs must Distinct Reverser client outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map Reverser handler Err; those trailers reach the client."
         ),
         "crate docs must name from_error_details typed bag next to crate-map Reverser handler Err"
