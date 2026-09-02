@@ -631,6 +631,7 @@ one bidi method, including over TLS, mTLS, Unix, and `from_io`.
 Distinct from an architecture reflection handler Err: that is after the handler ran; this architecture reflection interceptor Err is trailers without reading the body.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture reflection interceptor Err is trailers without reading the body.
 Distinct from an architecture reflection client interceptor Err: that is a local reject never opens a stream; this architecture reflection interceptor Err is trailers without reading the body.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture reflection interceptor Err is trailers without reading the body.
 Distinct from an architecture reflection StreamSender fail: that is trailers after any messages already sent; this architecture reflection interceptor Err is trailers without reading the body.
 Distinct from an architecture reflection client interceptor: that runs on the outbound call before the stream opens; this architecture reflection interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture reflection handler Err; those trailers reach the client.
