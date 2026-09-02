@@ -4537,6 +4537,12 @@ fn official_interop_rustdoc_names_every_transport() {
         ),
         "testing crate rustdoc must Distinct max_concurrent_rpcs slot grab after UnimplementedService client intercept"
     );
+    assert!(
+        testing.contains(
+            "Distinct from an UnimplementedService interceptor: that runs on the inbound RPC before the handler; this UnimplementedService client interceptor runs on the outbound call before the stream opens."
+        ),
+        "testing crate rustdoc must Distinct UnimplementedService inbound interceptor from client outbound-before-stream"
+    );
     let cases = include_str!("../src/interop_cases.rs");
     assert!(
         cases.contains(
