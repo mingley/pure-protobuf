@@ -1096,6 +1096,7 @@ Distinct from a guide reflection StreamSender fail: that is trailers after any m
 `Status::from_error_details` is the typed bag after this guide reflection client interceptor Err; a local reject never opens a stream.
 Distinct from a guide reflection handler Err: that is after the handler ran; this guide reflection client interceptor Err is a local reject never opens a stream.
 Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide reflection client interceptor Err is a local reject never opens a stream.
+Distinct from a guide reflection interceptor Err: that is trailers without reading the body; this guide reflection client interceptor Err is a local reject never opens a stream.
 Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide reflection client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide reflection client interceptor already ran, so a local Err never consumes that budget.
 Distinct from a guide reflection interceptor: that runs on the inbound RPC before the handler; this guide reflection client interceptor runs on the outbound call before the stream opens.
