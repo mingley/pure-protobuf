@@ -4144,6 +4144,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated intercept Err is a local reject never opens a stream."
+        ),
+        "generated client intercept rustdoc must Distinct generated StreamSender fail after any messages already sent from this generated intercept Err local reject never opens a stream"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`::pbrs_grpc::Channel::max_concurrent_rpcs`]: that takes a slot when the [`::pbrs_grpc::Call`] is polled; a generated intercept already ran, so a local Err never consumes that budget."
         ),
         "generated client intercept rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
