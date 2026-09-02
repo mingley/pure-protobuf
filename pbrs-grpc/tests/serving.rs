@@ -6615,6 +6615,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map InteropTestService handler Err: that is after the handler ran; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream."
+        ),
+        "crate docs must Distinct crate-map InteropTestService handler Err after the handler ran from this crate-map InteropTestService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map InteropTestService client interceptor already ran, so a local Err never consumes that budget."
         ),
         "crate docs must Distinct max_concurrent_rpcs slot grab after crate-map InteropTestService client intercept"
