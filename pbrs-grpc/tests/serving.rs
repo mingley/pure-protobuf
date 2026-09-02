@@ -13034,6 +13034,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Health interceptor Err: that is trailers without reading the body; this guide Health client interceptor Err is a local reject never opens a stream."
+        ),
+        "guide must Distinct guide Health interceptor Err without reading the body from this guide Health client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide Health StreamSender fail: that is trailers after any messages already sent; this guide Health client interceptor Err is a local reject never opens a stream."
         ),
         "guide must Distinct guide Health StreamSender fail after any messages already sent from this guide Health client interceptor Err local reject never opens a stream"
