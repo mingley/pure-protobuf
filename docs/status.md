@@ -840,6 +840,7 @@ See `docs/upb.md`. Short list:
   methods the same way, including over TLS, mTLS, Unix, and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status Health interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status Health handler Err: that is after the handler ran; this packed-status Health interceptor Err is trailers without reading the body.
+  Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status Health interceptor Err is trailers without reading the body.
   Distinct from a packed-status Health client interceptor Err: that is a local reject never opens a stream; this packed-status Health interceptor Err is trailers without reading the body.
   Distinct from a packed-status Health StreamSender fail: that is trailers after any messages already sent; this packed-status Health interceptor Err is trailers without reading the body.
   Distinct from a packed-status Health client interceptor: that runs on the outbound call before the stream opens; this packed-status Health interceptor runs on the inbound RPC before the handler.
