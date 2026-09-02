@@ -222,6 +222,7 @@ Distinct from a crate README hello StreamSender fail: that is trailers after any
 `Status::from_error_details` is the typed bag after this crate README hello client interceptor Err; a local reject never opens a stream.
 Distinct from a crate README hello handler Err: that is after the handler ran; this crate README hello client interceptor Err is a local reject never opens a stream.
 Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README hello client interceptor Err is a local reject never opens a stream.
+Distinct from a crate README hello interceptor Err: that is trailers without reading the body; this crate README hello client interceptor Err is a local reject never opens a stream.
 Distinct from a crate README hello StreamSender fail: that is trailers after any messages already sent; this crate README hello client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README hello client interceptor already ran, so a local Err never consumes that budget.
 Distinct from a crate README hello interceptor: that runs on the inbound RPC before the handler; this crate README hello client interceptor runs on the outbound call before the stream opens.
