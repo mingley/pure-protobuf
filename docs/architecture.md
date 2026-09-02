@@ -492,6 +492,7 @@ Distinct from an architecture Health handler Err: that is after the handler ran;
 Distinct from an architecture Health client interceptor: that runs on the outbound call before the stream opens; this architecture Health interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture Health handler Err; those trailers reach the client.
 Distinct from an architecture Health interceptor Err: that is trailers without reading the body; this architecture Health handler Err is after the handler ran.
+Distinct from an architecture Health client interceptor Err: that is a local reject never opens a stream; this architecture Health handler Err is after the handler ran.
 Distinct from an architecture Health StreamSender fail: that is trailers after any messages already sent; this architecture Health handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this architecture Health client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture Health client interceptor Err; a local reject never opens a stream.

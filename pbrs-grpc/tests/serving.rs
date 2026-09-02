@@ -12431,6 +12431,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Health client interceptor Err: that is a local reject never opens a stream; this architecture Health handler Err is after the handler ran."
+        ),
+        "architecture must Distinct Health client interceptor Err local reject never opens a stream from this architecture Health handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Health StreamSender fail: that is trailers after any messages already sent; this architecture Health handler Err is after the handler ran."
         ),
         "architecture must Distinct Health StreamSender fail after any messages already sent from this architecture Health handler Err after the handler ran"
