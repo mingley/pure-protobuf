@@ -21,6 +21,8 @@
 //! Distinct from an example greeter interceptor: that runs on the inbound RPC before the handler; this example greeter client interceptor runs on the outbound call before the stream opens.
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent.
+//!
+//! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter StreamSender fail is trailers after any messages already sent.
 
 #![allow(
     missing_docs,
@@ -229,6 +231,9 @@ mod tests {
         let src = include_str!("lib.rs");
         assert!(src.contains(
             "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter handler Err: that is after the handler ran; this example greeter StreamSender fail is trailers after any messages already sent."
         ));
     }
 
