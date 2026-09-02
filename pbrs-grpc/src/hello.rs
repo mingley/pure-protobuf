@@ -187,6 +187,7 @@
 //! Generated [`Greeter`] ServerHello / StreamHello [`crate::StreamSender::fail`] ships those trailers after a streamed DATA frame.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 //! Distinct from a hello handler Err: that is after the handler ran; this hello StreamSender fail is trailers after any messages already sent.
+//! Distinct from a hello server intercept Err: that is trailers without reading the body; this hello StreamSender fail is trailers after any messages already sent.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
