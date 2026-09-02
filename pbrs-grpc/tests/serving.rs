@@ -8138,6 +8138,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README handler Err: that is after the handler ran; this crate README server intercept Err is trailers without reading the body."
+        ),
+        "crate README must Distinct crate README handler Err after the handler ran from this crate README server intercept Err without reading the body"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README Health interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate README must name from_error_details typed bag next to Health interceptor Err"
