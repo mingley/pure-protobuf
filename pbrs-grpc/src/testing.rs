@@ -42,6 +42,7 @@
 //! `UNAVAILABLE` on TLS, mTLS, and Unix. [`TestServiceClient::from_io_with`]
 //! cannot pool.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing interceptor Err; those trailers reach the client without reading the body.
+//! Distinct from a testing handler Err: that is after the handler ran; this testing interceptor Err is trailers without reading the body.
 //! Distinct from a testing client interceptor: that runs on the outbound call before the stream opens; this testing interceptor runs on the inbound RPC before the handler.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing handler Err; those trailers reach the client.
 //! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing handler Err is after the handler ran.
