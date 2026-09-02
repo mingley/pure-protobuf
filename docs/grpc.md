@@ -2182,6 +2182,7 @@ Distinct from a guide Reverser StreamSender fail: that is trailers after any mes
 `Outgoing::connected` is the live-socket snapshot on this guide Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide Reverser client interceptor Err; a local reject never opens a stream.
 Distinct from a guide Reverser handler Err: that is after the handler ran; this guide Reverser client interceptor Err is a local reject never opens a stream.
+Distinct from a guide Reverser StreamSender fail: that is trailers after any messages already sent; this guide Reverser client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide Reverser client interceptor already ran, so a local Err never consumes that budget.
 Distinct from a guide Reverser interceptor: that runs on the inbound RPC before the handler; this guide Reverser client interceptor runs on the outbound call before the stream opens.
 Official `TestService` handler `Err(with_error_details)` unpacks
