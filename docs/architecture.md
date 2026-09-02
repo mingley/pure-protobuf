@@ -347,6 +347,7 @@ Distinct from an architecture TestService StreamSender fail: that is trailers af
 `Status::from_error_details` is the typed bag after this architecture TestService client interceptor Err; a local reject never opens a stream.
 Distinct from an architecture TestService handler Err: that is after the handler ran; this architecture TestService client interceptor Err is a local reject never opens a stream.
 Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture TestService client interceptor Err is a local reject never opens a stream.
+Distinct from an architecture TestService interceptor Err: that is trailers without reading the body; this architecture TestService client interceptor Err is a local reject never opens a stream.
 Distinct from an architecture TestService StreamSender fail: that is trailers after any messages already sent; this architecture TestService client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture TestService client interceptor already ran, so a local Err never consumes that budget.
 Distinct from an architecture TestService interceptor: that runs on the inbound RPC before the handler; this architecture TestService client interceptor runs on the outbound call before the stream opens.
