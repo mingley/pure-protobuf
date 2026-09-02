@@ -297,6 +297,7 @@ Distinct from a crate README Reverser interceptor Err: that is trailers without 
 Distinct from a crate README Reverser StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README hello interceptor Err: that is trailers without reading the body; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README hello StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
+Distinct from a crate README UnimplementedService interceptor Err: that is trailers without reading the body; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README server on_response runs after the handler returns Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this crate README on_response path; a received reply has no server gzip overlay to restore.
