@@ -13551,6 +13551,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from a handler Err: that is after the handler ran; this Server on_response Err is trailers-only after handler Ok."
+        ),
+        "Server::on_response rustdoc must Distinct handler Err after the handler ran from this Server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this runs after the handler returns Ok."
         ),
         "Server::on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
