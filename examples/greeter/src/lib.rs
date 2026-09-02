@@ -8,6 +8,8 @@
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter handler Err; those trailers reach the client.
 //!
+//! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter handler Err is after the handler ran.
+//!
 //! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter handler Err is after the handler ran.
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body.
@@ -199,6 +201,9 @@ mod tests {
         let src = include_str!("lib.rs");
         assert!(src.contains(
             "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter handler Err; those trailers reach the client."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter handler Err is after the handler ran."
         ));
         assert!(src.contains(
             "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter handler Err is after the handler ran."
