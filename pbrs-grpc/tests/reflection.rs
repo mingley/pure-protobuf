@@ -532,6 +532,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a reflection server on_response Err: that is trailers-only after handler Ok; this reflection StreamSender fail is trailers after any messages already sent."
+        ),
+        "reflection crate rustdoc must Distinct server on_response Err trailers-only after handler Ok from this reflection StreamSender fail after any messages already sent"
+    );
+    assert!(
+        src.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this reflection server on_response Err; a local reject is trailers-only after handler Ok."
         ),
         "reflection crate rustdoc must name from_error_details typed bag next to reflection server on_response Err"
