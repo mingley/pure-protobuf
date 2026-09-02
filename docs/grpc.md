@@ -2203,6 +2203,7 @@ client-streaming have no response DATA then trailers).
 `Status::from_error_details` is the typed bag after this guide Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from a guide Reverser handler Err: that is after the handler ran; this guide Reverser StreamSender fail is trailers after any messages already sent.
 Distinct from a guide Reverser interceptor Err: that is trailers without reading the body; this guide Reverser StreamSender fail is trailers after any messages already sent.
+Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Reverser StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this guide hello interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide hello handler Err: that is after the handler ran; this guide hello interceptor Err is trailers without reading the body.
 Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide hello interceptor Err is trailers without reading the body.
