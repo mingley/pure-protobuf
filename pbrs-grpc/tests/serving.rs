@@ -2921,6 +2921,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream."
+        ),
+        "ClientInterceptor rustdoc must Distinct Intercepted on_response Err trailers-only after handler Ok from this ClientInterceptor Err local reject never opens a stream"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this ClientInterceptor already ran, so a local Err never consumes that budget."
         ),
         "ClientInterceptor rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"
