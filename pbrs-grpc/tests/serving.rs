@@ -4150,6 +4150,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from [`GreeterClient::intercept`]: that runs on the outbound call before the stream opens; this hello client on_response runs after a successful receive."
+        ),
+        "hello GreeterClient::on_response rustdoc must Distinct intercept outbound-before-stream from after-receive"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterClient::new(channel).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.compress_is_set(),\n//!         parts.encoding(),"
         ),
         "hello GreeterClient::on_response rustdoc example must dump service Distinct from path"
