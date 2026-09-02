@@ -6045,6 +6045,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService interceptor Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map TestService handler Err after the handler ran from this crate-map TestService interceptor Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map TestService client interceptor: that runs on the outbound call before the stream opens; this crate-map TestService interceptor runs on the inbound RPC before the handler."
         ),
         "crate docs must Distinct TestService client outbound-before-stream from inbound-before-handler"
