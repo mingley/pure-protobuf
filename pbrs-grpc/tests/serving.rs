@@ -3278,6 +3278,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a StreamSender fail: that is trailers after any messages already sent; this Interceptor Err is trailers without reading the body."
+        ),
+        "Interceptor rustdoc must Distinct StreamSender fail after any messages already sent from this Interceptor Err without reading the body"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Status::from_error_details`] is the typed bag on this method-level Interceptor Err; those trailers reach the client without reading the body."
         ),
         "Interceptor::intercept rustdoc must name from_error_details typed bag next to intercept Err"
