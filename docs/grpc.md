@@ -2144,6 +2144,7 @@ Distinct from a guide Reverser client interceptor: that runs on the outbound cal
 `Status::from_error_details` is the typed bag after this guide Reverser handler Err; those trailers reach the client.
 Distinct from a guide Reverser interceptor Err: that is trailers without reading the body; this guide Reverser handler Err is after the handler ran.
 Distinct from a guide Reverser client interceptor Err: that is a local reject never opens a stream; this guide Reverser handler Err is after the handler ran.
+Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Reverser handler Err is after the handler ran.
 Distinct from a guide Reverser StreamSender fail: that is trailers after any messages already sent; this guide Reverser handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this guide Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide Reverser client interceptor Err; a local reject never opens a stream.
