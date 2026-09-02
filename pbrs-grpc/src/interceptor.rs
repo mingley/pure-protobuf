@@ -125,6 +125,7 @@ where
 /// with `grpc-status`. Distinct from [`Interceptor`] / [`ClientInterceptor`],
 /// which run before the handler or before the stream opens.
 /// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ResponseInterceptor runs after the handler returns Ok or after a successful receive.
+/// Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this ResponseInterceptor runs after the handler returns Ok or after a successful receive.
 /// [`crate::ResponseParts::path`] is kernel-stamped.
 /// Distinct from [`crate::Request::path`]: that is the inbound request.
 /// Distinct from [`crate::Outgoing::path`]: that is a client interceptor before send.
