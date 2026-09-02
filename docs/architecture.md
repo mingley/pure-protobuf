@@ -458,6 +458,7 @@ Distinct from an architecture Store client interceptor Err: that is a local reje
 Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture TestService client interceptor Err: that is a local reject never opens a stream; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture TestService StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
+Distinct from an architecture Reverser client interceptor Err: that is a local reject never opens a stream; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture hello StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture InteropTestService StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
