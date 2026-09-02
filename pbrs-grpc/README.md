@@ -86,6 +86,7 @@ Distinct from a crate README interceptor Err: that is a local reject never opens
 Distinct from a crate README Health handler Err: that is after the handler ran; this crate README Health interceptor Err is trailers without reading the body.
 Distinct from a crate README server on_response Err: that is trailers-only after handler Ok; this crate README Health interceptor Err is trailers without reading the body.
 Distinct from a crate README Health client interceptor Err: that is a local reject never opens a stream; this crate README Health interceptor Err is trailers without reading the body.
+Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README Health interceptor Err is trailers without reading the body.
 Distinct from a crate README Health StreamSender fail: that is trailers after any messages already sent; this crate README Health interceptor Err is trailers without reading the body.
 Distinct from a crate README Health client interceptor: that runs on the outbound call before the stream opens; this crate README Health interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README Health handler Err; those trailers reach the client.
