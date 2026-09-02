@@ -1101,6 +1101,7 @@ Distinct from a guide reflection handler Err: that is after the handler ran; thi
 Distinct from a guide reflection interceptor Err: that is trailers without reading the body; this guide reflection StreamSender fail is trailers after any messages already sent.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide reflection StreamSender fail is trailers after any messages already sent.
 Distinct from a guide reflection client interceptor Err: that is a local reject never opens a stream; this guide reflection StreamSender fail is trailers after any messages already sent.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide reflection StreamSender fail is trailers after any messages already sent.
 
 ## Graceful shutdown
 

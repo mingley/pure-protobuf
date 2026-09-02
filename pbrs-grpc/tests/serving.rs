@@ -12614,6 +12614,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide reflection StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct guide Channel on_response Err Call fail after receive from this guide reflection StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide Reverser interceptor Err; those trailers reach the client without reading the body."
         ),
         "guide must name from_error_details typed bag next to Reverser interceptor Err"
