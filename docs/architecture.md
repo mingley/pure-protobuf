@@ -498,6 +498,7 @@ Distinct from an architecture reflection handler Err: that is after the handler 
 Distinct from an architecture reflection client interceptor: that runs on the outbound call before the stream opens; this architecture reflection interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture reflection handler Err; those trailers reach the client.
 Distinct from an architecture reflection interceptor Err: that is trailers without reading the body; this architecture reflection handler Err is after the handler ran.
+Distinct from an architecture reflection StreamSender fail: that is trailers after any messages already sent; this architecture reflection handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this architecture reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture reflection client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture reflection client interceptor already ran, so a local Err never consumes that budget.
