@@ -3973,6 +3973,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "trait methods must Distinct generated server on_response Err trailers-only after handler Ok from this generated handler Err after the handler ran"
     );
     assert!(
+        src.contains("Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated handler Err is after the handler ran."),
+        "trait methods must Distinct generated client on_response Err Call fail after receive from this generated handler Err after the handler ran"
+    );
+    assert!(
         src.contains("Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated handler Err is after the handler ran."),
         "trait methods must Distinct generated StreamSender fail after any messages already sent from this generated handler Err after the handler ran"
     );
