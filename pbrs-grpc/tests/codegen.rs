@@ -3961,6 +3961,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "trait methods must name from_error_details typed bag next to handler Err"
     );
     assert!(
+        src.contains("Distinct from a generated server intercept Err: that is trailers without reading the body; this generated handler Err is after the handler ran."),
+        "trait methods must Distinct generated server intercept Err without reading the body from this generated handler Err after the handler ran"
+    );
+    assert!(
         src.contains("Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated handler Err is after the handler ran."),
         "trait methods must Distinct generated StreamSender fail after any messages already sent from this generated handler Err after the handler ran"
     );
