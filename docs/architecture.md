@@ -437,6 +437,7 @@ Distinct from an architecture UnimplementedService interceptor: that runs on the
 Distinct from an architecture InteropTestService handler Err: that is after the handler ran; this architecture InteropTestService interceptor Err is trailers without reading the body.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture InteropTestService interceptor Err is trailers without reading the body.
 Distinct from an architecture InteropTestService client interceptor Err: that is a local reject never opens a stream; this architecture InteropTestService interceptor Err is trailers without reading the body.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture InteropTestService interceptor Err is trailers without reading the body.
 Distinct from an architecture InteropTestService StreamSender fail: that is trailers after any messages already sent; this architecture InteropTestService interceptor Err is trailers without reading the body.
 Distinct from an architecture InteropTestService client interceptor: that runs on the outbound call before the stream opens; this architecture InteropTestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService handler Err; those trailers reach the client.
