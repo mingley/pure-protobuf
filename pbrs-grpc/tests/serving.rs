@@ -4348,6 +4348,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from a hello intercept Err: that is a local reject never opens a stream; this hello client on_response Err fails the Call after a successful receive."
+        ),
+        "hello GreeterClient::on_response rustdoc must Distinct hello intercept Err local reject never opens a stream from this hello client on_response Err Call fail after receive"
+    );
+    assert!(
+        hello.contains(
             "Distinct from [`GreeterClient::intercept`]: that runs on the outbound call before the stream opens; this hello client on_response runs after a successful receive."
         ),
         "hello GreeterClient::on_response rustdoc must Distinct intercept outbound-before-stream from after-receive"
