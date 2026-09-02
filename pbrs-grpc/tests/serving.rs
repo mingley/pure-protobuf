@@ -9242,6 +9242,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from `Channel::on_response`: that runs after a successful receive; this guide Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "guide must Distinct Channel intercept from Channel on_response"
+    );
+    assert!(
+        guide.contains(
             "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this guide server intercept runs on the inbound RPC before the handler."
         ),
         "guide must Distinct Channel outbound-before-stream from server inbound-before-handler"
