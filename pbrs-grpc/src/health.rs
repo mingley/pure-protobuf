@@ -44,6 +44,7 @@
 //! Distinct from a health handler Err: that is after the handler ran; this health interceptor Err is trailers without reading the body.
 //! Distinct from a health server on_response Err: that is trailers-only after handler Ok; this health interceptor Err is trailers without reading the body.
 //! Distinct from a health client interceptor Err: that is a local reject never opens a stream; this health interceptor Err is trailers without reading the body.
+//! Distinct from a health StreamSender fail: that is trailers after any messages already sent; this health interceptor Err is trailers without reading the body.
 //! Distinct from a health client interceptor: that runs on the outbound call before the stream opens; this health interceptor runs on the inbound RPC before the handler.
 //! A handler `Err` may carry the same packed
 //! status; those trailers reach the client on Check, List, and Watch.

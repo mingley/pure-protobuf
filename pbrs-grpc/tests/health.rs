@@ -684,6 +684,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health StreamSender fail: that is trailers after any messages already sent; this health interceptor Err is trailers without reading the body."
+        ),
+        "Health crate rustdoc must Distinct StreamSender fail after any messages already sent from this health interceptor Err without reading the body"
+    );
+    assert!(
+        src.contains(
             "Distinct from a health client interceptor: that runs on the outbound call before the stream opens; this health interceptor runs on the inbound RPC before the handler."
         ),
         "Health crate rustdoc must Distinct client outbound-before-stream from inbound-before-handler"
