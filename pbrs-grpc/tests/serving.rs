@@ -10100,6 +10100,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Reverser handler Err: that is after the handler ran; this guide Reverser StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct Reverser handler Err after the handler ran from this guide Reverser StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide hello interceptor Err; those trailers reach the client without reading the body."
         ),
         "guide must name from_error_details typed bag next to hello interceptor Err"
