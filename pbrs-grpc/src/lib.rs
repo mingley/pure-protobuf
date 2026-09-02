@@ -212,6 +212,8 @@
 //!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map TestService client interceptor already ran, so a local Err never consumes that budget.
 //!
+//! Distinct from a crate-map TestService interceptor: that runs on the inbound RPC before the handler; this crate-map TestService client interceptor runs on the outbound call before the stream opens.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Reverser interceptor Err; those trailers reach the client without reading the body.
