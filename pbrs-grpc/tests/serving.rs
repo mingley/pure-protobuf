@@ -6009,6 +6009,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map hello interceptor: that runs on the inbound RPC before the handler; this crate-map hello client interceptor runs on the outbound call before the stream opens."
+        ),
+        "crate docs must Distinct hello inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map hello StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "crate docs must name from_error_details typed bag next to crate-map hello StreamSender fail"
