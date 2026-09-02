@@ -4803,6 +4803,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing handler Err is after the handler ran."
+        ),
+        "testing crate rustdoc must Distinct Channel on_response Err Call fail after receive from this testing handler Err after the handler ran"
+    );
+    assert!(
+        testing.contains(
             "Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing handler Err is after the handler ran."
         ),
         "testing crate rustdoc must Distinct StreamSender fail after any messages already sent from this testing handler Err after the handler ran"
