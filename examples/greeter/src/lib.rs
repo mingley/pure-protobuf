@@ -26,6 +26,8 @@
 //!
 //! Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter interceptor Err is trailers without reading the body.
 //!
+//! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter interceptor Err is trailers without reading the body.
+//!
 //! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter interceptor Err is trailers without reading the body.
 //!
 //! Distinct from an example greeter client interceptor: that runs on the outbound call before the stream opens; this example greeter interceptor runs on the inbound RPC before the handler.
@@ -277,6 +279,9 @@ mod tests {
         ));
         assert!(src.contains(
             "Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter interceptor Err is trailers without reading the body."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter interceptor Err is trailers without reading the body."
         ));
         assert!(src.contains(
             "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter interceptor Err is trailers without reading the body."
