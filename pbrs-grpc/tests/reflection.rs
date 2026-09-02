@@ -458,6 +458,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must name from_error_details typed bag next to StreamSender fail"
     );
+    assert!(
+        src.contains(
+            "Distinct from a reflection handler Err: that is after the handler ran; this reflection StreamSender fail is trailers after any messages already sent."
+        ),
+        "reflection crate rustdoc must Distinct handler Err after the handler ran from this reflection StreamSender fail after any messages already sent"
+    );
 }
 
 #[tokio::test]
