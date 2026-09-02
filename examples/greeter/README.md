@@ -21,6 +21,7 @@ Distinct from an example README greeter client interceptor: that runs on the out
 `Status::from_error_details` is the typed bag after this example README greeter handler Err; those trailers reach the client.
 Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter handler Err is after the handler ran.
 Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter handler Err is after the handler ran.
+Distinct from an example README greeter server on_response Err: that is trailers-only after handler Ok; this example README greeter handler Err is after the handler ran.
 Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this example README greeter client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this example README greeter client interceptor Err; a local reject never opens a stream.
