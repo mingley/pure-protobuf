@@ -975,6 +975,7 @@ See `docs/upb.md`. Short list:
   `Outgoing::connected` is the live-socket snapshot on this packed-status TestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
   `Status::from_error_details` is the typed bag after this packed-status TestService client interceptor Err; a local reject never opens a stream.
   Distinct from a packed-status TestService handler Err: that is after the handler ran; this packed-status TestService client interceptor Err is a local reject never opens a stream.
+  Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status TestService client interceptor Err is a local reject never opens a stream.
   Distinct from a packed-status TestService StreamSender fail: that is trailers after any messages already sent; this packed-status TestService client interceptor Err is a local reject never opens a stream.
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status TestService client interceptor already ran, so a local Err never consumes that budget.
   Distinct from a packed-status TestService interceptor: that runs on the inbound RPC before the handler; this packed-status TestService client interceptor runs on the outbound call before the stream opens.
