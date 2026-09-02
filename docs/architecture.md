@@ -571,6 +571,7 @@ over TLS, mTLS, Unix, and `from_io`. `Watch` ends when the client cancels or dro
 stream, without waiting for a later status change.
 `Status::from_error_details` is the typed bag after this architecture Health interceptor Err; those trailers reach the client without reading the body.
 Distinct from an architecture Health handler Err: that is after the handler ran; this architecture Health interceptor Err is trailers without reading the body.
+Distinct from an architecture Health client interceptor Err: that is a local reject never opens a stream; this architecture Health interceptor Err is trailers without reading the body.
 Distinct from an architecture Health StreamSender fail: that is trailers after any messages already sent; this architecture Health interceptor Err is trailers without reading the body.
 Distinct from an architecture Health client interceptor: that runs on the outbound call before the stream opens; this architecture Health interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture Health handler Err; those trailers reach the client.
