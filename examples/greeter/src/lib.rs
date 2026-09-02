@@ -24,6 +24,8 @@
 //!
 //! Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter interceptor Err is trailers without reading the body.
 //!
+//! Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter interceptor Err is trailers without reading the body.
+//!
 //! Distinct from an example greeter client interceptor: that runs on the outbound call before the stream opens; this example greeter interceptor runs on the inbound RPC before the handler.
 //!
 //! [`pbrs_grpc::Outgoing::connected`] is the live-socket snapshot on this example greeter client interceptor path ([`pbrs_grpc::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
@@ -254,6 +256,9 @@ mod tests {
         ));
         assert!(src.contains(
             "Distinct from an example greeter server on_response Err: that is trailers-only after handler Ok; this example greeter interceptor Err is trailers without reading the body."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter interceptor Err is trailers without reading the body."
         ));
         assert!(src.contains(
             "Distinct from an example greeter client interceptor: that runs on the outbound call before the stream opens; this example greeter interceptor runs on the inbound RPC before the handler."
