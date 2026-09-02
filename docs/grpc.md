@@ -2215,6 +2215,7 @@ Distinct from a guide InteropTestService client interceptor: that runs on the ou
 Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide InteropTestService handler Err is after the handler ran.
 Distinct from a guide InteropTestService client interceptor Err: that is a local reject never opens a stream; this guide InteropTestService handler Err is after the handler ran.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide InteropTestService handler Err is after the handler ran.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide InteropTestService handler Err is after the handler ran.
 Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide InteropTestService handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this guide InteropTestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide InteropTestService client interceptor Err; a local reject never opens a stream.
