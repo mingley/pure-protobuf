@@ -174,6 +174,7 @@ Distinct from a crate README Reverser handler Err: that is after the handler ran
 Distinct from a crate README Reverser interceptor Err: that is trailers without reading the body; this crate README Reverser StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this crate README hello interceptor Err; those trailers reach the client without reading the body.
 Distinct from a crate README hello handler Err: that is after the handler ran; this crate README hello interceptor Err is trailers without reading the body.
+Distinct from a crate README hello StreamSender fail: that is trailers after any messages already sent; this crate README hello interceptor Err is trailers without reading the body.
 Distinct from a crate README hello client interceptor: that runs on the outbound call before the stream opens; this crate README hello interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README hello handler Err; those trailers reach the client.
 Distinct from a crate README hello interceptor Err: that is trailers without reading the body; this crate README hello handler Err is after the handler ran.
