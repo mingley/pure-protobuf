@@ -804,6 +804,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health client on_response Err: that fails the Call after a successful receive; this health StreamSender fail is trailers after any messages already sent."
+        ),
+        "Health crate rustdoc must Distinct client on_response Err Call fail after receive from this health StreamSender fail after any messages already sent"
+    );
+    assert!(
+        src.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this health server on_response Err; a local reject is trailers-only after handler Ok."
         ),
         "Health crate rustdoc must name from_error_details typed bag next to health server on_response Err"
