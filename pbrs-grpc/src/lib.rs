@@ -428,6 +428,8 @@
 //!
 //! Distinct from a crate-map hello handler Err: that is after the handler ran; this crate-map hello client interceptor Err is a local reject never opens a stream.
 //!
+//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map hello client interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map hello client interceptor Err is a local reject never opens a stream.
 //!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map hello client interceptor already ran, so a local Err never consumes that budget.
