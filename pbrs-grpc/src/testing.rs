@@ -51,6 +51,7 @@
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this testing client interceptor already ran, so a local Err never consumes that budget.
 //! Distinct from a testing interceptor: that runs on the inbound RPC before the handler; this testing client interceptor runs on the outbound call before the stream opens.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent.
+//! Distinct from a testing handler Err: that is after the handler ran; this testing StreamSender fail is trailers after any messages already sent.
 //! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 //! Distinct from an UnimplementedService handler Err: that is after the handler ran; this UnimplementedService interceptor Err is trailers without reading the body.
 //! Distinct from an UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this UnimplementedService interceptor runs on the inbound RPC before the handler.

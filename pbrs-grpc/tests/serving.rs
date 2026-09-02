@@ -4665,6 +4665,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing handler Err: that is after the handler ran; this testing StreamSender fail is trailers after any messages already sent."
+        ),
+        "testing crate rustdoc must Distinct handler Err after the handler ran from this testing StreamSender fail after any messages already sent"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this UnimplementedService interceptor Err; those trailers reach the client without reading the body."
         ),
         "testing crate rustdoc must name from_error_details typed bag next to UnimplementedService interceptor Err"
