@@ -10024,6 +10024,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status UnimplementedService handler Err is after the handler ran."
+        ),
+        "status guide must Distinct Channel on_response Err Call fail after receive from this packed-status UnimplementedService handler Err after the handler ran"
+    );
+    assert!(
+        status_guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this packed-status UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "status guide must name Outgoing::connected live-socket snapshot on UnimplementedService"
