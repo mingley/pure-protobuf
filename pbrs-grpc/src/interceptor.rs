@@ -318,6 +318,7 @@ impl<S, I> Intercepted<S, I> {
     /// Distinct from an Interceptor Err: that is trailers without reading the body; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Intercepted on_response Err is trailers-only after handler Ok.
+    /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Intercepted on_response Err is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Intercepted on_response runs after the handler returns Ok.
     /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this Intercepted on_response runs after the handler returns Ok on one wrapped service.
