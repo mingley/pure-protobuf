@@ -495,6 +495,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status interceptor Err; a local reject never opens a stream.
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status interceptor already ran, so a local Err never consumes that budget.
   Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this packed-status Channel intercept runs on the outbound call before the stream opens.
+  Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this packed-status server intercept runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status server intercept Err; those trailers reach the client without reading the body.
   `ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset.
   `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this packed-status on_response path.
