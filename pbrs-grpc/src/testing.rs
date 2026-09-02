@@ -58,6 +58,7 @@
 //! Distinct from a testing handler Err: that is after the handler ran; this testing client interceptor Err is a local reject never opens a stream.
 //! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing client interceptor Err is a local reject never opens a stream.
 //! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing client interceptor Err is a local reject never opens a stream.
+//! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing client interceptor Err is a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this testing client interceptor already ran, so a local Err never consumes that budget.
 //! Distinct from a testing interceptor: that runs on the inbound RPC before the handler; this testing client interceptor runs on the outbound call before the stream opens.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent.
