@@ -2132,6 +2132,7 @@ frame unpacks on server-streaming and bidi on those transports too (unary and
 client-streaming have no response DATA then trailers).
 `Status::from_error_details` is the typed bag after this guide Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `Status::from_error_details` is the typed bag after this guide hello interceptor Err; those trailers reach the client without reading the body.
+Distinct from a guide hello client interceptor: that runs on the outbound call before the stream opens; this guide hello interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide hello handler Err; those trailers reach the client.
 `Outgoing::connected` is the live-socket snapshot on this guide hello client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide hello client interceptor Err; a local reject never opens a stream.
