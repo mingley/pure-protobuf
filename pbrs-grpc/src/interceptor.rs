@@ -469,6 +469,7 @@ pub trait ServiceExt: Service + Sized {
     /// TLS, mTLS, Unix, and [`crate::Channel::from_io`].
     /// [`crate::Status::from_error_details`] is the typed bag after this ServiceExt intercept Err; those trailers reach the client without reading the body.
     /// Distinct from a handler Err: that is after the handler ran; this ServiceExt intercept Err is trailers without reading the body.
+    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this ServiceExt intercept Err is trailers without reading the body.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this ServiceExt intercept runs on the inbound RPC before the handler.
     /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this ServiceExt intercept runs on the inbound RPC before the handler.
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the Server's Service; this ServiceExt intercept wraps one service with an inbound hook.
