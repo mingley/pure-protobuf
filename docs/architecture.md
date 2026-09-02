@@ -351,6 +351,7 @@ Distinct from an architecture InteropTestService interceptor: that runs on the i
 `ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this architecture on_response path.
 `Status::from_error_details` is the typed bag after this architecture server on_response Err; a local reject is trailers-only after handler Ok.
+Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this architecture server on_response runs after the handler returns Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this architecture on_response path; a received reply has no server gzip overlay to restore.
 `Status::from_error_details` is the typed bag after this architecture Channel on_response Err; a local reject fails the Call after a successful receive.
 
