@@ -896,6 +896,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status UnimplementedService interceptor: that runs on the inbound RPC before the handler; this packed-status UnimplementedService client interceptor runs on the outbound call before the stream opens.
   `Status::from_error_details` is the typed bag after this packed-status InteropTestService interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status InteropTestService handler Err: that is after the handler ran; this packed-status InteropTestService interceptor Err is trailers without reading the body.
+  Distinct from a packed-status InteropTestService StreamSender fail: that is trailers after any messages already sent; this packed-status InteropTestService interceptor Err is trailers without reading the body.
   Distinct from a packed-status InteropTestService client interceptor: that runs on the outbound call before the stream opens; this packed-status InteropTestService interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status InteropTestService handler Err; those trailers reach the client.
   Distinct from a packed-status InteropTestService interceptor Err: that is trailers without reading the body; this packed-status InteropTestService handler Err is after the handler ran.
