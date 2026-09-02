@@ -9430,6 +9430,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status InteropTestService StreamSender fail: that is trailers after any messages already sent; this packed-status InteropTestService handler Err is after the handler ran."
+        ),
+        "status guide must Distinct InteropTestService StreamSender fail after any messages already sent from this packed-status InteropTestService handler Err after the handler ran"
+    );
+    assert!(
+        status_guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this packed-status InteropTestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "status guide must name Outgoing::connected live-socket snapshot on InteropTestService"
