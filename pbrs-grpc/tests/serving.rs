@@ -4809,6 +4809,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing interceptor Err is trailers without reading the body."
+        ),
+        "testing crate rustdoc must Distinct server on_response Err trailers-only after handler Ok from this testing interceptor Err without reading the body"
+    );
+    assert!(
+        testing.contains(
             "Distinct from a testing client interceptor: that runs on the outbound call before the stream opens; this testing interceptor runs on the inbound RPC before the handler."
         ),
         "testing crate rustdoc must Distinct client outbound-before-stream from inbound-before-handler"
