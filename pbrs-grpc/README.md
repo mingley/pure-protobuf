@@ -70,6 +70,7 @@ RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent
 `Outgoing::clear_timeout` opts out of the channel timeout after a crate README interceptor choice.
 `Outgoing::connected` is the live-socket snapshot on this crate README interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README interceptor Err; a local reject never opens a stream.
+Distinct from a crate README handler Err: that is after the handler ran; this crate README interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README interceptor already ran, so a local Err never consumes that budget.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README Channel intercept runs on the outbound call before the stream opens.
 Distinct from `Channel::on_response`: that runs after a successful receive; this crate README Channel intercept runs on the outbound call before the stream opens.
