@@ -11150,6 +11150,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Health interceptor Err: that is trailers without reading the body; this crate README Channel on_response Err fails the Call after a successful receive."
+        ),
+        "crate README must Distinct crate README Health interceptor Err without reading the body from this crate README Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README Health StreamSender fail: that is trailers after any messages already sent; this crate README Channel on_response Err fails the Call after a successful receive."
         ),
         "crate README must Distinct crate README Health StreamSender fail after any messages already sent from this crate README Channel on_response Err Call fail after receive"
