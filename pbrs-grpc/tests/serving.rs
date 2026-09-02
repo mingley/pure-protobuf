@@ -9572,6 +9572,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Store client interceptor Err: that is a local reject never opens a stream; this crate README Store StreamSender fail is trailers after any messages already sent."
+        ),
+        "crate README must Distinct crate README Store client interceptor Err local reject never opens a stream from this crate README Store StreamSender fail after any messages already sent"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README TestService interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate README must name from_error_details typed bag next to TestService interceptor Err"
