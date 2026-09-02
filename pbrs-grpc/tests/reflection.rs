@@ -494,6 +494,18 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "reflection crate rustdoc must Distinct handler Err after the handler ran from this reflection server on_response Err trailers-only after handler Ok"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this reflection client on_response Err; a local reject fails the Call after a successful receive."
+        ),
+        "reflection crate rustdoc must name from_error_details typed bag next to reflection client on_response Err"
+    );
+    assert!(
+        src.contains(
+            "Distinct from a reflection handler Err: that is after the handler ran; this reflection client on_response Err fails the Call after a successful receive."
+        ),
+        "reflection crate rustdoc must Distinct handler Err after the handler ran from this reflection client on_response Err Call fail after receive"
+    );
 }
 
 #[tokio::test]
