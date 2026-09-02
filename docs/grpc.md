@@ -1888,6 +1888,7 @@ Distinct from `Server::intercept`: that runs on the inbound RPC before the handl
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this guide on_response path; a received reply has no server gzip overlay to restore.
 `Status::from_error_details` is the typed bag after this guide Channel on_response Err; a local reject fails the Call after a successful receive.
 Distinct from a guide handler Err: that is after the handler ran; this guide Channel on_response Err fails the Call after a successful receive.
+Distinct from a guide interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this guide Channel on_response runs after a successful receive.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
