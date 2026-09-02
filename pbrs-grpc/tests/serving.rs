@@ -3579,6 +3579,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a method-level Interceptor Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive."
+        ),
+        "ResponseInterceptor::intercept rustdoc must Distinct method-level Interceptor Err without reading the body from this method-level on_response Err trailers-only after handler Ok or Call fail after receive"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::ResponseParts::compress_is_set`] is occupancy on this method-level on_response, so a later interceptor can fill compress only when unset."
         ),
         "ResponseInterceptor::intercept rustdoc must name compress_is_set occupancy next to the envelope"

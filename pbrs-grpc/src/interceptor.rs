@@ -221,6 +221,7 @@ pub trait ResponseInterceptor: Send + Sync + 'static {
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay on this method-level on_response.
     /// [`crate::Status::from_error_details`] is the typed bag on this method-level on_response Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from a handler Err: that is after the handler ran; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
+    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
 }
 
