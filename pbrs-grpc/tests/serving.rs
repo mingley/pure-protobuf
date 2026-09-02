@@ -10934,6 +10934,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide TestService client interceptor Err: that is a local reject never opens a stream; this guide TestService handler Err is after the handler ran."
+        ),
+        "guide must Distinct TestService client interceptor Err local reject never opens a stream from this guide TestService handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide TestService StreamSender fail: that is trailers after any messages already sent; this guide TestService handler Err is after the handler ran."
         ),
         "guide must Distinct TestService StreamSender fail after any messages already sent from this guide TestService handler Err after the handler ran"
