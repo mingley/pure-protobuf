@@ -11477,6 +11477,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture TestService handler Err: that is after the handler ran; this architecture TestService interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct TestService handler Err after the handler ran from this architecture TestService interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture TestService client interceptor: that runs on the outbound call before the stream opens; this architecture TestService interceptor runs on the inbound RPC before the handler."
         ),
         "architecture must Distinct TestService inbound interceptor from client outbound-before-stream"
