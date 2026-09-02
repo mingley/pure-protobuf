@@ -6195,6 +6195,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map reflection client interceptor Err: that is a local reject never opens a stream; this crate-map reflection handler Err is after the handler ran."
+        ),
+        "crate docs must Distinct crate-map reflection client interceptor Err local reject never opens a stream from this crate-map reflection handler Err after the handler ran"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map reflection handler Err is after the handler ran."
         ),
         "crate docs must Distinct crate-map reflection StreamSender fail after any messages already sent from this crate-map reflection handler Err after the handler ran"
