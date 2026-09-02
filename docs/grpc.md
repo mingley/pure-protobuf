@@ -2120,6 +2120,7 @@ Official `TestService` handler `Err(with_error_details)` unpacks
 on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
 those transports too.
 `Status::from_error_details` is the typed bag after this guide TestService interceptor Err; those trailers reach the client without reading the body.
+Distinct from a guide TestService client interceptor: that runs on the outbound call before the stream opens; this guide TestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client.
 `Outgoing::connected` is the live-socket snapshot on this guide TestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide TestService client interceptor Err; a local reject never opens a stream.

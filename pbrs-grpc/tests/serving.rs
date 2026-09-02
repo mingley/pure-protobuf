@@ -9428,6 +9428,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide TestService client interceptor: that runs on the outbound call before the stream opens; this guide TestService interceptor runs on the inbound RPC before the handler."
+        ),
+        "guide must Distinct TestService inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this guide TestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "guide must name Outgoing::connected live-socket snapshot on TestService"
