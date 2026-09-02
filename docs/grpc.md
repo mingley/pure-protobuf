@@ -2326,6 +2326,7 @@ Distinct from a guide UnimplementedService interceptor: that runs on the inbound
 Distinct from a guide InteropTestService handler Err: that is after the handler ran; this guide InteropTestService interceptor Err is trailers without reading the body.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide InteropTestService interceptor Err is trailers without reading the body.
 Distinct from a guide InteropTestService client interceptor Err: that is a local reject never opens a stream; this guide InteropTestService interceptor Err is trailers without reading the body.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide InteropTestService interceptor Err is trailers without reading the body.
 Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide InteropTestService interceptor Err is trailers without reading the body.
 Distinct from a guide InteropTestService client interceptor: that runs on the outbound call before the stream opens; this guide InteropTestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide InteropTestService handler Err; those trailers reach the client.
