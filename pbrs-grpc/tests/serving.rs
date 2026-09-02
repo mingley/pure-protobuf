@@ -13390,6 +13390,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status reflection interceptor Err: that is trailers without reading the body; this packed-status Channel on_response Err fails the Call after a successful receive."
+        ),
+        "status guide must Distinct packed-status reflection interceptor Err without reading the body from this packed-status Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status reflection StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive."
         ),
         "status guide must Distinct packed-status reflection StreamSender fail after any messages already sent from this packed-status Channel on_response Err Call fail after receive"
