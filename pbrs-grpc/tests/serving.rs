@@ -15425,6 +15425,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture Reverser StreamSender fail is trailers after any messages already sent."
+        ),
+        "architecture must Distinct architecture Channel on_response Err Call fail after receive from this architecture Reverser StreamSender fail after any messages already sent"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture hello interceptor Err; those trailers reach the client without reading the body."
         ),
         "architecture must name from_error_details typed bag next to hello interceptor Err"
