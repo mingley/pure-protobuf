@@ -16127,6 +16127,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture reflection interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct architecture server on_response Err trailers-only after handler Ok from this architecture reflection interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture reflection client interceptor Err: that is a local reject never opens a stream; this architecture reflection interceptor Err is trailers without reading the body."
         ),
         "architecture must Distinct reflection client interceptor Err local reject never opens a stream from this architecture reflection interceptor Err without reading the body"
