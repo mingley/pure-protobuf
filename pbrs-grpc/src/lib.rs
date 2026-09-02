@@ -182,6 +182,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map reflection interceptor Err; those trailers reach the client without reading the body.
 //!
+//! Distinct from a crate-map reflection handler Err: that is after the handler ran; this crate-map reflection interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map reflection client interceptor: that runs on the outbound call before the stream opens; this crate-map reflection interceptor runs on the inbound RPC before the handler.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map reflection handler Err; those trailers reach the client.

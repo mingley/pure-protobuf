@@ -5925,6 +5925,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map reflection handler Err: that is after the handler ran; this crate-map reflection interceptor Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map reflection handler Err after the handler ran from this crate-map reflection interceptor Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map reflection client interceptor: that runs on the outbound call before the stream opens; this crate-map reflection interceptor runs on the inbound RPC before the handler."
         ),
         "crate docs must Distinct reflection client outbound-before-stream from inbound-before-handler"
