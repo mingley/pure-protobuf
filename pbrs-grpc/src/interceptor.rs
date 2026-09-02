@@ -619,6 +619,7 @@ impl<S: Service> ServiceExt for S {}
 /// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
 /// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ClientInterceptor runs on the outbound call before the stream opens.
 /// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this runs on the outbound call before the stream opens.
+/// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this ClientInterceptor runs on the outbound call before the stream opens.
 ///
 /// ```
 /// use pbrs_grpc::{Outgoing, Status};

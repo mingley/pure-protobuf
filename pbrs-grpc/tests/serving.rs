@@ -2927,6 +2927,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this ClientInterceptor runs on the outbound call before the stream opens."
+        ),
+        "ClientInterceptor rustdoc must Distinct ResponseInterceptor after-Ok-or-receive from this ClientInterceptor outbound-before-stream"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Outgoing::clear_user_agent`] drops a method-level interceptor prefix so this RPC uses the channel user-agent again."
         ),
         "ClientInterceptor::intercept rustdoc must name clear_user_agent opt-out"
