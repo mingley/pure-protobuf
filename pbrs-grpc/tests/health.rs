@@ -702,6 +702,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health handler Err: that is after the handler ran; this health client interceptor Err is a local reject never opens a stream."
+        ),
+        "Health crate rustdoc must Distinct health handler Err after the handler ran from this health client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this health client interceptor already ran, so a local Err never consumes that budget."
         ),
         "Health crate rustdoc must Distinct max_concurrent_rpcs slot grab after client intercept"
