@@ -4921,6 +4921,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService interceptor Err is trailers without reading the body."
+        ),
+        "InteropTestService rustdoc must Distinct testing server on_response Err trailers-only after handler Ok from this InteropTestService interceptor Err without reading the body"
+    );
+    assert!(
+        testing.contains(
             "Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this InteropTestService interceptor Err is trailers without reading the body."
         ),
         "InteropTestService rustdoc must Distinct client interceptor Err local reject never opens a stream from this InteropTestService interceptor Err without reading the body"
