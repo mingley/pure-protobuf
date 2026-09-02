@@ -342,6 +342,7 @@ Distinct from an architecture Reverser client interceptor: that runs on the outb
 Distinct from an architecture Reverser interceptor Err: that is trailers without reading the body; this architecture Reverser handler Err is after the handler ran.
 Distinct from an architecture Reverser client interceptor Err: that is a local reject never opens a stream; this architecture Reverser handler Err is after the handler ran.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture Reverser handler Err is after the handler ran.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture Reverser handler Err is after the handler ran.
 Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Reverser handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this architecture Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture Reverser client interceptor Err; a local reject never opens a stream.
