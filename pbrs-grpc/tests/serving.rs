@@ -5727,6 +5727,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this crate-map [`ResponseInterceptor`] runs after the handler returns Ok or after a successful receive."
+        ),
+        "crate docs must Distinct Interceptor inbound-before-handler from crate-map ResponseInterceptor after-Ok-or-receive"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this crate-map [`ClientInterceptor`] runs on the outbound call before the stream opens."
         ),
         "crate docs must Distinct ResponseInterceptor after-Ok-or-receive from outbound ClientInterceptor"
