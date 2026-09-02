@@ -10418,6 +10418,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README server on_response Err: that is trailers-only after handler Ok; this crate README hello interceptor Err is trailers without reading the body."
+        ),
+        "crate README must Distinct crate README server on_response Err trailers-only after handler Ok from this crate README hello interceptor Err without reading the body"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README hello client interceptor Err: that is a local reject never opens a stream; this crate README hello interceptor Err is trailers without reading the body."
         ),
         "crate README must Distinct hello client interceptor Err local reject never opens a stream from this crate README hello interceptor Err without reading the body"
