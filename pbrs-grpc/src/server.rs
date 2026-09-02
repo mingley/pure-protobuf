@@ -2827,6 +2827,7 @@ impl Router {
     /// as [`Server::intercept`]. Applies to every call shape.
     /// [`Status::from_error_details`] is the typed bag after this Router intercept Err; those trailers reach the client without reading the body.
     /// Distinct from a handler Err: that is after the handler ran; this Router intercept Err is trailers without reading the body.
+    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Router intercept Err is trailers without reading the body.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Router intercept runs on the inbound RPC before the handler.
     /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this Router intercept runs on the inbound RPC before the handler.
     /// Distinct from [`Server::intercept`]: that runs on the inbound RPC before the Server's Service; this Router intercept runs on the inbound RPC before every mounted service on this Router.
