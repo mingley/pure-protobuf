@@ -975,6 +975,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status InteropTestService client interceptor Err; a local reject never opens a stream.
   Distinct from a packed-status InteropTestService handler Err: that is after the handler ran; this packed-status InteropTestService client interceptor Err is a local reject never opens a stream.
   Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status InteropTestService client interceptor Err is a local reject never opens a stream.
+  Distinct from a packed-status InteropTestService interceptor Err: that is trailers without reading the body; this packed-status InteropTestService client interceptor Err is a local reject never opens a stream.
   Distinct from a packed-status InteropTestService StreamSender fail: that is trailers after any messages already sent; this packed-status InteropTestService client interceptor Err is a local reject never opens a stream.
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status InteropTestService client interceptor already ran, so a local Err never consumes that budget.
   Distinct from a packed-status InteropTestService interceptor: that runs on the inbound RPC before the handler; this packed-status InteropTestService client interceptor runs on the outbound call before the stream opens.
