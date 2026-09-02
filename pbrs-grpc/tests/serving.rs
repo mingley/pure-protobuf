@@ -10625,6 +10625,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Health interceptor: that runs on the inbound RPC before the handler; this architecture Health client interceptor runs on the outbound call before the stream opens."
+        ),
+        "architecture must Distinct Health inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture Health StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "architecture must name from_error_details typed bag next to Health StreamSender fail"
