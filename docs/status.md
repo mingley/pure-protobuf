@@ -520,6 +520,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status TestService StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status Reverser interceptor Err: that is trailers without reading the body; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status Reverser StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
+  Distinct from a packed-status hello interceptor Err: that is trailers without reading the body; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status hello StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status InteropTestService StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this packed-status server on_response runs after the handler returns Ok.
