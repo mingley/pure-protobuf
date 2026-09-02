@@ -11975,6 +11975,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture TestService handler Err: that is after the handler ran; this architecture TestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "architecture must Distinct TestService handler Err after the handler ran from this architecture TestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture Reverser interceptor Err; those trailers reach the client without reading the body."
         ),
         "architecture must name from_error_details typed bag next to Reverser interceptor Err"
