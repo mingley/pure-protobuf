@@ -4483,6 +4483,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an InteropTestService handler Err: that is after the handler ran; this InteropTestService interceptor Err is trailers without reading the body."
+        ),
+        "InteropTestService rustdoc must Distinct handler Err after the handler ran from this InteropTestService interceptor Err without reading the body"
+    );
+    assert!(
+        testing.contains(
             "Distinct from an InteropTestService client interceptor: that runs on the outbound call before the stream opens; this InteropTestService interceptor runs on the inbound RPC before the handler."
         ),
         "InteropTestService rustdoc must Distinct client outbound-before-stream from inbound-before-handler"
