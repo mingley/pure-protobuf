@@ -617,6 +617,7 @@ impl<S: Service> ServiceExt for S {}
 /// [`crate::Status::from_error_details`] is the typed bag on this ClientInterceptor Err; a local reject never opens a stream.
 /// Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this ClientInterceptor already ran, so a local Err never consumes that budget.
 /// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
+/// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ClientInterceptor runs on the outbound call before the stream opens.
 /// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this runs on the outbound call before the stream opens.
 ///
 /// ```
