@@ -8716,6 +8716,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from `Channel::on_response`: that runs after a successful receive; this packed-status Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "status guide must Distinct Channel intercept from Channel on_response"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this packed-status server intercept runs on the inbound RPC before the handler."
         ),
         "status guide must Distinct Channel outbound-before-stream from server inbound-before-handler"
