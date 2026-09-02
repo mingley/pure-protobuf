@@ -521,6 +521,7 @@ pub trait ServiceExt: Service + Sized {
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this ServiceExt on_response.
     /// [`crate::Status::from_error_details`] is the typed bag after this ServiceExt on_response Err; a local reject is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this ServiceExt on_response runs after the handler returns Ok.
+    /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this ServiceExt on_response wraps one service with an after-Ok hook.
     /// [`crate::ResponseParts::path`] is kernel-stamped.
     /// Distinct from [`crate::Request::path`]: that is the inbound request.
     /// `Err` after the handler already ran; that status is sent
