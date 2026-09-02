@@ -11417,6 +11417,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Store handler Err: that is after the handler ran; this architecture Store interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct Store handler Err after the handler ran from this architecture Store interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Store client interceptor: that runs on the outbound call before the stream opens; this architecture Store interceptor runs on the inbound RPC before the handler."
         ),
         "architecture must Distinct Store inbound interceptor from client outbound-before-stream"
