@@ -4740,6 +4740,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from a generated server intercept Err: that is trailers without reading the body; this generated client on_response Err fails the Call after a successful receive."
+        ),
+        "generated client on_response rustdoc must Distinct generated server intercept Err without reading the body from this generated client on_response Err Call fail after receive"
+    );
+    assert!(
+        src.contains(
             "Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated client on_response Err fails the Call after a successful receive."
         ),
         "generated client on_response rustdoc must Distinct generated intercept Err local reject never opens a stream from this generated client on_response Err Call fail after receive"

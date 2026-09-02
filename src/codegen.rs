@@ -5315,6 +5315,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated client on_response Err fails the Call after a successful receive."
+    );
+    let _ = writeln!(
+        src,
         "    /// Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated client on_response Err fails the Call after a successful receive."
     );
     let _ = writeln!(
