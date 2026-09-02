@@ -3789,6 +3789,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this Intercepted on_response Err is trailers-only after handler Ok."
+        ),
+        "Intercepted::on_response rustdoc must Distinct ResponseInterceptor Err trailers-only after handler Ok or Call fail after receive from this Intercepted on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Intercepted on_response runs after the handler returns Ok."
         ),
         "Intercepted::on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
