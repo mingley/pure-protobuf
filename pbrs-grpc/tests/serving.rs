@@ -9406,6 +9406,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status handler Err: that is after the handler ran; this packed-status server intercept Err is trailers without reading the body."
+        ),
+        "status guide must Distinct packed-status handler Err after the handler ran from this packed-status server intercept Err without reading the body"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status TestService interceptor Err; those trailers reach the client without reading the body."
         ),
         "status guide must name from_error_details typed bag next to TestService interceptor Err"

@@ -499,6 +499,7 @@ See `docs/upb.md`. Short list:
   Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this packed-status server intercept runs on the inbound RPC before the handler.
   Distinct from `Server::on_response`: that runs after the handler returns Ok; this packed-status server intercept runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status server intercept Err; those trailers reach the client without reading the body.
+  Distinct from a packed-status handler Err: that is after the handler ran; this packed-status server intercept Err is trailers without reading the body.
   `ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset.
   `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this packed-status on_response path.
   `Status::from_error_details` is the typed bag after this packed-status server on_response Err; a local reject is trailers-only after handler Ok.
