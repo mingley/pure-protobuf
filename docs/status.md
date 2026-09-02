@@ -847,6 +847,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Health client interceptor: that runs on the outbound call before the stream opens; this packed-status Health interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status reflection interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status reflection handler Err: that is after the handler ran; this packed-status reflection interceptor Err is trailers without reading the body.
+  Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status reflection interceptor Err is trailers without reading the body.
   Distinct from a packed-status reflection client interceptor Err: that is a local reject never opens a stream; this packed-status reflection interceptor Err is trailers without reading the body.
   Distinct from a packed-status reflection StreamSender fail: that is trailers after any messages already sent; this packed-status reflection interceptor Err is trailers without reading the body.
   Distinct from a packed-status reflection client interceptor: that runs on the outbound call before the stream opens; this packed-status reflection interceptor runs on the inbound RPC before the handler.
