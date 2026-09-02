@@ -564,6 +564,7 @@ Distinct from an architecture Health handler Err: that is after the handler ran;
 Distinct from an architecture Health interceptor Err: that is trailers without reading the body; this architecture Health StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture Health StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture Health client interceptor Err: that is a local reject never opens a stream; this architecture Health StreamSender fail is trailers after any messages already sent.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture Health StreamSender fail is trailers after any messages already sent.
 `grpc.reflection.v1` is built from registered
 `FILE_DESCRIPTOR_SET`s. `file_containing_symbol` / `file_by_filename` /
 `file_containing_extension` / `all_extension_numbers_of_type` run on that
