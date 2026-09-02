@@ -2195,6 +2195,7 @@ Distinct from a guide UnimplementedService client interceptor: that runs on the 
 `Status::from_error_details` is the typed bag after this guide UnimplementedService handler Err; those trailers reach the client.
 Distinct from a guide UnimplementedService interceptor Err: that is trailers without reading the body; this guide UnimplementedService handler Err is after the handler ran.
 Distinct from a guide UnimplementedService client interceptor Err: that is a local reject never opens a stream; this guide UnimplementedService handler Err is after the handler ran.
+Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide UnimplementedService handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this guide UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide UnimplementedService client interceptor Err; a local reject never opens a stream.
 Distinct from a guide UnimplementedService handler Err: that is after the handler ran; this guide UnimplementedService client interceptor Err is a local reject never opens a stream.
