@@ -1935,6 +1935,7 @@ Distinct from a guide hello StreamSender fail: that is trailers after any messag
 Distinct from a guide UnimplementedService interceptor Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this guide server on_response runs after the handler returns Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this guide on_response path; a received reply has no server gzip overlay to restore.
 `Status::from_error_details` is the typed bag after this guide Channel on_response Err; a local reject fails the Call after a successful receive.
