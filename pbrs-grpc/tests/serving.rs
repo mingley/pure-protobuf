@@ -5433,6 +5433,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing Channel on_response Err fails the Call after a successful receive."
+        ),
+        "testing crate rustdoc must Distinct testing server on_response Err trailers-only after handler Ok from this testing Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this UnimplementedService interceptor Err; those trailers reach the client without reading the body."
         ),
         "testing crate rustdoc must name from_error_details typed bag next to UnimplementedService interceptor Err"
