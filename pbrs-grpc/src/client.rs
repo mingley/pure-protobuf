@@ -977,6 +977,7 @@ impl Channel {
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Server intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Router intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
+    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this Channel on_response Err fails the Call after a successful receive.
