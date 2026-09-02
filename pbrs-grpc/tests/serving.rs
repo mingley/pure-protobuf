@@ -4177,6 +4177,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive."
+        ),
+        "Channel::on_response rustdoc must Distinct method-level Interceptor Err without reading the body from this Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        src.contains(
             "Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive."
         ),
         "Channel::on_response rustdoc must Distinct Channel intercept Err local reject never opens a stream from this Channel on_response Err Call fail after receive"

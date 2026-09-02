@@ -978,6 +978,7 @@ impl Channel {
     /// [`crate::Status::from_error_details`] is the typed bag after this Channel on_response Err; a local reject fails the Call after a successful receive.
     /// Distinct from a handler Err: that is after the handler ran; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from an Interceptor Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
+    /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Server intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
