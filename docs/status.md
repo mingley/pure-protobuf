@@ -821,6 +821,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status hello interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status hello client interceptor: that runs on the outbound call before the stream opens; this packed-status hello interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status hello handler Err; those trailers reach the client.
+  Distinct from a packed-status hello interceptor Err: that is trailers without reading the body; this packed-status hello handler Err is after the handler ran.
   `Outgoing::connected` is the live-socket snapshot on this packed-status hello client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
   `Status::from_error_details` is the typed bag after this packed-status hello client interceptor Err; a local reject never opens a stream.
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status hello client interceptor already ran, so a local Err never consumes that budget.
