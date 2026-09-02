@@ -376,6 +376,8 @@
 //!
 //! Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map Reverser client interceptor Err: that is a local reject never opens a stream; this crate-map Reverser interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map Reverser interceptor Err is trailers without reading the body.
 //!
 //! Distinct from a crate-map Reverser client interceptor: that runs on the outbound call before the stream opens; this crate-map Reverser interceptor runs on the inbound RPC before the handler.
