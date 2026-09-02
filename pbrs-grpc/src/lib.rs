@@ -364,6 +364,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Channel on_response Err; a local reject fails the Call after a successful receive.
 //!
+//! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map Channel on_response Err fails the Call after a successful receive.
+//!
 //! Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map Channel on_response runs after a successful receive.
 //!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
