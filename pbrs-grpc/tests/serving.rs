@@ -10568,6 +10568,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide reflection client interceptor Err: that is a local reject never opens a stream; this guide reflection handler Err is after the handler ran."
+        ),
+        "guide must Distinct reflection client interceptor Err local reject never opens a stream from this guide reflection handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide reflection handler Err is after the handler ran."
         ),
         "guide must Distinct reflection StreamSender fail after any messages already sent from this guide reflection handler Err after the handler ran"
