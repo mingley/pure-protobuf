@@ -9230,6 +9230,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README server on_response Err: that is trailers-only after handler Ok; this crate README Health StreamSender fail is trailers after any messages already sent."
+        ),
+        "crate README must Distinct crate README server on_response Err trailers-only after handler Ok from this crate README Health StreamSender fail after any messages already sent"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README reflection interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate README must name from_error_details typed bag next to reflection interceptor Err"
