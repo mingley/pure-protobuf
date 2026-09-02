@@ -4635,6 +4635,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing handler Err is after the handler ran."
+        ),
+        "testing crate rustdoc must Distinct StreamSender fail after any messages already sent from this testing handler Err after the handler ran"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Outgoing::connected`] is the live-socket snapshot on this testing client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "testing crate rustdoc must name Outgoing::connected live-socket snapshot on TestService"

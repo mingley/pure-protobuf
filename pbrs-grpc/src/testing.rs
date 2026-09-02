@@ -46,6 +46,7 @@
 //! Distinct from a testing client interceptor: that runs on the outbound call before the stream opens; this testing interceptor runs on the inbound RPC before the handler.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing handler Err; those trailers reach the client.
 //! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing handler Err is after the handler ran.
+//! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing handler Err is after the handler ran.
 //! [`crate::Outgoing::connected`] is the live-socket snapshot on this testing client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing client interceptor Err; a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this testing client interceptor already ran, so a local Err never consumes that budget.
