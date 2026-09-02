@@ -9638,6 +9638,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide reflection handler Err: that is after the handler ran; this guide reflection interceptor Err is trailers without reading the body."
+        ),
+        "guide must Distinct reflection handler Err after the handler ran from this guide reflection interceptor Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide reflection client interceptor: that runs on the outbound call before the stream opens; this guide reflection interceptor runs on the inbound RPC before the handler."
         ),
         "guide must Distinct reflection client outbound-before-stream from inbound-before-handler"
