@@ -11938,6 +11938,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Store client interceptor Err: that is a local reject never opens a stream; this packed-status Store interceptor Err is trailers without reading the body."
+        ),
+        "status guide must Distinct Store client interceptor Err local reject never opens a stream from this packed-status Store interceptor Err without reading the body"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status Store StreamSender fail: that is trailers after any messages already sent; this packed-status Store interceptor Err is trailers without reading the body."
         ),
         "status guide must Distinct Store StreamSender fail after any messages already sent from this packed-status Store interceptor Err without reading the body"
