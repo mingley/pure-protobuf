@@ -5949,6 +5949,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health handler Err is after the handler ran."
+        ),
+        "crate docs must Distinct crate-map Health StreamSender fail after any messages already sent from this crate-map Health handler Err after the handler ran"
+    );
+    assert!(
+        crate_src.contains(
             "[`Outgoing::connected`] is the live-socket snapshot on this crate-map Health client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "crate docs must name Outgoing::connected live-socket snapshot on crate-map Health"
