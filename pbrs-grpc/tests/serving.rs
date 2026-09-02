@@ -9908,6 +9908,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide TestService handler Err: that is after the handler ran; this guide TestService interceptor Err is trailers without reading the body."
+        ),
+        "guide must Distinct TestService handler Err after the handler ran from this guide TestService interceptor Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide TestService client interceptor: that runs on the outbound call before the stream opens; this guide TestService interceptor runs on the inbound RPC before the handler."
         ),
         "guide must Distinct TestService inbound interceptor from client outbound-before-stream"

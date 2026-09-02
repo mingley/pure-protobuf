@@ -2132,6 +2132,7 @@ Official `TestService` handler `Err(with_error_details)` unpacks
 on EmptyCall / StreamingOutputCall / StreamingInputCall / FullDuplexCall on
 those transports too.
 `Status::from_error_details` is the typed bag after this guide TestService interceptor Err; those trailers reach the client without reading the body.
+Distinct from a guide TestService handler Err: that is after the handler ran; this guide TestService interceptor Err is trailers without reading the body.
 Distinct from a guide TestService client interceptor: that runs on the outbound call before the stream opens; this guide TestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client.
 Distinct from a guide TestService interceptor Err: that is trailers without reading the body; this guide TestService handler Err is after the handler ran.
