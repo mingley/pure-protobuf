@@ -6615,6 +6615,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map UnimplementedService client interceptor Err: that is a local reject never opens a stream; this crate-map UnimplementedService handler Err is after the handler ran."
+        ),
+        "crate docs must Distinct crate-map UnimplementedService client interceptor Err local reject never opens a stream from this crate-map UnimplementedService handler Err after the handler ran"
+    );
+    assert!(
+        crate_src.contains(
             "[`Outgoing::connected`] is the live-socket snapshot on this crate-map UnimplementedService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "crate docs must name Outgoing::connected live-socket snapshot on crate-map UnimplementedService"
