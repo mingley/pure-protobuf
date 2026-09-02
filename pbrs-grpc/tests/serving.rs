@@ -3975,6 +3975,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ServiceExt on_response Err is trailers-only after handler Ok."
+        ),
+        "ServiceExt::on_response rustdoc must Distinct Channel on_response Err Call fail after receive from this ServiceExt on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a StreamSender fail: that is trailers after any messages already sent; this ServiceExt on_response Err is trailers-only after handler Ok."
         ),
         "ServiceExt::on_response rustdoc must Distinct StreamSender fail after any messages already sent from this ServiceExt on_response Err trailers-only after handler Ok"
