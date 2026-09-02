@@ -4387,6 +4387,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an InteropTestService interceptor: that runs on the inbound RPC before the handler; this InteropTestService client interceptor runs on the outbound call before the stream opens."
+        ),
+        "InteropTestService rustdoc must Distinct inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "InteropTestService rustdoc must name from_error_details typed bag next to StreamSender fail"
