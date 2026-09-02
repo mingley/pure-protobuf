@@ -928,6 +928,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Reverser handler Err: that is after the handler ran; this packed-status Reverser interceptor Err is trailers without reading the body.
   Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status Reverser interceptor Err is trailers without reading the body.
   Distinct from a packed-status Reverser client interceptor Err: that is a local reject never opens a stream; this packed-status Reverser interceptor Err is trailers without reading the body.
+  Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status Reverser interceptor Err is trailers without reading the body.
   Distinct from a packed-status Reverser StreamSender fail: that is trailers after any messages already sent; this packed-status Reverser interceptor Err is trailers without reading the body.
   Distinct from a packed-status Reverser client interceptor: that runs on the outbound call before the stream opens; this packed-status Reverser interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status Reverser handler Err; those trailers reach the client.
