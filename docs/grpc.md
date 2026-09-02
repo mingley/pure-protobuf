@@ -1064,6 +1064,7 @@ interceptor `Err(Status::with_error_details(...))` unpacks as `Status::rpc` /
 `Status::error_details` on that bidi method, including over TLS, mTLS, Unix, and
 `from_io`.
 `Status::from_error_details` is the typed bag after this guide reflection interceptor Err; those trailers reach the client without reading the body.
+Distinct from a guide reflection client interceptor: that runs on the outbound call before the stream opens; this guide reflection interceptor runs on the inbound RPC before the handler.
 A handler `Err(Status::with_error_details(...))` unpacks the same way on that method, including over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this guide reflection handler Err; those trailers reach the client.
 `Outgoing::connected` is the live-socket snapshot on this guide reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
