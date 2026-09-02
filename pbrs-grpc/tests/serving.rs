@@ -8089,6 +8089,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must name from_error_details typed bag next to Channel on_response Err"
     );
     assert!(
+        readme.contains(
+            "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this crate README Channel on_response runs after a successful receive."
+        ),
+        "crate README must Distinct Channel on_response from Channel intercept"
+    );
+    assert!(
         readme.contains("`Status::error_info` / `ErrorInfo::with_reason`"),
         "crate README must name ErrorInfo::with_reason next to Status::error_info"
     );

@@ -145,6 +145,7 @@ Distinct from a crate README InteropTestService interceptor: that runs on the in
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README server on_response runs after the handler returns Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this crate README on_response path; a received reply has no server gzip overlay to restore.
 `Status::from_error_details` is the typed bag after this crate README Channel on_response Err; a local reject fails the Call after a successful receive.
+Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this crate README Channel on_response runs after a successful receive.
 `Streaming` implements
 `futures_core::Stream`.
 
