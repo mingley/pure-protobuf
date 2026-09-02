@@ -2197,6 +2197,7 @@ Distinct from a guide Reverser handler Err: that is after the handler ran; this 
 Distinct from a guide Reverser interceptor Err: that is trailers without reading the body; this guide Reverser StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this guide hello interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide hello handler Err: that is after the handler ran; this guide hello interceptor Err is trailers without reading the body.
+Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide hello interceptor Err is trailers without reading the body.
 Distinct from a guide hello client interceptor: that runs on the outbound call before the stream opens; this guide hello interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide hello handler Err; those trailers reach the client.
 Distinct from a guide hello interceptor Err: that is trailers without reading the body; this guide hello handler Err is after the handler ran.
