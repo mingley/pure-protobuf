@@ -11674,6 +11674,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status hello interceptor Err: that is trailers without reading the body; this packed-status hello client interceptor Err is a local reject never opens a stream."
+        ),
+        "status guide must Distinct packed-status hello interceptor Err without reading the body from this packed-status hello client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status hello StreamSender fail: that is trailers after any messages already sent; this packed-status hello client interceptor Err is a local reject never opens a stream."
         ),
         "status guide must Distinct packed-status hello StreamSender fail after any messages already sent from this packed-status hello client interceptor Err local reject never opens a stream"
