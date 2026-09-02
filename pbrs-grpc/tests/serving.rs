@@ -19251,6 +19251,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Router intercept Err is trailers without reading the body."
+        ),
+        "Router::intercept rustdoc must Distinct ClientInterceptor Err local reject never opens a stream from this Router intercept Err without reading the body"
+    );
+    assert!(
+        src.contains(
             "Distinct from a StreamSender fail: that is trailers after any messages already sent; this Router intercept Err is trailers without reading the body."
         ),
         "Router::intercept rustdoc must Distinct StreamSender fail after any messages already sent from this Router intercept Err without reading the body"
