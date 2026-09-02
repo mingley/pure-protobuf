@@ -4446,6 +4446,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from a hello server intercept Err: that is trailers without reading the body; this hello handler Err is after the handler ran."
+        ),
+        "hello Greeter rustdoc must Distinct server intercept Err without reading the body from this hello handler Err after the handler ran"
+    );
+    assert!(
+        hello.contains(
             "Distinct from a hello intercept Err: that is a local reject never opens a stream; this hello handler Err is after the handler ran."
         ),
         "hello Greeter rustdoc must Distinct intercept Err local reject never opens a stream from this hello handler Err after the handler ran"
