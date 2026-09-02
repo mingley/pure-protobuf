@@ -539,6 +539,7 @@ Distinct from an architecture Health interceptor: that runs on the inbound RPC b
 `Status::from_error_details` is the typed bag after this architecture Health StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from an architecture Health handler Err: that is after the handler ran; this architecture Health StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture Health interceptor Err: that is trailers without reading the body; this architecture Health StreamSender fail is trailers after any messages already sent.
+Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture Health StreamSender fail is trailers after any messages already sent.
 `grpc.reflection.v1` is built from registered
 `FILE_DESCRIPTOR_SET`s. `file_containing_symbol` / `file_by_filename` /
 `file_containing_extension` / `all_extension_numbers_of_type` run on that
