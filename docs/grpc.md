@@ -2252,6 +2252,7 @@ Distinct from a guide hello StreamSender fail: that is trailers after any messag
 `Outgoing::connected` is the live-socket snapshot on this guide hello client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide hello client interceptor Err; a local reject never opens a stream.
 Distinct from a guide hello handler Err: that is after the handler ran; this guide hello client interceptor Err is a local reject never opens a stream.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide hello client interceptor Err is a local reject never opens a stream.
 Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide hello client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide hello client interceptor already ran, so a local Err never consumes that budget.
 Distinct from a guide hello interceptor: that runs on the inbound RPC before the handler; this guide hello client interceptor runs on the outbound call before the stream opens.
