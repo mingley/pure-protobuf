@@ -156,6 +156,8 @@
 //!
 //! Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map server intercept runs on the inbound RPC before the handler.
 //!
+//! Distinct from [`Server::on_response`]: that runs after the handler returns Ok; this crate-map server intercept runs on the inbound RPC before the handler.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.
