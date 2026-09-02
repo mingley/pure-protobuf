@@ -2914,6 +2914,7 @@ impl Router {
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Router on_response.
     /// [`Status::from_error_details`] is the typed bag after this Router on_response Err; a local reject is trailers-only after handler Ok.
     /// Distinct from a handler Err: that is after the handler ran; this Router on_response Err is trailers-only after handler Ok.
+    /// Distinct from a Router intercept Err: that is trailers without reading the body; this Router on_response Err is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Router on_response runs after the handler returns Ok.
     /// Distinct from [`Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this Router on_response runs after the handler returns Ok on every mounted service on this Router.
     /// Same surface as [`Server::on_response`].
