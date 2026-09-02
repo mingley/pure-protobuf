@@ -382,6 +382,8 @@
 //!
 //! Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser client interceptor Err is a local reject never opens a stream.
 //!
+//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Reverser client interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map Reverser client interceptor Err is a local reject never opens a stream.
 //!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map Reverser client interceptor already ran, so a local Err never consumes that budget.
