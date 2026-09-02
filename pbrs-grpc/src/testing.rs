@@ -59,6 +59,7 @@
 //! Distinct from a testing handler Err: that is after the handler ran; this testing StreamSender fail is trailers after any messages already sent.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing server on_response Err; a local reject is trailers-only after handler Ok.
 //! Distinct from a testing handler Err: that is after the handler ran; this testing server on_response Err is trailers-only after handler Ok.
+//! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing server on_response Err is trailers-only after handler Ok.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing Channel on_response Err; a local reject fails the Call after a successful receive.
 //! Distinct from a testing handler Err: that is after the handler ran; this testing Channel on_response Err fails the Call after a successful receive.
 //! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService interceptor Err; those trailers reach the client without reading the body.
