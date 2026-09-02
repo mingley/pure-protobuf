@@ -10364,6 +10364,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Store handler Err is after the handler ran."
+        ),
+        "guide must Distinct Store StreamSender fail after any messages already sent from this guide Store handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this guide Store client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "guide must name Outgoing::connected live-socket snapshot on Store"
