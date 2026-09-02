@@ -15863,6 +15863,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Store client interceptor Err: that is a local reject never opens a stream; this architecture Store interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct Store client interceptor Err local reject never opens a stream from this architecture Store interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture Store interceptor Err is trailers without reading the body."
         ),
         "architecture must Distinct Store StreamSender fail after any messages already sent from this architecture Store interceptor Err without reading the body"
