@@ -13832,6 +13832,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide hello client interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive."
+        ),
+        "guide must Distinct guide hello client interceptor Err local reject never opens a stream from this guide Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive."
         ),
         "guide must Distinct guide hello StreamSender fail after any messages already sent from this guide Channel on_response Err Call fail after receive"
