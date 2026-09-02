@@ -10751,6 +10751,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Store client interceptor: that runs on the outbound call before the stream opens; this architecture Store interceptor runs on the inbound RPC before the handler."
+        ),
+        "architecture must Distinct Store inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture Store handler Err; those trailers reach the client."
         ),
         "architecture must name from_error_details typed bag next to Store handler Err"

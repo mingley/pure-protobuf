@@ -300,6 +300,7 @@ Distinct from `Server::intercept`: that runs on the inbound RPC before the handl
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture server intercept runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture server intercept Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this architecture Store interceptor Err; those trailers reach the client without reading the body.
+Distinct from an architecture Store client interceptor: that runs on the outbound call before the stream opens; this architecture Store interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture Store handler Err; those trailers reach the client.
 `Outgoing::connected` is the live-socket snapshot on this architecture Store client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture Store client interceptor Err; a local reject never opens a stream.
