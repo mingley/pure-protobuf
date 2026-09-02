@@ -1019,6 +1019,7 @@ over TLS, mTLS, Unix, and `from_io`.
 Distinct from a guide Health handler Err: that is after the handler ran; this guide Health interceptor Err is trailers without reading the body.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Health interceptor Err is trailers without reading the body.
 Distinct from a guide Health client interceptor Err: that is a local reject never opens a stream; this guide Health interceptor Err is trailers without reading the body.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide Health interceptor Err is trailers without reading the body.
 Distinct from a guide Health StreamSender fail: that is trailers after any messages already sent; this guide Health interceptor Err is trailers without reading the body.
 Distinct from a guide Health client interceptor: that runs on the outbound call before the stream opens; this guide Health interceptor runs on the inbound RPC before the handler.
 A handler `Err(Status::with_error_details(...))` unpacks the same way on Check, List, and Watch, including over TLS, mTLS, Unix, and
