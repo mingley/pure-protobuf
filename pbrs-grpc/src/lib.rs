@@ -284,6 +284,8 @@
 //!
 //! Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map TestService client interceptor: that runs on the outbound call before the stream opens; this crate-map TestService interceptor runs on the inbound RPC before the handler.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map TestService handler Err; those trailers reach the client.
