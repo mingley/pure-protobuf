@@ -866,6 +866,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Store handler Err: that is after the handler ran; this packed-status Store interceptor Err is trailers without reading the body.
   Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status Store interceptor Err is trailers without reading the body.
   Distinct from a packed-status Store client interceptor Err: that is a local reject never opens a stream; this packed-status Store interceptor Err is trailers without reading the body.
+  Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status Store interceptor Err is trailers without reading the body.
   Distinct from a packed-status Store StreamSender fail: that is trailers after any messages already sent; this packed-status Store interceptor Err is trailers without reading the body.
   Distinct from a packed-status Store client interceptor: that runs on the outbound call before the stream opens; this packed-status Store interceptor runs on the inbound RPC before the handler.
   A generated Store handler `Err(with_error_details)`
