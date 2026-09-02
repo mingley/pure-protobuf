@@ -10883,6 +10883,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture TestService client interceptor: that runs on the outbound call before the stream opens; this architecture TestService interceptor runs on the inbound RPC before the handler."
+        ),
+        "architecture must Distinct TestService inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture TestService handler Err; those trailers reach the client."
         ),
         "architecture must name from_error_details typed bag next to TestService handler Err"
