@@ -5421,6 +5421,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this UnimplementedService interceptor Err is trailers without reading the body."
+        ),
+        "testing crate rustdoc must Distinct Channel on_response Err Call fail after receive from this UnimplementedService interceptor Err without reading the body"
+    );
+    assert!(
+        testing.contains(
             "Distinct from an UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this UnimplementedService interceptor runs on the inbound RPC before the handler."
         ),
         "testing crate rustdoc must Distinct UnimplementedService client outbound-before-stream from inbound-before-handler"
