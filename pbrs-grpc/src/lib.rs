@@ -218,6 +218,8 @@
 //!
 //! Distinct from a crate-map Store interceptor Err: that is trailers without reading the body; this crate-map Store handler Err is after the handler ran.
 //!
+//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map Store handler Err is after the handler ran.
+//!
 //! [`Outgoing::connected`] is the live-socket snapshot on this crate-map Store client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Store client interceptor Err; a local reject never opens a stream.
