@@ -2992,6 +2992,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor::intercept rustdoc must name from_error_details typed bag next to intercept Err"
     );
     assert!(
+        intercept.contains(
+            "Distinct from a handler Err: that is after the handler ran; this method-level intercept Err is a local reject never opens a stream."
+        ),
+        "ClientInterceptor::intercept rustdoc must Distinct handler Err after the handler ran from this method-level intercept Err local reject never opens a stream"
+    );
+    assert!(
         intercept.contains("prefix ([`crate::Outgoing::set_user_agent`]), or typed"),
         "ClientInterceptor rustdoc must name Outgoing::set_user_agent"
     );
