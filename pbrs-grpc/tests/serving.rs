@@ -4797,6 +4797,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing handler Err is after the handler ran."
+        ),
+        "testing crate rustdoc must Distinct server on_response Err trailers-only after handler Ok from this testing handler Err after the handler ran"
+    );
+    assert!(
+        testing.contains(
             "Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing handler Err is after the handler ran."
         ),
         "testing crate rustdoc must Distinct StreamSender fail after any messages already sent from this testing handler Err after the handler ran"
