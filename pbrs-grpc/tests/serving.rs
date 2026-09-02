@@ -3716,6 +3716,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::on_response rustdoc must Distinct Server Service coverage from wrapping one service after-Ok"
     );
     assert!(
+        intercept.contains(
+            "Distinct from [`crate::Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this ServiceExt on_response wraps one service with an after-Ok hook."
+        ),
+        "ServiceExt::on_response rustdoc must Distinct Router mounted-service coverage from wrapping one service after-Ok"
+    );
+    assert!(
         src.contains("starts empty; this is how a client inserts typed context after the"),
         "Channel::on_response must Distinct receive-side insert from the peer"
     );
