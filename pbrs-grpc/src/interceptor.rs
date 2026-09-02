@@ -97,6 +97,7 @@ use std::sync::Arc;
 /// call [`crate::Router::intercept`] or wrap one service with [`Intercepted`].
 /// Applies to every call shape.
 /// Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler.
+/// Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this Interceptor runs on the inbound RPC before the handler.
 /// Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this runs on the inbound RPC before the handler.
 pub trait Interceptor: Send + Sync + 'static {
     /// Inspect `rpc`. The body has not been read yet.

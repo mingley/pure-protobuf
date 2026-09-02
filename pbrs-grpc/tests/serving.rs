@@ -3228,6 +3228,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this Interceptor runs on the inbound RPC before the handler."
+        ),
+        "Interceptor rustdoc must Distinct ClientInterceptor outbound-before-stream from this Interceptor inbound-before-handler"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this runs on the inbound RPC before the handler."
         ),
         "Interceptor rustdoc must Distinct ResponseInterceptor after-Ok-or-receive from inbound-before-handler"
