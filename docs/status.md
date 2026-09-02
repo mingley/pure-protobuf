@@ -852,6 +852,7 @@ See `docs/upb.md`. Short list:
   Unix, and `from_io`, and a client interceptor stamps Outgoing path facts
   on those methods, including over TLS, mTLS, Unix, and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status TestService interceptor Err; those trailers reach the client without reading the body.
+  Distinct from a packed-status TestService handler Err: that is after the handler ran; this packed-status TestService interceptor Err is trailers without reading the body.
   Distinct from a packed-status TestService client interceptor: that runs on the outbound call before the stream opens; this packed-status TestService interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status TestService handler Err; those trailers reach the client.
   Distinct from a packed-status TestService interceptor Err: that is trailers without reading the body; this packed-status TestService handler Err is after the handler ran.
