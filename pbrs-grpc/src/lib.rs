@@ -242,6 +242,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Reverser interceptor Err; those trailers reach the client without reading the body.
 //!
+//! Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map Reverser client interceptor: that runs on the outbound call before the stream opens; this crate-map Reverser interceptor runs on the inbound RPC before the handler.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Reverser handler Err; those trailers reach the client.

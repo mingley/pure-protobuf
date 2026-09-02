@@ -6105,6 +6105,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser interceptor Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map Reverser handler Err after the handler ran from this crate-map Reverser interceptor Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map Reverser client interceptor: that runs on the outbound call before the stream opens; this crate-map Reverser interceptor runs on the inbound RPC before the handler."
         ),
         "crate docs must Distinct Reverser client outbound-before-stream from inbound-before-handler"
