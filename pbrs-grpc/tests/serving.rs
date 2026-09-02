@@ -12118,6 +12118,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "status guide must Distinct packed-status Channel on_response Err Call fail after receive from this packed-status InteropTestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        status_guide.contains(
             "`ResponseParts::compress_is_set` is occupancy on this packed-status on_response path, so a later interceptor can fill compress only when unset."
         ),
         "status guide must name ResponseParts::compress_is_set occupancy next to intercept compress occupancy"
