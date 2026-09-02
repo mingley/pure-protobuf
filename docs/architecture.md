@@ -350,6 +350,7 @@ Distinct from an architecture TestService handler Err: that is after the handler
 Distinct from an architecture TestService interceptor Err: that is trailers without reading the body; this architecture TestService StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture TestService StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture TestService client interceptor Err: that is a local reject never opens a stream; this architecture TestService StreamSender fail is trailers after any messages already sent.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture TestService StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this architecture Reverser interceptor Err; those trailers reach the client without reading the body.
 Distinct from an architecture Reverser handler Err: that is after the handler ran; this architecture Reverser interceptor Err is trailers without reading the body.
 Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Reverser interceptor Err is trailers without reading the body.
