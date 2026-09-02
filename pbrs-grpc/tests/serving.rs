@@ -6267,6 +6267,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map Reverser handler Err: that is after the handler ran; this crate-map Reverser StreamSender fail is trailers after any messages already sent."
+        ),
+        "crate docs must Distinct crate-map Reverser handler Err after the handler ran from this crate-map Reverser StreamSender fail after any messages already sent"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map hello interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate docs must name from_error_details typed bag next to crate-map hello interceptor Err"
