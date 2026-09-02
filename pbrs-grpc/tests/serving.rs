@@ -10768,6 +10768,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status server intercept Err: that is trailers without reading the body; this packed-status server on_response Err is trailers-only after handler Ok."
+        ),
+        "status guide must Distinct packed-status server intercept Err without reading the body from this packed-status server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this packed-status server on_response runs after the handler returns Ok."
         ),
         "status guide must Distinct server on_response from Server intercept"
