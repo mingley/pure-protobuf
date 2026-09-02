@@ -762,6 +762,7 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this method-level intercept Err is a local reject never opens a stream.
     /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
     /// Distinct from a Server intercept Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
+    /// Distinct from a Router intercept Err: that is trailers without reading the body; this method-level intercept Err is a local reject never opens a stream.
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this method-level intercept Err is a local reject never opens a stream.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level intercept Err is a local reject never opens a stream.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
