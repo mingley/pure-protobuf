@@ -9202,6 +9202,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Store handler Err: that is after the handler ran; this packed-status Store interceptor Err is trailers without reading the body."
+        ),
+        "status guide must Distinct Store handler Err after the handler ran from this packed-status Store interceptor Err without reading the body"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status Store client interceptor: that runs on the outbound call before the stream opens; this packed-status Store interceptor runs on the inbound RPC before the handler."
         ),
         "status guide must Distinct Store inbound interceptor from client outbound-before-stream"
