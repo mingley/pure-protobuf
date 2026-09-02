@@ -8708,6 +8708,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README UnimplementedService handler Err: that is after the handler ran; this crate README UnimplementedService client interceptor Err is a local reject never opens a stream."
+        ),
+        "crate README must Distinct UnimplementedService handler Err after the handler ran from this crate README UnimplementedService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        readme.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README UnimplementedService client interceptor already ran, so a local Err never consumes that budget."
         ),
         "crate README must Distinct max_concurrent_rpcs slot grab after UnimplementedService client intercept"
