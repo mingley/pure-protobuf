@@ -80,6 +80,7 @@
 //! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing Channel on_response Err fails the Call after a successful receive.
 //! Distinct from a testing client interceptor Err: that is a local reject never opens a stream; this testing Channel on_response Err fails the Call after a successful receive.
 //! Distinct from an UnimplementedService client interceptor Err: that is a local reject never opens a stream; this testing Channel on_response Err fails the Call after a successful receive.
+//! Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this testing Channel on_response Err fails the Call after a successful receive.
 //! Distinct from a testing StreamSender fail: that is trailers after any messages already sent; this testing Channel on_response Err fails the Call after a successful receive.
 //! Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this testing Channel on_response Err fails the Call after a successful receive.
 //! Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this testing Channel on_response Err fails the Call after a successful receive.
