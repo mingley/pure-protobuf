@@ -9153,6 +9153,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "status guide must name from_error_details typed bag next to Channel on_response Err"
     );
     assert!(
+        status_guide.contains(
+            "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this packed-status Channel on_response runs after a successful receive."
+        ),
+        "status guide must Distinct Channel on_response from Channel intercept"
+    );
+    assert!(
         guide.contains("raw HTTP/2 peer that `RST_STREAM`s faster than accept"),
         "guide must Distinct well-behaved pending-reset still-serves from a rapid-reset flood"
     );
