@@ -6363,6 +6363,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map server intercept Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map interceptor Err local reject never opens a stream from this crate-map server intercept Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate docs must name from_error_details typed bag next to crate-map Health interceptor Err"
