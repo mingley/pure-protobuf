@@ -11714,6 +11714,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide server intercept Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok."
+        ),
+        "guide must Distinct guide server intercept Err without reading the body from this guide server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        guide.contains(
             "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this guide server on_response runs after the handler returns Ok."
         ),
         "guide must Distinct server on_response from Server intercept"

@@ -1882,6 +1882,7 @@ Distinct from a guide Store handler Err: that is after the handler ran; this gui
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path.
 `Status::from_error_details` is the typed bag after this guide server on_response Err; a local reject is trailers-only after handler Ok.
 Distinct from a guide handler Err: that is after the handler ran; this guide server on_response Err is trailers-only after handler Ok.
+Distinct from a guide server intercept Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this guide server on_response runs after the handler returns Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this guide on_response path; a received reply has no server gzip overlay to restore.
 `Status::from_error_details` is the typed bag after this guide Channel on_response Err; a local reject fails the Call after a successful receive.
