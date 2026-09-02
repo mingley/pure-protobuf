@@ -577,6 +577,7 @@ Distinct from an architecture reflection interceptor: that runs on the inbound R
 Distinct from an architecture reflection handler Err: that is after the handler ran; this architecture reflection StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture reflection interceptor Err: that is trailers without reading the body; this architecture reflection StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture reflection StreamSender fail is trailers after any messages already sent.
+Distinct from an architecture reflection client interceptor Err: that is a local reject never opens a stream; this architecture reflection StreamSender fail is trailers after any messages already sent.
 
 ## Parse / encode
 
