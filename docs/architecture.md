@@ -417,6 +417,7 @@ Distinct from an architecture InteropTestService StreamSender fail: that is trai
 `Outgoing::connected` is the live-socket snapshot on this architecture InteropTestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService client interceptor Err; a local reject never opens a stream.
 Distinct from an architecture InteropTestService handler Err: that is after the handler ran; this architecture InteropTestService client interceptor Err is a local reject never opens a stream.
+Distinct from an architecture InteropTestService StreamSender fail: that is trailers after any messages already sent; this architecture InteropTestService client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture InteropTestService client interceptor already ran, so a local Err never consumes that budget.
 Distinct from an architecture InteropTestService interceptor: that runs on the inbound RPC before the handler; this architecture InteropTestService client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
