@@ -14993,6 +14993,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok."
+        ),
+        "architecture must Distinct architecture Store StreamSender fail after any messages already sent from this architecture server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this architecture server on_response runs after the handler returns Ok."
         ),
         "architecture must Distinct server on_response from Server intercept"
