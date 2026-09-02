@@ -127,6 +127,7 @@ impl Echo {
 /// this server over TLS, mTLS, Unix, and [`crate::Server::serve_connection`].
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService interceptor Err; those trailers reach the client without reading the body.
 /// Distinct from an InteropTestService handler Err: that is after the handler ran; this InteropTestService interceptor Err is trailers without reading the body.
+/// Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this InteropTestService interceptor Err is trailers without reading the body.
 /// Distinct from an InteropTestService client interceptor: that runs on the outbound call before the stream opens; this InteropTestService interceptor runs on the inbound RPC before the handler.
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService handler Err; those trailers reach the client.
 /// Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this InteropTestService handler Err is after the handler ran.
