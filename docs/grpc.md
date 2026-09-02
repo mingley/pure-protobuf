@@ -2215,6 +2215,7 @@ Distinct from a guide TestService handler Err: that is after the handler ran; th
 Distinct from a guide TestService interceptor Err: that is trailers without reading the body; this guide TestService StreamSender fail is trailers after any messages already sent.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide TestService StreamSender fail is trailers after any messages already sent.
 Distinct from a guide TestService client interceptor Err: that is a local reject never opens a stream; this guide TestService StreamSender fail is trailers after any messages already sent.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide TestService StreamSender fail is trailers after any messages already sent.
 A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
 client-streaming have no response DATA then trailers).
