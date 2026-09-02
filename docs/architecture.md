@@ -372,6 +372,7 @@ Distinct from an architecture Reverser StreamSender fail: that is trailers after
 `Status::from_error_details` is the typed bag after this architecture Reverser client interceptor Err; a local reject never opens a stream.
 Distinct from an architecture Reverser handler Err: that is after the handler ran; this architecture Reverser client interceptor Err is a local reject never opens a stream.
 Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture Reverser client interceptor Err is a local reject never opens a stream.
+Distinct from an architecture Reverser interceptor Err: that is trailers without reading the body; this architecture Reverser client interceptor Err is a local reject never opens a stream.
 Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Reverser client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture Reverser client interceptor already ran, so a local Err never consumes that budget.
 Distinct from an architecture Reverser interceptor: that runs on the inbound RPC before the handler; this architecture Reverser client interceptor runs on the outbound call before the stream opens.
