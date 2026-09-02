@@ -138,6 +138,7 @@ Distinct from a crate README Store interceptor: that runs on the inbound RPC bef
 `Status::from_error_details` is the typed bag after this crate README Store StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from a crate README Store handler Err: that is after the handler ran; this crate README Store StreamSender fail is trailers after any messages already sent.
 Distinct from a crate README Store interceptor Err: that is trailers without reading the body; this crate README Store StreamSender fail is trailers after any messages already sent.
+Distinct from a crate README server on_response Err: that is trailers-only after handler Ok; this crate README Store StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this crate README TestService interceptor Err; those trailers reach the client without reading the body.
 Distinct from a crate README TestService handler Err: that is after the handler ran; this crate README TestService interceptor Err is trailers without reading the body.
 Distinct from a crate README TestService StreamSender fail: that is trailers after any messages already sent; this crate README TestService interceptor Err is trailers without reading the body.
