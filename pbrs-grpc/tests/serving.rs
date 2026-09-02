@@ -10889,6 +10889,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from `Channel::on_response`: that runs after a successful receive; this architecture Channel intercept runs on the outbound call before the stream opens."
+        ),
+        "architecture must Distinct Channel intercept from Channel on_response"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture server intercept runs on the inbound RPC before the handler."
         ),
         "architecture must Distinct Channel outbound-before-stream from server inbound-before-handler"
