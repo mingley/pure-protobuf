@@ -7101,6 +7101,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map TestService client interceptor Err: that is a local reject never opens a stream; this crate-map TestService interceptor Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map TestService client interceptor Err local reject never opens a stream from this crate-map TestService interceptor Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService interceptor Err is trailers without reading the body."
         ),
         "crate docs must Distinct crate-map TestService StreamSender fail after any messages already sent from this crate-map TestService interceptor Err without reading the body"
