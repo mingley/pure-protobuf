@@ -1856,6 +1856,7 @@ TLS and mTLS the same way Unix and `from_io` already did. Inserting `user-agent`
 `Status::from_error_details` is the typed bag after this guide interceptor Err; a local reject never opens a stream.
 Distinct from a guide handler Err: that is after the handler ran; this guide interceptor Err is a local reject never opens a stream.
 Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide interceptor Err is a local reject never opens a stream.
+Distinct from a guide server intercept Err: that is trailers without reading the body; this guide interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide interceptor already ran, so a local Err never consumes that budget.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this guide Channel intercept runs on the outbound call before the stream opens.
 Distinct from `Channel::on_response`: that runs after a successful receive; this guide Channel intercept runs on the outbound call before the stream opens.
