@@ -9320,6 +9320,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README interceptor Err: that is a local reject never opens a stream; this crate README Channel on_response Err fails the Call after a successful receive."
+        ),
+        "crate README must Distinct crate README interceptor Err local reject never opens a stream from this crate README Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        readme.contains(
             "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this crate README Channel on_response runs after a successful receive."
         ),
         "crate README must Distinct Channel on_response from Channel intercept"
