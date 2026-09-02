@@ -2211,6 +2211,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 Distinct from a guide hello interceptor: that runs on the inbound RPC before the handler; this guide hello client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this guide hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from a guide hello handler Err: that is after the handler ran; this guide hello StreamSender fail is trailers after any messages already sent.
+Distinct from a guide hello interceptor Err: that is trailers without reading the body; this guide hello StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this guide UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide UnimplementedService handler Err: that is after the handler ran; this guide UnimplementedService interceptor Err is trailers without reading the body.
 Distinct from a guide UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this guide UnimplementedService interceptor runs on the inbound RPC before the handler.
