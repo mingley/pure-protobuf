@@ -1932,6 +1932,7 @@ impl<S: Service> Server<S> {
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Server intercept runs on the inbound RPC before the handler.
     /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this runs on the inbound RPC before the handler.
+    /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this Server intercept runs on the inbound RPC before the handler.
     ///
     /// ```
     /// # fn demo<S: pbrs_grpc::Service>(server: pbrs_grpc::Server<S>) -> pbrs_grpc::Server<S> {
