@@ -7796,6 +7796,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Store interceptor: that runs on the inbound RPC before the handler; this crate README Store client interceptor runs on the outbound call before the stream opens."
+        ),
+        "crate README must Distinct Store inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README Store StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "crate README must name from_error_details typed bag next to Store StreamSender fail"
