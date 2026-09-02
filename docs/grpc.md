@@ -2295,6 +2295,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 Distinct from a guide UnimplementedService interceptor: that runs on the inbound RPC before the handler; this guide UnimplementedService client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this guide InteropTestService interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide InteropTestService handler Err: that is after the handler ran; this guide InteropTestService interceptor Err is trailers without reading the body.
+Distinct from a guide InteropTestService client interceptor Err: that is a local reject never opens a stream; this guide InteropTestService interceptor Err is trailers without reading the body.
 Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide InteropTestService interceptor Err is trailers without reading the body.
 Distinct from a guide InteropTestService client interceptor: that runs on the outbound call before the stream opens; this guide InteropTestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide InteropTestService handler Err; those trailers reach the client.
