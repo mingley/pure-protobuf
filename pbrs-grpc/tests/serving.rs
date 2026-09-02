@@ -3281,6 +3281,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::intercept rustdoc must Distinct on_response after-Ok from inbound-before-handler"
     );
     assert!(
+        intercept.contains(
+            "Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the Server's Service; this ServiceExt intercept wraps one service with an inbound hook."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct Server Service coverage from wrapping one service"
+    );
+    assert!(
         intercept.contains("svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "ServiceExt::intercept rustdoc example must attach a closure"
     );
