@@ -981,6 +981,7 @@ impl Channel {
     /// Distinct from a method-level Interceptor Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
+    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Server intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a Router intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
     /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this Channel on_response Err fails the Call after a successful receive.
