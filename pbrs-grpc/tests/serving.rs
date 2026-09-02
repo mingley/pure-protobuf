@@ -3240,6 +3240,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this Interceptor runs on the inbound RPC before the handler."
+        ),
+        "Interceptor rustdoc must Distinct ResponseInterceptor after-Ok-or-receive from this Interceptor inbound-before-handler"
+    );
+    assert!(
+        intercept.contains(
             "A single interceptor\n    /// still rejects before the handler on every call shape, including over\n    /// TLS, mTLS, Unix, and [`crate::Channel::from_io`]."
         ),
         "ServiceExt::intercept rustdoc must name a single intercept reject on every transport"
