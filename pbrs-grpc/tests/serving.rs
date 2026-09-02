@@ -14219,6 +14219,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Reverser interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct Reverser StreamSender fail after any messages already sent from this architecture Reverser interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Reverser client interceptor: that runs on the outbound call before the stream opens; this architecture Reverser interceptor runs on the inbound RPC before the handler."
         ),
         "architecture must Distinct Reverser inbound interceptor from client outbound-before-stream"
