@@ -8986,6 +8986,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Reverser interceptor: that runs on the inbound RPC before the handler; this packed-status Reverser client interceptor runs on the outbound call before the stream opens."
+        ),
+        "status guide must Distinct Reverser inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status Health StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "status guide must name from_error_details typed bag next to Health StreamSender fail"
