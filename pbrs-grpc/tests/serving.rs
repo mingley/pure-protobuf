@@ -11560,6 +11560,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status Store StreamSender fail is trailers after any messages already sent."
+        ),
+        "status guide must Distinct packed-status server on_response Err trailers-only after handler Ok from this packed-status Store StreamSender fail after any messages already sent"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "status guide must name from_error_details typed bag next to TestService StreamSender fail"
