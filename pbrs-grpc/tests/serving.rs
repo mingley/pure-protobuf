@@ -3438,6 +3438,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ServiceExt intercept Err is trailers without reading the body."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct Channel on_response Err Call fail after receive from this ServiceExt intercept Err without reading the body"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this ServiceExt intercept runs on the inbound RPC before the handler."
         ),
         "ServiceExt::intercept rustdoc must Distinct Channel outbound-before-stream from inbound-before-handler"
