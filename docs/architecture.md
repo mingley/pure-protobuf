@@ -408,6 +408,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 Distinct from an architecture InteropTestService interceptor: that runs on the inbound RPC before the handler; this architecture InteropTestService client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from an architecture InteropTestService handler Err: that is after the handler ran; this architecture InteropTestService StreamSender fail is trailers after any messages already sent.
+Distinct from an architecture InteropTestService interceptor Err: that is trailers without reading the body; this architecture InteropTestService StreamSender fail is trailers after any messages already sent.
 `ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this architecture on_response path.
 `Status::from_error_details` is the typed bag after this architecture server on_response Err; a local reject is trailers-only after handler Ok.

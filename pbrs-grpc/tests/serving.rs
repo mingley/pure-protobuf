@@ -14597,6 +14597,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture InteropTestService interceptor Err: that is trailers without reading the body; this architecture InteropTestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "architecture must Distinct InteropTestService interceptor Err without reading the body from this architecture InteropTestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        architecture.contains(
             "`ResponseParts::compress_is_set` is occupancy on this architecture on_response path, so a later interceptor can fill compress only when unset."
         ),
         "architecture must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
