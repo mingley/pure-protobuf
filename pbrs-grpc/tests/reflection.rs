@@ -598,6 +598,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection client on_response Err fails the Call after a successful receive."
+        ),
+        "reflection crate rustdoc must Distinct interceptor Err without reading the body from this reflection client on_response Err Call fail after receive"
+    );
+    assert!(
+        src.contains(
             "Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection client on_response Err fails the Call after a successful receive."
         ),
         "reflection crate rustdoc must Distinct client interceptor Err local reject never opens a stream from this reflection client on_response Err Call fail after receive"
