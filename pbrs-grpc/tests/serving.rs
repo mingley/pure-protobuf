@@ -12767,6 +12767,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Reverser client interceptor Err: that is a local reject never opens a stream; this architecture Reverser handler Err is after the handler ran."
+        ),
+        "architecture must Distinct Reverser client interceptor Err local reject never opens a stream from this architecture Reverser handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Reverser handler Err is after the handler ran."
         ),
         "architecture must Distinct Reverser StreamSender fail after any messages already sent from this architecture Reverser handler Err after the handler ran"
