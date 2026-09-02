@@ -12,6 +12,8 @@
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body.
 //!
+//! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter interceptor Err is trailers without reading the body.
+//!
 //! Distinct from an example greeter client interceptor: that runs on the outbound call before the stream opens; this example greeter interceptor runs on the inbound RPC before the handler.
 //!
 //! [`pbrs_grpc::Outgoing::connected`] is the live-socket snapshot on this example greeter client interceptor path ([`pbrs_grpc::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
@@ -208,6 +210,9 @@ mod tests {
         let src = include_str!("lib.rs");
         assert!(src.contains(
             "[`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter interceptor Err; those trailers reach the client without reading the body."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter handler Err: that is after the handler ran; this example greeter interceptor Err is trailers without reading the body."
         ));
         assert!(src.contains(
             "Distinct from an example greeter client interceptor: that runs on the outbound call before the stream opens; this example greeter interceptor runs on the inbound RPC before the handler."
