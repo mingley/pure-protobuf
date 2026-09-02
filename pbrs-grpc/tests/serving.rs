@@ -13004,6 +13004,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Store client interceptor Err: that is a local reject never opens a stream; this guide Store StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct guide Store client interceptor Err local reject never opens a stream from this guide Store StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset."
         ),
         "guide must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"

@@ -1895,6 +1895,7 @@ Distinct from a guide Store interceptor: that runs on the inbound RPC before the
 Distinct from a guide Store handler Err: that is after the handler ran; this guide Store StreamSender fail is trailers after any messages already sent.
 Distinct from a guide Store interceptor Err: that is trailers without reading the body; this guide Store StreamSender fail is trailers after any messages already sent.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Store StreamSender fail is trailers after any messages already sent.
+Distinct from a guide Store client interceptor Err: that is a local reject never opens a stream; this guide Store StreamSender fail is trailers after any messages already sent.
 `ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path.
 `Status::from_error_details` is the typed bag after this guide server on_response Err; a local reject is trailers-only after handler Ok.
