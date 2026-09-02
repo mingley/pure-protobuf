@@ -3765,6 +3765,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok."
+        ),
+        "ServiceExt::on_response rustdoc must Distinct ServiceExt intercept Err without reading the body from this ServiceExt on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this ServiceExt on_response runs after the handler returns Ok."
         ),
         "ServiceExt::on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
