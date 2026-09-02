@@ -153,6 +153,7 @@ impl Echo {
 /// Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this InteropTestService StreamSender fail is trailers after any messages already sent.
 /// Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService StreamSender fail is trailers after any messages already sent.
 /// Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this InteropTestService StreamSender fail is trailers after any messages already sent.
+/// Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this InteropTestService StreamSender fail is trailers after any messages already sent.
 #[derive(Default)]
 pub struct InteropTestService;
 
