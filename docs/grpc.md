@@ -1939,6 +1939,7 @@ Distinct from `Server::intercept`: that runs on the inbound RPC before the handl
 Distinct from a guide handler Err: that is after the handler ran; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide Health client interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive.
+Distinct from a guide Health interceptor Err: that is trailers without reading the body; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide Health StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide reflection client interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
