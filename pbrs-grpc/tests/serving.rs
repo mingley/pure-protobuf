@@ -12800,6 +12800,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide InteropTestService client interceptor Err: that is a local reject never opens a stream; this guide InteropTestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct guide InteropTestService client interceptor Err local reject never opens a stream from this guide InteropTestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client."
         ),
         "guide must name from_error_details typed bag next to TestService handler Err"

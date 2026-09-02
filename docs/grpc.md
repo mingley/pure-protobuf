@@ -2270,6 +2270,7 @@ Distinct from a guide InteropTestService interceptor: that runs on the inbound R
 Distinct from a guide InteropTestService handler Err: that is after the handler ran; this guide InteropTestService StreamSender fail is trailers after any messages already sent.
 Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide InteropTestService StreamSender fail is trailers after any messages already sent.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide InteropTestService StreamSender fail is trailers after any messages already sent.
+Distinct from a guide InteropTestService client interceptor Err: that is a local reject never opens a stream; this guide InteropTestService StreamSender fail is trailers after any messages already sent.
 
 ## One-shape proofs
 
