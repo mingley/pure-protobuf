@@ -7766,6 +7766,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Store client interceptor: that runs on the outbound call before the stream opens; this crate README Store interceptor runs on the inbound RPC before the handler."
+        ),
+        "crate README must Distinct Store client outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README Store handler Err; those trailers reach the client."
         ),
         "crate README must name from_error_details typed bag next to Store handler Err"
