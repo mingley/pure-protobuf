@@ -12851,6 +12851,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture hello client interceptor Err: that is a local reject never opens a stream; this architecture hello handler Err is after the handler ran."
+        ),
+        "architecture must Distinct hello client interceptor Err local reject never opens a stream from this architecture hello handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture hello StreamSender fail: that is trailers after any messages already sent; this architecture hello handler Err is after the handler ran."
         ),
         "architecture must Distinct hello StreamSender fail after any messages already sent from this architecture hello handler Err after the handler ran"
