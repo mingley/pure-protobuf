@@ -12118,6 +12118,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status hello interceptor Err is trailers without reading the body."
+        ),
+        "status guide must Distinct packed-status Channel on_response Err Call fail after receive from this packed-status hello interceptor Err without reading the body"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status hello StreamSender fail: that is trailers after any messages already sent; this packed-status hello interceptor Err is trailers without reading the body."
         ),
         "status guide must Distinct hello StreamSender fail after any messages already sent from this packed-status hello interceptor Err without reading the body"
