@@ -5241,6 +5241,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this testing StreamSender fail is trailers after any messages already sent."
+        ),
+        "testing crate rustdoc must Distinct Channel on_response Err Call fail after receive from this testing StreamSender fail after any messages already sent"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this testing server on_response Err; a local reject is trailers-only after handler Ok."
         ),
         "testing crate rustdoc must name from_error_details typed bag next to testing server on_response Err"
