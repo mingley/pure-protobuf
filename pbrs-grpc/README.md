@@ -316,6 +316,7 @@ Distinct from a crate README reflection client interceptor Err: that is a local 
 Distinct from a crate README reflection interceptor Err: that is trailers without reading the body; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from a crate README reflection StreamSender fail: that is trailers after any messages already sent; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from a crate README Store client interceptor Err: that is a local reject never opens a stream; this crate README Channel on_response Err fails the Call after a successful receive.
+Distinct from a crate README Store interceptor Err: that is trailers without reading the body; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from a crate README Store StreamSender fail: that is trailers after any messages already sent; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from a crate README TestService client interceptor Err: that is a local reject never opens a stream; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from a crate README TestService StreamSender fail: that is trailers after any messages already sent; this crate README Channel on_response Err fails the Call after a successful receive.
