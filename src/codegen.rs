@@ -4444,6 +4444,10 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated server intercept Err is trailers without reading the body."
+    );
+    let _ = writeln!(
+        src,
         "    /// Distinct from [`{G}::Channel::intercept`]: that runs on the outbound call before the stream opens; this generated server intercept runs on the inbound RPC before the handler."
     );
     let _ = writeln!(
