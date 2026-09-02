@@ -957,6 +957,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status hello interceptor: that runs on the inbound RPC before the handler; this packed-status hello client interceptor runs on the outbound call before the stream opens.
   `Status::from_error_details` is the typed bag after this packed-status UnimplementedService interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status UnimplementedService handler Err: that is after the handler ran; this packed-status UnimplementedService interceptor Err is trailers without reading the body.
+  Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status UnimplementedService interceptor Err is trailers without reading the body.
   Distinct from a packed-status UnimplementedService client interceptor Err: that is a local reject never opens a stream; this packed-status UnimplementedService interceptor Err is trailers without reading the body.
   Distinct from a packed-status UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this packed-status UnimplementedService interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status UnimplementedService handler Err; those trailers reach the client.
