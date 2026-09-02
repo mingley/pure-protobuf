@@ -445,6 +445,7 @@ Distinct from an architecture handler Err: that is after the handler ran; this a
 Distinct from an architecture interceptor Err: that is a local reject never opens a stream; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture Health StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture reflection StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
+Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture Channel on_response runs after a successful receive.
 
 ### Status
