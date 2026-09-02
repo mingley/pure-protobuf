@@ -11495,6 +11495,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Server intercept runs on the inbound RPC before the handler."
+        ),
+        "Server::intercept rustdoc must Distinct Channel outbound-before-stream from this Server intercept inbound-before-handler"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this runs on the inbound RPC before the handler."
         ),
         "Server::intercept rustdoc must Distinct on_response after-Ok from inbound-before-handler"
