@@ -1932,6 +1932,7 @@ impl<S: Service> Server<S> {
     /// Distinct from a handler Err: that is after the handler ran; this Server intercept Err is trailers without reading the body.
     /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this Server intercept Err is trailers without reading the body.
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Server intercept Err is trailers without reading the body.
+    /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Server intercept Err is trailers without reading the body.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this runs on the inbound RPC before the handler.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Server intercept runs on the inbound RPC before the handler.
     /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this runs on the inbound RPC before the handler.
