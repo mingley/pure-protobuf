@@ -2017,6 +2017,7 @@ impl<S: Service> Server<S> {
     /// [`crate::ResponseParts::clear_compress`] restores the server gzip overlay after this Server on_response.
     /// [`Status::from_error_details`] is the typed bag after this Server on_response Err; a local reject is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this runs after the handler returns Ok.
+    /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Server on_response runs after the handler returns Ok.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted

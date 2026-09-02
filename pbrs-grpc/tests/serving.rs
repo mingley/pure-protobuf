@@ -11799,6 +11799,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Server on_response runs after the handler returns Ok."
+        ),
+        "Server::on_response rustdoc must Distinct intercept inbound-before-handler from this Server on_response after-Ok"
+    );
+    assert!(
+        src.contains(
             "[`crate::ResponseParts::compress_is_set`] is occupancy after this Router on_response, so a later interceptor can fill compress only when unset."
         ),
         "Router::on_response rustdoc must name compress_is_set occupancy next to send_buffer Distinct"
