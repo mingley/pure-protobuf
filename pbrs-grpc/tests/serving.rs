@@ -4081,6 +4081,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "Distinct from a StreamSender fail: that is trailers after any messages already sent; this Channel on_response Err fails the Call after a successful receive."
+        ),
+        "Channel::on_response rustdoc must Distinct StreamSender fail after any messages already sent from this Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this Channel on_response runs after a successful receive."
         ),
         "Channel::on_response rustdoc must Distinct intercept outbound-before-stream from after-receive"
