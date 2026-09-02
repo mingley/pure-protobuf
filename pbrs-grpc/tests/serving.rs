@@ -6057,6 +6057,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map TestService interceptor Err: that is trailers without reading the body; this crate-map TestService handler Err is after the handler ran."
+        ),
+        "crate docs must Distinct crate-map TestService interceptor Err without reading the body from this crate-map TestService handler Err after the handler ran"
+    );
+    assert!(
+        crate_src.contains(
             "[`Outgoing::connected`] is the live-socket snapshot on this crate-map TestService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "crate docs must name Outgoing::connected live-socket snapshot on crate-map TestService"
