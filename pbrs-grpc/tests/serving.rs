@@ -14558,6 +14558,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok."
+        ),
+        "guide must Distinct guide InteropTestService interceptor Err without reading the body from this guide server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok."
         ),
         "guide must Distinct guide InteropTestService StreamSender fail after any messages already sent from this guide server on_response Err trailers-only after handler Ok"
