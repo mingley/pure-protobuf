@@ -294,6 +294,7 @@ Distinct from a crate README TestService interceptor Err: that is trailers witho
 Distinct from a crate README TestService StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README Reverser interceptor Err: that is trailers without reading the body; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README Reverser StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
+Distinct from a crate README hello interceptor Err: that is trailers without reading the body; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README hello StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from a crate README InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README server on_response runs after the handler returns Ok.

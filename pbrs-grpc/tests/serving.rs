@@ -10898,6 +10898,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README hello interceptor Err: that is trailers without reading the body; this crate README server on_response Err is trailers-only after handler Ok."
+        ),
+        "crate README must Distinct crate README hello interceptor Err without reading the body from this crate README server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README hello StreamSender fail: that is trailers after any messages already sent; this crate README server on_response Err is trailers-only after handler Ok."
         ),
         "crate README must Distinct crate README hello StreamSender fail after any messages already sent from this crate README server on_response Err trailers-only after handler Ok"
