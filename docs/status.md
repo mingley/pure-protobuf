@@ -800,6 +800,7 @@ See `docs/upb.md`. Short list:
   and a client interceptor stamps Outgoing path facts on those APIs, including over TLS,
   mTLS, Unix, and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status Reverser interceptor Err; those trailers reach the client without reading the body.
+  Distinct from a packed-status Reverser client interceptor: that runs on the outbound call before the stream opens; this packed-status Reverser interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status Reverser handler Err; those trailers reach the client.
   `Outgoing::connected` is the live-socket snapshot on this packed-status Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
   `Status::from_error_details` is the typed bag after this packed-status Reverser client interceptor Err; a local reject never opens a stream.

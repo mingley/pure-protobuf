@@ -8716,6 +8716,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Reverser client interceptor: that runs on the outbound call before the stream opens; this packed-status Reverser interceptor runs on the inbound RPC before the handler."
+        ),
+        "status guide must Distinct Reverser inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status hello interceptor Err; those trailers reach the client without reading the body."
         ),
         "status guide must name from_error_details typed bag next to hello interceptor Err"
