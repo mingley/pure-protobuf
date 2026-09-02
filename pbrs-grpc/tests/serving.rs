@@ -629,6 +629,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         stream.contains(
+            "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this StreamSender fail is trailers after any messages already sent."
+        ),
+        "StreamSender::fail rustdoc must Distinct Channel on_response Err Call fail after receive from this StreamSender fail after any messages already sent"
+    );
+    assert!(
+        stream.contains(
             "Distinct from [`Self::compress`]: that reads whether subsequent send payloads gzip; this writes it."
         ),
         "StreamSender::set_compress must Distinct the getter from the writer"
