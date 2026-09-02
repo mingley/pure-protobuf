@@ -2110,6 +2110,7 @@ and `from_io`, and a handler `Err(with_error_details)` over TLS, mTLS, Unix,
 and `from_io`. Unknown methods on that `Service` are `UNIMPLEMENTED` on every
 call shape on those transports too.
 `Status::from_error_details` is the typed bag after this guide Reverser interceptor Err; those trailers reach the client without reading the body.
+Distinct from a guide Reverser client interceptor: that runs on the outbound call before the stream opens; this guide Reverser interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide Reverser handler Err; those trailers reach the client.
 `Outgoing::connected` is the live-socket snapshot on this guide Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide Reverser client interceptor Err; a local reject never opens a stream.
