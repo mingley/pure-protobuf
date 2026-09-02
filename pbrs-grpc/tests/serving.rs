@@ -12424,6 +12424,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Health client interceptor Err: that is a local reject never opens a stream; this packed-status Channel on_response Err fails the Call after a successful receive."
+        ),
+        "status guide must Distinct packed-status Health client interceptor Err local reject never opens a stream from this packed-status Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status Health StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive."
         ),
         "status guide must Distinct packed-status Health StreamSender fail after any messages already sent from this packed-status Channel on_response Err Call fail after receive"
