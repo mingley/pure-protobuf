@@ -12386,6 +12386,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Store interceptor Err: that is trailers without reading the body; this guide Store StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct Store interceptor Err without reading the body from this guide Store StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset."
         ),
         "guide must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
