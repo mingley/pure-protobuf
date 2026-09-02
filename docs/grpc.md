@@ -1039,6 +1039,7 @@ mTLS, Unix, and `from_io`.
 Distinct from a guide Health handler Err: that is after the handler ran; this guide Health StreamSender fail is trailers after any messages already sent.
 Distinct from a guide Health interceptor Err: that is trailers without reading the body; this guide Health StreamSender fail is trailers after any messages already sent.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Health StreamSender fail is trailers after any messages already sent.
+Distinct from a guide Health client interceptor Err: that is a local reject never opens a stream; this guide Health StreamSender fail is trailers after any messages already sent.
 
 ## Reflection
 

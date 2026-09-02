@@ -12218,6 +12218,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Health client interceptor Err: that is a local reject never opens a stream; this guide Health StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct guide Health client interceptor Err local reject never opens a stream from this guide Health StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide reflection interceptor Err; those trailers reach the client without reading the body."
         ),
         "guide must name from_error_details typed bag next to reflection interceptor Err"
