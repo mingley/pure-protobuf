@@ -532,6 +532,7 @@ impl<T> StreamSender<T> {
     /// Distinct from a handler Err: that is after the handler ran; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from an Interceptor Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
+    /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
     ///
     /// On a **client request** sender (client-streaming or bidi), gRPC has no
     /// request-side `grpc-status`. This resets the HTTP/2 stream with CANCEL,
