@@ -238,6 +238,9 @@ mod tests {
         assert!(readme.contains(
             "`Status::from_error_details` is the typed bag after this example README greeter interceptor Err; those trailers reach the client without reading the body."
         ));
+        assert!(readme.contains(
+            "Distinct from an example README greeter client interceptor: that runs on the outbound call before the stream opens; this example README greeter interceptor runs on the inbound RPC before the handler."
+        ));
     }
 
     #[test]
