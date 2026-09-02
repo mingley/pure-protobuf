@@ -324,6 +324,8 @@
 //!
 //! Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService client interceptor Err is a local reject never opens a stream.
 //!
+//! Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService client interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map TestService client interceptor already ran, so a local Err never consumes that budget.
 //!
 //! Distinct from a crate-map TestService interceptor: that runs on the inbound RPC before the handler; this crate-map TestService client interceptor runs on the outbound call before the stream opens.
