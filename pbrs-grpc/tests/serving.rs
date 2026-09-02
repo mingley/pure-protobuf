@@ -13199,6 +13199,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture server intercept Err: that is trailers without reading the body; this architecture interceptor Err is a local reject never opens a stream."
+        ),
+        "architecture must Distinct architecture server intercept Err without reading the body from this architecture interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture interceptor already ran, so a local Err never consumes that budget."
         ),
         "architecture must Distinct max_concurrent_rpcs slot grab after intercept"
