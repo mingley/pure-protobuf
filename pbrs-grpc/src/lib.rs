@@ -146,6 +146,8 @@
 //!
 //! Distinct from [`ResponseInterceptor`]: that is the after-Ok hook; this crate-map [`Intercepted`] runs before the handler and may hold that hook for after Ok.
 //!
+//! Distinct from [`Server::intercept`]: that runs on the inbound RPC before the handler; this crate-map Channel intercept runs on the outbound call before the stream opens.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.
