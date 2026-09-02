@@ -4674,6 +4674,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated server on_response Err is trailers-only after handler Ok."
+        ),
+        "generated server on_response rustdoc must Distinct generated StreamSender fail after any messages already sent from this generated server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this generated server on_response runs after the handler returns Ok."
         ),
         "generated server on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
