@@ -972,6 +972,7 @@ impl Channel {
     /// [`crate::Status::from_error_details`] is the typed bag after this Channel on_response Err; a local reject fails the Call after a successful receive.
     /// Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this Channel on_response runs after a successful receive.
     /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok; this Channel on_response runs after a successful receive.
+    /// Distinct from [`crate::Router::on_response`]: that runs after the handler returns Ok; this Channel on_response runs after a successful receive.
     ///
     /// ```
     /// # fn demo(channel: pbrs_grpc::Channel) -> pbrs_grpc::Channel {
