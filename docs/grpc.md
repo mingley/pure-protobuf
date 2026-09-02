@@ -2125,6 +2125,7 @@ Distinct from a guide TestService client interceptor: that runs on the outbound 
 `Outgoing::connected` is the live-socket snapshot on this guide TestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide TestService client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide TestService client interceptor already ran, so a local Err never consumes that budget.
+Distinct from a guide TestService interceptor: that runs on the inbound RPC before the handler; this guide TestService client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this guide TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 A Reverser `StreamSender::fail` after a streamed DATA
 frame unpacks on server-streaming and bidi on those transports too (unary and
