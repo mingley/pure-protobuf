@@ -7437,6 +7437,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "crate docs must Distinct crate-map InteropTestService interceptor Err without reading the body from this crate-map InteropTestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        crate_src.contains(
             "[`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset."
         ),
         "crate docs must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
