@@ -462,6 +462,8 @@
 //!
 //! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent.
 //!
+//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map InteropTestService StreamSender fail is trailers after any messages already sent.
+//!
 //! [`ResponseParts::compress_is_set`] is occupancy on this crate-map on_response path, so a later interceptor can fill compress only when unset.
 //!
 //! [`ResponseParts::clear_compress`] restores the server gzip overlay after Server on_response on this crate-map on_response path.
