@@ -263,6 +263,9 @@ mod tests {
         assert!(readme.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this example README greeter client interceptor already ran, so a local Err never consumes that budget."
         ));
+        assert!(readme.contains(
+            "Distinct from an example README greeter interceptor: that runs on the inbound RPC before the handler; this example README greeter client interceptor runs on the outbound call before the stream opens."
+        ));
     }
 
     #[test]
