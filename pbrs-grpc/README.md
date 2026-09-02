@@ -135,6 +135,7 @@ Distinct from a crate README InteropTestService client interceptor: that runs on
 `Outgoing::connected` is the live-socket snapshot on this crate README InteropTestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README InteropTestService client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README InteropTestService client interceptor already ran, so a local Err never consumes that budget.
+Distinct from a crate README InteropTestService interceptor: that runs on the inbound RPC before the handler; this crate README InteropTestService client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this crate README InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `ResponseParts::compress_is_set` is occupancy on this crate README on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this crate README on_response path.
