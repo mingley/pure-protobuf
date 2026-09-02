@@ -9482,6 +9482,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Reverser StreamSender fail: that is trailers after any messages already sent; this crate README Reverser interceptor Err is trailers without reading the body."
+        ),
+        "crate README must Distinct Reverser StreamSender fail after any messages already sent from this crate README Reverser interceptor Err without reading the body"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README Reverser client interceptor: that runs on the outbound call before the stream opens; this crate README Reverser interceptor runs on the inbound RPC before the handler."
         ),
         "crate README must Distinct Reverser inbound interceptor from client outbound-before-stream"
