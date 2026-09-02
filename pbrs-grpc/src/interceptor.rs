@@ -543,6 +543,7 @@ pub trait ServiceExt: Service + Sized {
     /// [`crate::Status::from_error_details`] is the typed bag after this ServiceExt on_response Err; a local reject is trailers-only after handler Ok.
     /// Distinct from a handler Err: that is after the handler ran; this ServiceExt on_response Err is trailers-only after handler Ok.
     /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this ServiceExt on_response Err is trailers-only after handler Ok.
+    /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this ServiceExt on_response Err is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this ServiceExt on_response runs after the handler returns Ok.
     /// Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this ServiceExt on_response wraps one service with an after-Ok hook.
     /// Distinct from [`crate::Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this ServiceExt on_response wraps one service with an after-Ok hook.
