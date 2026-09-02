@@ -1083,6 +1083,7 @@ interceptor `Err(Status::with_error_details(...))` unpacks as `Status::rpc` /
 `from_io`.
 `Status::from_error_details` is the typed bag after this guide reflection interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide reflection handler Err: that is after the handler ran; this guide reflection interceptor Err is trailers without reading the body.
+Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide reflection interceptor Err is trailers without reading the body.
 Distinct from a guide reflection client interceptor Err: that is a local reject never opens a stream; this guide reflection interceptor Err is trailers without reading the body.
 Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide reflection interceptor Err is trailers without reading the body.
 Distinct from a guide reflection client interceptor: that runs on the outbound call before the stream opens; this guide reflection interceptor runs on the inbound RPC before the handler.
