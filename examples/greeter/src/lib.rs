@@ -348,6 +348,9 @@ mod tests {
             "Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter interceptor Err is trailers without reading the body."
         ));
         assert!(readme.contains(
+            "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter interceptor Err is trailers without reading the body."
+        ));
+        assert!(readme.contains(
             "Distinct from an example README greeter client interceptor: that runs on the outbound call before the stream opens; this example README greeter interceptor runs on the inbound RPC before the handler."
         ));
     }

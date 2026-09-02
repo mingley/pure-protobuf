@@ -19,6 +19,7 @@ and `Watch` (dropping the stream ends the subscription), and reflection
 Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter interceptor Err is trailers without reading the body.
 Distinct from an example README greeter server on_response Err: that is trailers-only after handler Ok; this example README greeter interceptor Err is trailers without reading the body.
 Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter interceptor Err is trailers without reading the body.
+Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter interceptor Err is trailers without reading the body.
 Distinct from an example README greeter client interceptor: that runs on the outbound call before the stream opens; this example README greeter interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this example README greeter handler Err; those trailers reach the client.
 Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter handler Err is after the handler ran.
