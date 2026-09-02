@@ -526,6 +526,7 @@ Distinct from an architecture reflection client interceptor: that runs on the ou
 Distinct from an architecture reflection interceptor Err: that is trailers without reading the body; this architecture reflection handler Err is after the handler ran.
 Distinct from an architecture reflection client interceptor Err: that is a local reject never opens a stream; this architecture reflection handler Err is after the handler ran.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture reflection handler Err is after the handler ran.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture reflection handler Err is after the handler ran.
 Distinct from an architecture reflection StreamSender fail: that is trailers after any messages already sent; this architecture reflection handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this architecture reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture reflection client interceptor Err; a local reject never opens a stream.
