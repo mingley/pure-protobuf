@@ -9586,6 +9586,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Reverser StreamSender fail: that is trailers after any messages already sent; this packed-status Reverser handler Err is after the handler ran."
+        ),
+        "status guide must Distinct Reverser StreamSender fail after any messages already sent from this packed-status Reverser handler Err after the handler ran"
+    );
+    assert!(
+        status_guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this packed-status Health client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "status guide must name Outgoing::connected live-socket snapshot on Health"
