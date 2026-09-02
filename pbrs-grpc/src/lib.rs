@@ -528,6 +528,8 @@
 //!
 //! Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
+//! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
+//!
 //! Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map Channel on_response runs after a successful receive.
 //!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
