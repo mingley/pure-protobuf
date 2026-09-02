@@ -41,6 +41,7 @@
 //! `Err` may carry [`crate::Status::with_error_details`]; those trailers reach
 //! the client on Check, List, and Watch.
 //! [`crate::Status::from_error_details`] is the typed bag after this health interceptor Err; those trailers reach the client without reading the body.
+//! Distinct from a health handler Err: that is after the handler ran; this health interceptor Err is trailers without reading the body.
 //! Distinct from a health client interceptor: that runs on the outbound call before the stream opens; this health interceptor runs on the inbound RPC before the handler.
 //! A handler `Err` may carry the same packed
 //! status; those trailers reach the client on Check, List, and Watch.
