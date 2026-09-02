@@ -534,6 +534,8 @@
 //!
 //! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream.
 //!
+//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream.
+//!
 //! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map InteropTestService client interceptor Err is a local reject never opens a stream.
 //!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map InteropTestService client interceptor already ran, so a local Err never consumes that budget.
