@@ -9056,6 +9056,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Health client interceptor: that runs on the outbound call before the stream opens; this guide Health interceptor runs on the inbound RPC before the handler."
+        ),
+        "guide must Distinct Health client outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide Health handler Err; those trailers reach the client."
         ),
         "guide must name from_error_details typed bag next to Health handler Err"
