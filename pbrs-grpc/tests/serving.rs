@@ -10154,6 +10154,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README hello client interceptor Err is a local reject never opens a stream."
+        ),
+        "crate README must Distinct crate README Channel on_response Err Call fail after receive from this crate README hello client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README hello StreamSender fail: that is trailers after any messages already sent; this crate README hello client interceptor Err is a local reject never opens a stream."
         ),
         "crate README must Distinct crate README hello StreamSender fail after any messages already sent from this crate README hello client interceptor Err local reject never opens a stream"
