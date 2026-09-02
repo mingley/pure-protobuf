@@ -12623,6 +12623,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture hello handler Err: that is after the handler ran; this architecture hello client interceptor Err is a local reject never opens a stream."
+        ),
+        "architecture must Distinct hello handler Err after the handler ran from this architecture hello client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture hello client interceptor already ran, so a local Err never consumes that budget."
         ),
         "architecture must Distinct max_concurrent_rpcs slot grab after hello client intercept"
