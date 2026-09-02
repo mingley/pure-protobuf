@@ -13730,6 +13730,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide InteropTestService client interceptor Err is a local reject never opens a stream."
+        ),
+        "guide must Distinct guide InteropTestService interceptor Err without reading the body from this guide InteropTestService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide InteropTestService client interceptor Err is a local reject never opens a stream."
         ),
         "guide must Distinct guide InteropTestService StreamSender fail after any messages already sent from this guide InteropTestService client interceptor Err local reject never opens a stream"
