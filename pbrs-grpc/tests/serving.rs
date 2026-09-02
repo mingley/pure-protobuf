@@ -13970,6 +13970,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Store interceptor Err: that is trailers without reading the body; this guide Store client interceptor Err is a local reject never opens a stream."
+        ),
+        "guide must Distinct guide Store interceptor Err without reading the body from this guide Store client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Store client interceptor Err is a local reject never opens a stream."
         ),
         "guide must Distinct guide Store StreamSender fail after any messages already sent from this guide Store client interceptor Err local reject never opens a stream"

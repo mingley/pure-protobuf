@@ -1899,6 +1899,7 @@ Distinct from a guide Store StreamSender fail: that is trailers after any messag
 `Status::from_error_details` is the typed bag after this guide Store client interceptor Err; a local reject never opens a stream.
 Distinct from a guide Store handler Err: that is after the handler ran; this guide Store client interceptor Err is a local reject never opens a stream.
 Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide Store client interceptor Err is a local reject never opens a stream.
+Distinct from a guide Store interceptor Err: that is trailers without reading the body; this guide Store client interceptor Err is a local reject never opens a stream.
 Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Store client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide Store client interceptor already ran, so a local Err never consumes that budget.
 Distinct from a guide Store interceptor: that runs on the inbound RPC before the handler; this guide Store client interceptor runs on the outbound call before the stream opens.
