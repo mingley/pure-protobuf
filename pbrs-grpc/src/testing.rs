@@ -63,6 +63,7 @@
 //! [`crate::Status::from_error_details`] is the typed bag after this testing StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 //! Distinct from a testing handler Err: that is after the handler ran; this testing StreamSender fail is trailers after any messages already sent.
 //! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing StreamSender fail is trailers after any messages already sent.
+//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this testing StreamSender fail is trailers after any messages already sent.
 //! [`crate::Status::from_error_details`] is the typed bag after this testing server on_response Err; a local reject is trailers-only after handler Ok.
 //! Distinct from a testing handler Err: that is after the handler ran; this testing server on_response Err is trailers-only after handler Ok.
 //! Distinct from a testing interceptor Err: that is trailers without reading the body; this testing server on_response Err is trailers-only after handler Ok.
