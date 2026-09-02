@@ -418,6 +418,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection handler Err is after the handler ran."
+        ),
+        "reflection crate rustdoc must Distinct interceptor Err without reading the body from this reflection handler Err after the handler ran"
+    );
+    assert!(
+        src.contains(
             "[`crate::Outgoing::connected`] is the live-socket snapshot on this reflection client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "reflection crate rustdoc must name Outgoing::connected live-socket snapshot on ServerReflectionInfo"
