@@ -9856,6 +9856,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status InteropTestService client interceptor Err: that is a local reject never opens a stream; this packed-status InteropTestService handler Err is after the handler ran."
+        ),
+        "status guide must Distinct InteropTestService client interceptor Err local reject never opens a stream from this packed-status InteropTestService handler Err after the handler ran"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status InteropTestService StreamSender fail: that is trailers after any messages already sent; this packed-status InteropTestService handler Err is after the handler ran."
         ),
         "status guide must Distinct InteropTestService StreamSender fail after any messages already sent from this packed-status InteropTestService handler Err after the handler ran"
