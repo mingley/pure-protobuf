@@ -9710,6 +9710,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Reverser interceptor Err: that is trailers without reading the body; this guide Reverser handler Err is after the handler ran."
+        ),
+        "guide must Distinct Reverser interceptor Err without reading the body from this guide Reverser handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this guide Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "guide must name Outgoing::connected live-socket snapshot on Reverser"
