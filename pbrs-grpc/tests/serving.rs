@@ -13061,6 +13061,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture TestService handler Err is after the handler ran."
+        ),
+        "architecture must Distinct server on_response Err trailers-only after handler Ok from this architecture TestService handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture TestService StreamSender fail: that is trailers after any messages already sent; this architecture TestService handler Err is after the handler ran."
         ),
         "architecture must Distinct TestService StreamSender fail after any messages already sent from this architecture TestService handler Err after the handler ran"
