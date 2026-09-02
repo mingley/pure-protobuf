@@ -63,6 +63,7 @@
 //! the client.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection handler Err; those trailers reach the client.
 //! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection handler Err is after the handler ran.
+//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection handler Err is after the handler ran.
 //! [`crate::StreamSender::fail`] after a streamed DATA frame on
 //! `ServerReflectionInfo` ships those trailers the same way.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
