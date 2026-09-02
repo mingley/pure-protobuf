@@ -14411,6 +14411,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture hello interceptor Err: that is trailers without reading the body; this architecture hello StreamSender fail is trailers after any messages already sent."
+        ),
+        "architecture must Distinct hello interceptor Err without reading the body from this architecture hello StreamSender fail after any messages already sent"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture UnimplementedService interceptor Err; those trailers reach the client without reading the body."
         ),
         "architecture must name from_error_details typed bag next to UnimplementedService interceptor Err"
