@@ -3397,6 +3397,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor::intercept rustdoc must Distinct Channel on_response Err Call fail after receive from this method-level Interceptor Err without reading the body"
     );
     assert!(
+        intercept.contains(
+            "Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level Interceptor Err is trailers without reading the body."
+        ),
+        "Interceptor::intercept rustdoc must Distinct StreamSender fail after any messages already sent from this method-level Interceptor Err without reading the body"
+    );
+    assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
         "ClientInterceptor rustdoc must Distinct connected from wait-for-ready"
     );
