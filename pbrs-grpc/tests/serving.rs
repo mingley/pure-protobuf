@@ -3206,6 +3206,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a handler Err: that is after the handler ran; this Interceptor Err is trailers without reading the body."
+        ),
+        "Interceptor rustdoc must Distinct handler Err after the handler ran from this Interceptor Err without reading the body"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::Status::from_error_details`] is the typed bag on this method-level Interceptor Err; those trailers reach the client without reading the body."
         ),
         "Interceptor::intercept rustdoc must name from_error_details typed bag next to intercept Err"
