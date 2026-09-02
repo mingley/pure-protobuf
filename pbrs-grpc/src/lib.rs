@@ -476,6 +476,8 @@
 //!
 //! Distinct from a crate-map UnimplementedService handler Err: that is after the handler ran; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map UnimplementedService client interceptor Err: that is a local reject never opens a stream; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this crate-map UnimplementedService interceptor runs on the inbound RPC before the handler.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService handler Err; those trailers reach the client.
