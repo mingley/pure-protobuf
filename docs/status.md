@@ -699,6 +699,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   Distinct from a packed-status hello handler Err: that is after the handler ran; this packed-status hello StreamSender fail is trailers after any messages already sent.
   Distinct from a packed-status hello interceptor Err: that is trailers without reading the body; this packed-status hello StreamSender fail is trailers after any messages already sent.
+  Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status hello StreamSender fail is trailers after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   Distinct from a packed-status InteropTestService handler Err: that is after the handler ran; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent.
   Distinct from a packed-status InteropTestService interceptor Err: that is trailers without reading the body; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent.
