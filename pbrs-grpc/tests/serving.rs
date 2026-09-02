@@ -16763,6 +16763,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture Store interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct architecture Channel on_response Err Call fail after receive from this architecture Store interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture Store interceptor Err is trailers without reading the body."
         ),
         "architecture must Distinct Store StreamSender fail after any messages already sent from this architecture Store interceptor Err without reading the body"
