@@ -6027,6 +6027,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map InteropTestService interceptor: that runs on the inbound RPC before the handler; this crate-map InteropTestService client interceptor runs on the outbound call before the stream opens."
+        ),
+        "crate docs must Distinct InteropTestService inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "crate docs must name from_error_details typed bag next to crate-map InteropTestService StreamSender fail"
