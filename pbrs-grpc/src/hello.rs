@@ -60,6 +60,7 @@
 //! [`crate::ResponseParts::compress_is_set`] is occupancy after a hello client on_response, so a later interceptor can fill compress only when unset.
 //! [`crate::ResponseParts::clear_compress`] drops a compress choice after a hello client on_response; a received reply has no server gzip overlay to restore.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello client on_response Err; a local reject fails the Call after a successful receive.
+//! Distinct from a hello handler Err: that is after the handler ran; this hello client on_response Err fails the Call after a successful receive.
 //! Distinct from [`GreeterClient::intercept`]: that runs on the outbound call before the stream opens; this hello client on_response runs after a successful receive.
 //!
 //! ```
