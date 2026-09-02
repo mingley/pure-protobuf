@@ -5403,6 +5403,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this testing Channel on_response Err fails the Call after a successful receive."
+        ),
+        "testing crate rustdoc must Distinct InteropTestService interceptor Err without reading the body from this testing Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        testing.contains(
             "Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this testing Channel on_response Err fails the Call after a successful receive."
         ),
         "testing crate rustdoc must Distinct InteropTestService StreamSender fail after any messages already sent from this testing Channel on_response Err Call fail after receive"
