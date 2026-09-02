@@ -15092,6 +15092,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide hello interceptor Err: that is trailers without reading the body; this guide Channel on_response Err fails the Call after a successful receive."
+        ),
+        "guide must Distinct guide hello interceptor Err without reading the body from this guide Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive."
         ),
         "guide must Distinct guide hello StreamSender fail after any messages already sent from this guide Channel on_response Err Call fail after receive"
