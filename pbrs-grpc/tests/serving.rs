@@ -4357,6 +4357,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an InteropTestService client interceptor: that runs on the outbound call before the stream opens; this InteropTestService interceptor runs on the inbound RPC before the handler."
+        ),
+        "InteropTestService rustdoc must Distinct client outbound-before-stream from inbound-before-handler"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this InteropTestService handler Err; those trailers reach the client."
         ),
         "InteropTestService rustdoc must name from_error_details typed bag next to handler Err"
