@@ -9952,6 +9952,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status interceptor Err is a local reject never opens a stream."
+        ),
+        "status guide must Distinct packed-status Channel on_response Err Call fail after receive from this packed-status interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status interceptor already ran, so a local Err never consumes that budget."
         ),
         "status guide must Distinct max_concurrent_rpcs slot grab after intercept"
