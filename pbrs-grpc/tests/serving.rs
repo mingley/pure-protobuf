@@ -9220,6 +9220,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Health interceptor Err: that is trailers without reading the body; this packed-status Health handler Err is after the handler ran."
+        ),
+        "status guide must Distinct Health interceptor Err without reading the body from this packed-status Health handler Err after the handler ran"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status reflection handler Err; those trailers reach the client."
         ),
         "status guide must name from_error_details typed bag next to reflection handler Err"
