@@ -180,6 +180,8 @@
 //!
 //! Distinct from a crate-map Health client interceptor Err: that is a local reject never opens a stream; this crate-map Health interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Health interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health interceptor Err is trailers without reading the body.
 //!
 //! Distinct from a crate-map Health client interceptor: that runs on the outbound call before the stream opens; this crate-map Health interceptor runs on the inbound RPC before the handler.
