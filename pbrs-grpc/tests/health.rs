@@ -702,6 +702,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health client on_response Err: that fails the Call after a successful receive; this health handler Err is after the handler ran."
+        ),
+        "Health crate rustdoc must Distinct client on_response Err Call fail after receive from this health handler Err after the handler ran"
+    );
+    assert!(
+        src.contains(
             "Distinct from a health StreamSender fail: that is trailers after any messages already sent; this health handler Err is after the handler ran."
         ),
         "Health crate rustdoc must Distinct StreamSender fail after any messages already sent from this health handler Err after the handler ran"
