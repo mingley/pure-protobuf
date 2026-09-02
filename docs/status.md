@@ -688,6 +688,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Reverser interceptor Err: that is trailers without reading the body; this packed-status Reverser StreamSender fail is trailers after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   Distinct from a packed-status hello handler Err: that is after the handler ran; this packed-status hello StreamSender fail is trailers after any messages already sent.
+  Distinct from a packed-status hello interceptor Err: that is trailers without reading the body; this packed-status hello StreamSender fail is trailers after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   Distinct from a packed-status InteropTestService handler Err: that is after the handler ran; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent.
   On a client request sender it resets CANCEL
