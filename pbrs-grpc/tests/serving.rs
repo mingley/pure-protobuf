@@ -4224,6 +4224,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from [`GreeterServer::intercept`]: that runs on the inbound RPC before the handler; this hello server on_response runs after the handler returns Ok."
+        ),
+        "hello GreeterServer::on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
+    );
+    assert!(
+        hello.contains(
             "[`crate::Status::from_error_details`] is the typed bag after a hello handler Err; those trailers reach the client."
         ),
         "hello Greeter handler rustdoc must name from_error_details typed bag next to handler Err"
