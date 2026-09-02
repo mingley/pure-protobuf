@@ -11027,6 +11027,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this architecture UnimplementedService interceptor runs on the inbound RPC before the handler."
+        ),
+        "architecture must Distinct UnimplementedService inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture UnimplementedService handler Err; those trailers reach the client."
         ),
         "architecture must name from_error_details typed bag next to UnimplementedService handler Err"
