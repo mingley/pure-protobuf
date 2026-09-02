@@ -7928,6 +7928,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README reflection handler Err: that is after the handler ran; this crate README reflection interceptor Err is trailers without reading the body."
+        ),
+        "crate README must Distinct reflection handler Err after the handler ran from this crate README reflection interceptor Err without reading the body"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README reflection client interceptor: that runs on the outbound call before the stream opens; this crate README reflection interceptor runs on the inbound RPC before the handler."
         ),
         "crate README must Distinct reflection client outbound-before-stream from inbound-before-handler"

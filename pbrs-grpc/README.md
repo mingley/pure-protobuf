@@ -87,6 +87,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 Distinct from a crate README Health interceptor: that runs on the inbound RPC before the handler; this crate README Health client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this crate README Health StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `Status::from_error_details` is the typed bag after this crate README reflection interceptor Err; those trailers reach the client without reading the body.
+Distinct from a crate README reflection handler Err: that is after the handler ran; this crate README reflection interceptor Err is trailers without reading the body.
 Distinct from a crate README reflection client interceptor: that runs on the outbound call before the stream opens; this crate README reflection interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README reflection handler Err; those trailers reach the client.
 Distinct from a crate README reflection interceptor Err: that is trailers without reading the body; this crate README reflection handler Err is after the handler ran.
