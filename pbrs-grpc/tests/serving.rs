@@ -13892,6 +13892,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide UnimplementedService interceptor Err is trailers without reading the body."
+        ),
+        "guide must Distinct guide server on_response Err trailers-only after handler Ok from this guide UnimplementedService interceptor Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide UnimplementedService client interceptor Err: that is a local reject never opens a stream; this guide UnimplementedService interceptor Err is trailers without reading the body."
         ),
         "guide must Distinct UnimplementedService client interceptor Err local reject never opens a stream from this guide UnimplementedService interceptor Err without reading the body"
