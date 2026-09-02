@@ -12797,6 +12797,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture Health handler Err is after the handler ran."
+        ),
+        "architecture must Distinct Channel on_response Err Call fail after receive from this architecture Health handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture Health StreamSender fail: that is trailers after any messages already sent; this architecture Health handler Err is after the handler ran."
         ),
         "architecture must Distinct Health StreamSender fail after any messages already sent from this architecture Health handler Err after the handler ran"
