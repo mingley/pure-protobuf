@@ -4526,6 +4526,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated server intercept Err is trailers without reading the body."
+        ),
+        "generated server intercept rustdoc must Distinct generated client on_response Err Call fail after receive from this generated server intercept Err without reading the body"
+    );
+    assert!(
+        src.contains(
             "Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated server intercept Err is trailers without reading the body."
         ),
         "generated server intercept rustdoc must Distinct generated StreamSender fail after any messages already sent from this generated server intercept Err without reading the body"
