@@ -9578,6 +9578,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Health handler Err: that is after the handler ran; this guide Health interceptor Err is trailers without reading the body."
+        ),
+        "guide must Distinct Health handler Err after the handler ran from this guide Health interceptor Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide Health client interceptor: that runs on the outbound call before the stream opens; this guide Health interceptor runs on the inbound RPC before the handler."
         ),
         "guide must Distinct Health client outbound-before-stream from inbound-before-handler"
