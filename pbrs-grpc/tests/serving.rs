@@ -9650,6 +9650,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide reflection interceptor Err: that is trailers without reading the body; this guide reflection handler Err is after the handler ran."
+        ),
+        "guide must Distinct reflection interceptor Err without reading the body from this guide reflection handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this guide reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "guide must name Outgoing::connected live-socket snapshot on reflection"
