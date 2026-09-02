@@ -470,6 +470,8 @@
 //!
 //! Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
 //!
+//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
+//!
 //! Distinct from [`Server::intercept`]: that runs on the inbound RPC before the handler; this crate-map server on_response runs after the handler returns Ok.
 //!
 //! [`ResponseParts::clear_compress`] drops a compress choice after Channel on_response on this crate-map on_response path; a received reply has no server gzip overlay to restore.
