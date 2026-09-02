@@ -427,6 +427,9 @@ mod tests {
             "Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter client interceptor Err is a local reject never opens a stream."
         ));
         assert!(readme.contains(
+            "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter client interceptor Err is a local reject never opens a stream."
+        ));
+        assert!(readme.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this example README greeter client interceptor already ran, so a local Err never consumes that budget."
         ));
         assert!(readme.contains(
