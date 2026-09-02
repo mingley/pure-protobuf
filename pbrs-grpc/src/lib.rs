@@ -678,6 +678,8 @@
 //!
 //! Distinct from a crate-map InteropTestService client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
+//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive.
+//!
 //! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
 //! Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map Channel on_response runs after a successful receive.

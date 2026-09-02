@@ -8253,6 +8253,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map Channel on_response Err fails the Call after a successful receive."
+        ),
+        "crate docs must Distinct crate-map InteropTestService interceptor Err without reading the body from this crate-map Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive."
         ),
         "crate docs must Distinct crate-map InteropTestService StreamSender fail after any messages already sent from this crate-map Channel on_response Err Call fail after receive"
