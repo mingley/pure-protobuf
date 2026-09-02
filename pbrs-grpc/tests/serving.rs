@@ -5367,6 +5367,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this UnimplementedService interceptor Err is trailers without reading the body."
+        ),
+        "testing crate rustdoc must Distinct testing server on_response Err trailers-only after handler Ok from this UnimplementedService interceptor Err without reading the body"
+    );
+    assert!(
+        testing.contains(
             "Distinct from an UnimplementedService client interceptor Err: that is a local reject never opens a stream; this UnimplementedService interceptor Err is trailers without reading the body."
         ),
         "testing crate rustdoc must Distinct UnimplementedService client interceptor Err local reject never opens a stream from this UnimplementedService interceptor Err without reading the body"

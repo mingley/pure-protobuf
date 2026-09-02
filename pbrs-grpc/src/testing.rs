@@ -81,6 +81,7 @@
 //! Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this testing Channel on_response Err fails the Call after a successful receive.
 //! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 //! Distinct from an UnimplementedService handler Err: that is after the handler ran; this UnimplementedService interceptor Err is trailers without reading the body.
+//! Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this UnimplementedService interceptor Err is trailers without reading the body.
 //! Distinct from an UnimplementedService client interceptor Err: that is a local reject never opens a stream; this UnimplementedService interceptor Err is trailers without reading the body.
 //! Distinct from an UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this UnimplementedService interceptor runs on the inbound RPC before the handler.
 //! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService handler Err; those trailers reach the client.
