@@ -145,6 +145,7 @@ impl Echo {
 /// [`crate::Status::from_error_details`] is the typed bag after this InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 /// Distinct from an InteropTestService handler Err: that is after the handler ran; this InteropTestService StreamSender fail is trailers after any messages already sent.
 /// Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this InteropTestService StreamSender fail is trailers after any messages already sent.
+/// Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService StreamSender fail is trailers after any messages already sent.
 #[derive(Default)]
 pub struct InteropTestService;
 

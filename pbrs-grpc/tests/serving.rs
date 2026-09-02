@@ -4993,6 +4993,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing server on_response Err: that is trailers-only after handler Ok; this InteropTestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "InteropTestService rustdoc must Distinct testing server on_response Err trailers-only after handler Ok from this InteropTestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        testing.contains(
             "A [`TestServiceClient`]\n//! `message_limits` is `RESOURCE_EXHAUSTED` on UnaryCall /\n//! StreamingOutputCall / StreamingInputCall / FullDuplexCall, including over\n//! TLS, mTLS, Unix, and [`crate::Channel::from_io`]. Distinct from wrapping\n//! `max_encoding_message_size` / `max_decoding_message_size`."
         ),
         "testing crate rustdoc must name TestServiceClient message_limits on every transport"
