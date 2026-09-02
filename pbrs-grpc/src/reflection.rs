@@ -58,6 +58,7 @@
 //! [`crate::Status::with_error_details`]; those trailers reach the client.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection interceptor Err; those trailers reach the client without reading the body.
 //! Distinct from a reflection handler Err: that is after the handler ran; this reflection interceptor Err is trailers without reading the body.
+//! Distinct from a reflection server on_response Err: that is trailers-only after handler Ok; this reflection interceptor Err is trailers without reading the body.
 //! Distinct from a reflection client interceptor: that runs on the outbound call before the stream opens; this reflection interceptor runs on the inbound RPC before the handler.
 //! A handler `Err` may carry the same packed status; those trailers reach
 //! the client.
