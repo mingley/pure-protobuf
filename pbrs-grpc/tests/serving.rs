@@ -8794,6 +8794,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Health interceptor: that runs on the inbound RPC before the handler; this packed-status Health client interceptor runs on the outbound call before the stream opens."
+        ),
+        "status guide must Distinct Health inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        status_guide.contains(
             "`Outgoing::connected` is the live-socket snapshot on this packed-status reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "status guide must name Outgoing::connected live-socket snapshot on reflection"
