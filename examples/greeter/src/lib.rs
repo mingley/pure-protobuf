@@ -456,6 +456,9 @@ mod tests {
             "Distinct from an example README greeter client interceptor Err: that is a local reject never opens a stream; this example README greeter StreamSender fail is trailers after any messages already sent."
         ));
         assert!(readme.contains(
+            "Distinct from an example README greeter client on_response Err: that fails the Call after a successful receive; this example README greeter StreamSender fail is trailers after any messages already sent."
+        ));
+        assert!(readme.contains(
             "`Status::from_error_details` is the typed bag after this example README greeter server on_response Err; a local reject is trailers-only after handler Ok."
         ));
         assert!(readme.contains(
