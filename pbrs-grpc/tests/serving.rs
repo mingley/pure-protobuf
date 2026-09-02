@@ -4845,6 +4845,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an UnimplementedService client interceptor Err: that is a local reject never opens a stream; this UnimplementedService handler Err is after the handler ran."
+        ),
+        "testing crate rustdoc must Distinct UnimplementedService client interceptor Err local reject never opens a stream from this UnimplementedService handler Err after the handler ran"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Outgoing::connected`] is the live-socket snapshot on this UnimplementedService client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "testing crate rustdoc must name Outgoing::connected live-socket snapshot on UnimplementedService"
