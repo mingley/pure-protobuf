@@ -365,6 +365,7 @@ impl<S: Send + Sync + 'static, I: Interceptor> Intercepted<S, I> {
     /// attached with [`Self::on_response`] stays.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this Intercepted intercept stacks another inbound hook before the handler.
     /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this Intercepted intercept stacks another inbound hook before the handler.
+    /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the Server's Service; this Intercepted intercept stacks another inbound hook before one wrapped service.
     ///
     /// ```
     /// # fn demo<S, I>(wrapped: pbrs_grpc::Intercepted<S, I>) -> pbrs_grpc::Intercepted<S, impl pbrs_grpc::Interceptor>

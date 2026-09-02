@@ -3618,6 +3618,12 @@ fn channel_call_apis_document_hand_written_services() {
         ),
         "Intercepted::intercept rustdoc must Distinct on_response after-Ok from stacking inbound hooks"
     );
+    assert!(
+        intercept.contains(
+            "Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the Server's Service; this Intercepted intercept stacks another inbound hook before one wrapped service."
+        ),
+        "Intercepted::intercept rustdoc must Distinct Server Service coverage from stacking inbound hooks on one wrapped service"
+    );
     assert_eq!(
         intercept
             .matches("Same kernel-stamped [`crate::ResponseParts`] overlays as [`crate::Server::on_response`]:")
