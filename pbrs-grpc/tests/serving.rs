@@ -10394,6 +10394,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README TestService StreamSender fail: that is trailers after any messages already sent; this crate README Channel on_response Err fails the Call after a successful receive."
+        ),
+        "crate README must Distinct crate README TestService StreamSender fail after any messages already sent from this crate README Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        readme.contains(
             "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this crate README Channel on_response runs after a successful receive."
         ),
         "crate README must Distinct Channel on_response from Channel intercept"
