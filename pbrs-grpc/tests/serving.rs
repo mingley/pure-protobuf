@@ -13510,6 +13510,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status UnimplementedService interceptor Err: that is trailers without reading the body; this packed-status Channel on_response Err fails the Call after a successful receive."
+        ),
+        "status guide must Distinct packed-status UnimplementedService interceptor Err without reading the body from this packed-status Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status InteropTestService client interceptor Err: that is a local reject never opens a stream; this packed-status Channel on_response Err fails the Call after a successful receive."
         ),
         "status guide must Distinct packed-status InteropTestService client interceptor Err local reject never opens a stream from this packed-status Channel on_response Err Call fail after receive"
