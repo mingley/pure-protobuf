@@ -2240,6 +2240,7 @@ those transports too.
 Distinct from a guide TestService handler Err: that is after the handler ran; this guide TestService interceptor Err is trailers without reading the body.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide TestService interceptor Err is trailers without reading the body.
 Distinct from a guide TestService client interceptor Err: that is a local reject never opens a stream; this guide TestService interceptor Err is trailers without reading the body.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide TestService interceptor Err is trailers without reading the body.
 Distinct from a guide TestService StreamSender fail: that is trailers after any messages already sent; this guide TestService interceptor Err is trailers without reading the body.
 Distinct from a guide TestService client interceptor: that runs on the outbound call before the stream opens; this guide TestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client.
