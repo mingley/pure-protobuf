@@ -2236,6 +2236,7 @@ Distinct from a guide hello interceptor: that runs on the inbound RPC before the
 Distinct from a guide hello handler Err: that is after the handler ran; this guide hello StreamSender fail is trailers after any messages already sent.
 Distinct from a guide hello interceptor Err: that is trailers without reading the body; this guide hello StreamSender fail is trailers after any messages already sent.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide hello StreamSender fail is trailers after any messages already sent.
+Distinct from a guide hello client interceptor Err: that is a local reject never opens a stream; this guide hello StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this guide UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide UnimplementedService handler Err: that is after the handler ran; this guide UnimplementedService interceptor Err is trailers without reading the body.
 Distinct from a guide UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this guide UnimplementedService interceptor runs on the inbound RPC before the handler.
