@@ -808,6 +808,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Health interceptor Err: that is trailers without reading the body; this packed-status Health handler Err is after the handler ran.
   Distinct from a packed-status Health client interceptor Err: that is a local reject never opens a stream; this packed-status Health handler Err is after the handler ran.
   Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status Health handler Err is after the handler ran.
+  Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status Health handler Err is after the handler ran.
   Distinct from a packed-status Health StreamSender fail: that is trailers after any messages already sent; this packed-status Health handler Err is after the handler ran.
   `Outgoing::connected` is the live-socket snapshot on this packed-status Health client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
   `Status::from_error_details` is the typed bag after this packed-status Health client interceptor Err; a local reject never opens a stream.

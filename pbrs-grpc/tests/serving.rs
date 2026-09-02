@@ -10204,6 +10204,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status Health handler Err is after the handler ran."
+        ),
+        "status guide must Distinct Channel on_response Err Call fail after receive from this packed-status Health handler Err after the handler ran"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status Health StreamSender fail: that is trailers after any messages already sent; this packed-status Health handler Err is after the handler ran."
         ),
         "status guide must Distinct Health StreamSender fail after any messages already sent from this packed-status Health handler Err after the handler ran"
