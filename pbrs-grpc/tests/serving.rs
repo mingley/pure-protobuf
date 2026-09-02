@@ -10946,6 +10946,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide Reverser handler Err is after the handler ran."
+        ),
+        "guide must Distinct Channel on_response Err Call fail after receive from this guide Reverser handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide Reverser StreamSender fail: that is trailers after any messages already sent; this guide Reverser handler Err is after the handler ran."
         ),
         "guide must Distinct Reverser StreamSender fail after any messages already sent from this guide Reverser handler Err after the handler ran"
