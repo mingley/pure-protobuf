@@ -301,6 +301,7 @@ Distinct from `Channel::on_response`: that runs after a successful receive; this
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture server intercept runs on the inbound RPC before the handler.
 Distinct from `Server::on_response`: that runs after the handler returns Ok; this architecture server intercept runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture server intercept Err; those trailers reach the client without reading the body.
+Distinct from an architecture handler Err: that is after the handler ran; this architecture server intercept Err is trailers without reading the body.
 `Status::from_error_details` is the typed bag after this architecture Store interceptor Err; those trailers reach the client without reading the body.
 Distinct from an architecture Store handler Err: that is after the handler ran; this architecture Store interceptor Err is trailers without reading the body.
 Distinct from an architecture Store client interceptor: that runs on the outbound call before the stream opens; this architecture Store interceptor runs on the inbound RPC before the handler.
