@@ -2256,6 +2256,7 @@ Distinct from a guide InteropTestService interceptor: that runs on the inbound R
 `Status::from_error_details` is the typed bag after this guide InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from a guide InteropTestService handler Err: that is after the handler ran; this guide InteropTestService StreamSender fail is trailers after any messages already sent.
 Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide InteropTestService StreamSender fail is trailers after any messages already sent.
+Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide InteropTestService StreamSender fail is trailers after any messages already sent.
 
 ## One-shape proofs
 
