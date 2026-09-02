@@ -9392,6 +9392,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Store interceptor: that runs on the inbound RPC before the handler; this guide Store client interceptor runs on the outbound call before the stream opens."
+        ),
+        "guide must Distinct Store inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide Store StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "guide must name from_error_details typed bag next to Store StreamSender fail"

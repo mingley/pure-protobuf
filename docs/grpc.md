@@ -1848,6 +1848,7 @@ Distinct from a guide Store client interceptor: that runs on the outbound call b
 `Outgoing::connected` is the live-socket snapshot on this guide Store client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide Store client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide Store client interceptor already ran, so a local Err never consumes that budget.
+Distinct from a guide Store interceptor: that runs on the inbound RPC before the handler; this guide Store client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this guide Store StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `ResponseParts::compress_is_set` is occupancy on this guide on_response path, so a later interceptor can fill compress only when unset.
 `ResponseParts::clear_compress` restores the server gzip overlay after Server on_response on this guide on_response path.
