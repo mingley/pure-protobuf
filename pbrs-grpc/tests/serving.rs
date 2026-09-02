@@ -11099,6 +11099,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture InteropTestService interceptor: that runs on the inbound RPC before the handler; this architecture InteropTestService client interceptor runs on the outbound call before the stream opens."
+        ),
+        "architecture must Distinct InteropTestService inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "architecture must name from_error_details typed bag next to InteropTestService StreamSender fail"
