@@ -888,6 +888,7 @@ impl Channel {
     /// [`crate::Status::from_error_details`] is the typed bag after this Channel intercept Err; a local reject never opens a stream.
     /// Distinct from a handler Err: that is after the handler ran; this Channel intercept Err is a local reject never opens a stream.
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Channel intercept Err is a local reject never opens a stream.
+    /// Distinct from a Server intercept Err: that is trailers without reading the body; this Channel intercept Err is a local reject never opens a stream.
     /// Distinct from [`Self::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this interceptor already ran, so a local Err never consumes that budget.
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this Channel intercept runs on the outbound call before the stream opens.
