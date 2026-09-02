@@ -692,6 +692,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Store handler Err: that is after the handler ran; this packed-status Store StreamSender fail is trailers after any messages already sent.
   Distinct from a packed-status Store interceptor Err: that is trailers without reading the body; this packed-status Store StreamSender fail is trailers after any messages already sent.
   Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status Store StreamSender fail is trailers after any messages already sent.
+  Distinct from a packed-status Store client interceptor Err: that is a local reject never opens a stream; this packed-status Store StreamSender fail is trailers after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   Distinct from a packed-status TestService handler Err: that is after the handler ran; this packed-status TestService StreamSender fail is trailers after any messages already sent.
   Distinct from a packed-status TestService interceptor Err: that is trailers without reading the body; this packed-status TestService StreamSender fail is trailers after any messages already sent.
