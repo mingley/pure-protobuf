@@ -482,6 +482,7 @@ Distinct from an architecture Health interceptor: that runs on the inbound RPC b
 `file_containing_extension` / `all_extension_numbers_of_type` run on that
 one bidi method, including over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this architecture reflection interceptor Err; those trailers reach the client without reading the body.
+Distinct from an architecture reflection handler Err: that is after the handler ran; this architecture reflection interceptor Err is trailers without reading the body.
 Distinct from an architecture reflection client interceptor: that runs on the outbound call before the stream opens; this architecture reflection interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture reflection handler Err; those trailers reach the client.
 Distinct from an architecture reflection interceptor Err: that is trailers without reading the body; this architecture reflection handler Err is after the handler ran.

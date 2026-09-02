@@ -11381,6 +11381,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture reflection handler Err: that is after the handler ran; this architecture reflection interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct reflection handler Err after the handler ran from this architecture reflection interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture reflection client interceptor: that runs on the outbound call before the stream opens; this architecture reflection interceptor runs on the inbound RPC before the handler."
         ),
         "architecture must Distinct reflection inbound interceptor from client outbound-before-stream"
