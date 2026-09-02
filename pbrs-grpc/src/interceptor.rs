@@ -729,6 +729,7 @@ pub trait ClientInterceptor: Send + Sync + 'static {
     /// [`crate::Outgoing::compress_is_set`] is occupancy on this method-level intercept, so a later interceptor can fill compress only when unset.
     /// [`crate::Status::from_error_details`] is the typed bag on this method-level intercept Err; a local reject never opens a stream.
     /// Distinct from a handler Err: that is after the handler ran; this method-level intercept Err is a local reject never opens a stream.
+    /// Distinct from a method-level on_response Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this method-level intercept Err is a local reject never opens a stream.
     fn intercept(&self, call: &mut crate::Outgoing<'_>) -> Result<(), Status>;
 }
 
