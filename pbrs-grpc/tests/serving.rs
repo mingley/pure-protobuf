@@ -8978,6 +8978,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README server on_response Err: that is trailers-only after handler Ok; this crate README UnimplementedService handler Err is after the handler ran."
+        ),
+        "crate README must Distinct server on_response Err trailers-only after handler Ok from this crate README UnimplementedService handler Err after the handler ran"
+    );
+    assert!(
+        readme.contains(
             "`Outgoing::connected` is the live-socket snapshot on this crate README UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "crate README must name Outgoing::connected live-socket snapshot on UnimplementedService"
