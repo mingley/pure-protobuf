@@ -134,6 +134,7 @@ Distinct from a crate README reflection client interceptor Err: that is a local 
 Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README reflection StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this crate README Store interceptor Err; those trailers reach the client without reading the body.
 Distinct from a crate README Store handler Err: that is after the handler ran; this crate README Store interceptor Err is trailers without reading the body.
+Distinct from a crate README Store client interceptor Err: that is a local reject never opens a stream; this crate README Store interceptor Err is trailers without reading the body.
 Distinct from a crate README Store StreamSender fail: that is trailers after any messages already sent; this crate README Store interceptor Err is trailers without reading the body.
 Distinct from a crate README Store client interceptor: that runs on the outbound call before the stream opens; this crate README Store interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README Store handler Err; those trailers reach the client.
