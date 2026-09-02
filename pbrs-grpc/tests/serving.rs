@@ -5397,6 +5397,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this UnimplementedService client interceptor Err is a local reject never opens a stream."
+        ),
+        "testing crate rustdoc must Distinct UnimplementedService interceptor Err without reading the body from this UnimplementedService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        testing.contains(
             "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this UnimplementedService client interceptor already ran, so a local Err never consumes that budget."
         ),
         "testing crate rustdoc must Distinct max_concurrent_rpcs slot grab after UnimplementedService client intercept"
