@@ -466,6 +466,7 @@ pub trait ServiceExt: Service + Sized {
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this ServiceExt intercept runs on the inbound RPC before the handler.
     /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this ServiceExt intercept runs on the inbound RPC before the handler.
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the Server's Service; this ServiceExt intercept wraps one service with an inbound hook.
+    /// Distinct from [`crate::Router::intercept`]: that runs on the inbound RPC before every mounted service on that Router; this ServiceExt intercept wraps one service with an inbound hook.
     ///
     /// ```
     /// use pbrs_grpc::ServiceExt;

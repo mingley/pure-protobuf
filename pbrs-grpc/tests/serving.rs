@@ -3287,6 +3287,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ServiceExt::intercept rustdoc must Distinct Server Service coverage from wrapping one service"
     );
     assert!(
+        intercept.contains(
+            "Distinct from [`crate::Router::intercept`]: that runs on the inbound RPC before every mounted service on that Router; this ServiceExt intercept wraps one service with an inbound hook."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct Router mounted-service coverage from wrapping one service"
+    );
+    assert!(
         intercept.contains("svc.intercept(|rpc: &mut pbrs_grpc::Rpc| {"),
         "ServiceExt::intercept rustdoc example must attach a closure"
     );
