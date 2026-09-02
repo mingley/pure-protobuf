@@ -1918,6 +1918,7 @@ Distinct from a guide handler Err: that is after the handler ran; this guide ser
 Distinct from a guide server intercept Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide Health interceptor Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide Health StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
+Distinct from a guide reflection interceptor Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide TestService StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
