@@ -11325,6 +11325,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         ),
         "architecture must name from_error_details typed bag next to Channel on_response Err"
     );
+    assert!(
+        architecture.contains(
+            "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture Channel on_response runs after a successful receive."
+        ),
+        "architecture must Distinct Channel on_response from Channel intercept"
+    );
     assert_eq!(
         architecture.matches("extensions, `connected`).").count(),
         2,
