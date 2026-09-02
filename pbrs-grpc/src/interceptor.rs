@@ -496,6 +496,7 @@ pub trait ServiceExt: Service + Sized {
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ServiceExt intercept Err is trailers without reading the body.
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body.
+    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this ServiceExt intercept Err is trailers without reading the body.
     /// Distinct from [`crate::Channel::intercept`]: that runs on the outbound call before the stream opens; this ServiceExt intercept runs on the inbound RPC before the handler.
     /// Distinct from [`Self::on_response`]: that runs after the handler returns Ok; this ServiceExt intercept runs on the inbound RPC before the handler.
