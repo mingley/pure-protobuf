@@ -4495,6 +4495,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an InteropTestService interceptor Err: that is trailers without reading the body; this InteropTestService handler Err is after the handler ran."
+        ),
+        "InteropTestService rustdoc must Distinct interceptor Err without reading the body from this InteropTestService handler Err after the handler ran"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Outgoing::connected`] is the live-socket snapshot on this InteropTestService client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "InteropTestService rustdoc must name Outgoing::connected live-socket snapshot"
