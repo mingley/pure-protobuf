@@ -491,6 +491,9 @@ mod tests {
             "Distinct from an example README greeter interceptor Err: that is trailers without reading the body; this example README greeter server on_response Err is trailers-only after handler Ok."
         ));
         assert!(readme.contains(
+            "Distinct from an example README greeter client on_response Err: that fails the Call after a successful receive; this example README greeter server on_response Err is trailers-only after handler Ok."
+        ));
+        assert!(readme.contains(
             "Distinct from an example README greeter StreamSender fail: that is trailers after any messages already sent; this example README greeter server on_response Err is trailers-only after handler Ok."
         ));
         assert!(readme.contains(
