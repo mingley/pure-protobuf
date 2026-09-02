@@ -173,6 +173,7 @@
 //! ```
 //! Generated [`Greeter`] handler `Err` unpacks the same trailers as a generated trait method.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello handler Err; those trailers reach the client.
+//! Distinct from a hello intercept Err: that is a local reject never opens a stream; this hello handler Err is after the handler ran.
 //! Distinct from a hello StreamSender fail: that is trailers after any messages already sent; this hello handler Err is after the handler ran.
 //! Generated [`Greeter`] ServerHello / StreamHello [`crate::StreamSender::fail`] ships those trailers after a streamed DATA frame.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
