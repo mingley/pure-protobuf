@@ -13979,6 +13979,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture reflection interceptor Err: that is trailers without reading the body; this architecture reflection StreamSender fail is trailers after any messages already sent."
+        ),
+        "architecture must Distinct reflection interceptor Err without reading the body from this architecture reflection StreamSender fail after any messages already sent"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture Store interceptor Err; those trailers reach the client without reading the body."
         ),
         "architecture must name from_error_details typed bag next to Store interceptor Err"
