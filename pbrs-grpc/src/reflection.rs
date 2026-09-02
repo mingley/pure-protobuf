@@ -77,6 +77,7 @@
 //! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection server on_response Err is trailers-only after handler Ok.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection client on_response Err; a local reject fails the Call after a successful receive.
 //! Distinct from a reflection handler Err: that is after the handler ran; this reflection client on_response Err fails the Call after a successful receive.
+//! Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection client on_response Err fails the Call after a successful receive.
 //! Unix (`serve_unix` /
 //! `connect_unix`), TLS (`serve_tls` /
 //! `connect_tls`),
