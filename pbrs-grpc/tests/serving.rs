@@ -9914,6 +9914,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README hello StreamSender fail: that is trailers after any messages already sent; this crate README hello client interceptor Err is a local reject never opens a stream."
+        ),
+        "crate README must Distinct crate README hello StreamSender fail after any messages already sent from this crate README hello client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        readme.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README hello client interceptor already ran, so a local Err never consumes that budget."
         ),
         "crate README must Distinct max_concurrent_rpcs slot grab after hello client intercept"
