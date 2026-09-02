@@ -712,6 +712,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status InteropTestService handler Err: that is after the handler ran; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent.
   Distinct from a packed-status InteropTestService interceptor Err: that is trailers without reading the body; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent.
   Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent.
+  Distinct from a packed-status InteropTestService client interceptor Err: that is a local reject never opens a stream; this packed-status InteropTestService StreamSender fail is trailers after any messages already sent.
   On a client request sender it resets CANCEL
   (no request-side `grpc-status`); a client-streaming `Call`, or a bidi
   `Call` that has not yet seen headers, resolves with that status, not
