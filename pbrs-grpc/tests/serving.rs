@@ -10286,6 +10286,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README InteropTestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "crate README must Distinct crate README Channel on_response Err Call fail after receive from this crate README InteropTestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        readme.contains(
             "`ResponseParts::compress_is_set` is occupancy on this crate README on_response path, so a later interceptor can fill compress only when unset."
         ),
         "crate README must name ResponseParts::compress_is_set occupancy next to intercept clear_timeout"
