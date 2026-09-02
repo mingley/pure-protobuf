@@ -3552,6 +3552,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this ServiceExt intercept Err is trailers without reading the body."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct ClientInterceptor Err local reject never opens a stream from this ServiceExt intercept Err without reading the body"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a StreamSender fail: that is trailers after any messages already sent; this ServiceExt intercept Err is trailers without reading the body."
         ),
         "ServiceExt::intercept rustdoc must Distinct StreamSender fail after any messages already sent from this ServiceExt intercept Err without reading the body"
