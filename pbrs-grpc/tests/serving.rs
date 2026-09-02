@@ -11018,6 +11018,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide hello handler Err is after the handler ran."
+        ),
+        "guide must Distinct server on_response Err trailers-only after handler Ok from this guide hello handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide hello handler Err is after the handler ran."
         ),
         "guide must Distinct hello StreamSender fail after any messages already sent from this guide hello handler Err after the handler ran"
