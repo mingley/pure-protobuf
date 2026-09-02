@@ -6627,6 +6627,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health interceptor Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map Health StreamSender fail after any messages already sent from this crate-map Health interceptor Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map Health client interceptor: that runs on the outbound call before the stream opens; this crate-map Health interceptor runs on the inbound RPC before the handler."
         ),
         "crate docs must Distinct Health client outbound-before-stream from inbound-before-handler"
