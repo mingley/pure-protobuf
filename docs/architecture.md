@@ -326,6 +326,7 @@ Distinct from an architecture Store interceptor: that runs on the inbound RPC be
 Distinct from an architecture Store handler Err: that is after the handler ran; this architecture Store StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture Store interceptor Err: that is trailers without reading the body; this architecture Store StreamSender fail is trailers after any messages already sent.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture Store StreamSender fail is trailers after any messages already sent.
+Distinct from an architecture Store client interceptor Err: that is a local reject never opens a stream; this architecture Store StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this architecture TestService interceptor Err; those trailers reach the client without reading the body.
 Distinct from an architecture TestService handler Err: that is after the handler ran; this architecture TestService interceptor Err is trailers without reading the body.
 Distinct from an architecture TestService StreamSender fail: that is trailers after any messages already sent; this architecture TestService interceptor Err is trailers without reading the body.
