@@ -322,6 +322,9 @@ mod tests {
             "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter interceptor Err is trailers without reading the body."
         ));
         assert!(readme.contains(
+            "Distinct from an example README greeter server on_response Err: that is trailers-only after handler Ok; this example README greeter interceptor Err is trailers without reading the body."
+        ));
+        assert!(readme.contains(
             "Distinct from an example README greeter client interceptor: that runs on the outbound call before the stream opens; this example README greeter interceptor runs on the inbound RPC before the handler."
         ));
     }
