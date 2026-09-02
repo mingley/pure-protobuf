@@ -140,6 +140,8 @@
 //!
 //! Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this crate-map [`ResponseInterceptor`] runs after the handler returns Ok or after a successful receive.
 //!
+//! Distinct from [`ClientInterceptor`]: that runs on the outbound call before the stream opens; this crate-map [`ResponseInterceptor`] runs after the handler returns Ok or after a successful receive.
+//!
 //! Distinct from [`ResponseInterceptor`]: that runs after the handler returns Ok or after a successful receive; this crate-map [`ClientInterceptor`] runs on the outbound call before the stream opens.
 //!
 //! Distinct from [`Interceptor`]: that is the inbound hook; this crate-map [`Intercepted`] is the wrapper that runs it before the handler.
