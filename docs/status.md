@@ -867,6 +867,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Reverser interceptor: that runs on the inbound RPC before the handler; this packed-status Reverser client interceptor runs on the outbound call before the stream opens.
   `Status::from_error_details` is the typed bag after this packed-status hello interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status hello handler Err: that is after the handler ran; this packed-status hello interceptor Err is trailers without reading the body.
+  Distinct from a packed-status hello StreamSender fail: that is trailers after any messages already sent; this packed-status hello interceptor Err is trailers without reading the body.
   Distinct from a packed-status hello client interceptor: that runs on the outbound call before the stream opens; this packed-status hello interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status hello handler Err; those trailers reach the client.
   Distinct from a packed-status hello interceptor Err: that is trailers without reading the body; this packed-status hello handler Err is after the handler ran.
