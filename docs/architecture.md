@@ -480,6 +480,7 @@ Distinct from `Server::intercept`: that runs on the inbound RPC before the handl
 Distinct from an architecture handler Err: that is after the handler ran; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture interceptor Err: that is a local reject never opens a stream; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture Health client interceptor Err: that is a local reject never opens a stream; this architecture Channel on_response Err fails the Call after a successful receive.
+Distinct from an architecture Health interceptor Err: that is trailers without reading the body; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture Health StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture reflection client interceptor Err: that is a local reject never opens a stream; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture reflection StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
