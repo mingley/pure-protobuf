@@ -4682,6 +4682,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated client on_response Err fails the Call after a successful receive."
+        ),
+        "generated client on_response rustdoc must Distinct generated intercept Err local reject never opens a stream from this generated client on_response Err Call fail after receive"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this generated client on_response runs after a successful receive."
         ),
         "generated client on_response rustdoc must Distinct intercept outbound-before-stream from after-receive"
