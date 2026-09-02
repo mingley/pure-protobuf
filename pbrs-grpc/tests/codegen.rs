@@ -3965,6 +3965,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "server-streaming trait methods must Distinct generated intercept Err local reject never opens a stream from this generated StreamSender fail after any messages already sent"
     );
     assert!(
+        src.contains("Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated StreamSender fail is trailers after any messages already sent."),
+        "server-streaming trait methods must Distinct generated client on_response Err Call fail after receive from this generated StreamSender fail after any messages already sent"
+    );
+    assert!(
         src.contains("Spawned work should await [`::pbrs_grpc::Request::cancelled`]"),
         "trait methods must name spawned cancelled"
     );
