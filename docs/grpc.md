@@ -1920,6 +1920,7 @@ Distinct from a guide interceptor Err: that is a local reject never opens a stre
 Distinct from a guide Health StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide reflection StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
+Distinct from a guide TestService StreamSender fail: that is trailers after any messages already sent; this guide Channel on_response Err fails the Call after a successful receive.
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this guide Channel on_response runs after a successful receive.
 
 Typed context the caller put on `Request::extensions_mut` is visible to every
