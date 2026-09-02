@@ -13048,6 +13048,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status InteropTestService interceptor Err: that is trailers without reading the body; this packed-status server on_response Err is trailers-only after handler Ok."
+        ),
+        "status guide must Distinct packed-status InteropTestService interceptor Err without reading the body from this packed-status server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status InteropTestService StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok."
         ),
         "status guide must Distinct packed-status InteropTestService StreamSender fail after any messages already sent from this packed-status server on_response Err trailers-only after handler Ok"
