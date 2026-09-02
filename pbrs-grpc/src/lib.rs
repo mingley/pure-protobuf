@@ -420,6 +420,8 @@
 //!
 //! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map hello StreamSender fail is trailers after any messages already sent.
 //!
+//! Distinct from a crate-map hello client interceptor Err: that is a local reject never opens a stream; this crate-map hello StreamSender fail is trailers after any messages already sent.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 //!
 //! Distinct from a crate-map UnimplementedService handler Err: that is after the handler ran; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
