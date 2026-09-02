@@ -12499,6 +12499,12 @@ fn server_and_router_config_document_every_call_shape() {
         ),
         "Router::on_response rustdoc must Distinct intercept inbound-before-handler from after-Ok"
     );
+    assert!(
+        src.contains(
+            "Distinct from [`Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this Router on_response runs after the handler returns Ok on every mounted service on this Router."
+        ),
+        "Router::on_response rustdoc must Distinct Server Service coverage from this Router on_response mounted-service coverage"
+    );
     assert_eq!(
         src.matches(
             "gzip responses when the client advertises gzip. Applies to every call\n    /// shape, including over TLS, mTLS, Unix, and [`Self::serve_connection`]."
