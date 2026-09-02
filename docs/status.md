@@ -554,6 +554,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status InteropTestService client interceptor Err: that is a local reject never opens a stream; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status InteropTestService interceptor Err: that is trailers without reading the body; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status InteropTestService StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive.
+  Distinct from a packed-status server on_response Err: that is trailers-only after handler Ok; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this packed-status Channel on_response runs after a successful receive.
   Caller extensions on `Request::extensions_mut`
   and channel `MessageLimits` on `Outgoing::limits` are visible to a client
