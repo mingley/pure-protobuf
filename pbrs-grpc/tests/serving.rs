@@ -5229,6 +5229,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing client interceptor Err: that is a local reject never opens a stream; this testing StreamSender fail is trailers after any messages already sent."
+        ),
+        "testing crate rustdoc must Distinct client interceptor Err local reject never opens a stream from this testing StreamSender fail after any messages already sent"
+    );
+    assert!(
+        testing.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this testing server on_response Err; a local reject is trailers-only after handler Ok."
         ),
         "testing crate rustdoc must name from_error_details typed bag next to testing server on_response Err"
