@@ -533,6 +533,7 @@ impl<T> StreamSender<T> {
     /// Distinct from an Interceptor Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a Server intercept Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a Router intercept Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
+    /// Distinct from a ServiceExt intercept Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent.
