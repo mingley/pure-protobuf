@@ -9136,6 +9136,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this packed-status server on_response runs after the handler returns Ok."
+        ),
+        "status guide must Distinct server on_response from Server intercept"
+    );
+    assert!(
+        status_guide.contains(
             "`ResponseParts::clear_compress` drops a compress choice after Channel on_response on this packed-status on_response path; a received reply has no server gzip overlay to restore."
         ),
         "status guide must name ResponseParts::clear_compress receive-path next to Server restore"
