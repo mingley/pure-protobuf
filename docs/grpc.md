@@ -1869,6 +1869,7 @@ Distinct from a guide Store client interceptor: that runs on the outbound call b
 Distinct from a guide Store interceptor Err: that is trailers without reading the body; this guide Store handler Err is after the handler ran.
 Distinct from a guide Store client interceptor Err: that is a local reject never opens a stream; this guide Store handler Err is after the handler ran.
 Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Store handler Err is after the handler ran.
+Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide Store handler Err is after the handler ran.
 Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Store handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this guide Store client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this guide Store client interceptor Err; a local reject never opens a stream.
