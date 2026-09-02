@@ -449,6 +449,7 @@ Distinct from an architecture Health StreamSender fail: that is trailers after a
 Distinct from an architecture reflection StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from an architecture TestService StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
+Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive.
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture Channel on_response runs after a successful receive.
 
 ### Status

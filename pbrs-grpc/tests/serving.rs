@@ -15887,6 +15887,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture Channel on_response Err fails the Call after a successful receive."
+        ),
+        "architecture must Distinct architecture Reverser StreamSender fail after any messages already sent from this architecture Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture Channel on_response runs after a successful receive."
         ),
         "architecture must Distinct Channel on_response from Channel intercept"
