@@ -690,6 +690,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health StreamSender fail: that is trailers after any messages already sent; this health handler Err is after the handler ran."
+        ),
+        "Health crate rustdoc must Distinct StreamSender fail after any messages already sent from this health handler Err after the handler ran"
+    );
+    assert!(
+        src.contains(
             "[`crate::Status::from_error_details`] is the typed bag after this health client interceptor Err; a local reject never opens a stream."
         ),
         "Health crate rustdoc must name from_error_details typed bag next to client interceptor Err"
