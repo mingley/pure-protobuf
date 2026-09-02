@@ -342,6 +342,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 Distinct from an architecture hello interceptor: that runs on the inbound RPC before the handler; this architecture hello client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this architecture hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 `Status::from_error_details` is the typed bag after this architecture UnimplementedService interceptor Err; those trailers reach the client without reading the body.
+Distinct from an architecture UnimplementedService handler Err: that is after the handler ran; this architecture UnimplementedService interceptor Err is trailers without reading the body.
 Distinct from an architecture UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this architecture UnimplementedService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture UnimplementedService handler Err; those trailers reach the client.
 Distinct from an architecture UnimplementedService interceptor Err: that is trailers without reading the body; this architecture UnimplementedService handler Err is after the handler ran.
