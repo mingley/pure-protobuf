@@ -678,6 +678,12 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a health client interceptor Err: that is a local reject never opens a stream; this health interceptor Err is trailers without reading the body."
+        ),
+        "Health crate rustdoc must Distinct client interceptor Err local reject never opens a stream from this health interceptor Err without reading the body"
+    );
+    assert!(
+        src.contains(
             "Distinct from a health client interceptor: that runs on the outbound call before the stream opens; this health interceptor runs on the inbound RPC before the handler."
         ),
         "Health crate rustdoc must Distinct client outbound-before-stream from inbound-before-handler"
