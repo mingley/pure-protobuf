@@ -2020,6 +2020,7 @@ impl<S: Service> Server<S> {
     /// [`Status::from_error_details`] is the typed bag after this Server on_response Err; a local reject is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this runs after the handler returns Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Server on_response runs after the handler returns Ok.
+    /// Distinct from [`Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this Server on_response runs after the handler returns Ok on the Server's Service.
     /// Generated servers expose the same method:
     /// `GreeterServer::new(svc).on_response(stamp).serve(addr)`.
     /// On a [`Router`], call [`Router::on_response`] to cover every mounted

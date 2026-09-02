@@ -12477,6 +12477,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from [`Router::on_response`]: that runs after the handler returns Ok on every mounted service on that Router; this Server on_response runs after the handler returns Ok on the Server's Service."
+        ),
+        "Server::on_response rustdoc must Distinct Router mounted-service coverage from this Server on_response Service coverage"
+    );
+    assert!(
+        src.contains(
             "[`crate::ResponseParts::compress_is_set`] is occupancy after this Router on_response, so a later interceptor can fill compress only when unset."
         ),
         "Router::on_response rustdoc must name compress_is_set occupancy next to send_buffer Distinct"
