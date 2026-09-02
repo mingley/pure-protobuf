@@ -234,6 +234,7 @@ Distinct from a crate README hello client interceptor Err: that is a local rejec
 Distinct from a crate README Channel on_response Err: that fails the Call after a successful receive; this crate README hello StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this crate README UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 Distinct from a crate README UnimplementedService handler Err: that is after the handler ran; this crate README UnimplementedService interceptor Err is trailers without reading the body.
+Distinct from a crate README UnimplementedService client interceptor Err: that is a local reject never opens a stream; this crate README UnimplementedService interceptor Err is trailers without reading the body.
 Distinct from a crate README UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this crate README UnimplementedService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README UnimplementedService handler Err; those trailers reach the client.
 Distinct from a crate README UnimplementedService interceptor Err: that is trailers without reading the body; this crate README UnimplementedService handler Err is after the handler ran.
