@@ -987,6 +987,7 @@ See `docs/upb.md`. Short list:
   on those methods, including over TLS, mTLS, Unix, and `from_io`.
   `Status::from_error_details` is the typed bag after this packed-status TestService interceptor Err; those trailers reach the client without reading the body.
   Distinct from a packed-status TestService handler Err: that is after the handler ran; this packed-status TestService interceptor Err is trailers without reading the body.
+  Distinct from a packed-status TestService client interceptor Err: that is a local reject never opens a stream; this packed-status TestService interceptor Err is trailers without reading the body.
   Distinct from a packed-status TestService StreamSender fail: that is trailers after any messages already sent; this packed-status TestService interceptor Err is trailers without reading the body.
   Distinct from a packed-status TestService client interceptor: that runs on the outbound call before the stream opens; this packed-status TestService interceptor runs on the inbound RPC before the handler.
   `Status::from_error_details` is the typed bag after this packed-status TestService handler Err; those trailers reach the client.
