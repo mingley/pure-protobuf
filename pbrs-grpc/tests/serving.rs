@@ -15635,6 +15635,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture TestService client interceptor Err is a local reject never opens a stream."
+        ),
+        "architecture must Distinct architecture Channel on_response Err Call fail after receive from this architecture TestService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture TestService StreamSender fail: that is trailers after any messages already sent; this architecture TestService client interceptor Err is a local reject never opens a stream."
         ),
         "architecture must Distinct architecture TestService StreamSender fail after any messages already sent from this architecture TestService client interceptor Err local reject never opens a stream"
