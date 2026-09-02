@@ -234,6 +234,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map hello interceptor Err; those trailers reach the client without reading the body.
 //!
+//! Distinct from a crate-map hello client interceptor: that runs on the outbound call before the stream opens; this crate-map hello interceptor runs on the inbound RPC before the handler.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map hello handler Err; those trailers reach the client.
 //!
 //! [`Outgoing::connected`] is the live-socket snapshot on this crate-map hello client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
