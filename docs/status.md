@@ -495,6 +495,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status interceptor Err; a local reject never opens a stream.
   Distinct from a packed-status handler Err: that is after the handler ran; this packed-status interceptor Err is a local reject never opens a stream.
   Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status interceptor Err is a local reject never opens a stream.
+  Distinct from a packed-status server intercept Err: that is trailers without reading the body; this packed-status interceptor Err is a local reject never opens a stream.
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status interceptor already ran, so a local Err never consumes that budget.
   Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this packed-status Channel intercept runs on the outbound call before the stream opens.
   Distinct from `Channel::on_response`: that runs after a successful receive; this packed-status Channel intercept runs on the outbound call before the stream opens.
