@@ -304,6 +304,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService handler Err; those trailers reach the client.
 //!
+//! Distinct from a crate-map InteropTestService interceptor Err: that is trailers without reading the body; this crate-map InteropTestService handler Err is after the handler ran.
+//!
 //! [`Outgoing::connected`] is the live-socket snapshot on this crate-map InteropTestService client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService client interceptor Err; a local reject never opens a stream.
