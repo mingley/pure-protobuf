@@ -139,6 +139,7 @@ Distinct from a crate README Reverser handler Err: that is after the handler ran
 Distinct from a crate README Reverser client interceptor: that runs on the outbound call before the stream opens; this crate README Reverser interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README Reverser handler Err; those trailers reach the client.
 Distinct from a crate README Reverser interceptor Err: that is trailers without reading the body; this crate README Reverser handler Err is after the handler ran.
+Distinct from a crate README Reverser client interceptor Err: that is a local reject never opens a stream; this crate README Reverser handler Err is after the handler ran.
 Distinct from a crate README Reverser StreamSender fail: that is trailers after any messages already sent; this crate README Reverser handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this crate README Reverser client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README Reverser client interceptor Err; a local reject never opens a stream.
