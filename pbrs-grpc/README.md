@@ -262,6 +262,7 @@ Distinct from `Server::intercept`: that runs on the inbound RPC before the handl
 Distinct from a crate README handler Err: that is after the handler ran; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from a crate README interceptor Err: that is a local reject never opens a stream; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from a crate README Health StreamSender fail: that is trailers after any messages already sent; this crate README Channel on_response Err fails the Call after a successful receive.
+Distinct from a crate README reflection StreamSender fail: that is trailers after any messages already sent; this crate README Channel on_response Err fails the Call after a successful receive.
 Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this crate README Channel on_response runs after a successful receive.
 `Streaming` implements
 `futures_core::Stream`.
