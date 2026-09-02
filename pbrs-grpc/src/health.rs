@@ -58,6 +58,7 @@
 //! Distinct from a health handler Err: that is after the handler ran; this health StreamSender fail is trailers after any messages already sent.
 //! [`crate::Status::from_error_details`] is the typed bag after this health server on_response Err; a local reject is trailers-only after handler Ok.
 //! Distinct from a health handler Err: that is after the handler ran; this health server on_response Err is trailers-only after handler Ok.
+//! Distinct from a health interceptor Err: that is trailers without reading the body; this health server on_response Err is trailers-only after handler Ok.
 //! [`crate::Status::from_error_details`] is the typed bag after this health client on_response Err; a local reject fails the Call after a successful receive.
 //! Distinct from a health handler Err: that is after the handler ran; this health client on_response Err fails the Call after a successful receive.
 //! Unix (`serve_unix` /
