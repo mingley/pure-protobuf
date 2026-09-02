@@ -522,6 +522,8 @@
 //!
 //! Distinct from a crate-map InteropTestService handler Err: that is after the handler ran; this crate-map InteropTestService interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map InteropTestService interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map InteropTestService client interceptor Err: that is a local reject never opens a stream; this crate-map InteropTestService interceptor Err is trailers without reading the body.
 //!
 //! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map InteropTestService interceptor Err is trailers without reading the body.
