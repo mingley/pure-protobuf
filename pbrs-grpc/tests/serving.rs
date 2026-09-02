@@ -8776,6 +8776,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Store client interceptor: that runs on the outbound call before the stream opens; this packed-status Store interceptor runs on the inbound RPC before the handler."
+        ),
+        "status guide must Distinct Store inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status Health handler Err; those trailers reach the client."
         ),
         "status guide must name from_error_details typed bag next to Health handler Err"
