@@ -3916,6 +3916,10 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
         );
         let _ = writeln!(
             src,
+            "    /// Distinct from a generated intercept Err: that is a local reject never opens a stream; this generated handler Err is after the handler ran."
+        );
+        let _ = writeln!(
+            src,
             "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated handler Err is after the handler ran."
         );
         if m.server_streaming {
