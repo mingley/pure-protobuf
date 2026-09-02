@@ -6411,6 +6411,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map TestService handler Err is after the handler ran."
+        ),
+        "crate docs must Distinct crate-map server on_response Err trailers-only after handler Ok from this crate-map TestService handler Err after the handler ran"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map TestService handler Err is after the handler ran."
         ),
         "crate docs must Distinct crate-map TestService StreamSender fail after any messages already sent from this crate-map TestService handler Err after the handler ran"
