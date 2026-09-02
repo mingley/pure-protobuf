@@ -11866,6 +11866,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status hello client interceptor Err: that is a local reject never opens a stream; this packed-status hello StreamSender fail is trailers after any messages already sent."
+        ),
+        "status guide must Distinct packed-status hello client interceptor Err local reject never opens a stream from this packed-status hello StreamSender fail after any messages already sent"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ),
         "status guide must name from_error_details typed bag next to InteropTestService StreamSender fail"
