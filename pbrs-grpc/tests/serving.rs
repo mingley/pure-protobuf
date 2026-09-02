@@ -13373,6 +13373,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture UnimplementedService handler Err is after the handler ran."
+        ),
+        "architecture must Distinct Channel on_response Err Call fail after receive from this architecture UnimplementedService handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "`Outgoing::connected` is the live-socket snapshot on this architecture UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "architecture must name Outgoing::connected live-socket snapshot on UnimplementedService"
