@@ -1030,6 +1030,7 @@ Watch `StreamSender::fail` after a streamed DATA frame unpacks the
 same way (Check is unary: no response DATA then trailers), including over TLS,
 mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this guide Health StreamSender fail on a server response producer; those trailers ship after any messages already sent.
+Distinct from a guide Health handler Err: that is after the handler ran; this guide Health StreamSender fail is trailers after any messages already sent.
 
 ## Reflection
 
