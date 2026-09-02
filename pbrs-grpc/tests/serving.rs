@@ -8354,6 +8354,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Reverser handler Err: that is after the handler ran; this crate README Reverser StreamSender fail is trailers after any messages already sent."
+        ),
+        "crate README must Distinct Reverser handler Err after the handler ran from this crate README Reverser StreamSender fail after any messages already sent"
+    );
+    assert!(
+        readme.contains(
             "`Status::from_error_details` is the typed bag after this crate README hello interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate README must name from_error_details typed bag next to hello interceptor Err"
