@@ -358,6 +358,12 @@ mod tests {
         assert!(readme.contains(
             "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter server on_response Err is trailers-only after handler Ok."
         ));
+        assert!(readme.contains(
+            "`Status::from_error_details` is the typed bag after this example README greeter client on_response Err; a local reject fails the Call after a successful receive."
+        ));
+        assert!(readme.contains(
+            "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter client on_response Err fails the Call after a successful receive."
+        ));
     }
 
     fn text(reply: &HelloReply) -> String {

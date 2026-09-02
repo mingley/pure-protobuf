@@ -31,3 +31,5 @@ Distinct from an example README greeter interceptor: that runs on the inbound RP
 Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this example README greeter server on_response Err; a local reject is trailers-only after handler Ok.
 Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter server on_response Err is trailers-only after handler Ok.
+`Status::from_error_details` is the typed bag after this example README greeter client on_response Err; a local reject fails the Call after a successful receive.
+Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter client on_response Err fails the Call after a successful receive.
