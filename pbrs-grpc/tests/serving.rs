@@ -15116,6 +15116,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide UnimplementedService interceptor Err: that is trailers without reading the body; this guide Channel on_response Err fails the Call after a successful receive."
+        ),
+        "guide must Distinct guide UnimplementedService interceptor Err without reading the body from this guide Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide InteropTestService client interceptor Err: that is a local reject never opens a stream; this guide Channel on_response Err fails the Call after a successful receive."
         ),
         "guide must Distinct guide InteropTestService client interceptor Err local reject never opens a stream from this guide Channel on_response Err Call fail after receive"
