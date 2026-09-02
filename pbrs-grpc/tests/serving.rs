@@ -6189,6 +6189,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from [`Server::intercept`]: that runs on the inbound RPC before the handler; this crate-map server on_response runs after the handler returns Ok."
+        ),
+        "crate docs must Distinct crate-map server on_response from Server intercept"
+    );
+    assert!(
+        crate_src.contains(
             "[`ResponseParts::clear_compress`] drops a compress choice after Channel on_response on this crate-map on_response path; a received reply has no server gzip overlay to restore."
         ),
         "crate docs must name ResponseParts::clear_compress receive-path next to Server restore"
