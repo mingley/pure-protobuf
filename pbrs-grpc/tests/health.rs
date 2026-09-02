@@ -748,6 +748,18 @@ fn health_crate_docs_name_interceptor_wait_for_ready() {
         ),
         "Health crate rustdoc must Distinct handler Err after the handler ran from this health server on_response Err trailers-only after handler Ok"
     );
+    assert!(
+        src.contains(
+            "[`crate::Status::from_error_details`] is the typed bag after this health client on_response Err; a local reject fails the Call after a successful receive."
+        ),
+        "Health crate rustdoc must name from_error_details typed bag next to health client on_response Err"
+    );
+    assert!(
+        src.contains(
+            "Distinct from a health handler Err: that is after the handler ran; this health client on_response Err fails the Call after a successful receive."
+        ),
+        "Health crate rustdoc must Distinct handler Err after the handler ran from this health client on_response Err Call fail after receive"
+    );
 }
 
 fn req(name: &str) -> HealthCheckRequest {
