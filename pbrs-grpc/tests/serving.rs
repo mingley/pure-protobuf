@@ -4282,6 +4282,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from a hello handler Err: that is after the handler ran; this hello intercept Err is a local reject never opens a stream."
+        ),
+        "hello GreeterClient::intercept rustdoc must Distinct hello handler Err after the handler ran from this hello intercept Err local reject never opens a stream"
+    );
+    assert!(
+        hello.contains(
             "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; a hello intercept already ran, so a local Err never consumes that budget."
         ),
         "hello GreeterClient::intercept rustdoc must Distinct max_concurrent_rpcs slot grab after intercept"

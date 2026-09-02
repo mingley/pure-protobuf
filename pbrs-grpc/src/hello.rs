@@ -16,6 +16,7 @@
 //! [`crate::Outgoing::clear_timeout`] opts out of the channel timeout after a hello intercept choice.
 //! [`crate::Outgoing::connected`] is the live-socket snapshot on this hello intercept path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello intercept Err; a local reject never opens a stream.
+//! Distinct from a hello handler Err: that is after the handler ran; this hello intercept Err is a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; a hello intercept already ran, so a local Err never consumes that budget.
 //! Distinct from [`GreeterServer::intercept`]: that runs on the inbound RPC before the handler; this hello intercept runs on the outbound call before the stream opens.
 //! Distinct from [`GreeterClient::on_response`]: that runs after a successful receive; this hello intercept runs on the outbound call before the stream opens.
