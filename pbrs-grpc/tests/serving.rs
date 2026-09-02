@@ -8728,6 +8728,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status hello client interceptor: that runs on the outbound call before the stream opens; this packed-status hello interceptor runs on the inbound RPC before the handler."
+        ),
+        "status guide must Distinct hello inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        status_guide.contains(
             "`Status::from_error_details` is the typed bag after this packed-status hello handler Err; those trailers reach the client."
         ),
         "status guide must name from_error_details typed bag next to hello handler Err"
