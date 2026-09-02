@@ -5229,6 +5229,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from a generated client on_response Err: that fails the Call after a successful receive; this generated intercept Err is a local reject never opens a stream."
+    );
+    let _ = writeln!(
+        src,
         "    /// Distinct from [`{G}::Channel::max_concurrent_rpcs`]: that takes a slot when the [`{G}::Call`] is polled; a generated intercept already ran, so a local Err never consumes that budget."
     );
     let _ = writeln!(
