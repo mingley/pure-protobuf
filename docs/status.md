@@ -668,6 +668,7 @@ See `docs/upb.md`. Short list:
   `Status::from_error_details` is the typed bag after this packed-status Store StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   Distinct from a packed-status Store handler Err: that is after the handler ran; this packed-status Store StreamSender fail is trailers after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status TestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
+  Distinct from a packed-status TestService handler Err: that is after the handler ran; this packed-status TestService StreamSender fail is trailers after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
   `Status::from_error_details` is the typed bag after this packed-status InteropTestService StreamSender fail on a server response producer; those trailers ship after any messages already sent.
