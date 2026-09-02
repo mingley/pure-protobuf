@@ -13444,6 +13444,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status server on_response Err is trailers-only after handler Ok."
+        ),
+        "status guide must Distinct packed-status Channel on_response Err Call fail after receive from this packed-status server on_response Err trailers-only after handler Ok"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this packed-status server on_response runs after the handler returns Ok."
         ),
         "status guide must Distinct server on_response from Server intercept"
