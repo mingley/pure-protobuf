@@ -191,6 +191,7 @@
 //! Distinct from a hello handler Err: that is after the handler ran; this hello StreamSender fail is trailers after any messages already sent.
 //! Distinct from a hello server intercept Err: that is trailers without reading the body; this hello StreamSender fail is trailers after any messages already sent.
 //! Distinct from a hello server on_response Err: that is trailers-only after handler Ok; this hello StreamSender fail is trailers after any messages already sent.
+//! Distinct from a hello intercept Err: that is a local reject never opens a stream; this hello StreamSender fail is trailers after any messages already sent.
 
 #![allow(missing_docs, reason = "messages come from the code generator")]
 
