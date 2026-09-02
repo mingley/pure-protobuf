@@ -2264,6 +2264,7 @@ Distinct from a guide Reverser client interceptor Err: that is a local reject ne
 Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide Reverser StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this guide hello interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide hello handler Err: that is after the handler ran; this guide hello interceptor Err is trailers without reading the body.
+Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide hello interceptor Err is trailers without reading the body.
 Distinct from a guide hello client interceptor Err: that is a local reject never opens a stream; this guide hello interceptor Err is trailers without reading the body.
 Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide hello interceptor Err is trailers without reading the body.
 Distinct from a guide hello client interceptor: that runs on the outbound call before the stream opens; this guide hello interceptor runs on the inbound RPC before the handler.
