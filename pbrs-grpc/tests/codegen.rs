@@ -3957,6 +3957,10 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
         "server-streaming trait methods must Distinct generated server intercept Err without reading the body from this generated StreamSender fail after any messages already sent"
     );
     assert!(
+        src.contains("Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated StreamSender fail is trailers after any messages already sent."),
+        "server-streaming trait methods must Distinct generated server on_response Err trailers-only after handler Ok from this generated StreamSender fail after any messages already sent"
+    );
+    assert!(
         src.contains("Spawned work should await [`::pbrs_grpc::Request::cancelled`]"),
         "trait methods must name spawned cancelled"
     );
