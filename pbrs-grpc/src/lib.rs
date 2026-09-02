@@ -596,6 +596,8 @@
 //!
 //! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
 //!
+//! Distinct from a crate-map hello interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
+//!
 //! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
 //!
 //! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
