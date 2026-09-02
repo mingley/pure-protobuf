@@ -684,6 +684,8 @@
 //!
 //! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
+//! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Channel on_response Err fails the Call after a successful receive.
+//!
 //! Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map Channel on_response runs after a successful receive.
 //!
 //! Compiling intercept / on_response overlay dumps live on [`hello`] (`GreeterClient` / `GreeterServer`).
