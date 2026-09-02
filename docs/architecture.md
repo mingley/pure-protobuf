@@ -440,6 +440,7 @@ that name is `SERVICE_UNKNOWN`; Watch streams `set_not_serving` /
 over TLS, mTLS, Unix, and `from_io`. `Watch` ends when the client cancels or drops the
 stream, without waiting for a later status change.
 `Status::from_error_details` is the typed bag after this architecture Health interceptor Err; those trailers reach the client without reading the body.
+Distinct from an architecture Health client interceptor: that runs on the outbound call before the stream opens; this architecture Health interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture Health handler Err; those trailers reach the client.
 `Outgoing::connected` is the live-socket snapshot on this architecture Health client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture Health client interceptor Err; a local reject never opens a stream.
