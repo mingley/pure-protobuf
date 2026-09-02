@@ -5237,6 +5237,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated intercept Err is a local reject never opens a stream."
+    );
+    let _ = writeln!(
+        src,
         "    /// Distinct from [`{G}::Channel::max_concurrent_rpcs`]: that takes a slot when the [`{G}::Call`] is polled; a generated intercept already ran, so a local Err never consumes that budget."
     );
     let _ = writeln!(
