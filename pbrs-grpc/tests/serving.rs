@@ -11429,6 +11429,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Store interceptor Err: that is trailers without reading the body; this architecture Store handler Err is after the handler ran."
+        ),
+        "architecture must Distinct Store interceptor Err without reading the body from this architecture Store handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "`Outgoing::connected` is the live-socket snapshot on this architecture Store client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "architecture must name Outgoing::connected live-socket snapshot on Store"
