@@ -3663,6 +3663,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from [`crate::Server::on_response`]: that runs after the handler returns Ok on the Server's Service; this Intercepted on_response runs after the handler returns Ok on one wrapped service."
+        ),
+        "Intercepted::on_response rustdoc must Distinct Server Service coverage from after-Ok on one wrapped service"
+    );
+    assert!(
+        intercept.contains(
             "[`crate::ResponseParts::compress_is_set`] is occupancy after this ServiceExt on_response, so a later interceptor can fill compress only when unset."
         ),
         "ServiceExt::on_response rustdoc must name compress_is_set occupancy next to overlay inventory"
