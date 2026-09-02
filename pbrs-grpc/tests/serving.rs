@@ -9040,6 +9040,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Reverser handler Err: that is after the handler ran; this packed-status Reverser interceptor Err is trailers without reading the body."
+        ),
+        "status guide must Distinct Reverser handler Err after the handler ran from this packed-status Reverser interceptor Err without reading the body"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status Reverser client interceptor: that runs on the outbound call before the stream opens; this packed-status Reverser interceptor runs on the inbound RPC before the handler."
         ),
         "status guide must Distinct Reverser inbound interceptor from client outbound-before-stream"
