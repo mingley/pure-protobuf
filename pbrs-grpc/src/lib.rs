@@ -426,6 +426,8 @@
 //!
 //! Distinct from a crate-map hello handler Err: that is after the handler ran; this crate-map hello interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map hello client interceptor Err: that is a local reject never opens a stream; this crate-map hello interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map hello interceptor Err is trailers without reading the body.
 //!
 //! Distinct from a crate-map hello client interceptor: that runs on the outbound call before the stream opens; this crate-map hello interceptor runs on the inbound RPC before the handler.
