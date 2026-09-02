@@ -490,6 +490,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection client interceptor Err is a local reject never opens a stream."
+        ),
+        "reflection crate rustdoc must Distinct interceptor Err without reading the body from this reflection client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        src.contains(
             "Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this reflection client interceptor already ran, so a local Err never consumes that budget."
         ),
         "reflection crate rustdoc must Distinct max_concurrent_rpcs slot grab after client intercept"
