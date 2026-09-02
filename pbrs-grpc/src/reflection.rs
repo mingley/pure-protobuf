@@ -73,6 +73,7 @@
 //! `ServerReflectionInfo` ships those trailers the same way.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 //! Distinct from a reflection handler Err: that is after the handler ran; this reflection StreamSender fail is trailers after any messages already sent.
+//! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection StreamSender fail is trailers after any messages already sent.
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection server on_response Err; a local reject is trailers-only after handler Ok.
 //! Distinct from a reflection handler Err: that is after the handler ran; this reflection server on_response Err is trailers-only after handler Ok.
 //! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection server on_response Err is trailers-only after handler Ok.
