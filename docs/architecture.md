@@ -351,6 +351,7 @@ Distinct from an architecture UnimplementedService interceptor Err: that is trai
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this architecture UnimplementedService client interceptor already ran, so a local Err never consumes that budget.
 Distinct from an architecture UnimplementedService interceptor: that runs on the inbound RPC before the handler; this architecture UnimplementedService client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService interceptor Err; those trailers reach the client without reading the body.
+Distinct from an architecture InteropTestService handler Err: that is after the handler ran; this architecture InteropTestService interceptor Err is trailers without reading the body.
 Distinct from an architecture InteropTestService client interceptor: that runs on the outbound call before the stream opens; this architecture InteropTestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture InteropTestService handler Err; those trailers reach the client.
 Distinct from an architecture InteropTestService interceptor Err: that is trailers without reading the body; this architecture InteropTestService handler Err is after the handler ran.
