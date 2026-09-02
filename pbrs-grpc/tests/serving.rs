@@ -9676,6 +9676,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status UnimplementedService handler Err: that is after the handler ran; this packed-status UnimplementedService client interceptor Err is a local reject never opens a stream."
+        ),
+        "status guide must Distinct UnimplementedService handler Err after the handler ran from this packed-status UnimplementedService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status UnimplementedService client interceptor already ran, so a local Err never consumes that budget."
         ),
         "status guide must Distinct max_concurrent_rpcs slot grab after UnimplementedService client intercept"
