@@ -148,6 +148,7 @@ Distinct from a crate README UnimplementedService interceptor: that runs on the 
 `Status::from_error_details` is the typed bag after this crate README InteropTestService interceptor Err; those trailers reach the client without reading the body.
 Distinct from a crate README InteropTestService client interceptor: that runs on the outbound call before the stream opens; this crate README InteropTestService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README InteropTestService handler Err; those trailers reach the client.
+Distinct from a crate README InteropTestService interceptor Err: that is trailers without reading the body; this crate README InteropTestService handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this crate README InteropTestService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README InteropTestService client interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README InteropTestService client interceptor already ran, so a local Err never consumes that budget.
