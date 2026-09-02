@@ -6123,6 +6123,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map Store handler Err: that is after the handler ran; this crate-map Store StreamSender fail is trailers after any messages already sent."
+        ),
+        "crate docs must Distinct crate-map Store handler Err after the handler ran from this crate-map Store StreamSender fail after any messages already sent"
+    );
+    assert!(
+        crate_src.contains(
             "[`Status::from_error_details`] is the typed bag after this crate-map TestService interceptor Err; those trailers reach the client without reading the body."
         ),
         "crate docs must name from_error_details typed bag next to crate-map TestService interceptor Err"

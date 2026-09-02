@@ -228,6 +228,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Store StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 //!
+//! Distinct from a crate-map Store handler Err: that is after the handler ran; this crate-map Store StreamSender fail is trailers after any messages already sent.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map TestService interceptor Err; those trailers reach the client without reading the body.
 //!
 //! Distinct from a crate-map TestService handler Err: that is after the handler ran; this crate-map TestService interceptor Err is trailers without reading the body.
