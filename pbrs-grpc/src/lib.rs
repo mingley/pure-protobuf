@@ -178,6 +178,8 @@
 //!
 //! Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Health handler Err is after the handler ran.
 //!
+//! Distinct from a crate-map Channel on_response Err: that fails the Call after a successful receive; this crate-map Health handler Err is after the handler ran.
+//!
 //! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health handler Err is after the handler ran.
 //!
 //! [`Outgoing::connected`] is the live-socket snapshot on this crate-map Health client interceptor path ([`Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
