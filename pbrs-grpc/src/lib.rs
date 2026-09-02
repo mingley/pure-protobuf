@@ -602,6 +602,8 @@
 //!
 //! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
 //!
+//! Distinct from a crate-map UnimplementedService interceptor Err: that is trailers without reading the body; this crate-map server on_response Err is trailers-only after handler Ok.
+//!
 //! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map server on_response Err is trailers-only after handler Ok.
 //!
 //! Distinct from [`Server::intercept`]: that runs on the inbound RPC before the handler; this crate-map server on_response runs after the handler returns Ok.
