@@ -66,6 +66,8 @@
 //!
 //! Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter server on_response Err is trailers-only after handler Ok.
 //!
+//! Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter server on_response Err is trailers-only after handler Ok.
+//!
 //! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter server on_response Err is trailers-only after handler Ok.
 //!
 //! [`pbrs_grpc::Status::from_error_details`] is the typed bag after this example greeter client on_response Err; a local reject fails the Call after a successful receive.
@@ -351,6 +353,9 @@ mod tests {
         ));
         assert!(src.contains(
             "Distinct from an example greeter interceptor Err: that is trailers without reading the body; this example greeter server on_response Err is trailers-only after handler Ok."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter client on_response Err: that fails the Call after a successful receive; this example greeter server on_response Err is trailers-only after handler Ok."
         ));
         assert!(src.contains(
             "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter server on_response Err is trailers-only after handler Ok."
