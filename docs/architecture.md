@@ -359,6 +359,7 @@ Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` 
 Distinct from an architecture Reverser interceptor: that runs on the inbound RPC before the handler; this architecture Reverser client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this architecture Reverser StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from an architecture Reverser handler Err: that is after the handler ran; this architecture Reverser StreamSender fail is trailers after any messages already sent.
+Distinct from an architecture Reverser interceptor Err: that is trailers without reading the body; this architecture Reverser StreamSender fail is trailers after any messages already sent.
 `Status::from_error_details` is the typed bag after this architecture hello interceptor Err; those trailers reach the client without reading the body.
 Distinct from an architecture hello handler Err: that is after the handler ran; this architecture hello interceptor Err is trailers without reading the body.
 Distinct from an architecture hello client interceptor: that runs on the outbound call before the stream opens; this architecture hello interceptor runs on the inbound RPC before the handler.
