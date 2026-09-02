@@ -4458,6 +4458,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from a hello server on_response Err: that is trailers-only after handler Ok; this hello handler Err is after the handler ran."
+        ),
+        "hello Greeter rustdoc must Distinct server on_response Err trailers-only after handler Ok from this hello handler Err after the handler ran"
+    );
+    assert!(
+        hello.contains(
             "Distinct from a hello StreamSender fail: that is trailers after any messages already sent; this hello handler Err is after the handler ran."
         ),
         "hello Greeter rustdoc must Distinct StreamSender fail after any messages already sent from this hello handler Err after the handler ran"
