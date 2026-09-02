@@ -10931,6 +10931,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Reverser client interceptor: that runs on the outbound call before the stream opens; this architecture Reverser interceptor runs on the inbound RPC before the handler."
+        ),
+        "architecture must Distinct Reverser inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture Reverser handler Err; those trailers reach the client."
         ),
         "architecture must name from_error_details typed bag next to Reverser handler Err"
