@@ -3217,6 +3217,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Interceptor::intercept rustdoc must name from_error_details typed bag next to intercept Err"
     );
     assert!(
+        intercept.contains(
+            "Distinct from a handler Err: that is after the handler ran; this method-level Interceptor Err is trailers without reading the body."
+        ),
+        "Interceptor::intercept rustdoc must Distinct handler Err after the handler ran from this method-level Interceptor Err without reading the body"
+    );
+    assert!(
         intercept.contains("Distinct from wait-for-ready: a lazy first RPC sees `false` even when"),
         "ClientInterceptor rustdoc must Distinct connected from wait-for-ready"
     );
