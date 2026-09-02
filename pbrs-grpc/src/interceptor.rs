@@ -177,6 +177,7 @@ where
 /// over TLS, mTLS, Unix, and [`crate::Channel::from_io`].
 /// [`crate::Status::from_error_details`] is the typed bag on this ResponseInterceptor Err; a local reject is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from a handler Err: that is after the handler ran; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
+/// Distinct from an Interceptor Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 ///
 /// Calling either attach point twice stacks (first interceptor first).
 ///
