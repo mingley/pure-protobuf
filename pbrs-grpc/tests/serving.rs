@@ -9398,6 +9398,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide UnimplementedService interceptor: that runs on the inbound RPC before the handler; this guide UnimplementedService client interceptor runs on the outbound call before the stream opens."
+        ),
+        "guide must Distinct UnimplementedService inbound interceptor from client outbound-before-stream"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide InteropTestService interceptor Err; those trailers reach the client without reading the body."
         ),
         "guide must name from_error_details typed bag next to InteropTestService interceptor Err"
