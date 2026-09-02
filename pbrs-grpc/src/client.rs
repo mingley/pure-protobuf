@@ -889,6 +889,7 @@ impl Channel {
     /// Distinct from [`Self::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this interceptor already ran, so a local Err never consumes that budget.
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
     /// Distinct from [`crate::Server::intercept`]: that runs on the inbound RPC before the handler; this Channel intercept runs on the outbound call before the stream opens.
+    /// Distinct from [`crate::Router::intercept`]: that runs on the inbound RPC before the handler; this Channel intercept runs on the outbound call before the stream opens.
     /// Distinct from [`Self::on_response`]: that runs after a successful receive; this runs on the outbound call before the stream opens.
     /// Distinct from [`Self::on_response`]: that runs after a successful receive; this Channel intercept runs on the outbound call before the stream opens.
     ///
