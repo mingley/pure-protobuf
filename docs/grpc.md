@@ -1092,6 +1092,7 @@ Distinct from a guide reflection interceptor: that runs on the inbound RPC befor
 unpacks the same way, including over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this guide reflection StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 Distinct from a guide reflection handler Err: that is after the handler ran; this guide reflection StreamSender fail is trailers after any messages already sent.
+Distinct from a guide reflection interceptor Err: that is trailers without reading the body; this guide reflection StreamSender fail is trailers after any messages already sent.
 
 ## Graceful shutdown
 
