@@ -526,6 +526,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Health StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status reflection client interceptor Err: that is a local reject never opens a stream; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status reflection StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive.
+  Distinct from a packed-status Store client interceptor Err: that is a local reject never opens a stream; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status Store StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status TestService StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive.
   Distinct from a packed-status Reverser StreamSender fail: that is trailers after any messages already sent; this packed-status Channel on_response Err fails the Call after a successful receive.
