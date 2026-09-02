@@ -4615,6 +4615,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from an InteropTestService client interceptor Err: that is a local reject never opens a stream; this InteropTestService handler Err is after the handler ran."
+        ),
+        "InteropTestService rustdoc must Distinct client interceptor Err local reject never opens a stream from this InteropTestService handler Err after the handler ran"
+    );
+    assert!(
+        testing.contains(
             "Distinct from an InteropTestService StreamSender fail: that is trailers after any messages already sent; this InteropTestService handler Err is after the handler ran."
         ),
         "InteropTestService rustdoc must Distinct StreamSender fail after any messages already sent from this InteropTestService handler Err after the handler ran"
