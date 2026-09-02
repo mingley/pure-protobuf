@@ -5315,6 +5315,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated client on_response Err fails the Call after a successful receive."
+    );
+    let _ = writeln!(
+        src,
         "    /// Distinct from [`Self::intercept`]: that runs on the outbound call before the stream opens; this generated client on_response runs after a successful receive."
     );
     let _ = writeln!(
