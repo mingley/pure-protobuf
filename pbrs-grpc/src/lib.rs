@@ -572,6 +572,8 @@
 //!
 //! Distinct from a crate-map Reverser StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
+//! Distinct from a crate-map hello client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
+//!
 //! Distinct from a crate-map hello StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
 //! Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
