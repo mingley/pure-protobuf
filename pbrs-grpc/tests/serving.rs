@@ -7353,6 +7353,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map InteropTestService StreamSender fail: that is trailers after any messages already sent; this crate-map InteropTestService interceptor Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map InteropTestService StreamSender fail after any messages already sent from this crate-map InteropTestService interceptor Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map InteropTestService client interceptor: that runs on the outbound call before the stream opens; this crate-map InteropTestService interceptor runs on the inbound RPC before the handler."
         ),
         "crate docs must Distinct InteropTestService client outbound-before-stream from inbound-before-handler"
