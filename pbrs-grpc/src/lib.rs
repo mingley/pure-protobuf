@@ -236,6 +236,8 @@
 //!
 //! Distinct from [`Channel::max_concurrent_rpcs`]: that takes a slot when the [`Call`] is polled; this crate-map UnimplementedService client interceptor already ran, so a local Err never consumes that budget.
 //!
+//! Distinct from a crate-map UnimplementedService interceptor: that runs on the inbound RPC before the handler; this crate-map UnimplementedService client interceptor runs on the outbound call before the stream opens.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService interceptor Err; those trailers reach the client without reading the body.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map InteropTestService handler Err; those trailers reach the client.
