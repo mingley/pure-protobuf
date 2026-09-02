@@ -13331,6 +13331,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture UnimplementedService handler Err is after the handler ran."
+        ),
+        "architecture must Distinct server on_response Err trailers-only after handler Ok from this architecture UnimplementedService handler Err after the handler ran"
+    );
+    assert!(
+        architecture.contains(
             "`Outgoing::connected` is the live-socket snapshot on this architecture UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "architecture must name Outgoing::connected live-socket snapshot on UnimplementedService"
