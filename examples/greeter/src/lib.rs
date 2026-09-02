@@ -71,6 +71,8 @@
 //! Distinct from an example greeter handler Err: that is after the handler ran; this example greeter client on_response Err fails the Call after a successful receive.
 //!
 //! Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter client on_response Err fails the Call after a successful receive.
+//!
+//! Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter client on_response Err fails the Call after a successful receive.
 
 #![allow(
     missing_docs,
@@ -354,6 +356,9 @@ mod tests {
         ));
         assert!(src.contains(
             "Distinct from an example greeter client interceptor Err: that is a local reject never opens a stream; this example greeter client on_response Err fails the Call after a successful receive."
+        ));
+        assert!(src.contains(
+            "Distinct from an example greeter StreamSender fail: that is trailers after any messages already sent; this example greeter client on_response Err fails the Call after a successful receive."
         ));
     }
 
