@@ -392,6 +392,7 @@ Distinct from an architecture Channel on_response Err: that fails the Call after
 Distinct from an architecture hello handler Err: that is after the handler ran; this architecture hello interceptor Err is trailers without reading the body.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture hello interceptor Err is trailers without reading the body.
 Distinct from an architecture hello client interceptor Err: that is a local reject never opens a stream; this architecture hello interceptor Err is trailers without reading the body.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture hello interceptor Err is trailers without reading the body.
 Distinct from an architecture hello StreamSender fail: that is trailers after any messages already sent; this architecture hello interceptor Err is trailers without reading the body.
 Distinct from an architecture hello client interceptor: that runs on the outbound call before the stream opens; this architecture hello interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture hello handler Err; those trailers reach the client.
