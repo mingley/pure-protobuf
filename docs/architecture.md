@@ -452,6 +452,7 @@ Distinct from an architecture Health interceptor: that runs on the inbound RPC b
 `file_containing_extension` / `all_extension_numbers_of_type` run on that
 one bidi method, including over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this architecture reflection interceptor Err; those trailers reach the client without reading the body.
+Distinct from an architecture reflection client interceptor: that runs on the outbound call before the stream opens; this architecture reflection interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture reflection handler Err; those trailers reach the client.
 `Outgoing::connected` is the live-socket snapshot on this architecture reflection client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture reflection client interceptor Err; a local reject never opens a stream.
