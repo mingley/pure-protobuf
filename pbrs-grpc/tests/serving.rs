@@ -7719,6 +7719,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map TestService StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive."
+        ),
+        "crate docs must Distinct crate-map TestService StreamSender fail after any messages already sent from this crate-map Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from [`Channel::intercept`]: that runs on the outbound call before the stream opens; this crate-map Channel on_response runs after a successful receive."
         ),
         "crate docs must Distinct crate-map Channel on_response from Channel intercept"
