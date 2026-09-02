@@ -3657,6 +3657,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a StreamSender fail: that is trailers after any messages already sent; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive."
+        ),
+        "ResponseInterceptor rustdoc must Distinct StreamSender fail after any messages already sent from this ResponseInterceptor Err trailers-only after handler Ok or Call fail after receive"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ResponseInterceptor runs after the handler returns Ok or after a successful receive."
         ),
         "ResponseInterceptor rustdoc must Distinct Interceptor inbound-before-handler from after-Ok-or-receive"

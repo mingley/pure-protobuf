@@ -186,6 +186,7 @@ where
 /// Distinct from an Interceptor Err: that is trailers without reading the body; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
+/// Distinct from a StreamSender fail: that is trailers after any messages already sent; this ResponseInterceptor Err is trailers-only after handler Ok, or fails the Call after a successful receive.
 ///
 /// Calling either attach point twice stacks (first interceptor first).
 ///
