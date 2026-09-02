@@ -514,6 +514,7 @@ See `docs/upb.md`. Short list:
   Distinct from a packed-status Health StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status reflection interceptor Err: that is trailers without reading the body; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status reflection StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
+  Distinct from a packed-status Store interceptor Err: that is trailers without reading the body; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status Store StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status TestService StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
   Distinct from a packed-status Reverser StreamSender fail: that is trailers after any messages already sent; this packed-status server on_response Err is trailers-only after handler Ok.
