@@ -162,6 +162,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.
 //!
+//! Distinct from a crate-map Health handler Err: that is after the handler ran; this crate-map Health interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map Health client interceptor: that runs on the outbound call before the stream opens; this crate-map Health interceptor runs on the inbound RPC before the handler.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health handler Err; those trailers reach the client.
