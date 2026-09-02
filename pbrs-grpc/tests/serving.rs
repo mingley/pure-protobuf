@@ -4776,6 +4776,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         hello.contains(
+            "Distinct from a hello client on_response Err: that fails the Call after a successful receive; this hello StreamSender fail is trailers after any messages already sent."
+        ),
+        "hello Greeter rustdoc must Distinct hello client on_response Err Call fail after receive from this hello StreamSender fail after any messages already sent"
+    );
+    assert!(
+        hello.contains(
             "pbrs_grpc::hello::GreeterServer::new(Svc).on_response(|parts: &mut pbrs_grpc::ResponseParts| {\n//!     let _ = (\n//!         parts.path(),\n//!         parts.service(),\n//!         parts.method(),\n//!         parts.metadata(),\n//!         parts.trailers(),\n//!         parts.compress(),\n//!         parts.compress_is_set(),\n//!         parts.encoding(),"
         ),
         "hello GreeterServer::on_response rustdoc example must dump service Distinct from path"
