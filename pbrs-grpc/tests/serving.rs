@@ -12218,6 +12218,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide InteropTestService interceptor Err: that is trailers without reading the body; this guide InteropTestService StreamSender fail is trailers after any messages already sent."
+        ),
+        "guide must Distinct InteropTestService interceptor Err without reading the body from this guide InteropTestService StreamSender fail after any messages already sent"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide TestService handler Err; those trailers reach the client."
         ),
         "guide must name from_error_details typed bag next to TestService handler Err"
