@@ -6729,6 +6729,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map Health interceptor Err: that is trailers without reading the body; this crate-map Health client interceptor Err is a local reject never opens a stream."
+        ),
+        "crate docs must Distinct crate-map Health interceptor Err without reading the body from this crate-map Health client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Health client interceptor Err is a local reject never opens a stream."
         ),
         "crate docs must Distinct crate-map Health StreamSender fail after any messages already sent from this crate-map Health client interceptor Err local reject never opens a stream"
