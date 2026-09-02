@@ -364,6 +364,7 @@ Distinct from an architecture UnimplementedService handler Err: that is after th
 Distinct from an architecture UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this architecture UnimplementedService interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this architecture UnimplementedService handler Err; those trailers reach the client.
 Distinct from an architecture UnimplementedService interceptor Err: that is trailers without reading the body; this architecture UnimplementedService handler Err is after the handler ran.
+Distinct from an architecture UnimplementedService client interceptor Err: that is a local reject never opens a stream; this architecture UnimplementedService handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this architecture UnimplementedService client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture UnimplementedService client interceptor Err; a local reject never opens a stream.
 Distinct from an architecture UnimplementedService handler Err: that is after the handler ran; this architecture UnimplementedService client interceptor Err is a local reject never opens a stream.
