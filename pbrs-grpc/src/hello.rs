@@ -100,6 +100,7 @@
 //! Distinct from a hello handler Err: that is after the handler ran; this hello server intercept Err is trailers without reading the body.
 //! Distinct from a hello server on_response Err: that is trailers-only after handler Ok; this hello server intercept Err is trailers without reading the body.
 //! Distinct from a hello intercept Err: that is a local reject never opens a stream; this hello server intercept Err is trailers without reading the body.
+//! Distinct from a hello StreamSender fail: that is trailers after any messages already sent; this hello server intercept Err is trailers without reading the body.
 //! Distinct from [`GreeterClient::intercept`]: that runs on the outbound call before the stream opens; this hello server intercept runs on the inbound RPC before the handler.
 //! Distinct from [`GreeterServer::on_response`]: that runs after the handler returns Ok; this hello server intercept runs on the inbound RPC before the handler.
 //!
