@@ -17411,6 +17411,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture UnimplementedService interceptor Err is trailers without reading the body."
+        ),
+        "architecture must Distinct architecture Channel on_response Err Call fail after receive from this architecture UnimplementedService interceptor Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture UnimplementedService client interceptor: that runs on the outbound call before the stream opens; this architecture UnimplementedService interceptor runs on the inbound RPC before the handler."
         ),
         "architecture must Distinct UnimplementedService inbound interceptor from client outbound-before-stream"
