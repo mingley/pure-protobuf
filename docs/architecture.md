@@ -458,6 +458,7 @@ Distinct from an architecture Health interceptor Err: that is trailers without r
 Distinct from an architecture Health StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture reflection interceptor Err: that is trailers without reading the body; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture reflection StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
+Distinct from an architecture Store interceptor Err: that is trailers without reading the body; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture TestService StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
