@@ -3923,6 +3923,10 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
                 src,
                 "    /// [`{G}::Status::from_error_details`] is the typed bag after a generated StreamSender fail on a server response producer; those trailers ship after any messages already sent."
             );
+            let _ = writeln!(
+                src,
+                "    /// Distinct from a generated handler Err: that is after the handler ran; this generated StreamSender fail is trailers after any messages already sent."
+            );
         }
         if m.client_streaming && !m.server_streaming {
             let _ = writeln!(
