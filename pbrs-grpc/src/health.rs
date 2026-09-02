@@ -85,6 +85,7 @@
 //! [`crate::Status::from_error_details`] is the typed bag after this health client interceptor Err; a local reject never opens a stream.
 //! Distinct from a health handler Err: that is after the handler ran; this health client interceptor Err is a local reject never opens a stream.
 //! Distinct from a health client on_response Err: that fails the Call after a successful receive; this health client interceptor Err is a local reject never opens a stream.
+//! Distinct from a health interceptor Err: that is trailers without reading the body; this health client interceptor Err is a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this health client interceptor already ran, so a local Err never consumes that budget.
 //! Distinct from a health interceptor: that runs on the inbound RPC before the handler; this health client interceptor runs on the outbound call before the stream opens.
 //!
