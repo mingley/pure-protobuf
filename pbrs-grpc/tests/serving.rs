@@ -9058,6 +9058,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status hello handler Err: that is after the handler ran; this packed-status hello interceptor Err is trailers without reading the body."
+        ),
+        "status guide must Distinct hello handler Err after the handler ran from this packed-status hello interceptor Err without reading the body"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status hello client interceptor: that runs on the outbound call before the stream opens; this packed-status hello interceptor runs on the inbound RPC before the handler."
         ),
         "status guide must Distinct hello inbound interceptor from client outbound-before-stream"
