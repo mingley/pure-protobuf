@@ -4758,6 +4758,12 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
+            "Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated client on_response Err fails the Call after a successful receive."
+        ),
+        "generated client on_response rustdoc must Distinct generated server on_response Err trailers-only after handler Ok from this generated client on_response Err Call fail after receive"
+    );
+    assert!(
+        src.contains(
             "Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated client on_response Err fails the Call after a successful receive."
         ),
         "generated client on_response rustdoc must Distinct generated StreamSender fail after any messages already sent from this generated client on_response Err Call fail after receive"

@@ -5327,6 +5327,10 @@ fn emit_kernel_client(
     );
     let _ = writeln!(
         src,
+        "    /// Distinct from a generated server on_response Err: that is trailers-only after handler Ok; this generated client on_response Err fails the Call after a successful receive."
+    );
+    let _ = writeln!(
+        src,
         "    /// Distinct from a generated StreamSender fail: that is trailers after any messages already sent; this generated client on_response Err fails the Call after a successful receive."
     );
     let _ = writeln!(
