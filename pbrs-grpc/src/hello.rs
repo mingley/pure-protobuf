@@ -176,6 +176,7 @@
 //! Distinct from a hello server intercept Err: that is trailers without reading the body; this hello handler Err is after the handler ran.
 //! Distinct from a hello intercept Err: that is a local reject never opens a stream; this hello handler Err is after the handler ran.
 //! Distinct from a hello server on_response Err: that is trailers-only after handler Ok; this hello handler Err is after the handler ran.
+//! Distinct from a hello client on_response Err: that fails the Call after a successful receive; this hello handler Err is after the handler ran.
 //! Distinct from a hello StreamSender fail: that is trailers after any messages already sent; this hello handler Err is after the handler ran.
 //! Generated [`Greeter`] ServerHello / StreamHello [`crate::StreamSender::fail`] ships those trailers after a streamed DATA frame.
 //! [`crate::Status::from_error_details`] is the typed bag after a hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
