@@ -542,6 +542,8 @@
 //!
 //! Distinct from a crate-map interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
+//! Distinct from a crate-map Health client interceptor Err: that is a local reject never opens a stream; this crate-map Channel on_response Err fails the Call after a successful receive.
+//!
 //! Distinct from a crate-map Health StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
 //!
 //! Distinct from a crate-map reflection StreamSender fail: that is trailers after any messages already sent; this crate-map Channel on_response Err fails the Call after a successful receive.
