@@ -3124,6 +3124,12 @@ fn channel_call_apis_document_hand_written_services() {
         "ClientInterceptor::intercept rustdoc must Distinct Channel on_response Err Call fail after receive from this method-level intercept Err local reject never opens a stream"
     );
     assert!(
+        intercept.contains(
+            "Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level intercept Err is a local reject never opens a stream."
+        ),
+        "ClientInterceptor::intercept rustdoc must Distinct StreamSender fail after any messages already sent from this method-level intercept Err local reject never opens a stream"
+    );
+    assert!(
         intercept.contains("prefix ([`crate::Outgoing::set_user_agent`]), or typed"),
         "ClientInterceptor rustdoc must name Outgoing::set_user_agent"
     );
