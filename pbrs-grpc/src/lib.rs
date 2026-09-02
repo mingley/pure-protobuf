@@ -160,6 +160,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map server intercept Err; those trailers reach the client without reading the body.
 //!
+//! Distinct from a crate-map handler Err: that is after the handler ran; this crate-map server intercept Err is trailers without reading the body.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Health interceptor Err; those trailers reach the client without reading the body.
 //!
 //! Distinct from a crate-map Health handler Err: that is after the handler ran; this crate-map Health interceptor Err is trailers without reading the body.
