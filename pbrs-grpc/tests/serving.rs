@@ -5409,6 +5409,12 @@ fn official_interop_rustdoc_names_every_transport() {
     );
     assert!(
         testing.contains(
+            "Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this UnimplementedService client interceptor Err is a local reject never opens a stream."
+        ),
+        "testing crate rustdoc must Distinct Channel on_response Err Call fail after receive from this UnimplementedService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        testing.contains(
             "Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this UnimplementedService client interceptor Err is a local reject never opens a stream."
         ),
         "testing crate rustdoc must Distinct UnimplementedService interceptor Err without reading the body from this UnimplementedService client interceptor Err local reject never opens a stream"

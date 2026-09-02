@@ -89,6 +89,7 @@
 //! [`crate::Outgoing::connected`] is the live-socket snapshot on this UnimplementedService client interceptor path ([`crate::Channel::connected`]), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 //! [`crate::Status::from_error_details`] is the typed bag after this UnimplementedService client interceptor Err; a local reject never opens a stream.
 //! Distinct from an UnimplementedService handler Err: that is after the handler ran; this UnimplementedService client interceptor Err is a local reject never opens a stream.
+//! Distinct from a testing Channel on_response Err: that fails the Call after a successful receive; this UnimplementedService client interceptor Err is a local reject never opens a stream.
 //! Distinct from an UnimplementedService interceptor Err: that is trailers without reading the body; this UnimplementedService client interceptor Err is a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this UnimplementedService client interceptor already ran, so a local Err never consumes that budget.
 //! Distinct from an UnimplementedService interceptor: that runs on the inbound RPC before the handler; this UnimplementedService client interceptor runs on the outbound call before the stream opens.
