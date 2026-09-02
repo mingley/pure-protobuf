@@ -649,6 +649,7 @@ impl<S: Service> ServiceExt for S {}
 /// Distinct from a handler Err: that is after the handler ran; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this ClientInterceptor Err is a local reject never opens a stream.
+/// Distinct from an Interceptor Err: that is trailers without reading the body; this ClientInterceptor Err is a local reject never opens a stream.
 /// Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this ClientInterceptor already ran, so a local Err never consumes that budget.
 /// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this runs on the outbound call before the stream opens.
 /// Distinct from [`Interceptor`]: that runs on the inbound RPC before the handler; this ClientInterceptor runs on the outbound call before the stream opens.
