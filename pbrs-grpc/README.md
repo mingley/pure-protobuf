@@ -86,6 +86,7 @@ Distinct from a crate README Health interceptor Err: that is trailers without re
 Distinct from a crate README Health StreamSender fail: that is trailers after any messages already sent; this crate README Health handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this crate README Health client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this crate README Health client interceptor Err; a local reject never opens a stream.
+Distinct from a crate README Health handler Err: that is after the handler ran; this crate README Health client interceptor Err is a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README Health client interceptor already ran, so a local Err never consumes that budget.
 Distinct from a crate README Health interceptor: that runs on the inbound RPC before the handler; this crate README Health client interceptor runs on the outbound call before the stream opens.
 `Status::from_error_details` is the typed bag after this crate README Health StreamSender fail on a server response producer; those trailers ship after any messages already sent.
