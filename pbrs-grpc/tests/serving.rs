@@ -8036,6 +8036,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README Health StreamSender fail: that is trailers after any messages already sent; this crate README Health handler Err is after the handler ran."
+        ),
+        "crate README must Distinct Health StreamSender fail after any messages already sent from this crate README Health handler Err after the handler ran"
+    );
+    assert!(
+        readme.contains(
             "`Outgoing::connected` is the live-socket snapshot on this crate README Health client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on."
         ),
         "crate README must name Outgoing::connected live-socket snapshot on Health"
