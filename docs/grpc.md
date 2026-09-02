@@ -1927,6 +1927,7 @@ Distinct from a guide TestService interceptor Err: that is trailers without read
 Distinct from a guide TestService StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide Reverser interceptor Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide Reverser StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
+Distinct from a guide hello interceptor Err: that is trailers without reading the body; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide hello StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from a guide InteropTestService StreamSender fail: that is trailers after any messages already sent; this guide server on_response Err is trailers-only after handler Ok.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this guide server on_response runs after the handler returns Ok.
