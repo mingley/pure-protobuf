@@ -10286,6 +10286,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide TestService StreamSender fail: that is trailers after any messages already sent; this guide TestService handler Err is after the handler ran."
+        ),
+        "guide must Distinct TestService StreamSender fail after any messages already sent from this guide TestService handler Err after the handler ran"
+    );
+    assert!(
+        guide.contains(
             "`Status::from_error_details` is the typed bag after this guide TestService interceptor Err; those trailers reach the client without reading the body."
         ),
         "guide must name from_error_details typed bag next to TestService interceptor Err"
