@@ -1017,6 +1017,7 @@ unpacks as `Status::rpc` / `Status::error_details` on Check, List, and Watch, in
 over TLS, mTLS, Unix, and `from_io`.
 `Status::from_error_details` is the typed bag after this guide Health interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide Health handler Err: that is after the handler ran; this guide Health interceptor Err is trailers without reading the body.
+Distinct from a guide server on_response Err: that is trailers-only after handler Ok; this guide Health interceptor Err is trailers without reading the body.
 Distinct from a guide Health client interceptor Err: that is a local reject never opens a stream; this guide Health interceptor Err is trailers without reading the body.
 Distinct from a guide Health StreamSender fail: that is trailers after any messages already sent; this guide Health interceptor Err is trailers without reading the body.
 Distinct from a guide Health client interceptor: that runs on the outbound call before the stream opens; this guide Health interceptor runs on the inbound RPC before the handler.
