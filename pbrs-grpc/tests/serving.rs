@@ -7299,6 +7299,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         crate_src.contains(
+            "Distinct from a crate-map server on_response Err: that is trailers-only after handler Ok; this crate-map Reverser interceptor Err is trailers without reading the body."
+        ),
+        "crate docs must Distinct crate-map server on_response Err trailers-only after handler Ok from this crate-map Reverser interceptor Err without reading the body"
+    );
+    assert!(
+        crate_src.contains(
             "Distinct from a crate-map Reverser client interceptor Err: that is a local reject never opens a stream; this crate-map Reverser interceptor Err is trailers without reading the body."
         ),
         "crate docs must Distinct crate-map Reverser client interceptor Err local reject never opens a stream from this crate-map Reverser interceptor Err without reading the body"
