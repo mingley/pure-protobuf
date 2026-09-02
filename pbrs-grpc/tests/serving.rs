@@ -10391,6 +10391,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this architecture server intercept runs on the inbound RPC before the handler."
+        ),
+        "architecture must Distinct Channel outbound-before-stream from server inbound-before-handler"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture server intercept Err; those trailers reach the client without reading the body."
         ),
         "architecture must name from_error_details typed bag next to server intercept Err"
