@@ -72,6 +72,7 @@ RPCs send `user-agent: pbrs-grpc/<version>`; prefix it with `Channel::user_agent
 `Status::from_error_details` is the typed bag after this crate README interceptor Err; a local reject never opens a stream.
 Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this crate README interceptor already ran, so a local Err never consumes that budget.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this crate README Channel intercept runs on the outbound call before the stream opens.
+Distinct from `Channel::intercept`: that runs on the outbound call before the stream opens; this crate README server intercept runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this crate README server intercept Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this crate README Health interceptor Err; those trailers reach the client without reading the body.
 `Status::from_error_details` is the typed bag after this crate README Health handler Err; those trailers reach the client.
