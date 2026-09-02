@@ -284,6 +284,9 @@ mod tests {
         assert!(readme.contains(
             "`Status::from_error_details` is the typed bag after this example README greeter StreamSender fail on a server response producer; those trailers ship after any messages already sent."
         ));
+        assert!(readme.contains(
+            "Distinct from an example README greeter handler Err: that is after the handler ran; this example README greeter StreamSender fail is trailers after any messages already sent."
+        ));
     }
 
     fn text(reply: &HelloReply) -> String {
