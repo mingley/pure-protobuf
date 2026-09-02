@@ -11986,6 +11986,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status Store client interceptor Err is a local reject never opens a stream."
+        ),
+        "status guide must Distinct packed-status Channel on_response Err Call fail after receive from this packed-status Store client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status Store StreamSender fail: that is trailers after any messages already sent; this packed-status Store client interceptor Err is a local reject never opens a stream."
         ),
         "status guide must Distinct packed-status Store StreamSender fail after any messages already sent from this packed-status Store client interceptor Err local reject never opens a stream"
