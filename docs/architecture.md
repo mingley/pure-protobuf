@@ -310,6 +310,7 @@ Distinct from an architecture Store client interceptor: that runs on the outboun
 Distinct from an architecture Store interceptor Err: that is trailers without reading the body; this architecture Store handler Err is after the handler ran.
 Distinct from an architecture Store client interceptor Err: that is a local reject never opens a stream; this architecture Store handler Err is after the handler ran.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture Store handler Err is after the handler ran.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture Store handler Err is after the handler ran.
 Distinct from an architecture Store StreamSender fail: that is trailers after any messages already sent; this architecture Store handler Err is after the handler ran.
 `Outgoing::connected` is the live-socket snapshot on this architecture Store client interceptor path (`Channel::connected`), taken when the interceptor runs. Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Status::from_error_details` is the typed bag after this architecture Store client interceptor Err; a local reject never opens a stream.
