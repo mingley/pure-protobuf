@@ -300,6 +300,8 @@
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map hello StreamSender fail on a server response producer; those trailers ship after any messages already sent.
 //!
+//! Distinct from a crate-map hello handler Err: that is after the handler ran; this crate-map hello StreamSender fail is trailers after any messages already sent.
+//!
 //! [`Status::from_error_details`] is the typed bag after this crate-map UnimplementedService interceptor Err; those trailers reach the client without reading the body.
 //!
 //! Distinct from a crate-map UnimplementedService handler Err: that is after the handler ran; this crate-map UnimplementedService interceptor Err is trailers without reading the body.
