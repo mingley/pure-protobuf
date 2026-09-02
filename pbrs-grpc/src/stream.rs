@@ -542,6 +542,7 @@ impl<T> StreamSender<T> {
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a ResponseInterceptor Err: that is trailers-only after handler Ok, or fails the Call after a successful receive; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this StreamSender fail is trailers after any messages already sent.
+    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this StreamSender fail is trailers after any messages already sent.
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this StreamSender fail is trailers after any messages already sent.
     ///
     /// On a **client request** sender (client-streaming or bidi), gRPC has no
