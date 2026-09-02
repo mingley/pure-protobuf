@@ -605,6 +605,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         stream.contains(
+            "Distinct from a Server intercept Err: that is trailers without reading the body; this StreamSender fail is trailers after any messages already sent."
+        ),
+        "StreamSender::fail rustdoc must Distinct Server intercept Err without reading the body from this StreamSender fail after any messages already sent"
+    );
+    assert!(
+        stream.contains(
             "Distinct from a Server on_response Err: that is trailers-only after handler Ok; this StreamSender fail is trailers after any messages already sent."
         ),
         "StreamSender::fail rustdoc must Distinct Server on_response Err trailers-only after handler Ok from this StreamSender fail after any messages already sent"
