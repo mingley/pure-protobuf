@@ -13247,6 +13247,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture interceptor Err: that is a local reject never opens a stream; this architecture server intercept Err is trailers without reading the body."
+        ),
+        "architecture must Distinct architecture interceptor Err local reject never opens a stream from this architecture server intercept Err without reading the body"
+    );
+    assert!(
+        architecture.contains(
             "`Status::from_error_details` is the typed bag after this architecture Health interceptor Err; those trailers reach the client without reading the body."
         ),
         "architecture must name from_error_details typed bag next to Health interceptor Err"
