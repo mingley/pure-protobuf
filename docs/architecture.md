@@ -470,6 +470,7 @@ Distinct from an architecture Reverser interceptor Err: that is trailers without
 Distinct from an architecture Reverser StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture hello interceptor Err: that is trailers without reading the body; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture hello StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
+Distinct from an architecture UnimplementedService interceptor Err: that is trailers without reading the body; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from an architecture InteropTestService StreamSender fail: that is trailers after any messages already sent; this architecture server on_response Err is trailers-only after handler Ok.
 Distinct from `Server::intercept`: that runs on the inbound RPC before the handler; this architecture server on_response runs after the handler returns Ok.
 `ResponseParts::clear_compress` drops a compress choice after Channel on_response on this architecture on_response path; a received reply has no server gzip overlay to restore.
