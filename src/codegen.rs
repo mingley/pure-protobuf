@@ -3947,6 +3947,10 @@ fn emit_kernel_trait(src: &mut String, trait_name: &str, svc: &ServiceDescriptor
                 src,
                 "    /// Distinct from a generated handler Err: that is after the handler ran; this generated StreamSender fail is trailers after any messages already sent."
             );
+            let _ = writeln!(
+                src,
+                "    /// Distinct from a generated server intercept Err: that is trailers without reading the body; this generated StreamSender fail is trailers after any messages already sent."
+            );
         }
         if m.client_streaming && !m.server_streaming {
             let _ = writeln!(
