@@ -248,6 +248,8 @@
 //!
 //! Distinct from a crate-map Store handler Err: that is after the handler ran; this crate-map Store interceptor Err is trailers without reading the body.
 //!
+//! Distinct from a crate-map Store StreamSender fail: that is trailers after any messages already sent; this crate-map Store interceptor Err is trailers without reading the body.
+//!
 //! Distinct from a crate-map Store client interceptor: that runs on the outbound call before the stream opens; this crate-map Store interceptor runs on the inbound RPC before the handler.
 //!
 //! [`Status::from_error_details`] is the typed bag after this crate-map Store handler Err; those trailers reach the client.
