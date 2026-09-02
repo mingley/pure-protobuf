@@ -8282,6 +8282,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README InteropTestService handler Err: that is after the handler ran; this crate README InteropTestService interceptor Err is trailers without reading the body."
+        ),
+        "crate README must Distinct InteropTestService handler Err after the handler ran from this crate README InteropTestService interceptor Err without reading the body"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README InteropTestService client interceptor: that runs on the outbound call before the stream opens; this crate README InteropTestService interceptor runs on the inbound RPC before the handler."
         ),
         "crate README must Distinct InteropTestService inbound interceptor from client outbound-before-stream"
