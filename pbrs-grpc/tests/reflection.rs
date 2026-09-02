@@ -436,6 +436,12 @@ fn reflection_crate_docs_name_interceptor_wait_for_ready() {
     );
     assert!(
         src.contains(
+            "Distinct from a reflection server on_response Err: that is trailers-only after handler Ok; this reflection handler Err is after the handler ran."
+        ),
+        "reflection crate rustdoc must Distinct server on_response Err trailers-only after handler Ok from this reflection handler Err after the handler ran"
+    );
+    assert!(
+        src.contains(
             "Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection handler Err is after the handler ran."
         ),
         "reflection crate rustdoc must Distinct StreamSender fail after any messages already sent from this reflection handler Err after the handler ran"
