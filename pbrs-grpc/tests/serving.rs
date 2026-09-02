@@ -2981,6 +2981,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ClientInterceptor Err is a local reject never opens a stream."
+        ),
+        "ClientInterceptor rustdoc must Distinct Channel on_response Err Call fail after receive from this ClientInterceptor Err local reject never opens a stream"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a StreamSender fail: that is trailers after any messages already sent; this ClientInterceptor Err is a local reject never opens a stream."
         ),
         "ClientInterceptor rustdoc must Distinct StreamSender fail after any messages already sent from this ClientInterceptor Err local reject never opens a stream"
