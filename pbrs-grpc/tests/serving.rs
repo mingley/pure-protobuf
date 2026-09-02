@@ -10046,6 +10046,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "Distinct from a crate README TestService interceptor Err: that is trailers without reading the body; this crate README TestService client interceptor Err is a local reject never opens a stream."
+        ),
+        "crate README must Distinct crate README TestService interceptor Err without reading the body from this crate README TestService client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        readme.contains(
             "Distinct from a crate README TestService StreamSender fail: that is trailers after any messages already sent; this crate README TestService client interceptor Err is a local reject never opens a stream."
         ),
         "crate README must Distinct crate README TestService StreamSender fail after any messages already sent from this crate README TestService client interceptor Err local reject never opens a stream"
