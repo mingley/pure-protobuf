@@ -108,6 +108,7 @@
 //! Distinct from a reflection handler Err: that is after the handler ran; this reflection client interceptor Err is a local reject never opens a stream.
 //! Distinct from a reflection client on_response Err: that fails the Call after a successful receive; this reflection client interceptor Err is a local reject never opens a stream.
 //! Distinct from a reflection interceptor Err: that is trailers without reading the body; this reflection client interceptor Err is a local reject never opens a stream.
+//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection client interceptor Err is a local reject never opens a stream.
 //! Distinct from [`crate::Channel::max_concurrent_rpcs`]: that takes a slot when the [`crate::Call`] is polled; this reflection client interceptor already ran, so a local Err never consumes that budget.
 //! Distinct from a reflection interceptor: that runs on the inbound RPC before the handler; this reflection client interceptor runs on the outbound call before the stream opens.
 
