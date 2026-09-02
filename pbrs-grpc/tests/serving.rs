@@ -10334,6 +10334,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Health handler Err: that is after the handler ran; this guide Health client interceptor Err is a local reject never opens a stream."
+        ),
+        "guide must Distinct Health handler Err after the handler ran from this guide Health client interceptor Err local reject never opens a stream"
+    );
+    assert!(
+        guide.contains(
             "Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this guide Health client interceptor already ran, so a local Err never consumes that budget."
         ),
         "guide must Distinct max_concurrent_rpcs slot grab after Health client intercept"
