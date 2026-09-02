@@ -1872,6 +1872,7 @@ Distinct from a guide server on_response Err: that is trailers-only after handle
 Distinct from a guide interceptor Err: that is a local reject never opens a stream; this guide server intercept Err is trailers without reading the body.
 `Status::from_error_details` is the typed bag after this guide Store interceptor Err; those trailers reach the client without reading the body.
 Distinct from a guide Store handler Err: that is after the handler ran; this guide Store interceptor Err is trailers without reading the body.
+Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Store interceptor Err is trailers without reading the body.
 Distinct from a guide Store client interceptor: that runs on the outbound call before the stream opens; this guide Store interceptor runs on the inbound RPC before the handler.
 `Status::from_error_details` is the typed bag after this guide Store handler Err; those trailers reach the client.
 Distinct from a guide Store interceptor Err: that is trailers without reading the body; this guide Store handler Err is after the handler ran.

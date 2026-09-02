@@ -12302,6 +12302,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Store StreamSender fail: that is trailers after any messages already sent; this guide Store interceptor Err is trailers without reading the body."
+        ),
+        "guide must Distinct Store StreamSender fail after any messages already sent from this guide Store interceptor Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide Store client interceptor: that runs on the outbound call before the stream opens; this guide Store interceptor runs on the inbound RPC before the handler."
         ),
         "guide must Distinct Store inbound interceptor from client outbound-before-stream"
