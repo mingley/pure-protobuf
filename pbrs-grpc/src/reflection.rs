@@ -85,6 +85,7 @@
 //! [`crate::Status::from_error_details`] is the typed bag after this reflection client on_response Err; a local reject fails the Call after a successful receive.
 //! Distinct from a reflection handler Err: that is after the handler ran; this reflection client on_response Err fails the Call after a successful receive.
 //! Distinct from a reflection client interceptor Err: that is a local reject never opens a stream; this reflection client on_response Err fails the Call after a successful receive.
+//! Distinct from a reflection StreamSender fail: that is trailers after any messages already sent; this reflection client on_response Err fails the Call after a successful receive.
 //! Unix (`serve_unix` /
 //! `connect_unix`), TLS (`serve_tls` /
 //! `connect_tls`),
