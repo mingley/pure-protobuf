@@ -2032,6 +2032,7 @@ impl<S: Service> Server<S> {
     /// Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Server on_response Err is trailers-only after handler Ok.
     /// Distinct from a ClientInterceptor Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok.
     /// Distinct from a Channel intercept Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok.
+    /// Distinct from a method-level intercept Err: that is a local reject never opens a stream; this Server on_response Err is trailers-only after handler Ok.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this Server on_response Err is trailers-only after handler Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this runs after the handler returns Ok.
     /// Distinct from [`Self::intercept`]: that runs on the inbound RPC before the handler; this Server on_response runs after the handler returns Ok.
