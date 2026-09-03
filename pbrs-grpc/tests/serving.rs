@@ -6483,6 +6483,22 @@ fn channel_documents_with_no_proxy() {
 }
 
 #[test]
+fn channel_connect_tls_documents_with_insecure() {
+    let src = include_str!("../src/client.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires\n    /// credentials (`insecure.NewCredentials()` or TLS). [`Self::connect`] is\n    /// h2c by default; TLS is this constructor. There is no\n    /// `WithTransportCredentials` DialOption (TLS is this constructor plus\n    /// [`crate::ClientTls`]). Distinct from a skip-verify constructor (there\n    /// is none). Distinct from [`Self::https_scheme`] (`from_io` label; it\n    /// does not handshake)."
+        ),
+        "Channel::connect_tls rustdoc must Distinct h2c-default connect from grpc-go WithInsecure credentials"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithInsecure`").count(),
+        1,
+        "Channel::connect_tls_with must not copy the WithInsecure Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6636,6 +6652,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         channel.matches("There is no grpc-go `WithNoProxy`").count(),
         1,
         "Channel::connect must not copy the WithNoProxy Distinct"
+    );
+    assert!(
+        channel.contains(
+            "There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires\n    /// credentials (`insecure.NewCredentials()` or TLS). [`Self::connect`] is\n    /// h2c by default; TLS is this constructor. There is no\n    /// `WithTransportCredentials` DialOption (TLS is this constructor plus\n    /// [`crate::ClientTls`]). Distinct from a skip-verify constructor (there\n    /// is none). Distinct from [`Self::https_scheme`] (`from_io` label; it\n    /// does not handshake)."
+        ),
+        "Channel::connect_tls rustdoc must Distinct h2c-default connect from grpc-go WithInsecure credentials"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithInsecure`")
+            .count(),
+        1,
+        "Channel::connect_tls_with must not copy the WithInsecure Distinct"
     );
     assert!(
         channel.contains(
@@ -7879,6 +7908,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithNoProxy`: grpc-go honors `HTTPS_PROXY` by default; that DialOption disables it. This crate-map dials TCP `host:port` directly; there is no HTTP CONNECT proxy. There is no `WithLocalDNSResolution`: that resolves locally so the proxy CONNECT sees an IP. Distinct from [`Channel::from_io`] (already-connected bytes, not a proxy bypass). Distinct from [`Channel::connect_unix`] (filesystem path; this dialer is skipped). Distinct from [`ChannelConfig::local_address`] (source bind, not proxy)."),
         "crate-map must Distinct direct TCP dial from grpc-go WithNoProxy HTTPS_PROXY"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). This crate-map [`Channel::connect`] is h2c by default; TLS is [`Channel::connect_tls`]. There is no `WithTransportCredentials` DialOption (TLS is [`Channel::connect_tls`] plus [`ClientTls`]). Distinct from a skip-verify constructor (there is none). Distinct from [`Channel::https_scheme`] (`from_io` label; it does not handshake)."),
+        "crate-map must Distinct h2c-default Channel::connect from grpc-go WithInsecure credentials"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19161,6 +19194,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithNoProxy` / `WithLocalDNSResolution` | Not a DialOption: grpc-go honors `HTTPS_PROXY` by default; `WithNoProxy` disables it. TCP `host:port` is dialed directly; there is no HTTP CONNECT proxy. Distinct from `WithLocalDNSResolution` (resolve locally so the proxy CONNECT sees an IP; ignored when `WithNoProxy` is set). Distinct from `from_io` (already-connected bytes, not a proxy bypass). Distinct from `connect_unix` (filesystem path). Distinct from `ChannelConfig::local_address` (source bind, not proxy)."),
         "guide must keep grpc-go WithNoProxy as an omission Distinct from direct TCP dial"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). `Channel::connect` is h2c by default; TLS is `Channel::connect_tls`. There is no `WithTransportCredentials` DialOption (TLS is `connect_tls` plus `ClientTls`). Distinct from a skip-verify constructor (there is none). Distinct from `Channel::https_scheme` (`from_io` label; it does not handshake)."),
+        "guide must Distinct h2c-default Channel::connect from grpc-go WithInsecure credentials"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). Distinct from `Channel::connect` (h2c by default). Distinct from `Channel::connect_tls` (TLS is that constructor plus `ClientTls`). There is no `WithTransportCredentials` DialOption. Distinct from a skip-verify constructor (there is none). Distinct from `Channel::https_scheme` (`from_io` label; it does not handshake)."),
+        "architecture must Distinct h2c-default Channel::connect from grpc-go WithInsecure credentials"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). Distinct from `Channel::connect` (h2c by default). Distinct from `Channel::connect_tls` (TLS is that constructor plus `ClientTls`). There is no `WithTransportCredentials` DialOption. Distinct from a skip-verify constructor (there is none). Distinct from `Channel::https_scheme` (`from_io` label; it does not handshake)."),
+        "status guide must Distinct h2c-default Channel::connect from grpc-go WithInsecure credentials"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). Distinct from `Channel::connect` (h2c by default). Distinct from `Channel::connect_tls` (TLS is that constructor plus `ClientTls`). There is no `WithTransportCredentials` DialOption. Distinct from a skip-verify constructor (there is none). Distinct from `Channel::https_scheme` (`from_io` label; it does not handshake)."),
+        "crate README must Distinct h2c-default Channel::connect from grpc-go WithInsecure credentials"
+    );
+    assert!(
+        guide.contains("grpc-go `WithInsecure` / `WithTransportCredentials` | Not a required credentials object: modern grpc-go `NewClient` requires `insecure.NewCredentials()` or TLS. `Channel::connect` is h2c by default; TLS is `Channel::connect_tls` plus `ClientTls`. Distinct from a skip-verify constructor (there is none). Distinct from `https_scheme` (`from_io` label; it does not handshake)."),
+        "guide must keep grpc-go WithInsecure as an omission Distinct from h2c-default connect"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

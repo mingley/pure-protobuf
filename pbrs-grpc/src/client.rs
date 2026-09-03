@@ -541,6 +541,13 @@ impl Channel {
     /// `target` is the TCP address; [`ClientTls`] carries the name verified
     /// against the certificate, which can be different (dial `127.0.0.1`,
     /// verify `localhost`). Applies to every call shape.
+    /// There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires
+    /// credentials (`insecure.NewCredentials()` or TLS). [`Self::connect`] is
+    /// h2c by default; TLS is this constructor. There is no
+    /// `WithTransportCredentials` DialOption (TLS is this constructor plus
+    /// [`crate::ClientTls`]). Distinct from a skip-verify constructor (there
+    /// is none). Distinct from [`Self::https_scheme`] (`from_io` label; it
+    /// does not handshake).
     /// A dropped socket during the handshake is [`Code::Unavailable`].
     /// [`std::io::ErrorKind::AddrNotAvailable`] is that same dropped-socket
     /// set (unroutable bind), Distinct from leftover kinds which stay
