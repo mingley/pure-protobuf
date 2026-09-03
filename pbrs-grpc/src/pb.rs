@@ -1304,6 +1304,33 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`PreconditionFailure`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::precondition_failure`].
+    /// Distinct from [`PreconditionFailure::with_violation`]: that is the first precondition type, not planting PreconditionFailure on the bag.
+    /// Distinct from [`crate::Status::precondition_failure`]: that unpacks packed PreconditionFailure; this plants it on the bag.
+    /// Distinct from [`Self::with_quota_failure`]: that plants QuotaFailure, not PreconditionFailure.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, PreconditionFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new().with_precondition_failure(
+    ///     PreconditionFailure::with_violation("IAM", "user:3", "expired"),
+    /// );
+    /// let status = Status::from_error_details(Code::FailedPrecondition, "denied", &details)?;
+    /// let pre = status.precondition_failure().expect("PreconditionFailure");
+    /// let violation = pre.violations().get(0).expect("violation");
+    /// assert_eq!(violation.r#type().to_str().unwrap_or(""), "IAM");
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_precondition_failure(mut self, precondition_failure: PreconditionFailure) -> Self {
+        self.precondition_failure = Some(precondition_failure);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1515,6 +1542,24 @@ mod tests {
         assert_eq!(subject.description().to_str().unwrap_or(""), "qps");
         assert!(status.debug_info().is_none());
         assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn error_details_with_precondition_failure_round_trips() {
+        let details = ErrorDetails::new().with_precondition_failure(
+            PreconditionFailure::with_violation("IAM", "user:3", "expired"),
+        );
+        let status =
+            crate::Status::from_error_details(Code::FailedPrecondition, "denied", &details)
+                .expect("encode");
+        assert!(!status.is_retryable());
+        let got = status.precondition_failure().expect("PreconditionFailure");
+        let violation = got.violations().get(0).expect("violation");
+        assert_eq!(violation.r#type().to_str().unwrap_or(""), "IAM");
+        assert_eq!(violation.subject().to_str().unwrap_or(""), "user:3");
+        assert_eq!(violation.description().to_str().unwrap_or(""), "expired");
+        assert!(status.quota_failure().is_none());
+        assert!(status.help().is_none());
     }
 
     #[test]

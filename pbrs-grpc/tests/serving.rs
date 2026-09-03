@@ -9848,6 +9848,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`PreconditionFailure::with_violation`]: that is the first precondition type, not planting PreconditionFailure on the bag."
+        ),
+        "ErrorDetails::with_precondition_failure must Distinct the first precondition type from planting PreconditionFailure on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"
