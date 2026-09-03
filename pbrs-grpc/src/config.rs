@@ -1,6 +1,7 @@
 //! Transport tuning and resource caps for servers and channels.
 
 use crate::limits::MessageLimits;
+use std::net::SocketAddr;
 use std::time::Duration;
 
 /// Default HTTP/2 stream and connection window: 16 MiB.
@@ -922,6 +923,7 @@ pub struct ChannelConfig {
     keep_alive_interval: Option<Duration>,
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
+    local_address: Option<SocketAddr>,
     connect_timeout: Duration,
     max_connection_idle: Option<Duration>,
     max_connection_age: Option<Duration>,
@@ -955,6 +957,7 @@ impl Default for ChannelConfig {
             keep_alive_interval: None,
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
+            local_address: None,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_idle: None,
             max_connection_age: None,
@@ -1279,6 +1282,27 @@ impl ChannelConfig {
         self
     }
 
+    /// Bind the TCP client to `addr` before connect.
+    ///
+    /// Port `0` lets the OS pick an ephemeral source port. Applies to every
+    /// TCP call shape, including [`crate::Channel::connect`],
+    /// [`crate::Channel::connect_with`], [`crate::Channel::connect_tls`],
+    /// [`crate::Channel::connect_tls_with`], and the lazy variants. TLS and
+    /// mTLS bind the TCP socket first, then handshake. Unix domain sockets
+    /// and [`crate::Channel::from_io`] skip this bind: those streams are not
+    /// TCP.
+    ///
+    /// Distinct from [`crate::Rpc::local_addr`] / [`crate::Request::local_addr`]:
+    /// those are the accepted interface after the handshake, not this source
+    /// bind. Distinct from tonic's `Endpoint::local_address`, which takes an
+    /// `IpAddr` and always binds port 0. There is no live
+    /// `Channel::local_address` setter: this overlay is handshake-only.
+    #[must_use]
+    pub fn local_address(mut self, addr: SocketAddr) -> Self {
+        self.local_address = Some(addr);
+        self
+    }
+
     /// How long a dial may take: TCP (or Unix) connect, optional TLS, and
     /// the peer's HTTP/2 SETTINGS. Default 20 s. Values below 1 ms are raised
     /// to 1 ms.
@@ -1503,6 +1527,15 @@ impl ChannelConfig {
         self.tcp_keepalive
     }
 
+    /// Configured TCP source bind, if any. See [`Self::local_address`].
+    /// Applies to every TCP call shape; Unix and [`crate::Channel::from_io`]
+    /// skip it.
+    /// Distinct from [`Self::local_address`], which sets it.
+    #[must_use]
+    pub fn bound_local_address(self) -> Option<SocketAddr> {
+        self.local_address
+    }
+
     /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
     /// Applies to every call shape.
     #[must_use]
@@ -1717,6 +1750,7 @@ mod tests {
         assert_eq!(config.connection_limit(), None);
         assert_eq!(config.concurrent_rpc_limit(), None);
         assert_eq!(config.tcp_keepalive_period(), None);
+        assert_eq!(ChannelConfig::new().bound_local_address(), None);
         assert_eq!(config.keep_alive_ping_interval(), None);
         assert_eq!(config.stream_window(), super::DEFAULT_WINDOW_SIZE);
         assert_eq!(config.connection_window(), super::DEFAULT_WINDOW_SIZE);
@@ -2137,5 +2171,16 @@ mod tests {
         assert_eq!(super::jitter_age(age, 0), Duration::from_secs(90));
         assert_eq!(super::jitter_age(age, 200), Duration::from_secs(110));
         assert_ne!(super::jitter_age(age, 1), super::jitter_age(age, 2));
+    }
+
+    #[test]
+    fn local_address_round_trips() {
+        let addr = std::net::SocketAddr::from(([127, 0, 0, 2], 0));
+        assert_eq!(
+            ChannelConfig::new()
+                .local_address(addr)
+                .bound_local_address(),
+            Some(addr)
+        );
     }
 }

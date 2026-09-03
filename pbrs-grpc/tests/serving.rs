@@ -231,6 +231,10 @@ async fn bind() -> (SocketAddr, TcpListener) {
     (addr, listener)
 }
 
+fn source_bind() -> SocketAddr {
+    SocketAddr::from(([127, 0, 0, 2], 0))
+}
+
 async fn channel(addr: SocketAddr) -> Channel {
     let mut last = None;
     for _ in 0..80 {
@@ -533,6 +537,16 @@ fn channel_call_apis_document_hand_written_services() {
             "TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and\n/// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct"
         ),
         "Channel rustdoc must Distinct TCP_NODELAY always-on from tonic tcp_nodelay"
+    );
+    assert!(
+        src.contains(
+            "[`ChannelConfig::local_address`] binds the TCP source before connect\n/// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.\n/// Distinct from [`crate::Rpc::local_addr`], which is the accepted"
+        ),
+        "Channel rustdoc must Distinct local_address bind from Rpc::local_addr"
+    );
+    assert!(
+        src.contains("keepalive, local bind, connection count"),
+        "Channel rustdoc must name local bind as handshake-only"
     );
     assert!(
         src.contains(
@@ -6273,6 +6287,22 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ServerConfig and ChannelConfig tcp_keepalive must both name TCP_NODELAY"
     );
     assert!(
+        src.contains(
+            "mTLS bind the TCP socket first, then handshake. Unix domain sockets\n    /// and [`crate::Channel::from_io`] skip this bind: those streams are not\n    /// TCP."
+        ),
+        "ChannelConfig::local_address must skip Unix and from_io"
+    );
+    assert!(
+        src.contains(
+            "Distinct from [`crate::Rpc::local_addr`] / [`crate::Request::local_addr`]:\n    /// those are the accepted interface after the handshake, not this source\n    /// bind. Distinct from tonic's `Endpoint::local_address`, which takes an\n    /// `IpAddr` and always binds port 0. There is no live\n    /// `Channel::local_address` setter: this overlay is handshake-only."
+        ),
+        "ChannelConfig::local_address must Distinct Rpc::local_addr and tonic Endpoint::local_address"
+    );
+    assert!(
+        src.contains("Distinct from [`Self::local_address`], which sets it."),
+        "ChannelConfig::bound_local_address must Distinct the setter"
+    );
+    assert!(
         src.contains("a long-running stream is not idle, but"),
         "ChannelConfig::max_connection_age must Distinct idle from age"
     );
@@ -6296,6 +6326,16 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Certificate and protocol failures (rustls `InvalidData`) are\n    /// [`Code::Unauthenticated`]. Distinct from [`Status`]'s\n    /// `From<std::io::Error>`: that maps local I/O `InvalidData` to\n    /// [`Code::Internal`]."
         ),
         "Channel::connect_tls must Distinct handshake InvalidData Unauthenticated from local I/O Internal"
+    );
+    assert!(
+        channel.contains(
+            "[`ChannelConfig::local_address`] binds the TCP source before connect\n/// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.\n/// Distinct from [`crate::Rpc::local_addr`], which is the accepted"
+        ),
+        "Channel rustdoc must Distinct local_address bind from Rpc::local_addr"
+    );
+    assert!(
+        channel.contains("keepalive, local bind, connection count"),
+        "Channel rustdoc must name local bind as handshake-only"
     );
     assert!(
         channel.contains("protocol-error RST cap are set at handshake"),
@@ -17678,6 +17718,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("Distinct from tonic, which defaults Nagle off"),
         "guide must Distinct TCP_NODELAY from tonic tcp_nodelay setter"
+    );
+    assert!(
+        guide.contains("`ChannelConfig::local_address` binds the TCP source before connect (TLS and mTLS included). Port `0` is ephemeral. Unix sockets and `Channel::from_io` skip that bind. Distinct from `Rpc::local_addr` / `Request::local_addr`, which are the accepted interface after the handshake, not this source bind. Distinct from tonic's `Endpoint::local_address`, which takes an `IpAddr` and always binds port 0."),
+        "guide must Distinct ChannelConfig::local_address from Rpc::local_addr and tonic Endpoint::local_address"
     );
     assert!(
         guide.contains("Distinct from tonic's `accept_compressed`, which starts"),
@@ -37731,6 +37775,130 @@ async fn mtls_tcp_keepalive_still_serves() {
         ChannelConfig::new().tcp_keepalive(Duration::from_secs(15)),
     )
     .await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn local_address_is_the_peer_the_server_sees() {
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let flag = Arc::clone(&seen);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                let n = match rpc.remote_addr() {
+                    Some(remote) if remote.ip() == source_bind().ip() => 1,
+                    _ => 2,
+                };
+                flag.store(n, Ordering::SeqCst);
+                Ok(())
+            })
+            .serve_listener(listener)
+            .await
+            .ok();
+    });
+    let client = GreeterClient::new(
+        channel_cfg(addr, ChannelConfig::new().local_address(source_bind())).await,
+    );
+    echo_every_shape(&client, None).await;
+    assert_eq!(seen.load(Ordering::SeqCst), 1);
+    task.abort();
+}
+
+#[tokio::test]
+async fn tls_local_address_is_the_peer_the_server_sees() {
+    let tls = ServerTls::new(server_identity()).expect("server tls");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let flag = Arc::clone(&seen);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                let n = match rpc.remote_addr() {
+                    Some(remote) if remote.ip() == source_bind().ip() => 1,
+                    _ => 2,
+                };
+                flag.store(n, Ordering::SeqCst);
+                Ok(())
+            })
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca("localhost", CA).expect("client tls");
+    let channel = tls_channel_cfg(
+        addr,
+        client_tls,
+        ChannelConfig::new().local_address(source_bind()),
+    )
+    .await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    assert_eq!(seen.load(Ordering::SeqCst), 1);
+    task.abort();
+}
+
+#[tokio::test]
+async fn mtls_local_address_is_the_peer_the_server_sees() {
+    let tls = ServerTls::mtls(server_identity(), CA).expect("mtls server");
+    let (addr, listener) = bind().await;
+    let seen = Arc::new(AtomicUsize::new(0));
+    let flag = Arc::clone(&seen);
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .intercept(move |rpc: &mut Rpc| {
+                let n = match rpc.remote_addr() {
+                    Some(remote) if remote.ip() == source_bind().ip() => 1,
+                    _ => 2,
+                };
+                flag.store(n, Ordering::SeqCst);
+                Ok(())
+            })
+            .serve_tls_with_shutdown(listener, std::future::pending(), tls)
+            .await
+            .ok();
+    });
+    let client_tls = ClientTls::ca_mtls("localhost", CA, client_identity()).expect("mtls client");
+    let channel = tls_channel_cfg(
+        addr,
+        client_tls,
+        ChannelConfig::new().local_address(source_bind()),
+    )
+    .await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    assert_eq!(seen.load(Ordering::SeqCst), 1);
+    task.abort();
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn unix_local_address_is_skipped() {
+    let (path, _guard) = unix_test_path();
+    let sock = path.clone();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo).serve_unix(sock).await.ok();
+    });
+    let channel = unix_channel_with(&path, ChannelConfig::new().local_address(source_bind())).await;
+    echo_every_shape(&GreeterClient::new(channel), None).await;
+    task.abort();
+}
+
+#[tokio::test]
+async fn from_io_local_address_is_skipped() {
+    let (client_io, server_io) = duplex_pair();
+    let task = tokio::spawn(async move {
+        GreeterServer::new(Echo)
+            .serve_connection(server_io)
+            .await
+            .ok();
+    });
+    let channel = Channel::from_io_with(
+        client_io,
+        "localhost",
+        ChannelConfig::new().local_address(source_bind()),
+    )
+    .await
+    .expect("from_io");
     echo_every_shape(&GreeterClient::new(channel), None).await;
     task.abort();
 }

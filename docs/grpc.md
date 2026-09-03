@@ -909,6 +909,8 @@ no `tcp_nodelay(bool)` setter. Distinct from tonic, which defaults Nagle off
 but lets you turn it back on. Unix sockets and `Channel::from_io` skip
 TCP socket tuning entirely.
 
+`ChannelConfig::local_address` binds the TCP source before connect (TLS and mTLS included). Port `0` is ephemeral. Unix sockets and `Channel::from_io` skip that bind. Distinct from `Rpc::local_addr` / `Request::local_addr`, which are the accepted interface after the handshake, not this source bind. Distinct from tonic's `Endpoint::local_address`, which takes an `IpAddr` and always binds port 0.
+
 A `Channel` also redials after a peer `GOAWAY` or a TCP reset, including
 over TLS, mTLS, and Unix, so restarting the server on the same address does
 not require constructing a new client. `from_io` cannot redial. Unary and

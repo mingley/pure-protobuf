@@ -25,7 +25,6 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use tokio::net::TcpStream;
 #[cfg(unix)]
 use tokio::net::UnixStream;
 use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
@@ -231,6 +230,10 @@ impl Endpoint {
 /// TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and
 /// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct
 /// from tonic, which defaults Nagle off but lets you turn it back on.
+/// [`ChannelConfig::local_address`] binds the TCP source before connect
+/// (TLS and mTLS included). Unix and [`Self::from_io`] skip that bind.
+/// Distinct from [`crate::Rpc::local_addr`], which is the accepted
+/// interface after the handshake.
 ///
 /// On Unix, [`Self::connect_unix`] / [`Self::connect_unix_lazy`] speak the
 /// same protocol over a domain socket. TLS is TCP-only.
@@ -265,7 +268,7 @@ impl Endpoint {
 /// [`Self::concurrent_rpc_limit`], [`Self::stream_buffer_size`],
 /// [`Self::send_buffer_size`], [`Self::limits`], and
 /// [`Self::config`]. Keepalive, idle, age, TCP
-/// keepalive, connection count, HTTP/2 windows, the HPACK table, the
+/// keepalive, local bind, connection count, HTTP/2 windows, the HPACK table, the
 /// small-DATA budget, the rapid-reset cap, the locally-reset stream memory
 /// and duration, and the protocol-error RST cap are set at handshake ([`ChannelConfig`] /
 /// [`Self::connect_with`]).
@@ -1946,7 +1949,7 @@ async fn handshake_io(
 ) -> Result<Dialed, Status> {
     match endpoint {
         Endpoint::Tcp(host) => {
-            let tcp = TcpStream::connect(host)
+            let tcp = crate::tcp::connect(host, config.bound_local_address())
                 .await
                 .map_err(|e| Status::unavailable(format!("connect {host}: {e}")))?;
             crate::tcp::tune(&tcp, config.tcp_keepalive_period())
