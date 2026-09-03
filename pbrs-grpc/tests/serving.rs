@@ -9482,6 +9482,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_metadata(\"resource\", \"projects/123\");\n    /// let details = ErrorDetails::new().with_error_info(info);"
+        ),
+        "ErrorInfo::with_metadata rustdoc must plant ErrorInfo with with_error_info"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_subject`]: that is subject and description, not the API service name."
         ),
         "quota_failure::Violation::with_api_service must Distinct subject and description from the API service name"

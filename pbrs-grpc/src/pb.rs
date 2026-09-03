@@ -209,10 +209,7 @@ impl ErrorInfo {
     ///
     /// let info = ErrorInfo::with_reason("API_DISABLED", "example.com")
     ///     .with_metadata("resource", "projects/123");
-    /// let details = ErrorDetails {
-    ///     error_info: Some(info),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_error_info(info);
     /// let status = Status::from_error_details(Code::FailedPrecondition, "disabled", &details)?;
     /// let got = status.error_info().expect("ErrorInfo");
     /// let resource = got
