@@ -9738,6 +9738,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::localized_message must Distinct Help docs URL from locale"
     );
     assert!(
+        status_src.contains(
+            ".with_localized_message(LocalizedMessage::with_locale(\"fr-FR\", \"introuvable\"));"
+        ),
+        "Status::localized_message rustdoc must plant LocalizedMessage with with_localized_message"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::localized_message`]"),
         "LocalizedMessage::with_locale must name Status::localized_message unpack"
     );
