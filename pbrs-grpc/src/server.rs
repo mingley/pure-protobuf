@@ -1454,6 +1454,12 @@ pub(crate) fn split_path(path: &str) -> (&str, &str) {
 /// A hand-written [`Service`] is first-class. Unknown methods are
 /// [`crate::Code::Unimplemented`] on every call shape, including over TLS,
 /// mTLS, Unix, and [`Server::serve_connection`].
+/// There is no tonic `Server::trace_fn`: that intercepts inbound headers and
+/// installs a `tracing::Span` on each response future. This type has no span
+/// installer. Distinct from [`crate::Interceptor`] (envelope mutation, not a
+/// span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from
+/// binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct
+/// from tonic `Server::layer` (tower).
 ///
 /// ```no_run
 /// use pbrs_grpc::Server;

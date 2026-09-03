@@ -6634,6 +6634,22 @@ fn server_tls_new_documents_use_key_log() {
 }
 
 #[test]
+fn server_documents_trace_fn() {
+    let src = include_str!("../src/server.rs");
+    assert!(
+        src.contains(
+            "There is no tonic `Server::trace_fn`: that intercepts inbound headers and\n/// installs a `tracing::Span` on each response future. This type has no span\n/// installer. Distinct from [`crate::Interceptor`] (envelope mutation, not a\n/// span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from\n/// binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct\n/// from tonic `Server::layer` (tower)."
+        ),
+        "Server rustdoc must Distinct no span installer from tonic Server::trace_fn"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Server::trace_fn`").count(),
+        1,
+        "Router must not copy the Server::trace_fn Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6958,6 +6974,30 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         0,
         "ClientInterceptor must not copy the use_key_log Distinct"
+    );
+    assert_eq!(
+        intercept
+            .matches("There is no tonic `Server::trace_fn`")
+            .count(),
+        0,
+        "ClientInterceptor must not copy the Server::trace_fn Distinct"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Server::trace_fn`").count(),
+        0,
+        "ServerConfig must not copy the Server::trace_fn Distinct"
+    );
+    assert_eq!(
+        tls.matches("There is no tonic `Server::trace_fn`").count(),
+        0,
+        "ServerTls must not copy the Server::trace_fn Distinct"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no tonic `Server::trace_fn`")
+            .count(),
+        0,
+        "Channel must not copy the Server::trace_fn Distinct"
     );
     assert!(
         health.contains(
@@ -8251,6 +8291,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `ServerTlsConfig::use_key_log`: that enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). This crate-map [`ServerTls::new`] does not enable rustls key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from [`ServerTls::mtls`] (client cert require, not key log). Distinct from a skip-verify constructor (there is none)."),
         "crate-map must Distinct ServerTls::new no key log from tonic ServerTlsConfig::use_key_log"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. This crate-map [`Server`] has no span installer. Distinct from [`Interceptor`] (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
+        "crate-map must Distinct Server no span installer from tonic Server::trace_fn"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19715,6 +19759,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep tonic ServerTlsConfig::use_key_log as an omission Distinct from no rustls key logging"
     );
     assert!(
+        guide.contains("There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. `Server` has no span installer. Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
+        "guide must Distinct Server no span installer from tonic Server::trace_fn"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. Distinct from `Server` (no span installer). Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
+        "architecture must Distinct Server no span installer from tonic Server::trace_fn"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. Distinct from `Server` (no span installer). Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
+        "status guide must Distinct Server no span installer from tonic Server::trace_fn"
+    );
+    assert!(
+        readme.contains("There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. Distinct from `Server` (no span installer). Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
+        "crate README must Distinct Server no span installer from tonic Server::trace_fn"
+    );
+    assert!(
+        guide.contains("tonic `Server::trace_fn` | Not a tracing span installer: tonic intercepts inbound headers and installs a `tracing::Span` on each response future. `Server` has no span installer. Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower)."),
+        "guide must keep tonic Server::trace_fn as an omission Distinct from Interceptor envelope mutation"
+    );
+    assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
         "guide must Distinct reflection v1alpha path alias from a second proto and from Server::new"
     );
@@ -22402,6 +22466,17 @@ fn server_and_router_config_document_every_call_shape() {
             "There is no grpc-go `WaitForHandlers` setter: grpc-go `Stop` can\n    /// return before handlers exit; this drain always waits for in-flight\n    /// RPCs. Distinct from [`ServerConfig::max_connection_age_grace`]: that\n    /// is GOAWAY then force-close, not this process-wide drain. Distinct\n    /// from [`crate::health::HealthReporter::shutdown`]: that flips serving\n    /// status, it does not drain. [`Self::serve_connection`] is one duplex:\n    /// no accept loop to refuse."
         ),
         "Server::serve_with_shutdown rustdoc must Distinct drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
+        src.contains(
+            "There is no tonic `Server::trace_fn`: that intercepts inbound headers and\n/// installs a `tracing::Span` on each response future. This type has no span\n/// installer. Distinct from [`crate::Interceptor`] (envelope mutation, not a\n/// span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from\n/// binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct\n/// from tonic `Server::layer` (tower)."
+        ),
+        "Server rustdoc must Distinct no span installer from tonic Server::trace_fn"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Server::trace_fn`").count(),
+        1,
+        "Router must not copy the Server::trace_fn Distinct"
     );
     assert_eq!(
         src.matches("HTTP/2 PING keepalive. Applies to every call shape.")

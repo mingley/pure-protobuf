@@ -766,6 +766,7 @@ Unknown methods are `UNIMPLEMENTED` on every call shape, including over TLS,
 mTLS, Unix, and `from_io`.
 
 Wrapping a generated server in `Server::new` works but adds nothing.
+There is no tonic `Server::trace_fn`: that intercepts inbound headers and installs a `tracing::Span` on each response future. `Server` has no span installer. Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower).
 
 Several services use `Router`, which looks up the service half of the request path:
 
@@ -2505,6 +2506,7 @@ Deliberate omissions, with what to do instead.
 | tonic `ServerTlsConfig::client_auth_optional` | Not optional client auth: tonic requests a client certificate but does not require one. `ServerTls::mtls` always requires a client certificate issued by that CA. Distinct from `ServerTls::new` (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from `ClientTls::ca_mtls` / `webpki_mtls` (client presents; this is the server require). |
 | tonic `ServerTlsConfig::timeout` | Not a TLS-handshake-only acceptor timeout: tonic times out only the TLS handshake. `ServerTls` has no timeout setter; `ServerConfig::handshake_timeout` is 20 s TLS accept and 20 s HTTP/2 preface, separately. Distinct from grpc-go `ConnectionTimeout` (one 120 s deadline covering both). Distinct from `ChannelConfig::connect_timeout` (client whole dial). Distinct from tonic `ClientTlsConfig::timeout` (client TLS handshake). Distinct from `ServerConfig::timeout` (RPC deadline overlay). |
 | tonic `ServerTlsConfig::use_key_log` | Not key log: tonic enables rustls `KeyLogFile` (`SSLKEYLOGFILE`). `ServerTls::new` does not enable rustls key logging. Distinct from tonic `ClientTlsConfig::use_key_log` (client handshake). Distinct from `ServerTls::mtls` (client cert require, not key log). Distinct from a skip-verify constructor (there is none). |
+| tonic `Server::trace_fn` | Not a tracing span installer: tonic intercepts inbound headers and installs a `tracing::Span` on each response future. `Server` has no span installer. Distinct from `Interceptor` (envelope mutation, not a span). Distinct from grpc.stats `Handler` (Begin/End/payload). Distinct from binary logging (`grpc.binarylog.v1`). Distinct from OpenTelemetry. Distinct from tonic `Server::layer` (tower). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
