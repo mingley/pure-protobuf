@@ -9323,6 +9323,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::from_rpc must Distinct the parse getter from this encode constructor"
     );
     assert!(
+        status_src.contains("let status = Status::from_rpc(&rpc)?;"),
+        "Status::from_rpc rustdoc must encode a packed google.rpc.Status as the trailer"
+    );
+    assert!(
         status_src.contains("gRPC A6 default retryable set: [`Self::Unavailable`] only."),
         "Code::is_retryable must name the A6 default set"
     );

@@ -465,6 +465,32 @@ impl Status {
     /// and tonic-types expect to find there. This mints a fresh status:
     /// trailing metadata is empty. To keep existing trailers, use
     /// [`Self::set_rpc`].
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo, Status as RpcStatus};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let info = ErrorInfo::with_reason("DUP_KEY", "sql.example.com");
+    /// let rpc = RpcStatus::with_details(
+    ///     Code::AlreadyExists,
+    ///     "exists",
+    ///     [Any::pack(&info)?],
+    /// );
+    /// let status = Status::from_rpc(&rpc)?;
+    /// assert_eq!(status.code(), Code::AlreadyExists);
+    /// assert_eq!(status.message(), "exists");
+    /// assert!(status.metadata().get("x-epoch").is_none());
+    /// assert_eq!(
+    ///     status
+    ///         .error_info()
+    ///         .expect("ErrorInfo")
+    ///         .reason()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "DUP_KEY"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
     pub fn from_rpc(rpc: &crate::pb::Status) -> Result<Self, Self> {
         let mut status = Self::from_code(Code::Ok);
         status.set_rpc(rpc)?;
