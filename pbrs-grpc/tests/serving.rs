@@ -10010,6 +10010,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_debug_info(DebugInfo::with_stack(\"handler.rs:9\", \"nil pointer\"));\n    /// let status = Status::from_error_details(Code::Internal, \"boom\", &details)?;\n    /// let debug = status.debug_info().expect(\"DebugInfo\");\n    /// assert_eq!(debug.detail().to_str().unwrap_or(\"\"), \"nil pointer\");"
+        ),
+        "DebugInfo::with_stack rustdoc must plant DebugInfo with with_debug_info"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_stack`]: that is the first frame and detail, not an extra stack frame."
         ),
         "DebugInfo::with_stack_entry must Distinct the first frame and detail from an extra stack frame"
