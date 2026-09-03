@@ -111,6 +111,16 @@ impl Any {
     /// `type.googleapis.com/google.rpc.ErrorInfo` and
     /// `example.com/google.rpc.ErrorInfo` both match [`ErrorInfo`].
     /// Distinct from [`Self::unpack`]: that decodes the payload; this is a type-URL check.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{Any, ErrorInfo, RetryInfo};
+    ///
+    /// let info = ErrorInfo::with_reason("TYPE_CHECK", "types.example.com");
+    /// let any = Any::pack_with("example.org/google.rpc.ErrorInfo", &info)?;
+    /// assert!(any.is::<ErrorInfo>());
+    /// assert!(!any.is::<RetryInfo>());
+    /// # Ok::<(), pbrs_grpc::Status>(())
+    /// ```
     #[must_use]
     pub fn is<M: pbrs::MessageName>(&self) -> bool {
         type_name_of(type_url_str(self)) == M::FULL_NAME

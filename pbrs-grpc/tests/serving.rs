@@ -9482,6 +9482,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "ErrorInfo::with_reason(\"TYPE_CHECK\", \"types.example.com\");\n    /// let any = Any::pack_with(\"example.org/google.rpc.ErrorInfo\", &info)?;\n    /// assert!(any.is::<ErrorInfo>());\n    /// assert!(!any.is::<RetryInfo>());"
+        ),
+        "Any::is rustdoc must match ErrorInfo by type name without decoding RetryInfo"
+    );
+    assert!(
+        pb_src.contains(
             ".with_error_info(ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\"));"
         ),
         "ErrorDetails rustdoc must plant ErrorInfo with with_error_info"
