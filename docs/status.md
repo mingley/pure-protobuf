@@ -1068,7 +1068,7 @@ See `docs/upb.md`. Short list:
   Distinct from `Channel::max_concurrent_rpcs`: that takes a slot when the `Call` is polled; this packed-status TestService client interceptor already ran, so a local Err never consumes that budget.
   Distinct from a packed-status TestService interceptor: that runs on the inbound RPC before the handler; this packed-status TestService client interceptor runs on the outbound call before the stream opens.
   GCP-auth and ORCA stay out; load balancing, application retries,
-  hedging, and channelz (`grpc.channelz.v1`) are documented omissions. The tonic adapter still covers
+  hedging, channelz (`grpc.channelz.v1`), and binary logging (`grpc.binarylog.v1`) are documented omissions. The tonic adapter still covers
   health/gzip/reflection via tonic crates for stacks that stay on tonic.
 - There are no arena views.
 - Generated `google.protobuf.Timestamp`, `Duration`, `Empty`, and the

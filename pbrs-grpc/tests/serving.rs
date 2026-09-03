@@ -17762,9 +17762,15 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep channelz as an omission Distinct from the connected snapshot"
     );
     assert!(
+        guide.contains(
+            "Binary logging (`grpc.binarylog.v1`) | Not implemented. Interceptors observe `Outgoing` / `Rpc` / `Status` on this process; that is not the binary-log event proto."
+        ),
+        "guide must keep binary logging as an omission Distinct from interceptors"
+    );
+    assert!(
         status_guide
-            .contains("hedging, and channelz (`grpc.channelz.v1`) are documented omissions."),
-        "status guide must keep channelz as a documented omission"
+            .contains("hedging, channelz (`grpc.channelz.v1`), and binary logging (`grpc.binarylog.v1`) are documented omissions."),
+        "status guide must keep channelz and binary logging as documented omissions"
     );
     assert!(
         guide.contains("`FooClient::connected` is that snapshot on a generated client"),
