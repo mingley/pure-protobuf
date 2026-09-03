@@ -9411,6 +9411,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ErrorInfo::with_reason must name Status::error_info unpack"
     );
     assert!(
+        pb_src.contains(
+            ".with_error_info(ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\"));\n    /// let status = Status::from_error_details(Code::FailedPrecondition, \"disabled\", &details)?;\n    /// let info = status.error_info().expect(\"ErrorInfo\");\n    /// assert_eq!(info.reason().to_str().unwrap_or(\"\"), \"API_DISABLED\");\n    /// assert_eq!(info.domain().to_str().unwrap_or(\"\"), \"example.com\");"
+        ),
+        "ErrorInfo::with_reason rustdoc must plant ErrorInfo with with_error_info"
+    );
+    assert!(
         pb_src.contains("ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\");\n    /// let any = Any::pack"),
         "Any::pack must build ErrorInfo with with_reason"
     );
