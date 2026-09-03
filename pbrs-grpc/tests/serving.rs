@@ -12355,6 +12355,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`PreconditionFailure::with_violation_entry` builds an extra packed precondition violation on this crate README"
+        ),
+        "crate README must name PreconditionFailure::with_violation_entry next to PreconditionFailure::with_violation"
+    );
+    assert!(
+        readme.contains(
             "`precondition_failure::Violation::with_type` builds a nested precondition type on this crate README"
         ),
         "crate README must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
