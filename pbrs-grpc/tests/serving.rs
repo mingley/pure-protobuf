@@ -9424,6 +9424,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "BadRequest::with_field must name Status::bad_request unpack"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_field`]: that is a request field path, not the field-violation reason."
+        ),
+        "FieldViolation::with_reason must Distinct a request field path from the field-violation reason"
+    );
+    assert!(
         pb_src.contains("Distinct from [`crate::Status::invalid_argument`], which"),
         "BadRequest::with_field must Distinct ASCII invalid_argument"
     );

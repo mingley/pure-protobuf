@@ -259,6 +259,45 @@ impl FieldViolation {
         violation.set_description(description.into());
         violation
     }
+
+    /// Sets `reason` on this field violation.
+    ///
+    /// Chain after [`Self::with_field`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::bad_request`].
+    /// Distinct from [`Self::with_field`]: that is a request field path, not the field-violation reason.
+    /// Distinct from [`crate::pb::ErrorInfo::with_reason`]: that is reason and domain, not a field-violation reason.
+    /// Distinct from [`crate::Status::invalid_argument`]: that is the ASCII code with no packed fields.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{BadRequest, ErrorDetails, FieldViolation};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let violation = FieldViolation::with_field("name", "required")
+    ///     .with_reason("REQUIRED");
+    /// let mut bad = BadRequest::new();
+    /// bad.set_field_violations([violation]);
+    /// let details = ErrorDetails {
+    ///     bad_request: Some(bad),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::InvalidArgument, "bad", &details)?;
+    /// let got = status.bad_request().expect("BadRequest");
+    /// assert_eq!(
+    ///     got.field_violations()
+    ///         .get(0)
+    ///         .expect("field")
+    ///         .reason()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "REQUIRED"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_reason(mut self, reason: impl Into<String>) -> Self {
+        self.set_reason(reason.into());
+        self
+    }
 }
 
 impl BadRequest {
@@ -1274,6 +1313,27 @@ mod tests {
         let field = got.field_violations().get(0).expect("field");
         assert_eq!(field.field().to_str().unwrap_or(""), "email");
         assert_eq!(field.description().to_str().unwrap_or(""), "invalid");
+    }
+
+    #[test]
+    fn field_violation_with_reason_round_trips() {
+        let violation = FieldViolation::with_field("name", "required").with_reason("REQUIRED");
+        assert_eq!(violation.field().to_str().unwrap_or(""), "name");
+        assert_eq!(violation.description().to_str().unwrap_or(""), "required");
+        assert_eq!(violation.reason().to_str().unwrap_or(""), "REQUIRED");
+        let mut bad = BadRequest::new();
+        bad.set_field_violations([violation]);
+        let details = ErrorDetails {
+            bad_request: Some(bad),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::InvalidArgument, "bad", &details)
+            .expect("encode");
+        let got = status.bad_request().expect("BadRequest");
+        let field = got.field_violations().get(0).expect("field");
+        assert_eq!(field.reason().to_str().unwrap_or(""), "REQUIRED");
+        assert!(field.localized_message_opt().is_none());
+        assert!(status.error_info().is_none());
     }
 
     #[test]
