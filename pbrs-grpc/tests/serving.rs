@@ -6817,6 +6817,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Server::concurrency_limit_per_connection` setter:\n    /// that is tower `ConcurrencyLimitLayer` on each spawned connection.\n    /// This kernel is not a tower stack. This cap is process-wide handler\n    /// slots, not a per-connection tower layer. Distinct from\n    /// [`Self::max_concurrent_streams`]: extras wait on that SETTINGS cap.\n    /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic."
+        ),
+        "ServerConfig::max_concurrent_rpcs rustdoc must Distinct process-wide slots from tonic concurrency_limit_per_connection"
+    );
+    assert!(
+        src.contains(
             "HTTP/2 `SETTINGS_MAX_CONCURRENT_STREAMS`. Distinct from\n    /// [`Self::max_concurrent_rpcs`], which refuses extras as\n    /// [`crate::Code::ResourceExhausted`]. A well-behaved client waits; both\n    /// RPCs still complete, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::max_concurrent_streams must name serialize vs RESOURCE_EXHAUSTED on every transport"
@@ -7412,6 +7418,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). This crate-map [`ServerConfig::max_concurrent_rpcs`] is in-flight handler slots, not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool)."),
         "crate-map must Distinct ServerConfig::max_concurrent_rpcs in-flight slots from grpc-go NumStreamWorkers"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. This crate-map [`ServerConfig::max_concurrent_rpcs`] is process-wide handler slots, not a per-connection tower layer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct ServerConfig::max_concurrent_rpcs process-wide slots from tonic concurrency_limit_per_connection"
     );
     assert!(
         crate_src.contains(
@@ -18258,6 +18268,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `NumStreamWorkers` | Not a worker pool: each accepted stream is `tokio::spawn`ed on the current tokio runtime. `ServerConfig::max_concurrent_rpcs` is in-flight handler slots (`RESOURCE_EXHAUSTED` when full, not retryable), not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool). Distinct from `max_concurrent_connections` (how many sockets)."),
         "guide must keep grpc-go NumStreamWorkers as an omission Distinct from in-flight max_concurrent_rpcs"
+    );
+    assert!(
+        guide.contains("There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. `ServerConfig::max_concurrent_rpcs` is process-wide handler slots, not a per-connection tower layer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct ServerConfig::max_concurrent_rpcs from tonic concurrency_limit_per_connection"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. Distinct from `ServerConfig::max_concurrent_rpcs` (process-wide handler slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct ServerConfig::max_concurrent_rpcs from tonic concurrency_limit_per_connection"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. Distinct from `ServerConfig::max_concurrent_rpcs` (process-wide handler slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct ServerConfig::max_concurrent_rpcs from tonic concurrency_limit_per_connection"
+    );
+    assert!(
+        readme.contains("There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. Distinct from `ServerConfig::max_concurrent_rpcs` (process-wide handler slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct ServerConfig::max_concurrent_rpcs from tonic concurrency_limit_per_connection"
+    );
+    assert!(
+        guide.contains("tonic `Server::concurrency_limit_per_connection` | Not a tower stack: there is no per-connection `ConcurrencyLimitLayer`. `ServerConfig::max_concurrent_rpcs` is process-wide handler slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N in-flight RPCs per connection. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `NumStreamWorkers` (worker pool, not a cap). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic concurrency_limit_per_connection as an omission Distinct from process-wide max_concurrent_rpcs"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

@@ -276,6 +276,7 @@ See `docs/upb.md`. Short list:
   There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ChannelConfig::connections` (`tokio::spawn` on the current runtime). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
   There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. Distinct from `ServerConfig::max_concurrent_connections` (`tokio::spawn` on the current runtime). Distinct from tonic `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
   There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). Distinct from `ServerConfig::max_concurrent_rpcs` (in-flight handler slots). Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool).
+  There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. Distinct from `ServerConfig::max_concurrent_rpcs` (process-wide handler slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
   A
   `TestServiceClient` pool larger than `TestServiceServer::max_concurrent_connections`
   fails the whole dial as `UNAVAILABLE` on TLS, mTLS, and Unix

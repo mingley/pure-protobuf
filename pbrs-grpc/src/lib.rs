@@ -761,6 +761,8 @@
 //!
 //! There is no grpc-go `NumStreamWorkers`: that is a worker pool for stream dispatch (0 means a goroutine per stream). This crate-map [`ServerConfig::max_concurrent_rpcs`] is in-flight handler slots, not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool).
 //!
+//! There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. This crate-map [`ServerConfig::max_concurrent_rpcs`] is process-wide handler slots, not a per-connection tower layer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

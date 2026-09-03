@@ -643,6 +643,12 @@ impl ServerConfig {
     /// stream is `tokio::spawn`ed on the current tokio runtime. This cap is
     /// in-flight handler slots, not a worker count. Distinct from tonic
     /// `Server::executor` (`SharedExec`, which executor, not a worker pool).
+    /// There is no tonic `Server::concurrency_limit_per_connection` setter:
+    /// that is tower `ConcurrencyLimitLayer` on each spawned connection.
+    /// This kernel is not a tower stack. This cap is process-wide handler
+    /// slots, not a per-connection tower layer. Distinct from
+    /// [`Self::max_concurrent_streams`]: extras wait on that SETTINGS cap.
+    /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
     #[must_use]
     pub fn max_concurrent_rpcs(mut self, n: usize) -> Self {
         self.max_concurrent_rpcs = Some(n.max(1));
