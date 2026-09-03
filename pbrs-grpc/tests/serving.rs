@@ -9675,6 +9675,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ResourceInfo::with_resource must Distinct quota subject from resource identity"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_resource`]: that is type, name, and owner, not a resource description."
+        ),
+        "ResourceInfo::with_description must Distinct type, name, and owner from a resource description"
+    );
+    assert!(
         crate_src.contains("[`Status::debug_info`]"),
         "crate map must name Status::debug_info"
     );

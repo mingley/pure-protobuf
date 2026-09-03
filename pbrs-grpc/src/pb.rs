@@ -867,6 +867,43 @@ impl ResourceInfo {
         info.set_owner(owner.into());
         info
     }
+
+    /// Sets `description` on this resource info.
+    ///
+    /// Chain after [`Self::with_resource`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::resource_info`].
+    /// Distinct from [`Self::with_resource`]: that is type, name, and owner, not a resource description.
+    /// Distinct from [`crate::Status::message`]: that is the ASCII `grpc-message`, not a resource description.
+    /// Distinct from [`crate::Status::debug_info`]: that is an operator stack, not a resource description.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, ResourceInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails {
+    ///     resource_info: Some(
+    ///         ResourceInfo::with_resource(
+    ///             "sqladmin.googleapis.com/Instance",
+    ///             "projects/1/instances/a",
+    ///             "project:1",
+    ///         )
+    ///         .with_description("Cloud SQL instance"),
+    ///     ),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::NotFound, "gone", &details)?;
+    /// let info = status.resource_info().expect("ResourceInfo");
+    /// assert_eq!(
+    ///     info.description().to_str().unwrap_or(""),
+    ///     "Cloud SQL instance"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_description(mut self, description: impl Into<String>) -> Self {
+        self.set_description(description.into());
+        self
+    }
 }
 
 impl DebugInfo {
@@ -1701,6 +1738,37 @@ mod tests {
         );
         assert!(status.quota_failure().is_none());
         assert!(status.request_info().is_none());
+    }
+
+    #[test]
+    fn resource_info_with_description_round_trips() {
+        let info = ResourceInfo::with_resource(
+            "sqladmin.googleapis.com/Instance",
+            "projects/1/instances/a",
+            "project:1",
+        )
+        .with_description("Cloud SQL instance");
+        assert_eq!(
+            info.resource_name().to_str().unwrap_or(""),
+            "projects/1/instances/a"
+        );
+        assert_eq!(
+            info.description().to_str().unwrap_or(""),
+            "Cloud SQL instance"
+        );
+        let details = ErrorDetails {
+            resource_info: Some(info),
+            ..ErrorDetails::default()
+        };
+        let status =
+            crate::Status::from_error_details(Code::NotFound, "gone", &details).expect("encode");
+        let got = status.resource_info().expect("ResourceInfo");
+        assert_eq!(
+            got.description().to_str().unwrap_or(""),
+            "Cloud SQL instance"
+        );
+        assert!(status.debug_info().is_none());
+        assert!(status.help().is_none());
     }
 
     #[test]
