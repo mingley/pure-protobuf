@@ -17617,6 +17617,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorDetails::with_help next to ErrorDetails::with_resource_info"
     );
     assert!(
+        architecture.contains("`ErrorDetails::with_localized_message` plants packed LocalizedMessage after this architecture ErrorDetails bag."),
+        "architecture must name ErrorDetails::with_localized_message next to ErrorDetails::with_help"
+    );
+    assert!(
         architecture.contains(
             "`Duration::from_std` builds the protobuf from `std` after this architecture try_to_std convert, Distinct from converting this protobuf to `std`."
         ),

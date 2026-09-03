@@ -547,6 +547,7 @@ and HTTP/2 connection death attach the original error as
 `ErrorDetails::with_request_info` plants packed RequestInfo after this architecture ErrorDetails bag.
 `ErrorDetails::with_resource_info` plants packed ResourceInfo after this architecture ErrorDetails bag.
 `ErrorDetails::with_help` plants packed Help after this architecture ErrorDetails bag.
+`ErrorDetails::with_localized_message` plants packed LocalizedMessage after this architecture ErrorDetails bag.
 `Duration::from_std` builds the protobuf from `std` after this architecture try_to_std convert, Distinct from converting this protobuf to `std`.
 `Duration::try_to_std` converts this protobuf to `std` after this architecture from_std builder, Distinct from building the protobuf from `std`.
 `Status::details` returns raw trailer bytes after this architecture rpc parse, Distinct from parsing a packed `google.rpc.Status`.
