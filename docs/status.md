@@ -638,6 +638,7 @@ See `docs/upb.md`. Short list:
   that payload.
   `FieldViolation::with_field` builds a nested field path on this packed-status.
   `FieldViolation::with_reason` builds a nested field-violation reason on this packed-status.
+  `FieldViolation::with_localized_message` builds a nested field-violation locale on this packed-status.
   `Status::quota_failure` is packed quota subjects.
   Distinct from `is_retryable` (`RESOURCE_EXHAUSTED` is never A6-retryable)
   and from `bad_request`. `QuotaFailure::with_violation` builds that payload.

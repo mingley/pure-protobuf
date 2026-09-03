@@ -12743,6 +12743,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`FieldViolation::with_localized_message` builds a nested field-violation locale on this packed-status."
+        ),
+        "status guide must name FieldViolation::with_localized_message next to FieldViolation::with_reason"
+    );
+    assert!(
+        status_guide.contains(
             "`quota_failure::Violation::with_subject` builds a nested quota subject on this packed-status."
         ),
         "status guide must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
