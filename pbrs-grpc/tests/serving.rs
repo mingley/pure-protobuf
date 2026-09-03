@@ -9516,6 +9516,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            ".with_quota_metric(\"compute.googleapis.com/cpus\");\n    /// let mut quota = QuotaFailure::new();\n    /// quota.set_violations([violation]);\n    /// let details = ErrorDetails::new().with_quota_failure(quota);"
+        ),
+        "quota_failure::Violation::with_quota_metric rustdoc must plant QuotaFailure with with_quota_failure"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::with_subject`]: that is subject and description, not the quota id."
         ),
         "quota_failure::Violation::with_quota_id must Distinct subject and description from the quota id"
