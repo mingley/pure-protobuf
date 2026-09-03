@@ -9818,6 +9818,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
+            "Distinct from [`RetryInfo::with_retry_delay`]: that is a wait hint, not planting RetryInfo on the bag."
+        ),
+        "ErrorDetails::with_retry_info must Distinct a wait hint from planting RetryInfo on the bag"
+    );
+    assert!(
+        pb_src.contains(
             "Distinct from [`Self::try_to_std`]: that converts this protobuf to `std`; this builds the protobuf from `std`."
         ),
         "Duration::from_std must Distinct converting to std from building the protobuf"

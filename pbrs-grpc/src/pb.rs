@@ -1225,6 +1225,34 @@ impl ErrorDetails {
         self
     }
 
+    /// Plants packed [`RetryInfo`] on this bag.
+    ///
+    /// Chain after [`Self::new`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::retry_delay`].
+    /// Distinct from [`RetryInfo::with_retry_delay`]: that is a wait hint, not planting RetryInfo on the bag.
+    /// Distinct from [`crate::Status::retry_delay`]: that unpacks the wait hint; this plants RetryInfo on the bag.
+    /// Distinct from [`Self::with_error_info`]: that plants ErrorInfo, not RetryInfo.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, RetryInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new().with_retry_info(RetryInfo::with_retry_delay(
+    ///     std::time::Duration::from_millis(250),
+    /// ));
+    /// let status = Status::from_error_details(Code::Unavailable, "backend", &details)?;
+    /// assert_eq!(
+    ///     status.retry_delay(),
+    ///     Some(std::time::Duration::from_millis(250))
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_retry_info(mut self, retry_info: RetryInfo) -> Self {
+        self.retry_info = Some(retry_info);
+        self
+    }
+
     /// Encode every populated field as `google.protobuf.Any`, standard
     /// types first, then [`Self::unknown`].
     ///
@@ -1385,6 +1413,21 @@ mod tests {
         assert_eq!(got.reason().to_str().unwrap_or(""), "RATE_LIMITED");
         assert_eq!(got.domain().to_str().unwrap_or(""), "example.com");
         assert!(status.retry_delay().is_none());
+        assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn error_details_with_retry_info_round_trips() {
+        let details = ErrorDetails::new().with_retry_info(RetryInfo::with_retry_delay(
+            std::time::Duration::from_millis(250),
+        ));
+        let status = crate::Status::from_error_details(Code::Unavailable, "backend", &details)
+            .expect("encode");
+        assert_eq!(
+            status.retry_delay(),
+            Some(std::time::Duration::from_millis(250))
+        );
+        assert!(status.error_info().is_none());
         assert!(status.bad_request().is_none());
     }
 
