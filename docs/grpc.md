@@ -361,6 +361,7 @@ that protobuf from packed `Any` values. Distinct from `Status::from_error_detail
 `Any::unpack` decodes the payload after this guide is type-URL check, Distinct from checking the type URL.
 `Any::is` is a type-URL check after this guide unpack decode, Distinct from decoding the payload.
 `ErrorDetails::new` is an empty bag after this guide from_rpc unpack, Distinct from unpacking the `Any` list.
+`ErrorDetails::with_error_info` plants packed ErrorInfo after this guide ErrorDetails bag.
 `Duration::from_std` builds the protobuf from `std` after this guide try_to_std convert, Distinct from converting this protobuf to `std`.
 `Duration::try_to_std` converts this protobuf to `std` after this guide from_std builder, Distinct from building the protobuf from `std`.
 `Status::details` returns raw trailer bytes after this guide rpc parse, Distinct from parsing a packed `google.rpc.Status`.

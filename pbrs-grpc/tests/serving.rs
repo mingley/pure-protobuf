@@ -16652,6 +16652,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name ErrorDetails::new next to Any::is"
     );
     assert!(
+        guide.contains("`ErrorDetails::with_error_info` plants packed ErrorInfo after this guide ErrorDetails bag."),
+        "guide must name ErrorDetails::with_error_info next to ErrorDetails::new"
+    );
+    assert!(
         guide.contains(
             "`Duration::from_std` builds the protobuf from `std` after this guide try_to_std convert, Distinct from converting this protobuf to `std`."
         ),
