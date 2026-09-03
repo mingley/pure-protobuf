@@ -14474,6 +14474,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         guide.contains(
+            "Distinct from a guide Channel on_response Err: that fails the Call after a successful receive; this guide server intercept Err is trailers without reading the body."
+        ),
+        "guide must Distinct guide Channel on_response Err Call fail after receive from this guide server intercept Err without reading the body"
+    );
+    assert!(
+        guide.contains(
             "Distinct from a guide interceptor Err: that is a local reject never opens a stream; this guide server intercept Err is trailers without reading the body."
         ),
         "guide must Distinct guide interceptor Err local reject never opens a stream from this guide server intercept Err without reading the body"
