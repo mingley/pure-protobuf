@@ -12760,6 +12760,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "Distinct from a packed-status Channel on_response Err: that fails the Call after a successful receive; this packed-status server intercept Err is trailers without reading the body."
+        ),
+        "status guide must Distinct packed-status Channel on_response Err Call fail after receive from this packed-status server intercept Err without reading the body"
+    );
+    assert!(
+        status_guide.contains(
             "Distinct from a packed-status interceptor Err: that is a local reject never opens a stream; this packed-status server intercept Err is trailers without reading the body."
         ),
         "status guide must Distinct packed-status interceptor Err local reject never opens a stream from this packed-status server intercept Err without reading the body"
