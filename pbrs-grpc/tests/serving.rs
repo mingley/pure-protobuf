@@ -12322,6 +12322,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`ResourceInfo::with_description` builds a packed resource description on this crate README"
+        ),
+        "crate README must name ResourceInfo::with_description next to ResourceInfo::with_resource"
+    );
+    assert!(
+        readme.contains(
             "`Status::debug_info` / `DebugInfo::with_stack` builds packed operator stack on this crate README"
         ),
         "crate README must name DebugInfo::with_stack next to Status::debug_info"
