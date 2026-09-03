@@ -552,9 +552,8 @@ ASCII case-insensitive). This kernel only decodes protobuf, so a `+json` or
 A deadline set on a request travels as `grpc-timeout` and is enforced on both
 ends: the server wraps the handler in a timeout, and the client stops waiting
 and resets the stream. `Channel::timeout` / generated `FooClient::timeout`
-fill that in when the request omits one, matching tonic's client timeout and
-grpc-go's default call option, including over TLS, mTLS, Unix, and `from_io`.
-`ChannelConfig::timeout` is the same overlay at connect. `Channel::rpc_timeout` /
+fill that in when the request omits one, including over TLS, mTLS, Unix, and `from_io`.
+`ChannelConfig::timeout` is the same overlay at connect. Distinct from tonic `Endpoint::timeout`, which times out the client future without writing `grpc-timeout` (the server is not informed). grpc-go's default call option also writes `grpc-timeout`. `Channel::rpc_timeout` /
 `FooClient::rpc_timeout` read that overlay (`timeout` sets it). A request
 that already has a deadline is left alone (it wins over the channel default)
 on those transports; a client interceptor can still replace or clear it.
@@ -594,6 +593,7 @@ A client that omits `grpc-timeout` can otherwise pin a handler forever; the
 server cap closes that hole. An interceptor can only tighten that deadline,
 not extend it.
 There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. `ChannelConfig::timeout` writes `grpc-timeout` when the request omits one. Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 
 To cancel from elsewhere, take a handle before awaiting:
 
@@ -2457,6 +2457,7 @@ Deliberate omissions, with what to do instead.
 | tonic `Server::load_shed` | Not a tower stack: there is no `LoadShedLayer`. `ServerConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `WaitForHandlers` (drain, not overload). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | grpc-go `SharedWriteBuffer` | Not a shared pool: each connection has its own HTTP/2 send buffer (`ServerConfig::max_send_buffer_size`, default 1 MiB). grpc-go `SharedWriteBuffer` releases the transport write buffer after flush so later connections reuse it. Distinct from `WriteBufferSize` / `ReadBufferSize` (socket bytes, default 32 KiB). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots). |
 | tonic `Server::timeout` | Not a tower stack: there is no `TimeoutLayer`. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
+| tonic `Endpoint::timeout` | Times out the client future without writing `grpc-timeout`, so the server is not informed. `ChannelConfig::timeout` writes `grpc-timeout` when the request omits one. Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

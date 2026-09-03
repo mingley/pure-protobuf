@@ -6759,6 +6759,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that\n    /// times out the client future without informing the server. This overlay\n    /// writes `grpc-timeout` when the request omits one. Distinct from\n    /// [`ServerConfig::timeout`] (server overlay). Distinct from `tower`\n    /// integration, which is protobuf-tonic keeping tonic."
+        ),
+        "ChannelConfig::timeout rustdoc must Distinct grpc-timeout write from tonic Endpoint::timeout skip"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Endpoint::timeout` that omits")
+            .count(),
+        1,
+        "ServerConfig::timeout must not copy the client Endpoint::timeout Distinct"
+    );
+    assert!(
+        src.contains(
             "Cap every RPC to this duration even when the client omits `grpc-timeout`.\n    /// Applies to every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Server::serve_connection`]."
         ),
         "ServerConfig::timeout must name every transport"
@@ -7466,6 +7478,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. This crate-map [`ServerConfig::timeout`] is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct ServerConfig::timeout gRPC deadline overlay from tonic Server::timeout TimeoutLayer"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. This crate-map [`ChannelConfig::timeout`] writes `grpc-timeout` when the request omits one. Distinct from [`ServerConfig::timeout`] (server overlay). Distinct from [`ChannelConfig::connect_timeout`] (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct ChannelConfig::timeout grpc-timeout write from tonic Endpoint::timeout skip"
     );
     assert!(
         crate_src.contains(
@@ -18432,6 +18448,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Server::timeout` | Not a tower stack: there is no `TimeoutLayer`. `ServerConfig::timeout` is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from `ChannelConfig::timeout` (client overlay). Distinct from `keep_alive_timeout` (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Server::timeout as an omission Distinct from gRPC deadline overlay"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. `ChannelConfig::timeout` writes `grpc-timeout` when the request omits one. Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct ChannelConfig::timeout grpc-timeout write from tonic Endpoint::timeout skip"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. Distinct from `ChannelConfig::timeout` (writes `grpc-timeout` when the request omits one). Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct ChannelConfig::timeout grpc-timeout write from tonic Endpoint::timeout skip"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. Distinct from `ChannelConfig::timeout` (writes `grpc-timeout` when the request omits one). Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct ChannelConfig::timeout grpc-timeout write from tonic Endpoint::timeout skip"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. Distinct from `ChannelConfig::timeout` (writes `grpc-timeout` when the request omits one). Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct ChannelConfig::timeout grpc-timeout write from tonic Endpoint::timeout skip"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::timeout` | Times out the client future without writing `grpc-timeout`, so the server is not informed. `ChannelConfig::timeout` writes `grpc-timeout` when the request omits one. Distinct from `ServerConfig::timeout` (server overlay). Distinct from `connect_timeout` (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Endpoint::timeout as an omission Distinct from writing grpc-timeout"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

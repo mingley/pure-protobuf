@@ -773,6 +773,8 @@
 //!
 //! There is no tonic `Server::timeout` tower layer: that is `TimeoutLayer` wrapping every request handler. This crate-map [`ServerConfig::timeout`] is a gRPC deadline overlay when the client omits `grpc-timeout`. Distinct from [`ChannelConfig::timeout`] (client overlay). Distinct from [`ServerConfig::keep_alive_timeout`] (PING ACK). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
+//! There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that times out the client future without informing the server. This crate-map [`ChannelConfig::timeout`] writes `grpc-timeout` when the request omits one. Distinct from [`ServerConfig::timeout`] (server overlay). Distinct from [`ChannelConfig::connect_timeout`] (dial bound). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

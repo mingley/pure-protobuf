@@ -1601,6 +1601,11 @@ impl ChannelConfig {
     /// by default. Values below 1 ms are raised to 1 ms. A request that already
     /// has a deadline is left alone; a later interceptor can still
     /// [`crate::Outgoing::set_timeout`] or [`crate::Outgoing::clear_timeout`].
+    /// There is no tonic `Endpoint::timeout` that omits `grpc-timeout`: that
+    /// times out the client future without informing the server. This overlay
+    /// writes `grpc-timeout` when the request omits one. Distinct from
+    /// [`ServerConfig::timeout`] (server overlay). Distinct from `tower`
+    /// integration, which is protobuf-tonic keeping tonic.
     ///
     /// [`crate::Channel::timeout`] and generated `FooClient::timeout` set this
     /// without building a [`ChannelConfig`].
