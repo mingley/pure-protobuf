@@ -951,10 +951,8 @@ impl Status {
     /// use pbrs_grpc::pb::{DebugInfo, ErrorDetails};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     debug_info: Some(DebugInfo::with_stack("handler.rs:9", "nil pointer")),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new()
+    ///     .with_debug_info(DebugInfo::with_stack("handler.rs:9", "nil pointer"));
     /// let status = Status::from_error_details(Code::Internal, "boom", &details)?;
     /// let debug = status.debug_info().expect("DebugInfo");
     /// assert_eq!(

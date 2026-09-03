@@ -9869,6 +9869,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::debug_info must Distinct Help docs URL from operator stack"
     );
     assert!(
+        status_src.contains(
+            ".with_debug_info(DebugInfo::with_stack(\"handler.rs:9\", \"nil pointer\"));"
+        ),
+        "Status::debug_info rustdoc must plant DebugInfo with with_debug_info"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::debug_info`]"),
         "DebugInfo::with_stack must name Status::debug_info unpack"
     );
