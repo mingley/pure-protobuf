@@ -878,10 +878,8 @@ impl LocalizedMessage {
     /// use pbrs_grpc::pb::{ErrorDetails, LocalizedMessage};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     localized_message: Some(LocalizedMessage::with_locale("fr-FR", "introuvable")),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new()
+    ///     .with_localized_message(LocalizedMessage::with_locale("fr-FR", "introuvable"));
     /// let status = Status::from_error_details(Code::NotFound, "not found", &details)?;
     /// assert_eq!(status.message(), "not found");
     /// let local = status.localized_message().expect("LocalizedMessage");

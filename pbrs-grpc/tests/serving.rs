@@ -9854,6 +9854,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "LocalizedMessage::with_locale must Distinct ASCII grpc-message from locale"
     );
     assert!(
+        pb_src.contains(
+            ".with_localized_message(LocalizedMessage::with_locale(\"fr-FR\", \"introuvable\"));\n    /// let status = Status::from_error_details(Code::NotFound, \"not found\", &details)?;\n    /// assert_eq!(status.message(), \"not found\");"
+        ),
+        "LocalizedMessage::with_locale rustdoc must plant LocalizedMessage with with_localized_message"
+    );
+    assert!(
         crate_src.contains("[`Status::request_info`]"),
         "crate map must name Status::request_info"
     );
