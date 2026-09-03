@@ -307,6 +307,45 @@ impl quota_failure::Violation {
         violation.set_description(description.into());
         violation
     }
+
+    /// Sets `api_service` on this quota violation.
+    ///
+    /// Chain after [`Self::with_subject`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
+    /// Distinct from [`Self::with_subject`]: that is subject and description, not the API service name.
+    /// Distinct from [`crate::Status::error_info`]: that is reason and domain, not a quota API service.
+    /// Distinct from [`FieldViolation::with_field`]: that is a request field path, not a quota API service.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{quota_failure, ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let violation = quota_failure::Violation::with_subject("project:1", "tokens")
+    ///     .with_api_service("compute.googleapis.com");
+    /// let mut quota = QuotaFailure::new();
+    /// quota.set_violations([violation]);
+    /// let details = ErrorDetails {
+    ///     quota_failure: Some(quota),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
+    /// let got = status.quota_failure().expect("QuotaFailure");
+    /// assert_eq!(
+    ///     got.violations()
+    ///         .get(0)
+    ///         .expect("v")
+    ///         .api_service()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "compute.googleapis.com"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_api_service(mut self, api_service: impl Into<String>) -> Self {
+        self.set_api_service(api_service.into());
+        self
+    }
 }
 
 impl QuotaFailure {
@@ -1074,6 +1113,35 @@ mod tests {
         assert_eq!(subject.subject().to_str().unwrap_or(""), "client:9");
         assert_eq!(subject.description().to_str().unwrap_or(""), "qps");
         assert!(status.retry_delay().is_none());
+        assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn quota_failure_with_api_service_round_trips() {
+        let violation = quota_failure::Violation::with_subject("project:1", "tokens")
+            .with_api_service("compute.googleapis.com");
+        assert_eq!(violation.subject().to_str().unwrap_or(""), "project:1");
+        assert_eq!(violation.description().to_str().unwrap_or(""), "tokens");
+        assert_eq!(
+            violation.api_service().to_str().unwrap_or(""),
+            "compute.googleapis.com"
+        );
+        let mut quota = QuotaFailure::new();
+        quota.set_violations([violation]);
+        let details = ErrorDetails {
+            quota_failure: Some(quota),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::ResourceExhausted, "quota", &details)
+            .expect("encode");
+        let got = status.quota_failure().expect("QuotaFailure");
+        let subject = got.violations().get(0).expect("subject");
+        assert_eq!(subject.subject().to_str().unwrap_or(""), "project:1");
+        assert_eq!(
+            subject.api_service().to_str().unwrap_or(""),
+            "compute.googleapis.com"
+        );
+        assert!(status.error_info().is_none());
         assert!(status.bad_request().is_none());
     }
 

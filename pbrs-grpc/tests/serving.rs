@@ -9360,6 +9360,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "ErrorInfo::with_metadata must Distinct reason and domain from a metadata pair"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_subject`]: that is subject and description, not the API service name."
+        ),
+        "quota_failure::Violation::with_api_service must Distinct subject and description from the API service name"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::bad_request`]"),
         "BadRequest::with_field must name Status::bad_request unpack"
     );
