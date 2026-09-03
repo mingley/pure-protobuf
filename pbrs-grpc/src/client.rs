@@ -35,6 +35,18 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// `FooClient::connect`) takes a `SocketAddr`, a `&str` of the form
 /// `host:port`, or a `String`.
 ///
+/// Distinct from tonic's `Endpoint`, which takes an `http://` /
+/// `https://` URI and infers TLS from the scheme. This kernel does
+/// not parse that URI: TLS is [`Channel::connect_tls`] plus
+/// [`crate::ClientTls`], Unix is [`Channel::connect_unix`] (a
+/// filesystem path, not `unix://`), and `:authority` overlay is
+/// [`Channel::origin`]. A URI-shaped string is
+/// [`Code::InvalidArgument`] at connect, including
+/// [`Channel::connect_lazy`], so wait-for-ready does not retry it.
+/// Distinct from a malformed `host:port`, which is
+/// [`Code::Unavailable`]. Distinct from tonic's
+/// `Endpoint::from_static`, which is that URI constructor.
+///
 /// ```
 /// use pbrs_grpc::Target;
 ///
@@ -43,6 +55,18 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// assert_eq!(from_addr.authority(), "127.0.0.1:50051");
 /// assert_eq!(from_name.authority(), "greeter.internal:50051");
 /// # Ok::<(), std::net::AddrParseError>(())
+/// ```
+///
+/// ```
+/// use pbrs_grpc::{Channel, Code};
+///
+/// let err = Channel::connect_lazy("https://example.com:443").expect_err("uri");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// assert!(err.message().contains("not a tonic http://"));
+/// let err = Channel::connect_lazy("http://127.0.0.1:50051").expect_err("h2c");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// let err = Channel::connect_lazy("unix:///tmp/grpc.sock").expect_err("unix");
+/// assert_eq!(err.code(), Code::InvalidArgument);
 /// ```
 #[derive(Clone, Debug)]
 pub struct Target {
@@ -57,10 +81,26 @@ impl Target {
     }
 
     fn parse(&self) -> Result<Authority, Status> {
+        if tonic_style_channel_uri(&self.authority) {
+            let authority = self.authority.as_str();
+            return Err(Status::invalid_argument(format!(
+                "Target {authority:?} is host:port, not a tonic http://, https://, or unix:// URI; Channel::connect_tls dials TLS, Channel::connect_unix takes a filesystem path, Channel::origin overlays :authority"
+            )));
+        }
         self.authority.parse().map_err(|e| {
             Status::unavailable(format!("invalid authority {:?}: {e}", self.authority))
         })
     }
+}
+
+// tonic Endpoint::from_static takes http:// / https://; grpc-go also uses
+// unix://. None of those are a Target.
+fn tonic_style_channel_uri(s: &str) -> bool {
+    s.split_once("://").is_some_and(|(scheme, _)| {
+        scheme.eq_ignore_ascii_case("http")
+            || scheme.eq_ignore_ascii_case("https")
+            || scheme.eq_ignore_ascii_case("unix")
+    })
 }
 
 impl From<SocketAddr> for Target {
@@ -333,6 +373,8 @@ impl fmt::Debug for Channel {
 impl Channel {
     /// Dial `target` with default configuration: one connection, 4 MiB
     /// inbound cap. Applies to every call shape.
+    /// Distinct from tonic's `Endpoint::from_static`, which takes an
+    /// `http://` / `https://` URI: [`Target`] is `host:port` (see [`Target`]).
     pub async fn connect(target: impl Into<Target>) -> Result<Self, Status> {
         Self::connect_with(target, ChannelConfig::default()).await
     }
@@ -2479,6 +2521,30 @@ mod tests {
     fn bad_authority_is_unavailable_not_a_panic() {
         let err = Target::from("not a host").parse().expect_err("invalid");
         assert_eq!(err.code(), crate::status::Code::Unavailable);
+    }
+
+    #[test]
+    fn tonic_style_channel_uri_is_invalid_argument() {
+        for uri in [
+            "https://example.com:443",
+            "http://127.0.0.1:50051",
+            "unix:///tmp/grpc.sock",
+            "HTTPS://example.com:443",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(
+                err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("not a host").parse().expect_err("malformed");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
+        assert_eq!(
+            Target::from("https://example.com:443").authority(),
+            "https://example.com:443"
+        );
     }
 
     #[test]

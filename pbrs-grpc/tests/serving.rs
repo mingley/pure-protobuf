@@ -479,6 +479,12 @@ fn channel_call_apis_document_hand_written_services() {
         "Channel::connect must name every call shape"
     );
     assert!(
+        src.contains(
+            "Distinct from tonic's `Endpoint::from_static`, which takes an\n    /// `http://` / `https://` URI: [`Target`] is `host:port` (see [`Target`])."
+        ),
+        "Channel::connect must Distinct tonic Endpoint::from_static URI from Target host:port"
+    );
+    assert!(
         src.contains("Build a channel that dials on the first RPC instead of now.\n    /// Applies to every call shape."),
         "Channel::connect_lazy must name every call shape"
     );
@@ -6364,6 +6370,24 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             "Distinct from tonic's `Endpoint::origin`, which takes a `Uri` and\n    /// also sets `:scheme`; scheme on this kernel is [`Self::connect_tls`]\n    /// or [`Self::https_scheme`]."
         ),
         "Channel::origin must Distinct tonic Endpoint::origin Uri scheme"
+    );
+    assert!(
+        channel.contains(
+            "Distinct from tonic's `Endpoint`, which takes an `http://` /\n/// `https://` URI and infers TLS from the scheme. This kernel does\n/// not parse that URI: TLS is [`Channel::connect_tls`] plus"
+        ),
+        "Target rustdoc must Distinct tonic Endpoint URI TLS inference from connect_tls"
+    );
+    assert!(
+        channel.contains(
+            "[`Code::Unavailable`]. Distinct from tonic's\n/// `Endpoint::from_static`, which is that URI constructor."
+        ),
+        "Target rustdoc must Distinct tonic Endpoint::from_static URI constructor"
+    );
+    assert!(
+        channel.contains(
+            "Distinct from tonic's `Endpoint::from_static`, which takes an\n    /// `http://` / `https://` URI: [`Target`] is `host:port` (see [`Target`])."
+        ),
+        "Channel::connect must Distinct tonic Endpoint::from_static URI from Target host:port"
     );
     assert!(
         channel.contains(
@@ -17822,6 +17846,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate README must Distinct Channel::origin from Target, ClientTls, and tonic Endpoint::origin"
     );
     assert!(
+        guide.contains("`Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT` at connect, including `connect_lazy`, so wait-for-ready does not retry it. Distinct from a malformed `host:port`, which is `UNAVAILABLE`."),
+        "guide must Distinct Target host:port from tonic Endpoint::from_static URI"
+    );
+    assert!(
+        architecture.contains("`Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT`."),
+        "architecture must Distinct Target host:port from tonic Endpoint::from_static URI"
+    );
+    assert!(
+        status_guide.contains("  `Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT`."),
+        "status guide must Distinct Target host:port from tonic Endpoint::from_static URI"
+    );
+    assert!(
+        readme.contains("`Target` / `Channel::connect` / `FooClient::connect` take `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT`."),
+        "crate README must Distinct Target host:port from tonic Endpoint::from_static URI"
+    );
+    assert!(
+        guide.contains("tonic `http://` / `https://` / `unix://` channel URIs | `Target` is `host:port`. `Channel::connect_tls` dials TLS; `Channel::connect_unix` takes a filesystem path; `Channel::origin` overlays `:authority`. A URI-shaped string is `INVALID_ARGUMENT`, not a silent `connect_tls`."),
+        "guide must keep tonic channel URIs as an omission Distinct from connect_tls and origin"
+    );
+    assert!(
         status_guide
             .contains("hedging, channelz (`grpc.channelz.v1`), and binary logging (`grpc.binarylog.v1`) are documented omissions."),
         "status guide must keep channelz and binary logging as documented omissions"
@@ -25475,6 +25519,49 @@ async fn origin_rejects_invalid_authority() {
         err.message()
     );
     task.abort();
+}
+
+#[test]
+fn tonic_channel_uri_is_invalid_argument_not_unavailable() {
+    for uri in [
+        "https://example.com:443",
+        "http://127.0.0.1:50051",
+        "unix:///tmp/grpc.sock",
+        "HTTPS://EXAMPLE.COM:443",
+        "HTTP://127.0.0.1:50051",
+    ] {
+        let err = Channel::connect_lazy(uri).expect_err(uri);
+        assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+        assert!(
+            err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.is_retryable(),
+            "URI-shaped Target must not look retryable: {err}"
+        );
+    }
+    let tls = ClientTls::webpki("localhost").expect("tls");
+    let err = Channel::connect_tls_lazy("https://example.com:443", tls).expect_err("tls uri");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let err = GreeterClient::connect_lazy("https://example.com:443").expect_err("generated");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let channel = Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+    let err = channel
+        .origin("https://example.com:443")
+        .expect_err("origin uri");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("invalid origin"),
+        "{}",
+        err.message()
+    );
+    assert!(
+        !err.message().contains("not a tonic http://"),
+        "{}",
+        err.message()
+    );
 }
 
 #[tokio::test]

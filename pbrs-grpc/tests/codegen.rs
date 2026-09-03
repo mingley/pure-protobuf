@@ -5048,9 +5048,9 @@ fn generated_stubs_name_encoding_cancel_and_stream_drop() {
     );
     assert!(
         src.contains(
-            "Dial `target`. See [`::pbrs_grpc::Channel::connect`]. Applies to every call shape."
+            "Dial `target` (`host:port`, not a tonic `http://` / `https://` URI). See [`::pbrs_grpc::Channel::connect`]. Applies to every call shape."
         ),
-        "generated connect rustdoc must name every call shape"
+        "generated connect rustdoc must Distinct tonic URI from Target host:port"
     );
     assert!(
         src.contains(

@@ -143,7 +143,9 @@ Keepalive PINGs do not postpone age.
 Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.
 `Channel::https_scheme` sends `:scheme https` on a `from_io` clone without
 a TLS handshake; TCP and Unix keep the transport. `Channel::origin` /
-`FooClient::origin` overrides `:authority` without changing the dial. Distinct from `ClientTls` (SNI) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`. `Channel::scheme` /
+`FooClient::origin` overrides `:authority` without changing the dial. Distinct from `ClientTls` (SNI) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`.
+`Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT`.
+`Channel::scheme` /
 `FooClient::scheme` is the same string client interceptors see on
 `Outgoing::scheme`. `FooClient::authority` and `FooClient::grpc_user_agent`
 are the same strings as `Channel::authority` / `Channel::grpc_user_agent`.

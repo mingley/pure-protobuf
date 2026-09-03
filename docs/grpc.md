@@ -126,7 +126,9 @@ println!("{}", reply.get_ref().message());
 
 `GreeterClient::connect` (and `Channel::connect`) takes anything that converts into a
 `Target`: a `SocketAddr`, or a `host:port`
-string that goes through DNS. The resulting client is meant to be cloned
+string that goes through DNS.
+`Target` is `host:port`, not a tonic `http://` / `https://` URI. Distinct from `Channel::connect_tls` (TLS dial) and from `Channel::origin` (`:authority` overlay). Distinct from tonic's `Endpoint::from_static`, which infers TLS from the URI scheme. A URI-shaped string is `INVALID_ARGUMENT` at connect, including `connect_lazy`, so wait-for-ready does not retry it. Distinct from a malformed `host:port`, which is `UNAVAILABLE`.
+The resulting client is meant to be cloned
 and held for the life of the process: if a connection dies, the next RPC
 redials that slot, including over TLS, mTLS, and Unix, so a server restart
 on the same address does not require a new client. `from_io` cannot redial. A received `Streaming` holds the HTTP/2 driver, so
@@ -2410,6 +2412,7 @@ Deliberate omissions, with what to do instead.
 | Channel connectivity state | `Channel::connected` is a snapshot of live sockets (`Outgoing::connected` is that snapshot in a client interceptor; `FooClient::connected` is that snapshot on a generated client). There is no `GetState` / `WaitForStateChange`. |
 | Channelz (`grpc.channelz.v1`) | Not implemented. `Channel::connected` / `Outgoing::connected` / `FooClient::connected` is a live-socket snapshot, not channelz sockets, channels, or subchannels. |
 | Binary logging (`grpc.binarylog.v1`) | Not implemented. Interceptors observe `Outgoing` / `Rpc` / `Status` on this process; that is not the binary-log event proto. |
+| tonic `http://` / `https://` / `unix://` channel URIs | `Target` is `host:port`. `Channel::connect_tls` dials TLS; `Channel::connect_unix` takes a filesystem path; `Channel::origin` overlays `:authority`. A URI-shaped string is `INVALID_ARGUMENT`, not a silent `connect_tls`. |
 | Keepalive `PermitWithoutStream` | PINGs already run on an interval regardless of RPC traffic. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |

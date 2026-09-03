@@ -4755,7 +4755,7 @@ fn emit_kernel_server(
 fn emit_kernel_client_dialers(src: &mut String) {
     let _ = writeln!(
         src,
-        "    /// Dial `target`. See [`{G}::Channel::connect`]. Applies to every call shape."
+        "    /// Dial `target` (`host:port`, not a tonic `http://` / `https://` URI). See [`{G}::Channel::connect`]. Applies to every call shape."
     );
     let _ = writeln!(
         src,
