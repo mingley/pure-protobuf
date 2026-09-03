@@ -6344,6 +6344,23 @@ fn client_tls_webpki_documents_tls_config_with_verifier() {
 }
 
 #[test]
+fn health_reporter_documents_with_disable_health_check() {
+    let src = include_str!("../src/health.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithDisableHealthCheck`: that disables LB channel\n/// health checking for all SubConns. This reporter is `grpc.health.v1`\n/// serving status; [`crate::Channel`] does not run LB health probes.\n/// Distinct from [`Self::shutdown`] (serving status, not a DialOption).\n/// Distinct from [`crate::Server::serve_with_shutdown`] (drain wait, not\n/// health probes). Distinct from [`crate::Channel::connect`] (one duplex,\n/// no SubConns)."
+        ),
+        "HealthReporter rustdoc must Distinct grpc.health.v1 serving status from grpc-go WithDisableHealthCheck"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithDisableHealthCheck`")
+            .count(),
+        1,
+        "HealthReporter::shutdown must not copy the WithDisableHealthCheck Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6428,6 +6445,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     let channel = include_str!("../src/client.rs");
     let tls = include_str!("../src/tls.rs");
+    let health = include_str!("../src/health.rs");
     assert!(
         channel.contains("does not postpone age. The next RPC of every call shape redials"),
         "Channel rustdoc must name client max_connection_age redial"
@@ -6501,6 +6519,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "ClientTls::webpki_mtls must not copy the tls_config_with_verifier Distinct"
+    );
+    assert!(
+        health.contains(
+            "There is no grpc-go `WithDisableHealthCheck`: that disables LB channel\n/// health checking for all SubConns. This reporter is `grpc.health.v1`\n/// serving status; [`crate::Channel`] does not run LB health probes.\n/// Distinct from [`Self::shutdown`] (serving status, not a DialOption).\n/// Distinct from [`crate::Server::serve_with_shutdown`] (drain wait, not\n/// health probes). Distinct from [`crate::Channel::connect`] (one duplex,\n/// no SubConns)."
+        ),
+        "HealthReporter rustdoc must Distinct grpc.health.v1 serving status from grpc-go WithDisableHealthCheck"
+    );
+    assert_eq!(
+        health
+            .matches("There is no grpc-go `WithDisableHealthCheck`")
+            .count(),
+        1,
+        "HealthReporter::shutdown must not copy the WithDisableHealthCheck Distinct"
     );
     assert!(
         channel.contains(
@@ -7601,6 +7632,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. This crate-map [`Server::serve_with_shutdown`] drain always waits for in-flight RPCs. Distinct from [`ServerConfig::max_connection_age_grace`] (GOAWAY then force-close). Distinct from [`health::HealthReporter::shutdown`] (serving status, not drain)."),
         "crate-map must Distinct serve_with_shutdown drain wait from grpc-go WaitForHandlers"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. This crate-map [`health::HealthReporter`] is `grpc.health.v1` serving status; [`Channel`] does not run LB health probes. Distinct from [`health::HealthReporter::shutdown`] (serving status, not a DialOption). Distinct from [`Server::serve_with_shutdown`] (drain wait, not health probes). Distinct from [`Channel::connect`] (one duplex, no SubConns)."),
+        "crate-map must Distinct HealthReporter grpc.health.v1 serving status from grpc-go WithDisableHealthCheck"
     );
     assert!(
         crate_src.contains("There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). This crate-map [`ServerConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
@@ -18767,6 +18802,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::http2_adaptive_window` | Not adaptive flow control: that overrides stream and connection windows. `ChannelConfig::initial_stream_window_size` is a fixed SETTINGS window. Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override)."),
         "guide must keep tonic http2_adaptive_window as an omission Distinct from fixed SETTINGS windows"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. `HealthReporter` is `grpc.health.v1` serving status; `Channel` does not run LB health probes. Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns)."),
+        "guide must Distinct HealthReporter grpc.health.v1 serving status from grpc-go WithDisableHealthCheck"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. Distinct from `HealthReporter` (`grpc.health.v1` serving status; `Channel` does not run LB health probes). Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns)."),
+        "architecture must Distinct HealthReporter grpc.health.v1 serving status from grpc-go WithDisableHealthCheck"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. Distinct from `HealthReporter` (`grpc.health.v1` serving status; `Channel` does not run LB health probes). Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns)."),
+        "status guide must Distinct HealthReporter grpc.health.v1 serving status from grpc-go WithDisableHealthCheck"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. Distinct from `HealthReporter` (`grpc.health.v1` serving status; `Channel` does not run LB health probes). Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns)."),
+        "crate README must Distinct HealthReporter grpc.health.v1 serving status from grpc-go WithDisableHealthCheck"
+    );
+    assert!(
+        guide.contains("grpc-go `WithDisableHealthCheck` | Not a DialOption: grpc-go disables LB channel health checking for all SubConns. `HealthReporter` is `grpc.health.v1` serving status; `Channel` does not run LB health probes. Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns)."),
+        "guide must keep grpc-go WithDisableHealthCheck as an omission Distinct from grpc.health.v1 serving status"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

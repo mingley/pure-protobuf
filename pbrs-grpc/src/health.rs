@@ -129,6 +129,13 @@ type Snapshot = Arc<HashMap<String, ServingStatus>>;
 
 /// Drives the serving status of the empty name (the process) and of named
 /// services. Cheap to clone; every clone talks to the same map.
+/// There is no grpc-go `WithDisableHealthCheck`: that disables LB channel
+/// health checking for all SubConns. This reporter is `grpc.health.v1`
+/// serving status; [`crate::Channel`] does not run LB health probes.
+/// Distinct from [`Self::shutdown`] (serving status, not a DialOption).
+/// Distinct from [`crate::Server::serve_with_shutdown`] (drain wait, not
+/// health probes). Distinct from [`crate::Channel::connect`] (one duplex,
+/// no SubConns).
 #[derive(Clone)]
 pub struct HealthReporter {
     tx: watch::Sender<Snapshot>,

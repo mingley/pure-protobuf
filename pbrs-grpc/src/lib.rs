@@ -771,6 +771,8 @@
 //!
 //! There is no grpc-go `WaitForHandlers`: grpc-go `Stop` can return before handlers exit. This crate-map [`Server::serve_with_shutdown`] drain always waits for in-flight RPCs. Distinct from [`ServerConfig::max_connection_age_grace`] (GOAWAY then force-close). Distinct from [`health::HealthReporter::shutdown`] (serving status, not drain).
 //!
+//! There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. This crate-map [`health::HealthReporter`] is `grpc.health.v1` serving status; [`Channel`] does not run LB health probes. Distinct from [`health::HealthReporter::shutdown`] (serving status, not a DialOption). Distinct from [`Server::serve_with_shutdown`] (drain wait, not health probes). Distinct from [`Channel::connect`] (one duplex, no SubConns).
+//!
 //! There is no tonic `Server::load_shed`: that is tower `LoadShedLayer` (fail when `poll_ready` is pending, instead of waiting). This crate-map [`ServerConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from tonic `Server::concurrency_limit_per_connection` (per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
 //! There is no grpc-go `SharedWriteBuffer`: that reuses a per-connection transport write buffer after flush. This crate-map [`ServerConfig::max_send_buffer_size`] is HTTP/2 write-byte backpressure per connection; buffers are not pooled across connections. Distinct from grpc-go `WriteBufferSize` / `ReadBufferSize` (socket byte buffers). Distinct from tonic `Endpoint::buffer_size` (tower `Buffer` request slots).

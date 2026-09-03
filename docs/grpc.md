@@ -1053,6 +1053,7 @@ balancer can drain before `serve_*_until_shutdown`, including over TLS,
 mTLS, Unix, and `from_io`. `HealthReporter::resume`
 is the inverse: every known name is `SERVING` again, still without creating
 unknown names.
+There is no grpc-go `WithDisableHealthCheck`: that disables LB channel health checking for all SubConns. `HealthReporter` is `grpc.health.v1` serving status; `Channel` does not run LB health probes. Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns).
 
 `List` returns that same snapshot as `HealthCheckResponse` values keyed by
 name, including over TLS, mTLS, Unix, and `from_io`. Unknown names are
@@ -2473,6 +2474,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `WithDisableRetry` | Not a DialOption: grpc-go disables service-config retries and leaves transparent retries on. This kernel has no service-config retry policy; application retries stay at the call site (`Code::is_retryable`). Transparent retry cannot be turned off (`from_io` never had it). Distinct from hedging (not implemented). |
 | tonic `Endpoint::tls_config_with_verifier` | Not a custom rustls `ServerCertVerifier`: `ClientTls::webpki` always verifies against Mozilla's CA set. Distinct from `ClientTls::ca` (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none). Distinct from `from_io` TLS handshake (`https_scheme` labels; it does not handshake). |
 | tonic `Endpoint::http2_adaptive_window` | Not adaptive flow control: that overrides stream and connection windows. `ChannelConfig::initial_stream_window_size` is a fixed SETTINGS window. Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override). |
+| grpc-go `WithDisableHealthCheck` | Not a DialOption: grpc-go disables LB channel health checking for all SubConns. `HealthReporter` is `grpc.health.v1` serving status; `Channel` does not run LB health probes. Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
