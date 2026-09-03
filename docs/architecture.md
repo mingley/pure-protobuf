@@ -306,6 +306,7 @@ Distinct from `Server::on_response`: that runs after the handler returns Ok; thi
 `Status::from_error_details` is the typed bag after this architecture server intercept Err; those trailers reach the client without reading the body.
 Distinct from an architecture handler Err: that is after the handler ran; this architecture server intercept Err is trailers without reading the body.
 Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture server intercept Err is trailers without reading the body.
+Distinct from an architecture Channel on_response Err: that fails the Call after a successful receive; this architecture server intercept Err is trailers without reading the body.
 Distinct from an architecture interceptor Err: that is a local reject never opens a stream; this architecture server intercept Err is trailers without reading the body.
 `Status::from_error_details` is the typed bag after this architecture Store interceptor Err; those trailers reach the client without reading the body.
 Distinct from an architecture Store handler Err: that is after the handler ran; this architecture Store interceptor Err is trailers without reading the body.
