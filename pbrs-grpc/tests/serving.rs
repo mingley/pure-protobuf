@@ -17406,6 +17406,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name ErrorDetails::with_retry_info next to ErrorDetails::with_error_info"
     );
     assert!(
+        architecture.contains("`ErrorDetails::with_debug_info` plants packed DebugInfo after this architecture ErrorDetails bag."),
+        "architecture must name ErrorDetails::with_debug_info next to ErrorDetails::with_retry_info"
+    );
+    assert!(
         architecture.contains(
             "`Duration::from_std` builds the protobuf from `std` after this architecture try_to_std convert, Distinct from converting this protobuf to `std`."
         ),
