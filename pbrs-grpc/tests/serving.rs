@@ -9563,6 +9563,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "quota_failure::Violation::with_future_quota_value must Distinct subject and description from the future quota value"
     );
     assert!(
+        pb_src.contains(
+            ".with_future_quota_value(16);\n    /// let mut quota = QuotaFailure::new();\n    /// quota.set_violations([violation]);\n    /// let details = ErrorDetails::new().with_quota_failure(quota);"
+        ),
+        "quota_failure::Violation::with_future_quota_value rustdoc must plant QuotaFailure with with_quota_failure"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::bad_request`]"),
         "BadRequest::with_field must name Status::bad_request unpack"
     );
