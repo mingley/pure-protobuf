@@ -748,13 +748,10 @@ impl PreconditionFailure {
     /// use pbrs_grpc::pb::{ErrorDetails, PreconditionFailure};
     /// use pbrs_grpc::{Code, Status};
     ///
-    /// let details = ErrorDetails {
-    ///     precondition_failure: Some(
-    ///         PreconditionFailure::with_violation("TOS", "google.com/cloud", "unsigned")
-    ///             .with_violation_entry("googleapis.com/iam/resource", "user:9", "missing"),
-    ///     ),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_precondition_failure(
+    ///     PreconditionFailure::with_violation("TOS", "google.com/cloud", "unsigned")
+    ///         .with_violation_entry("googleapis.com/iam/resource", "user:9", "missing"),
+    /// );
     /// let status = Status::from_error_details(Code::FailedPrecondition, "tos", &details)?;
     /// let pre = status.precondition_failure().expect("PreconditionFailure");
     /// let extra = pre.violations().get(1).expect("violation");

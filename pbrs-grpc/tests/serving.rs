@@ -9749,6 +9749,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "PreconditionFailure::with_violation_entry must Distinct the first precondition type from an extra precondition violation"
     );
     assert!(
+        pb_src.contains(
+            ".with_precondition_failure(\n    ///     PreconditionFailure::with_violation(\"TOS\", \"google.com/cloud\", \"unsigned\")\n    ///         .with_violation_entry(\"googleapis.com/iam/resource\", \"user:9\", \"missing\"),"
+        ),
+        "PreconditionFailure::with_violation_entry rustdoc must plant PreconditionFailure with with_precondition_failure"
+    );
+    assert!(
         crate_src.contains("[`Status::help`]"),
         "crate map must name Status::help"
     );
