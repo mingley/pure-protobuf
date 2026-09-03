@@ -6378,6 +6378,22 @@ fn channel_config_documents_with_default_service_config() {
 }
 
 #[test]
+fn channel_config_max_connection_idle_documents_with_idle_timeout() {
+    let src = include_str!("../src/config.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the\n    /// name resolver and load balancer after channel idle (default 30 min;\n    /// zero disables). This cap closes the socket when no RPCs are outstanding\n    /// (unset by default; sub-millisecond values are raised to 1 ms, not\n    /// disabled). Distinct from [`Self::max_connection_age`] (age, not idle).\n    /// Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY).\n    /// There is no resolver or load balancer to shut down."
+        ),
+        "ChannelConfig::max_connection_idle rustdoc must Distinct socket close from grpc-go WithIdleTimeout idle mode"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithIdleTimeout`").count(),
+        1,
+        "ServerConfig::max_connection_idle must not copy the WithIdleTimeout Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -7124,6 +7140,17 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the\n    /// name resolver and load balancer after channel idle (default 30 min;\n    /// zero disables). This cap closes the socket when no RPCs are outstanding\n    /// (unset by default; sub-millisecond values are raised to 1 ms, not\n    /// disabled). Distinct from [`Self::max_connection_age`] (age, not idle).\n    /// Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY).\n    /// There is no resolver or load balancer to shut down."
+        ),
+        "ChannelConfig::max_connection_idle rustdoc must Distinct socket close from grpc-go WithIdleTimeout idle mode"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithIdleTimeout`").count(),
+        1,
+        "ServerConfig::max_connection_idle must not copy the WithIdleTimeout Distinct"
+    );
+    assert!(
+        src.contains(
             "HTTP/2 connection receive window the client advertises. Distinct from\n    /// [`ServerConfig::initial_connection_window_size`], which still serves when\n    /// the server advertises a small window. A well-behaved server still\n    /// completes every call shape, including over TLS, mTLS, Unix, and\n    /// [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::initial_connection_window_size must name client advertised Distinct from server still-serves"
@@ -7701,6 +7728,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
         "crate-map must Distinct ChannelConfig typed Copy fields from grpc-go WithDefaultServiceConfig JSON"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). This crate-map [`ChannelConfig::max_connection_idle`] closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from [`ChannelConfig::max_connection_age`] (age, not idle). Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY). There is no resolver or load balancer to shut down."),
+        "crate-map must Distinct ChannelConfig::max_connection_idle socket close from grpc-go WithIdleTimeout idle mode"
     );
     assert!(
         crate_src.contains("There is no tonic `Endpoint::tls_config_with_verifier`: that replaces WebPKI with a custom rustls `ServerCertVerifier`. This crate-map [`ClientTls::webpki`] always verifies against Mozilla's CA set. Distinct from [`ClientTls::ca`] (pin a CA, still verifies). Distinct from a skip-verify constructor (there is none)."),
@@ -18875,6 +18906,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithDefaultServiceConfig` / `WithDisableServiceConfig` | Not JSON service config: `ChannelConfig` is typed `Copy` fields; there is no name resolver to fetch or ignore. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout)."),
         "guide must keep grpc-go WithDefaultServiceConfig as an omission Distinct from typed Copy ChannelConfig"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). `ChannelConfig::max_connection_idle` closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down."),
+        "guide must Distinct ChannelConfig::max_connection_idle socket close from grpc-go WithIdleTimeout idle mode"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). Distinct from `ChannelConfig::max_connection_idle` (closes the socket; unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down."),
+        "architecture must Distinct ChannelConfig::max_connection_idle socket close from grpc-go WithIdleTimeout idle mode"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). Distinct from `ChannelConfig::max_connection_idle` (closes the socket; unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down."),
+        "status guide must Distinct ChannelConfig::max_connection_idle socket close from grpc-go WithIdleTimeout idle mode"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). Distinct from `ChannelConfig::max_connection_idle` (closes the socket; unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down."),
+        "crate README must Distinct ChannelConfig::max_connection_idle socket close from grpc-go WithIdleTimeout idle mode"
+    );
+    assert!(
+        guide.contains("grpc-go `WithIdleTimeout` | Not resolver/LB idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). `ChannelConfig::max_connection_idle` closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down."),
+        "guide must keep grpc-go WithIdleTimeout as an omission Distinct from socket-close idle"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

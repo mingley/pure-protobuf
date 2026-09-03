@@ -1250,6 +1250,7 @@ cannot redial: an idle close there makes later RPCs fail with
 even while RPCs are in flight (jittered ±10%, then `max_connection_age_grace`);
 idle does not. New RPCs of every call shape redial, including over TLS, mTLS,
 and Unix. `from_io` cannot redial after that close.
+There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). `ChannelConfig::max_connection_idle` closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down.
 `Channel::connected` is a snapshot of live sockets. Distinct from gRPC
 `GetState`: it does not dial, wait, or remember a failed attempt.
 `Outgoing::connected` is that same snapshot when a client interceptor runs.
@@ -2477,6 +2478,7 @@ Deliberate omissions, with what to do instead.
 | tonic `Endpoint::http2_adaptive_window` | Not adaptive flow control: that overrides stream and connection windows. `ChannelConfig::initial_stream_window_size` is a fixed SETTINGS window. Distinct from `initial_connection_window_size` (connection window, still fixed). Distinct from `data_frame_budget` (`h2 Auto` tiny-DATA budget, not window adaptation). Distinct from tonic `Server::http2_adaptive_window` (server adaptive override). |
 | grpc-go `WithDisableHealthCheck` | Not a DialOption: grpc-go disables LB channel health checking for all SubConns. `HealthReporter` is `grpc.health.v1` serving status; `Channel` does not run LB health probes. Distinct from `HealthReporter::shutdown` (serving status, not a DialOption). Distinct from `Server::serve_with_shutdown` (drain wait, not health probes). Distinct from `Channel::connect` (one duplex, no SubConns). |
 | grpc-go `WithDefaultServiceConfig` / `WithDisableServiceConfig` | Not JSON service config: `ChannelConfig` is typed `Copy` fields; there is no name resolver to fetch or ignore. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from `ChannelConfig::timeout` (kernel overlay, not methodConfig timeout). |
+| grpc-go `WithIdleTimeout` | Not resolver/LB idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). `ChannelConfig::max_connection_idle` closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

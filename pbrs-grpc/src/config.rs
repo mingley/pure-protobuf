@@ -1525,6 +1525,13 @@ impl ChannelConfig {
     /// shape redials, including over TLS, mTLS, and Unix, except on
     /// [`crate::Channel::from_io`], which cannot redial and fails with
     /// [`crate::Code::Unavailable`].
+    /// There is no grpc-go `WithIdleTimeout` idle mode: that shuts down the
+    /// name resolver and load balancer after channel idle (default 30 min;
+    /// zero disables). This cap closes the socket when no RPCs are outstanding
+    /// (unset by default; sub-millisecond values are raised to 1 ms, not
+    /// disabled). Distinct from [`Self::max_connection_age`] (age, not idle).
+    /// Distinct from [`ServerConfig::max_connection_idle`] (server GOAWAY).
+    /// There is no resolver or load balancer to shut down.
     #[must_use]
     pub fn max_connection_idle(mut self, idle: Duration) -> Self {
         self.max_connection_idle = Some(idle.max(Duration::from_millis(1)));
