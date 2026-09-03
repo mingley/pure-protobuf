@@ -264,6 +264,7 @@ pub trait ResponseInterceptor: Send + Sync + 'static {
     /// Distinct from a Server on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from a Router on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from an Intercepted on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
+    /// Distinct from a ServiceExt on_response Err: that is trailers-only after handler Ok; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     /// Distinct from a StreamSender fail: that is trailers after any messages already sent; this method-level on_response Err is trailers-only after handler Ok, or fails the Call after a successful receive.
     fn intercept(&self, parts: &mut crate::ResponseParts) -> Result<(), Status>;
 }
