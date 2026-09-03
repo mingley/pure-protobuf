@@ -429,6 +429,7 @@ Or `status.error_info()` for the reason and domain without unpacking the bag. Di
 `ErrorInfo::with_metadata` fills a metadata pair after this guide ErrorInfo builder.
 Or `status.bad_request()` for field violations without unpacking the bag. Distinct from `status.error_info()`. `BadRequest::with_field` builds that payload.
 `FieldViolation::with_field` builds a nested field path after this guide BadRequest builder.
+`FieldViolation::with_reason` builds a nested field-violation reason after this guide FieldViolation builder.
 Or `status.quota_failure()` for quota subjects without unpacking the bag. Distinct from `status.is_retryable()`. `QuotaFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
 `quota_failure::Violation::with_subject` builds a nested quota subject after this guide QuotaFailure builder.
 Or `status.precondition_failure()` for precondition type and subject without unpacking the bag. Distinct from `status.quota_failure()`. `PreconditionFailure::with_violation` builds that payload. Distinct from `status.bad_request()`.
