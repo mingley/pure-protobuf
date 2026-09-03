@@ -17830,6 +17830,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep binary logging as an omission Distinct from interceptors"
     );
     assert!(
+        guide.contains(
+            "`grpc.stats` / OpenTelemetry tracing | Not implemented. Interceptors observe `Outgoing` / `Rpc` / `Status` on this process; that is envelope mutation, not `stats.Handler` Begin/End/payload and not OpenTelemetry spans. Distinct from binary logging (`grpc.binarylog.v1`), which is the event proto. Distinct from tonic's `trace_fn`, which installs a tracing span per RPC."
+        ),
+        "guide must keep grpc.stats / OpenTelemetry as an omission Distinct from interceptors, binarylog, and tonic trace_fn"
+    );
+    assert!(
         guide.contains("`Channel::origin` / `FooClient::origin` overrode it on that clone. Distinct from `ClientTls` (SNI / certificate name) and from tonic's `Endpoint::origin`, which takes a `Uri` and also sets `:scheme`."),
         "guide must Distinct Channel::origin from ClientTls SNI and tonic Endpoint::origin"
     );
@@ -17867,8 +17873,8 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide
-            .contains("hedging, channelz (`grpc.channelz.v1`), and binary logging (`grpc.binarylog.v1`) are documented omissions."),
-        "status guide must keep channelz and binary logging as documented omissions"
+            .contains("hedging, channelz (`grpc.channelz.v1`), binary logging (`grpc.binarylog.v1`), and grpc.stats / OpenTelemetry tracing are documented omissions."),
+        "status guide must keep channelz, binary logging, and grpc.stats as documented omissions"
     );
     assert!(
         guide.contains("`FooClient::connected` is that snapshot on a generated client"),
