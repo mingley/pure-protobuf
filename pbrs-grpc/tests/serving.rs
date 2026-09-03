@@ -18845,6 +18845,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         architecture.contains(
+            "Distinct from an architecture server intercept Err: that is trailers without reading the body; this architecture Channel on_response Err fails the Call after a successful receive."
+        ),
+        "architecture must Distinct architecture server intercept Err without reading the body from this architecture Channel on_response Err Call fail after receive"
+    );
+    assert!(
+        architecture.contains(
             "Distinct from an architecture server on_response Err: that is trailers-only after handler Ok; this architecture Channel on_response Err fails the Call after a successful receive."
         ),
         "architecture must Distinct architecture server on_response Err trailers-only after handler Ok from this architecture Channel on_response Err Call fail after receive"
