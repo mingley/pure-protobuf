@@ -364,6 +364,11 @@ impl Channel {
     /// `target` is the TCP address; [`ClientTls`] carries the name verified
     /// against the certificate, which can be different (dial `127.0.0.1`,
     /// verify `localhost`). Applies to every call shape.
+    /// A dropped socket during the handshake is [`Code::Unavailable`].
+    /// Certificate and protocol failures (rustls `InvalidData`) are
+    /// [`Code::Unauthenticated`]. Distinct from [`Status`]'s
+    /// `From<std::io::Error>`: that maps local I/O `InvalidData` to
+    /// [`Code::Internal`].
     pub async fn connect_tls(target: impl Into<Target>, tls: ClientTls) -> Result<Self, Status> {
         Self::connect_tls_with(target, ChannelConfig::default(), tls).await
     }

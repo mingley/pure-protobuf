@@ -6292,6 +6292,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Channel rustdoc must Distinct keepalive PINGs from postponing age"
     );
     assert!(
+        channel.contains(
+            "Certificate and protocol failures (rustls `InvalidData`) are\n    /// [`Code::Unauthenticated`]. Distinct from [`Status`]'s\n    /// `From<std::io::Error>`: that maps local I/O `InvalidData` to\n    /// [`Code::Internal`]."
+        ),
+        "Channel::connect_tls must Distinct handshake InvalidData Unauthenticated from local I/O Internal"
+    );
+    assert!(
         channel.contains("protocol-error RST cap are set at handshake"),
         "Channel rustdoc must name protocol-error RST cap as handshake-only"
     );
