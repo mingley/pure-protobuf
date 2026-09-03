@@ -7216,8 +7216,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::with_bad_request next to ErrorDetails::with_precondition_failure"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_bad_request`], [`ErrorDetails::to_anys`]"),
-        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_bad_request"
+        crate_src.contains("[`ErrorDetails::with_bad_request`], [`ErrorDetails::with_request_info`]"),
+        "crate map must name ErrorDetails::with_request_info next to ErrorDetails::with_bad_request"
+    );
+    assert!(
+        crate_src.contains("[`ErrorDetails::with_request_info`], [`ErrorDetails::to_anys`]"),
+        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_request_info"
     );
     assert!(
         crate_src.contains("[`pb`], [`Any::pack`]"),
