@@ -12240,6 +12240,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         readme.contains(
+            "`quota_failure::Violation::with_quota_metric` builds a nested quota metric on this crate README"
+        ),
+        "crate README must name quota_failure::Violation::with_quota_metric next to quota_failure::Violation::with_api_service"
+    );
+    assert!(
+        readme.contains(
             "`Status::precondition_failure` / `PreconditionFailure::with_violation` builds packed type and subject on this crate README"
         ),
         "crate README must name PreconditionFailure::with_violation next to Status::precondition_failure"
