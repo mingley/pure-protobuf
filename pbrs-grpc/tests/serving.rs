@@ -19553,6 +19553,12 @@ fn server_and_router_config_document_every_call_shape() {
     );
     assert!(
         src.contains(
+            "Distinct from a Router on_response Err: that is trailers-only after handler Ok; this Server intercept Err is trailers without reading the body."
+        ),
+        "Server::intercept rustdoc must Distinct Router on_response Err trailers-only after handler Ok from this Server intercept Err without reading the body"
+    );
+    assert!(
+        src.contains(
             "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this Server intercept Err is trailers without reading the body."
         ),
         "Server::intercept rustdoc must Distinct Channel on_response Err Call fail after receive from this Server intercept Err without reading the body"
