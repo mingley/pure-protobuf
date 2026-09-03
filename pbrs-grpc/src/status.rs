@@ -1160,7 +1160,9 @@ impl Status {
     /// [`std::error::Error::source`], that status is returned as-is (cause
     /// and packed details stay). A top-level [`std::io::Error`] uses the
     /// same mapping as `From` (timeouts [`Code::DeadlineExceeded`],
-    /// connection failures [`Code::Unavailable`], ...). Anything else is
+    /// connection failures [`Code::Unavailable`],
+    /// [`std::io::ErrorKind::InvalidData`] [`Code::Internal`], leftover
+    /// [`Code::Unknown`]). Anything else is
     /// [`Code::Unknown`] with `err`'s display as the message and `err` as
     /// [`std::error::Error::source`].
     ///
