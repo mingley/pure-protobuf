@@ -12731,6 +12731,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`FieldViolation::with_reason` builds a nested field-violation reason on this packed-status."
+        ),
+        "status guide must name FieldViolation::with_reason next to FieldViolation::with_field"
+    );
+    assert!(
+        status_guide.contains(
             "`quota_failure::Violation::with_subject` builds a nested quota subject on this packed-status."
         ),
         "status guide must name quota_failure::Violation::with_subject next to QuotaFailure::with_violation"
