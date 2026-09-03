@@ -9400,6 +9400,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "quota_failure::Violation::with_quota_dimension must Distinct subject and description from a quota dimension pair"
     );
     assert!(
+        pb_src.contains(
+            "Distinct from [`Self::with_subject`]: that is subject and description, not the quota value."
+        ),
+        "quota_failure::Violation::with_quota_value must Distinct subject and description from the quota value"
+    );
+    assert!(
         pb_src.contains("unpack with [`crate::Status::bad_request`]"),
         "BadRequest::with_field must name Status::bad_request unpack"
     );

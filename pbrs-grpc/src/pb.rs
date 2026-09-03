@@ -463,6 +463,37 @@ impl quota_failure::Violation {
             .insert(key.as_ref(), value.as_ref());
         self
     }
+
+    /// Sets `quota_value` on this quota violation.
+    ///
+    /// Chain after [`Self::with_subject`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
+    /// Distinct from [`Self::with_subject`]: that is subject and description, not the quota value.
+    /// Distinct from [`Self::with_quota_dimension`]: that is a quota dimension pair, not the quota value.
+    /// Distinct from [`crate::Status::retry_delay`]: that is a wait hint, not the quota value.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{quota_failure, ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let violation = quota_failure::Violation::with_subject("project:1", "tokens")
+    ///     .with_quota_value(8);
+    /// let mut quota = QuotaFailure::new();
+    /// quota.set_violations([violation]);
+    /// let details = ErrorDetails {
+    ///     quota_failure: Some(quota),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
+    /// let got = status.quota_failure().expect("QuotaFailure");
+    /// assert_eq!(got.violations().get(0).expect("v").quota_value(), 8);
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_quota_value(mut self, quota_value: i64) -> Self {
+        self.set_quota_value(quota_value);
+        self
+    }
 }
 
 impl QuotaFailure {
@@ -1342,6 +1373,28 @@ mod tests {
             .get("region")
             .and_then(|s| s.to_str().ok().map(str::to_owned));
         assert_eq!(region.as_deref(), Some("us-central1"));
+        assert!(status.error_info().is_none());
+    }
+
+    #[test]
+    fn quota_failure_with_quota_value_round_trips() {
+        let violation =
+            quota_failure::Violation::with_subject("project:1", "tokens").with_quota_value(8);
+        assert_eq!(violation.subject().to_str().unwrap_or(""), "project:1");
+        assert_eq!(violation.quota_value(), 8);
+        let mut quota = QuotaFailure::new();
+        quota.set_violations([violation]);
+        let details = ErrorDetails {
+            quota_failure: Some(quota),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::ResourceExhausted, "quota", &details)
+            .expect("encode");
+        let got = status.quota_failure().expect("QuotaFailure");
+        let subject = got.violations().get(0).expect("subject");
+        assert_eq!(subject.quota_value(), 8);
+        assert!(!subject.has_future_quota_value());
+        assert!(status.retry_delay().is_none());
         assert!(status.error_info().is_none());
     }
 
