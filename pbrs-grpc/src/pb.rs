@@ -1192,6 +1192,19 @@ pub struct ErrorDetails {
 impl ErrorDetails {
     /// No detail messages.
     /// Distinct from [`Self::from_rpc`]: that unpacks the `Any` list on a packed `google.rpc.Status`; this is an empty bag.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::ErrorDetails;
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new();
+    /// assert!(details.error_info.is_none());
+    /// assert!(details.unknown.is_empty());
+    /// let status = Status::from_error_details(Code::Unknown, "empty", &details)?;
+    /// assert!(status.error_info().is_none());
+    /// assert!(status.error_details()?.unknown.is_empty());
+    /// # Ok::<(), Status>(())
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self::default()
