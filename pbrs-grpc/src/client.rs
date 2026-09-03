@@ -322,6 +322,12 @@ impl Endpoint {
 /// Client-streaming and bidi retry that same redial once when HEADERS never
 /// went out; after the stream is open they do not, because the caller already
 /// holds the send half.
+/// There is no grpc-go `WithDisableRetry` DialOption: that disables
+/// service-config retries and does not impact transparent retries. This
+/// kernel has no service-config retry policy; application retries stay at
+/// the call site ([`Code::is_retryable`]). Transparent retry cannot be
+/// turned off. Distinct from [`Self::from_io`] (no transparent retry).
+/// Distinct from hedging (not implemented).
 /// A healthy connection that is only waiting for a free stream
 /// (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not replaced. Redial is part of
 /// the RPC: it is cancelled if the [`Call`] is cancelled, and it fails with

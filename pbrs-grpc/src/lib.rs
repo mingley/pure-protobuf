@@ -783,6 +783,8 @@
 //!
 //! There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. This crate-map [`Channel::connect`] already waits for the TCP dial and HTTP/2 preface; there is no READY state. Distinct from [`Channel::connect_lazy`] (first RPC dials). Distinct from [`Channel::wait_for_ready`] (RPC queue, not Dial). Distinct from [`Channel::connected`] (live-socket snapshot). Distinct from gRPC `GetState` / `WaitForStateChange`. There is no `WithReturnConnectionError`: handshake failure is the returned [`Status`].
 //!
+//! There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented).
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

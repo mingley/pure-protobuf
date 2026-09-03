@@ -573,6 +573,18 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `WithDisableRetry` DialOption: that disables\n/// service-config retries and does not impact transparent retries. This\n/// kernel has no service-config retry policy; application retries stay at\n/// the call site ([`Code::is_retryable`]). Transparent retry cannot be\n/// turned off. Distinct from [`Self::from_io`] (no transparent retry).\n/// Distinct from hedging (not implemented)."
+        ),
+        "Channel rustdoc must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithDisableRetry`")
+            .count(),
+        1,
+        "Channel::connect must not copy the WithDisableRetry Distinct"
+    );
+    assert!(
+        src.contains(
             "TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and\n/// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct"
         ),
         "Channel rustdoc must Distinct TCP_NODELAY always-on from tonic tcp_nodelay"
@@ -6449,6 +6461,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
+            "There is no grpc-go `WithDisableRetry` DialOption: that disables\n/// service-config retries and does not impact transparent retries. This\n/// kernel has no service-config retry policy; application retries stay at\n/// the call site ([`Code::is_retryable`]). Transparent retry cannot be\n/// turned off. Distinct from [`Self::from_io`] (no transparent retry).\n/// Distinct from hedging (not implemented)."
+        ),
+        "Channel rustdoc must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithDisableRetry`")
+            .count(),
+        1,
+        "Channel::connect must not copy the WithDisableRetry Distinct"
+    );
+    assert!(
+        channel.contains(
             "Distinct from tonic's `Endpoint`, which takes an `http://` /\n/// `https://` URI and infers TLS from the scheme. This kernel does\n/// not parse that URI: TLS is [`Channel::connect_tls`] plus"
         ),
         "Target rustdoc must Distinct tonic Endpoint URI TLS inference from connect_tls"
@@ -7562,6 +7587,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithBlock`: that is a DialOption that makes deprecated `Dial` wait until READY. This crate-map [`Channel::connect`] already waits for the TCP dial and HTTP/2 preface; there is no READY state. Distinct from [`Channel::connect_lazy`] (first RPC dials). Distinct from [`Channel::wait_for_ready`] (RPC queue, not Dial). Distinct from [`Channel::connected`] (live-socket snapshot). Distinct from gRPC `GetState` / `WaitForStateChange`. There is no `WithReturnConnectionError`: handshake failure is the returned [`Status`]."),
         "crate-map must Distinct Channel::connect handshake wait from grpc-go WithBlock READY"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented)."),
+        "crate-map must Distinct transparent retry from grpc-go WithDisableRetry"
     );
     assert!(
         crate_src.contains(
@@ -18628,6 +18657,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithBlock` / `WithReturnConnectionError` | Not a DialOption: `Channel::connect` already waits for the TCP dial and HTTP/2 preface. Deprecated grpc-go `Dial` needed `WithBlock` to wait until READY; `NewClient` does not support it. Distinct from `connect_lazy` (first RPC dials). Distinct from wait-for-ready (RPC queue, not Dial). Distinct from `Channel::connected` (live-socket snapshot). Distinct from `GetState` / `WaitForStateChange` (no READY state). Handshake failure is the returned `Status`; there is no `WithReturnConnectionError`."),
         "guide must keep grpc-go WithBlock as an omission Distinct from Channel::connect handshake wait"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This kernel has no service-config retry policy; application retries stay at the call site (`Code::is_retryable`). Transparent retry cannot be turned off. Distinct from `from_io` (no transparent retry). Distinct from hedging (not implemented)."),
+        "guide must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. Distinct from `Code::is_retryable` (application retries at the call site). Distinct from transparent retry (cannot be turned off). Distinct from `from_io` (no transparent retry). Distinct from hedging (not implemented)."),
+        "architecture must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. Distinct from `Code::is_retryable` (application retries at the call site). Distinct from transparent retry (cannot be turned off). Distinct from `from_io` (no transparent retry). Distinct from hedging (not implemented)."),
+        "status guide must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. Distinct from `Code::is_retryable` (application retries at the call site). Distinct from transparent retry (cannot be turned off). Distinct from `from_io` (no transparent retry). Distinct from hedging (not implemented)."),
+        "crate README must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert!(
+        guide.contains("grpc-go `WithDisableRetry` | Not a DialOption: grpc-go disables service-config retries and leaves transparent retries on. This kernel has no service-config retry policy; application retries stay at the call site (`Code::is_retryable`). Transparent retry cannot be turned off (`from_io` never had it). Distinct from hedging (not implemented)."),
+        "guide must keep grpc-go WithDisableRetry as an omission Distinct from transparent retry"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
