@@ -6583,6 +6583,23 @@ fn client_tls_documents_with_per_rpc_credentials() {
 }
 
 #[test]
+fn server_tls_mtls_documents_client_auth_optional() {
+    let src = include_str!("../src/tls.rs");
+    assert!(
+        src.contains(
+            "There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a\n    /// client certificate but does not require one. This constructor always\n    /// requires a client certificate issued by that CA. Distinct from\n    /// [`Self::new`] (clients are not asked). Distinct from a skip-verify\n    /// constructor (there is none). Distinct from [`ClientTls::ca_mtls`] /\n    /// [`ClientTls::webpki_mtls`] (client presents; this is the server require)."
+        ),
+        "ServerTls::mtls rustdoc must Distinct required client cert from tonic client_auth_optional"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `ServerTlsConfig::client_auth_optional`")
+            .count(),
+        1,
+        "ServerTls::new must not copy the client_auth_optional Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6831,6 +6848,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         0,
         "ClientInterceptor must not copy the WithPerRPCCredentials Distinct"
+    );
+    assert!(
+        tls.contains(
+            "There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a\n    /// client certificate but does not require one. This constructor always\n    /// requires a client certificate issued by that CA. Distinct from\n    /// [`Self::new`] (clients are not asked). Distinct from a skip-verify\n    /// constructor (there is none). Distinct from [`ClientTls::ca_mtls`] /\n    /// [`ClientTls::webpki_mtls`] (client presents; this is the server require)."
+        ),
+        "ServerTls::mtls rustdoc must Distinct required client cert from tonic client_auth_optional"
+    );
+    assert_eq!(
+        tls.matches("There is no tonic `ServerTlsConfig::client_auth_optional`")
+            .count(),
+        1,
+        "ServerTls::new must not copy the client_auth_optional Distinct"
     );
     assert!(
         health.contains(
@@ -8112,6 +8141,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithPerRPCCredentials`: that is a DialOption plugging `credentials.PerRPCCredentials` that add per-RPC metadata. This crate-map [`ClientTls`] is transport TLS, not call credentials. There is no `WithCredentialsBundle` (transport plus per-RPC credentials). Distinct from GCP-auth (a library, not this DialOption). Distinct from grpc-go `WithTransportCredentials` (transport; TLS is [`Channel::connect_tls`] plus [`ClientTls`]). Distinct from [`ClientInterceptor`] (user hook that can add metadata, not a credentials plugin). Distinct from [`Channel::intercept`] (attaches that hook after connect)."),
         "crate-map must Distinct ClientTls transport TLS from grpc-go WithPerRPCCredentials call credentials"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a client certificate but does not require one. This crate-map [`ServerTls::mtls`] always requires a client certificate issued by that CA. Distinct from [`ServerTls::new`] (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from [`ClientTls::ca_mtls`] / [`ClientTls::webpki_mtls`] (client presents; this is the server require)."),
+        "crate-map must Distinct ServerTls::mtls required client cert from tonic client_auth_optional"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19514,6 +19547,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithPerRPCCredentials` / `WithCredentialsBundle` | Not call credentials: grpc-go `WithPerRPCCredentials` plugs `credentials.PerRPCCredentials` that add per-RPC metadata. `ClientTls` is transport TLS, not call credentials. Distinct from GCP-auth (a library, not this DialOption). Distinct from `WithTransportCredentials` (transport; TLS is `connect_tls` plus `ClientTls`). Distinct from `ClientInterceptor` (user hook that can add metadata, not a credentials plugin). Distinct from `Channel::intercept` (attaches that hook after connect). There is no `WithCredentialsBundle`."),
         "guide must keep grpc-go WithPerRPCCredentials as an omission Distinct from transport ClientTls"
+    );
+    assert!(
+        guide.contains("There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a client certificate but does not require one. `ServerTls::mtls` always requires a client certificate issued by that CA. Distinct from `ServerTls::new` (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from `ClientTls::ca_mtls` / `ClientTls::webpki_mtls` (client presents; this is the server require)."),
+        "guide must Distinct ServerTls::mtls required client cert from tonic client_auth_optional"
+    );
+    assert!(
+        architecture.contains("There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a client certificate but does not require one. Distinct from `ServerTls::mtls` (always requires a client certificate issued by that CA). Distinct from `ServerTls::new` (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from `ClientTls::ca_mtls` / `ClientTls::webpki_mtls` (client presents; this is the server require)."),
+        "architecture must Distinct ServerTls::mtls required client cert from tonic client_auth_optional"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a client certificate but does not require one. Distinct from `ServerTls::mtls` (always requires a client certificate issued by that CA). Distinct from `ServerTls::new` (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from `ClientTls::ca_mtls` / `ClientTls::webpki_mtls` (client presents; this is the server require)."),
+        "status guide must Distinct ServerTls::mtls required client cert from tonic client_auth_optional"
+    );
+    assert!(
+        readme.contains("There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a client certificate but does not require one. Distinct from `ServerTls::mtls` (always requires a client certificate issued by that CA). Distinct from `ServerTls::new` (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from `ClientTls::ca_mtls` / `ClientTls::webpki_mtls` (client presents; this is the server require)."),
+        "crate README must Distinct ServerTls::mtls required client cert from tonic client_auth_optional"
+    );
+    assert!(
+        guide.contains("tonic `ServerTlsConfig::client_auth_optional` | Not optional client auth: tonic requests a client certificate but does not require one. `ServerTls::mtls` always requires a client certificate issued by that CA. Distinct from `ServerTls::new` (clients are not asked). Distinct from a skip-verify constructor (there is none). Distinct from `ClientTls::ca_mtls` / `webpki_mtls` (client presents; this is the server require)."),
+        "guide must keep tonic ServerTlsConfig::client_auth_optional as an omission Distinct from required mTLS"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

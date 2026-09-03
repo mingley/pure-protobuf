@@ -263,6 +263,12 @@ impl ServerTls {
     }
 
     /// Serve with `identity` and require a client certificate issued by `client_ca_pem`.
+    /// There is no tonic `ServerTlsConfig::client_auth_optional`: that requests a
+    /// client certificate but does not require one. This constructor always
+    /// requires a client certificate issued by that CA. Distinct from
+    /// [`Self::new`] (clients are not asked). Distinct from a skip-verify
+    /// constructor (there is none). Distinct from [`ClientTls::ca_mtls`] /
+    /// [`ClientTls::webpki_mtls`] (client presents; this is the server require).
     pub fn mtls(identity: Identity, client_ca_pem: impl AsRef<[u8]>) -> Result<Self, Status> {
         let cas = roots_from_certs(certs_from_pem(client_ca_pem.as_ref())?)?;
         build_server(identity, Some(cas))
