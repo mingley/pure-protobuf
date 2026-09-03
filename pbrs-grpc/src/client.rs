@@ -328,6 +328,12 @@ impl Endpoint {
 /// the call site ([`Code::is_retryable`]). Transparent retry cannot be
 /// turned off. Distinct from [`Self::from_io`] (no transparent retry).
 /// Distinct from hedging (not implemented).
+/// There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging
+/// per call (default 5; values below 2 become 5). Transparent retry is at
+/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`
+/// (on/off of service-config retry, not a count). Distinct from
+/// [`Code::is_retryable`] (application retries at the call site, unbounded
+/// by this kernel). Distinct from hedging (not implemented).
 /// A healthy connection that is only waiting for a free stream
 /// (`SETTINGS_MAX_CONCURRENT_STREAMS`) is not replaced. Redial is part of
 /// the RPC: it is cancelled if the [`Call`] is cancelled, and it fails with

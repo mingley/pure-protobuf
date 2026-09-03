@@ -585,6 +585,18 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         src.contains(
+            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Transparent retry is at\n/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`\n/// (on/off of service-config retry, not a count). Distinct from\n/// [`Code::is_retryable`] (application retries at the call site, unbounded\n/// by this kernel). Distinct from hedging (not implemented)."
+        ),
+        "Channel rustdoc must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithMaxCallAttempts`")
+            .count(),
+        1,
+        "Channel::connect must not copy the WithMaxCallAttempts Distinct"
+    );
+    assert!(
+        src.contains(
             "TCP sockets always set `TCP_NODELAY` (Nagle off) at connect; Unix and\n/// [`Self::from_io`] skip that. There is no `tcp_nodelay` setter. Distinct"
         ),
         "Channel rustdoc must Distinct TCP_NODELAY always-on from tonic tcp_nodelay"
@@ -6394,6 +6406,23 @@ fn channel_config_max_connection_idle_documents_with_idle_timeout() {
 }
 
 #[test]
+fn channel_documents_with_max_call_attempts() {
+    let src = include_str!("../src/client.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Transparent retry is at\n/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`\n/// (on/off of service-config retry, not a count). Distinct from\n/// [`Code::is_retryable`] (application retries at the call site, unbounded\n/// by this kernel). Distinct from hedging (not implemented)."
+        ),
+        "Channel rustdoc must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithMaxCallAttempts`")
+            .count(),
+        1,
+        "Channel::connect must not copy the WithMaxCallAttempts Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6540,6 +6569,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "Channel::connect must not copy the WithDisableRetry Distinct"
+    );
+    assert!(
+        channel.contains(
+            "There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging\n/// per call (default 5; values below 2 become 5). Transparent retry is at\n/// most once and cannot be raised. Distinct from grpc-go `WithDisableRetry`\n/// (on/off of service-config retry, not a count). Distinct from\n/// [`Code::is_retryable`] (application retries at the call site, unbounded\n/// by this kernel). Distinct from hedging (not implemented)."
+        ),
+        "Channel rustdoc must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert_eq!(
+        channel
+            .matches("There is no grpc-go `WithMaxCallAttempts`")
+            .count(),
+        1,
+        "Channel::connect must not copy the WithMaxCallAttempts Distinct"
     );
     assert!(
         tls.contains(
@@ -7724,6 +7766,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithDisableRetry`: that disables service-config retries and does not impact transparent retries. This crate-map has no service-config retry policy; application retries stay at the call site ([`Code::is_retryable`]). Transparent retry cannot be turned off. Distinct from [`Channel::from_io`] (no transparent retry). Distinct from hedging (not implemented)."),
         "crate-map must Distinct transparent retry from grpc-go WithDisableRetry"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). This crate-map transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from [`Code::is_retryable`] (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
+        "crate-map must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -18926,6 +18972,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithIdleTimeout` | Not resolver/LB idle mode: that shuts down the name resolver and load balancer after channel idle (default 30 min; zero disables). `ChannelConfig::max_connection_idle` closes the socket when no RPCs are outstanding (unset by default; sub-millisecond values are raised to 1 ms, not disabled). Distinct from `max_connection_age` (age, not idle). Distinct from `ServerConfig::max_connection_idle` (server GOAWAY). There is no resolver or load balancer to shut down."),
         "guide must keep grpc-go WithIdleTimeout as an omission Distinct from socket-close idle"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). Transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from `Code::is_retryable` (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
+        "guide must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). Distinct from transparent retry (at most once, cannot be raised). Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from `Code::is_retryable` (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
+        "architecture must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). Distinct from transparent retry (at most once, cannot be raised). Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from `Code::is_retryable` (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
+        "status guide must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithMaxCallAttempts`: that caps retries and hedging per call (default 5; values below 2 become 5). Distinct from transparent retry (at most once, cannot be raised). Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from `Code::is_retryable` (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
+        "crate README must Distinct at-most-once transparent retry from grpc-go WithMaxCallAttempts"
+    );
+    assert!(
+        guide.contains("grpc-go `WithMaxCallAttempts` | Not a DialOption: grpc-go caps retries and hedging per call (default 5; values below 2 become 5). Transparent retry is at most once and cannot be raised. Distinct from grpc-go `WithDisableRetry` (on/off of service-config retry, not a count). Distinct from `Code::is_retryable` (application retries at the call site, unbounded by this kernel). Distinct from hedging (not implemented)."),
+        "guide must keep grpc-go WithMaxCallAttempts as an omission Distinct from at-most-once transparent retry"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
