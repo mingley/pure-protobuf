@@ -76,6 +76,7 @@ deadline, `:authority` / `:scheme`, path / service / method, peer identity
 method a mounted service does not have, is `UNIMPLEMENTED` on every call
 shape, including over TLS, mTLS, Unix, and `from_io`. Remounting the same
 service name keeps the last handler on those transports.
+There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. Distinct from `Router` (`UNIMPLEMENTED`, not a fallback `Service`). Distinct from `Server` (one service). Distinct from `Service::ALIASES` (a known path alias).
 Generated `Foo` methods you omit answer `UNIMPLEMENTED`.
 Generated handlers see the same facts on `Request` / `Parts`, including
 path / service / method, `peer_timeout`, the server `rpc_timeout` overlay,

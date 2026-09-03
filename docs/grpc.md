@@ -802,6 +802,7 @@ A request for a service that is not mounted, or a method the service does not
 have, gets `UNIMPLEMENTED` on every call shape, including over TLS, mTLS, Unix,
 and `from_io`. Routing costs one hash lookup plus one boxed
 future per RPC; `Server` avoids both.
+There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. An unmounted service is `UNIMPLEMENTED`, not a fallback `Service`. Distinct from `Server` (one service; unknown methods are still `UNIMPLEMENTED`). Distinct from `Service::ALIASES` (a known path alias, not an unknown-service handler).
 
 ## TLS
 
@@ -2447,6 +2448,7 @@ Deliberate omissions, with what to do instead.
 | tonic `Server::executor` | Not a hyper/tower stack: there is no `SharedExec`. Each accept-loop handshake task is `tokio::spawn`ed on the current tokio runtime. `ServerConfig` is `Copy`, so it cannot store a non-`Copy` executor. Distinct from `Endpoint::executor` (client `ChannelConfig::connections`). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. `serve_connection` is already-connected: not an accept-loop spawn. |
 | grpc-go `NumStreamWorkers` | Not a worker pool: each accepted stream is `tokio::spawn`ed on the current tokio runtime. `ServerConfig::max_concurrent_rpcs` is in-flight handler slots (`RESOURCE_EXHAUSTED` when full, not retryable), not a worker count. Distinct from tonic `Server::executor` (`SharedExec`, which executor, not a worker pool). Distinct from `max_concurrent_connections` (how many sockets). |
 | tonic `Server::concurrency_limit_per_connection` | Not a tower stack: there is no per-connection `ConcurrencyLimitLayer`. `ServerConfig::max_concurrent_rpcs` is process-wide handler slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N in-flight RPCs per connection. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from grpc-go `NumStreamWorkers` (worker pool, not a cap). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
+| grpc-go `UnknownServiceHandler` | Not a catch-all: an unmounted service is `UNIMPLEMENTED`, not a fallback bidi handler. Distinct from `Server` (one service; unknown methods are still `UNIMPLEMENTED`). Distinct from `Service::ALIASES` (a known path alias, not an unknown-service handler). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

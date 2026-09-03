@@ -763,6 +763,8 @@
 //!
 //! There is no tonic `Server::concurrency_limit_per_connection`: that is tower `ConcurrencyLimitLayer` on each spawned connection. This crate-map [`ServerConfig::max_concurrent_rpcs`] is process-wide handler slots, not a per-connection tower layer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
+//! There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. This crate-map [`Router`] answers `UNIMPLEMENTED` for an unmounted service, not a fallback [`Service`]. Distinct from [`Server`], which is one service. Distinct from [`Service::ALIASES`], which is a known path alias.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

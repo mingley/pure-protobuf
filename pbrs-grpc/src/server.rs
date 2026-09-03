@@ -2413,6 +2413,12 @@ impl<S: Service> Dispatch for Single<S> {
 /// A path whose service is not mounted, or a method a mounted service does
 /// not have, is [`crate::Code::Unimplemented`] on every call shape, including
 /// over TLS, mTLS, Unix, and [`Server::serve_connection`].
+/// There is no grpc-go `UnknownServiceHandler` setter: that is a catch-all
+/// bidi handler for unregistered services. An unmounted service is
+/// [`crate::Code::Unimplemented`], not a fallback [`Service`]. Distinct from
+/// [`Server`]: that is one service; an unknown method there is still
+/// unimplemented, not a catch-all. Distinct from [`Service::ALIASES`]: that
+/// is a known path alias, not an unknown-service handler.
 ///
 /// Generated reflection also mounts `grpc.reflection.v1alpha.ServerReflection`
 /// as a [`Service::ALIASES`] path of v1, so older grpcurl still lists.

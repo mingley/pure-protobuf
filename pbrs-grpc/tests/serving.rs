@@ -7424,6 +7424,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate-map must Distinct ServerConfig::max_concurrent_rpcs process-wide slots from tonic concurrency_limit_per_connection"
     );
     assert!(
+        crate_src.contains("There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. This crate-map [`Router`] answers `UNIMPLEMENTED` for an unmounted service, not a fallback [`Service`]. Distinct from [`Server`], which is one service. Distinct from [`Service::ALIASES`], which is a known path alias."),
+        "crate-map must Distinct Router UNIMPLEMENTED from grpc-go UnknownServiceHandler catch-all"
+    );
+    assert!(
         crate_src.contains(
             "[`DEFAULT_MAX_PENDING_ACCEPT_RESET_STREAMS`], override [`ServerConfig::max_pending_accept_reset_streams`]"
         ),
@@ -18290,6 +18294,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep tonic concurrency_limit_per_connection as an omission Distinct from process-wide max_concurrent_rpcs"
     );
     assert!(
+        guide.contains("There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. An unmounted service is `UNIMPLEMENTED`, not a fallback `Service`. Distinct from `Server` (one service; unknown methods are still `UNIMPLEMENTED`). Distinct from `Service::ALIASES` (a known path alias, not an unknown-service handler)."),
+        "guide must Distinct Router UNIMPLEMENTED from grpc-go UnknownServiceHandler"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. Distinct from `Router` (`UNIMPLEMENTED`, not a fallback `Service`). Distinct from `Server` (one service). Distinct from `Service::ALIASES` (a known path alias)."),
+        "architecture must Distinct Router UNIMPLEMENTED from grpc-go UnknownServiceHandler"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. Distinct from `Router` (`UNIMPLEMENTED`, not a fallback `Service`). Distinct from `Server` (one service). Distinct from `Service::ALIASES` (a known path alias)."),
+        "status guide must Distinct Router UNIMPLEMENTED from grpc-go UnknownServiceHandler"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `UnknownServiceHandler`: that is a catch-all bidi handler for unregistered services. Distinct from `Router` (`UNIMPLEMENTED`, not a fallback `Service`). Distinct from `Server` (one service). Distinct from `Service::ALIASES` (a known path alias)."),
+        "crate README must Distinct Router UNIMPLEMENTED from grpc-go UnknownServiceHandler"
+    );
+    assert!(
+        guide.contains("grpc-go `UnknownServiceHandler` | Not a catch-all: an unmounted service is `UNIMPLEMENTED`, not a fallback bidi handler. Distinct from `Server` (one service; unknown methods are still `UNIMPLEMENTED`). Distinct from `Service::ALIASES` (a known path alias, not an unknown-service handler)."),
+        "guide must keep grpc-go UnknownServiceHandler as an omission Distinct from UNIMPLEMENTED"
+    );
+    assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
         "guide must Distinct reflection v1alpha path alias from a second proto and from Server::new"
     );
@@ -21420,6 +21444,12 @@ fn server_and_router_config_document_every_call_shape() {
             "A path whose service is not mounted, or a method a mounted service does\n/// not have, is [`crate::Code::Unimplemented`] on every call shape, including\n/// over TLS, mTLS, Unix, and [`Server::serve_connection`]."
         ),
         "Router rustdoc must name UNIMPLEMENTED on every mount miss and transport"
+    );
+    assert!(
+        src.contains(
+            "There is no grpc-go `UnknownServiceHandler` setter: that is a catch-all\n/// bidi handler for unregistered services. An unmounted service is\n/// [`crate::Code::Unimplemented`], not a fallback [`Service`]. Distinct from\n/// [`Server`]: that is one service; an unknown method there is still\n/// unimplemented, not a catch-all. Distinct from [`Service::ALIASES`]: that\n/// is a known path alias, not an unknown-service handler."
+        ),
+        "Router rustdoc must Distinct UNIMPLEMENTED from grpc-go UnknownServiceHandler catch-all"
     );
     assert!(
         src.contains(
