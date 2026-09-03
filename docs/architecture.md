@@ -592,6 +592,7 @@ is packed quota subjects. Distinct from `is_retryable`. Distinct from
 `Status::precondition_failure` is packed type and subject. Distinct from
 `quota_failure`. Distinct from `bad_request`. `PreconditionFailure::with_violation`
 builds that payload.
+`PreconditionFailure::with_violation_entry` builds an extra packed precondition violation after this architecture PreconditionFailure builder.
 `precondition_failure::Violation::with_type` builds a nested precondition type after this architecture PreconditionFailure builder.
 `Status::help` is packed documentation links. Distinct from
 failure classifications: links can sit next to a retryable UNAVAILABLE.

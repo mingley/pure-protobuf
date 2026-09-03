@@ -17566,6 +17566,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "architecture must name quota_failure::Violation::with_future_quota_value next to quota_failure::Violation::with_quota_value"
     );
     assert!(
+        architecture.contains("`PreconditionFailure::with_violation_entry` builds an extra packed precondition violation after this architecture PreconditionFailure builder."),
+        "architecture must name PreconditionFailure::with_violation_entry next to PreconditionFailure::with_violation"
+    );
+    assert!(
         architecture.contains("`precondition_failure::Violation::with_type` builds a nested precondition type after this architecture PreconditionFailure builder."),
         "architecture must name precondition_failure::Violation::with_type next to PreconditionFailure::with_violation"
     );
