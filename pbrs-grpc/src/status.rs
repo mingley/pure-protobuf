@@ -418,6 +418,15 @@ impl Status {
     /// Distinct from [`Self::rpc`]: that parses a packed `google.rpc.Status`; this returns raw trailer bytes.
     /// Distinct from [`Self::code`]: that is the ASCII `grpc-status` code; this returns raw trailer bytes.
     /// Distinct from [`Self::message`]: that is the ASCII `grpc-message`; this returns raw trailer bytes.
+    ///
+    /// ```
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let status = Status::with_details(Code::DataLoss, "bitrot", vec![0x1b]);
+    /// assert_eq!(status.details(), &[0x1b]);
+    /// assert!(status.metadata().get_bin("grpc-status-details-bin").is_none());
+    /// # Ok::<(), Status>(())
+    /// ```
     #[must_use]
     pub fn details(&self) -> &[u8] {
         self.detail.as_ref().map_or(&[], |d| d.details.as_ref())

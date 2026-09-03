@@ -10239,6 +10239,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_src.contains(
+            "let status = Status::with_details(Code::DataLoss, \"bitrot\", vec![0x1b]);\n    /// assert_eq!(status.details(), &[0x1b]);\n    /// assert!(status.metadata().get_bin(\"grpc-status-details-bin\").is_none());"
+        ),
+        "Status::details rustdoc must return raw trailer bytes that are not a metadata key"
+    );
+    assert!(
+        status_src.contains(
             "Distinct from [`Self::from_code`]: that is code-only; this takes a code and message."
         ),
         "Status::new must Distinct the code-only constructor from this code-and-message constructor"
