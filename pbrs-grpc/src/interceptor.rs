@@ -664,6 +664,17 @@ impl<S: Service> ServiceExt for S {}
 
 /// Outbound call hook. Closures with this signature implement it.
 ///
+/// There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for
+/// unary RPCs only. `WithStreamInterceptor` is the stream split.
+/// `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append
+/// DialOption lists. This trait is one hook for every call shape, attached
+/// with [`crate::Channel::intercept`] after connect (not a DialOption).
+/// Calling intercept twice stacks; there is no chain DialOption. Distinct
+/// from [`Interceptor`] (inbound before the handler). Distinct from
+/// [`ResponseInterceptor`] (after Ok or after receive). Distinct from
+/// tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no
+/// tower).
+///
 /// Attach one with [`crate::Channel::intercept`] or the generated
 /// `FooClient::intercept`. Calling either twice stacks; the first interceptor
 /// runs first. The interceptor sees the method path, service, method,

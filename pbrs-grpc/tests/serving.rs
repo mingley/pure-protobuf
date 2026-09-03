@@ -6499,6 +6499,23 @@ fn channel_connect_tls_documents_with_insecure() {
 }
 
 #[test]
+fn client_interceptor_documents_with_unary_interceptor() {
+    let src = include_str!("../src/interceptor.rs");
+    assert!(
+        src.contains(
+            "There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for\n/// unary RPCs only. `WithStreamInterceptor` is the stream split.\n/// `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append\n/// DialOption lists. This trait is one hook for every call shape, attached\n/// with [`crate::Channel::intercept`] after connect (not a DialOption).\n/// Calling intercept twice stacks; there is no chain DialOption. Distinct\n/// from [`Interceptor`] (inbound before the handler). Distinct from\n/// [`ResponseInterceptor`] (after Ok or after receive). Distinct from\n/// tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no\n/// tower)."
+        ),
+        "ClientInterceptor rustdoc must Distinct one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
+    );
+    assert_eq!(
+        src.matches("There is no grpc-go `WithUnaryInterceptor`")
+            .count(),
+        1,
+        "Interceptor must not copy the WithUnaryInterceptor Distinct"
+    );
+}
+
+#[test]
 fn channel_config_connect_timeout_documents_every_call_shape() {
     let src = include_str!("../src/config.rs");
     assert!(
@@ -6584,6 +6601,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     let channel = include_str!("../src/client.rs");
     let tls = include_str!("../src/tls.rs");
     let health = include_str!("../src/health.rs");
+    let intercept = include_str!("../src/interceptor.rs");
     assert!(
         channel.contains("does not postpone age. The next RPC of every call shape redials"),
         "Channel rustdoc must name client max_connection_age redial"
@@ -6733,6 +6751,19 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
             .count(),
         1,
         "HealthReporter::shutdown must not copy the WithDisableHealthCheck Distinct"
+    );
+    assert!(
+        intercept.contains(
+            "There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for\n/// unary RPCs only. `WithStreamInterceptor` is the stream split.\n/// `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append\n/// DialOption lists. This trait is one hook for every call shape, attached\n/// with [`crate::Channel::intercept`] after connect (not a DialOption).\n/// Calling intercept twice stacks; there is no chain DialOption. Distinct\n/// from [`Interceptor`] (inbound before the handler). Distinct from\n/// [`ResponseInterceptor`] (after Ok or after receive). Distinct from\n/// tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no\n/// tower)."
+        ),
+        "ClientInterceptor rustdoc must Distinct one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
+    );
+    assert_eq!(
+        intercept
+            .matches("There is no grpc-go `WithUnaryInterceptor`")
+            .count(),
+        1,
+        "Interceptor must not copy the WithUnaryInterceptor Distinct"
     );
     assert!(
         channel.contains(
@@ -7912,6 +7943,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no grpc-go `WithInsecure`: modern grpc-go `NewClient` requires credentials (`insecure.NewCredentials()` or TLS). This crate-map [`Channel::connect`] is h2c by default; TLS is [`Channel::connect_tls`]. There is no `WithTransportCredentials` DialOption (TLS is [`Channel::connect_tls`] plus [`ClientTls`]). Distinct from a skip-verify constructor (there is none). Distinct from [`Channel::https_scheme`] (`from_io` label; it does not handshake)."),
         "crate-map must Distinct h2c-default Channel::connect from grpc-go WithInsecure credentials"
+    );
+    assert!(
+        crate_src.contains("There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for unary RPCs only. `WithStreamInterceptor` is the stream split. `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append DialOption lists. This crate-map [`ClientInterceptor`] is one hook for every call shape, attached with [`Channel::intercept`] after connect (not a DialOption). Calling intercept twice stacks; there is no chain DialOption. Distinct from [`Interceptor`] (inbound before the handler). Distinct from [`ResponseInterceptor`] (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
+        "crate-map must Distinct ClientInterceptor one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
     );
     assert!(
         crate_src.contains("There is no grpc-go `WithDefaultServiceConfig`: that is JSON used when the name resolver does not provide a service config, or when `WithDisableServiceConfig` ignores the resolver. This crate-map [`ChannelConfig`] is typed `Copy` fields, not JSON; there is no resolver. Distinct from grpc-go `WithDisableRetry` (`retryPolicy` only). Distinct from [`ChannelConfig::timeout`] (kernel overlay, not methodConfig timeout). There is no `WithDisableServiceConfig`: nothing to ignore."),
@@ -19214,6 +19249,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("grpc-go `WithInsecure` / `WithTransportCredentials` | Not a required credentials object: modern grpc-go `NewClient` requires `insecure.NewCredentials()` or TLS. `Channel::connect` is h2c by default; TLS is `Channel::connect_tls` plus `ClientTls`. Distinct from a skip-verify constructor (there is none). Distinct from `https_scheme` (`from_io` label; it does not handshake)."),
         "guide must keep grpc-go WithInsecure as an omission Distinct from h2c-default connect"
+    );
+    assert!(
+        guide.contains("There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for unary RPCs only. `WithStreamInterceptor` is the stream split. `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append DialOption lists. `ClientInterceptor` is one hook for every call shape, attached with `Channel::intercept` after connect (not a DialOption). Calling intercept twice stacks; there is no chain DialOption. Distinct from `Interceptor` (inbound before the handler). Distinct from `ResponseInterceptor` (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
+        "guide must Distinct ClientInterceptor one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
+    );
+    assert!(
+        architecture.contains("There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for unary RPCs only. `WithStreamInterceptor` is the stream split. `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append DialOption lists. Distinct from `ClientInterceptor` (one hook for every call shape, attached with `Channel::intercept` after connect, not a DialOption). Calling intercept twice stacks; there is no chain DialOption. Distinct from `Interceptor` (inbound before the handler). Distinct from `ResponseInterceptor` (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
+        "architecture must Distinct ClientInterceptor one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
+    );
+    assert!(
+        status_guide.contains("  There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for unary RPCs only. `WithStreamInterceptor` is the stream split. `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append DialOption lists. Distinct from `ClientInterceptor` (one hook for every call shape, attached with `Channel::intercept` after connect, not a DialOption). Calling intercept twice stacks; there is no chain DialOption. Distinct from `Interceptor` (inbound before the handler). Distinct from `ResponseInterceptor` (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
+        "status guide must Distinct ClientInterceptor one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
+    );
+    assert!(
+        readme.contains("There is no grpc-go `WithUnaryInterceptor`: that is a DialOption for unary RPCs only. `WithStreamInterceptor` is the stream split. `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` append DialOption lists. Distinct from `ClientInterceptor` (one hook for every call shape, attached with `Channel::intercept` after connect, not a DialOption). Calling intercept twice stacks; there is no chain DialOption. Distinct from `Interceptor` (inbound before the handler). Distinct from `ResponseInterceptor` (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
+        "crate README must Distinct ClientInterceptor one hook for every call shape from grpc-go WithUnaryInterceptor DialOption split"
+    );
+    assert!(
+        guide.contains("grpc-go `WithUnaryInterceptor` / `WithStreamInterceptor` / `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` | Not a DialOption split: grpc-go unary vs stream interceptors are separate DialOptions; chain variants append lists. `ClientInterceptor` is one hook for every call shape, attached with `Channel::intercept` after connect. Calling intercept twice stacks; there is no chain DialOption. Distinct from `Interceptor` (inbound before the handler). Distinct from `ResponseInterceptor` (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower)."),
+        "guide must keep grpc-go WithUnaryInterceptor as an omission Distinct from one ClientInterceptor hook"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),
