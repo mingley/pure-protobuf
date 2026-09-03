@@ -56,6 +56,12 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// not a silent `\0`-prefixed Unix dial. Distinct from tonic `unix://`
 /// (also [`Code::InvalidArgument`], a filesystem URI) and from
 /// [`Channel::connect_unix`], which takes a filesystem [`std::path::Path`].
+/// Distinct from a `grpc://` / `grpcs://` URI, which some stacks use as
+/// an h2c / TLS gRPC target. That is [`Code::InvalidArgument`] at connect,
+/// not a silent strip of the scheme and not a silent
+/// [`Channel::connect_tls`]. Distinct from tonic `https://`, which infers
+/// TLS from the scheme. Distinct from a malformed `host:port`, which is
+/// [`Code::Unavailable`].
 ///
 /// ```
 /// use pbrs_grpc::Target;
@@ -98,6 +104,16 @@ use tokio::sync::{watch, Mutex, OwnedSemaphorePermit, Semaphore};
 /// assert_eq!(err.code(), Code::InvalidArgument);
 /// assert!(err.message().contains("not a grpc-go unix-abstract://"));
 /// ```
+///
+/// ```
+/// use pbrs_grpc::{Channel, Code};
+///
+/// let err = Channel::connect_lazy("grpc://127.0.0.1:50051").expect_err("grpc");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// assert!(err.message().contains("not a grpc://"));
+/// let err = Channel::connect_lazy("grpcs://example.com:443").expect_err("grpcs");
+/// assert_eq!(err.code(), Code::InvalidArgument);
+/// ```
 #[derive(Clone, Debug)]
 pub struct Target {
     authority: String,
@@ -125,6 +141,11 @@ impl Target {
         if grpc_go_unix_abstract_uri(authority) {
             return Err(Status::invalid_argument(format!(
                 "Target {authority:?} is host:port, not a grpc-go unix-abstract:// URI; Channel::connect_unix takes a filesystem path, not a Linux abstract name; Channel::connect dials host:port"
+            )));
+        }
+        if grpc_scheme_uri(authority) {
+            return Err(Status::invalid_argument(format!(
+                "Target {authority:?} is host:port, not a grpc:// or grpcs:// URI; Channel::connect dials host:port, Channel::connect_tls dials TLS, Channel::origin overlays :authority"
             )));
         }
         self.authority.parse().map_err(|e| {
@@ -160,6 +181,14 @@ fn grpc_go_resolver_uri(s: &str) -> bool {
 // not Target, not tonic unix://, and not Channel::connect_unix.
 fn grpc_go_unix_abstract_uri(s: &str) -> bool {
     uri_scheme(s).is_some_and(|scheme| scheme.eq_ignore_ascii_case("unix-abstract"))
+}
+
+// Some stacks take grpc:// (h2c) / grpcs:// (TLS). That is not Target, not
+// tonic https:// TLS inference, and not Channel::connect_tls.
+fn grpc_scheme_uri(s: &str) -> bool {
+    uri_scheme(s).is_some_and(|scheme| {
+        scheme.eq_ignore_ascii_case("grpc") || scheme.eq_ignore_ascii_case("grpcs")
+    })
 }
 
 impl From<SocketAddr> for Target {
@@ -2606,6 +2635,11 @@ mod tests {
                 "{}",
                 err.message()
             );
+            assert!(
+                !err.message().contains("not a grpc://"),
+                "{}",
+                err.message()
+            );
         }
         let err = Target::from("not a host").parse().expect_err("malformed");
         assert_eq!(err.code(), crate::status::Code::Unavailable);
@@ -2640,6 +2674,11 @@ mod tests {
                 "{}",
                 err.message()
             );
+            assert!(
+                !err.message().contains("not a grpc://"),
+                "{}",
+                err.message()
+            );
         }
         let err = Target::from("https://example.com:443")
             .parse()
@@ -2656,6 +2695,11 @@ mod tests {
         );
         assert!(
             !err.message().contains("not a grpc-go unix-abstract://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc://"),
             "{}",
             err.message()
         );
@@ -2685,6 +2729,11 @@ mod tests {
                 "{}",
                 err.message()
             );
+            assert!(
+                !err.message().contains("not a grpc://"),
+                "{}",
+                err.message()
+            );
         }
         let err = Target::from("unix:///tmp/grpc.sock")
             .parse()
@@ -2699,8 +2748,62 @@ mod tests {
             "{}",
             err.message()
         );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
         let err = Target::from("not a host").parse().expect_err("malformed");
         assert_eq!(err.code(), crate::status::Code::Unavailable);
+    }
+
+    #[test]
+    fn grpc_scheme_uri_is_invalid_argument() {
+        for uri in [
+            "grpc://127.0.0.1:50051",
+            "grpcs://example.com:443",
+            "GRPC://localhost:50051",
+            "GRPCS://example.com:443",
+        ] {
+            let err = Target::from(uri).parse().expect_err(uri);
+            assert_eq!(err.code(), crate::status::Code::InvalidArgument);
+            assert!(err.message().contains("not a grpc://"), "{}", err.message());
+            assert!(
+                !err.message().contains("not a tonic http://"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go dns:///"),
+                "{}",
+                err.message()
+            );
+            assert!(
+                !err.message().contains("not a grpc-go unix-abstract://"),
+                "{}",
+                err.message()
+            );
+        }
+        let err = Target::from("https://example.com:443")
+            .parse()
+            .expect_err("tonic https");
+        assert!(
+            err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
+        let err = Target::from("not a host").parse().expect_err("malformed");
+        assert_eq!(err.code(), crate::status::Code::Unavailable);
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
     }
 
     #[test]

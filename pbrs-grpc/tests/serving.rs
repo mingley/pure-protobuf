@@ -6409,6 +6409,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         channel.contains(
+            "Distinct from a `grpc://` / `grpcs://` URI, which some stacks use as\n/// an h2c / TLS gRPC target. That is [`Code::InvalidArgument`] at connect,\n/// not a silent strip of the scheme and not a silent\n/// [`Channel::connect_tls`]. Distinct from tonic `https://`"
+        ),
+        "Target rustdoc must Distinct grpc:// from tonic https:// TLS inference and Unavailable"
+    );
+    assert!(
+        channel.contains(
             "[`ChannelConfig::connections`] pools to one `host:port`; it does\n/// not speak xDS."
         ),
         "Target rustdoc must Distinct ChannelConfig::connections from xDS"
@@ -17990,6 +17996,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must keep grpc-go unix-abstract:// as an omission Distinct from tonic unix:// and connect_unix"
     );
     assert!(
+        guide.contains("`Target` is `host:port`, not a `grpc://` / `grpcs://` URI. Distinct from tonic `https://` (also `INVALID_ARGUMENT`, TLS inferred from the scheme). `Channel::connect_tls` dials TLS; a `grpcs://` URI is not a silent TLS dial. A `grpc://` URI is `INVALID_ARGUMENT` at connect, including `connect_lazy`, so wait-for-ready does not retry it. Distinct from a malformed `host:port`, which is `UNAVAILABLE`."),
+        "guide must Distinct Target host:port from grpc:// and silent connect_tls"
+    );
+    assert!(
+        architecture.contains("`Target` is `host:port`, not a `grpc://` / `grpcs://` URI. Distinct from tonic `https://` (also `INVALID_ARGUMENT`). `Channel::connect_tls` dials TLS; a `grpcs://` URI is not a silent TLS dial."),
+        "architecture must Distinct Target host:port from grpc:// and silent connect_tls"
+    );
+    assert!(
+        status_guide.contains("  `Target` is `host:port`, not a `grpc://` / `grpcs://` URI. Distinct from tonic `https://` (also `INVALID_ARGUMENT`). `Channel::connect_tls` dials TLS; a `grpcs://` URI is not a silent TLS dial. A `grpc://` URI is `INVALID_ARGUMENT`."),
+        "status guide must Distinct Target host:port from grpc:// and silent connect_tls"
+    );
+    assert!(
+        readme.contains("`Target` / `Channel::connect` / `FooClient::connect` take `host:port`, not a `grpc://` / `grpcs://` URI. Distinct from tonic `https://` (also `INVALID_ARGUMENT`). `Channel::connect_tls` dials TLS; a `grpcs://` URI is not a silent TLS dial. A `grpc://` URI is `INVALID_ARGUMENT`."),
+        "crate README must Distinct Target host:port from grpc:// and silent connect_tls"
+    );
+    assert!(
+        guide.contains("`grpc://` / `grpcs://` | `Target` is `host:port`. Distinct from tonic `https://` (also `INVALID_ARGUMENT`, TLS inferred from the scheme). `Channel::connect_tls` dials TLS; a `grpcs://` URI is not a silent TLS dial. A `grpc://` URI is `INVALID_ARGUMENT`, not a silent scheme strip and not retryable `UNAVAILABLE`."),
+        "guide must keep grpc:// as an omission Distinct from tonic https:// and Unavailable"
+    );
+    assert!(
         guide.contains("There is no `http2_keep_alive_while_idle` setter: once `keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off so a client interval does not PING an idle socket. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag."),
         "guide must Distinct keep_alive_interval from tonic http2_keep_alive_while_idle"
     );
@@ -25766,6 +25792,11 @@ fn tonic_channel_uri_is_invalid_argument_not_unavailable() {
             !err.is_retryable(),
             "URI-shaped Target must not look retryable: {err}"
         );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
     }
     let tls = ClientTls::webpki("localhost").expect("tls");
     let err = Channel::connect_tls_lazy("https://example.com:443", tls).expect_err("tls uri");
@@ -25814,6 +25845,11 @@ fn grpc_go_resolver_uri_is_invalid_argument_not_unavailable() {
         assert!(
             !err.is_retryable(),
             "resolver URI Target must not look retryable: {err}"
+        );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
         );
     }
     let tls = ClientTls::webpki("localhost").expect("tls");
@@ -25882,6 +25918,11 @@ fn grpc_go_unix_abstract_uri_is_invalid_argument_not_unavailable() {
             !err.is_retryable(),
             "abstract-socket URI Target must not look retryable: {err}"
         );
+        assert!(
+            !err.message().contains("not a grpc://"),
+            "{}",
+            err.message()
+        );
     }
     let tls = ClientTls::webpki("localhost").expect("tls");
     let err =
@@ -25917,6 +25958,71 @@ fn grpc_go_unix_abstract_uri_is_invalid_argument_not_unavailable() {
     );
     assert!(
         !err.message().contains("not a grpc-go unix-abstract://"),
+        "{}",
+        err.message()
+    );
+}
+
+#[test]
+fn grpc_scheme_uri_is_invalid_argument_not_unavailable() {
+    for uri in [
+        "grpc://127.0.0.1:50051",
+        "grpcs://example.com:443",
+        "GRPC://localhost:50051",
+        "GRPCS://example.com:443",
+    ] {
+        let err = Channel::connect_lazy(uri).expect_err(uri);
+        assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+        assert!(err.message().contains("not a grpc://"), "{}", err.message());
+        assert!(
+            !err.message().contains("not a tonic http://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go dns:///"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.message().contains("not a grpc-go unix-abstract://"),
+            "{}",
+            err.message()
+        );
+        assert!(
+            !err.is_retryable(),
+            "grpc:// Target must not look retryable: {err}"
+        );
+    }
+    let tls = ClientTls::webpki("localhost").expect("tls");
+    let err = Channel::connect_tls_lazy("grpcs://example.com:443", tls).expect_err("tls grpcs");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(err.message().contains("not a grpc://"), "{}", err.message());
+    let err = GreeterClient::connect_lazy("grpc://127.0.0.1:50051").expect_err("generated");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    let err = Channel::connect_lazy("https://example.com:443").expect_err("tonic https");
+    assert!(
+        err.message().contains("not a tonic http://"),
+        "{}",
+        err.message()
+    );
+    assert!(
+        !err.message().contains("not a grpc://"),
+        "{}",
+        err.message()
+    );
+    let channel = Channel::connect_lazy("127.0.0.1:9").expect("lazy");
+    let err = channel
+        .origin("grpc://127.0.0.1:50051")
+        .expect_err("origin grpc");
+    assert_eq!(err.code(), Code::InvalidArgument, "{err}");
+    assert!(
+        err.message().contains("invalid origin"),
+        "{}",
+        err.message()
+    );
+    assert!(
+        !err.message().contains("not a grpc://"),
         "{}",
         err.message()
     );
