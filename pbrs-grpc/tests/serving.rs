@@ -9394,6 +9394,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "Status::error_info must name ErrorInfo::with_metadata as the metadata builder"
     );
     assert!(
+        status_src.contains(
+            ".with_error_info(ErrorInfo::with_reason(\"API_DISABLED\", \"example.com\"));\n    /// let status = Status::from_error_details(\n    ///     Code::FailedPrecondition,"
+        ),
+        "Status::error_info rustdoc must plant ErrorInfo with with_error_info"
+    );
+    assert!(
         status_src.contains("Packed `google.rpc.BadRequest`, if this status carries one."),
         "Status::bad_request must name packed BadRequest"
     );
