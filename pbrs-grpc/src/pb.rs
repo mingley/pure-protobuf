@@ -233,6 +233,22 @@ impl RetryInfo {
     /// unpack with [`crate::Status::retry_delay`]. Distinct from
     /// [`crate::Status::is_retryable`]: a delay is a wait hint, not
     /// permission to retry.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{ErrorDetails, RetryInfo};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let details = ErrorDetails::new().with_retry_info(RetryInfo::with_retry_delay(
+    ///     std::time::Duration::from_secs(3),
+    /// ));
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "overloaded", &details)?;
+    /// assert!(!status.is_retryable());
+    /// assert_eq!(
+    ///     status.retry_delay(),
+    ///     Some(std::time::Duration::from_secs(3))
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
     #[must_use]
     pub fn with_retry_delay(delay: std::time::Duration) -> Self {
         let mut info = Self::new();
