@@ -12724,6 +12724,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         status_guide.contains(
+            "`ErrorDetails::with_retry_info` plants packed RetryInfo on this packed-status bag."
+        ),
+        "status guide must name ErrorDetails::with_retry_info next to ErrorDetails::with_error_info"
+    );
+    assert!(
+        status_guide.contains(
             "`Duration::from_std` builds the protobuf from `std` on this packed-status, Distinct from `try_to_std` converting this protobuf to `std`."
         ),
         "status guide must name Duration::from_std next to ErrorDetails::new"
