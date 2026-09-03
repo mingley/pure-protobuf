@@ -7228,8 +7228,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "crate map must name ErrorDetails::with_help next to ErrorDetails::with_resource_info"
     );
     assert!(
-        crate_src.contains("[`ErrorDetails::with_help`], [`ErrorDetails::to_anys`]"),
-        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_help"
+        crate_src.contains("[`ErrorDetails::with_help`], [`ErrorDetails::with_localized_message`]"),
+        "crate map must name ErrorDetails::with_localized_message next to ErrorDetails::with_help"
+    );
+    assert!(
+        crate_src.contains("[`ErrorDetails::with_localized_message`], [`ErrorDetails::to_anys`]"),
+        "crate map must name ErrorDetails::to_anys next to ErrorDetails::with_localized_message"
     );
     assert!(
         crate_src.contains("[`pb`], [`Any::pack`]"),
