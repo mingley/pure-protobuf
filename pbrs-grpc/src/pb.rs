@@ -346,6 +346,45 @@ impl quota_failure::Violation {
         self.set_api_service(api_service.into());
         self
     }
+
+    /// Sets `quota_metric` on this quota violation.
+    ///
+    /// Chain after [`Self::with_subject`]. Packed onto a status with
+    /// [`crate::Status::from_error_details`]; unpack with [`crate::Status::quota_failure`].
+    /// Distinct from [`Self::with_subject`]: that is subject and description, not the quota metric name.
+    /// Distinct from [`Self::with_api_service`]: that is the API service name, not the quota metric name.
+    /// Distinct from [`crate::Status::error_info`]: that is reason and domain, not a quota metric.
+    ///
+    /// ```
+    /// use pbrs_grpc::pb::{quota_failure, ErrorDetails, QuotaFailure};
+    /// use pbrs_grpc::{Code, Status};
+    ///
+    /// let violation = quota_failure::Violation::with_subject("project:1", "tokens")
+    ///     .with_quota_metric("compute.googleapis.com/cpus");
+    /// let mut quota = QuotaFailure::new();
+    /// quota.set_violations([violation]);
+    /// let details = ErrorDetails {
+    ///     quota_failure: Some(quota),
+    ///     ..ErrorDetails::default()
+    /// };
+    /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
+    /// let got = status.quota_failure().expect("QuotaFailure");
+    /// assert_eq!(
+    ///     got.violations()
+    ///         .get(0)
+    ///         .expect("v")
+    ///         .quota_metric()
+    ///         .to_str()
+    ///         .unwrap_or(""),
+    ///     "compute.googleapis.com/cpus"
+    /// );
+    /// # Ok::<(), Status>(())
+    /// ```
+    #[must_use]
+    pub fn with_quota_metric(mut self, quota_metric: impl Into<String>) -> Self {
+        self.set_quota_metric(quota_metric.into());
+        self
+    }
 }
 
 impl QuotaFailure {
@@ -1143,6 +1182,33 @@ mod tests {
         );
         assert!(status.error_info().is_none());
         assert!(status.bad_request().is_none());
+    }
+
+    #[test]
+    fn quota_failure_with_quota_metric_round_trips() {
+        let violation = quota_failure::Violation::with_subject("project:1", "tokens")
+            .with_quota_metric("compute.googleapis.com/cpus");
+        assert_eq!(violation.subject().to_str().unwrap_or(""), "project:1");
+        assert_eq!(
+            violation.quota_metric().to_str().unwrap_or(""),
+            "compute.googleapis.com/cpus"
+        );
+        let mut quota = QuotaFailure::new();
+        quota.set_violations([violation]);
+        let details = ErrorDetails {
+            quota_failure: Some(quota),
+            ..ErrorDetails::default()
+        };
+        let status = crate::Status::from_error_details(Code::ResourceExhausted, "quota", &details)
+            .expect("encode");
+        let got = status.quota_failure().expect("QuotaFailure");
+        let subject = got.violations().get(0).expect("subject");
+        assert_eq!(
+            subject.quota_metric().to_str().unwrap_or(""),
+            "compute.googleapis.com/cpus"
+        );
+        assert!(subject.api_service().to_str().unwrap_or("").is_empty());
+        assert!(status.error_info().is_none());
     }
 
     #[test]
