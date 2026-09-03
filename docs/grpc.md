@@ -1506,6 +1506,7 @@ call shape, including over TLS, mTLS, Unix, and `from_io`. Distinct from
 server cap (inbound, before the handler). Clones share the budget. A
 server-streaming or bidi slot is held until the received `Streaming` is
 dropped.
+There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). `ChannelConfig::max_concurrent_rpcs` is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 
 A well-behaved client never fills the pending-reset accept queue; every call
 shape still completes over TLS, mTLS, Unix, and `from_io`. Distinct from a
@@ -2434,6 +2435,7 @@ Deliberate omissions, with what to do instead.
 | Keepalive `PermitWithoutStream` / tonic `http2_keep_alive_while_idle` | PINGs already run on an interval regardless of RPC traffic. There is no while-idle setter. Idle close ignores them via outstanding-RPC accounting. Age is wall-clock from handshake, so PINGs do not postpone it. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. |
 | grpc-go keepalive `EnforcementPolicy` / `MinTime` | Inbound client PINGs are not rate-limited. There is no MinTime setter and no GOAWAY `ENHANCE_YOUR_CALM` / `too_many_pings`. `ServerConfig::keep_alive_interval` sends PINGs; it does not police the peer. Distinct from `data_frame_budget`, which is `ENHANCE_YOUR_CALM` for tiny DATA (`too_many_data_frames`), not PING rate. Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`, which is whether idle sockets PING. |
 | tonic `Endpoint::buffer_size` / grpc-go `ReadBufferSize` | Not a tower stack: there is no request mpsc. Clones share the pool. `ChannelConfig::max_send_buffer_size` is HTTP/2 write-byte backpressure (default 1 MiB). `ChannelConfig::stream_buffer` is client-streaming/bidi message queue depth (default 16). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this send buffer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
+| tonic `Endpoint::rate_limit` | Not a tower stack: there is no `RateLimitLayer`. `ChannelConfig::max_concurrent_rpcs` is in-flight slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N RPCs per duration. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from `tower` integration, which is protobuf-tonic keeping tonic. |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |

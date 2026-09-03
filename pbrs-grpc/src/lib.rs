@@ -751,6 +751,8 @@
 //!
 //! [`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default.
 //!
+//! There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! `tests/hostile.rs` drives raw HTTP/2 at the server to check the table above,
 //! including a rapid-reset flood that exceeds
 //! [`ServerConfig::max_pending_accept_reset_streams`]: that connection drops as

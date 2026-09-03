@@ -6819,6 +6819,12 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Endpoint::rate_limit` setter: that is tower\n    /// `RateLimitLayer` (at most N RPCs per duration). This kernel is not a\n    /// tower stack. This cap is in-flight slots, not a token bucket.\n    /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic."
+        ),
+        "ChannelConfig::max_concurrent_rpcs must Distinct in-flight slots from tonic Endpoint::rate_limit"
+    );
+    assert!(
+        src.contains(
             "pooled connection. Applies to every call shape, including over TLS,\n    /// mTLS, Unix, and [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::max_concurrent_rpcs must name every transport"
@@ -7356,6 +7362,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("[`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default."),
         "crate-map must Distinct tcp_keepalive_interval TCP_KEEPINTVL from HTTP/2 PING"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct max_concurrent_rpcs in-flight slots from tonic Endpoint::rate_limit"
     );
     assert!(
         crate_src.contains(
@@ -18106,6 +18116,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::buffer_size` / grpc-go `ReadBufferSize` | Not a tower stack: there is no request mpsc. Clones share the pool. `ChannelConfig::max_send_buffer_size` is HTTP/2 write-byte backpressure (default 1 MiB). `ChannelConfig::stream_buffer` is client-streaming/bidi message queue depth (default 16). Distinct from grpc-go `ReadBufferSize` / `WriteBufferSize`, which are socket byte buffers (default 32 KiB), not this send buffer. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Endpoint::buffer_size and grpc-go ReadBufferSize as an omission Distinct from this send buffer"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). `ChannelConfig::max_concurrent_rpcs` is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct ChannelConfig::max_concurrent_rpcs from tonic Endpoint::rate_limit"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). Distinct from `ChannelConfig::max_concurrent_rpcs` (in-flight slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct ChannelConfig::max_concurrent_rpcs from tonic Endpoint::rate_limit"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). Distinct from `ChannelConfig::max_concurrent_rpcs` (in-flight slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct ChannelConfig::max_concurrent_rpcs from tonic Endpoint::rate_limit"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). Distinct from `ChannelConfig::max_concurrent_rpcs` (in-flight slots). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct ChannelConfig::max_concurrent_rpcs from tonic Endpoint::rate_limit"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::rate_limit` | Not a tower stack: there is no `RateLimitLayer`. `ChannelConfig::max_concurrent_rpcs` is in-flight slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N RPCs per duration. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Endpoint::rate_limit as an omission Distinct from in-flight max_concurrent_rpcs"
     );
     assert!(
         guide.contains("A `Router` also serves `/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo` as a path alias of v1, so older grpcurl that falls back to v1alpha still lists. That is not a second proto and not a second `ServerReflectionServer`. `Server::new(reflection)` already answers that path because it does not look up `Service::NAME`. An interceptor sees `rpc.service()` as the path the peer sent. `list_services` still reports `FILE_DESCRIPTOR_SET` names, not the v1alpha alias."),

@@ -1538,6 +1538,10 @@ impl ChannelConfig {
     /// [`Self::max_concurrent_streams`] (per HTTP/2 connection SETTINGS;
     /// extras wait) and from [`ServerConfig::max_concurrent_rpcs`] (the
     /// server refuses inbound). Disabled by default.
+    /// There is no tonic `Endpoint::rate_limit` setter: that is tower
+    /// `RateLimitLayer` (at most N RPCs per duration). This kernel is not a
+    /// tower stack. This cap is in-flight slots, not a token bucket.
+    /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
     ///
     /// [`crate::Channel::max_concurrent_rpcs`] and generated
     /// `FooClient::max_concurrent_rpcs` set this without building a
