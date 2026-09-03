@@ -16621,6 +16621,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
         "guide must name FieldViolation::with_reason next to FieldViolation::with_field"
     );
     assert!(
+        guide.contains("`FieldViolation::with_localized_message` builds a nested field-violation locale after this guide FieldViolation builder."),
+        "guide must name FieldViolation::with_localized_message next to FieldViolation::with_reason"
+    );
+    assert!(
         guide.contains("Distinct from `status.error_info()`."),
         "guide must Distinct bad_request from error_info"
     );
