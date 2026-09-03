@@ -3696,6 +3696,12 @@ fn channel_call_apis_document_hand_written_services() {
     );
     assert!(
         intercept.contains(
+            "Distinct from a Server on_response Err: that is trailers-only after handler Ok; this ServiceExt intercept Err is trailers without reading the body."
+        ),
+        "ServiceExt::intercept rustdoc must Distinct Server on_response Err trailers-only after handler Ok from this ServiceExt intercept Err without reading the body"
+    );
+    assert!(
+        intercept.contains(
             "Distinct from a Channel on_response Err: that fails the Call after a successful receive; this ServiceExt intercept Err is trailers without reading the body."
         ),
         "ServiceExt::intercept rustdoc must Distinct Channel on_response Err Call fail after receive from this ServiceExt intercept Err without reading the body"
