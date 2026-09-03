@@ -416,10 +416,7 @@ impl quota_failure::Violation {
     ///     .with_api_service("compute.googleapis.com");
     /// let mut quota = QuotaFailure::new();
     /// quota.set_violations([violation]);
-    /// let details = ErrorDetails {
-    ///     quota_failure: Some(quota),
-    ///     ..ErrorDetails::default()
-    /// };
+    /// let details = ErrorDetails::new().with_quota_failure(quota);
     /// let status = Status::from_error_details(Code::ResourceExhausted, "quota", &details)?;
     /// let got = status.quota_failure().expect("QuotaFailure");
     /// assert_eq!(
