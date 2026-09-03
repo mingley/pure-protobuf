@@ -1644,6 +1644,14 @@ impl ChannelConfig {
     /// `RateLimitLayer` (at most N RPCs per duration). This kernel is not a
     /// tower stack. This cap is in-flight slots, not a token bucket.
     /// Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+    /// There is no tonic `Endpoint::concurrency_limit` setter: that is tower
+    /// `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). This kernel
+    /// is not a tower stack. This cap already refuses extras as
+    /// [`crate::Code::ResourceExhausted`] (`try_acquire`, not wait). Distinct
+    /// from `Endpoint::rate_limit` (token bucket). Distinct from tonic
+    /// `Server::concurrency_limit_per_connection` (server per-connection wait
+    /// layer). Distinct from `tower` integration, which is protobuf-tonic
+    /// keeping tonic.
     ///
     /// [`crate::Channel::max_concurrent_rpcs`] and generated
     /// `FooClient::max_concurrent_rpcs` set this without building a

@@ -755,6 +755,8 @@
 //!
 //! There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
+//! There is no tonic `Endpoint::concurrency_limit`: that is tower `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). This crate-map [`ChannelConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
+//!
 //! There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ChannelConfig::connections`] `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
 //! There is no tonic `Server::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ServerConfig::max_concurrent_connections`] handshake task is `tokio::spawn`ed on the current tokio runtime. Distinct from tonic `Endpoint::executor` (client [`ChannelConfig::connections`]). Distinct from `tower` integration, which is protobuf-tonic keeping tonic.

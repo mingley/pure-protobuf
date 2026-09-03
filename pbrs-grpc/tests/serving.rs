@@ -6891,6 +6891,18 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         src.contains(
+            "There is no tonic `Endpoint::concurrency_limit` setter: that is tower\n    /// `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). This kernel\n    /// is not a tower stack. This cap already refuses extras as\n    /// [`crate::Code::ResourceExhausted`] (`try_acquire`, not wait). Distinct\n    /// from `Endpoint::rate_limit` (token bucket). Distinct from tonic\n    /// `Server::concurrency_limit_per_connection` (server per-connection wait\n    /// layer). Distinct from `tower` integration, which is protobuf-tonic\n    /// keeping tonic."
+        ),
+        "ChannelConfig::max_concurrent_rpcs rustdoc must Distinct try_acquire refuse from tonic Endpoint::concurrency_limit wait"
+    );
+    assert_eq!(
+        src.matches("There is no tonic `Endpoint::concurrency_limit` setter")
+            .count(),
+        1,
+        "ServerConfig::max_concurrent_rpcs must not copy the client concurrency_limit Distinct"
+    );
+    assert!(
+        src.contains(
             "pooled connection. Applies to every call shape, including over TLS,\n    /// mTLS, Unix, and [`crate::Channel::from_io`]."
         ),
         "ChannelConfig::max_concurrent_rpcs must name every transport"
@@ -7442,6 +7454,10 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         crate_src.contains("There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "crate-map must Distinct max_concurrent_rpcs in-flight slots from tonic Endpoint::rate_limit"
+    );
+    assert!(
+        crate_src.contains("There is no tonic `Endpoint::concurrency_limit`: that is tower `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). This crate-map [`ChannelConfig::max_concurrent_rpcs`] already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate-map must Distinct max_concurrent_rpcs try_acquire refuse from tonic Endpoint::concurrency_limit"
     );
     assert!(
         crate_src.contains("There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. This crate-map [`ChannelConfig::connections`] `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
@@ -18268,6 +18284,26 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     assert!(
         guide.contains("tonic `Endpoint::rate_limit` | Not a tower stack: there is no `RateLimitLayer`. `ChannelConfig::max_concurrent_rpcs` is in-flight slots (`RESOURCE_EXHAUSTED` when full, not retryable), not N RPCs per duration. Distinct from `SETTINGS_MAX_CONCURRENT_STREAMS` (extras wait). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
         "guide must keep tonic Endpoint::rate_limit as an omission Distinct from in-flight max_concurrent_rpcs"
+    );
+    assert!(
+        guide.contains("There is no tonic `Endpoint::concurrency_limit`: that is tower `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). `ChannelConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must Distinct max_concurrent_rpcs try_acquire refuse from tonic Endpoint::concurrency_limit"
+    );
+    assert!(
+        architecture.contains("There is no tonic `Endpoint::concurrency_limit`: that is tower `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). Distinct from `ChannelConfig::max_concurrent_rpcs` (`RESOURCE_EXHAUSTED` on `try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "architecture must Distinct max_concurrent_rpcs try_acquire refuse from tonic Endpoint::concurrency_limit"
+    );
+    assert!(
+        status_guide.contains("  There is no tonic `Endpoint::concurrency_limit`: that is tower `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). Distinct from `ChannelConfig::max_concurrent_rpcs` (`RESOURCE_EXHAUSTED` on `try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "status guide must Distinct max_concurrent_rpcs try_acquire refuse from tonic Endpoint::concurrency_limit"
+    );
+    assert!(
+        readme.contains("There is no tonic `Endpoint::concurrency_limit`: that is tower `ConcurrencyLimitLayer` (wait when `poll_ready` is pending). Distinct from `ChannelConfig::max_concurrent_rpcs` (`RESOURCE_EXHAUSTED` on `try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "crate README must Distinct max_concurrent_rpcs try_acquire refuse from tonic Endpoint::concurrency_limit"
+    );
+    assert!(
+        guide.contains("tonic `Endpoint::concurrency_limit` | Not a tower stack: there is no client `ConcurrencyLimitLayer`. `ChannelConfig::max_concurrent_rpcs` already refuses extras as `RESOURCE_EXHAUSTED` (`try_acquire`, not wait). Distinct from `Endpoint::rate_limit` (token bucket). Distinct from tonic `Server::concurrency_limit_per_connection` (server per-connection wait layer). Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
+        "guide must keep tonic Endpoint::concurrency_limit as an omission Distinct from try_acquire RESOURCE_EXHAUSTED"
     );
     assert!(
         guide.contains("There is no tonic `Endpoint::executor`: that is `SharedExec` on tonic's hyper stack. Each `ChannelConfig::connections` `h2` driver is `tokio::spawn`ed on the current tokio runtime. Distinct from `tower` integration, which is protobuf-tonic keeping tonic."),
