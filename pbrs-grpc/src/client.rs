@@ -862,6 +862,14 @@ impl Channel {
     /// Unix, and [`Self::from_io`].
     ///
     /// Off by default. Equivalent to [`ChannelConfig::send_compressed`].
+    /// There is no grpc-go `WithCompressor`: that is a DialOption plugging a
+    /// custom `encoding.Compressor` (deprecated; `encoding.RegisterCompressor`
+    /// is global). This overlay is gzip on or off, not a compressor plugin.
+    /// There is no `WithDecompressor` (deprecated inbound plugin). Distinct
+    /// from encodings other than gzip (`UNIMPLEMENTED`, not a plugin). Distinct
+    /// from [`Self::gzip_compression_level`] (deflate effort, not a plugin).
+    /// Distinct from grpc-go `UseCompressor` (a CallOption name, not this
+    /// overlay).
     /// A request that already called [`crate::Request::set_compress`] is
     /// left alone, including `set_compress(false)` to opt out. Interceptors
     /// run before a client- or bidi-stream [`crate::StreamSender`] is

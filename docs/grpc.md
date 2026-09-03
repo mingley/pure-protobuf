@@ -1270,6 +1270,7 @@ benefit and leave the rest alone. Official `grpc.testing` gzip cases
 `InteropTestService` over TLS, mTLS, Unix, and `from_io`. Uncompressed
 `_TEST_CASES` (`empty_unary` through `unimplemented_service`) pass on those
 transports too:
+There is no grpc-go `WithCompressor`: that is a DialOption plugging a custom `encoding.Compressor` (deprecated; `encoding.RegisterCompressor` is global). `Channel::send_compressed` is gzip on or off, not a compressor plugin. There is no `WithDecompressor` (deprecated inbound plugin). Distinct from encodings other than gzip (`UNIMPLEMENTED`, not a plugin). Distinct from `Channel::gzip_compression_level` (deflate effort, not a plugin). Distinct from grpc-go `UseCompressor` (a CallOption name, not this overlay).
 
 ```rust
 let mut req = Request::new(big_payload);
@@ -2493,6 +2494,7 @@ Deliberate omissions, with what to do instead.
 | grpc-go `WithInsecure` / `WithTransportCredentials` | Not a required credentials object: modern grpc-go `NewClient` requires `insecure.NewCredentials()` or TLS. `Channel::connect` is h2c by default; TLS is `Channel::connect_tls` plus `ClientTls`. Distinct from a skip-verify constructor (there is none). Distinct from `https_scheme` (`from_io` label; it does not handshake). |
 | grpc-go `WithUnaryInterceptor` / `WithStreamInterceptor` / `WithChainUnaryInterceptor` / `WithChainStreamInterceptor` | Not a DialOption split: grpc-go unary vs stream interceptors are separate DialOptions; chain variants append lists. `ClientInterceptor` is one hook for every call shape, attached with `Channel::intercept` after connect. Calling intercept twice stacks; there is no chain DialOption. Distinct from `Interceptor` (inbound before the handler). Distinct from `ResponseInterceptor` (after Ok or after receive). Distinct from tonic `Interceptor` / `InterceptorLayer` (tower; this kernel has no tower). |
 | grpc-go `WithDefaultCallOptions` | Not a DialOption bag: grpc-go applies `CallOption` defaults (`WaitForReady`, `MaxCallRecvMsgSize`, compressor, …) at dial. `Channel` clone overlays (`timeout`, `wait_for_ready`, `send_compressed`, message caps) are typed methods, not a `CallOption` list. Distinct from grpc-go `WithDefaultServiceConfig` (JSON service config, not CallOptions). Distinct from `ChannelConfig` (handshake `Copy` fields). Distinct from `Channel::intercept` (per-RPC mutation after connect). |
+| grpc-go `WithCompressor` / `WithDecompressor` | Not a compressor plugin: grpc-go `WithCompressor` plugs a custom `encoding.Compressor` (deprecated; `encoding.RegisterCompressor` is global). `Channel::send_compressed` is gzip on or off. Distinct from encodings other than gzip (`UNIMPLEMENTED`, not a plugin). Distinct from `gzip_compression_level` (deflate effort, not a plugin). Distinct from grpc-go `UseCompressor` (a CallOption name, not this overlay). |
 | `tower` integration | Use `protobuf-tonic`, which keeps tonic and only swaps in pbrs message types. |
 | Encodings other than gzip | Not implemented. Unsupported requests are refused with `UNIMPLEMENTED` rather than mis-decoded. |
 | grpc-web / HTTP/1.1 | Speak prior-knowledge HTTP/2 (h2c or TLS+ALPN `h2`). |
