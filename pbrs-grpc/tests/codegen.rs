@@ -1459,6 +1459,7 @@ async fn generated_servers_accept_configuration() {
             .keep_alive_timeout(Duration::from_secs(10))
             .tcp_keepalive(Duration::from_secs(30))
             .tcp_keepalive_interval(Duration::from_secs(10))
+            .tcp_keepalive_retries(5)
             .max_connection_age(Duration::from_secs(1800))
             .max_connection_idle(Duration::from_secs(300))
             .max_connection_age_grace(Duration::from_secs(30))

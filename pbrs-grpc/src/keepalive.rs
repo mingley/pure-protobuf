@@ -6,8 +6,10 @@
 //! [`crate::ChannelConfig::tcp_keepalive`], applied in `tcp`. Probe interval
 //! is [`crate::ServerConfig::tcp_keepalive_interval`] /
 //! [`crate::ChannelConfig::tcp_keepalive_interval`] (`TCP_KEEPINTVL`); it does
-//! not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel
-//! default.
+//! not turn `SO_KEEPALIVE` on by itself. Probe retry count is
+//! [`crate::ServerConfig::tcp_keepalive_retries`] /
+//! [`crate::ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`); it does
+//! not turn `SO_KEEPALIVE` on by itself either.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;

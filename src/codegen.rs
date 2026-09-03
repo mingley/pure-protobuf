@@ -4422,6 +4422,15 @@ fn emit_kernel_server(
     );
     let _ = writeln!(
         src,
+        "    /// TCP `TCP_KEEPCNT` probe count. Applies only when [`Self::tcp_keepalive`] is set; this does not turn `SO_KEEPALIVE` on by itself. Distinct from [`Self::tcp_keepalive_interval`] (`TCP_KEEPINTVL` time, not count). See [`{G}::ServerConfig::tcp_keepalive_retries`]."
+    );
+    let _ = writeln!(src, "    #[must_use]");
+    let _ = writeln!(
+        src,
+        "    pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {{ self.config = self.config.tcp_keepalive_retries(retries); self }}"
+    );
+    let _ = writeln!(
+        src,
         "    /// Send GOAWAY this long after accept. The next RPC of every call shape redials, including over TLS, mTLS, and Unix; transparent retry of the same in-flight RPC is unary and server-streaming after request bytes, client-streaming and bidi before HEADERS. See [`{G}::ServerConfig::max_connection_age`]."
     );
     let _ = writeln!(src, "    #[must_use]");

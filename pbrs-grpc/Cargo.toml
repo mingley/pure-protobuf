@@ -28,7 +28,8 @@ rustls-graviola = "0.4"
 rustls-pemfile = "2"
 # Pure-Rust wrapper around libc socket options. Tokio already depends on it;
 # a direct dep lets the kernel set SO_KEEPALIVE without compiling C.
-socket2 = "0.6"
+# `all` is an empty feature that unlocks `TCP_KEEPCNT` (`with_retries`).
+socket2 = { version = "0.6", features = ["all"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time", "sync", "io-util"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["tls12"] }
 webpki-roots = "1"

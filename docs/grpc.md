@@ -903,13 +903,16 @@ are not. Applies to every call shape:
 ```rust
 GreeterServer::new(MyGreeter)
     .tcp_keepalive(Duration::from_secs(30))
-    .tcp_keepalive_interval(Duration::from_secs(10));
+    .tcp_keepalive_interval(Duration::from_secs(10))
+    .tcp_keepalive_retries(5);
 ChannelConfig::new()
     .tcp_keepalive(Duration::from_secs(30))
-    .tcp_keepalive_interval(Duration::from_secs(10));
+    .tcp_keepalive_interval(Duration::from_secs(10))
+    .tcp_keepalive_retries(5);
 ```
 
-`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default. Only TCP is affected; Unix sockets and `Channel::from_io` skip it.
+`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count is `tcp_keepalive_retries` (`TCP_KEEPCNT`). Only TCP is affected; Unix sockets and `Channel::from_io` skip it.
+`ChannelConfig::tcp_keepalive_retries` is `TCP_KEEPCNT` after idle `tcp_keepalive`. Distinct from `tcp_keepalive_interval`, which is probe spacing (`TCP_KEEPINTVL`), not how many probes. This does not turn `SO_KEEPALIVE` on by itself.
 
 PING sees a half-open HTTP/2 session. TCP keepalive sees a half-open socket
 when there is no HTTP/2 traffic, including when PING is off. Use both when

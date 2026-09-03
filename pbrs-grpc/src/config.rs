@@ -145,6 +145,7 @@ pub struct ServerConfig {
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
     tcp_keepalive_interval: Option<Duration>,
+    tcp_keepalive_retries: Option<u32>,
     handshake_timeout: Duration,
     max_connection_age: Option<Duration>,
     max_connection_idle: Option<Duration>,
@@ -177,6 +178,7 @@ impl Default for ServerConfig {
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
             tcp_keepalive_interval: None,
+            tcp_keepalive_retries: None,
             handshake_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_age: None,
             max_connection_idle: None,
@@ -471,7 +473,8 @@ impl ServerConfig {
     /// sockets are affected; Unix domain sockets and [`crate::Channel::from_io`]
     /// streams are not. Probe interval is [`Self::tcp_keepalive_interval`]
     /// (`TCP_KEEPINTVL`); this idle time does not set it. Probe retry count
-    /// stays at the kernel default.
+    /// is [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this idle time
+    /// does not set it.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
     /// `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
@@ -490,8 +493,9 @@ impl ServerConfig {
     ///
     /// Disabled by default (kernel default). Values below 1 ms are raised to
     /// 1 ms. Only applied when [`Self::tcp_keepalive`] is also set; this does
-    /// not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the
-    /// kernel default. Only TCP sockets are affected; Unix domain sockets and
+    /// not turn `SO_KEEPALIVE` on by itself. Probe retry count is
+    /// [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this interval does
+    /// not set it. Only TCP sockets are affected; Unix domain sockets and
     /// [`crate::Channel::from_io`] streams are not.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
@@ -501,6 +505,24 @@ impl ServerConfig {
     #[must_use]
     pub fn tcp_keepalive_interval(mut self, interval: Duration) -> Self {
         self.tcp_keepalive_interval = Some(interval.max(Duration::from_millis(1)));
+        self
+    }
+
+    /// TCP keepalive probe count (`TCP_KEEPCNT`) after idle
+    /// [`Self::tcp_keepalive`].
+    ///
+    /// Disabled by default (kernel default). Zero is raised to 1. Only
+    /// applied when [`Self::tcp_keepalive`] is also set; this does not turn
+    /// `SO_KEEPALIVE` on by itself. Only TCP sockets are affected; Unix
+    /// domain sockets and [`crate::Channel::from_io`] streams are not.
+    ///
+    /// Distinct from [`Self::tcp_keepalive_interval`], which is probe
+    /// spacing (`TCP_KEEPINTVL`), not how many probes. Distinct from
+    /// [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    /// Applies to every call shape, including over TLS and mTLS.
+    #[must_use]
+    pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {
+        self.tcp_keepalive_retries = Some(retries.max(1));
         self
     }
 
@@ -763,6 +785,13 @@ impl ServerConfig {
         self.tcp_keepalive_interval
     }
 
+    /// Configured TCP keepalive probe count, if any. See
+    /// [`Self::tcp_keepalive_retries`]. Applies to every call shape.
+    #[must_use]
+    pub fn tcp_keepalive_probe_retries(self) -> Option<u32> {
+        self.tcp_keepalive_retries
+    }
+
     /// HTTP/2 per-stream receive window. See [`Self::initial_stream_window_size`].
     /// Applies to every call shape.
     #[must_use]
@@ -960,6 +989,7 @@ pub struct ChannelConfig {
     keep_alive_timeout: Duration,
     tcp_keepalive: Option<Duration>,
     tcp_keepalive_interval: Option<Duration>,
+    tcp_keepalive_retries: Option<u32>,
     local_address: Option<SocketAddr>,
     connect_timeout: Duration,
     max_connection_idle: Option<Duration>,
@@ -995,6 +1025,7 @@ impl Default for ChannelConfig {
             keep_alive_timeout: DEFAULT_KEEP_ALIVE_TIMEOUT,
             tcp_keepalive: None,
             tcp_keepalive_interval: None,
+            tcp_keepalive_retries: None,
             local_address: None,
             connect_timeout: DEFAULT_CONNECT_TIMEOUT,
             max_connection_idle: None,
@@ -1320,7 +1351,8 @@ impl ChannelConfig {
     /// sockets are affected; Unix domain sockets and [`crate::Channel::from_io`]
     /// streams are not. Probe interval is [`Self::tcp_keepalive_interval`]
     /// (`TCP_KEEPINTVL`); this idle time does not set it. Probe retry count
-    /// stays at the kernel default.
+    /// is [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this idle time
+    /// does not set it.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
     /// `TCP_NODELAY` is always on for TCP connect and accept (Nagle off).
@@ -1339,8 +1371,9 @@ impl ChannelConfig {
     ///
     /// Disabled by default (kernel default). Values below 1 ms are raised to
     /// 1 ms. Only applied when [`Self::tcp_keepalive`] is also set; this does
-    /// not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the
-    /// kernel default. Only TCP sockets are affected; Unix domain sockets and
+    /// not turn `SO_KEEPALIVE` on by itself. Probe retry count is
+    /// [`Self::tcp_keepalive_retries`] (`TCP_KEEPCNT`); this interval does
+    /// not set it. Only TCP sockets are affected; Unix domain sockets and
     /// [`crate::Channel::from_io`] streams are not.
     ///
     /// Distinct from [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
@@ -1350,6 +1383,24 @@ impl ChannelConfig {
     #[must_use]
     pub fn tcp_keepalive_interval(mut self, interval: Duration) -> Self {
         self.tcp_keepalive_interval = Some(interval.max(Duration::from_millis(1)));
+        self
+    }
+
+    /// TCP keepalive probe count (`TCP_KEEPCNT`) after idle
+    /// [`Self::tcp_keepalive`].
+    ///
+    /// Disabled by default (kernel default). Zero is raised to 1. Only
+    /// applied when [`Self::tcp_keepalive`] is also set; this does not turn
+    /// `SO_KEEPALIVE` on by itself. Only TCP sockets are affected; Unix
+    /// domain sockets and [`crate::Channel::from_io`] streams are not.
+    ///
+    /// Distinct from [`Self::tcp_keepalive_interval`], which is probe
+    /// spacing (`TCP_KEEPINTVL`), not how many probes. Distinct from
+    /// [`Self::keep_alive_interval`], which sends HTTP/2 PINGs.
+    /// Applies to every call shape, including over TLS and mTLS.
+    #[must_use]
+    pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {
+        self.tcp_keepalive_retries = Some(retries.max(1));
         self
     }
 
@@ -1609,6 +1660,13 @@ impl ChannelConfig {
         self.tcp_keepalive_interval
     }
 
+    /// Configured TCP keepalive probe count, if any. See
+    /// [`Self::tcp_keepalive_retries`]. Applies to every call shape.
+    #[must_use]
+    pub fn tcp_keepalive_probe_retries(self) -> Option<u32> {
+        self.tcp_keepalive_retries
+    }
+
     /// Configured TCP source bind, if any. See [`Self::local_address`].
     /// Applies to every TCP call shape; Unix and [`crate::Channel::from_io`]
     /// skip it.
@@ -1833,7 +1891,9 @@ mod tests {
         assert_eq!(config.concurrent_rpc_limit(), None);
         assert_eq!(config.tcp_keepalive_period(), None);
         assert_eq!(config.tcp_keepalive_probe_interval(), None);
+        assert_eq!(config.tcp_keepalive_probe_retries(), None);
         assert_eq!(ChannelConfig::new().tcp_keepalive_probe_interval(), None);
+        assert_eq!(ChannelConfig::new().tcp_keepalive_probe_retries(), None);
         assert_eq!(ChannelConfig::new().bound_local_address(), None);
         assert_eq!(config.keep_alive_ping_interval(), None);
         assert_eq!(config.stream_window(), super::DEFAULT_WINDOW_SIZE);
@@ -2117,6 +2177,24 @@ mod tests {
         assert_eq!(
             ChannelConfig::new()
                 .tcp_keepalive_interval(Duration::from_secs(5))
+                .tcp_keepalive_period(),
+            None
+        );
+        assert_eq!(
+            ServerConfig::new()
+                .tcp_keepalive_retries(0)
+                .tcp_keepalive_probe_retries(),
+            Some(1)
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .tcp_keepalive_retries(0)
+                .tcp_keepalive_probe_retries(),
+            Some(1)
+        );
+        assert_eq!(
+            ChannelConfig::new()
+                .tcp_keepalive_retries(5)
                 .tcp_keepalive_period(),
             None
         );

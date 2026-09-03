@@ -52,20 +52,23 @@ async fn bind_connect(local: SocketAddr, remote: SocketAddr) -> std::io::Result<
 }
 
 /// `TCP_NODELAY` always; `SO_KEEPALIVE` when `keepalive` is `Some`.
-/// `keepalive_interval` is `TCP_KEEPINTVL` after that idle time. It does not
-/// turn `SO_KEEPALIVE` on by itself.
+/// `keepalive_interval` is `TCP_KEEPINTVL` after that idle time.
+/// `keepalive_retries` is `TCP_KEEPCNT`. Neither turns `SO_KEEPALIVE` on by
+/// itself.
 pub(crate) fn tune(
     tcp: &TcpStream,
     keepalive: Option<Duration>,
     keepalive_interval: Option<Duration>,
+    keepalive_retries: Option<u32>,
 ) -> std::io::Result<()> {
     tcp.set_nodelay(true)?;
     if let Some(time) = keepalive {
         let ka = socket2::TcpKeepalive::new().with_time(time);
         let ka = apply_keepalive_interval(ka, keepalive_interval);
+        let ka = apply_keepalive_retries(ka, keepalive_retries);
         socket2::SockRef::from(tcp).set_tcp_keepalive(&ka)?;
     } else {
-        let _ = keepalive_interval;
+        let _ = (keepalive_interval, keepalive_retries);
     }
     Ok(())
 }
@@ -125,6 +128,61 @@ fn apply_keepalive_interval(
     ka
 }
 
+#[cfg(any(
+    target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "visionos",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
+    target_os = "cygwin",
+    target_os = "windows",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
+))]
+fn apply_keepalive_retries(
+    ka: socket2::TcpKeepalive,
+    retries: Option<u32>,
+) -> socket2::TcpKeepalive {
+    match retries {
+        Some(retries) => ka.with_retries(retries),
+        None => ka,
+    }
+}
+
+#[cfg(not(any(
+    target_os = "android",
+    target_os = "dragonfly",
+    target_os = "emscripten",
+    target_os = "freebsd",
+    target_os = "fuchsia",
+    target_os = "illumos",
+    target_os = "ios",
+    target_os = "visionos",
+    target_os = "linux",
+    target_os = "macos",
+    target_os = "netbsd",
+    target_os = "tvos",
+    target_os = "watchos",
+    target_os = "cygwin",
+    target_os = "windows",
+    target_os = "nuttx",
+    all(target_os = "wasi", not(target_env = "p1")),
+)))]
+fn apply_keepalive_retries(
+    ka: socket2::TcpKeepalive,
+    _retries: Option<u32>,
+) -> socket2::TcpKeepalive {
+    ka
+}
+
 #[cfg(test)]
 mod tests {
     use super::{connect, tune};
@@ -143,12 +201,13 @@ mod tests {
             &client,
             Some(Duration::from_secs(15)),
             Some(Duration::from_secs(5)),
+            Some(3),
         )
         .unwrap();
         assert!(client.nodelay().unwrap());
         assert!(socket2::SockRef::from(&client).keepalive().unwrap());
 
-        tune(&server, None, Some(Duration::from_secs(5))).unwrap();
+        tune(&server, None, Some(Duration::from_secs(5)), Some(3)).unwrap();
         assert!(server.nodelay().unwrap());
         assert!(!socket2::SockRef::from(&server).keepalive().unwrap());
     }

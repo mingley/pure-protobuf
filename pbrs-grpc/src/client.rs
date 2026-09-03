@@ -2129,6 +2129,7 @@ async fn handshake_io(
                 &tcp,
                 config.tcp_keepalive_period(),
                 config.tcp_keepalive_probe_interval(),
+                config.tcp_keepalive_probe_retries(),
             )
             .map_err(|e| Status::unavailable(e.to_string()))?;
             match tls {

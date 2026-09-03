@@ -1893,6 +1893,17 @@ impl<S: Service> Server<S> {
         self
     }
 
+    /// TCP `TCP_KEEPCNT` probe count. Applies to every call shape.
+    /// Only applied when [`Self::tcp_keepalive`] is also set; this does not
+    /// turn `SO_KEEPALIVE` on by itself. Distinct from
+    /// [`Self::tcp_keepalive_interval`], which is probe spacing. See
+    /// [`ServerConfig::tcp_keepalive_retries`].
+    #[must_use]
+    pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {
+        self.config = self.config.tcp_keepalive_retries(retries);
+        self
+    }
+
     /// Send GOAWAY this long after accept. The next RPC of every call shape
     /// redials, including over TLS, mTLS, and Unix; transparent retry of the
     /// same in-flight RPC is unary and server-streaming after request bytes,
@@ -2826,6 +2837,17 @@ impl Router {
         self
     }
 
+    /// TCP `TCP_KEEPCNT` probe count. Applies to every call shape.
+    /// Only applied when [`Self::tcp_keepalive`] is also set; this does not
+    /// turn `SO_KEEPALIVE` on by itself. Distinct from
+    /// [`Self::tcp_keepalive_interval`], which is probe spacing. See
+    /// [`ServerConfig::tcp_keepalive_retries`].
+    #[must_use]
+    pub fn tcp_keepalive_retries(mut self, retries: u32) -> Self {
+        self.config = self.config.tcp_keepalive_retries(retries);
+        self
+    }
+
     /// Send GOAWAY this long after accept. The next RPC of every call shape
     /// redials, including over TLS, mTLS, and Unix; transparent retry of the
     /// same in-flight RPC is unary and server-streaming after request bytes,
@@ -3391,6 +3413,7 @@ async fn accept_loop<D: Dispatch>(
                         &tcp,
                         config.tcp_keepalive_period(),
                         config.tcp_keepalive_probe_interval(),
+                        config.tcp_keepalive_probe_retries(),
                     )
                     .ok();
                     let local = tcp.local_addr().ok();

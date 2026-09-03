@@ -140,7 +140,8 @@ RPCs are in flight; in-flight get grace, then the driver stops. Distinct from id
 Keepalive PINGs do not postpone age.
 There is no `http2_keep_alive_while_idle` setter: once `ChannelConfig::keep_alive_interval` is set, idle connections PING too. Distinct from tonic's `Endpoint::http2_keep_alive_while_idle`, which defaults off. Distinct from grpc-go `PermitWithoutStream`, which is that same idle-PING flag.
 There is no grpc-go `EnforcementPolicy` / `MinTime` setter: inbound client PINGs are not GOAWAY'd. Distinct from `ServerConfig::data_frame_budget` (`too_many_data_frames`, not `too_many_pings`). Distinct from `PermitWithoutStream` / tonic `http2_keep_alive_while_idle`.
-`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default.
+`ChannelConfig::tcp_keepalive_interval` is `TCP_KEEPINTVL` after idle `tcp_keepalive`. Distinct from `keep_alive_interval`, which sends HTTP/2 PINGs. This does not turn `SO_KEEPALIVE` on by itself. Probe retry count is `tcp_keepalive_retries` (`TCP_KEEPCNT`).
+`ChannelConfig::tcp_keepalive_retries` is `TCP_KEEPCNT` after idle `tcp_keepalive`. Distinct from `tcp_keepalive_interval`, which is probe spacing (`TCP_KEEPINTVL`), not how many probes. This does not turn `SO_KEEPALIVE` on by itself.
 `Channel::connected` is a snapshot of live sockets. Distinct from gRPC GetState.
 `Outgoing::connected` is that same snapshot when a client interceptor runs.
 Distinct from wait-for-ready: a lazy first RPC sees `false` even when that overlay is on.

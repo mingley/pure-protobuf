@@ -749,7 +749,9 @@
 //! behind a sidecar should call [`Server::serve_tls`] / [`Channel::connect_tls`].
 //! There is no constructor that skips certificate verification.
 //!
-//! [`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count stays at the kernel default.
+//! [`ChannelConfig::tcp_keepalive_interval`] is `TCP_KEEPINTVL` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::keep_alive_interval`], which sends HTTP/2 PINGs. This crate-map interval does not turn `SO_KEEPALIVE` on by itself. Probe retry count is [`ChannelConfig::tcp_keepalive_retries`] (`TCP_KEEPCNT`).
+//!
+//! [`ChannelConfig::tcp_keepalive_retries`] is `TCP_KEEPCNT` after idle [`ChannelConfig::tcp_keepalive`]. Distinct from [`ChannelConfig::tcp_keepalive_interval`] (`TCP_KEEPINTVL` time, not count). This crate-map retry count does not turn `SO_KEEPALIVE` on by itself.
 //!
 //! There is no tonic `Endpoint::rate_limit`: that is tower `RateLimitLayer` (at most N RPCs per duration). This crate-map [`ChannelConfig::max_concurrent_rpcs`] is in-flight slots, not a token bucket. Distinct from `tower` integration, which is protobuf-tonic keeping tonic.
 //!
