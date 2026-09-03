@@ -9799,7 +9799,7 @@ fn channel_config_connect_timeout_documents_every_call_shape() {
     );
     assert!(
         pb_src.contains(
-            ".with_help(Help::with_link(\"quota docs\", \"https://example.com/quota\"));"
+            ".with_help(Help::with_link(\"quota docs\", \"https://example.com/quota\"));\n    /// let status = Status::from_error_details(Code::Unavailable, \"backend\", &details)?;\n    /// assert!(status.is_retryable());\n    /// let help = status.help().expect(\"Help\");\n    /// assert_eq!(\n    ///     help.links().get(0).expect(\"link\").url().to_str().unwrap_or(\"\"),"
         ),
         "Help::with_link rustdoc must plant Help with with_help"
     );
